@@ -1624,8 +1624,6 @@ TEST_P(sdpa_micro_i8_vs_test, i8_value_matches_the_same_codes_held_as_f16) {
 
     if (!device_info.supports_immad)
         GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
-    if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
-        GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
 
     const size_t heads = static_cast<size_t>(p.num_heads);
     const size_t hs = static_cast<size_t>(p.head_size);
@@ -1772,8 +1770,6 @@ TEST_P(sdpa_micro_rope_q_test, fused_rotation_matches_the_rotation_applied_on_th
 
     if (!device_info.supports_immad)
         GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
-    if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
-        GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
 
     const size_t b = static_cast<size_t>(p.batch);
     const size_t heads = static_cast<size_t>(p.num_heads);

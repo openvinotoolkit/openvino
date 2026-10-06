@@ -1869,8 +1869,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                           // A 4-bit KV cache disables the micro kernel at execute time.
                                           ov::element::Type(config.get_kv_cache_precision()).bitwidth() != 4;
         if (micro_sdpa_available) {
-            const bool is_xe3p = device_info.arch == cldnn::gpu_arch::xe3p;
-            pass_config->set_callback<ov::intel_gpu::RoPESDPAFusion>([is_xe3p](const_node_ptr& node) -> bool {
+            pass_config->set_callback<ov::intel_gpu::RoPESDPAFusion>([](const_node_ptr& node) -> bool {
                 // Returning true skips the fusion. Mirrors the per-node conditions in
                 // SDPAOpt::supports_micro_sdpa that are visible on the graph. Anything left
                 // unmirrored is a model that folds here and then fails to compile, because by
@@ -1931,8 +1930,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
                 }
-                // WA carried from supports_micro_sdpa: micro-SDPA is off on xe3p below head size 64.
-                return is_xe3p && k_head_size <= 64;
+                return false;
             });
             manager.register_pass<ov::intel_gpu::RoPESDPAFusion>();
         }
