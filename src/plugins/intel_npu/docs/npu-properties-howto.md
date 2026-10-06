@@ -76,23 +76,18 @@ flowchart TD
     E --> F
 
     B --> G[getMergedConfigForCompilation]
-    G --> H[runtimeConfig, compilerProperties, unknownProperties]
-    H --> I[runtimeConfig: Config]
-    H --> Q[compilerProperties: std::map of strings]
-    H --> J[unknownProperties: ov::AnyMap]
-
     B --> R[getMergedConfigForImport]
-    R --> S[runtimeConfig plus unknownProperties]
-    S --> I
-    S --> J
+    G --> H[MergedConfig]
+    R --> H
+    H --> I[runtimeConfig: Config]
+    H --> Q[compilerProperties: std::map of strings, empty on import]
+    H --> J[unknownProperties: ov::AnyMap]
 
     Q --> K[Compiler adapters]
     I --> L[Import path]
     I --> M[Other runtime components]
 
-    I --> N[CompiledModel]
-    Q --> N
-    J --> N
+    H --> N[CompiledModel]
     N --> O[CompiledModelPropertyManager]
     O --> P[Compiled-model properties]
 ```
@@ -108,7 +103,7 @@ flowchart TD
     (values set through `set_property` and environment variables) and also return the properties that the plugin does
     not consume.
 
-`PluginPropertyManager::getMergedConfigForCompilation` returns a `MergedConfig`:
+Both return a `MergedConfig`, defined in `src/plugin/include/merged_config.hpp`:
 
 ```cpp
 struct MergedConfig {
@@ -128,12 +123,12 @@ struct MergedConfig {
     together with the helpers from `intel_npu/utils/string_map_utils.hpp` when a typed value is needed.
 - `unknownProperties` is an `ov::AnyMap` containing keys that the plugin does not consume.
 
-During compilation, all three are passed to `CompiledModel`, which constructs `CompiledModelPropertyManager` with them.
-The compile-time properties of a compiled model are read from `compilerProperties`.
+The `MergedConfig` is passed as a whole to `CompiledModel`, which constructs `CompiledModelPropertyManager` with it. The
+compile-time properties of a compiled model are read from `compilerProperties`.
 
-`PluginPropertyManager::getMergedConfigForImport` returns `std::pair<Config, ov::AnyMap>`: the runtime configuration and the
-unknown properties. Compile-time-only options and internal compiler options are not relevant for an already compiled
-model, so they are dropped.
+On the import path, `compilerProperties` is always empty: compile-time-only options and internal compiler options are not
+relevant for an already compiled model, so they are dropped. The runtime configuration completed by the blob importer is
+passed to `CompiledModel` together with the unknown properties.
 
 Compiler options are represented by the same option descriptors as other options. Their `OptionMode` determines where
 they are used:

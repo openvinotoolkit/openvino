@@ -274,8 +274,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
-                     ov::intel_npu::model_serializer_version.name(),
-                     MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -405,8 +405,8 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
-                     ov::intel_npu::model_serializer_version.name(),
-                     MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -580,8 +580,8 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
                                                     isOptionSupportedByCompiler);
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
-                     ov::intel_npu::model_serializer_version.name(),
-                     MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;

@@ -56,22 +56,21 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
 
 namespace intel_npu {
 
-CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
-                                                           const std::map<std::string, std::string>& compilerProperties,
-                                                           const ov::AnyMap& properties,
+CompiledModelPropertyManager::CompiledModelPropertyManager(const MergedConfig& mergedConfig,
                                                            const std::shared_ptr<IDevice>& device,
                                                            const std::shared_ptr<IGraph>& graph,
                                                            const std::optional<int64_t>& batchSize,
                                                            Logger& logger)
-    : _config(config),
-      _compilerProperties(compilerProperties),
+    : _config(mergedConfig.runtimeConfig),
+      _compilerProperties(mergedConfig.compilerProperties),
       _device(device),
       _graph(graph),
       _batchSize(batchSize),
       _logger(logger) {
     registerProperties();
 
-    // Set the properties from the provided ov::AnyMap into the internal property descriptors
+    // Set the unknown properties into the internal property descriptors
+    const auto& properties = mergedConfig.unknownProperties;
     for (const auto& property : properties) {
         const auto propertyDescriptorIt = _properties.find(property.first);
         OPENVINO_ASSERT(propertyDescriptorIt != _properties.end(), "Unsupported configuration key: ", property.first);

@@ -26,27 +26,21 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             const Config& config,
-                             const ov::AnyMap& properties,
-                             const std::optional<int64_t>& batchSize,
-                             const std::map<std::string, std::string>& compilerProperties)
+                             const MergedConfig& mergedConfig,
+                             const std::optional<int64_t>& batchSize)
     : ICompiledModel(model, plugin, nullptr, nullptr),
-      _logger("CompiledModel", config.get<LOG_LEVEL>()),
+      _logger("CompiledModel", mergedConfig.runtimeConfig.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
       _batchSize(batchSize),
-      _propertiesManager(std::make_unique<CompiledModelPropertyManager>(config,
-                                                                        compilerProperties,
-                                                                        properties,
-                                                                        _device,
-                                                                        _graph,
-                                                                        _batchSize,
-                                                                        _logger)) {
+      _propertiesManager(
+          std::make_unique<CompiledModelPropertyManager>(mergedConfig, _device, _graph, _batchSize, _logger)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
 
+    const auto& config = mergedConfig.runtimeConfig;
     // Immediate-init path: when weights load is not deferred, initialize the graph now.
     // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
     if (config.get<CREATE_EXECUTOR>() && !config.get<DEFER_WEIGHTS_LOAD>()) {

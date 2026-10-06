@@ -19,21 +19,12 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "merged_config.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
 
 enum class ConfigMergeMode { Compile, Import, Query };
-
-struct MergedConfig {
-    // Runtime config, compile-time-only and internal compiler options are removed from it.
-    Config runtimeConfig;
-    // Compile-time, both-mode and internal compiler options supported by the resolved compiler, serialized as strings.
-    // Includes the values set through set_property and environment variables, overridden by the merged properties.
-    std::map<std::string, std::string> compilerProperties;
-    // Properties unknown to the plugin, forwarded as they are to the compiled model.
-    ov::AnyMap unknownProperties;
-};
 
 class PluginPropertyManager final : private PropertyRegistrationBase {
 public:
@@ -58,9 +49,9 @@ public:
     /**
      * @brief Merges the given properties into a copy of the plugin config for the import path. Compile-time-only
      * options are skipped, so no compiler properties are produced.
-     * @return The merged runtime config and the unknown properties.
+     * @return The merged runtime config and the unknown properties, the compiler properties are always empty.
      */
-    std::pair<Config, ov::AnyMap> getMergedConfigForImport(const ov::AnyMap& properties);
+    MergedConfig getMergedConfigForImport(const ov::AnyMap& properties);
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
