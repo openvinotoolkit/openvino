@@ -63,7 +63,8 @@ public:
 private:
     bool constant_can_be_shared(const ov::op::v0::Constant& constant) const;
 
-    std::tuple<std::vector<SharedWeightsAssigner::SharedConstant>, size_t> collect_weights_to_share(const std::shared_ptr<ov::Model>& model) const;
+    std::tuple<std::vector<SharedWeightsAssigner::SharedConstant>, size_t> collect_weights_to_share(
+        const std::shared_ptr<ov::Model>& model) const;
 
     PartitionedConstants partition_constants_by_size(std::vector<SharedConstant>&& constants) const;
 
