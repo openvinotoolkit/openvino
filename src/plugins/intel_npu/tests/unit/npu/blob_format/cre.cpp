@@ -9,10 +9,12 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "intel_npu/common/supported_section_type_evaluator.hpp"
 
 using namespace intel_npu;
+using testing::_;
 // Name, expression, supported types, unsupported instances, instances of unknown support
 using CREParams = std::tuple<std::vector<std::shared_ptr<CREToken>>,
                              std::vector<SectionTypeCode>,
@@ -66,7 +68,6 @@ CREParams make_test_params(const std::vector<std::shared_ptr<CREToken>>& express
 class CREEvaluationTests : public ::testing::TestWithParam<CREParams> {
 protected:
     void SetUp() override {
-        std::vector<std::shared_ptr<CREToken>> expression;
         std::vector<SectionTypeCode> supported_section_types;
         std::vector<uint16_t> unsupported_section_instances;
         std::vector<uint16_t> section_instances_unknown_support;
@@ -75,8 +76,6 @@ protected:
                  unsupported_section_instances,
                  section_instances_unknown_support,
                  expected_result) = GetParam();
-
-        cre = CRE(expression);
 
         for (const auto code : supported_section_types) {
             section_type_evaluators[SectionType(code)] = SupportedSectionTypeEvaluator::get_instance();
@@ -93,7 +92,7 @@ protected:
         }
     }
 
-    CRE cre;
+    std::vector<std::shared_ptr<CREToken>> expression;
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators;
     std::unordered_map<SectionID, SingleSectionInstanceEvaluator> section_instance_evaluators;
     ov::CompatibilityCheck expected_result;
@@ -106,13 +105,20 @@ public:
                      section_instances_unknown_support,
                      expected_result] = obj.param;
 
+        std::string expression_string;
         std::string supported_section_types_string;
         std::string unsupported_section_instances_string;
         std::string section_instances_unknown_support_string;
         std::string result_string =
-            expected_result == ov::CompatibilityCheck::SUPPORTED
-                ? "supported"
-                : (expected_result == ov::CompatibilityCheck::UNSUPPORTED ? "unsupported" : "not_applicable");
+            std::string(TEST_NAME_FIELDS_SEPARATOR) +
+            (expected_result == ov::CompatibilityCheck::SUPPORTED
+                 ? "supported"
+                 : (expected_result == ov::CompatibilityCheck::UNSUPPORTED ? "unsupported" : "not_applicable"));
+
+        for (const auto& token : expression) {
+            expression_string += VALUES_SEPARATOR;
+            expression_string += token->to_string();
+        }
 
         for (const auto code : supported_section_types) {
             supported_section_types_string += VALUES_SEPARATOR;
@@ -127,34 +133,38 @@ public:
             section_instances_unknown_support_string += SectionID(id).to_string();
         }
 
+        if (!expression_string.empty()) {
+            expression_string = "expression=" + expression_string.substr(1);
+        }
         if (!supported_section_types_string.empty()) {
-            supported_section_types_string = "supported_types=" + supported_section_types_string.substr(1);
+            supported_section_types_string =
+                TEST_NAME_FIELDS_SEPARATOR + "supported_types=" + supported_section_types_string.substr(1);
         }
         if (!unsupported_section_instances_string.empty()) {
             unsupported_section_instances_string =
-                "unsupported_instances=" + unsupported_section_instances_string.substr(1);
+                TEST_NAME_FIELDS_SEPARATOR + "unsupported_instances=" + unsupported_section_instances_string.substr(1);
         }
         if (!section_instances_unknown_support_string.empty()) {
             section_instances_unknown_support_string =
-                "unknown_instances=" + section_instances_unknown_support_string.substr(1);
+                TEST_NAME_FIELDS_SEPARATOR + "unknown_instances=" + section_instances_unknown_support_string.substr(1);
         }
 
-        return CRE(expression).to_string() + TEST_NAME_FIELDS_SEPARATOR + supported_section_types_string +
-               TEST_NAME_FIELDS_SEPARATOR + unsupported_section_instances_string + TEST_NAME_FIELDS_SEPARATOR +
-               section_instances_unknown_support_string + TEST_NAME_FIELDS_SEPARATOR + result_string;
+        return expression_string + supported_section_types_string + unsupported_section_instances_string +
+               section_instances_unknown_support_string + result_string;
     }
 };
 
 using ValidExpression = CREEvaluationTests;
 
 TEST_P(ValidExpression, check_compatibility) {
-    EXPECT_EQ(cre.check_compatibility(section_type_evaluators, section_instance_evaluators), expected_result);
+    EXPECT_EQ(CRE(expression).check_compatibility(section_type_evaluators, section_instance_evaluators),
+              expected_result);
 }
 
 using InvalidExpression = CREEvaluationTests;
 
 TEST_P(InvalidExpression, check_compatibility) {
-    EXPECT_THROW(cre.check_compatibility(section_type_evaluators, section_instance_evaluators), InvalidCRE);
+    OV_EXPECT_THROW(CRE{expression}, InvalidCRE, _);
 }
 
 // using CREAppendSingleToken = ::testing::Test;

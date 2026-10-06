@@ -23,6 +23,7 @@ constexpr std::string_view OPEN_TOKEN_NAME = "OPEN";
 constexpr std::string_view CLOSE_TOKEN_NAME = "CLOSE";
 
 constexpr std::string_view UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE = "Unsupported \"ov::CompatibilityCheck\" value";
+constexpr std::string_view CRE_UNEXPECTED_END_MESSAGE = "The CRE ended unexpectedly";
 
 bool is_close_special_token(const std::shared_ptr<CREToken>& candidate) {
     const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(candidate);
@@ -265,7 +266,7 @@ CRE::CRE(const ov::log::Level log_level) : m_logger("CRE", log_level) {}
 CRE::CRE(const std::vector<std::shared_ptr<CREToken>>& subexpression, const ov::log::Level log_level)
     : m_logger("CRE", log_level) {
     if (!subexpression.empty()) {
-        OPENVINO_ASSERT(is_expression_valid(subexpression), "Received an invalid subexpression");
+        CRE_ASSERT(is_expression_valid(subexpression), "Received an invalid subexpression");
         m_subexpressions.push_back(subexpression);
     }
 }
@@ -378,7 +379,7 @@ bool CRE::is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expr
 
 void CRE::advance_iterator(std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
                            const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end) const {
-    CRE_ASSERT(expression_iterator != expression_end, "The CRE ended unexpectedly");
+    CRE_ASSERT(expression_iterator != expression_end, CRE_UNEXPECTED_END_MESSAGE);
     expression_iterator++;
 }
 
@@ -488,6 +489,7 @@ ov::CompatibilityCheck CRE::evaluate(
                                             Delimiter::PARRENTHESIS,
                                             skip_all_evaluations || skip_next_evaluation,
                                             force_all_evaluations);
+            // CRE_ASSERT(expression_iterator != expression_end, CRE_UNEXPECTED_END_MESSAGE);
             CRE_ASSERT(is_close_special_token(*expression_iterator),
                        "Expected a closed parrenthesis token during CRE evaluation. Received: ",
                        *expression_iterator);

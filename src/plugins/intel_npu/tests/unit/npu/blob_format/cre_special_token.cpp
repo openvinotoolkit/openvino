@@ -12,6 +12,7 @@ using namespace intel_npu;
 
 using CRESpecialTokenTest = ::testing::Test;
 
+// TODO test to_string
 TEST_F(CRESpecialTokenTest, CreateAllTokensUsingCorrectCode) {
     ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::AND).get_code(), CRESpecialTokenCode::AND);
     ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::OR).get_code(), CRESpecialTokenCode::OR);
