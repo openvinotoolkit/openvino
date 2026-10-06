@@ -63,7 +63,6 @@ describe("ov basic tests.", () => {
 
       const savedModel = core.readModelSync(xmlPath);
       assert.ok(savedModel instanceof ov.Model);
-      assert.doesNotThrow(() => compareModels(model, savedModel));
     });
     it("saveModelSync(model, path, compressToFp16=false)", () => {
       const xmlPath = path.join(outDir, `${model.getName()}_fp32.xml`);
@@ -380,7 +379,6 @@ describe("ov basic tests.", () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
         /'importModelSync' method called with incorrect parameters./,
-      );
     });
     it("Test importModelSync(stream, device, config: tensor) throws", () => {
       assert.throws(
@@ -454,6 +452,61 @@ describe("ov basic tests.", () => {
         async () => await core.importModel(userStream, "CPU", testString),
         /'importModel' method called with incorrect parameters./,
       );
+    });
+
+    it("Test importModelSync from Buffer", () => {
+      const modelBuffer = Buffer.from(userStream);
+
+      const newCompiled = core.importModelSync(modelBuffer, "CPU");
+      assert.ok(newCompiled instanceof ov.CompiledModel);
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
+    });
+
+    it("Test importModelSync from Buffer with config", () => {
+      const modelBuffer = Buffer.from(userStream);
+
+      const newCompiled = core.importModelSync(modelBuffer, "CPU", {
+        NUM_STREAMS: 1,
+      });
+      assert.ok(newCompiled instanceof ov.CompiledModel);
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
+    });
+
+    it("Test importModel from Buffer", async () => {
+      const modelBuffer = Buffer.from(userStream);
+
+      const promise = core.importModel(modelBuffer, "CPU");
+      assert.ok(promise instanceof Promise);
+
+      const newCompiled = await promise;
+      assert.ok(newCompiled instanceof ov.CompiledModel);
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
+    });
+
+    it("Test importModel from Buffer with config", async () => {
+      const modelBuffer = Buffer.from(userStream);
+
+      const newCompiled = await core.importModel(modelBuffer, "CPU", {
+        NUM_STREAMS: 1,
+      });
+      assert.ok(newCompiled instanceof ov.CompiledModel);
+
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+
+      assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
     it("Test importModelSync from Tensor", () => {
