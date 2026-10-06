@@ -114,6 +114,7 @@ attach_reduce_impl::attach_reduce_impl() {
 
     auto static_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::bfuwzyx,
@@ -131,6 +132,7 @@ attach_reduce_impl::attach_reduce_impl() {
 
     auto dyn_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::bfuwzyx,

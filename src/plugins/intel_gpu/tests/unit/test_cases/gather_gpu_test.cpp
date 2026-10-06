@@ -2101,6 +2101,33 @@ TEST(gather_gpu_fp32, 322_axisF) {
     }
 }
 
+TEST(gather_gpu_fp32, dynamic_byxf_axisF) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 1, 2}, data_types::f32, format::byxf});
+    auto indices = engine.allocate_memory({ov::PartialShape{2}, data_types::i32, format::bfyx});
+    set_values(input, {1.f, 2.f, 3.f, 4.f});
+    set_values(indices, {1, 0});
+
+    topology topology(input_layout("input", {ov::PartialShape::dynamic(4), data_types::f32, format::byxf}),
+                      input_layout("indices", {ov::PartialShape::dynamic(1), data_types::i32, format::bfyx}),
+                      gather("gather", input_info("input"), input_info("indices"), 1, 0, ov::Shape{}));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("indices", indices);
+
+    ASSERT_TRUE(network.get_primitive("gather")->get_impl()->is_dynamic());
+    auto output = network.execute().at("gather").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::byxf);
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    ASSERT_EQ(result.size(), 4);
+    EXPECT_FLOAT_EQ(result[0], 2.f);
+    EXPECT_FLOAT_EQ(result[1], 1.f);
+    EXPECT_FLOAT_EQ(result[2], 4.f);
+    EXPECT_FLOAT_EQ(result[3], 3.f);
+}
+
 TEST(gather_gpu_fp32, dynamic_322_axisF) {
     auto& engine = get_test_engine();
 

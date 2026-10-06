@@ -9,6 +9,11 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
+namespace {
+bool is_3d_output_layout(DataLayout l) {
+    return l == DataLayout::bfyx || l == DataLayout::byxf;
+}
+}  // namespace
 ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -33,6 +38,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf);
     k.EnableBiasPerOutput();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
@@ -50,7 +56,7 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
     auto dispatchData = Parent::SetDefault(params);
 
     std::vector<size_t> global = { params.outputs[0].Feature().v, params.outputs[0].Batch().v, 1 };
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+    if (is_3d_output_layout(params.outputs[0].GetLayout())) {
         global = { params.outputs[0].Feature().v, params.outputs[0].Y().v, params.outputs[0].Batch().v };
     }
 
@@ -75,7 +81,7 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
                                   ? Datatype::F32
                                   : GetAccumulatorType(params);
     Datatype activation_dt = GetActivationType(params);
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+    if (is_3d_output_layout(params.outputs[0].GetLayout())) {
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
     }
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
@@ -91,7 +97,7 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = { "b", "ofm", "0", "0" };
-        if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        if (is_3d_output_layout(params.outputs[0].GetLayout())) {
             idx_order = { "b", "ofm", "oym", "0" };
         }
         FusedOpsConfiguration conf = { "", idx_order, "dequantized", activation_dt, 1 };
@@ -126,7 +132,7 @@ bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     // We don't support 4d output
-    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx && fc_params.outputs[0].X().v > 1) {
+    if (is_3d_output_layout(fc_params.outputs[0].GetLayout()) && fc_params.outputs[0].X().v > 1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 

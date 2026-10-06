@@ -112,6 +112,21 @@ std::vector<result_indices> run_nms(
     return result;
 }
 
+// Offsets of a 3D [b, f, y] tensor element computed from layout pitches, so both bfyx and byxf are handled
+struct bfy_offsets {
+    explicit bfy_offsets(const layout& l) : base(static_cast<int64_t>(l.get_linear_offset())) {
+        const auto pitches = l.get_pitches();
+        b = pitches[0];
+        f = pitches[1];
+        y = pitches[2];
+    }
+    size_t operator()(int64_t bi, int64_t fi, int64_t yi) const {
+        return static_cast<size_t>(base + bi * b + fi * f + yi * y);
+    }
+    int64_t base;
+    int64_t b, f, y;
+};
+
 template <typename T>
 vector2D<bounding_box> load_boxes_impl(stream& stream,
                                        memory::ptr mem,
@@ -124,24 +139,18 @@ vector2D<bounding_box> load_boxes_impl(stream& stream,
 
     mem_lock<T, mem_lock_type::read> boxes_lock(mem, stream);
     auto ptr = boxes_lock.data();
+    const bfy_offsets offset(logical_layout);
 
     for (int64_t bi = 0; bi < batch_size; ++bi) {
         result[bi].reserve(boxes_num);
         for (int64_t bxi = 0; bxi < boxes_num; ++bxi) {
-            int64_t offset = bi * boxes_num * 4 + bxi * 4;
+            const auto coord = [&](int64_t i) {
+                return static_cast<float>(ptr[offset(bi, bxi, i)]);
+            };
             if (center_point) {
-                result[bi].emplace_back(static_cast<float>(ptr[offset + 0]),
-                                        static_cast<float>(ptr[offset + 1]),
-                                        static_cast<float>(ptr[offset + 2]),
-                                        static_cast<float>(ptr[offset + 3]),
-                                        bounding_box::center_point_construct_tag());
+                result[bi].emplace_back(coord(0), coord(1), coord(2), coord(3), bounding_box::center_point_construct_tag());
             } else {
-                result[bi].emplace_back(
-                    static_cast<float>(ptr[offset + 1]),
-                    static_cast<float>(ptr[offset + 0]),
-                    static_cast<float>(ptr[offset + 3]),
-                    static_cast<float>(ptr[offset + 2]),
-                    bounding_box::two_corners_construct_tag());
+                result[bi].emplace_back(coord(1), coord(0), coord(3), coord(2), bounding_box::two_corners_construct_tag());
             }
         }
     }
@@ -170,13 +179,13 @@ vector3D<float> load_scores_impl(stream& stream, memory::ptr mem, const layout& 
 
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto ptr = lock.data();
+    const bfy_offsets offset(logical_layout);
 
     for (int bi = 0; bi < batch_size; ++bi) {
         for (int ci = 0; ci < classes_num; ++ci) {
             result[bi][ci].reserve(boxes_num);
             for (int bxi = 0; bxi < boxes_num; ++bxi) {
-                auto offset = bi * boxes_num * classes_num + ci * boxes_num + bxi;
-                result[bi][ci].emplace_back(static_cast<float>(ptr[offset]));
+                result[bi][ci].emplace_back(static_cast<float>(ptr[offset(bi, ci, bxi)]));
             }
         }
     }
@@ -436,6 +445,9 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::i32, format::byxf),
+        std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::f32, format::byxf),
     });
 }
 

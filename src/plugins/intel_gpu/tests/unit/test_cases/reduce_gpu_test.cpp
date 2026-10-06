@@ -1721,6 +1721,56 @@ TEST(reduce_gpu, dynamic) {
     }
 }
 
+class reduce_gpu_byxf_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(reduce_gpu_byxf_test, sum_spatial) {
+    auto& engine = get_test_engine();
+    const bool is_dynamic = GetParam();
+    const ov::PartialShape input_shape{1, 4, 2, 2};
+    auto input = engine.allocate_memory({input_shape, data_types::f32, format::byxf});
+
+    // byxf memory order: each row is one (y, x) position holding f = 0..3
+    set_values(input, {
+        1.0f, 2.0f, 3.0f, 4.0f,     // y=0, x=0
+        1.0f, 2.0f, 3.0f, 4.0f,     // y=0, x=1
+        1.0f, 2.0f, 3.0f, 4.0f,     // y=1, x=0
+        1.0f, 2.0f, 3.0f, 4.0f,     // y=1, x=1
+    });
+
+    topology topology;
+    const auto in_shape = is_dynamic ? ov::PartialShape::dynamic(4) : input_shape;
+    topology.add(input_layout("input", layout{in_shape, data_types::f32, format::byxf}));
+    topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {2, 3}, true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto impl = network.get_primitive("reduce")->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_EQ(impl->is_dynamic(), is_dynamic);
+
+    auto output = network.execute().at("reduce").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::byxf);
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({1, 4, 1, 1}));
+
+    // Sum over 4 (y, x) positions for each f
+    std::vector<float> ref_data = {4.0f, 8.0f, 12.0f, 16.0f};
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), ref_data.size());
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(reduce_gpu,
+                         reduce_gpu_byxf_test,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "dynamic" : "static";
+                         });
+
 TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
     auto& engine = get_test_engine();
     if (engine.get_device_info().supports_immad)

@@ -1041,6 +1041,38 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
     }
 }
 
+TEST(reshape_gpu_f32, dynamic_byxf) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 2, 2}, data_types::f32, format::byxf});
+    set_values(input, {
+        1.f, 5.f,
+        2.f, 6.f,
+        3.f, 7.f,
+        4.f, 8.f,
+    });
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape::dynamic(4), data_types::f32, format::byxf}));
+    topology.add(reshape("reshape", input_info("input"), false, {1, 8}, ov::PartialShape{1, 8}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("reshape").get_memory();
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({1, 8}));
+
+    std::vector<float> expected = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
 TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
     // input:  bfwzyx, (3, 3, 2, 2, 1, 1)
     // reshape: (1, 1, 2, 2, 3, 3), pad (0, 0, 0, 0, 0, 1)

@@ -156,6 +156,51 @@ TEST(shape_of_gpu, bfzyx) {
     }
 }
 
+class shape_of_gpu_byxf_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(shape_of_gpu_byxf_test, no_reorder) {
+    auto& engine = get_test_engine();
+    const bool is_dynamic = GetParam();
+    const ov::PartialShape shape{1, 2, 3, 4};
+    auto input = engine.allocate_memory({shape, data_types::f32, format::byxf});
+
+    cldnn::topology topology;
+    topology.add(input_layout("input", {is_dynamic ? ov::PartialShape::dynamic(4) : shape, data_types::f32, format::byxf}));
+    topology.add(activation("act", input_info("input"), activation_func::relu));
+    topology.add(shape_of("shape_of", input_info("act"), data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("shape_of");
+    ASSERT_NE(inst->get_impl(), nullptr);
+    ASSERT_EQ(inst->get_impl()->is_dynamic(), is_dynamic);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(network.get_primitive("shape_of")->get_input_layout().format, format::byxf);
+    for (const auto& executed : network.get_executed_primitives()) {
+        ASSERT_FALSE(network.get_primitive(executed.first)->get_node().is_type<reorder>()) << executed.first;
+    }
+
+    auto output = outputs.at("shape_of").get_memory();
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    std::vector<int32_t> expected = {1, 2, 3, 4};
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(shape_of_gpu,
+                         shape_of_gpu_byxf_test,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "dynamic" : "static";
+                         });
+
 TEST(shape_of_gpu, dynamic) {
     auto& engine = get_test_engine();
 

@@ -398,23 +398,29 @@ public:
         }
     }
 
-    void test_2x2x2x2_single_byxf(bool is_caching_test) {
+    void test_2x2x2x2_single_byxf(bool is_caching_test, bool is_dynamic = false) {
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
+        const ov::PartialShape input_shape{2, 2, 2, 2};
+        auto input = engine.allocate_memory({ input_shape, ov::element::from<T>(), format::byxf });
 
         set_values<T>(input, {
-                0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-                9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
+                0.0f, 4.0f, 1.0f, 5.0f, 2.0f, 6.0f, 3.0f, 7.0f,
+                8.0f, 12.0f, 9.0f, 13.0f, 10.0f, 14.0f, 11.0f, 15.0f
         });
-        std::vector<int64_t> begin_data = { 1, 0, 1, 1 };
-        std::vector<int64_t> end_data = { 2, 1, 2, 2 };
-        std::vector<int64_t> strides_data = { 1, 1, 1, 1 };
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        set_values<int64_t>(begin, { 1, 0, 1, 1 });
+        set_values<int64_t>(end, { 2, 1, 2, 2 });
+        set_values<int64_t>(strides, { 1, 1, 1, 1 });
 
         topology topology;
-        topology.add(input_layout("input", input->get_layout()));
-        topology.add(reorder("input_byxf", input_info("input"), format::byxf, ov::element::from<T>()));
-        topology.add(strided_slice("strided_slice", input_info("input_byxf"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 1, 1, 1}));
-        topology.add(reorder("output", input_info("strided_slice"), format::bfyx, ov::element::from<T>()));
+        const auto in_shape = is_dynamic ? ov::PartialShape::dynamic(4) : input_shape;
+        topology.add(input_layout("input", layout{ in_shape, ov::element::from<T>(), format::byxf }));
+        topology.add(data("begin", begin));
+        topology.add(data("end", end));
+        topology.add(data("strides", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("begin"), input_info("end"), input_info("strides"), {}, {}, {}, {}, {}, {}));
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -426,12 +432,17 @@ public:
 
         network->set_input_data("input", input);
 
+        auto ss_inst = network->get_primitive("strided_slice");
+        ASSERT_EQ(ss_inst->get_input_layout(0).format, format::byxf);
+        ASSERT_NE(ss_inst->get_impl(), nullptr);
+        ASSERT_EQ(ss_inst->get_impl()->is_dynamic(), is_dynamic);
+
         auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "output");
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
-        auto output = outputs.at("output").get_memory();
+        auto output = outputs.at("strided_slice").get_memory();
 
         std::vector<float> answers = { 11.f };
 
@@ -2694,6 +2705,10 @@ TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_single) {
 
 TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single_byxf) {
     this->test_2x2x2x2_single_byxf(false);
+}
+
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single_byxf_dynamic) {
+    this->test_2x2x2x2_single_byxf(false, true);
 }
 
 TYPED_TEST(strided_slice_gpu, test_2x2x4x3_stride) {

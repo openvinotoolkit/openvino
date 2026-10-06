@@ -1744,6 +1744,50 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
         ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
+TEST(crop_gpu, dynamic_byxf_split_feature) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory({ov::PartialShape{1, 4, 1, 2}, data_types::f32, format::byxf});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    set_values<int64_t>(axis_mem, {1});
+    // byxf buffer order: x0: f0..f3, x1: f0..f3
+    set_values(input_mem, {0.f, -1.f, 2.f, -3.f, 4.f, -5.f, 6.f, -7.f});
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::split;
+    // In split mode output size and offsets are computed by Split shape inference, as for dynamic Split in the plugin
+    const tensor unused_ref_input(1);
+    const tensor unused_offsets(0);
+    topology topology(input_layout("input", {ov::PartialShape::dynamic(4), data_types::f32, format::byxf}),
+                      data("axis", axis_mem),
+                      crop("crop1", {input_info("input"), input_info("axis")}, unused_ref_input, unused_offsets, op_mode, 0, 1, 2),
+                      crop("crop2", {input_info("input"), input_info("axis")}, unused_ref_input, unused_offsets, op_mode, 1, 1, 2));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    const std::vector<std::pair<primitive_id, std::vector<float>>> expected = {
+        {"crop1", {0.f, -1.f, 4.f, -5.f}},
+        {"crop2", {2.f, -3.f, 6.f, -7.f}},
+    };
+    for (const auto& [id, values] : expected) {
+        auto impl = network.get_primitive(id)->get_impl();
+        ASSERT_TRUE(impl != nullptr) << id;
+        ASSERT_TRUE(impl->is_dynamic()) << id;
+
+        auto output = outputs.at(id).get_memory();
+        ASSERT_EQ(output->get_layout().format, format::byxf) << id;
+        ASSERT_EQ(output->get_layout().get_shape(), (ov::Shape{1, 2, 1, 2})) << id;
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        ASSERT_EQ(output_ptr.size(), values.size()) << id;
+        for (size_t i = 0; i < values.size(); ++i)
+            ASSERT_FLOAT_EQ(output_ptr[i], values[i]) << id << " idx " << i;
+    }
+}
+
 TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     auto& engine = get_test_engine();
 

@@ -2487,6 +2487,73 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
     }
 }
 
+static void test_dynamic_reorder_byxf(format in_fmt, format out_fmt,
+                                      const std::vector<float>& input_data,
+                                      const std::vector<float>& expected) {
+    auto& engine = get_test_engine();
+
+    // Logical shape b=1, f=2, y=2, x=2
+    ov::Shape in_shape{1, 2, 2, 2};
+    layout in_layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, in_fmt};
+    auto input = engine.allocate_memory({ov::PartialShape(in_shape), data_types::f32, in_fmt});
+    set_values(input, input_data);
+
+    topology topology(input_layout("input", in_layout),
+                      reorder("reorder", input_info("input"), out_fmt, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    auto impl = network.get_primitive("reorder")->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    network.set_input_data("input", input);
+    auto output = network.execute().at("reorder").get_memory();
+    ASSERT_EQ(output->get_layout().format, out_fmt);
+    ASSERT_EQ(output->get_layout().get_partial_shape(), ov::PartialShape(in_shape));
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
+TEST(reorder_gpu_f32, dynamic_bfyx_to_byxf) {
+    test_dynamic_reorder_byxf(format::bfyx, format::byxf,
+                              {
+                                  1.f, 2.f,
+                                  3.f, 4.f,
+                                  5.f, 6.f,
+                                  7.f, 8.f,
+                              },
+                              {
+                                  1.f, 5.f,
+                                  2.f, 6.f,
+                                  3.f, 7.f,
+                                  4.f, 8.f,
+                              });
+}
+
+TEST(reorder_gpu_f32, dynamic_byxf_to_bfyx) {
+    test_dynamic_reorder_byxf(format::byxf, format::bfyx,
+                              {
+                                  1.f, 5.f,
+                                  2.f, 6.f,
+                                  3.f, 7.f,
+                                  4.f, 8.f,
+                              },
+                              {
+                                  1.f, 2.f,
+                                  3.f, 4.f,
+                                  5.f, 6.f,
+                                  7.f, 8.f,
+                              });
+}
+
 TEST(reorder_gpu_bf16, dynamic_bfyx_to_bfzyx) {
     auto& engine = get_test_engine();
 

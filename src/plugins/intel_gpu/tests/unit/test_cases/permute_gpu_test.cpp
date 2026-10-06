@@ -2133,6 +2133,28 @@ TEST_P(permute_tile_fsv_5d, i64) {
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv);
 }
 
+TEST(permute_gpu_f32_dynamic, byxf_swap_feature_and_x) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 1, 2}, data_types::f32, format::byxf});
+    set_values(input, {1.f, 2.f, 3.f, 4.f});
+
+    topology topology(input_layout("input", {ov::PartialShape::dynamic(4), data_types::f32, format::byxf}),
+                      permute("permute", input_info("input"), {0, 3, 2, 1}));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    ASSERT_TRUE(network.get_primitive("permute")->get_impl()->is_dynamic());
+    auto output = network.execute().at("permute").get_memory();
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    ASSERT_EQ(result.size(), 4);
+    EXPECT_FLOAT_EQ(result[0], 1.f);
+    EXPECT_FLOAT_EQ(result[1], 3.f);
+    EXPECT_FLOAT_EQ(result[2], 2.f);
+    EXPECT_FLOAT_EQ(result[3], 4.f);
+}
+
 TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
     constexpr size_t array_size = 100;
 

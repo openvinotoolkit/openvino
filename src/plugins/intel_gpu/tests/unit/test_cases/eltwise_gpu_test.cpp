@@ -1402,6 +1402,44 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
     }
 }
 
+TEST(eltwise_gpu_f32, dynamic_byxf) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::byxf};
+    auto in_mem_layout = layout{ov::PartialShape{2, 2, 2, 2}, data_types::f32, format::byxf};
+    auto input1 = engine.allocate_memory(in_mem_layout);
+    auto input2 = engine.allocate_memory(in_mem_layout);
+
+    topology topology(input_layout("input1", in_layout),
+                      input_layout("input2", in_layout),
+                      eltwise("eltwise", {input_info("input1"), input_info("input2")}, eltwise_mode::sum));
+
+    set_values(input1, {1.f, -3.f, -2.f, 4.f, -5.f, 6.f, 7.f, -8.f,
+                        9.f, -10.f, -11.f, 12.f, -13.f, 14.f, 15.f, -16.f});
+    set_values(input2, {0.5f, 1.f, 2.f, -1.f, 3.f, -2.f, -4.f, 5.f,
+                        -6.f, 7.f, 8.f, -9.f, 10.f, -11.f, -12.f, 13.f});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto impl = network.get_primitive("eltwise")->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto output = network.execute().at("eltwise").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::byxf);
+
+    const std::vector<float> expected = {1.5f, -2.f, 0.f, 3.f, -2.f, 4.f, 3.f, -3.f,
+                                         3.f, -3.f, -3.f, 3.f, -3.f, 3.f, 3.f, -3.f};
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]);
+}
+
 TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
     auto& engine = get_test_engine();
 

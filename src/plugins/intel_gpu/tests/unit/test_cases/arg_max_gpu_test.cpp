@@ -1006,6 +1006,39 @@ TEST(export_import_top_k_layer_tests, md_sync) {
     test_top_k_layer_md_sync<int>(true);
 }
 
+TEST(arg_max_min_gpu, dynamic_byxf) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{2, 3, 4, 5}, data_types::f32, format::byxf});
+    std::vector<float> input_values(2 * 3 * 4 * 5);
+    float value = 0.f;
+    const auto& memory_layout = input->get_layout();
+    for (int32_t b = 0; b < memory_layout.batch(); ++b) {
+        for (int32_t f = 0; f < memory_layout.feature(); ++f) {
+            for (int32_t y = 0; y < memory_layout.spatial(1); ++y) {
+                for (int32_t x = 0; x < memory_layout.spatial(0); ++x) {
+                    const auto offset = memory_layout.get_linear_offset(tensor(batch(b), feature(f), spatial(x, y, 0, 0)));
+                    input_values[offset] = value++;
+                }
+            }
+        }
+    }
+    set_values(input, input_values);
+
+    topology topology(input_layout("input", {ov::PartialShape::dynamic(4), data_types::f32, format::byxf}),
+                      arg_max_min("arg_max", {input_info("input")}, ov::op::TopKMode::MAX, 1, 1));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    ASSERT_TRUE(network.get_primitive("arg_max")->get_impl()->is_dynamic());
+    auto output = network.execute().at("arg_max").get_memory();
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    ASSERT_EQ(result.size(), 2 * 4 * 5);
+    for (size_t i = 0; i < result.size(); ++i)
+        EXPECT_FLOAT_EQ(result[i], 2.f);
+}
+
 TEST(arg_max_min_gpu, dynamic) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
