@@ -2653,17 +2653,27 @@ KERNEL(sdpa_opt)(
     // Apply attention sink after all KV partitions are processed.
     // Sink adds a virtual logit to the softmax denominator with zero V contribution.
     {
+        // The running max/exp_sum were last written by work item 0 of the final partition; make them visible
+        // to every subgroup before they are read below.
+        barrier(CLK_LOCAL_MEM_FENCE);
         SOFTMAX_ACCUMULATOR_TYPE sink_val = TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx]);
         for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
             SOFTMAX_ACCUMULATOR_TYPE max_prev = slm_max_val_prev[seq_idx];
             SOFTMAX_ACCUMULATOR_TYPE max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(max_prev, sink_val);
             SOFTMAX_ACCUMULATOR_TYPE correction = native_exp(max_prev - max_new);
-            // Rescale output_acc (all work items do this for their own register)
+#if IS_FLASHATTEN_V2
+            // output_acc is unnormalized here (divided by exp_sum on store): rescale it to the new max and
+            // add the sink term to the denominator (only one thread per seq_idx).
             output_acc[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * correction);
-            // Update exp_sum (only one thread per seq_idx)
             if (sgid == 0 && sglid == 0) {
                 slm_exp_sum_prev[seq_idx] = slm_exp_sum_prev[seq_idx] * correction + native_exp(sink_val - max_new);
             }
+#else
+            // output_acc is already normalized by exp_sum: renormalize it by exp_sum / (exp_sum + sink term).
+            SOFTMAX_ACCUMULATOR_TYPE exp_sum = slm_exp_sum_prev[seq_idx] * correction;
+            SOFTMAX_ACCUMULATOR_TYPE exp_sum_with_sink = exp_sum + native_exp(sink_val - max_new);
+            output_acc[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * (exp_sum / exp_sum_with_sink));
+#endif
         }
     }
 #endif
