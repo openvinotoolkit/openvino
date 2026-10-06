@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "openvino/core/model.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
@@ -26,7 +26,8 @@ struct SharedWeightsContextExtractor {
     using SharedSourcesWithConstants = std::vector<SharedSourceAndConstants>;
 
     static WeightSharingContextPtr extract_weight_sharing_context(const std::shared_ptr<ov::Model>& model);
-    static WeightSharingContextPtr extract_weight_sharing_context(const SharedSourcesWithConstants& collected_sources_with_constants);
+    static WeightSharingContextPtr extract_weight_sharing_context(
+        const SharedSourcesWithConstants& collected_sources_with_constants);
 };
 
 }  // namespace transformations

@@ -11,11 +11,11 @@
 #include <sstream>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -31,7 +31,7 @@ void SharedWeightsAssigner::Statistic::set_collection_statistics(size_t collecte
 }
 
 void SharedWeightsAssigner::Statistic::set_partition_statistics(const PartitionedConstants& partitioned_constants,
-                                                                 size_t alignment) {
+                                                                size_t alignment) {
     partition_constant_counts.clear();
     partition_constant_counts.reserve(partitioned_constants.size());
     total_shared_constant_bytes = 0;
@@ -63,8 +63,7 @@ std::string SharedWeightsAssigner::Statistic::to_string() const {
     return oss.str();
 }
 
-SharedWeightsAssigner::SharedWeightsAssigner(Options options)
-        : m_options(std::move(options)) {
+SharedWeightsAssigner::SharedWeightsAssigner(Options options) : m_options(std::move(options)) {
     if (!m_options.source_id_generator) {
         m_options.source_id_generator = []() {
             // TODO The randomized counter start only reduces cross-process collision risk; it does not guarantee
@@ -82,7 +81,8 @@ SharedWeightsAssigner::SharedWeightsAssigner(Options options)
     m_min_relocate_bytes = static_cast<size_t>(::ov::util::get_system_page_size());
 }
 
-SharedWeightsAssigner::CollectResult SharedWeightsAssigner::collect_and_partition(const std::shared_ptr<ov::Model>& model) {
+SharedWeightsAssigner::CollectResult SharedWeightsAssigner::collect_and_partition(
+    const std::shared_ptr<ov::Model>& model) {
     OPENVINO_ASSERT(model && "Model for assigning shared weights must not be null");
     OPENVINO_ASSERT(m_options.single_weight_shared_source_size_max > 0,
                     "single_weight_shared_source_size_max must be greater than zero");
@@ -105,10 +105,10 @@ SharedWeightsAssigner::SharedSourcesWithConstants SharedWeightsAssigner::mutate_
         auto shared_source = make_shared_source(partition);
         // By consideration with ov::Core, the constant ID is a weight offset in the shared source buffer
         // The offset allows distinguishing between different constants within the same shared source buffer.
-        // Thus the offsets as the constant IDs serves two purposes: 
+        // Thus the offsets as the constant IDs serves two purposes:
         // 1. provides uniqueness of the constant in terms of source_id
         // 2. keeps consecutive constants properly ordered within the shared source buffer.
-        size_t constant_id = 0;  
+        size_t constant_id = 0;
         std::vector<SharedConstant> shared_constants;
         for (const auto& constant : partition) {
             auto const_descriptor =
@@ -119,8 +119,9 @@ SharedWeightsAssigner::SharedSourcesWithConstants SharedWeightsAssigner::mutate_
                 shared_source,
                 const_descriptor);
             constant_id += get_constant_aligned_size(*constant);
-            auto shared_constant =
-                std::make_shared<ov::op::v0::Constant>(constant->get_element_type(), constant->get_shape(), constant_shared_buffer);
+            auto shared_constant = std::make_shared<ov::op::v0::Constant>(constant->get_element_type(),
+                                                                          constant->get_shape(),
+                                                                          constant_shared_buffer);
             shared_constant->set_friendly_name(constant->get_friendly_name());
             ov::copy_runtime_info(constant, shared_constant);
             std::memcpy(constant_shared_buffer->get_ptr(), constant->get_data_ptr(), constant->get_byte_size());
@@ -146,7 +147,9 @@ bool SharedWeightsAssigner::constant_can_be_shared(const ov::op::v0::Constant& c
     }
 
     bool needs_conversion = false;
-    for (auto it = m_options.shared_device_contexts.begin(); !needs_conversion && it != m_options.shared_device_contexts.end(); ++it) {
+    for (auto it = m_options.shared_device_contexts.begin();
+         !needs_conversion && it != m_options.shared_device_contexts.end();
+         ++it) {
         auto& device_context = *it;
         // Reconcile the constant's data type with the requirements of all shared device contexts
         if (device_context == "GPU") {
