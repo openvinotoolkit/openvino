@@ -1,0 +1,45 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-06-00-24-07-995-37391757947",
+    "timestamp": "2026-10-06T00:24:07Z",
+    "run_id": "37391757947",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37391757947",
+    "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+    "commit_sha": "7fab4ed8f924875369e0cb75d85b8ffc365adc54",
+    "pr_number": "38483",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38483",
+    "author": "ababushk",
+    "category": "Infrastructure",
+    "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+    "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+    "signature_hash": "0ee6d7327812b344",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "Build / Build",
+            "conclusion": "failure",
+            "symptom": "Cmake build - OpenVINO step fails: multiple cc1plus invocations in src/core/reference report cmake_pch.hxx.gch is not a PCH file, escalated to an error by -Werror=invalid-pch"
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+            "conclusion": "failure",
+            "symptom": "Aggregate status job exits failure because the Build job failed"
+        }
+    ],
+    "key_errors": [
+        "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors",
+        "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/fake_convert.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+        "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/einsum.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+        "ninja: build stopped: subcommand failed.\n##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "During the ARM64 cross-compilation build, many translation units in the openvino_reference target failed to compile because the precompiled header cmake_pch.hxx.gch used by that CMake target is not recognized as valid by the consuming cc1plus invocation (cc1plus: 'not a PCH file'). Because CMAKE_COMPILE_WARNING_AS_ERROR is enabled, this diagnostic is escalated by -Werror=invalid-pch into a hard ninja build failure. The commit under investigation (#38483) only touches Bandit nosec annotations and a docker_tag pin in CI helper Python scripts (coverage_toolkit/run_tests.py, handle_docker/helpers.py, handle_docker/images_api.py, meat/try_conversion.py, intel_cpu/tools/dump_jit_disassm/__main__.py) — it does not touch src/core/reference, PCH generation, or cmake configuration, so the failure is not caused by this PR's diff. This is the second recorded occurrence of the identical signature (first seen 2026-09-25 on a different, also-unrelated PR against src/core/shape_inference), strongly indicating a recurring build-environment/toolchain issue: a stale or partially-written .gch artifact (e.g. from sccache reuse across build directories, or a PCH-generation race under parallel ninja builds) being consumed instead of being regenerated, rather than a source-code regression.",
+    "reproduction_steps": "Not directly reproducible from a clean checkout without the exact runner image/cache state. To attempt reproduction: use the ARM64 cross-compilation Docker image referenced by this workflow, configure with the same cmake options (-DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake, CMAKE_COMPILE_WARNING_AS_ERROR=ON, CMAKE_CXX_COMPILER_LAUNCHER=sccache), then run a parallel ninja build and check whether src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch is regenerated cleanly before being consumed by dependent .cpp.o compiles, especially after a cache restore from a previous run.",
+    "recommended_actions": [
+        "Re-run the failed 'Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)' workflow; since this is the 2nd occurrence of the same signature on unrelated PRs, a rerun is expected to pass and would further confirm a transient/stale build-cache or PCH-generation race.",
+        "Investigate whether sccache is caching or restoring PCH compiler invocations (CMAKE_CXX_COMPILER_LAUNCHER=sccache combined with CMake PCH) across build directories/containers for the ARM64 cross-compilation job, and whether a partially-written or stale .gch from a previous cache entry is being reused.",
+        "Consider excluding PCH object files (cmake_pch.hxx.gch) from the sccache/ccache key or build-directory cache restored between runs for this job, since a now-2x-recurring identical signature points at a cache-restore interaction rather than random flakiness.",
+        "As a stopgap, consider not escalating -Werror=invalid-pch to a hard failure for PCH-consuming targets on this cross-compilation configuration until the underlying cache/race is fixed, since a stale PCH should trigger a full regeneration rather than fail the whole build."
+    ],
+    "prevention_strategies": "Ensure PCH artifacts (cmake_pch.hxx.gch) are always freshly generated per build and are not restored from a cross-run build-directory or sccache cache for the ARM64 cross-compilation job. Add a CI step that verifies PCH freshness (e.g. checksumming or timestamp-checking the .gch against its source header) before the compile step consumes it, so a stale artifact triggers a clean rebuild instead of a hard failure.",
+    "historical_context": "Recurrence of the exact same signature recorded on 2026-09-25 (run 36123294303, PR #38393, also unrelated to src/core/shape_inference/reference or PCH config, which failed in openvino_shape_inference instead of openvino_reference). This confirms the issue is not tied to a specific PR's code changes but to the ARM64 cross-compilation build environment/cache, and this is now a recurring (2x) pattern in the post-commit knowledge base."
+}
