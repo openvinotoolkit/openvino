@@ -47,7 +47,7 @@ _PRESET_FLAGS = {
     "paged_attention": True,
     "pa_translate": True,
     "no_fallback": True,
-    "fc_decompress": True,
+    "canonical_precision": True,
     "dynamic_shapes": False,
 }
 

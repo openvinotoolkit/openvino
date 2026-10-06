@@ -113,8 +113,8 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         om = fe.convert(im)
 
-        # vLLM-specific compile hooks (PA Parameters, Concat ranks, weight
-        # decompression). No-op on graphs without the matching patterns.
+        # vLLM-specific compile hooks (PA Parameters, Concat ranks, precision
+        # canonicalization). No-op on graphs without the matching patterns.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
             _vh.apply_post_convert(om, options)
