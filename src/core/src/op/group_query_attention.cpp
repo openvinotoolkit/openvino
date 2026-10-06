@@ -327,7 +327,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     auto& output_kv_len = kv_shape[2];
     // A windowed KV cache keeps the past buffer's own (capacity) sequence dimension: it rolls in place
     // with front eviction instead of growing. Otherwise present = past + current.
-    if (!m_sliding_window_cache && (output_kv_len.is_dynamic() || sequence_len.is_dynamic())) {
+    // A zero-capacity past (absent/empty cache) cannot be written in place either, so present grows by the step.
+    const bool empty_past = output_kv_len.is_static() && output_kv_len.get_length() == 0;
+    if (!m_sliding_window_cache && (output_kv_len.is_dynamic() || sequence_len.is_dynamic() || empty_past)) {
         output_kv_len += sequence_len;
     }
 
