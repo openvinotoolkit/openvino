@@ -330,7 +330,7 @@ private:
         if (done)
             return data;
         if (future.valid()) {
-            future.wait();
+            future.get();
             done = true;
         }
         return data;
