@@ -140,6 +140,29 @@ TEST_P(FuseMoERouterTest, CompareFunctions) {
     }
 }
 
+TEST_F(TransformationTestsF, FuseMoERouterSkipsFP32) {
+    auto build_model = []() {
+        constexpr size_t num_experts = 256;
+        constexpr size_t top_k = 8;
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{22, 2048});
+        auto routers = op::v0::Constant::create(element::f32, Shape{2048, num_experts}, {0.2f});
+        auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
+        const auto [routing_out, topk_indices] = build_softmax_routing_for_fuse_test(routing_weights, top_k, true);
+        auto weights_out = std::make_shared<ov::op::v0::Unsqueeze>(
+            routing_out,
+            ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
+        auto indices_out = std::make_shared<ov::op::v0::Unsqueeze>(
+            topk_indices,
+            ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
+        return std::make_shared<ov::Model>(ov::OutputVector{weights_out, indices_out},
+                                           ov::ParameterVector{hidden_states});
+    };
+
+    model = build_model();
+    model_ref = build_model();
+    manager.register_pass<FuseMoERouter>();
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke,
                          FuseMoERouterTest,
                          ::testing::Combine(::testing::Values(MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS),

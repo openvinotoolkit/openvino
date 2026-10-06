@@ -52,6 +52,9 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
+        if (pattern_map.at(routing_matmul).get_element_type() != ov::element::f16) {
+            return false;
+        }
         const auto& topk_in_shape = pattern_map.at(softmax_m).get_partial_shape();
         const auto& topk_out_shape = m.get_pattern_map().at(topk_m)->output(0).get_partial_shape();
         for (const auto& shape : {topk_in_shape, topk_out_shape}) {
@@ -114,6 +117,9 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
+        if (pattern_map.at(routing_matmul).get_element_type() != ov::element::f16) {
+            return false;
+        }
         const auto& topk_in_shape = pattern_map.at(add_m).get_partial_shape();
         const auto& topk_out_shape = m.get_pattern_map().at(topk_m)->output(1).get_partial_shape();
         for (const auto& shape : {topk_in_shape, topk_out_shape}) {

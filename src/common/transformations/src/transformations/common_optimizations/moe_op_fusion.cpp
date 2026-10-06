@@ -110,6 +110,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         }
 
         auto hidden_states = pm.at(hidden_states_m);
+        if (!has_batch_dim) {
+            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+        }
 
         auto routing = pm.at(routing_m);
         auto topk_indices = pm.at(topk_indices_m);
@@ -303,6 +306,9 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         }
 
         auto hidden_states = pm.at(hidden_states_m);
+        if (!has_batch_dim) {
+            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+        }
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
         // Order is enforced by the pattern (value_matches("1, 0")).

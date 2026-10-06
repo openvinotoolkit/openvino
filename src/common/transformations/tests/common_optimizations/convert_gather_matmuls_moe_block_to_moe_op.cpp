@@ -280,7 +280,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_moe_pattern_model() {
 // ============================================================================
 
 inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
-    ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU) {
+    ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU,
+    bool has_batch_dim = true) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -290,7 +291,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
     const size_t number_of_experts = 3;
     const size_t topk = 2;
 
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{batch, in_dim, hidden_size});
+    auto input_shape = has_batch_dim ? PartialShape{batch, in_dim, hidden_size} : PartialShape{in_dim, 1, hidden_size};
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
     auto experts_reshape = std::make_shared<op::v1::Reshape>(
         input,
         op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),
@@ -353,12 +355,12 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
                                             op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0}),
                                             false);
 
+    const std::vector<int64_t> output_shape = has_batch_dim
+                                                  ? std::vector<int64_t>{static_cast<int64_t>(batch), -1, static_cast<int64_t>(hidden_size)}
+                                                  : std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)};
     auto end_reshape = std::make_shared<op::v1::Reshape>(
         reduce_sum,
-        op::v0::Constant::create(
-            element::i64,
-            Shape{3},
-            std::vector<int64_t>{static_cast<int64_t>(batch), -1, static_cast<int64_t>(hidden_size)}),
+        op::v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
         true);
 
     return std::make_shared<ov::Model>(ov::OutputVector{end_reshape}, ov::ParameterVector{input});
@@ -744,6 +746,19 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_basic) {
     model = build_3gemm_bgm_model();
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_3gemm_bgm_to_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_without_batch_dim) {
+    model = build_3gemm_bgm_model(ov::op::internal::MOE::Activation_type::SWIGLU, false);
+    ov::pass::Manager local_manager;
+    local_manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(false);
+
+    local_manager.run_passes(model);
+
+    ASSERT_EQ(model->get_output_partial_shape(0), ov::PartialShape({-1, 2048}));
+    const auto moe = ov::as_type_ptr<ov::op::internal::MOE>(model->get_results().front()->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(moe, nullptr);
+    EXPECT_EQ(moe->get_input_partial_shape(0), ov::PartialShape({-1, 2048}));
 }
 
 TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_gelu_tanh) {
