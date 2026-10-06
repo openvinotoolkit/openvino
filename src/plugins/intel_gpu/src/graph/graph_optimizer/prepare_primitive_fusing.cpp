@@ -635,6 +635,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return true;
             }
             auto in_dt = node.get_input_layout(0).data_type;
+#if OV_GPU_WITH_CM
+            // u2 FCs the CM kernels can run take post-ops in static shapes too: the kernels apply a bias /
+            // fused add / fused SwiGLU themselves (FullyConnectedWoqU2ImplementationManager::validate_impl
+            // decides after fusion; other fused patterns fall back to the OCL reference FC).
+            if (node.get_input_layout(1).data_type == data_types::u2 &&
+                ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(node))
+                return true;
+#endif
             return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
 
         };
@@ -1225,6 +1233,22 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[0] = can_fuse_parents[0] && are_compatible(out_pshape, parent1_pshape);
                 can_fuse_parents[1] = can_fuse_parents[1] && are_compatible(out_pshape, parent2_pshape);
             }
+
+#if OV_GPU_WITH_CM
+            // A static u2 FC takes post-ops only for the CM kernels (fc_supports_fusings). Do not fuse one they
+            // cannot apply (operand not shaped like the output, e.g. per-column with M > 1): the FC would fall
+            // back to the OCL reference FC, while unfused it stays on CM with the eltwise as a separate kernel.
+            for (size_t i = 0; i < parents.size(); i++) {
+                auto& fc = *parents[i].first;
+                if (!can_fuse_parents[i] || !fc.is_type<fully_connected>() || fc.get_input_layout(1).data_type != data_types::u2 ||
+                    !fc.get_input_layout(1).is_static())
+                    continue;
+                const auto N = static_cast<int64_t>(fc.get_input_layout(1).get_shape()[0]);
+                const auto& peer = *parents[parents.size() - 1 - i].first;
+                if (!ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), node.get_output_layout(), N).empty())
+                    can_fuse_parents[i] = false;
+            }
+#endif
 
             // We should have at least one node to fuse
             if (!can_fuse_parents[0] && !can_fuse_parents[1])

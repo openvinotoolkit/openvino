@@ -17,10 +17,17 @@
 //
 //   smoke_*        : small / edge shapes (M tails, partial column tiles, odd group counts, 3D input,
 //                    dynamic M, two u2 layers in one program)
-//   perf_shapes_*  : the benchmark shapes of the kernel's test_woq_cm.py (M x K x N up to 2048 x 17920 x
-//                    5120). The reference computes 8 rows per 256-row tile (all N, all K). Not part
-//                    of the smoke run; select them with
-//                    --gtest_filter=perf_shapes*fully_connected_cm_woq_u2*
+//   perf_shapes_*  : the u2 oneDNN benchdnn matmul cases (bd<n>, numbered as in the benchdnn list), with
+//                    their exact input rank, shapes, output type and
+//                    post-op (bd2 / bd5: add f32 [M, N]; bd8 / bd11: add f32 per column; bd4: swish x mul f16
+//                    [M, N]; bd10: swish x mul f16 per column), in both weight layouts. On M = 512 the
+//                    reference computes 8 rows per 256-row tile (all N, all K). Not part of the smoke run;
+//                    select them with --gtest_filter=perf_shapes*fully_connected_cm_woq_u2*
+//
+// Post-ops (Epi): FC bias [N]; a fused eltwise sum with an operand; a fused swish (beta 1) + eltwise prod
+// (SwiGLU). The operand has the output's shape and dtype; a per-column operand / bias ([.., 1, N], epi_row)
+// only with M = 1, where it is that shape (the kernels do not broadcast). A trailing reorder keeps the post-op from being the network output, so
+// prepare_primitive_fusing fuses it into the FC; every post-op case checks it ran inside the CM kernel.
 
 #include <algorithm>
 #include <array>
@@ -30,13 +37,18 @@
 #include <cmath>
 #include <cstdlib>
 #include <random>
+#include <string>
+#include <sstream>
 #include <thread>
 
 #include "fully_connected_inst.h"
 #include "impls/cm/fully_connected_woq_u2.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
@@ -50,12 +62,19 @@ namespace {
 
 enum class ZpKind { none, tensor_f16, tensor_u8, scalar };
 
+// Post-op of a case: none; FC bias [N] (M = 1 only); fused add (fc + t); fused SwiGLU (swish(fc) * t). t is
+// an input shaped like the output, or one row (epi_row, M = 1 only).
+enum class Epi { none, bias, add, swiglu };
+
 struct WoqU2Case {
     int64_t M, K, N;
     ZpKind zp;
     int64_t seq = 0;         // > 0: 3D input [M/seq, seq, K]
     bool dynamic = false;    // dynamic M; executed at M and at two more sizes
     bool sample_rows = false;  // reference computes a row sample only (all N columns, all of K)
+    Epi epi = Epi::none;
+    bool epi_row = false;    // add / SwiGLU operand is one row [.., 1, N] (per column; M = 1 only)
+    int bd = 0;              // > 0: number of the benchdnn case it reproduces
 };
 
 std::string zp_name(ZpKind z) {
@@ -76,9 +95,12 @@ using WoqU2Param = std::tuple<WoqU2Case, WoqU2WeightLayout, data_types>;
 
 std::string case_name(const testing::TestParamInfo<WoqU2Param>& info) {
     const auto& c = std::get<0>(info.param);
-    std::string name = "M" + std::to_string(c.M) + "_K" + std::to_string(c.K) + "_N" + std::to_string(c.N) + "_" + zp_name(c.zp);
+    std::string name = (c.bd ? "bd" + std::to_string(c.bd) + "_" : std::string()) + "M" + std::to_string(c.M) + "_K" + std::to_string(c.K) + "_N" + std::to_string(c.N) + "_" + zp_name(c.zp);
     if (c.seq) name += "_seq" + std::to_string(c.seq);
     if (c.dynamic) name += "_dyn";
+    if (c.epi == Epi::bias) name += "_bias";
+    if (c.epi == Epi::add) name += c.epi_row ? "_addrow" : "_add";
+    if (c.epi == Epi::swiglu) name += c.epi_row ? "_swiglurow" : "_swiglu";
     return name + "_" + layout_name(std::get<1>(info.param)) + (std::get<2>(info.param) == data_types::f32 ? "_f32out" : "_f16out");
 }
 
@@ -212,10 +234,10 @@ void add_weights(topology& topo, const std::string& prefix, const WoqU2Weights& 
 }
 
 fully_connected make_fc(const std::string& id, const std::string& input, const std::string& prefix, ZpKind zk, data_types out_dt,
-                        size_t input_rank, float zp_scalar) {
+                        size_t input_rank, float zp_scalar, bool with_bias = false) {
     const bool zp_tensor = zk == ZpKind::tensor_f16 || zk == ZpKind::tensor_u8;
-    auto fc = fully_connected(id, input_info(input), prefix + "weights", "", prefix + "scale", zp_tensor ? prefix + "zp" : "", out_dt,
-                              input_rank, 2);
+    auto fc = fully_connected(id, input_info(input), prefix + "weights", with_bias ? prefix + "bias" : "", prefix + "scale",
+                              zp_tensor ? prefix + "zp" : "", out_dt, input_rank, 2);
     if (zk == ZpKind::scalar)
         fc.decompression_zero_point_scalar = zp_scalar;
     return fc;
@@ -359,14 +381,33 @@ void compare_values(const std::vector<float>& out, const std::vector<float>& ref
 }
 
 // CM output rows `rows` of an [m, N] output vs the host reference.
+// Host epilogue: kind, operand values (row-major, [m, N] or one row [N] when `row`).
+struct HostEpi {
+    Epi kind = Epi::none;
+    const std::vector<float>* t = nullptr;
+    bool row = false;
+};
+
+// The reference applies the epilogue in double, in the kernel's order: acc + t, or acc / (1 + exp(-acc)) * t.
 void check_rows(memory::ptr out_mem, int64_t m, const std::vector<ov::float16>& a, const std::vector<int64_t>& rows, const WoqU2Weights& w,
-                bool out_f32) {
+                bool out_f32, const HostEpi& epi = {}) {
     const int64_t N = w.N, R = static_cast<int64_t>(rows.size());
     const auto out_all = read_output(out_mem, static_cast<size_t>(m * N), out_f32);
     std::vector<float> out_rows(static_cast<size_t>(R * N));
     for (int64_t i = 0; i < R; i++)
         std::copy_n(out_all.begin() + rows[static_cast<size_t>(i)] * N, N, out_rows.begin() + i * N);
-    compare_values(out_rows, host_reference(a, rows, w), N, &rows, !out_f32);
+    auto ref = host_reference(a, rows, w);
+    if (epi.kind != Epi::none) {
+        for (int64_t i = 0; i < R; i++)
+            for (int64_t n = 0; n < N; n++) {
+                const int64_t trow = epi.row ? 0 : rows[static_cast<size_t>(i)];
+                const double t = (*epi.t)[static_cast<size_t>(trow * N + n)];
+                double v = ref[static_cast<size_t>(i * N + n)];
+                v = epi.kind == Epi::swiglu ? v / (1.0 + std::exp(-v)) * t : v + t;
+                ref[static_cast<size_t>(i * N + n)] = static_cast<float>(v);
+            }
+    }
+    compare_values(out_rows, ref, N, &rows, !out_f32);
 }
 
 std::vector<int64_t> all_rows(int64_t M) {
@@ -421,12 +462,63 @@ TEST_P(fully_connected_cm_woq_u2, conformance) {
 
     // The host reference computes a row sample only on the large shapes (all N columns, all of K).
     if (p.sample_rows)
-        ASSERT_TRUE(!p.dynamic && p.seq == 0);
+        ASSERT_FALSE(p.dynamic);
+    const bool fused_post_op = p.epi == Epi::add || p.epi == Epi::swiglu;
+    auto make_out_shape = [&](int64_t m) {
+        return p.seq ? ov::PartialShape{m / p.seq, p.seq, N} : ov::PartialShape{m, N};
+    };
+    // Shape of the add / SwiGLU operand: the output's, or one row [.., 1, N].
+    auto make_epi_shape = [&](int64_t m) {
+        if (p.epi_row)
+            return p.seq ? ov::PartialShape{1, 1, N} : ov::PartialShape{1, N};
+        return make_out_shape(m);
+    };
+    auto net_epi_shape = p.epi_row ? make_epi_shape(1)
+                                   : (p.dynamic ? (p.seq ? ov::PartialShape{-1, p.seq, N} : ov::PartialShape{-1, N}) : make_out_shape(M));
+    // Operand / bias values: f16-representable, so the same values serve an f16 and an f32 tensor.
+    auto make_epi_values = [&](size_t count, uint64_t seed) {
+        const auto h = random_activations(count, seed);
+        std::vector<float> v(count);
+        for (size_t i = 0; i < count; i++)
+            v[i] = static_cast<float>(h[i]);
+        return v;
+    };
+    auto upload = [&](const ov::PartialShape& shape, const std::vector<float>& v) {
+        auto mem = engine.allocate_memory({shape, out_dt, format::bfyx});
+        if (out_dt == data_types::f32) {
+            set_values(mem, v);
+        } else {
+            std::vector<ov::float16> h(v.size());
+            for (size_t i = 0; i < v.size(); i++)
+                h[i] = ov::float16(v[i]);
+            set_values(mem, h);
+        }
+        return mem;
+    };
+    std::vector<float> bias_values;
+    if (p.epi == Epi::bias)
+        bias_values = make_epi_values(static_cast<size_t>(N), static_cast<uint64_t>(N * 31 + K));
 
     auto build = [&](const ov::PartialShape& in_shape) {
         topology topo(input_layout("input", layout{in_shape, data_types::f16, format::bfyx}));
         add_weights(topo, "", w);
-        topo.add(make_fc("fc_prim", "input", "", p.zp, out_dt, input_rank, w.zp_scalar));
+        if (p.epi == Epi::bias)
+            topo.add(data("bias", upload(ov::PartialShape{1, N}, bias_values)));
+        topo.add(make_fc("fc_prim", "input", "", p.zp, out_dt, input_rank, w.zp_scalar, p.epi == Epi::bias));
+        std::string last = "fc_prim";
+        if (fused_post_op) {
+            topo.add(input_layout("epi", layout{net_epi_shape, out_dt, format::bfyx}));
+            if (p.epi == Epi::swiglu) {
+                // gate_proj-style SwiGLU: swish(fc) * t.
+                topo.add(activation("swish", input_info("fc_prim"), activation_func::swish, {1.0f, 0.0f}));
+                topo.add(eltwise("post", input_info("swish"), input_info("epi"), eltwise_mode::prod));
+            } else {
+                topo.add(eltwise("post", input_info("fc_prim"), input_info("epi"), eltwise_mode::sum));
+            }
+            last = "post";
+        }
+        // Keeps the post-op from being the network output (outputs are not fused); removed later as redundant.
+        topo.add(reorder("out", input_info(last), format::bfyx, out_dt));
         return topo;
     };
     network::ptr network = get_network(engine, build(net_in_shape), woq_config(engine, {"fc_prim"}), get_test_stream_ptr(), false);
@@ -444,10 +536,29 @@ TEST_P(fully_connected_cm_woq_u2, conformance) {
         auto input_mem = engine.allocate_memory({make_shape(m), data_types::f16, format::bfyx});
         set_values(input_mem, a);
         network->set_input_data("input", input_mem);
+        std::vector<float> epi_values;
+        if (fused_post_op) {
+            const auto shape = make_epi_shape(m);
+            epi_values = make_epi_values(static_cast<size_t>(ov::shape_size(shape.to_shape())), static_cast<uint64_t>(m * 7919 + N));
+            network->set_input_data("epi", upload(shape, epi_values));
+        }
         auto outputs = network->execute();
         ASSERT_EQ(outputs.size(), size_t(1));
-        expect_selected(*network, "fc_prim");
-        check_rows(outputs.begin()->second.get_memory(), m, a, p.sample_rows ? sample_rows(m) : all_rows(m), w, out_f32);
+        // The CM FC must have run. Its id depends on graph cleanup (with the trailing reorder removed it
+        // takes the output's id), so look for it among the executed primitives. A post-op must run inside
+        // it (epi_mode 1 / 2), not as a separate kernel.
+        bool cm_ran = false;
+        for (const auto& id : network->get_executed_primitive_ids()) {
+            const auto impl = network->get_primitive(id)->get_impl();
+            cm_ran |= impl && impl->get_kernel_name().find("woq_u2") != std::string::npos;
+            ASSERT_TRUE(id != "swish" && id != "post") << "post-op was not fused into the CM FC (" << id << " ran separately)";
+        }
+        ASSERT_TRUE(cm_ran) << "CM u2 FC implementation was not selected";
+        HostEpi he;
+        he.kind = p.epi;
+        he.row = p.epi == Epi::bias || p.epi_row;
+        he.t = p.epi == Epi::bias ? &bias_values : &epi_values;
+        check_rows(outputs.at("out").get_memory(), m, a, p.sample_rows ? sample_rows(m) : all_rows(m), w, out_f32, he);
     }
 }
 
@@ -455,7 +566,9 @@ TEST_P(fully_connected_cm_woq_u2, conformance) {
 // profiling events (kernel execution time of the FC only), for every weight layout and output type.
 // Not a conformance check and disabled by default; run with
 //   --gtest_also_run_disabled_tests --gtest_filter=*fully_connected_cm_woq_u2_perf*
-// Environment: OV_WOQ_U2_PERF_ITERS (CM runs per shape, default 100).
+// Environment: OV_WOQ_U2_PERF_ITERS (CM runs per shape, default 100); OV_WOQ_U2_PERF_SHAPES replaces the
+// built-in shapes with a list of MxKxN, separated by ',' (e.g. "1x5120x7680,128x5120x17920"; K % 64 == 0,
+// N % 32 == 0).
 // Device-resident copy: test buffers default to the lockable allocation type (host USM on a discrete
 // GPU), while a compiled model keeps constants and activations in device memory.
 memory::ptr to_device(engine& engine, const memory::ptr& m) {
@@ -486,7 +599,7 @@ TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchmark_shapes) {
         int64_t M, K, N;
         ZpKind zp;
     };
-    const std::vector<Shape> shapes = {{512, 5120, 7680, ZpKind::tensor_u8},
+    std::vector<Shape> shapes = {{512, 5120, 7680, ZpKind::tensor_u8},
                                        {512, 5120, 5120, ZpKind::tensor_u8},
                                        {512, 5120, 17920, ZpKind::tensor_u8},
                                        {512, 17920, 5120, ZpKind::tensor_u8},
@@ -495,6 +608,21 @@ TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchmark_shapes) {
                                        {2048, 5120, 7680, ZpKind::tensor_u8},
                                        {2048, 5120, 17920, ZpKind::tensor_u8},
                                        {2048, 17920, 5120, ZpKind::tensor_u8}};
+    if (const char* env = std::getenv("OV_WOQ_U2_PERF_SHAPES")) {
+        shapes.clear();
+        std::stringstream list(env);
+        std::string item;
+        while (std::getline(list, item, ',')) {
+            int64_t m = 0, k = 0, n = 0;
+            char x1 = 0, x2 = 0;
+            std::stringstream one(item);
+            ASSERT_TRUE((one >> m >> x1 >> k >> x2 >> n) && x1 == 'x' && x2 == 'x' && m > 0 && k > 0 && n > 0)
+                << "OV_WOQ_U2_PERF_SHAPES: expected MxKxN, got '" << item << "'";
+            ASSERT_TRUE(k % 64 == 0 && n % 32 == 0) << "OV_WOQ_U2_PERF_SHAPES: " << item << " needs K % 64 == 0 and N % 32 == 0";
+            shapes.push_back({m, k, n, ZpKind::tensor_u8});
+        }
+        ASSERT_FALSE(shapes.empty()) << "OV_WOQ_U2_PERF_SHAPES is empty";
+    }
 
     // Kernel execution times (ms) of the FC over `iters` runs after `warmup` runs.
     auto measure = [&](const WoqU2Weights& w, ZpKind zk, data_types out_dt, memory::ptr input_mem, int64_t M, int64_t K, const ExecutionConfig& cfg,
@@ -572,26 +700,172 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              WoqU2Case{24, 384, 512, ZpKind::tensor_u8, 6},
                              // dynamic M (shape-agnostic kernel, re-dispatched per shape)
                              WoqU2Case{96, 512, 512, ZpKind::tensor_u8, 0, true},
-                             WoqU2Case{40, 256, 544, ZpKind::tensor_u8, 8, true}),
+                             WoqU2Case{40, 256, 544, ZpKind::tensor_u8, 8, true},
+                             // post-ops: tiled kernel (M > 8) and GEMV (M <= 8), operand shaped like the output
+                             WoqU2Case{64, 256, 288, ZpKind::tensor_u8, 0, false, false, Epi::add},
+                             WoqU2Case{40, 512, 512, ZpKind::tensor_u8, 0, false, false, Epi::swiglu},
+                             WoqU2Case{24, 384, 512, ZpKind::tensor_u8, 6, false, false, Epi::add},
+                             WoqU2Case{5, 128, 256, ZpKind::tensor_u8, 0, false, false, Epi::add},
+                             WoqU2Case{8, 128, 256, ZpKind::tensor_u8, 0, false, false, Epi::swiglu},
+                             // per-column operand / bias: M = 1 only
+                             WoqU2Case{1, 256, 288, ZpKind::tensor_u8, 0, false, false, Epi::add, true},
+                             WoqU2Case{1, 512, 256, ZpKind::tensor_u8, 0, false, false, Epi::swiglu, true},
+                             WoqU2Case{1, 64, 32, ZpKind::tensor_u8, 0, false, false, Epi::bias},
+                             // post-ops with dynamic M
+                             WoqU2Case{96, 512, 512, ZpKind::tensor_u8, 0, true, false, Epi::add},
+                             WoqU2Case{40, 256, 544, ZpKind::tensor_u8, 8, true, false, Epi::swiglu}),
                                             ::testing::Values(WoqU2WeightLayout::n_major, WoqU2WeightLayout::group_major),
                                             ::testing::Values(data_types::f16, data_types::f32)),
                          case_name);
 
-INSTANTIATE_TEST_SUITE_P(perf_shapes,
-                         fully_connected_cm_woq_u2,
-                         ::testing::Combine(::testing::Values(
-                             // benchmark shapes of test_woq_cm.py (the FC itself; epilogues are separate ops here)
-                             WoqU2Case{512, 5120, 7680, ZpKind::tensor_u8, 0, false, true},
-                             WoqU2Case{512, 5120, 5120, ZpKind::tensor_u8, 0, false, true},
-                             WoqU2Case{512, 5120, 17920, ZpKind::tensor_u8, 0, false, true},
-                             WoqU2Case{512, 17920, 5120, ZpKind::tensor_u8, 0, false, true},
-                             WoqU2Case{1024, 5120, 7680, ZpKind::tensor_u8, 0, false, true},
-                             WoqU2Case{1024, 5120, 17920, ZpKind::tensor_u8, 0, false, true},
-                             WoqU2Case{2048, 5120, 7680, ZpKind::tensor_u8, 0, false, true},
-                             WoqU2Case{2048, 5120, 17920, ZpKind::tensor_u8, 0, false, true},
-                             WoqU2Case{2048, 17920, 5120, ZpKind::tensor_u8, 0, false, true}),
-                                            ::testing::Values(WoqU2WeightLayout::n_major, WoqU2WeightLayout::group_major),
-                                            ::testing::Values(data_types::f16, data_types::f32)),
-                         case_name);
+// The u2 oneDNN benchdnn matmul cases: src BxMxK : wei 1xKxN, --wtag=cab (weights [N, K]), scales f16 /
+// zero points u8 per 64 along K, --attr-fpmath=f16. Input rank and shapes as given (BxM flattened by the
+// FC), output type fixed per case; both weight layouts each.
+std::vector<WoqU2Param> benchdnn_u2_cases() {
+    struct BenchCase {
+        WoqU2Case c;
+        data_types out;
+    };
+    const auto u8 = ZpKind::tensor_u8;
+    const std::vector<BenchCase> cases = {
+        // src : wei, post-op (benchdnn mask 6 = full [M, N] tensor, mask 4 = per column)
+        {WoqU2Case{512, 5120, 7680, u8, 1, false, true, Epi::none, false, 1}, data_types::f16},     // 512x1x5120:1x5120x7680
+        {WoqU2Case{512, 5120, 5120, u8, 512, false, true, Epi::add, false, 2}, data_types::f32},    // 1x512x5120:1x5120x5120, add f32:6
+        {WoqU2Case{512, 5120, 17920, u8, 1, false, true, Epi::none, false, 3}, data_types::f16},    // 512x1x5120:1x5120x17920
+        {WoqU2Case{512, 5120, 17920, u8, 512, false, true, Epi::swiglu, false, 4}, data_types::f16},  // 1x512x5120:1x5120x17920, swish+mul f16:6
+        {WoqU2Case{512, 17920, 5120, u8, 512, false, true, Epi::add, false, 5}, data_types::f32},   // 1x512x17920:1x17920x5120, add f32:6
+        {WoqU2Case{1, 5120, 7680, u8, 1, false, false, Epi::none, false, 7}, data_types::f16},      // 1x1x5120:1x5120x7680
+        {WoqU2Case{1, 5120, 5120, u8, 1, false, false, Epi::add, true, 8}, data_types::f32},        // 1x1x5120:1x5120x5120, add f32:4
+        {WoqU2Case{1, 5120, 17920, u8, 1, false, false, Epi::none, false, 9}, data_types::f16},     // 1x1x5120:1x5120x17920
+        {WoqU2Case{1, 5120, 17920, u8, 1, false, false, Epi::swiglu, true, 10}, data_types::f16},   // 1x1x5120:1x5120x17920, swish+mul f16:4
+        {WoqU2Case{1, 17920, 5120, u8, 1, false, false, Epi::add, true, 11}, data_types::f32},      // 1x1x17920:1x17920x5120, add f32:4
+    };
+    std::vector<WoqU2Param> params;
+    for (const auto& bc : cases)
+        for (const auto wl : {WoqU2WeightLayout::n_major, WoqU2WeightLayout::group_major})
+            params.emplace_back(bc.c, wl, bc.out);
+    return params;
+}
+
+INSTANTIATE_TEST_SUITE_P(perf_shapes, fully_connected_cm_woq_u2, ::testing::ValuesIn(benchdnn_u2_cases()), case_name);
+
+// Kernel time of the 10 u2 benchdnn cases, one row each, exactly as benchdnn runs them: input rank, shapes,
+// output type and post-op of benchdnn_u2_cases(), weights N-major (--wtag=cab), the post-op fused into the
+// CM FC; measured with GPU profiling events on the CM FC kernel alone. Reports
+// TFLOP/s against the XMX peak and the effective weight bandwidth (u2 weights + f16 scales + u8 zero points,
+// 0.297 B per K x N element), the meaningful number for M = 1. Disabled by default; run with
+//   --gtest_also_run_disabled_tests --gtest_filter=*fully_connected_cm_woq_u2_perf.DISABLED_benchdnn_cases*
+// Environment: OV_WOQ_U2_PERF_ITERS (runs per case, default 100).
+TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchdnn_cases) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+    const char* iters_env = std::getenv("OV_WOQ_U2_PERF_ITERS");
+    const int iters = std::max(1, iters_env ? std::atoi(iters_env) : 100);
+    const int warmup = 5;
+    const auto& info = engine.get_device_info();
+    const double peak_tflops = static_cast<double>(info.execution_units_count) * info.gpu_frequency * 1e-3 * 256.0 * 1e-3;
+
+    auto post_name = [](const WoqU2Case& c) -> std::string {
+        switch (c.epi) {
+        case Epi::bias: return "bias";
+        case Epi::add: return c.epi_row ? "add/col" : "add";
+        case Epi::swiglu: return c.epi_row ? "swiglu/col" : "swiglu";
+        default: return "-";
+        }
+    };
+    std::cout << "\n  XMX roof " << std::fixed << std::setprecision(1) << peak_tflops << " TFLOP/s. " << iters << " runs per case." << "\n"
+              << "  bd      M      K      N  out  post-op     kernel |  CM best  CM median  TFLOP/s  %roof  weight GB/s" << "\n";
+    tests::random_generator rg(GET_SUITE_NAME);
+    for (const auto& prm : benchdnn_u2_cases()) {
+        const auto& c = std::get<0>(prm);
+        const auto wl = std::get<1>(prm);
+        const auto out_dt = std::get<2>(prm);
+        if (wl != WoqU2WeightLayout::n_major)
+            continue;  // benchdnn's weights are N-major (--wtag=cab)
+        const WeightLayoutScope layout_scope(wl);
+        const bool fused_post_op = c.epi == Epi::add || c.epi == Epi::swiglu;
+
+        auto w = make_weights(engine, c.K, c.N, c.zp, rg, 5, wl);
+        w.weights = to_device(engine, w.weights);
+        w.scale = to_device(engine, w.scale);
+        w.zp = to_device(engine, w.zp);
+        const auto in_shape = c.seq ? ov::PartialShape{c.M / c.seq, c.seq, c.K} : ov::PartialShape{c.M, c.K};
+        const auto out_shape = c.seq ? ov::PartialShape{c.M / c.seq, c.seq, c.N} : ov::PartialShape{c.M, c.N};
+        const auto epi_shape = c.epi_row ? (c.seq ? ov::PartialShape{1, 1, c.N} : ov::PartialShape{1, c.N}) : out_shape;
+        auto device_tensor = [&](const ov::PartialShape& shape, uint64_t seed) {
+            const auto h = random_activations(ov::shape_size(shape.to_shape()), seed);
+            auto host = engine.allocate_memory({shape, out_dt, format::bfyx});
+            if (out_dt == data_types::f32) {
+                std::vector<float> f(h.size());
+                for (size_t i = 0; i < h.size(); i++)
+                    f[i] = static_cast<float>(h[i]);
+                set_values(host, f);
+            } else {
+                set_values(host, h);
+            }
+            return to_device(engine, host);
+        };
+
+        const size_t input_rank = c.seq ? 3 : 2;
+        topology topo(input_layout("input", layout{in_shape, data_types::f16, format::bfyx}));
+        add_weights(topo, "", w);
+        if (c.epi == Epi::bias)
+            topo.add(data("bias", device_tensor(ov::PartialShape{1, c.N}, 3)));
+        topo.add(make_fc("fc_prim", "input", "", c.zp, out_dt, input_rank, w.zp_scalar, c.epi == Epi::bias));
+        std::string last = "fc_prim";
+        if (fused_post_op) {
+            topo.add(input_layout("epi", layout{epi_shape, out_dt, format::bfyx}));
+            if (c.epi == Epi::swiglu) {
+                topo.add(activation("swish", input_info("fc_prim"), activation_func::swish, {1.0f, 0.0f}));
+                topo.add(eltwise("post", input_info("swish"), input_info("epi"), eltwise_mode::prod));
+            } else {
+                topo.add(eltwise("post", input_info("fc_prim"), input_info("epi"), eltwise_mode::sum));
+            }
+            last = "post";
+        }
+        topo.add(reorder("out", input_info(last), format::bfyx, out_dt));
+
+        auto config = woq_config(engine, {"fc_prim"});
+        config.set_property(ov::enable_profiling(true));
+        network net(engine, topo, config);
+        auto host_in = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
+        set_values(host_in, random_activations(static_cast<size_t>(c.M * c.K), 17));
+        net.set_input_data("input", to_device(engine, host_in));
+        if (fused_post_op)
+            net.set_input_data("epi", device_tensor(epi_shape, 29));
+
+        std::vector<double> ms;
+        std::string kernel = "-";
+        bool post_op_separate = false;
+        for (int i = 0; i < warmup + iters; i++) {
+            auto outputs = net.execute();
+            outputs.at("out").get_memory();  // waits for completion
+            if (i < warmup)
+                continue;
+            for (const auto& [id, ev] : net.get_executed_primitives()) {
+                post_op_separate |= id == "swish" || id == "post";
+                const auto impl = net.get_primitive(id)->get_impl();
+                if (!impl || impl->get_kernel_name().find("woq_u2") == std::string::npos)
+                    continue;
+                kernel = impl->get_kernel_name();
+                for (const auto& interval : ev->get_profiling_info())
+                    if (interval.stage == instrumentation::profiling_stage::executing)
+                        ms.push_back(static_cast<double>(interval.value->value().count()) * 1e-6);
+            }
+        }
+        ASSERT_FALSE(ms.empty()) << "bd" << c.bd << ": the CM u2 FC did not run";
+        ASSERT_FALSE(post_op_separate) << "bd" << c.bd << ": the post-op was not fused into the CM FC";
+        std::sort(ms.begin(), ms.end());
+        const double best = ms.front(), median = ms[ms.size() / 2];
+        const double tflops = 2.0 * static_cast<double>(c.M) * c.K * c.N / (best * 1e-3) * 1e-12;
+        const double weight_gbs = static_cast<double>(c.K) * c.N * (0.25 + 2.0 / 64 + 1.0 / 64) / (best * 1e-3) * 1e-9;
+        std::cout << "  " << std::left << std::setw(4) << ("bd" + std::to_string(c.bd)) << std::right << std::setw(5) << c.M << std::setw(7) << c.K
+                  << std::setw(7) << c.N << "  " << (out_dt == data_types::f16 ? "f16" : "f32") << "  " << std::left << std::setw(11) << post_name(c)
+                  << std::setw(6) << (c.M <= 8 ? "gemv" : "tiled") << std::right << " | " << std::setprecision(4) << std::setw(8) << best
+                  << std::setw(11) << median << std::setprecision(1) << std::setw(9) << tflops << std::setw(6) << 100.0 * tflops / peak_tflops << "%"
+                  << std::setw(13) << weight_gbs << "\n" << std::flush;
+    }
+}
 
 }  // namespace
