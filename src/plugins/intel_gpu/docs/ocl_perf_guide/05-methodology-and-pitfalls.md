@@ -177,6 +177,8 @@ SLM/GRF/spill은 `IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=./occ`의 `*.zeinfo
 |---|---|---|---|---|
 | PA MIXED u4 (llama-3.2-1b) | OCL 145,603 ns vs sdpa_micro 147,825 ns (**-1.50%**); 최초 exact baseline 158,661 대비 -8.23%; V_PREFETCH on/off 145,603/151,866 (-4.12%) | 사용자 cliloader 커널 평균 (대표 커널 64 calls, SIMD16 REG128 SLM=17664 GWS[272x512] LWS[16x16]). 장비는 노트에 미기재, 날짜상 B70 추정 | MEASURED | memory:sdpa-ocl-mixed-exact-complete |
 | plain f16 prefill, llama-3.1-8b q=4096 | micro 1,930,454 -> ocl 기본 2,181,376 (13% 느림) -> **ocl BEST 1,796,200 (7.0% 빠름)**; e2e 1st token 466.98 -> 462.85 ms | B70, 2800 MHz 핀, 호출당 device time, 3 pass, 분산 <0.5%. BEST = 256GRF + tq32/pwk4/pwq2 | MEASURED | memory:sdpa-ocl-beats-micro-256grf |
+| DG2 S7a PA PREFILL 초기 baseline, head 128 / 32:8 / seq 4096 | 첫 device-USM ABBA OCL 110.42–113.27 ms vs micro 4.616 ms (약 24x); 후속 ABBA 126.74 vs 4.543 ms (27.90x) | A770/DG2, cliloader device kernel time; 서로 다른 run 값이므로 한 delta 시계열로 연결하지 않음 | MEASURED, 초기 prototype | 06장 §6.3 |
+| DG2 raw K/V standalone PA PREFILL | OCL <= micro × 1.03; 32개 block-16 head 크기, 현재 source-policy 일치 2,642 PASS records / 2,434 unique 조건, 최악 +2.6234% | A770/DG2, device USM, 같은-round paired ratio, queued32와 wait-each. 원본 K/V를 한 attention kernel에서 사용, 외부 pre-pass 없음 | MEASURED, kernel-only; 제품 통합·end-to-end 미완료 | 06장 §6.3, test/sdpa_ocl_xe_hpg/s7a/perf/opt/CHECKPOINT_20261004_ASM_GATE3.md |
 | head=128 int8 compressed prefill q=4096 | k16 기본 5,102,600 -> **k16pwg4 3,526,979** (micro 4.17M 보다 빠름); sg_per_wg 8<16<32, wgTK 64<128<256 모두 "클수록 느림" | B70 2800 핀, 호출당 min. 정확도는 head=64로만 ref-check (head=128 실데이터 미검증이었음) | MEASURED | memory:sdpa-ocl-kq-tile-keys-32-slower |
 | causal/window key 루프 상한 | causal_k: 3,421,875 -> 3,300,312 (1.04x, 타일 반복 1.78x 감소); window W=256: 2,266,562 (1.46x), micro 2,037,708 | B70 2800 핀, `*paged*96` q=1024 head128 f16. causal_k는 사용자가 llama-3.1-8b 실모델에서 큰 개선 확인. window는 llama에 창 없어서 실모델 무효과(SLIDING_WINDOW_SIZE=0이 블록 제거) | MEASURED | memory:sdpa-ocl-causal-bound |
 | gemma-4 head-72 vision prefill | 9,570,971 -> 1,030,869 ns (**9.28x**, 37.28% -> 1.11% of GPU time), micro 대비 8.11x 느림 -> 1.14x 빠름. block2d gate %64->%16 + base fixup (6.96x) + DKS_ACTIVE (1.33x) | 날짜 2026-08-14 (B70 추정), 총 device time | MEASURED | memory:sdpa-ocl-block2d-gate-relaxation |
@@ -190,7 +192,7 @@ SLM/GRF/spill은 `IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=./occ`의 `*.zeinfo
 | 리팩터 성능 중립 | R0 157,307 ns -> R2 157,580 ns (+0.17%, 잡음) | L4 측정 (6ac827ff6f 빌드) | MEASURED | memory:sdpa-ocl-refactor-2026-09 |
 | VTune 기반 f16 V-read 병합 | `16r16x2c`: 524.34 -> 521.01 ms (-0.64%), MD5 동일; SDPA 구간 2.9%/5.2% 짧아짐, SBID stall 43.9–45.5% -> 41.5–43.5% | B70 GPU Hotspots + 동일-workload benchmark. stall PC가 0인 수집이 있어 명령 단위 귀속은 제한됨 | MEASURED | B70 profiling session, 2026-07-31; 상세와 caveat는 04장 §4.1.1 |
 
-**아직 없는 것**: DG2에서 sdpa_ocl SG8 커널의 성능 수치. DG2 S1 baseline은 micro-lane **Debug** 정확도 기준선이며 현재 성능 baseline이 아니다. S7 성능 단계는 시작 전(5.7). ARL-H는 실기 검증 없음.
+**DG2 성능 결과의 경계**: S7a PA PREFILL의 standalone kernel gate는 측정됐다. 제품 소스에 raw-kernel 정책을 통합하고 OpenVINO dispatch/end-to-end에서 확인한 것은 아니다. DG2 S1의 micro-lane Debug 정확도 baseline은 성능 비교가 아니다. S6/S7a product 회귀와 ARL-H 실기 검증도 남아 있다.
 
 ### 5.5.4 실험 결과표 (채택/기각 모두; 평균 ns, memory:sdpa-ocl-mixed-exact-complete)
 
@@ -252,7 +254,7 @@ SLM/GRF/spill은 `IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=./occ`의 `*.zeinfo
 
 상세 playbook: `.claude/skills/xe-hpg-porting/SKILL.md`. 계획 원본은 메모리 `sdpa-ocl-xe-hpg-plan`(허브), `-facts`, `-s7-performance`(최우선 보충 지시서, 2026-10-02 승인), `-briefs-s2-s9`, `-plan-full`; 작업 사본 `test/sdpa_ocl_xe_hpg/plan/`. 장비: DG2는 별도 PC(raptorlake-02), B70이 개발 PC(raptorlake-01).
 
-### 5.7.1 단계 표 (2026-10-02 기준)
+### 5.7.1 단계 표 (2026-10-06 기준)
 
 | 단계 | 내용 | 상태 | 현재 브랜치 커밋 (메모리의 옛 해시 -> 제목으로 대응) |
 |---|---|---|---|
@@ -265,13 +267,13 @@ SLM/GRF/spill은 `IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=./occ`의 `*.zeinfo
 | S6a | plain f16 static prefill SG8 코어 | DONE (사용자 확인) | `10e4f00b68` (구 050605239a) |
 | S6b | bf16, mask, causal, sink, dynamic, q<=1 | DONE | `087d2bd171` (구 27304008a1) |
 | S6c | plain i8 KV | DONE | `b739dc5881` (구 f972cc2d80) |
-| S7a | PA PREFILL + 진입 성능 checkpoint | **미착수 (다음)** | - |
+| S7a | PA PREFILL + 진입 성능 checkpoint | **standalone raw-kernel 3% gate PASS (2026-10-04); 제품 통합·dispatch/end-to-end·S6/SG16/B70 회귀 미완료** | [06장 §6.3](06-performance-gap-investigation.md), `test/sdpa_ocl_xe_hpg/s7a/perf/opt/CHECKPOINT_20261004_ASM_GATE3.md` |
 | S7b | PA MIXED f16 + 스칼라 Kc/Vc | 미착수 | - |
 | S7c | PA 기능 (sink, bidir, qq_bias, window, k!=v, runtime scale) | 미착수 | - |
 | S8a/b/c | i8 BY_TOKEN / d-major i8 BY_CHANNEL (DM reader) / u4 | 미착수 | - |
 | S9 | 기본값 flip (DG2 + ARL-H 12.74, 캐시 태그, 문서) + DG2 census 2회 + 실모델 | 미착수 | `TEMP(S9)` 2곳 제거 |
 
-현재 `kHpgTiersReady = PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8` (`sdpa/sdpa_ocl_hpg.hpp:33`); `TEMP(S9)`는 `sdpa_opt.cpp:86`, `paged_attention_opt.cpp:1623` 정확히 2곳. 안전 정지점: **S9 전까지 xe_hpg 기본 동작 불변** (`TEST_USE_SDPA_OCL_HPG` off).
+committed HEAD `d20cac7`의 `kHpgTiersReady`는 `PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8`이다. 현재 미커밋 작업 트리에는 `PA_PREFILL` bit와 PREFILL/MIXED 개별 routing, `KV_TILED` 전처리 prototype이 추가되어 있지만, 이는 standalone 게이트를 통과한 vISA raw-kernel이 아니며 제품 빌드·정확도·성능으로 검증되지 않았다. 이 로컬 변경을 tier readiness로 해석하지 않는다. committed 상태에서 `TEMP(S9)`는 `sdpa_opt.cpp:86`, `paged_attention_opt.cpp:1623` 정확히 2곳이다. 안전 정지점: **S9 전까지 xe_hpg 기본 동작 불변** (`TEST_USE_SDPA_OCL_HPG` off).
 
 ### 5.7.2 S7 이후 성능 정책 (사용자 승인 2026-10-02, memory:sdpa-ocl-xe-hpg-s7-performance)
 
@@ -279,7 +281,7 @@ SLM/GRF/spill은 `IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=./occ`의 `*.zeinfo
 - 공통 SG8 config/tile/GRF/reader 튜닝은 완료된 S6 plain/q=1에 영향을 주어도 허용하되 영향 회귀 확인 필수. B70/Xe2 하드웨어 회귀와 compiled-kernel/L1/corpus/pset 불변 증명은 DG2-only로 면제되지 않는다.
 - 각 단계 루프: (1) 정확도/실제 dispatch 확인 -> (2) 저비용 정적 점검 (기존 corpus 재사용) -> (3) 승인된 대표 케이스 제품 경로 스크리닝 -> (4) 트리거 시 한 번에 한 변경 통제 실험 -> (5) 재검증/사용자 처분. 측정 가능한 위험을 "게이트 아님"으로 자동 생략하지 않는다. 도구가 없으면 "미측정/판단 불가"로 쓴다.
 - 조사 트리거 예: 새/증가 spill, private array 장기 생존, hot loop 내 중복 gather, 크기/페이지/작은-query 경계의 급변, 커널은 빨라졌는데 PA 전체/E2E 악화, host 거부로 실제 lane이 달라짐.
-- **정적 값의 의미**: `s6a/pass_real/results.tsv`의 plain 구성 h64=7,968 B / h128=12,128 B / h256=28,064 B spill은 **ocloc register allocator 보고값이지 DG2 런타임 spill/시간이 아니다**. 현재 build option은 HPG에서 256GRF를 **강제** (`sdpa_gen_ocl.cpp` `get_build_options`)하므로 `SDPA_OCL_256GRF=0/1`만으로는 128/256 실험이 아니다.
+- **S7a 후속 결과의 의미**: 2026-10-04 raw K/V standalone kernel은 사용자가 정한 OCL <= micro * 1.03 gate를 32개 block-16 head 크기에서 통과했다. 이는 그 측정 matrix의 결과이며 제품 대체 완료, 모든 지원 입력 보장, 다른 Xe 장치의 속도 보장이 아니다. 도구·root cause·범위는 [06장 §6.3](06-performance-gap-investigation.md).
 - `sdpa_perf_hpg.py`의 `prof_us`는 누적 primitive 평균이며 warmup 포함, 정수 us -> warmup 제외 median이라 부르지 않는다. gtest 소요/XML time은 컴파일/참조 포함 wall time이라 성능 증거가 아니다.
 - 실행마다 실행자/workload/예산/arm 순서/warmup/반복을 **개별 승인**. 모든 새 키트/로그는 `test/sdpa_ocl_xe_hpg/` 아래.
 
@@ -308,7 +310,7 @@ SLM/GRF/spill은 `IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=./occ`의 `*.zeinfo
 | PLAIN_F16_STATIC (1<<0) | plain f16, static, q>1, mask/causal/sink/runtime scale 없음 | READY (S6a) |
 | PLAIN_EXT (1<<1) | bf16, mask, causal, sink, runtime scale, 동적, q<=1 | READY (S6b) |
 | PLAIN_I8 (1<<2) | plain i8 KV (u4와 scale/zp 없는 i8은 `supported()`가 거부) | READY (S6c) |
-| PA_PREFILL (1<<3) + PA_MIXED_F16 (1<<4) | PA는 두 스테이지가 함께 컴파일되므로 **둘 다 필수** (`hpg_tier_required`는 현재 PREFILL/MIXED를 함께 요구; S7a의 "PREFILL=OCL, MIXED=micro" 분리는 **구현할 호스트 변경**) | S7a/S7b |
+| PA_PREFILL (1<<3) + PA_MIXED_F16 (1<<4) | committed host 경로는 PA 두 스테이지를 함께 다룬다. 작업 트리에는 PREFILL-only routing과 `KV_TILED` prototype이 있지만 미검증이며, standalone raw-assembly gate의 제품 통합이 아니다. S7a product gate는 미완료 | S7a/S7b |
 | PA_FEATURES (1<<5) | sink, tti, qq_bias, window, k!=v, runtime scale | S7c |
 | PA_I8_TOKEN/PA_I8_CHANNEL/PA_U4 (1<<6/7/8) | 압축 PA | S8a/b/c |
 
@@ -344,6 +346,7 @@ SLM/GRF/spill은 `IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=./occ`의 `*.zeinfo
 | 2026-09-30 | `5af20d13f1` S3, `976fbf4b0c` S4 | xe_hpg 플랜: 술어 분리, SG16-neutral 리팩터 + Xe2 불변 증명. S0/S1/S2는 DG2 PC |
 | 2026-10-01 | `a0c60df997`, `1799d40f79`, `79b856f497`, `10e4f00b68`, `087d2bd171` | S5 (host jit, tier mask, TEMP 라우팅), S6a (plain f16 SG8), S6b (bf16/mask/sink/dynamic) |
 | 2026-10-02 | `b739dc5881` S6c | plain i8 KV SG8. S7 성능 지침 승인 |
+| 2026-10-03~04 | S7a standalone PA PREFILL investigation | 초기 OCL이 micro보다 24–28x 느림. VTune/GTPin/IGC ISA와 matched source-injection A/B로 spill/reload, V gather/packing, loop guard 비용을 분리. vISA inline-assembly raw K/V 단일 attention kernel gate는 32개 block-16 head 크기에서 +2.6234% worst로 PASS. 별도의 미검증 `KV_TILED` prototype과 제품 raw-kernel 통합은 구분하며, product dispatch/end-to-end/회귀 gate는 후속 작업 |
 
 ---
 
