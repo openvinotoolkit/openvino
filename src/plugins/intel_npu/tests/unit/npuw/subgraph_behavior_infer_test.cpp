@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <any>
 #include <atomic>
 #include <cstring>
@@ -16,10 +17,14 @@
 #define private public
 #include "compiled_model.hpp"
 #undef private
+#include "attn/attn_subgraph.hpp"
+#include "embedding/redirect_new_kv_to_output.hpp"
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
+#include "npuw_transformations/optimize_value_tensors.hpp"
 #include "partitioning/patterns/sdpa.hpp"
+#include "pyramid_attention.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
@@ -152,9 +157,11 @@ public:
 
     void infer() override;
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
+        check_port(port);
         return ov::ISyncInferRequest::get_tensor(port);
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        check_port(port);
         ov::ISyncInferRequest::set_tensor(port, tensor);
     }
     void check_tensors() const override {}
@@ -164,6 +171,9 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
     }
+
+private:
+    void check_port(const ov::Output<const ov::Node>& port) const;
 };
 
 class FakeSubAsyncInferRequest final : public ov::IAsyncInferRequest {
@@ -247,9 +257,16 @@ private:
 
     class FakeSubCompiledModel final : public ov::ICompiledModel {
 public:
-    FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+    FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
+                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                         bool own_ports_only = false)
         : ov::ICompiledModel(model, plugin, nullptr, nullptr),
-          m_model(model) {}
+          m_model(model),
+          m_own_ports_only(own_ports_only) {}
+
+    bool own_ports_only() const {
+        return m_own_ports_only;
+    }
 
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -272,7 +289,24 @@ public:
 
 private:
     std::shared_ptr<ov::Model> m_model;
+    bool m_own_ports_only = false;
 };
+
+// When the compiled submodels are imported from a cache, each blob gets its own I/O nodes
+// rebuilt from the blob metadata, so a port of one compiled model is not guaranteed to be
+// resolved by an infer request created from another one. own_ports_only models exactly that.
+void FakeSubInferRequest::check_port(const ov::Output<const ov::Node>& port) const {
+    const auto& compiled_model = get_compiled_model();
+    if (!std::static_pointer_cast<const FakeSubCompiledModel>(compiled_model)->own_ports_only()) {
+        return;
+    }
+    const auto& inputs = compiled_model->inputs();
+    const auto& outputs = compiled_model->outputs();
+    OPENVINO_ASSERT(std::find(inputs.begin(), inputs.end(), port) != inputs.end() ||
+                        std::find(outputs.begin(), outputs.end(), port) != outputs.end(),
+                    "Cannot find tensor for port ",
+                    port);
+}
 
 FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model)
     : ov::ISyncInferRequest(std::move(compiled_model)) {
@@ -315,7 +349,8 @@ protected:
         props["NPUW_UNFOLD_IREQS"] = "YES";
         return props;
     }
-    std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(const std::shared_ptr<const ov::IPlugin>& plugin) const {
+    std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                bool own_ports_only = false) const {
         auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
 
         ON_CALL(*core, get_supported_property(testing::_, testing::_, testing::_))
@@ -358,9 +393,13 @@ protected:
                 compile_model(testing::Matcher<const std::shared_ptr<const ov::Model>&>(testing::_),
                               testing::Matcher<const std::string&>(testing::StrEq("CPU")),
                               testing::Matcher<const ov::AnyMap&>(testing::_)))
-            .WillByDefault([plugin](const std::shared_ptr<const ov::Model>& submodel, const std::string&, const ov::AnyMap&) {
-                return ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(
-                    std::const_pointer_cast<ov::Model>(submodel), plugin)};
+            .WillByDefault([plugin, own_ports_only](const std::shared_ptr<const ov::Model>& submodel,
+                                                    const std::string&,
+                                                    const ov::AnyMap&) {
+                return ov::SoPtr<ov::ICompiledModel>{
+                    std::make_shared<FakeSubCompiledModel>(std::const_pointer_cast<ov::Model>(submodel),
+                                                           plugin,
+                                                           own_ports_only)};
             });
 
         return core;
@@ -525,6 +564,49 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
     EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
+}
+
+// Regression test for "Cannot find tensor for port" on the first inference of an LLM imported
+// from CACHE_DIR with chunked prefill (PYRAMID prefill attention). The pyramid variants are
+// separate compiled models with their own infer requests; every port bound on a variant request
+// must come from that variant's compiled model, not from the main (last) one.
+TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+    // Same transformations as the chunked LLM prefill pipeline: decompose SDPA so the PYRAMID
+    // pattern can match, and output the new chunk KV only.
+    ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
+    ov::npuw::RedirectNewKvToOutput().run_on_model(model);
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin, /*own_ports_only=*/true);
+    plugin->set_core(core);
+
+    auto props = base_props();
+    props["NPUW_ATTN"] = std::string("PYRAMID");
+    // No Failsafe wrappers - they are not created for imported blobs either.
+    props["NPUW_FALLBACK_EXEC"] = std::string("NO");
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+
+    std::size_t num_pyramid_models = 0u;
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        if (const auto* pyramid = ov::npuw::attn::get_compiled_pyramid(desc.pipeline.context)) {
+            num_pyramid_models = std::max(num_pyramid_models, pyramid->_compiled_models.size());
+        }
+    }
+    ASSERT_GT(num_pyramid_models, 1u) << "The test model must produce more than one pyramid attention variant";
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    for (const auto& input : compiled->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        if (input.get_names().count("position_ids")) {
+            // A first chunk without history selects the smallest (non-main) pyramid variant
+            std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), int64_t{0});
+        }
+        request->set_tensor(input, ov::get_tensor_impl(tensor));
+    }
+    EXPECT_NO_THROW(request->infer());
 }
 
 }  // namespace
