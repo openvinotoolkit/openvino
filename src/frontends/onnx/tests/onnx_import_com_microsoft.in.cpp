@@ -6243,6 +6243,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_head_sink) {
     test_case.run_with_tolerance_as_fp();
 }
 
+// The decomposition handles a single batch entry (one scalar past length). A dynamic batch cannot be rejected at
+// conversion, so a batch_size > 1 request must fail at inference instead of returning silently wrong results.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_dynamic_batch_greater_than_one_throws) {
+    const auto model = convert_model("com.microsoft/gqa_absent_past.onnx");
+    std::vector<float> query = gqa_sink_query();
+    query.insert(query.end(), query.begin(), query.end());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 4, 64}, query);
+    test_case.add_input<int>(Shape{2, 1}, {3, 3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{2, 4, 32}, std::vector<float>(2 * 4 * 32, 0.0f));
+    EXPECT_ANY_THROW(test_case.run());
+}
+
 // past_key/past_value are optional in the spec: an absent past is an empty cache, so present holds just the
 // current K/V and attention is plain causal over the current tokens. Reference: ORT CPU EP.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_absent_past) {

@@ -272,10 +272,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     // runtime value would, so it is not rejected here.
 
     // The decomposition derives a scalar past length (past_seqlen = total - current) and assumes a single
-    // batch entry ("Only consider batch is 1"); with batch_size > 1 the per-batch past lengths differ and the
-    // attention mask / cache indexing would be silently wrong. The batch dimension is dynamic in the usual
-    // dynamic-shape deployments (CPU/GPU), which cannot be checked here, so reject only a statically known
-    // batch_size > 1 rather than the whole dynamic path.
+    // batch entry ("Only consider batch is 1"). A statically known batch_size > 1 is rejected here; a dynamic
+    // batch resolving to > 1 fails at inference (seqlens_k cannot be reshaped to the single past length), so it
+    // never produces silently wrong results.
     if (batch_size.is_static()) {
         NODE_VALIDATION_CHECK(this,
                               batch_size.get_length() == 1,
