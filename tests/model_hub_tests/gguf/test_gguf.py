@@ -7,10 +7,8 @@
 #
 # Each test downloads one .gguf file, converts it, compiles it, and runs two forward steps,
 # feeding the cache/state outputs of the first step into the second. The checks cover finite,
-# correctly shaped logits and populated, changing KV caches. The suite does not build a tokenizer
-# because it verifies frontend conversion/inference correctness rather than text coherence (which
-# src/frontends/gguf/tests/compare_with_llama.py and the GenAI-based harness described in
-# supported_models.md already cover for the architectures where that matters).
+# correctly shaped logits and populated, changing KV caches. It does not compare tokens or logits
+# with a reference; see the OV_GGUF_ACCURACY_DATA replay in tests/test_data/arch_accuracy/README.md.
 #
 # gguf_models_precommit lists the small (<=~4B parameter) architectures, run on every commit.
 # gguf_models_nightly lists the rest (up to ~30B), run nightly given their download size.

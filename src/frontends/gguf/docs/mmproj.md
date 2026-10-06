@@ -112,41 +112,10 @@ arrays are comma-separated, and string arrays are `length:value` entries flagged
 `<key>.encoding` companion. The metadata survives IR serialization and adaptation; supplied
 cgraph decoders return an empty map.
 
-## Run vision and audio fixtures
+## Preprocessing real media
 
-With NumPy and an OpenVINO Python build containing this frontend, run the following from the
-repository root. It converts and evaluates one vision and one audio model using committed
-inputs and llama.cpp outputs; no download or oracle build is needed.
-
-```python
-from pathlib import Path
-from tempfile import TemporaryDirectory
-import numpy as np
-import openvino as ov
-from openvino.frontend import FrontEndManager
-
-fixtures = Path("src/frontends/gguf/tests/test_data/mmproj_accuracy")
-manager, core = FrontEndManager(), ov.Core()
-for family, modality in (("gemma3", "vision"), ("qwen2a", "audio")):
-    with np.load(fixtures / f"{family}.npz") as arrays, TemporaryDirectory() as tmp:
-        model_path = Path(tmp) / "mmproj.gguf"
-        model_path.write_bytes(arrays["model"].tobytes())
-        frontend = manager.load_by_framework("gguf")
-        model = frontend.convert(frontend.load(str(model_path)))
-        data = arrays["inputs"]
-        feeds = {f"{modality}." + ("pixel_values" if modality == "vision" else "features"): data}
-        if modality == "audio":
-            feeds["audio.position_ids"] = np.arange((data.shape[-1] + 1) // 2, dtype=np.int32).reshape(1, 1, 1, -1)
-        request = core.compile_model(model, "CPU", {
-            "INFERENCE_PRECISION_HINT": "f32", "DYNAMIC_QUANTIZATION_GROUP_SIZE": 0,
-        }).create_infer_request()
-        request.infer(feeds)
-        actual, expected = request.get_output_tensor().data, arrays["embeddings"]
-        assert actual.shape == expected.shape and np.isfinite(actual).all()
-        error = np.sum((actual.astype(np.float64) - expected) ** 2) / np.sum(expected.astype(np.float64) ** 2)
-        assert error < 1e-5, (family, error)
-        print(family, actual.shape, "NMSE", error)
-```
+`GGUFMMProjAccuracy` and `GGUFMMProjDynamicAccuracy` run every projector offline from committed
+inputs and llama.cpp outputs; see [testing.md](testing.md).
 
 For real files, [model-hub commands](testing.md#real-checkpoints) reproduce encoder comparisons
 with generated inputs. [`checkpoint_inputs`](../tests/mmproj_fixtures.py) illustrates supported
@@ -175,8 +144,8 @@ mode prepares the language model for media injection:
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
   sections.
 
-Register the stateful pass before converting the language model; stateless normalization
-otherwise consumes the cache-write placeholders. In C++, with a `FrontEndManager manager`
+Register the stateful pass before converting the language model, as described in
+[runtime.md](runtime.md#stateful-and-genai-conversion). In C++, with a `FrontEndManager manager`
 and an already converted combined `mmproj` model:
 
 ```cpp
@@ -207,8 +176,6 @@ they do not construct tokenizers, media preprocessing, or a complete GenAI pipel
 
 ## Projector extensions
 
-Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) for one
-vision/audio branch under the existing mmproj coordinator. That guide owns component contracts,
-selection, replacement, and library packaging; the [examples](../examples/architecture_extension/README.md)
-provide build/run commands. A different whole-model format can use `ArchitectureExtension`.
-`clip` is the supported mmproj format label, not a promise about future formats or every projector.
+Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or replace one
+vision/audio branch under the `clip` coordinator; the [examples](../examples/architecture_extension/README.md)
+build and run one. A different whole-model format needs an `ArchitectureExtension`.

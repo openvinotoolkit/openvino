@@ -34,7 +34,7 @@ struct GGUF_FRONTEND_API BuildContext {
 };
 
 // Whole-model builder for any family, registered through ArchitectureDefinition.
-// See docs/porting_a_llama_cpp_model.md for external and built-in registration.
+// See docs/architectures.md for external and built-in registration.
 class GGUF_FRONTEND_API ModelBuilder {
 public:
     virtual ~ModelBuilder();

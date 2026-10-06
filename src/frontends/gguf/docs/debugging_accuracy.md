@@ -97,7 +97,7 @@ backend implementation details, not frontend API guarantees.
 | `GGML_OPENVINO_DEBUG_INPUT=1` / `GGML_OPENVINO_DEBUG_OUTPUT=1` | Inspect bound subgraph inputs/outputs and summary statistics |
 | `GGML_OPENVINO_DUMP_TENSOR=<substring>` | Capture matching OV outputs in element order |
 | `GGML_DUMP_TENSOR=<substring>` | Capture matching CPU eval-callback tensors |
-| `GGML_OPENVINO_DUMP_IR=1` | Inspect serialized graphs, subject to [internal-op limits](internal_ops.md) |
+| `GGML_OPENVINO_DUMP_IR=1` | Inspect serialized graphs, subject to [internal-op limits](runtime.md#internal-operations-and-serialization) |
 | `GGML_OPENVINO_FORCE_F32=1` | Investigate backend precision differences |
 | `GGML_OPENVINO_DISABLE_TYPES=Q8_0,Q6_K` | Isolate handling of selected quantized types |
 | `GGML_OPENVINO_DISABLE_OPS=SSM_CONV,DIV` | Investigate selected operation families through backend fallback |

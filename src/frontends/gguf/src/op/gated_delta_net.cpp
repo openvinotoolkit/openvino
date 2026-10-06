@@ -38,7 +38,7 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 
 // GGML_OP_GATED_DELTA_NET (qwen3next linear-attention block). Emits the internal (non-opset) op
 // ov::op::internal::GatedDeltaNet for the device's fused kernel; a model using it is not
-// IR-serializable (see docs/internal_ops.md). The fused op only supports scalar gating, so the
+// IR-serializable (see docs/runtime.md). The fused op only supports scalar gating, so the
 // per-key-dimension gating case (kda) uses the serializable Loop reference path below.
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);

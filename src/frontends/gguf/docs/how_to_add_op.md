@@ -1,11 +1,11 @@
 # Adding an op translator to the GGUF frontend
 
 Procedure for enabling a ggml operation. Start with the [two input paths](../README.md),
-[tensor/layout contracts](porting_a_llama_cpp_model.md#tensor-operations-and-shapes), and
+[tensor/layout contracts](architectures.md#tensor-operations-and-shapes), and
 [weight representations](quantization.md). Weight leaves use `GGML_OP_NONE` and supply data
 to `translate_weight`; input leaves use the same op name but are resolved to Parameters first.
 
-Related: [adding_an_architecture.md](adding_an_architecture.md) (enabling a model family, which
+Related: [architectures.md](architectures.md) (enabling a model family, which
 usually needs *no* new op), [debugging_accuracy.md](debugging_accuracy.md) (when a translator
 converts but produces wrong numbers).
 
@@ -20,7 +20,7 @@ Check that an op translator is actually what is missing:
 - **A new architecture or projector** needs an appropriate [builder registration](extensions.md#choose-an-extension).
   Add a translator only when its computation needs an operation missing from the table.
 - **A structurally different use of an existing op** is an `op_case`, not a new translator. Read the
-  [tensor operation contracts](porting_a_llama_cpp_model.md#tensor-operations-and-shapes) before
+  [tensor operation contracts](architectures.md#tensor-operations-and-shapes) before
   adding a case. Its number selects a converter's semantic variant, not the decoder's identity.
 - Both decoder paths (native builder and llama.cpp cgraph) share translator bodies, so a change here
   affects both. Keep the body path-agnostic; branch on `op_case`, never on "which decoder made this".
@@ -159,9 +159,9 @@ Use the [reference policy](debugging_accuracy.md#reference-and-precision):
 
 - Simple elementwise ops with an unambiguous closed form — compute inline in the test.
 - Anything with layout, geometry or head structure (rope, conv, attention, views) — generate the
-  reference from ggml-CPU: an `.npy` fixture via `gen_ggml_reference.c`,
-  or a standalone oracle such as `ssm_conv_oracle.c` / `imrope_oracle.c`, and paste its output with a
-  comment naming the oracle.
+  reference from ggml-CPU with a standalone oracle such as `ssm_conv_oracle.c` / `imrope_oracle.c`
+  (see [the ggml-CPU oracle](debugging_accuracy.md#the-ggml-cpu-oracle)). Commit the oracle with the
+  test and name it in a comment next to the pasted or `.npy` expectations.
 
 Test at realistic dimensions. With one head many layout orders coincide, so a single-head test can
 pass against a wrong reference.

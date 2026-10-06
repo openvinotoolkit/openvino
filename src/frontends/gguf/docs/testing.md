@@ -75,7 +75,8 @@ TEST_DEVICE=CPU PYTHONPATH="$PWD/tests/model_hub_tests${PYTHONPATH:+:$PYTHONPATH
 Use `-m nightly` for the larger list, or select `test_gguf.py` / `test_gguf_mmproj.py`.
 Decoder model-hub tests check finite, shaped outputs and state updates; they do not compare
 tokens/logits against a reference. The native reference-token replay instead uses
-`OV_GGUF_ACCURACY_DATA` as described in the decoder fixture README. Run this separately: the
+`OV_GGUF_ACCURACY_DATA` (and `OV_GGUF_EMBEDDING_DATA` for `llama-embed`) as described in the
+[decoder fixture README](../tests/test_data/arch_accuracy/README.md). Run this separately: the
 variable replaces the selected synthetic fixture with a local checkpoint.
 
 mmproj model-hub tests compare real checkpoint encoders against llama.cpp on an F32 copy of the

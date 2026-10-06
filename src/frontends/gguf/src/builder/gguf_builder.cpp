@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Parse GGUF, select an architecture definition, and build a graph for the shared op translators.
-// See docs/adding_an_architecture.md for the builder layers and registration paths.
+// See docs/architectures.md for the builder layers and registration paths.
 
 #include "gguf_builder.hpp"
 

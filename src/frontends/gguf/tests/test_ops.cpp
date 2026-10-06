@@ -2324,7 +2324,7 @@ TEST(GGUFOps, GatedDeltaNetMultipleSnapshotSlotsRejected) {
 // fused ov::op::internal::GatedDeltaNet op instead of the Loop scan. B=H=1, T=2, D=Dv=2. We assert
 // the fused op is actually emitted and that its result matches the core reference recurrence.
 // NOTE: a model on this path contains an internal op and is therefore NOT IR-serializable
-// (see src/frontends/gguf/docs/internal_ops.md).
+// (see src/frontends/gguf/docs/runtime.md).
 TEST(GGUFOps, GatedDeltaNetFused) {
     const int64_t B = 1, T = 2, H = 1, D = 2;  // head size D = Dv = 2, scalar gate
     auto qkv_shp = ov::PartialShape{B, T, H, D};

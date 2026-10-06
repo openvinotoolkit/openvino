@@ -67,3 +67,7 @@ This performs prefill plus twelve reference-token decode steps, requires the sam
 prediction and at least 90% matching greedy choices, and records per-step normalized MSE.
 It does not claim exact logit agreement for the frontend's lossy quantized-weight path.
 Use `OV_GGUF_Q4_K_ZP_F16=1` for Q4_K accuracy comparisons.
+
+For the embedding checkpoint, put `llama-embed.gguf` and the output of
+`embedding_oracle llama-embed.gguf llama-embed.bin "<prompt>"` in a directory and set
+`OV_GGUF_EMBEDDING_DATA` to it; `GGUFEmbeddingAccuracy` then compares per-token embeddings.
