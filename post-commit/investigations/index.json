@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 17,
+  "total": 18,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -184,6 +184,17 @@
       "category": "Infrastructure",
       "signature_hash": "0ee6d7327812b344",
       "commit_sha": "fb83cf12522721ff0534d6c52cc4ed4521f5a4f2"
+    },
+    {
+      "investigation_id": "2026-10-06-15-26-00-000-37482358384",
+      "run_id": "37482358384",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37482358384",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T15:26:00Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "03916107a8c6beb3f8d837a3b96f945904c6c026"
     }
   ]
 }
