@@ -47,17 +47,16 @@ struct GQAConfig {
     ov::PartialShape key_scale_shape{1};
     ov::PartialShape value_scale_shape{1};
     ov::Dimension past_len = ov::Dimension::dynamic();  // static == full-length static KV cache
-    ov::element::Type compute_type = ov::element::f32;  // Q/K/V type after the plugin precision conversion
 };
 
 std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     const auto f32 = ov::element::f32;
     const auto past_len = cfg.past_len;
 
-    auto query = std::make_shared<ov::op::v0::Parameter>(cfg.compute_type, ov::PartialShape{1, num_heads, 1, head_size});
-    auto key = std::make_shared<ov::op::v0::Parameter>(cfg.compute_type, ov::PartialShape{1, kv_num_heads, 1, head_size});
-    auto value = std::make_shared<ov::op::v0::Parameter>(cfg.compute_type, ov::PartialShape{1, kv_num_heads, 1, head_size});
-    const auto cache_type = cfg.kv_cache_bit_width ? cfg.cache_type : cfg.compute_type;
+    auto query = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, num_heads, 1, head_size});
+    auto key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
+    auto value = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
+    const auto cache_type = cfg.kv_cache_bit_width ? cfg.cache_type : f32;
     const auto cache_head_size = cfg.kv_cache_bit_width == 4 ? head_size / 2 : head_size;
     auto past_key = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, cache_head_size});
     auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, cache_head_size});
@@ -78,12 +77,12 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     ov::ParameterVector parameters{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
 
     if (cfg.attention_bias) {
-        auto attention_bias = std::make_shared<ov::op::v0::Parameter>(cfg.compute_type, ov::PartialShape{1, 1, 1, past_len});
+        auto attention_bias = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, 1, 1, past_len});
         inputs[10] = attention_bias;
         parameters.push_back(attention_bias);
     }
     if (cfg.head_sink) {
-        auto head_sink = std::make_shared<ov::op::v0::Parameter>(cfg.compute_type, ov::PartialShape{num_heads});
+        auto head_sink = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{num_heads});
         inputs[11] = head_sink;
         parameters.push_back(head_sink);
     }
@@ -202,7 +201,6 @@ TEST(GQADecompositionTest, per_tensor_kv_uses_decompressed_sdpa) {
 
 TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
     GQAConfig cfg;
-    cfg.compute_type = ov::element::f16;  // per-channel compressed SDPA needs a non-f32 compute type
     cfg.kv_cache_bit_width = 8;
     cfg.kv_quant = QuantType::PER_CHANNEL;
     cfg.out_quant = QuantType::PER_CHANNEL;
@@ -229,27 +227,8 @@ TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
     EXPECT_EQ(sdpa->input_value(num_data_inputs + 1).get_partial_shape(), ov::PartialShape({1, kv_num_heads, 1, head_size}));
 }
 
-// f32 compute has no micro SDPA kernel for per-channel compressed KV, so the cache is dequantized explicitly.
-TEST(GQADecompositionTest, per_channel_kv_f32_uses_decompressed_sdpa) {
-    GQAConfig cfg;
-    cfg.compute_type = ov::element::f32;
-    cfg.kv_cache_bit_width = 8;
-    cfg.kv_quant = QuantType::PER_CHANNEL;
-    cfg.out_quant = QuantType::PER_CHANNEL;
-    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
-    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
-
-    const auto sdpa = decompose_and_get_sdpa(cfg);
-
-    ASSERT_NE(sdpa, nullptr);
-    EXPECT_FALSE(sdpa->get_kv_compressed());
-    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::f32);
-    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::f32);
-}
-
 TEST(GQADecompositionTest, compressed_kv_preserves_optional_inputs) {
     GQAConfig cfg;
-    cfg.compute_type = ov::element::f16;  // per-channel compressed SDPA needs a non-f32 compute type
     cfg.kv_cache_bit_width = 8;
     cfg.kv_quant = QuantType::PER_CHANNEL;
     cfg.out_quant = QuantType::PER_CHANNEL;
@@ -265,15 +244,14 @@ TEST(GQADecompositionTest, compressed_kv_preserves_optional_inputs) {
     ASSERT_TRUE(sdpa->get_kv_compressed());
     ASSERT_EQ(sdpa->get_input_size(), 8u) << "Q, K, V, mask, scale, sink, K scale, V scale";
     EXPECT_TRUE(slot_holds_a_mask(sdpa->input_value(3)));
-    EXPECT_EQ(sdpa->input_value(4).get_element_type(), ov::element::f16);
-    EXPECT_EQ(sdpa->input_value(5).get_element_type(), ov::element::f16);
+    EXPECT_EQ(sdpa->input_value(4).get_element_type(), ov::element::f32);
+    EXPECT_EQ(sdpa->input_value(5).get_element_type(), ov::element::f32);
     EXPECT_EQ(sdpa->input_value(6).get_element_type(), ov::element::f16);
     EXPECT_EQ(sdpa->input_value(7).get_element_type(), ov::element::f16);
 }
 
 TEST(GQADecompositionTest, int4_i8_cache_uses_u4_zp8) {
     GQAConfig cfg;
-    cfg.compute_type = ov::element::f16;  // per-channel compressed SDPA needs a non-f32 compute type
     cfg.kv_cache_bit_width = 4;
     cfg.kv_quant = QuantType::PER_CHANNEL;
     cfg.out_quant = QuantType::PER_CHANNEL;
@@ -296,7 +274,6 @@ TEST(GQADecompositionTest, int4_i8_cache_uses_u4_zp8) {
 
 TEST(GQADecompositionTest, int4_u8_cache_uses_u4_zp8) {
     GQAConfig cfg;
-    cfg.compute_type = ov::element::f16;  // per-channel compressed SDPA needs a non-f32 compute type
     cfg.kv_cache_bit_width = 4;
     cfg.kv_quant = QuantType::PER_CHANNEL;
     cfg.out_quant = QuantType::PER_CHANNEL;

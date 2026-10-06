@@ -59,11 +59,6 @@ std::optional<GroupQueryAttentionDecomposition::CompressedKV> GroupQueryAttentio
         !is_supported_compressed_kv_type(key.get_element_type()) || key_quant_type == GQAQuantType::PER_TENSOR ||
         value_quant_type == GQAQuantType::PER_TENSOR)
         return std::nullopt;
-    // Per-channel compressed KV is only handled by the micro SDPA kernel, which has no f32 KQ gemm: an f32 compute type
-    // (f32 inference precision) would fall back to kernels that read the scales per token. Dequantize explicitly instead.
-    if (node->get_input_element_type(static_cast<size_t>(GQAInputs::QUERY)) == ov::element::f32) {
-        return std::nullopt;
-    }
 
     ov::Output<ov::Node> prepared_key_scale =
         make_kv_scale(node->input_value(static_cast<size_t>(GQAInputs::K_SCALE)), node->get_kv_num_heads(), key_quant_type);
