@@ -1744,6 +1744,141 @@ INSTANTIATE_TEST_SUITE_P(
     sdpa_micro_i8_vs_test::PrintToStringParamName
 );
 
+// The fused query rotation (has_rope_q) against the same rotation applied on the host: Q
+// arrives as [batch, tokens, heads, head_size] under the {0, 2, 1, 3} order the fusion pins,
+// and the two trailing inputs are the interleaved (batch, tokens, head_size) cos/sin table.
+// The table holds arbitrary values rather than true cosines, so an element read from the
+// wrong row, pair or batch cannot cancel out.
+struct micro_sdpa_rope_q_params {
+    int batch;
+    int head_size;
+    int num_heads;
+    int seq_len;
+};
+
+class sdpa_micro_rope_q_test : public ::testing::TestWithParam<micro_sdpa_rope_q_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<micro_sdpa_rope_q_params>& info) {
+        const auto& p = info.param;
+        return "b" + std::to_string(p.batch) + "_d" + std::to_string(p.head_size) + "_h" + std::to_string(p.num_heads) + "_l" +
+               std::to_string(p.seq_len);
+    }
+};
+
+TEST_P(sdpa_micro_rope_q_test, fused_rotation_matches_the_rotation_applied_on_the_host) {
+    auto& engine = get_test_engine();
+    const auto& device_info = engine.get_device_info();
+    const auto p = GetParam();
+
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+    if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
+        GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
+
+    const size_t b = static_cast<size_t>(p.batch);
+    const size_t heads = static_cast<size_t>(p.num_heads);
+    const size_t hs = static_cast<size_t>(p.head_size);
+    const size_t len = static_cast<size_t>(p.seq_len);
+    const ov::Shape q_shape{b, len, heads, hs};
+    const ov::Shape kv_shape{b, heads, len, hs};
+    const ov::Shape table_shape{b, len, hs};
+    const std::vector<int64_t> q_order{0, 2, 1, 3};
+    const std::vector<int64_t> identity{0, 1, 2, 3};
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto q = rg.generate_random_1d<ov::float16>(ov::shape_size(q_shape), -1.0f, 1.0f);
+    const auto k = rg.generate_random_1d<ov::float16>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+    const auto v = rg.generate_random_1d<ov::float16>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+    const auto cos = rg.generate_random_1d<ov::float16>(ov::shape_size(table_shape), -1.0f, 1.0f);
+    const auto sin = rg.generate_random_1d<ov::float16>(ov::shape_size(table_shape), -1.0f, 1.0f);
+
+    std::vector<ov::float16> q_rotated(q.size());
+    for (size_t bi = 0; bi < b; ++bi) {
+        for (size_t t = 0; t < len; ++t) {
+            for (size_t h = 0; h < heads; ++h) {
+                for (size_t d = 0; d < hs; d += 2) {
+                    const size_t qi = ((bi * len + t) * heads + h) * hs + d;
+                    const size_t ti = (bi * len + t) * hs + d;
+                    const float x0 = q[qi], x1 = q[qi + 1];
+                    q_rotated[qi] = ov::float16(static_cast<float>(cos[ti]) * x0 - static_cast<float>(sin[ti]) * x1);
+                    q_rotated[qi + 1] = ov::float16(static_cast<float>(cos[ti + 1]) * x1 + static_cast<float>(sin[ti + 1]) * x0);
+                }
+            }
+        }
+    }
+
+    auto run = [&](bool fused) {
+        const layout q_layout(q_shape, data_types::f16, format::bfyx);
+        const layout kv_layout(kv_shape, data_types::f16, format::bfyx);
+        const layout table_layout(table_shape, data_types::f16, format::bfyx);
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(kv_layout);
+        auto v_mem = engine.allocate_memory(kv_layout);
+        set_values(q_mem, fused ? q : q_rotated);
+        set_values(k_mem, k);
+        set_values(v_mem, v);
+
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", kv_layout));
+        topo.add(input_layout("v", kv_layout));
+        std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
+        memory::ptr cos_mem, sin_mem;
+        if (fused) {
+            cos_mem = engine.allocate_memory(table_layout);
+            sin_mem = engine.allocate_memory(table_layout);
+            set_values(cos_mem, cos);
+            set_values(sin_mem, sin);
+            topo.add(input_layout("cos", table_layout));
+            topo.add(input_layout("sin", table_layout));
+            inputs.emplace_back("cos");
+            inputs.emplace_back("sin");
+        }
+        topo.add(scaled_dot_product_attention("sdpa", inputs, false, -1, q_order, identity, identity, identity, {}, false, false, fused));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, fused ? "sdpa_micro" : "sdpa_ref"}}}));
+
+        auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        if (fused) {
+            net->set_input_data("cos", cos_mem);
+            net->set_input_data("sin", sin_mem);
+        }
+        return std::make_pair(net, net->execute().at("result").get_memory());
+    };
+
+    auto [ref_net, ref_mem] = run(false);
+    auto [fused_net, fused_mem] = run(true);
+
+    std::string fused_info;
+    for (const auto& info : fused_net->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention")
+            fused_info = fused_net->get_primitive_info(info.original_id);
+    }
+    ASSERT_NE(fused_info.find("sdpa_micro"), std::string::npos) << "sdpa_micro was not selected; node description was:\n" << fused_info;
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> fused_data(fused_mem, get_test_stream());
+    ASSERT_EQ(ref_data.size(), fused_data.size());
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(ref_data[i]), static_cast<float>(fused_data[i]), 0.02f) << "mismatch at index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_micro_rope_q,
+                         sdpa_micro_rope_q_test,
+                         ::testing::Values(micro_sdpa_rope_q_params{2, 64, 4, 128},
+                                           micro_sdpa_rope_q_params{2, 128, 2, 128},
+                                           micro_sdpa_rope_q_params{1, 64, 4, 77}),
+                         sdpa_micro_rope_q_test::PrintToStringParamName);
+
 #endif
 
 enum class sdpa_ref_accuracy_case { uniform_16, uniform_32, uniform_64, nonuniform, nonuniform_33, nonuniform_100, mask, causal };
