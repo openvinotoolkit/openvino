@@ -340,5 +340,49 @@ TEST(type_prop, group_query_attention_causal_false_rejects_window) {
                     HasSubstr("local_window_size requires causal=1"));
 }
 
+namespace {
+ov::OutputVector make_gqa_args_with_head_sink(const element::Type& sink_type, const PartialShape& sink_shape) {
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    auto args = make_valid_gqa_args();
+    // positions 7-10: cos_cache, sin_cache, position_ids, attention_bias (absent)
+    args.insert(args.end(), {empty, empty, empty, empty});
+    args.push_back(std::make_shared<op::v0::Parameter>(sink_type, sink_shape));
+    return args;
+}
+}  // namespace
+
+TEST(type_prop, group_query_attention_head_sink_valid) {
+    const auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{6});
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_head_sink_dynamic_dim_valid) {
+    const auto args = make_gqa_args_with_head_sink(element::f16, PartialShape{-1});
+    OV_ASSERT_NO_THROW(std::ignore =
+                           std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false));
+}
+
+TEST(type_prop, group_query_attention_head_sink_invalid_rank) {
+    const auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{1, 6});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Rank of `head_sink` input is not compatible"));
+}
+
+TEST(type_prop, group_query_attention_head_sink_invalid_length) {
+    const auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{4});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("head_sink must have num_heads (6) elements"));
+}
+
+TEST(type_prop, group_query_attention_head_sink_invalid_type) {
+    const auto args = make_gqa_args_with_head_sink(element::i32, PartialShape{6});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Element type of `head_sink` input is not compatible"));
+}
+
 }  // namespace testing
 }  // namespace ov

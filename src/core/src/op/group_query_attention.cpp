@@ -188,6 +188,19 @@ void GroupQueryAttention::validate_and_infer_types() {
         check_input(GroupQueryAttentionInputs::POSITION_IDS, {1, 2}, integral_types, false);
     }
     check_input(GroupQueryAttentionInputs::ATTENTION_BIAS, {4}, {}, false);
+    check_input(GroupQueryAttentionInputs::HEAD_SINK, {1}, {element::f16, element::f32}, false);
+    // head_sink holds one softmax-sink logit per query head (ONNX spec shape [num_heads]).
+    if (get_input_size() > static_cast<size_t>(GroupQueryAttentionInputs::HEAD_SINK)) {
+        const auto& sink_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::HEAD_SINK));
+        NODE_VALIDATION_CHECK(this,
+                              sink_ps.rank().is_dynamic() || sink_ps.rank().get_length() != 1 ||
+                                  sink_ps[0].is_dynamic() || sink_ps[0].get_length() == 0 ||
+                                  sink_ps[0].get_length() == m_num_heads,
+                              "GroupQueryAttention: head_sink must have num_heads (",
+                              m_num_heads,
+                              ") elements, got shape ",
+                              sink_ps);
+    }
 
     const auto q_shape = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
     const auto past_k_shape = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
