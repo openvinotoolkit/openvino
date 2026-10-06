@@ -49,6 +49,8 @@
 
 using ov::pass::pattern::Matcher;
 
+using GQAInputs = ov::op::internal::GroupQueryAttentionInputs;
+
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
@@ -79,10 +81,14 @@ ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
     register_matcher(m, callback);
 }
 
+std::unique_ptr<ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata>
+ov::pass::GroupQueryAttentionDecomposition::create_metadata(
+    const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node) {
+    return std::make_unique<KVCacheMetadata>();
+}
+
 ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     std::shared_ptr<ov::op::internal::GroupQueryAttention> node) {
-    using GQAInputs = ov::op::internal::GroupQueryAttentionInputs;
-
     const auto num_heads = node->get_num_heads();
     const auto kv_num_heads = node->get_kv_num_heads();
     const auto scale = node->get_scale();
@@ -112,6 +118,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_value = get_input(GQAInputs::PAST_VALUE);
     auto seqlens_k = get_input(GQAInputs::SEQLENS_K);
 
+    const auto metadata = create_metadata(node);
+
     // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8/f8e4m3 and are dequantized before the
     // attention math and (re)quantized when appended to the cache. Scales live at ONNX K_SCALE / V_SCALE positions.
     const bool kv_quantized = node->is_kv_quantized();
@@ -119,14 +127,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto k_quant_type = node->get_k_quant_type();
     const auto v_quant_type = node->get_v_quant_type();
     const auto kv_cache_type = past_key.get_element_type();
-    ov::Output<ov::Node> k_scale, v_scale;
 
     // Get k_scale and v_scale from their actual input indices.
     // Note: validate_and_infer_types() already verified these indices are valid when kv_quantized is true,
     // so we skip redundant bounds checks here.
     if (kv_quantized) {
-        k_scale = get_input(GQAInputs::K_SCALE);
-        v_scale = get_input(GQAInputs::V_SCALE);
+        metadata->k_scale = get_input(GQAInputs::K_SCALE);
+        metadata->v_scale = get_input(GQAInputs::V_SCALE);
+        metadata->should_quantize_kv = true;
+        metadata->should_dequantize_kv = true;
     }
 
     // The length of all tokens (past + current) is `seqlens_k` + 1.
@@ -175,19 +184,13 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
     // verbatim (no re-rounding of past tokens). Matches ONNX Runtime MLAS/CUDA semantics.
-    if (kv_quantized) {
-        K = quantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, kv_cache_type);
-        V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
+    if (metadata->should_quantize_kv) {
+        K = quantize_kv(K, metadata->k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, kv_cache_type);
+        V = quantize_kv(V, metadata->v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
     }
 
-    const auto cache = construct_kvcache(node,
-                                          past_key,
-                                          past_value,
-                                          K,
-                                          V,
-                                          seqlens_1d,
-                                          past_seqlen,
-                                          curr_seqlen_scalar);
+    const auto cache =
+        construct_kvcache(node, past_key, past_value, K, V, seqlens_1d, past_seqlen, curr_seqlen_scalar, *metadata);
     K = cache.sdpa_key;
     V = cache.sdpa_value;
     const auto present_k = cache.present_key;
@@ -195,13 +198,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto mask_past_seqlen = cache.mask_past_seqlen;
     const auto bias_col_offset = cache.bias_col_offset;
 
-    const auto compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
-
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
-    if (kv_quantized && !compressed_kv) {
-        K = dequantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, T);
-        V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
+    if (metadata->should_dequantize_kv) {
+        K = dequantize_kv(K, metadata->k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, T);
+        V = dequantize_kv(V, metadata->v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
     }
 
     const auto concat_kv_len = get_dimensions(K, {2});
@@ -209,7 +210,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
-    if (kv_num_heads_factor > 1 && !compressed_kv) {
+    if (kv_num_heads_factor > 1 && metadata->should_broadcast_kv) {
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);
         const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
@@ -243,7 +244,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                           node->get_sliding_window_cache(),
                                           scale,
                                           has_sink,
-                                          cache.metadata);
+                                          *metadata);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
@@ -277,12 +278,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
             scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
         }
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, compressed_kv, cache.metadata);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, *metadata);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, compressed_kv, cache.metadata);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, *metadata);
     } else {
-        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, compressed_kv, cache.metadata);
+        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, *metadata);
     }
 
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
@@ -304,7 +305,8 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
     const ov::Output<ov::Node>& value,
     const ov::Output<ov::Node>& seqlens_1d,
     const ov::Output<ov::Node>& past_seqlen,
-    const ov::Output<ov::Node>& current_seqlen_scalar) {
+    const ov::Output<ov::Node>& current_seqlen_scalar,
+    [[maybe_unused]] KVCacheMetadata& metadata) {
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
@@ -430,15 +432,15 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
     return outputs;
 }
 
-std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(const ov::Output<ov::Node>& query,
-                                                                                const ov::Output<ov::Node>& key,
-                                                                                const ov::Output<ov::Node>& value,
-                                                                                const ov::Output<ov::Node>& mask,
-                                                                                const ov::Output<ov::Node>& scale,
-                                                                                const ov::Output<ov::Node>& sink,
-                                                                                bool is_causal,
-                                                                                const std::optional<CompressedKV>&,
-                                                                                const ov::Any&) {
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(
+    const ov::Output<ov::Node>& query,
+    const ov::Output<ov::Node>& key,
+    const ov::Output<ov::Node>& value,
+    const ov::Output<ov::Node>& mask,
+    const ov::Output<ov::Node>& scale,
+    const ov::Output<ov::Node>& sink,
+    bool is_causal,
+    [[maybe_unused]] const KVCacheMetadata& metadata) {
     if (sink.get_node()) {
         return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, is_causal);
     }
@@ -490,7 +492,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     [[maybe_unused]] bool sliding_window_cache,
     [[maybe_unused]] float scale,
     [[maybe_unused]] bool has_sink,
-    [[maybe_unused]] const ov::Any& kvcache_metadata) {
+    [[maybe_unused]] const KVCacheMetadata& metadata) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
     // A window is only ever paired with causal=1 (enforced upstream by the FE and the op), so it is only

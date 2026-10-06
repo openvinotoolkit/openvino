@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <optional>
-
 #include "openvino/core/any.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -26,10 +24,13 @@ public:
     GroupQueryAttentionDecomposition();
 
 protected:
-    struct CompressedKV {
-        ov::Output<ov::Node> key;
-        ov::Output<ov::Node> value;
-        ov::OutputVector quantization_inputs;
+    struct KVCacheMetadata {
+        ov::Output<ov::Node> k_scale;
+        ov::Output<ov::Node> v_scale;
+        bool should_quantize_kv = false;
+        bool should_dequantize_kv = false;
+        bool should_broadcast_kv = true;
+        virtual ~KVCacheMetadata() = default;
     };
     struct KVCacheOutputs {
         ov::Output<ov::Node> present_key;
@@ -38,10 +39,11 @@ protected:
         ov::Output<ov::Node> sdpa_value;
         ov::Output<ov::Node> mask_past_seqlen;
         ov::Output<ov::Node> bias_col_offset;
-        ov::Any metadata;
     };
 
     ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node);
+    virtual std::unique_ptr<KVCacheMetadata> create_metadata(
+        const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node);
     virtual KVCacheOutputs construct_kvcache(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
                                              const ov::Output<ov::Node>& past_key,
                                              const ov::Output<ov::Node>& past_value,
@@ -49,7 +51,8 @@ protected:
                                              const ov::Output<ov::Node>& value,
                                              const ov::Output<ov::Node>& seqlens_1d,
                                              const ov::Output<ov::Node>& past_seqlen,
-                                             const ov::Output<ov::Node>& current_seqlen_scalar);
+                                             const ov::Output<ov::Node>& current_seqlen_scalar,
+                                             KVCacheMetadata& metadata);
     virtual std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
                                                 const ov::Output<ov::Node>& key,
                                                 const ov::Output<ov::Node>& value,
@@ -57,16 +60,7 @@ protected:
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal,
-                                                const std::optional<CompressedKV>& compressed_kv,
-                                                const ov::Any& kvcache_metadata);
-    virtual std::optional<CompressedKV> prepare_compressed_kv(
-        const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
-        const ov::Output<ov::Node>& key,
-        const ov::Output<ov::Node>& value,
-        const ov::Output<ov::Node>& key_scale,
-        const ov::Output<ov::Node>& value_scale) {
-        return std::nullopt;
-    }
+                                                const KVCacheMetadata& metadata);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);
@@ -100,7 +94,7 @@ protected:
                                                           bool sliding_window_cache,
                                                           float scale,
                                                           bool has_sink,
-                                                          const ov::Any& kvcache_metadata);
+                                                          const KVCacheMetadata& metadata);
     // Reshape a flat KV-cache dequant scale so it broadcasts against a [B, kv_num_heads, S, head_size] tensor:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,
