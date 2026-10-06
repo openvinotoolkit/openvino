@@ -18,6 +18,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -32,6 +33,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace ov;
@@ -546,6 +548,66 @@ TEST(GroupQueryAttentionValues, softcap_grouped_query_does_not_replicate_kv) {
         }
     }
     EXPECT_EQ(matmuls, 2u);
+}
+
+namespace {
+size_t count_slices_of(const std::shared_ptr<Model>& model, const std::shared_ptr<Node>& source) {
+    size_t n = 0;
+    for (const auto& in : source->output(0).get_target_inputs()) {
+        n += is_type<op::v8::Slice>(in.get_node()) ? 1 : 0;
+    }
+    return n;
+}
+
+// Packed QKV (the layout of production ORT GenAI / orca models): Q/K/V come from one split, so S_kv == S_q and the
+// dynamic-kv-length handling must not alter the graph: cos/sin feed both RoPEs directly (no K-side Slice).
+std::shared_ptr<Model> make_packed_rotary_gqa_model() {
+    const auto f32 = element::f32;
+    const auto qkv =
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{1, NUM_HEADS + 2 * KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto split_lengths =
+        op::v0::Constant::create(element::i64, Shape{3}, {NUM_HEADS, KV_NUM_HEADS, KV_NUM_HEADS});
+    const auto split = std::make_shared<op::v1::VariadicSplit>(qkv,
+                                                               op::v0::Constant::create(element::i64, Shape{}, {1}),
+                                                               split_lengths);
+    const auto past_k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto past_v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    const auto total = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto cos = std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, HEAD_SIZE / 2});
+    const auto sin = std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, HEAD_SIZE / 2});
+    const auto gqa = std::make_shared<GroupQueryAttention>(
+        OutputVector{split->output(0), split->output(1), split->output(2), past_k, past_v, seqlens, total, cos, sin},
+        NUM_HEADS,
+        KV_NUM_HEADS,
+        0.0f,
+        true,
+        false);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    return std::make_shared<Model>(results, ParameterVector{qkv, past_k, past_v, seqlens, total, cos, sin});
+}
+}  // namespace
+
+TEST(GroupQueryAttentionValues, packed_qkv_keeps_query_length_cache_arithmetic) {
+    auto model = make_packed_rotary_gqa_model();
+    decompose(model);
+    const auto& params = model->get_parameters();
+    // Past: exactly one Slice each (keep total - S_q rows), as before.
+    EXPECT_EQ(count_slices_of(model, params[1]), 1u);
+    EXPECT_EQ(count_slices_of(model, params[2]), 1u);
+    // cos/sin: gathered once and used by both RoPEs without a K-side Slice.
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto gather = as_type_ptr<op::v8::Gather>(op)) {
+            if (gather->get_input_node_shared_ptr(0) == params[5] ||
+                gather->get_input_node_shared_ptr(0) == params[6]) {
+                for (const auto& in : gather->output(0).get_target_inputs()) {
+                    EXPECT_FALSE(is_type<op::v8::Slice>(in.get_node())) << "packed QKV must not slice cos/sin for K";
+                }
+            }
+        }
+    }
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_negative_softcap) {

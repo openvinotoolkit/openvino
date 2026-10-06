@@ -223,8 +223,14 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
             ov_op_inputs.push_back(std::make_shared<v1::Reshape>(V, empty_kv_shape, false));
         } else {
             auto kv_num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads});
+            // A dynamic kv_sequence_length may differ from Q's at runtime (0 for ORT shared KV), so K/V keep their
+            // own length; a static one equals Q's (validated by ORT) and keeps the Q-based shape.
+            const std::shared_ptr<ov::Node> kv_seqlen_node =
+                k_ps.rank().is_static() && k_ps[1].is_dynamic()
+                    ? detail::get_dimensions(std::make_shared<v3::ShapeOf>(K), {1})
+                    : current_seqlen_size_node;
             auto kv_shape = std::make_shared<v0::Concat>(
-                ov::NodeVector{batch_size_node, current_seqlen_size_node, kv_num_heads_node, head_size_node},
+                ov::NodeVector{batch_size_node, kv_seqlen_node, kv_num_heads_node, head_size_node},
                 0);
 
             K = std::make_shared<v1::Reshape>(K, kv_shape, false)->output(0);

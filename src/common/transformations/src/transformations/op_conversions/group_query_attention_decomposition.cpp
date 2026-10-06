@@ -146,6 +146,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
     const bool shared_kv = node->is_shared_kv();
+    // A separate key/value input with a dynamic length may resolve to 0 at runtime (ORT shared KV,
+    // kv_sequence_length == 0), so its own length drives the cache arithmetic: the past keeps total - S_kv rows
+    // (total for shared KV, total - S_q otherwise) while the causal offset stays total - S_q. Packed QKV (Q/K/V
+    // split from one tensor) and static shapes always have S_kv == S_q and keep the S_q-based graph unchanged.
+    const auto& key_ps = node->get_input_partial_shape(static_cast<size_t>(GQAInputs::KEY));
+    const bool packed_qkv = node->input_value(0).get_node() == node->input_value(1).get_node();
+    const bool dynamic_kv_len = !shared_kv && !packed_qkv && key_ps.rank().is_static() &&
+                                key_ps.rank().get_length() == 4 && key_ps[2].is_dynamic();
+    const auto kv_seqlen = dynamic_kv_len ? get_dimensions(register_new_node<v3::ShapeOf>(K), {2}) : nullptr;
     const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
     const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
 
@@ -176,7 +185,13 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
         // Shared KV has no new keys: the past keys were already rotated when they were appended.
-        if (!shared_kv) {
+        if (dynamic_kv_len) {
+            // The new keys sit at the same positions as the queries; take only the first S_kv rows (all of them
+            // unless S_kv resolves to 0 at runtime).
+            const auto cos_k = register_new_node<v8::Slice>(cos, zero, kv_seqlen, one, zero);
+            const auto sin_k = register_new_node<v8::Slice>(sin, zero, kv_seqlen, one, zero);
+            K = rotaryEmbedding(K, cos_k, sin_k, rotary_interleaved);
+        } else if (!shared_kv) {
             K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
         }
     }
@@ -308,8 +323,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
         };
-        past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
-        past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
+        const ov::Output<ov::Node> kept_past =
+            dynamic_kv_len ? register_new_node<v1::Subtract>(seqlens_1d, kv_seqlen)->output(0) : past_seqlen->output(0);
+        past_key = register_new_node<v8::Slice>(past_key, zero, kept_past, one, two);
+        past_value = register_new_node<v8::Slice>(past_value, zero, kept_past, one, two);
         K = construct_kv_cache(past_key, K);
         V = construct_kv_cache(past_value, V);
         present_k = K;
