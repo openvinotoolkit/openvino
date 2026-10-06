@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <optional>
 #include <utility>
 #include <variant>
@@ -41,9 +42,14 @@ struct SectionSlot {
     size_t end;
 };
 
-constexpr SectionSlot reserve_slot(size_t cursor, size_t size, SectionAlignment align) {
-    const auto start = ov::util::align_size_up(cursor, align.offset_align);
-    return {start, start + ov::util::align_size_up(size, align.size_align)};
+constexpr std::optional<SectionSlot> reserve_slot(size_t cursor, size_t size, SectionAlignment align) {
+    const auto start = ov::util::align_size_up_overflow(cursor, align.offset_align);
+    const auto aligned_size = ov::util::align_size_up_overflow(size, align.size_align);
+    if (!start || !aligned_size || *aligned_size > std::numeric_limits<size_t>::max() - *start) {
+        return std::nullopt;
+    } else {
+        return SectionSlot{*start, *start + *aligned_size};
+    }
 }
 
 }  // namespace
@@ -97,11 +103,13 @@ void DeferredWriter::write_into(BufferDestination& destination, ov::util::Memory
 }
 
 void DeferredWriter::write(ov::util::MemoryView data) {
-    std::visit(
-        [&](auto& destination) {
-            write_into(destination, data);
-        },
-        m_destination);
+    if (destination_good()) {
+        std::visit(
+            [&](auto& destination) {
+                write_into(destination, data);
+            },
+            m_destination);
+    }
 }
 
 void DeferredWriter::write_zeros(size_t count) {
@@ -116,9 +124,15 @@ void DeferredWriter::write_zeros(size_t count) {
 
 void DeferredWriter::patch_into(StreamDestination& destination, size_t offset, ov::util::MemoryView data) {
     const auto resume = destination.stream->tellp();
-    destination.stream->seekp(destination.start + static_cast<std::streamoff>(offset));
+    const auto target = destination.start + static_cast<std::streamoff>(offset);
+    destination.stream->seekp(target);
     destination.stream->write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
-    destination.stream->seekp(resume);
+    destination.stream->flush();
+    if (destination.stream->tellp() != target + static_cast<std::streamoff>(data.size())) {
+        destination.stream->setstate(std::ios::failbit);
+    } else {
+        destination.stream->seekp(resume);
+    }
 }
 
 void DeferredWriter::patch_into(BufferDestination& destination, size_t offset, ov::util::MemoryView data) {
@@ -172,6 +186,18 @@ void DeferredWriter::reset_destination() {
                m_destination);
 }
 
+void DeferredWriter::fail_destination() {
+    std::visit(ov::util::VariantVisitor{
+                   [](StreamDestination& destination) {
+                       destination.stream->setstate(std::ios::failbit);
+                   },
+                   [](BufferDestination& destination) {
+                       destination.good = false;
+                   },
+               },
+               m_destination);
+}
+
 ManifestEntry DeferredWriter::write_section(DeviceId device,
                                             SectionTag tag,
                                             SectionAlignment align,
@@ -184,15 +210,17 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
         return entry;
     }
     const auto slot = reserve_slot(written_size(), payload.size(), align);
-    write_zeros(slot.start - written_size());  // pad to the aligned start
-    if (destination_good()) {
-        write(payload);
+    if (slot) {
+        write_zeros(slot->start - written_size());  // pad to the aligned start
+    } else {
+        fail_destination();
     }
+    write(payload);
     if (destination_good()) {
-        write_zeros(slot.end - written_size());  // pad the slot
+        write_zeros(slot->end - written_size());  // pad the slot
+        entry.offset = slot->start;
+        entry.size = payload.size();
     }
-    entry.offset = slot.start;
-    entry.size = payload.size();
     return entry;
 }
 
@@ -204,7 +232,11 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
     entry.device = device;
     entry.tag = tag;
     const auto slot = reserve_slot(written_size(), payload.size, align);
-    write_zeros(slot.start - written_size());
+    if (slot) {
+        write_zeros(slot->start - written_size());
+    } else {
+        fail_destination();
+    }
     if (destination_good()) {
         size_t remaining = payload.size;
         const SectionSink sink = [this, &remaining](ov::util::MemoryView data) {
@@ -219,10 +251,10 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
                         "HSM SectionEncoder must append exactly its declared size");
     }
     if (destination_good()) {
-        write_zeros(slot.end - written_size());
+        write_zeros(slot->end - written_size());
+        entry.offset = slot->start;
+        entry.size = payload.size;
     }
-    entry.offset = slot.start;
-    entry.size = payload.size;
     return entry;
 }
 
@@ -233,20 +265,29 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
     ManifestEntry entry{};
     entry.device = device;
     entry.tag = tag;
-    const size_t start = ov::util::align_size_up(written_size(), align.offset_align);
-    write_zeros(start - written_size());
+    const auto start = ov::util::align_size_up_overflow(written_size(), align.offset_align);
+    if (start) {
+        write_zeros(*start - written_size());
+    } else {
+        fail_destination();
+    }
     if (destination_good()) {
         const SectionSink sink = [this](ov::util::MemoryView data) {
             write(data);
         };
         encode(sink);
     }
-    const size_t real_size = destination_good() ? written_size() - start : 0;
+    const size_t real_size = destination_good() ? written_size() - *start : 0;
     if (destination_good()) {
-        write_zeros(ov::util::align_size_up(real_size, align.size_align) - real_size);
+        const auto aligned_end = ov::util::align_size_up_overflow(real_size, align.size_align);
+        if (aligned_end) {
+            write_zeros(*aligned_end - real_size);
+            entry.offset = *start;
+            entry.size = real_size;
+        } else {
+            fail_destination();
+        }
     }
-    entry.offset = start;
-    entry.size = real_size;
     return entry;
 }
 
@@ -335,19 +376,26 @@ std::error_code DeferredWriter::finalize() {
             auto body_size = sizeof(Header);
             for (const auto& section : m_sections) {
                 if (!section.tag.is_inline()) {
-                    body_size = reserve_slot(body_size, payload_size(section), section.align).end;
+                    if (const auto slot = reserve_slot(body_size, payload_size(section), section.align)) {
+                        body_size = slot->end;
+                    } else {
+                        fail_destination();
+                        break;
+                    }
                 }
             }
 
-            Header header{};
-            header.magic = BlobMagic::single;
-            header.version_major = FormatVersion::major;
-            header.version_minor = FormatVersion::minor;
-            header.manifest_offset = body_size;
-            header.manifest_size = section_count * sizeof(ManifestEntry);
-            header.container_size = body_size + header.manifest_size;
-            write({reinterpret_cast<const std::byte*>(&header), sizeof(header)});
-            manifest_offset = body_size;
+            if (destination_good()) {
+                Header header{};
+                header.magic = BlobMagic::single;
+                header.version_major = FormatVersion::major;
+                header.version_minor = FormatVersion::minor;
+                header.manifest_offset = body_size;
+                header.manifest_size = section_count * sizeof(ManifestEntry);
+                header.container_size = body_size + header.manifest_size;
+                write({reinterpret_cast<const std::byte*>(&header), sizeof(header)});
+                manifest_offset = body_size;
+            }
         }
 
         std::vector<ManifestEntry> entries(section_count);
@@ -363,10 +411,8 @@ std::error_code DeferredWriter::finalize() {
         if (m_has_unsized_section) {
             manifest_offset = written_size();  // now known: right before the manifest is written
         }
-        if (destination_good()) {
-            for (const auto& entry : entries) {
-                write({reinterpret_cast<const std::byte*>(&entry), sizeof(entry)});
-            }
+        for (size_t i = 0; i < entries.size() && destination_good(); ++i) {
+            write({reinterpret_cast<const std::byte*>(&entries[i]), sizeof(entries[i])});
         }
         if (m_has_unsized_section && destination_good()) {
             Header header{};

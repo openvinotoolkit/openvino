@@ -122,6 +122,7 @@ private:
     size_t written_size() const;
     bool destination_good() const;
     void reset_destination();
+    void fail_destination();
 
     static void write_into(StreamDestination& destination, ov::util::MemoryView data);
     static void write_into(BufferDestination& destination, ov::util::MemoryView data);

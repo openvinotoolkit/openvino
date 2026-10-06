@@ -58,6 +58,14 @@ protected:
     }
 };
 
+class AppendOnlyStreamBuf : public std::stringbuf {
+protected:
+    std::streamsize xsputn(const char* s, std::streamsize n) override {
+        seekoff(0, std::ios::end, std::ios::out);
+        return std::stringbuf::xsputn(s, n);
+    }
+};
+
 // Raw container parsing, no Reader dependency - same pattern as hsm_writer.cpp, kept file-local on purpose.
 struct ParsedContainer {
     hsm::Header header{};
@@ -318,6 +326,27 @@ TEST(HsmDeferredWriterTest, finalize_caches_a_normal_non_throwing_failure_instea
 
     stream.clear();
     EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);  // cached, not re-derived
+}
+
+TEST(HsmDeferredWriterTest, finalize_rejects_a_sized_layout_whose_slot_computation_would_overflow) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    const std::string payload = "x";
+    constexpr size_t huge_align = size_t{1} << 63;  // aligned start and aligned size both become 1<<63
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(payload), {huge_align, huge_align});
+    EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
+    EXPECT_TRUE(stream.str().empty());  // rejected before writing anything, not after a wrapped-around size
+}
+
+TEST(HsmDeferredWriterTest, finalize_detects_a_misplaced_patch_on_an_append_only_stream) {
+    AppendOnlyStreamBuf buf;
+    std::ostream stream(&buf);
+    auto writer = open_writer(stream);
+    writer.add_section(hsm::any_device_id, hsm::model_tag, [](const hsm::SectionSink& sink) {
+        const std::string content = "discovered-at-write-time";
+        sink({reinterpret_cast<const std::byte*>(content.data()), content.size()});
+    });
+    EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
 }
 
 TEST(HsmDeferredWriterTest, unsized_section_forces_the_header_to_be_patched_after_the_fact) {
