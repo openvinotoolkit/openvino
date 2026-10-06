@@ -548,12 +548,16 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
 }
 
 // Reorder-to-fbyx/byfx logic for per-group decompression scale/zero points. Declared in namespace cldnn
-// (pass_manager.h) so prepare_primitive_fusing::fixup_u2_decompression_layout can also call it for the
-// post-fusion u2/CM re-check.
-void cldnn::reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p) {
+// (pass_manager.h) so select_preferred_formats can also call it for the post-fusion u2/CM re-check.
+// Returns the newly inserted reorder nodes (0, 1 or 2), if any, so a caller running during node-by-node
+// traversal (select_preferred_formats) can assign their preferred formats right away: add_intermediate()
+// places them before fc_node's position in processing order, so a plain range-based pass over the graph
+// would otherwise never visit them.
+std::vector<program_node*> cldnn::reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p) {
     auto fc_prim = fc_node.get_primitive();
     auto weights_shape = fc_node.get_input_layout(1).get_partial_shape();
 
+    std::vector<program_node*> new_reorders;
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
         auto target_layout = dep.get_output_layout();
@@ -561,6 +565,7 @@ void cldnn::reorder_fc_decompression_params_if_needed(fully_connected_node& fc_n
         auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder_" + fc_node.id(), dep.id(), target_layout);
         p.add_intermediate(reorder_prim, fc_node, dep_id, true);
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
+        new_reorders.push_back(&fc_node.get_dependency(dep_id));
     };
 
     auto need_reorder = [&](size_t dep_id, size_t weight_rank, bool transpose_b_param) {
@@ -615,6 +620,7 @@ void cldnn::reorder_fc_decompression_params_if_needed(fully_connected_node& fc_n
             reorder_bfyx(decompression_zp_idx, format);
         }
     }
+    return new_reorders;
 }
 
 static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
