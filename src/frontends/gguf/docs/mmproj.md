@@ -176,8 +176,9 @@ For a shared-library plugin, return the `ProjectorExtension` through
 `OPENVINO_CREATE_EXTENSIONS`, as with an architecture extension; see the
 [plugin instructions](porting_a_llama_cpp_model.md#build-and-load-an-external-plugin).
 The buildable [mmproj plugin example](../examples/architecture_extension/mmproj_extension.cpp)
-exports an alias of the Gemma3 branch; the example CMake project builds it as
-`gguf_mmproj_extension`.
+exports a Gemma3 alias and a custom audio projection branch. The example CMake project
+builds it as `gguf_mmproj_extension`; its [README](../examples/architecture_extension/README.md)
+includes a fixture generator and CPU runner commands.
 
 `clip` is the architecture label of the supported llama.cpp mmproj formats, not a
 promise that future formats use it. A projector registration for another architecture

@@ -211,7 +211,9 @@ the architecture does not select the state or input/output contract.
 
 For a whole model that uses its own operations instead of shared decoder blocks, see the
 [complete new-family builder](porting_a_llama_cpp_model.md#4-implement-a-whole-model-builder).
-The runnable [whole-model projection example](../examples/architecture_extension) shows the same packaging
+The runnable [extension examples](../examples/architecture_extension/README.md) include decoder,
+whole-model projection and mmproj component plugins, generated inputs, and a CPU loader.
+The whole-model projection example shows the same packaging
 with separate builder and entry-point files.
 
 ### Matching and replacement
@@ -345,15 +347,17 @@ metadata and GenAI adaptation.
 
 The [mmproj plugin example](../examples/architecture_extension/mmproj_extension.cpp) exports
 `ProjectorExtension` using `OPENVINO_CREATE_EXTENSIONS`. The standalone CMake project builds
-it as `gguf_mmproj_extension` alongside the whole-model projection example:
+it as `gguf_mmproj_extension` alongside decoder and whole-model projection examples.
+It includes a Gemma3 reuse entry and a custom audio projection branch; the
+[example README](../examples/architecture_extension/README.md) provides generated inputs and runner commands:
 
 ```sh
 cmake --build /tmp/gguf-extension --target gguf_mmproj_extension
 ```
 
 After configuring the project as described below, load `libgguf_mmproj_extension.so` on the
-frontend before `load()`. The example accepts the illustrative `example-gemma3` projector type
-with Gemma3-compatible metadata and tensors. Compile against the matching GGUF frontend
+frontend before `load()`. The plugin accepts `example-gemma3` with Gemma3-compatible metadata and tensors, or
+`example-linear` with caller-provided audio embeddings and a projection weight. Compile against the matching GGUF frontend
 package; the developer API has no compatibility guarantee across releases.
 
 ## Add or override an operation converter

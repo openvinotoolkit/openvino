@@ -60,6 +60,7 @@ operation converters, normalization passes, registration timing and shared-libra
 ## Development guides
 
 * [Register and combine frontend extensions](docs/extensions.md).
+* [Build and run extension examples](examples/architecture_extension/README.md).
 * [Add an operation translator](docs/how_to_add_op.md).
 * [Add a built-in architecture](docs/adding_an_architecture.md).
 * [Port a llama.cpp model or build an external architecture extension](docs/porting_a_llama_cpp_model.md).
