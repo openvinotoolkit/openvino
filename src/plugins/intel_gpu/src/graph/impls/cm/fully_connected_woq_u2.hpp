@@ -7,6 +7,8 @@
 #include <memory>
 #include <utility>
 
+#include "activation_inst.h"
+#include "eltwise_inst.h"
 #include "fully_connected_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/layout.hpp"
@@ -32,14 +34,34 @@ inline WoqU2WeightLayout& woq_u2_weight_layout_for_tests() {
     return layout;
 }
 
+// Matches the SwiGLU epilogue prepare_primitive_fusing::fuse_simple_primitives attaches to gate_proj in
+// a down_proj(swish(gate_proj(x)) * up_proj(x)) MLP: [0] a plain Swish applied to the FC's own output
+// (no outer dependency), [1] an elementwise multiply with one outer dependency (up_proj's output).
+// This is the only fused pattern woq_u2_gemm_dual.cm's epi_mode==2 implements (swish(acc) * epi); any
+// other fused primitives (bias, residual add, more than two ops, ...) are still unsupported.
+inline bool is_supported_swiglu_epilogue(const program_node& node) {
+    const auto& fused = node.get_fused_primitives();
+    if (fused.size() != 2)
+        return false;
+    if (!fused[0].is_type<activation>() || fused[0].has_outer_dep())
+        return false;
+    if (fused[0].typed_desc<activation>()->activation_function != activation_func::swish)
+        return false;
+    if (!fused[1].is_type<eltwise>() || !fused[1].has_outer_dep())
+        return false;
+    return fused[1].typed_desc<eltwise>()->mode == eltwise_mode::prod;
+}
+
 // u2 weight-only-quantized fully connected layer on XMX/DPAS (woq_u2_gemm_dual.cm, built with WLAYOUT=1:
-// N-major weights and scales / zero points, no epilogue).
+// N-major weights and scales / zero points).
 //
 // Selected only for: Xe2 or Xe3, CM enabled, >= 96 KB SLM; f16 activations without padding; u2 weights
 // [N, K] (weights_transposed); f16 decompression scales [N, K/64] bfyx (group size 64); u8 decompression
 // zero points [N, K/64] bfyx (required: the kernel has no scalar / f16 / absent zero-point path); no
-// bias, no fused ops, no dynamically quantized activations; f16 or f32 output (OUT_F16);
-// K % 64 == 0 and N % 32 == 0. M (the product of the leading dims) may be dynamic. Everything else falls
+// bias, no dynamically quantized activations; f16 or f32 output (OUT_F16); K % 64 == 0 and N % 32 == 0.
+// Fused ops are rejected unless they are exactly the gate_proj-style SwiGLU epilogue (see
+// is_supported_swiglu_epilogue): swish(acc) * up_proj_output, run via epi_mode==2.
+// M (the product of the leading dims) may be dynamic. Everything else falls
 // back to the other fully_connected implementations (for u2: the OCL reference kernel).
 // prepare_quantization keeps per-group scales / zero points of u2 FCs in bfyx for this kernel.
 struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
@@ -76,8 +98,8 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
         // pass, without requiring OV_GPU_USE_CM to be set.
         if (info.max_local_mem_size < required_slm_bytes)
             CM_FC_LOG_AND_RETURN_FALSE(node, "insufficient SLM: " << info.max_local_mem_size << " < " << required_slm_bytes);
-        if (node.has_fused_primitives())
-            CM_FC_LOG_AND_RETURN_FALSE(node, "fused primitives not supported");
+        if (node.has_fused_primitives() && !is_supported_swiglu_epilogue(node))
+            CM_FC_LOG_AND_RETURN_FALSE(node, "fused primitives not supported (only gate_proj-style swish*up_proj epilogue is)");
 
         const auto& fc_node = node.as<fully_connected>();
         const auto& prim = fc_node.get_primitive();

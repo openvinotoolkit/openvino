@@ -8,11 +8,16 @@
 // instances into one program, so (OpenVINO-only additions) the file-scope structs / helpers are
 // defined once (*_ONCE guards) and the kernel's macros are #undef'd at the end of the file. OUT_F16
 // (OpenVINO addition, default 0 = the original's f32 C) stores C as half; nothing before the store changes.
+// EPI_F16 (OpenVINO addition, default 0 = the original's f32 epi) reads epi as half and widens to float
+// right after the load; the epi_mode==1/2 math downstream is unchanged.
 #ifndef KERNEL_NAME
 #define KERNEL_NAME woq_matmul
 #endif
 #ifndef OUT_F16
 #define OUT_F16 0       // OpenVINO addition: 1 = C is half [M, N] (the f32 result rounded to nearest even)
+#endif
+#ifndef EPI_F16
+#define EPI_F16 0       // OpenVINO addition: 1 = epi is half [M, N] instead of float [M, N]
 #endif
 #include <cm/cm.h>
 
@@ -261,7 +266,7 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],       // half  [M, K]
            SurfaceIndex Wq [[type("buffer_t")]],      // uchar [KG, N, GS/4]  (WLAYOUT 1: [N, K/4])
            SurfaceIndex scales [[type("buffer_t")]],  // half  [KG, N]        (WLAYOUT 1: [N, KG])
            SurfaceIndex zps [[type("buffer_t")]],     // uchar [KG, N]        (WLAYOUT 1: [N, KG])
-           SurfaceIndex epi [[type("buffer_t")]],     // float [M, N]
+           SurfaceIndex epi [[type("buffer_t")]],     // float [M, N] (EPI_F16: half [M, N])
            SurfaceIndex C [[type("buffer_t")]],       // float [M, N]
            int M, int K, int N, int epi_mode) {
   cm_slm_init(SLM_BYTES);
@@ -483,8 +488,14 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],       // half  [M, K]
   auto slice = [&](unsigned cur, unsigned nxt, int par, bool fill, bool pfw) {
     if (epf && er < MROWS && ao == epf_ao) {                       // one epilogue row per EPS slices
       if (m0 + er < M)
+#if EPI_F16
+        // Transposed prefetch only supports U32/U64 granularity: same bytes, half the word count.
+        cm_prefetch<NCOL * 8, DataSize::U32, CacheHint::Uncached, CacheHint::Cached>(
+            epi, ((unsigned)(m0 + er) * N + n_base) * 2u);
+#else
         cm_prefetch<NCOL * 16, DataSize::U32, CacheHint::Uncached, CacheHint::Cached>(
             epi, ((unsigned)(m0 + er) * N + n_base) * 4u);
+#endif
       er++;
       epf_ao += EPS * KS * 2;
     }
@@ -531,9 +542,18 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],       // half  [M, K]
       // row-interleaved layout, so the interleave costs no extra instruction.
       matrix<float, 8, NCOL * 16> ev, ov;
       if (epi_mode != 0) {
+#if EPI_F16
+        // Transposed load only supports U32/U64 granularity: load as uint, reinterpret as half.
+        matrix<half, 8, NCOL * 16> eh;
+        #pragma unroll
+        for (int i = 0; i < 8; i++)
+          eh.row(i).format<uint>() = cm_load<uint, NCOL * 8>(epi, ((unsigned)(mb + i) * N + (unsigned)n_base) * 2u);
+        ev = eh;                                                    // widen half -> float
+#else
         #pragma unroll
         for (int i = 0; i < 8; i++)
           ev.row(i) = cm_load<float, NCOL * 16>(epi, ((unsigned)(mb + i) * N + (unsigned)n_base) * 4u);
+#endif
       }
       #pragma unroll
       for (int cb = 0; cb < NCOL; cb++) {
@@ -568,12 +588,27 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],       // half  [M, K]
           for (int cb = 0; cb < NCOL; cb++) {
             const unsigned off = ((unsigned)m * N + (unsigned)(n_base + cb * 16)) * 4u;
             vector<float, 16> v = acc.row(ACC(rb, cb)).select<16, 1>(i * 16);
+#if EPI_F16
+            // Transposed load only supports U32/U64 granularity: load as uint, reinterpret as half.
+            vector<half, 16> eh;
+            if (epi_mode != 0)
+              eh.format<uint>() = cm_load<uint, 8>(epi, off / 2u);
+            vector<float, 16> ef = eh;                                // widen half -> float
+#endif
             if (epi_mode == 1) {
+#if EPI_F16
+              v += ef;
+#else
               v += cm_load<float, 16>(epi, off);
+#endif
             } else if (epi_mode == 2) {
               vector<float, 16> e = cm_exp(v * -1.4426950408889634f);
               v = v / (1.0f + e);
+#if EPI_F16
+              v *= ef;
+#else
               v *= cm_load<float, 16>(epi, off);
+#endif
             }
 #if OUT_F16
             vector<half, 16> h = v;                                    // round to nearest even
@@ -591,6 +626,7 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],       // half  [M, K]
 // OpenVINO: keep this instance's macros out of the other kernels batched into the same program.
 #undef ACC
 #undef OUT_F16
+#undef EPI_F16
 #undef ARPT
 #undef A_BYTES
 #undef BUF_BYTES
