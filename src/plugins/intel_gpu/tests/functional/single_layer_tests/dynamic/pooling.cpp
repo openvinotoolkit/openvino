@@ -259,6 +259,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CeilTorch_GPU_3D,
                                             ::testing::ValuesIn(inpOutPrecision)),
                          PoolingLayerGPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CeilTorchBoundary_GPU_3D,
+                         PoolingLayerGPUTest,
+                         ::testing::Combine(::testing::Values(ov::test::poolSpecificParams{ov::test::utils::PoolingTypes::AVG,
+                                                                                           {2},
+                                                                                           {2},
+                                                                                           {1},
+                                                                                           {1},
+                                                                                           ov::op::RoundingType::CEIL_TORCH,
+                                                                                           ov::op::PadType::EXPLICIT,
+                                                                                           true}),
+                                            ::testing::Values(InputShape{{-1, 128, -1}, {{1, 128, 3}, {1, 128, 5}}}),
+                                            ::testing::ValuesIn(inpOutPrecision)),
+                         PoolingLayerGPUTest::getTestCaseName);
 /* ============= Pooling (2D) ============= */
 const std::vector<ov::test::poolSpecificParams> paramsMax4D = {
         ov::test::poolSpecificParams{ ov::test::utils::PoolingTypes::MAX, {2, 2}, {2, 2}, {0, 0}, {0, 0},
