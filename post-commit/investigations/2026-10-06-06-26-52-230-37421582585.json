@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-06-26-52-230-37421582585",
+  "timestamp": "2026-10-06T06:26:52Z",
+  "run_id": "37421582585",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37421582585",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "commit_sha": "6f6a720931392a4bb5794b8f2e2cec2ca557db5a",
+  "pr_number": "38030",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38030",
+  "author": "wilson-seok",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+  "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+  "signature_hash": "0ee6d7327812b344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "cc1plus fails with '-Werror=invalid-pch' because cmake_pch.hxx.gch for openvino_reference is not a valid PCH file after the build directory is reconfigured for a secondary build pass"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The ARM64 cross-compilation job reconfigures the same CMake build directory in-place with different cache variables for a secondary packaging/bindings build pass (e.g. CPACK_GENERATOR=NPM, ENABLE_SYSTEM_TBB=OFF). This triggers a rebuild of the openvino_reference target, but the previously generated precompiled header object (cmake_pch.hxx.gch) under the same CMakeFiles directory becomes stale/incompatible for the new compiler invocation (differing preprocessor defines/paths, likely compounded by sccache's caching of the .gch artifact). GCC rejects the stale .gch as 'not a PCH file', and because the build enables -Werror (CMAKE_COMPILE_WARNING_AS_ERROR=ON) this escalates to a hard error for every compiled reference op, aborting the ninja build. This is the same job-agnostic infrastructure defect previously recorded against this workflow; the commit under investigation (#38030, GPU SDPA microkernel change) is unrelated to the failure.",
+  "reproduction_steps": "Not easily reproducible outside CI without the exact ARM64 cross-compilation Docker image and cache state; locally: configure+build the main target, then re-run 'cmake -UTBB* -S <repo> -B <same-build-dir> -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF' followed by 'cmake --build <same-build-dir>' and observe cc1plus reject the cached src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch as an invalid PCH file.",
+  "recommended_actions": [
+    "Use a separate build directory for the secondary (JS/NPM) cmake reconfigure instead of reusing BUILD_DIR, so the openvino_reference PCH is generated fresh for the new configuration",
+    "Explicitly remove/regenerate cmake_pch.hxx.gch (and other PCH artifacts) before or during the second cmake --build invocation in the ARM64 cross-compilation workflow step",
+    "Consider disabling precompiled headers (ENABLE_FASTER_BUILD=OFF) for the secondary reconfigure pass, or passing -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF for that specific sub-build to avoid escalating stale-PCH warnings into hard failures",
+    "Escalate as a known, unresolved infrastructure issue against job_build_linux.yml for the ubuntu_22_arm64_cross_compilation workflow — this is now the 5th recorded occurrence since 2026-09-25 and remains unfixed"
+  ],
+  "prevention_strategies": "Avoid reconfiguring and rebuilding the same CMake build directory with different cache variables (TBB/wheel toggles) in sequential steps of the same job when precompiled headers are enabled; isolate secondary packaging builds (JS/NPM, wheels) into their own build directories, or explicitly invalidate PCH artifacts between reconfigures. Add a CI guard that detects 'not a PCH file' errors and automatically cleans stale .gch files before retrying.",
+  "historical_context": "Identical failure signature recorded 4 times previously in this database: runs 36123294303 (2026-09-25), 37391757947, 37394029538, and 37410819403 (all 2026-10-06), all on the same 'Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)' workflow with the same cc1plus invalid-pch cmake_pch.hxx.gch error. This is now the 5th occurrence; the defect in the shared build-directory PCH reuse remains unresolved."
+}
