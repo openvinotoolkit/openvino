@@ -954,7 +954,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
 
         const auto zpNode = dataParent->getParentEdgeAt(1)->getParent();
-        if (zpNode->getType() != Type::Input || !zpNode->isConstant() || zpNode->getOriginalOutputPrecisionAtPort(0) != ov::element::u8) {
+        if (zpNode->getType() != Type::Input || !zpNode->isConstant() ||
+            zpNode->getOriginalOutputPrecisionAtPort(0) != ov::element::u8) {
             return false;
         }
 

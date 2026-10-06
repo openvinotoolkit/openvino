@@ -90,9 +90,9 @@ bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
 
     auto mulAdd_activation = any_input(act_pred);
     auto mulAdd_zero_point = any_input();
-    auto mulAdd_gemm_input = optional_subtract_allowed 
-        ? optional<ov::op::v1::Subtract>({mulAdd_activation, mulAdd_zero_point})
-        : mulAdd_activation;
+    auto mulAdd_gemm_input = optional_subtract_allowed
+                                 ? optional<ov::op::v1::Subtract>({mulAdd_activation, mulAdd_zero_point})
+                                 : mulAdd_activation;
     auto mulAdd_gemm = wrap_type<TGemm>({mulAdd_gemm_input, any_input()});
     auto mulAdd_mul = wrap_type<ov::op::v1::Multiply>({mulAdd_gemm, any_input()});
     auto mulAdd_add = wrap_type<ov::op::v1::Add>({mulAdd_mul, any_input()});
@@ -103,8 +103,8 @@ bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
     auto addMul_activation = any_input(act_pred);
     auto addMul_zero_point = any_input();
     auto addMul_gemm_input = optional_subtract_allowed
-        ? optional<ov::op::v1::Subtract>({addMul_activation, addMul_zero_point})
-        : addMul_activation;
+                                 ? optional<ov::op::v1::Subtract>({addMul_activation, addMul_zero_point})
+                                 : addMul_activation;
     auto addMul_gemm = wrap_type<TGemm>({addMul_gemm_input, any_input()});
     auto addMul_add = wrap_type<ov::op::v1::Add>({addMul_gemm, any_input()});
     auto addMul_mul = wrap_type<ov::op::v1::Multiply>({addMul_add, any_input()});
