@@ -203,10 +203,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> present_k, present_v;
 
     if (shared_kv) {
-        // Shared KV (ORT kv_sequence_length == 0): attend to the first `total` resident rows of the past and
-        // return the past unchanged as present. The causal offset stays total - S_q (mask_past_seqlen).
-        K = register_new_node<v8::Slice>(past_key, zero, seqlens_1d, one, two);
-        V = register_new_node<v8::Slice>(past_value, zero, seqlens_1d, one, two);
+        // Shared KV (ORT kv_sequence_length == 0): attend to the past buffer as is (zero copy) and return it
+        // unchanged as present. Rows at or beyond `total` are hidden by the explicit mask (causal offset
+        // total - S_q via mask_past_seqlen), so no Slice of the cache is needed.
+        K = past_key;
+        V = past_value;
         present_k = past_key;
         present_v = past_value;
     } else if (node->get_sliding_window_cache()) {
@@ -333,7 +334,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
-    if (kv_num_heads_factor > 1 && !compressed_kv) {
+    // The softcap chain groups query heads per KV head itself (no KV replication), see make_softcap_attention.
+    if (kv_num_heads_factor > 1 && !compressed_kv && softcap == 0.0f) {
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);
         const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
@@ -355,9 +357,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
     const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
     const bool has_sink = has_head_sink || smooth_softmax;
-    // The softcap chain has no is_causal fallback, so it always takes the explicit (base) mask; overrides may
-    // drop the mask in favor of SDPA's own causal flag.
-    const auto mask = softcap > 0.0f
+    // The softcap chain has no is_causal fallback, and shared KV must hide the past rows beyond `total`, so both
+    // always take the explicit (base) mask; overrides may otherwise drop it in favor of SDPA's causal flag.
+    const bool explicit_mask = softcap > 0.0f || shared_kv;
+    const auto mask = explicit_mask
                           ? GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
                                                                                   concat_kv_len_scalar,
                                                                                   concat_kv_len,
@@ -416,7 +419,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     std::shared_ptr<ov::Node> qga_output;
     if (softcap > 0.0f) {
-        qga_output = make_softcap_attention(Q, K, V, mask, make_scale_node(), sink, softcap);
+        qga_output = make_softcap_attention(Q, K, V, mask, make_scale_node(), sink, softcap, kv_num_heads);
     } else if (sink.get_node_shared_ptr()) {
         // SDPA's 6-input form requires an explicit scale.
         qga_output = make_sdpa(Q, K, V, mask, make_scale_node(), sink, false, compressed_kv);
@@ -464,11 +467,32 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_softc
     const ov::Output<ov::Node>& mask,
     const ov::Output<ov::Node>& scale,
     const ov::Output<ov::Node>& sink,
-    float softcap) {
+    float softcap,
+    int64_t kv_num_heads) {
     // SDPA has no hook between Q*K^T and softmax, so softcap uses the explicit chain in ONNX Runtime order
     // (gqa_attention_base.h): scale -> softcap * tanh(x / softcap) -> + bias/mask -> softmax (+ sink) -> * V.
     const auto T = query.get_element_type();
-    const auto scores = register_new_node<v0::MatMul>(query, key, false, true);
+    // Grouped-query attention without replicating K/V: view Q [B, N, S, D] as [B, Nkv, G, S, D] (query head
+    // h = kv * G + g, matching ORT) and let MatMul broadcast it against K/V viewed as [B, Nkv, 1, L, D]. The
+    // reshapes are free views of contiguous tensors; scores are taken back to [B, N, S, L] for the mask/softmax.
+    const auto q_shape = register_new_node<v3::ShapeOf>(query);
+    const auto k_shape = register_new_node<v3::ShapeOf>(key);
+    const auto batch = get_dimensions(q_shape, {0});
+    const auto num_heads = get_dimensions(q_shape, {1});
+    const auto q_len_head = get_dimensions(q_shape, {2, 3});
+    const auto kv_len = get_dimensions(k_shape, {2});
+    const auto kv_heads = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads}));
+    const auto minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+    const auto axis_2 = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const auto grouped_q_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, kv_heads, minus_one, q_len_head}, 0);
+    const auto grouped_q = register_new_node<v1::Reshape>(query, grouped_q_shape, false);
+    const auto grouped_k = register_new_node<v0::Unsqueeze>(key, axis_2);
+    const auto grouped_v = register_new_node<v0::Unsqueeze>(value, axis_2);
+    const auto grouped_scores = register_new_node<v0::MatMul>(grouped_q, grouped_k, false, true);
+    const auto scores_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, num_heads, get_dimensions(q_shape, {2}), kv_len}, 0);
+    const auto scores = register_new_node<v1::Reshape>(grouped_scores, scores_shape, false);
     const auto inv_cap = register_new_node(v0::Constant::create(T, Shape{}, {1.0f / softcap}));
     const auto cap = register_new_node(v0::Constant::create(T, Shape{}, {softcap}));
     const auto scaled = register_new_node<v1::Multiply>(scores, register_new_node<v1::Multiply>(scale, inv_cap));
@@ -499,7 +523,14 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_softc
     } else {
         probs = register_new_node<v8::Softmax>(logits, -1);
     }
-    return register_new_node<v0::MatMul>(probs, value);
+    const auto grouped_probs_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, kv_heads, minus_one, get_dimensions(q_shape, {2}), kv_len},
+                                      0);
+    const auto grouped_probs = register_new_node<v1::Reshape>(probs, grouped_probs_shape, false);
+    const auto grouped_out = register_new_node<v0::MatMul>(grouped_probs, grouped_v);
+    // [B, Nkv, G, S, D] -> [B, N, S, D]
+    const auto out_shape = register_new_node<v0::Concat>(ov::NodeVector{batch, num_heads, q_len_head}, 0);
+    return register_new_node<v1::Reshape>(grouped_out, out_shape, false);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_cache_end(

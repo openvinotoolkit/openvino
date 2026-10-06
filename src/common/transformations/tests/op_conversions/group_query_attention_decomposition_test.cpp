@@ -21,6 +21,7 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -507,14 +508,44 @@ TEST(GroupQueryAttentionValues, shared_kv_attends_to_past_and_returns_it_as_pres
     const auto& params = model->get_parameters();
     EXPECT_EQ(model->get_results()[1]->get_input_node_shared_ptr(0), params[3]);
     EXPECT_EQ(model->get_results()[2]->get_input_node_shared_ptr(0), params[4]);
-    // Attention reads a Slice of the past; no Concat/ScatterUpdate cache write is emitted.
+    // Zero copy: attention reads the past directly (no Slice of the cache) and no Concat/ScatterUpdate cache
+    // write is emitted; rows beyond `total` are hidden by the explicit mask instead.
     auto sdpa = find_sdpa(model);
     ASSERT_NE(sdpa, nullptr);
+    ASSERT_GE(sdpa->get_input_size(), 4u) << "shared KV needs the explicit mask";
     for (const auto& n : model->get_ordered_ops()) {
         EXPECT_FALSE(is_type<op::v3::ScatterUpdate>(n)) << n;
     }
+    for (const auto& past : {params[3], params[4]}) {
+        for (const auto& in : past->output(0).get_target_inputs()) {
+            EXPECT_FALSE(is_type<op::v8::Slice>(in.get_node())) << "past must not be sliced (copied)";
+        }
+    }
     // RoPE is applied to Q only: the (empty) key parameter has no consumers.
     EXPECT_TRUE(params[1]->output(0).get_target_inputs().empty());
+}
+
+TEST(GroupQueryAttentionValues, softcap_grouped_query_does_not_replicate_kv) {
+    auto model = make_gqa_model(GqaParams{"softcap_gqa"}.soft_cap(30.0f).shape(1, Dimension::dynamic()));
+    decompose(model);
+    // NUM_HEADS / KV_NUM_HEADS = 2: query heads are grouped onto the KV heads by MatMul broadcasting, so no
+    // Concat may replicate K/V (it would materialize G copies of the KV cache).
+    size_t matmuls = 0;
+    for (const auto& n : model->get_ordered_ops()) {
+        if (const auto concat = as_type_ptr<op::v0::Concat>(n)) {
+            const auto& in0 = concat->input_value(0);
+            bool all_same = concat->get_input_size() > 1;
+            for (size_t i = 1; i < concat->get_input_size(); ++i) {
+                all_same &= concat->input_value(i) == in0;
+            }
+            EXPECT_FALSE(all_same) << "K/V head replication found: " << concat;
+        }
+        if (const auto mm = as_type_ptr<op::v0::MatMul>(n)) {
+            ++matmuls;
+            EXPECT_EQ(mm->get_output_partial_shape(0).rank().get_length(), 5) << "grouped [B, Nkv, G, S, *] MatMul";
+        }
+    }
+    EXPECT_EQ(matmuls, 2u);
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_negative_softcap) {
