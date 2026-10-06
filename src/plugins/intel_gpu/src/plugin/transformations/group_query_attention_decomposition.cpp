@@ -55,6 +55,7 @@ std::optional<GroupQueryAttentionDecomposition::CompressedKV> GroupQueryAttentio
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
     const auto key_quant_type = node->get_k_quant_type();
     const auto value_quant_type = node->get_v_quant_type();
+    m_explicit_kv_dequant = node->is_kv_quantized();
     if (!node->is_kv_quantized() || (kv_cache_bit_width != 8 && kv_cache_bit_width != 4) || key.get_element_type() != value.get_element_type() ||
         !is_supported_compressed_kv_type(key.get_element_type()) || key_quant_type == GQAQuantType::PER_TENSOR ||
         value_quant_type == GQAQuantType::PER_TENSOR)
@@ -94,6 +95,7 @@ std::optional<GroupQueryAttentionDecomposition::CompressedKV> GroupQueryAttentio
     }
     m_quantization_attrs.group_sizes = compute_kv_group_sizes(key.get_partial_shape(), prepared_key_scale.get_partial_shape());
     m_quantization_attrs.scales_zp_output_order = {0, 1, 2, 3};
+    m_explicit_kv_dequant = false;
     return CompressedKV{key, value, std::move(quantization_inputs)};
 }
 
@@ -146,10 +148,11 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
                                                                                 bool sliding_window_cache,
                                                                                 float scale,
                                                                                 bool has_sink) {
-    // Mask-free LOWER_RIGHT causal SDPA is only valid when the KV length equals past + current (Concat path, dynamic
-    // length). A statically-sized KV buffer (full-length static cache) has unused tail slots that must stay masked.
-    const bool kv_len_static = ov::util::get_constant_from_source(kv_len_1d) != nullptr;
-    if (causal && local_window_size == -1 && !sliding_window_cache && !external_bias.get_node() && scale == 0.0f && !has_sink && !kv_len_static) {
+    // Mask-free LOWER_RIGHT causal SDPA needs KV length == past + current. A full-length static cache gets there once
+    // StatelessKVFusion trims it to the valid length, which needs SDPA to consume the cache directly. Explicit
+    // dequantize ops in between block that fusion, leaving unused tail slots that must stay masked.
+    const bool untrimmed_static_kv = m_explicit_kv_dequant && ov::util::get_constant_from_source(kv_len_1d) != nullptr;
+    if (causal && local_window_size == -1 && !sliding_window_cache && !external_bias.get_node() && scale == 0.0f && !has_sink && !untrimmed_static_kv) {
         return nullptr;
     }
 
