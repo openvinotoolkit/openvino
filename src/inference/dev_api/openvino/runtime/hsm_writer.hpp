@@ -79,7 +79,8 @@ public:
      * @param device The device that owns the section.
      * @param tag The section tag.
      * @param payload The memory view containing the section's data.
-     * @param align The alignment requirements for the section.
+     * @param align The alignment requirements for the section - accepted but ignored for an inline
+     * @p tag, so the same value can be reused across inline and pointer-mode calls; see #SectionAlignment.
      * @return true if the section was added; false if the destination has run out of room or the write
      * failed.
      */
