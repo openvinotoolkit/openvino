@@ -226,6 +226,9 @@ std::pair<Output<Node>, Output<Node>> build_multi_head_attention(const NodeConte
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
 
+// Decomposition of aten::meshgrid, indexing must be "ij" or "xy".
+OutputVector build_meshgrid(ov::pass::NodeRegistry& rg, OutputVector inputs, const std::string& indexing);
+
 bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const Output<Node>& data,
                           const ov::OutputVector& indices,

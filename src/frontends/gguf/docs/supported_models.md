@@ -79,8 +79,8 @@ time. External definitions and custom-family catalog entries extend the same reg
 | `olmoe` | full-width QK-norm and MoE |
 | `phi3` | fused QKV |
 | `qwen2` | qwen2 / qwen2.5 |
-| `qwen3` | QK-norm before RoPE |
-| `qwen35` | hybrid GatedDeltaNet + full attention, interleaved M-RoPE; greedy / batch 1 only |
+| `qwen3` | QK-norm before RoPE; also covers Bonsai-8B (Q1_0) |
+| `qwen35` | hybrid GatedDeltaNet + full attention, interleaved M-RoPE; greedy / batch 1 only; also covers Bonsai-27B (Q1_0) and Ternary-Bonsai-27B (Q2_0) |
 | `qwen3moe` | NEOX RoPE, per-head QK-norm and normalized expert weights |
 | `smollm3` | NORMAL RoPE, skipped on every fourth layer |
 
