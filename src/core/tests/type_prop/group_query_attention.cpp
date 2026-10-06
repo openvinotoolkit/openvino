@@ -424,5 +424,28 @@ TEST(type_prop, group_query_attention_rejects_integer_query) {
                     HasSubstr("Element type of `query` input is not compatible"));
 }
 
+TEST(type_prop, group_query_attention_shared_kv_present_is_past) {
+    using ov::op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    // Shared KV: statically empty key/value, nothing appended -> present keeps the past shape (static or dynamic).
+    args[1] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[2] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(op->is_shared_kv());
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+
+    args[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    args[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, -1, 8}));
+}
+
+TEST(type_prop, group_query_attention_regular_kv_is_not_shared) {
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
+    EXPECT_FALSE(op->is_shared_kv());
+}
+
 }  // namespace testing
 }  // namespace ov

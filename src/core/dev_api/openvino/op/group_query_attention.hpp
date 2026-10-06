@@ -131,6 +131,9 @@ public:
     bool get_causal() const {
         return m_causal;
     }
+    // Shared KV (ONNX kv_sequence_length == 0): key/value are statically empty and past_key/past_value already
+    // hold the complete KV, so nothing is appended and present_key/present_value equal the past.
+    bool is_shared_kv() const;
     // Logit soft-capping (Gemma-style): when > 0, scaled scores become softcap * tanh(score / softcap)
     // before the attention bias/mask and softmax. 0 disables it.
     float get_softcap() const {

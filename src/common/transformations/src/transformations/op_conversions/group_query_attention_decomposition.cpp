@@ -145,6 +145,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const bool shared_kv = node->is_shared_kv();
     const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
     const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
 
@@ -174,7 +175,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
         const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
-        K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+        // Shared KV has no new keys: the past keys were already rotated when they were appended.
+        if (!shared_kv) {
+            K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+        }
     }
     // A static past is a preallocated max-length buffer written in place. A zero-capacity past (an absent ONNX
     // past or an empty cache) has nothing to write into, so it grows by concatenation instead.
@@ -184,7 +188,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
     // verbatim (no re-rounding of past tokens). Matches ONNX Runtime MLAS/CUDA semantics.
-    if (kv_quantized) {
+    if (kv_quantized && !shared_kv) {
         K = quantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, kv_cache_type);
         V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
     }
@@ -198,7 +202,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> bias_col_offset = zero;
     ov::Output<ov::Node> present_k, present_v;
 
-    if (node->get_sliding_window_cache()) {
+    if (shared_kv) {
+        // Shared KV (ORT kv_sequence_length == 0): attend to the first `total` resident rows of the past and
+        // return the past unchanged as present. The causal offset stays total - S_q (mask_past_seqlen).
+        K = register_new_node<v8::Slice>(past_key, zero, seqlens_1d, one, two);
+        V = register_new_node<v8::Slice>(past_value, zero, seqlens_1d, one, two);
+        present_k = past_key;
+        present_v = past_value;
+    } else if (node->get_sliding_window_cache()) {
         // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
         // row counts before/after appending the S new tokens (see windowed_cache_end).
         const auto capacity = get_dimensions(past_key.get_node_shared_ptr(), {2});

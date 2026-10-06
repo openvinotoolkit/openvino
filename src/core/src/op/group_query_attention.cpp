@@ -330,8 +330,10 @@ void GroupQueryAttention::validate_and_infer_types() {
     // A windowed KV cache keeps the past buffer's own (capacity) sequence dimension: it rolls in place
     // with front eviction instead of growing. Otherwise present = past + current.
     // A zero-capacity past (absent/empty cache) cannot be written in place either, so present grows by the step.
+    // Shared KV (statically empty key, kv_sequence_length == 0) appends nothing: present is the past as is.
     const bool empty_past = output_kv_len.is_static() && output_kv_len.get_length() == 0;
-    if (!m_sliding_window_cache && (output_kv_len.is_dynamic() || sequence_len.is_dynamic() || empty_past)) {
+    if (!m_sliding_window_cache && !is_shared_kv() &&
+        (output_kv_len.is_dynamic() || sequence_len.is_dynamic() || empty_past)) {
         output_kv_len += sequence_len;
     }
 
@@ -339,6 +341,12 @@ void GroupQueryAttention::validate_and_infer_types() {
     for (auto&& port : {1, 2}) {
         set_output_type(port, kv_cache_type, kv_shape);
     }
+}
+
+bool GroupQueryAttention::is_shared_kv() const {
+    const auto& key_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
+    return key_ps.rank().is_static() && key_ps.rank().get_length() == 4 && key_ps[2].is_static() &&
+           key_ps[2].get_length() == 0;
 }
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
