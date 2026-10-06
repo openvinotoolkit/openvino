@@ -24,15 +24,18 @@ add_library(${TARGET_ALIAS} ALIAS ${TARGET_NAME})
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE
+        $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::npu_logger_utils,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
-target_link_libraries(${TARGET_NAME} PRIVATE
-    openvino::runtime
-    openvino::runtime::dev
-    openvino::core::dev
-    openvino::util
-    openvino::npu_logger_utils
-)
+# No target_link_libraries to OpenVINO targets: in static builds it puts this OBJECT library into the openvino<->plugins cycle
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
