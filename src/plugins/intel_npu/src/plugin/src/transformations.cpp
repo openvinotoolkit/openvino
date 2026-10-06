@@ -23,7 +23,7 @@ bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>&
         return false;
     }
 
-    // HostCompile supports dynamic dimensions only; a single dynamic-rank I/O tensor rules the model out.
+    // HostCompile supports dynamic dimensions only; a single dynamic-rank input rules the model out.
     const auto hasStaticRank = [](const auto& port) {
         return port.get_partial_shape().rank().is_static();
     };
@@ -35,15 +35,14 @@ bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>&
         return batch_helpers::hasOtherDynamicDims(port.get_partial_shape());
     };
 
+    // Only the inputs decide: shape inference does not reach the outputs of some models, which then look fully
+    // dynamic even though the model is a HostCompile one.
     const auto& modelInputs = model->inputs();
-    const auto& modelOutputs = model->outputs();
-    if (!std::all_of(modelInputs.begin(), modelInputs.end(), hasStaticRank) ||
-        !std::all_of(modelOutputs.begin(), modelOutputs.end(), hasStaticRank)) {
+    if (!std::all_of(modelInputs.begin(), modelInputs.end(), hasStaticRank)) {
         return false;
     }
 
-    return std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicPort) ||
-           std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicPort);
+    return std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicPort);
 }
 
 namespace batch_helpers {

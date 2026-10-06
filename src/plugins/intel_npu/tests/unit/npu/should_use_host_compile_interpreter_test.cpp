@@ -11,6 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -58,6 +59,16 @@ std::shared_ptr<ov::Model> make_static_input_dynamic_output_model(const ov::Part
     auto slice = std::make_shared<ov::op::v8::Slice>(data, start, stop, step);
     auto result = std::make_shared<ov::op::v0::Result>(slice);
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data, stop}, "slice_model");
+}
+
+// Reshape to a runtime pattern of unknown length leaves the output rank dynamic.
+std::shared_ptr<ov::Model> make_dynamic_rank_output_model(const ov::PartialShape& shape) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    auto pattern =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ov::Dimension::dynamic()});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(data, pattern, false);
+    auto result = std::make_shared<ov::op::v0::Result>(reshape);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data, pattern}, "reshape_model");
 }
 
 std::shared_ptr<ov::Model> make_no_input_model() {
@@ -164,8 +175,15 @@ TEST_F(ShouldUseHostCompileInterpreterTest, StaticOutputEnablesHostCompile) {
     EXPECT_TRUE(run(make_dynamic_input_static_output_model({1, bounded(), 16, 32})));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, StaticInputDynamicOutputEnablesHostCompile) {
-    EXPECT_TRUE(run(make_static_input_dynamic_output_model({1, 3, 16, 32})));
+TEST_F(ShouldUseHostCompileInterpreterTest, StaticInputDynamicOutputDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_static_input_dynamic_output_model({1, 3, 16, 32})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicRankOutputEnablesHostCompile) {
+    const auto model = make_dynamic_rank_output_model({1, bounded(), 16, 32});
+    ASSERT_TRUE(model->output(0).get_partial_shape().rank().is_dynamic());
+
+    EXPECT_TRUE(run(model));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedAdditionalPortEnablesHostCompile) {

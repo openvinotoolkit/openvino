@@ -297,7 +297,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                             localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
         _logger.info(
             "NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
-            "for dynamic model (at least one input or output has a dynamic non-batch dimension, all ranks static)");
+            "for dynamic model (at least one input has a dynamic non-batch dimension, all input ranks static)");
         localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
     }
 
