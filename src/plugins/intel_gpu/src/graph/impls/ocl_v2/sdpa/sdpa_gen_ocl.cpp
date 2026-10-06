@@ -266,7 +266,8 @@ bool solve_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_t&
 }
 
 bool kq_override_requested() {
-    return env_set("SDPA_OCL_KQ_TILE_KEYS") || env_set("SDPA_OCL_KQ_TILE_QUERIES") || env_set("SDPA_OCL_KQ_PER_WG_KEYS") || env_set("SDPA_OCL_KQ_PER_WG_QUERIES");
+    return env_set("SDPA_OCL_KQ_TILE_KEYS") || env_set("SDPA_OCL_KQ_TILE_QUERIES") || env_set("SDPA_OCL_KQ_PER_WG_KEYS") ||
+           env_set("SDPA_OCL_KQ_PER_WG_QUERIES");
 }
 
 void read_kq_override(sdpa_ocl_config_t& config) {
@@ -705,7 +706,8 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     jit.make("SUBGROUP_SIZE", t.subgroup_size);
     // Negative controls of the SG8 operand mapping (1 = K pair order, 2 = pA transposed, 3 = S_slm pair order): each must
     // fail a sharp-softmax test. 4 is the positive twin: it forces the unaligned-K fallback, which must still pass. 5 = full 2D mask read
-    // with the SG16 lane width, 6 = per-key mask broadcast one lane off (both must fail the mask tests). Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
+    // with the SG16 lane width, 6 = per-key mask broadcast one lane off (both must fail the mask tests). Absent unless asked for, so the default jit (and every
+    // SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);
@@ -1163,11 +1165,12 @@ uint32_t SDPAOclGenerator::hpg_tier_required(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     bits |= PLAIN_F16_STATIC;
     const auto q_len = get_seq_length(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));  // -1: dynamic
-    if (params.is_dynamic() || q_len <= 1 || params.input_layouts[0].data_type != ov::element::f16 || desc->is_causal ||
-        desc->has_attn_mask_input || desc->attn_mask_val.has_value() || desc->has_sink_input || desc->has_scale_input) {
+    if (params.is_dynamic() || q_len <= 1 || params.input_layouts[0].data_type != ov::element::f16 || desc->is_causal || desc->has_attn_mask_input ||
+        desc->attn_mask_val.has_value() || desc->has_sink_input || desc->has_scale_input) {
         bits |= PLAIN_EXT;
     }
-    if (desc->is_kv_compressed || data_type_traits::is_i8_u8(params.input_layouts[1].data_type) || data_type_traits::is_i4_u4(params.input_layouts[1].data_type)) {
+    if (desc->is_kv_compressed || data_type_traits::is_i8_u8(params.input_layouts[1].data_type) ||
+        data_type_traits::is_i4_u4(params.input_layouts[1].data_type)) {
         bits |= PLAIN_I8;
     }
     return bits;
