@@ -5,7 +5,6 @@
 #include "driver_compiler_adapter.hpp"
 
 #include <functional>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -201,9 +200,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     size_t callNumber = 0;
 
     // Convention: run until the main schedule has been returned.
-    std::optional<MemoryPeakTracker> memoryPeakTracker;
+    int64_t compile_model_mem_start = 0;
     if (_logger.level() >= ov::log::Level::INFO) {
-        memoryPeakTracker.emplace();
+        compile_model_mem_start = get_peak_memory_usage();
     }
 
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
@@ -247,9 +246,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         }
     }
 
-    if (memoryPeakTracker) {
+    if (_logger.level() >= ov::log::Level::INFO) {
+        auto compile_model_mem_end = get_peak_memory_usage();
+        _logger.debug("Start of compilation memory usage: Peak %lld KB", compile_model_mem_start);
+        _logger.debug("End of compilation memory usage: Peak %lld KB", compile_model_mem_end);
         // Note: Following log is parsed by CI. Take care when modifying it.
-        _logger.info("Compilation memory usage: Peak %lld KB", memoryPeakTracker->get_peak_increase_kb());
+        _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
     }
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
