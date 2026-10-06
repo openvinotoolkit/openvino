@@ -7,7 +7,6 @@
 #include "compiler_impl.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "openvino/util/file_util.hpp"
 #include "plugin_compiler_adapter.hpp"
 
 namespace intel_npu {
@@ -20,7 +19,6 @@ ov::SoPtr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& devic
                                            const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
     try {
         return makeVCLCompiler(
-            ov::util::path_to_string(ov::util::get_ov_lib_path()),
             device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
             optionSupportCache);
     } catch (const std::exception& vclException) {
@@ -46,8 +44,8 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     }
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-        return std::make_unique<PluginCompilerAdapter>(makePluginCompiler(device, optionSupportCache),
-                                                       engineBackend ? engineBackend->getInitStructs() : nullptr);
+        return std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
+                                                       makePluginCompiler(device, optionSupportCache));
     }
 
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
@@ -117,8 +115,8 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
     if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
         try {
             auto pluginCompiler =
-                std::make_unique<PluginCompilerAdapter>(makePluginCompiler(device, optionSupportCache),
-                                                        engineBackend ? engineBackend->getInitStructs() : nullptr);
+                std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
+                                                        makePluginCompiler(device, optionSupportCache));
             _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
             return {std::move(pluginCompiler), ov::intel_npu::CompilerType::PLUGIN};
         } catch (...) {

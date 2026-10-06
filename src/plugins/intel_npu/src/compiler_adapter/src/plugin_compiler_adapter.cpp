@@ -25,8 +25,8 @@
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(ov::SoPtr<IVCLCompiler> compiler,
-                                             const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             ov::SoPtr<IVCLCompiler> compiler)
     : _zeroInitStruct(zeroInitStruct),
       _compiler(std::move(compiler)),
       _logger("PluginCompilerAdapter", Logger::global().level()) {

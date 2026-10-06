@@ -24,7 +24,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "openvino/util/file_util.hpp"
 #include "plugin_compiler_adapter.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "transformations.hpp"
@@ -210,9 +209,8 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
                        ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
                              std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
                        : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                             std::make_shared<::intel_npu::PluginCompilerAdapter>(
-                                 ::intel_npu::makeVCLCompiler(ov::util::path_to_string(ov::util::get_ov_lib_path())),
-                                 zeroInitStruct));
+                             std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct,
+                                                                                  ::intel_npu::makeVCLCompiler()));
     } catch (...) {
         GTEST_SKIP() << "Couldn't load compiler library";
     }

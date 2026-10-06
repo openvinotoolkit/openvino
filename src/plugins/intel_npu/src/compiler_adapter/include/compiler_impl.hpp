@@ -147,8 +147,7 @@ private:
  *        the shared cache rather than a pre-bound one, so a compiler can never be paired with a key
  *        that belongs to a different compiler's answers.
  */
-ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::string& libraryDir,
-                                        const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
                                         const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 
 }  // namespace intel_npu

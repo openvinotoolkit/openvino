@@ -26,12 +26,12 @@ public:
      * The adapter never loads a compiler itself; composition is the caller's job. See
      * makeVCLCompiler() for the compiler-in-plugin.
      *
-     * @param compiler The compiler-in-plugin to adapt; must be non-null.
      * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
      *        produces export-only graphs with no runtime metadata.
+     * @param compiler The compiler-in-plugin to adapt; must be non-null.
      */
-    PluginCompilerAdapter(ov::SoPtr<IVCLCompiler> compiler,
-                          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
+    PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                          ov::SoPtr<IVCLCompiler> compiler);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const Config& config,
