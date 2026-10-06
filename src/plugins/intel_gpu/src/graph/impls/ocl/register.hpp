@@ -65,6 +65,10 @@
 #include "intel_gpu/primitives/unique.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/stateless_kv.hpp"
+#ifdef ENABLE_TP_GPU
+#include "intel_gpu/primitives/tp_allreduce.hpp"
+#include "intel_gpu/primitives/tp_gather.hpp"
+#endif
 
 namespace cldnn {
 namespace ocl {
@@ -156,6 +160,10 @@ REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
 REGISTER_OCL(ISTFT);
 REGISTER_OCL(sparse_fill_empty_rows);
+#ifdef ENABLE_TP_GPU
+REGISTER_OCL(tp_allreduce);
+REGISTER_OCL(tp_gather);
+#endif
 
 #undef REGISTER_OCL
 

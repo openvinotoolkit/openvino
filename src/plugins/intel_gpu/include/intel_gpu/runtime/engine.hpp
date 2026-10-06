@@ -177,6 +177,13 @@ public:
 
     /// Returns onednn engine object which shares device and context with current engine
     dnnl::engine& get_onednn_engine() const;
+
+    /// Serializes oneDNN primitive execution belonging to this engine.
+    /// Workaround for MFDNN-15356: concurrent oneDNN dispatches race inside the
+    /// Level Zero runtime. The state being protected is per device, so the lock
+    /// is scoped to a single engine and independent devices do not wait on each
+    /// other. To be removed once MFDNN-15356 is resolved.
+    std::mutex& get_onednn_execution_mutex() const { return onednn_execution_mutex; }
 #endif
 
     /// Factory method which creates engine object with impl configured by @p engine_type
@@ -200,6 +207,7 @@ protected:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     mutable std::mutex onednn_mutex;
+    mutable std::mutex onednn_execution_mutex;
     std::shared_ptr<dnnl::engine> _onednn_engine;
 #endif
 
