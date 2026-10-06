@@ -5,13 +5,12 @@
 #include <format_reader_ptr.h>
 
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <regex>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "openvino/util/common_util.hpp"
 
 // clang-format off
 #include <samples/args_helper.hpp>
@@ -160,6 +159,16 @@ void update_device_properties_setting(const std::string& device_name,
     secondary_property.insert(device_property);
 }
 
+static std::string trim(const std::string& str) {
+    auto begin = std::find_if_not(str.begin(), str.end(), [](unsigned char ch) {
+        return std::isspace(ch);
+    });
+    auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char ch) {
+        return std::isspace(ch);
+    }).base();
+    return (begin < end) ? std::string(begin, end) : std::string{};
+}
+
 std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
@@ -175,15 +184,12 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
 
     auto devices = split(comma_separated_devices, ',');
     for (auto&& device : devices) {
-        device = std::string(ov::util::trim(device));
-
+        device = trim(device);
         if (device.empty())
             continue;
-
         // e.g. in AUTO:-CPU,-GPU
         if (device.front() == '-')
             device.erase(device.begin());
-
         result.push_back(device);
     }
     return result;

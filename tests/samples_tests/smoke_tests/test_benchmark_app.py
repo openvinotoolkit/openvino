@@ -120,6 +120,7 @@ def test_benchmark_app_help(sample_language):
 def test_parse_devices_with_empty_entries():
     assert parse_devices('MULTI:CPU,,GPU') == ['MULTI', 'CPU', 'GPU']
     assert parse_devices('MULTI:CPU, ,GPU') == ['MULTI', 'CPU', 'GPU']
+    assert parse_devices('HETERO:CPU,') == ['HETERO', 'CPU']
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
