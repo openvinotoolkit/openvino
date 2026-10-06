@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -445,6 +446,49 @@ TEST(type_prop, group_query_attention_regular_kv_is_not_shared) {
     const auto op =
         std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
     EXPECT_FALSE(op->is_shared_kv());
+}
+
+namespace {
+std::shared_ptr<op::internal::GroupQueryAttention> make_gqa_with_softcap(float softcap) {
+    return std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(),
+                                                               6,
+                                                               2,
+                                                               1.0f,
+                                                               false,
+                                                               false,
+                                                               /*kv_cache_bit_width*/ 0,
+                                                               op::internal::GroupQueryAttentionQuantType::NONE,
+                                                               op::internal::GroupQueryAttentionQuantType::NONE,
+                                                               /*local_window_size*/ -1,
+                                                               /*sliding_window_cache*/ false,
+                                                               /*smooth_softmax*/ false,
+                                                               /*causal*/ true,
+                                                               softcap);
+}
+}  // namespace
+
+TEST(type_prop, group_query_attention_softcap_defaults_to_disabled) {
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_softcap(), 0.0f);
+}
+
+TEST(type_prop, group_query_attention_softcap_positive_is_valid) {
+    const auto op = make_gqa_with_softcap(30.0f);
+    EXPECT_EQ(op->get_softcap(), 30.0f);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_softcap_negative_rejected) {
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_softcap(-1.0f),
+                    ov::NodeValidationFailure,
+                    HasSubstr("expects softcap >= 0"));
+}
+
+TEST(type_prop, group_query_attention_softcap_nan_rejected) {
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_softcap(std::numeric_limits<float>::quiet_NaN()),
+                    ov::NodeValidationFailure,
+                    HasSubstr("expects softcap >= 0"));
 }
 
 }  // namespace testing

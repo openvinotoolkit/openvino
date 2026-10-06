@@ -610,12 +610,6 @@ TEST(GroupQueryAttentionValues, packed_qkv_keeps_query_length_cache_arithmetic) 
     }
 }
 
-TEST(GroupQueryAttentionOpValidation, rejects_negative_softcap) {
-    OV_EXPECT_THROW(std::ignore = make_gqa_model(GqaParams{"neg_softcap"}.soft_cap(-1.0f)),
-                    ov::NodeValidationFailure,
-                    testing::HasSubstr("softcap >= 0"));
-}
-
 TEST(GroupQueryAttentionValues, bidirectional_mask_has_no_causal_comparison) {
     auto model = make_gqa_model(GqaParams{"bidir"}.bidirectional());
     decompose(model);
