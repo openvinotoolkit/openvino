@@ -149,10 +149,13 @@ int driver_dev_id() {
         }
     }
 
-    if (result.empty()) {
+    std::sort(result.begin(), result.end());
+    result.erase(std::unique(result.begin(), result.end()), result.end());
+
+    if (result.size() != 1) {
         return 0;
     }
-    return result.back();
+    return result.front();
 }
 
 device_type get_device_type(const cl::Device& device) {
