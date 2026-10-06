@@ -1055,10 +1055,18 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
                 mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
             }
         } else {
+            // NOTE: do not assign the float literal NAN into an INPUT3_TYPE (e.g. ushort for bf16)
+            // intermediate: that would truncate/reinterpret NAN through an integer conversion and
+            // corrupt the bit pattern, producing a large finite garbage value instead of NaN after
+            // decode. Decode the real value first and only use NaN in float (mask_vec) space.
             const uint max_mask_offset = min(source_seq_idx + SUBGROUP_SIZE, (uint)SOURCE_SEQ_LEN);
             for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                const INPUT3_TYPE mask_val = source_seq_idx + i < max_mask_offset ? attn_mask[attn_mask_offset + i] : NAN;
-                mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
+                if (source_seq_idx + i < max_mask_offset) {
+                    const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
+                    mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
+                } else {
+                    mask_vec[i] = NAN;
+                }
             }
         }
     }
