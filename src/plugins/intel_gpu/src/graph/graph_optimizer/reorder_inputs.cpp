@@ -689,9 +689,9 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         // When the conv node is of onednn impl type and eltwise sum with full tensor is fused,
         // changes the input format of eltwise sum post-op to use binary add.
         if (conv_node.get_preferred_impl_type() == impl_types::onednn) {
-            onednn_add_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
+            onednn_eltwise_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
                 [&](const program_node& p_node, const fused_primitive_desc& desc) {
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(p_node, desc);
+                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(p_node, desc);
                     if (fusing_type == add_fusing_type::binary_per_tensor && desc.has_outer_dep()) {
                         auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
                         auto d_layout = dep_node.get_output_layout();

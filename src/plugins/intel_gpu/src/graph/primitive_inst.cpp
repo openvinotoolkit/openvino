@@ -1246,7 +1246,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     if (actual_layouts.size() == 1 && get_node().get_preferred_impl_type() == impl_types::onednn) {
-        auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(get_node());
+        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
         if (reused_eltwmem_idx != -1) {
             const auto& eltw_inst = get_network().get_primitive(get_node().get_dependency(reused_eltwmem_idx).id());
             auto eltw_mem = eltw_inst->output_memory_ptr();
@@ -2707,7 +2707,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
             }
         }
 
-        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+        if (auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());

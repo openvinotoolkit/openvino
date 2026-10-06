@@ -1764,7 +1764,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             };
 
             if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
-                auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
+                auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
                 if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0 && num_binary_mul_inplace_post_ops == 0) {
                     if (is_type<convolution>()) {
                         post_ops.append_sum(1.0f, 0 /*zero-point*/, onednn::convert_data_type(in.data_type));
@@ -1779,7 +1779,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sub) {
                 set_binary_op(dnnl::algorithm::binary_sub, onednn_post_op_type::binary_sub);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
-                if (onednn_add_fusing_helpers::can_use_mul_inplace(*this, desc) && num_sum_post_ops == 0) {
+                if (onednn_eltwise_fusing_helpers::can_use_mul_inplace(*this, desc) && num_sum_post_ops == 0) {
                     set_binary_op(dnnl::algorithm::binary_mul_inplace, onednn_post_op_type::binary_mul_inplace);
                     num_binary_mul_inplace_post_ops++;
                 } else {
