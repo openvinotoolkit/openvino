@@ -1,5 +1,7 @@
 # 04. Register spill, GEN ISA 분석, 프로파일링
 
+> 도구별 전체 명령(cliloader/VTune/GTPin/하네스)과 DG2 사례의 해석 한계는 [07장](07-profiling-tool-cookbook.md), inline vISA는 [08장](08-inline-visa-asm.md)에 있다.
+
 범위: register pressure / spill(scratch, TPM) 진단, GEN ISA 덤프와 판독, 256 GRF 트레이드오프, 리빌드 없는 A/B(ocloc splice), IGC 파이프라인 함정(`inline` vs `always_inline`, unroll), 커널 임베딩 경로, 마이크로벤치, cliloader 사용.
 (→ 01-dpas-and-tiling.md: 타일 선택 / 02-memory-io-prefetch-barriers.md: 메모리 메시지 / 03-numerics-softmax-quantization.md: dequant 수치 / 05-methodology-and-pitfalls.md: 측정 방법론)
 
@@ -62,6 +64,8 @@ OCL의 높은 SBID/barrier 비중을 보고 V-read와 barrier 사이에 독립 �
 별도 f16 V-read 병합 실험(`16r16x2c`)은 같은 workload에서 521.01 ms 대 동일 빌드 x1c 524.34 ms로 3.33 ms(0.64%) 개선했고 출력 MD5가 일치했다. VTune 지표도 SDPA kernel 구간 2.9%/5.2% 단축, Send stall 22.0–24.8%에서 21.0–22.7%, SBID stall 43.9–45.5%에서 41.5–43.5%로 이동했다. 이 결과는 작은 개선의 단일 사례이며 다른 GPU·모델의 보장은 아니다. 세부 측정 규율은 05장 §5.5를 참조한다.
 
 재수집 시 최소 기록 항목은 VTune 버전, driver와 Metrics Discovery 버전, GPU BDF, workload/반복, 실제 선택된 kernel, 수집 knob, metric 정의, result archive 식별자다. GPU Hotspots의 활성/정지 비율은 병목 후보를 찾는 용도다. 최적화 귀속은 같은 조건의 before/after 수집, device-time A/B, correctness check로 확인하고, stall PC가 없으면 ISA/source 행 단위 결론을 보류한다.
+
+별도의 2026-10-03 DG2/A770 PA PREFILL 조사는 06장 §6.3에 있다. 그 세션은 XVE active 15.6% / stalled 81.8%, occupancy 47.9%, XMX active 2.0%, spill 7,872 B를 OCL 원본에서 관측했고, micro는 occupancy가 비슷하지만 XMX active 24.4–24.5%였다. 이 자료는 초기 kernel이 underutilized였음을 보였지만 bandwidth 병목을 단독 증명하지 않았다. VTune/GTPin으로 loop-unroll, V gather/packing, K 경계검사 후보를 좁힌 뒤 source-injection ABBA와 실제 device time으로 각각 확인했다. B70의 앞 사례와 DG2의 수치는 다른 장치·workload의 결과다.
 
 ---
 
@@ -407,7 +411,7 @@ int8 head-64: per-key scale/zp를 dequant 루프 안에서 읽으면 `(1|M0)` 12
 
 | 항목 | 상태 |
 |---|---|
-| VTune 사용 | B70 GPU Hotspots 수집과 후속 A/B가 확인됨 (§4.1.1). 다만 한 수집은 stall PC가 없어 소스 행 단위 귀속 불가 |
+| VTune 사용 | B70 GPU Hotspots와 A770/DG2 GPU Hotspots/source-analysis를 사용했다 (§4.1.1, 06장 §6.3). B70 수집의 stall PC 부재, DG2 GTPin/native metadata 문제는 별도 한계로 기록했다 |
 | `iga64` 미설치 (gpu-kernel-isa-dump) | stale. 현재 `/usr/bin/iga64` 존재 |
 | `docs`/노트의 "head-64 note at `sdpa_gen_ocl.cpp:157-164`" | 줄 번호가 이동함. 현재 256GRF 설명은 `sdpa_gen_ocl.cpp:1038-1041`, 타일 주석은 `:195-196` |
 | `SDPA_OCL_DKS_ACTIVE`, `SDPA_OCL_MAX_BARRIER_V_PREFETCH`, `SDPA_OCL_PA_CUR_*` | 리팩터링(2026-09)에서 제거. 노트의 해당 토글은 역사 기록 |

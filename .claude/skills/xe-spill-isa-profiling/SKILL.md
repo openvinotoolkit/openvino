@@ -29,6 +29,11 @@ cliloader -d -dv python <llm_bench>/benchmark.py -d GPU.1 -m <model> -n 1 -ic 4 
 - XE/i915 counter 및 source attach 권한은 system sysctl에 좌우된다. 관리자 설정이 필요하면 보안 정책에 따라 최소 기간만 허용하고 원복한다. `GTPin` 경고와 수집 실패를 동일시하지 말고 result에 GPU metric 데이터가 실제 기록됐는지 확인한다.
 
 ## 2. spill 종류 구분
+
+원인 불명의 성능 격차 전체를 조사할 때는 [ocl-kernel-performance-investigation](../ocl-kernel-performance-investigation/SKILL.md)와 [06장](../../../src/plugins/intel_gpu/docs/ocl_perf_guide/06-performance-gap-investigation.md)을 먼저 참고한다.
+
+추가 A770/DG2 사례에서는 OCL 원본 XVE active/stalled가 15.6/81.8%, occupancy 47.9%, XMX active 2.0%, runtime spill 7,872 B였다. micro occupancy는 49.7–49.8%, XMX active 24.4–24.5%였다. K는 이미 dword block read였고 V는 gather/packing이었으므로 실행 ISA를 확인해 reader별 가설을 고쳤다. VTune/GTPin 원인 분석과 한계는 06장 §6.3에 있다. 저spill kernel은 AMPLXE_MORE_GTPIN_OPTIONS=-allow_sregs 1 없이는 exit 0이어도 event/kernel 데이터가 없을 수 있으며, fused micro final binary의 ELF symbol size가 native text보다 작아 source-analysis가 실패한 사례도 있었다. GPU event와 exact zebin/PC mapping을 확인한다.
+
 | 관측 | 의미 | 우선 대응 |
 |---|---|---|
 | `TPM>0`, spill 0, hot loop 안 scratch store/load | **런타임 인덱스 private 배열** | 인덱스를 unroll 상수로, 또는 select chain + `sub_group_broadcast` (alpha[] 사례 0.8%) |
