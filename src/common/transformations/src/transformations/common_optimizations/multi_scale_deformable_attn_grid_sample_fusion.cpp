@@ -57,6 +57,23 @@ bool scalar_is(const std::shared_ptr<ov::Node>& node, float expected) {
     return constant->cast_vector<float>()[0] == expected;
 }
 
+// Constant input `index` of `node` holds exactly `expected`.
+bool input_values_are(const std::shared_ptr<ov::Node>& node, size_t index, const std::vector<int64_t>& expected) {
+    const auto constant = input<ov::op::v0::Constant>(node, index);
+    return constant && constant->cast_vector<int64_t>() == expected;
+}
+
+bool has_shape(const std::shared_ptr<ov::Node>& node, const ov::Shape& expected) {
+    const auto& ps = node->get_output_partial_shape(0);
+    return ps.is_static() && ps.to_shape() == expected;
+}
+
+// Per level nodes whose layouts are checked once the MSDA dimensions are known.
+struct LevelNodes {
+    std::shared_ptr<ov::Node> image_flat, image, gather, squeeze, coords, level_shape;
+    size_t h, w;
+};
+
 // The sampling-locations tensor has the full [B, Q, H, L, P, 2] layout.
 bool has_msda_locations_layout(const std::shared_ptr<ov::Node>& node) {
     if (!node)
@@ -68,9 +85,8 @@ bool has_msda_locations_layout(const std::shared_ptr<ov::Node>& node) {
 }  // namespace
 
 MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusion() {
-    // The exported graph ends at Reshape(ReduceSum(Multiply(...))), not at
-    // Transpose(Reshape(...)) as in the Gather based formulation matched by
-    // MultiScaleDeformableAttnFusion.
+    // The match root is Reshape(ReduceSum(Multiply(...))); the output projection
+    // Transpose([0,2,1]) that follows it is checked in the callback.
     auto root = pattern::wrap_type<Reshape>({pattern::wrap_type<ReduceSum>(), pattern::any_input()});
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto reshape = ov::as_type_ptr<Reshape>(m.get_match_root());
@@ -85,7 +101,8 @@ MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusi
         const auto weights = weights_transpose ? weights_transpose->get_input_node_shared_ptr(0) : nullptr;
         if (!reduce || !mul || !concat || !values_reshape || !weights || !weights_reshape || !weights_transpose ||
             concat->get_axis() != -2 || concat->get_input_size() < 1 || reduce->get_keep_dims() ||
-            !scalar_is(reduce->get_input_node_shared_ptr(1), -1))
+            !scalar_is(reduce->get_input_node_shared_ptr(1), -1) ||
+            !input_values_are(weights_transpose, 1, {0, 2, 1, 3, 4}))
             return false;
         const size_t num_levels = concat->get_input_size();
 
@@ -103,6 +120,7 @@ MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusi
         std::shared_ptr<VariadicSplit> split;
         std::vector<int32_t> spatial_shapes;
         std::vector<int32_t> level_starts;
+        std::vector<LevelNodes> level_nodes;
         int32_t position = 0;
         for (size_t i = 0; i < num_levels; ++i) {
             // VariadicSplit(value[B,S,H,D]) -> Reshape -> Transpose -> Reshape
@@ -117,7 +135,17 @@ MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusi
             const auto current_split = input<VariadicSplit>(image_flat);
             const auto coords = input<Reshape>(grid, 1);
             const auto coords_transpose = input<Transpose>(coords);
-            const auto gather = input<Gather>(coords_transpose);
+            // A Gather with a [1] shaped index keeps the level axis, which a
+            // Squeeze (or an equivalent Reshape) then removes.
+            std::shared_ptr<ov::Node> squeeze;
+            auto gather = input<Gather>(coords_transpose);
+            if (!gather && coords_transpose) {
+                const auto node = coords_transpose->get_input_node_shared_ptr(0);
+                if (ov::is_type<opset12::Squeeze>(node) || ov::is_type<Reshape>(node)) {
+                    squeeze = node;
+                    gather = input<Gather>(squeeze);
+                }
+            }
             const auto sub = input<Add>(gather);
             const auto twice = input<Multiply>(sub);
             const auto raw_locations = twice ? twice->get_input_node_shared_ptr(0) : nullptr;
@@ -139,6 +167,15 @@ MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusi
                 return false;
             if (image_flat->input_value(0).get_index() != i || !grid->get_input_partial_shape(0).is_static())
                 return false;
+            // Value keys go to [B*H, D, h, w] through Transpose([0,2,1]), and
+            // level i takes locations[:, :, :, i] through Transpose([0,2,1,3,4]).
+            const auto axis = input<ov::op::v0::Constant>(gather, 2);
+            const auto axis_value =
+                axis && ov::shape_size(axis->get_shape()) == 1 ? axis->cast_vector<int64_t>()[0] : -1;
+            if (!input_values_are(image_transpose, 1, {0, 2, 1}) ||
+                !input_values_are(coords_transpose, 1, {0, 2, 1, 3, 4}) || (axis_value != 3 && axis_value != -3) ||
+                gather->get_batch_dims() != 0 || !input_values_are(gather, 1, {static_cast<int64_t>(i)}))
+                return false;
             // The level spatial shape is read from the GridSample image input.
             const auto image_shape = grid->get_input_shape(0);
             const auto h = static_cast<int32_t>(image_shape[2]);
@@ -156,6 +193,14 @@ MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusi
                 return false;
             }
             spatial_shapes.insert(spatial_shapes.end(), {h, w});
+            level_nodes.push_back({image_flat,
+                                   image,
+                                   gather,
+                                   squeeze,
+                                   coords,
+                                   level_shape,
+                                   static_cast<size_t>(h),
+                                   static_cast<size_t>(w)});
             level_starts.push_back(position);
             position += h * w;
         }
@@ -173,6 +218,24 @@ MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusi
             weight_shape != ov::Shape({loc_shape[0], loc_shape[1], loc_shape[2], num_levels, loc_shape[4]}) ||
             reshape->get_output_partial_shape(0) !=
                 ov::PartialShape(ov::Shape{value_shape[0], value_shape[2] * value_shape[3], loc_shape[1]}))
+            return false;
+        // Each Reshape keeps the element order of the reference formulation,
+        // which its output shape fully determines.
+        const size_t batch = value_shape[0], heads = value_shape[2], embed = value_shape[3];
+        const size_t queries = loc_shape[1], points = loc_shape[4];
+        for (const auto& level : level_nodes) {
+            // locations[:, :, :, i] is [B,Q,H,P,2]; a [1] index keeps the level axis until the squeeze.
+            const bool gathered = level.squeeze ? has_shape(level.gather, {batch, queries, heads, 1, points, 2}) &&
+                                                      has_shape(level.squeeze, {batch, queries, heads, points, 2})
+                                                : has_shape(level.gather, {batch, queries, heads, points, 2});
+            if (!gathered || !has_shape(level.image_flat, {batch, level.h * level.w, heads * embed}) ||
+                !has_shape(level.image, {batch * heads, embed, level.h, level.w}) ||
+                !has_shape(level.coords, {batch * heads, queries, points, 2}) ||
+                !has_shape(level.level_shape, {batch * heads, embed, queries, 1, points}))
+                return false;
+        }
+        if (!has_shape(values_reshape, {batch * heads, embed, queries, num_levels * points}) ||
+            !has_shape(weights_reshape, {batch * heads, 1, queries, num_levels * points}))
             return false;
 
         auto shapes = opset12::Constant::create(ov::element::i32, ov::Shape{num_levels, 2}, spatial_shapes);

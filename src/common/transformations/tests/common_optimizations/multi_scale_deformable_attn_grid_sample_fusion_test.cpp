@@ -16,6 +16,7 @@
 #include <openvino/op/reduce_sum.hpp>
 #include <openvino/op/reshape.hpp>
 #include <openvino/op/result.hpp>
+#include <openvino/op/squeeze.hpp>
 #include <openvino/op/transpose.hpp>
 #include <openvino/op/variadic_split.hpp>
 #include <openvino/pass/manager.hpp>
@@ -50,6 +51,13 @@ struct PatternParams {
     ov::op::v9::GridSample::InterpolationMode mode = ov::op::v9::GridSample::InterpolationMode::BILINEAR;
     bool foreign_second_level_value = false;
     bool wrong_normalization = false;
+    // Shape-compatible graphs whose element order differs from MSDA.
+    bool wrong_coords_order = false;
+    bool wrong_weights_order = false;
+    bool swapped_level_locations = false;
+    // Gather with a [1] index followed by Squeeze, as in the StridedSlice
+    // based exports after GroupedStridedSliceOptimizer.
+    bool squeezed_level_index = false;
 };
 
 // Spatial size of level l: h = 4 + 2 * l, w = 5 + l.
@@ -135,10 +143,17 @@ std::shared_ptr<ov::Model> build_pattern(const PatternParams& p) {
             true);
 
         // Locations chain: Gather -> Transpose -> Reshape -> GridSample input 1.
-        auto gathered = std::make_shared<v8::Gather>(normalized,
-                                                     T::Constant::create(element::i64, Shape{}, {int64_t(l)}),
-                                                     T::Constant::create(element::i64, Shape{}, {3}));
-        auto coords_transpose = std::make_shared<v1::Transpose>(gathered, i64_const({0, 2, 1, 3, 4}));
+        const auto level_index = int64_t(p.swapped_level_locations ? p.levels - 1 - l : l);
+        std::shared_ptr<ov::Node> gathered = std::make_shared<v8::Gather>(
+            normalized,
+            T::Constant::create(element::i64, p.squeezed_level_index ? Shape{1} : Shape{}, {level_index}),
+            T::Constant::create(element::i64, Shape{}, {3}));
+        if (p.squeezed_level_index)
+            gathered = std::make_shared<v0::Squeeze>(gathered, i64_const({3}));
+        auto coords_transpose =
+            std::make_shared<v1::Transpose>(gathered,
+                                            i64_const(p.wrong_coords_order ? std::vector<int64_t>{0, 1, 2, 3, 4}
+                                                                           : std::vector<int64_t>{0, 2, 1, 3, 4}));
         auto coords = std::make_shared<v1::Reshape>(
             coords_transpose,
             i64_const({int64_t(p.batch * p.heads), int64_t(p.queries), int64_t(p.points), 2}),
@@ -161,7 +176,9 @@ std::shared_ptr<ov::Model> build_pattern(const PatternParams& p) {
         weights,
         i64_const({int64_t(p.batch), int64_t(p.queries), int64_t(p.heads), int64_t(p.levels), int64_t(p.points)}),
         true);
-    auto weights_transpose = std::make_shared<v1::Transpose>(weights_value, i64_const({0, 2, 1, 3, 4}));
+    auto weights_transpose = std::make_shared<v1::Transpose>(
+        weights_value,
+        i64_const(p.wrong_weights_order ? std::vector<int64_t>{0, 1, 2, 3, 4} : std::vector<int64_t>{0, 2, 1, 3, 4}));
     auto weights_reshape = std::make_shared<v1::Reshape>(
         weights_transpose,
         i64_const({int64_t(p.batch * p.heads), 1, int64_t(p.queries), int64_t(p.levels * p.points)}),
@@ -258,4 +275,66 @@ TEST(MultiScaleDeformableAttnGridSampleFusion, negative_mismatched_ancestry) {
     p.foreign_second_level_value = true;
     auto model = build_pattern(p);
     EXPECT_EQ(run_fusion(model), 0);
+}
+
+TEST(MultiScaleDeformableAttnGridSampleFusion, negative_wrong_coords_order) {
+    // Transpose([0,1,2,3,4]) keeps the coordinate Reshape valid but feeds
+    // GridSample a different location order than MSDA reads.
+    PatternParams p;
+    p.wrong_coords_order = true;
+    auto model = build_pattern(p);
+    EXPECT_EQ(run_fusion(model), 0);
+}
+
+TEST(MultiScaleDeformableAttnGridSampleFusion, negative_wrong_weights_order) {
+    PatternParams p;
+    p.wrong_weights_order = true;
+    auto model = build_pattern(p);
+    EXPECT_EQ(run_fusion(model), 0);
+}
+
+TEST(MultiScaleDeformableAttnGridSampleFusion, negative_swapped_level_locations) {
+    // Level l samples the locations of another level.
+    PatternParams p;
+    p.levels = 2;
+    p.points = 2;
+    p.swapped_level_locations = true;
+    auto model = build_pattern(p);
+    EXPECT_EQ(run_fusion(model), 0);
+}
+
+TEST(MultiScaleDeformableAttnGridSampleFusion, squeezed_level_index) {
+    PatternParams p;
+    p.squeezed_level_index = true;
+    auto model = build_pattern(p);
+    EXPECT_EQ(run_fusion(model), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v9::GridSample>(model), 0);
+}
+
+TEST(MultiScaleDeformableAttnGridSampleFusion, negative_squeezed_swapped_level_locations) {
+    PatternParams p;
+    p.squeezed_level_index = true;
+    p.swapped_level_locations = true;
+    auto model = build_pattern(p);
+    EXPECT_EQ(run_fusion(model), 0);
+}
+
+TEST(MSDAInternalOp, dynamic_rank_inputs) {
+    auto value = std::make_shared<T::Parameter>(element::f32, PartialShape::dynamic());
+    auto shapes = T::Constant::create(element::i32, Shape{1, 2}, {4, 5});
+    auto starts = T::Constant::create(element::i32, Shape{1}, {0});
+    auto locations = std::make_shared<T::Parameter>(element::f32, PartialShape::dynamic());
+    auto weights = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 7, 2, 1, 4});
+    auto msda = std::make_shared<ov::op::internal::MSDA>(OutputVector{value, shapes, starts, locations, weights});
+    EXPECT_EQ(msda->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 7, Dimension::dynamic()}));
+}
+
+TEST(MSDAInternalOp, rejects_wrong_value_rank) {
+    auto value = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 20, 16});
+    auto shapes = T::Constant::create(element::i32, Shape{1, 2}, {4, 5});
+    auto starts = T::Constant::create(element::i32, Shape{1}, {0});
+    auto locations = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 7, 2, 1, 4, 2});
+    auto weights = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 7, 2, 1, 4});
+    EXPECT_THROW(std::make_shared<ov::op::internal::MSDA>(OutputVector{value, shapes, starts, locations, weights}),
+                 ov::NodeValidationFailure);
 }

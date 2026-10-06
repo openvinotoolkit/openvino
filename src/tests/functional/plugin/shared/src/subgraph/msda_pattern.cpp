@@ -14,7 +14,6 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/msda.hpp"
-#include "transformations/common_optimizations/multi_scale_deformable_attn_fusion.hpp"
 
 namespace ov {
 namespace test {
@@ -229,9 +228,10 @@ std::shared_ptr<ov::Model> build_model_msda(ov::PartialShape value_shape,
 }
 
 void MSDAPattern::SetUp() {
-    ov::PartialShape value_shape = PartialShape{-1, 22223, 8, 32};
-    ov::PartialShape offset_shape = PartialShape{-1, 22223, 8, 4, 4, 2};
-    ov::PartialShape weight_shape = PartialShape{-1, 22223, 8, 4, 4};
+    // The GPU MSDA primitive is implemented for static shapes only.
+    ov::PartialShape value_shape = PartialShape{1, 22223, 8, 32};
+    ov::PartialShape offset_shape = PartialShape{1, 22223, 8, 4, 4, 2};
+    ov::PartialShape weight_shape = PartialShape{1, 22223, 8, 4, 4};
     InputShape input_value_shape = {value_shape, {Shape{1, 22223, 8, 32}}};
     InputShape input_offset_shape = {offset_shape, {Shape{1, 22223, 8, 4, 4, 2}}};
     InputShape input_weight_shape = {weight_shape, {Shape{1, 22223, 8, 4, 4}}};
