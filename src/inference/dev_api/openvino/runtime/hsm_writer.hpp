@@ -84,7 +84,7 @@ public:
      * failed.
      */
     virtual bool add_section(DeviceId device,
-                             SectionTag tag,
+                             SectionTagReserved tag,
                              ov::util::MemoryView payload,
                              SectionAlignment align = {}) = 0;
 
@@ -106,7 +106,7 @@ public:
      * failed.
      */
     virtual bool add_section(DeviceId device,
-                             SectionTag tag,
+                             SectionTagReserved tag,
                              size_t size,
                              SectionEncoder encode,
                              SectionAlignment align = {}) = 0;
@@ -128,7 +128,10 @@ public:
      * @return true if the section was added; false if the destination has run out of room or the write
      * failed.
      */
-    virtual bool add_section(DeviceId device, SectionTag tag, SectionEncoder encode, SectionAlignment align = {}) = 0;
+    virtual bool add_section(DeviceId device,
+                             SectionTagReserved tag,
+                             SectionEncoder encode,
+                             SectionAlignment align = {}) = 0;
 
     /**
      * @brief Writes the header, every section, and the manifest.

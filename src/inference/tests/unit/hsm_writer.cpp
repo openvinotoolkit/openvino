@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstring>
 #include <optional>
 #include <sstream>
@@ -135,6 +136,29 @@ TEST(HsmWriterTest, round_trips_inline_and_pointer_sections) {
     ASSERT_NE(read_model, nullptr);
     EXPECT_TRUE(read_model->tag.is_pointer());
     EXPECT_EQ(payload_string(*container, *read_model), "compiled-model-bytes");
+}
+
+TEST(HsmWriterTest, tag_reserved_bytes_round_trip_and_default_to_zero) {
+    const std::string payload = "device-payload";
+    const auto shard_tag = hsm::SectionTag::make_device_tag(/*local_id=*/1, /*is_inline=*/false);
+    const std::array<uint8_t, 4> reserved{0x01, 0x02, 0x03, 0x04};
+
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    writer.add_section(fake_device_id, hsm::SectionTagReserved{shard_tag, reserved}, view_of(payload));
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(payload));  // bare SectionTag still compiles
+    ASSERT_FALSE(writer.finalize());
+
+    const auto container = parse_container(stream.str());
+    ASSERT_TRUE(container.has_value());
+
+    const auto* shard = find_entry(*container, fake_device_id, shard_tag.id());
+    ASSERT_NE(shard, nullptr);
+    EXPECT_EQ(shard->tag_reserved, reserved);
+
+    const auto* model = find_entry(*container, hsm::any_device_id, hsm::model);
+    ASSERT_NE(model, nullptr);
+    EXPECT_EQ(model->tag_reserved, (std::array<uint8_t, 4>{}));
 }
 
 TEST(HsmWriterTest, device_specific_section_is_scoped_to_its_device) {

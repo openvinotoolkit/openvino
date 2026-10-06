@@ -55,15 +55,18 @@ public:
     DeferredWriter& operator=(DeferredWriter&&) noexcept = default;
 
     bool add_section(DeviceId device,
-                     SectionTag tag,
+                     SectionTagReserved tag,
                      ov::util::MemoryView payload,
                      SectionAlignment align = {}) override;
     bool add_section(DeviceId device,
-                     SectionTag tag,
+                     SectionTagReserved tag,
                      size_t size,
                      SectionEncoder encode,
                      SectionAlignment align = {}) override;
-    bool add_section(DeviceId device, SectionTag tag, SectionEncoder encode, SectionAlignment align = {}) override;
+    bool add_section(DeviceId device,
+                     SectionTagReserved tag,
+                     SectionEncoder encode,
+                     SectionAlignment align = {}) override;
 
     /**
      * @brief See #IWriter::finalize().
@@ -91,11 +94,11 @@ private:
         SectionAlignment align;
         std::variant<ov::util::MemoryView, PendingEncode, SectionEncoder> payload;
         DeviceId device;
-        SectionTag tag;
+        SectionTagReserved tag;
 
-        PendingSection(SectionAlignment align, ov::util::MemoryView payload, DeviceId device, SectionTag tag);
-        PendingSection(SectionAlignment align, PendingEncode payload, DeviceId device, SectionTag tag);
-        PendingSection(SectionAlignment align, SectionEncoder payload, DeviceId device, SectionTag tag);
+        PendingSection(SectionAlignment align, ov::util::MemoryView payload, DeviceId device, SectionTagReserved tag);
+        PendingSection(SectionAlignment align, PendingEncode payload, DeviceId device, SectionTagReserved tag);
+        PendingSection(SectionAlignment align, SectionEncoder payload, DeviceId device, SectionTagReserved tag);
     };
 
     // Where bytes actually go - a stream (own running size tracked, since a stream has no addressable
@@ -132,15 +135,15 @@ private:
     static bool is_good(const BufferDestination& destination);
 
     ManifestEntry write_section(DeviceId device,
-                                SectionTag tag,
+                                SectionTagReserved tag,
                                 SectionAlignment alignment,
                                 ov::util::MemoryView payload);
     ManifestEntry write_section(DeviceId device,
-                                SectionTag tag,
+                                SectionTagReserved tag,
                                 SectionAlignment alignment,
                                 const PendingEncode& payload);
     ManifestEntry write_section(DeviceId device,
-                                SectionTag tag,
+                                SectionTagReserved tag,
                                 SectionAlignment alignment,
                                 const SectionEncoder& encode);
 

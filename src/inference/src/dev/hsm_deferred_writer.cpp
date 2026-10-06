@@ -67,7 +67,7 @@ std::optional<size_t> DeferredWriter::reserve(BufferDestination& destination, si
 DeferredWriter::PendingSection::PendingSection(SectionAlignment align,
                                                ov::util::MemoryView payload,
                                                DeviceId device,
-                                               SectionTag tag)
+                                               SectionTagReserved tag)
     : align{align},
       payload{payload},
       device{device},
@@ -76,7 +76,7 @@ DeferredWriter::PendingSection::PendingSection(SectionAlignment align,
 DeferredWriter::PendingSection::PendingSection(SectionAlignment align,
                                                PendingEncode payload,
                                                DeviceId device,
-                                               SectionTag tag)
+                                               SectionTagReserved tag)
     : align{align},
       payload{std::move(payload)},
       device{device},
@@ -85,7 +85,7 @@ DeferredWriter::PendingSection::PendingSection(SectionAlignment align,
 DeferredWriter::PendingSection::PendingSection(SectionAlignment align,
                                                SectionEncoder payload,
                                                DeviceId device,
-                                               SectionTag tag)
+                                               SectionTagReserved tag)
     : align{align},
       payload{std::move(payload)},
       device{device},
@@ -199,12 +199,13 @@ void DeferredWriter::fail_destination() {
 }
 
 ManifestEntry DeferredWriter::write_section(DeviceId device,
-                                            SectionTag tag,
+                                            SectionTagReserved tag,
                                             SectionAlignment align,
                                             ov::util::MemoryView payload) {
     ManifestEntry entry{};
     entry.device = device;
-    entry.tag = tag;
+    entry.tag = tag.tag;
+    entry.tag_reserved = tag.bytes;
     if (tag.is_inline()) {
         std::copy_n(reinterpret_cast<const uint8_t*>(payload.data()), payload.size(), entry.inline_bytes.data());
         return entry;
@@ -225,12 +226,13 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
 }
 
 ManifestEntry DeferredWriter::write_section(DeviceId device,
-                                            SectionTag tag,
+                                            SectionTagReserved tag,
                                             SectionAlignment align,
                                             const PendingEncode& payload) {
     ManifestEntry entry{};
     entry.device = device;
-    entry.tag = tag;
+    entry.tag = tag.tag;
+    entry.tag_reserved = tag.bytes;
     const auto slot = reserve_slot(written_size(), payload.size, align);
     if (slot) {
         write_zeros(slot->start - written_size());
@@ -259,12 +261,13 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
 }
 
 ManifestEntry DeferredWriter::write_section(DeviceId device,
-                                            SectionTag tag,
+                                            SectionTagReserved tag,
                                             SectionAlignment align,
                                             const SectionEncoder& encode) {
     ManifestEntry entry{};
     entry.device = device;
-    entry.tag = tag;
+    entry.tag = tag.tag;
+    entry.tag_reserved = tag.bytes;
     const auto start = ov::util::align_size_up_overflow(written_size(), align.offset_align);
     if (start) {
         write_zeros(*start - written_size());
@@ -322,7 +325,7 @@ std::optional<DeferredWriter> DeferredWriter::open(std::byte* dst, size_t size) 
 }
 
 bool DeferredWriter::add_section(DeviceId device,
-                                 SectionTag tag,
+                                 SectionTagReserved tag,
                                  ov::util::MemoryView payload,
                                  SectionAlignment align) {
     if (tag.is_inline()) {
@@ -336,7 +339,7 @@ bool DeferredWriter::add_section(DeviceId device,
 }
 
 bool DeferredWriter::add_section(DeviceId device,
-                                 SectionTag tag,
+                                 SectionTagReserved tag,
                                  size_t size,
                                  SectionEncoder encode,
                                  SectionAlignment align) {
@@ -346,7 +349,10 @@ bool DeferredWriter::add_section(DeviceId device,
     return true;
 }
 
-bool DeferredWriter::add_section(DeviceId device, SectionTag tag, SectionEncoder encode, SectionAlignment align) {
+bool DeferredWriter::add_section(DeviceId device,
+                                 SectionTagReserved tag,
+                                 SectionEncoder encode,
+                                 SectionAlignment align) {
     OPENVINO_ASSERT(!tag.is_inline(), "HSM fill-in-place sections must be pointer-mode");
     const auto resolved = resolve_alignment(align);
     m_sections.emplace_back(resolved, std::move(encode), device, tag);
