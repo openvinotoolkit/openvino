@@ -30,7 +30,7 @@ public:
      */
     bool operator<(const SectionID& other) const;
 
-    std::string to_string() const;
+    std::string to_string() const override;
 
     static SectionID from_string(const std::string_view id);
 

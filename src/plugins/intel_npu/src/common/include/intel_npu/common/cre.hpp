@@ -49,6 +49,12 @@ public:
 
     bool operator!=(const CRESpecialToken& other) const;
 
+    /**
+     * @warning Do not modify the string values. These values are stored as part of the CRE within the blob's runtime
+     * requirements. Changing these may break compatibility.
+     */
+    std::string to_string() const override;
+
 private:
     CRESpecialTokenCode m_code;
 };

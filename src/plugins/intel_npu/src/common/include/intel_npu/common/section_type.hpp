@@ -55,7 +55,7 @@ public:
      * modified. This is because these values are stored within the blob and act as unique identifiers. Modifying these
      * may break compatibility.
      */
-    std::string to_string() const;
+    std::string to_string() const override;
 
     /**
      * @brief Parses the section type

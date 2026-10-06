@@ -188,33 +188,6 @@ ov::CompatibilityCheck bool_to_compatibility_check(const bool a) {
  * @warning Do not modify the string values. These values are stored as part of the CRE within the blob's runtime
  * requirements. Changing these may break compatibility.
  */
-std::string cre_special_token_to_string(const CRESpecialToken token) {
-    switch (token.get_code()) {
-    case CRESpecialTokenCode::AND: {
-        return AND_TOKEN_NAME.data();
-    }
-    case CRESpecialTokenCode::OR: {
-        return OR_TOKEN_NAME.data();
-    }
-    case CRESpecialTokenCode::OPEN: {
-        return OPEN_TOKEN_NAME.data();
-    }
-    case CRESpecialTokenCode::CLOSE: {
-        return CLOSE_TOKEN_NAME.data();
-    }
-    case CRESpecialTokenCode::NOT: {
-        return NOT_TOKEN_NAME.data();
-    }
-    default: {
-        OPENVINO_THROW("Unknown CRE special token");
-    }
-    }
-}
-
-/**
- * @warning Do not modify the string values. These values are stored as part of the CRE within the blob's runtime
- * requirements. Changing these may break compatibility.
- */
 std::shared_ptr<CREToken> cre_special_token_from_string(const std::string_view token) {
     if (token == AND_TOKEN_NAME) {
         return CRE::AND_PTR;
@@ -258,6 +231,29 @@ bool CRESpecialToken::operator==(const CRESpecialToken& other) const {
 
 bool CRESpecialToken::operator!=(const CRESpecialToken& other) const {
     return !(*this == other);
+}
+
+std::string CRESpecialToken::to_string() const {
+    switch (m_code) {
+    case CRESpecialTokenCode::AND: {
+        return AND_TOKEN_NAME.data();
+    }
+    case CRESpecialTokenCode::OR: {
+        return OR_TOKEN_NAME.data();
+    }
+    case CRESpecialTokenCode::OPEN: {
+        return OPEN_TOKEN_NAME.data();
+    }
+    case CRESpecialTokenCode::CLOSE: {
+        return CLOSE_TOKEN_NAME.data();
+    }
+    case CRESpecialTokenCode::NOT: {
+        return NOT_TOKEN_NAME.data();
+    }
+    default: {
+        OPENVINO_THROW("Unknown CRE special token");
+    }
+    }
 }
 
 bool is_cre_special_token(const std::shared_ptr<CREToken>& candidate) {
@@ -566,24 +562,18 @@ std::string CRE::to_string() const {
                 result += OPERAND_AND_SPECIAL_TOKEN_SEPARATOR;
             }
             is_first_token = false;
-
-            result += std::dynamic_pointer_cast<SectionType>(token)->to_string();
-            continue;
-        }
-        if (is_cre_special_token(token)) {
+        } else if (is_cre_special_token(token)) {
             if (!is_first_token) {
                 result += OPERAND_AND_SPECIAL_TOKEN_SEPARATOR;
             }
             is_first_token = false;
-
-            result += cre_special_token_to_string(*std::dynamic_pointer_cast<CRESpecialToken>(token));
-            continue;
+        } else {
+            // Last case remaining: the token is a section ID following a section type
+            OPENVINO_ASSERT(!is_first_token);
+            result += SECTION_TYPE_AND_INSTANCE_SEPARATOR;
         }
 
-        // Last case remaining: the token is a section ID following a section type
-        OPENVINO_ASSERT(!is_first_token);
-        result += SECTION_TYPE_AND_INSTANCE_SEPARATOR;
-        result += std::dynamic_pointer_cast<SectionID>(token)->to_string();
+        result += token->to_string();
     }
 
     m_logger.debug("Converted the CRE to string. Result: %s", result.data());

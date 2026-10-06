@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 namespace intel_npu {
 
 /**
@@ -12,6 +14,8 @@ namespace intel_npu {
 class CREToken {
 public:
     virtual ~CREToken() = default;
+
+    virtual std::string to_string() const = 0;
 
 protected:
     CREToken() = default;
