@@ -486,18 +486,18 @@ inline ov::Dimension aligned_seq_length(const kernel_impl_params& params, int32_
             aligned_seq_len += align_to(prompt_length, target_seq_len_block_size);
         }
         return aligned_seq_len;
-    } else {
-        const auto desc = params.typed_desc<scaled_dot_product_attention>();
-        switch (qkv_idx) {
-        case 0:
-            return get_seq_length(params.input_layouts[0], desc->input_q_transpose_order);
-        case 1:
-            return get_seq_length(params.input_layouts[1], desc->input_k_transpose_order);
-        case 2:
-            return get_seq_length(params.input_layouts[2], desc->input_v_transpose_order);
-        default:
-            OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
-        }
+    }
+
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    switch (qkv_idx) {
+    case 0:
+        return get_seq_length(params.input_layouts[0], desc->input_q_transpose_order);
+    case 1:
+        return get_seq_length(params.input_layouts[1], desc->input_k_transpose_order);
+    case 2:
+        return get_seq_length(params.input_layouts[2], desc->input_v_transpose_order);
+    default:
+        OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
     return ov::Dimension();
 }
@@ -791,13 +791,13 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
     int v_pa_2d = 0;
     if (in.is_pa && !in.is_prefill && !in.config.is_kv_compressed && !data_type_traits::is_i8_u8(in.v.data_type) &&
         !data_type_traits::is_i4_u4(in.v.data_type)) {
-        v_pa_2d = block2d_page_ok(p.v_head_size * ov::element::Type(in.v.data_type).size());
+        v_pa_2d = block2d_page_ok(p.v_head_size * ov::element::Type(in.v.data_type).size()) ? 1 : 0;
     }
     jit.make("USE_2D_BLOCK_IO_V_PA", block2d_env_int("SDPA_OCL_V_PA_2D", v_pa_2d, allowed));
 
     int v_pa_2d_i8 = 0;
     if (c.dequant_ok && !in.is_prefill) {
-        v_pa_2d_i8 = c.u4_by_channel_tm ? block2d_surface_ok(c.v_row_elems) : block2d_page_ok(c.v_row_elems);
+        v_pa_2d_i8 = c.u4_by_channel_tm ? (block2d_surface_ok(c.v_row_elems) ? 1 : 0) : (block2d_page_ok(c.v_row_elems) ? 1 : 0);
     }
     v_pa_2d_i8 = block2d_env_int("SDPA_OCL_V_PA_I8_2D", v_pa_2d_i8, allowed);
     jit.make("USE_2D_BLOCK_IO_V_PA_I8", v_pa_2d_i8);
@@ -805,13 +805,13 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
     // A d-major K page's row is 32 B, below the block2d minimum, so K block reads need a token-major page.
     int k_pa_2d = 0;
     if (c.k_token_major && !in.config.is_kv_compressed && !data_type_traits::is_i8_u8(in.k.data_type) && !data_type_traits::is_i4_u4(in.k.data_type)) {
-        k_pa_2d = block2d_page_ok(p.k_head_size * ov::element::Type(in.k.data_type).size());
+        k_pa_2d = block2d_page_ok(p.k_head_size * ov::element::Type(in.k.data_type).size()) ? 1 : 0;
     }
     jit.make("USE_2D_BLOCK_IO_K_PA", block2d_env_int("SDPA_OCL_K_PA_2D", k_pa_2d, allowed));
 
     int k_pa_2d_i8 = 0;
     if (c.k_token_major && c.dequant_ok) {
-        k_pa_2d_i8 = c.u4_by_channel_tm ? block2d_surface_ok(c.k_row_elems) : block2d_page_ok(c.k_row_elems);
+        k_pa_2d_i8 = c.u4_by_channel_tm ? (block2d_surface_ok(c.k_row_elems) ? 1 : 0) : (block2d_page_ok(c.k_row_elems) ? 1 : 0);
     }
     k_pa_2d_i8 = block2d_env_int("SDPA_OCL_K_PA_I8_2D", k_pa_2d_i8, allowed);
     jit.make("USE_2D_BLOCK_IO_K_PA_I8", k_pa_2d_i8);
