@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-12-18-11-000-37458813239",
+  "timestamp": "2026-10-06T12:18:11Z",
+  "run_id": "37458813239",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37458813239",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "commit_sha": "89a76b7ac307ba065dbf61af12e17747b431eafb",
+  "pr_number": "37908",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37908",
+  "author": "egalli",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+  "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+  "signature_hash": "0ee6d7327812b344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install - OpenVINO JS API step fails with cc1plus invalid-pch errors"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The JS API build step re-invokes cmake on the SAME build directory (openvino_build) with -UTBB* -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF, re-using objects produced by the prior full build (which has ENABLE_FASTER_BUILD=ON, i.e. PCH enabled). Because ENABLE_FASTER_BUILD/PCH flags are not re-applied consistently across the second cmake invocation for the openvino_reference target, the cached cmake_pch.hxx.gch header file ends up stale or generated with options mismatched (ccache/sccache or PCH generation race) relative to what cc1plus expects when recompiling openvino_reference sources for the JS API variant. GCC's invalid-pch check (-Werror=invalid-pch, itself promoted from a warning because CMAKE_COMPILE_WARNING_AS_ERROR=ON) then fails the build. This is a recurring, environment/build-graph-level issue (10 prior occurrences recorded in the pattern database before this run), not something introduced by the current commit's content, which only touches MVN-6 axis validation in src/core and is unrelated to the JS API / PCH build pipeline.",
+  "reproduction_steps": "Not easily reproducible outside the exact CI matrix. Locally: configure+build the full ARM64 cross-compilation target with ENABLE_FASTER_BUILD=ON, then re-run cmake on the same build dir with -UTBB* -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF and rebuild openvino_reference; the stale cmake_pch.hxx.gch is likely to trigger the same invalid-pch failure if sccache/ccache serves a precompiled header that no longer matches the second configuration's compiler flags.",
+  "recommended_actions": [
+    "In .github/workflows/job_build_linux.yml (or the ARM64 cross-compile job script), delete/invalidate cmake_pch.hxx.gch (or the whole CMakeFiles/openvino_reference.dir cache) before the second cmake re-configure+build pass for the JS API package step, or run that step in a separate build directory",
+    "Consider disabling ENABLE_FASTER_BUILD (PCH) for the JS-API-specific re-configure pass, or ensure PCH regeneration is forced (e.g., via `cmake --build ... --clean-first` scoped to openvino_reference) whenever CPACK_GENERATOR/TBB/WHEEL options change between cmake invocations on the same build tree",
+    "Escalate to the build-system/CI owners given this is the 10th+ recurrence over the last two weeks with no fix landed yet"
+  ],
+  "prevention_strategies": "Avoid re-configuring cmake on an already-built tree with different feature flags (TBB/WHEEL/CPACK_GENERATOR) while PCH is enabled; use a dedicated build directory per configuration, or explicitly purge PCH artifacts (cmake_pch.hxx.gch) whenever compiler-affecting options change between successive cmake invocations in the same directory.",
+  "historical_context": "This exact signature has recurred at least 10 times since 2026-09-25 (see pattern 0ee6d7327812b344), consistently on the ARM64 cross-compilation job's JS API build step, across many unrelated PRs/commits -- confirming this is an infrastructure/build-script issue rather than a code regression introduced by any single commit."
+}
