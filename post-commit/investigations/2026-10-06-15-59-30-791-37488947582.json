@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-15-59-30-791-37488947582",
+  "timestamp": "2026-10-06T15:59:30Z",
+  "run_id": "37488947582",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37488947582",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "commit_sha": "ed4493b1a4efc33f4c1e52195a7e663c502320c2",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+  "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+  "signature_hash": "0ee6d7327812b344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install - OpenVINO JS API step fails compiling src/core/reference/src/op/convert.cpp (and 13 other reference ops) with cc1plus invalid-pch error"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/einsum.cpp.o"
+  ],
+  "root_cause": "The 'CMake configure, build and install - OpenVINO JS API' step reconfigures the same build directory (BUILD_DIR) in-place with `cmake -UTBB* ... -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF` after the main build already completed, then re-invokes `cmake --build`. This re-triggers compilation of src/core/reference sources (e.g. convert.cpp, fake_convert.cpp, depth_to_space.cpp, einsum.cpp, etc.) that use a precompiled header (cmake_pch.hxx.gch) generated under the *original* TBB/compiler-flag configuration. Because ENABLE_SYSTEM_TBB and TBB cache variables are unset/changed for the JS build, the include/define set used to compile objects now differs from the one used to generate the shared PCH, so the previously generated .gch file on disk is stale relative to the new compile invocation and GCC rejects it with 'not a PCH file'. Ninja does not regenerate the PCH because its dependency tracking does not detect the cmake-cache-variable change as a PCH input change, so the stale .gch is reused and fails validation. This is the 15th consecutive occurrence of this exact signature across post-commit runs since 2026-09-25, confirming the JS API reconfigure step reliably invalidates the PCH on every run that reaches it.",
+  "reproduction_steps": "1. Perform a full ARM64 cross-compile build of openvino with ENABLE_FASTER_BUILD=ON (precompiled headers enabled) and the default (non-JS) cmake options.\n2. After the main build completes, re-run `cmake -UTBB* -S <repo> -B <same build dir> -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF` against the same build directory.\n3. Run `cmake --build <build dir> --parallel <n> -- --quiet`.\n4. Observe ninja recompiling src/core/reference/src/op/convert.cpp (and similar files) and failing with 'cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]'.",
+  "recommended_actions": [
+    "In .github/workflows/job_build_linux.yml, use a separate/clean build directory (or disable ENABLE_FASTER_BUILD precompiled headers) for the 'CMake configure, build and install - OpenVINO JS API' step instead of reconfiguring BUILD_DIR in place.",
+    "Alternatively, force ninja to regenerate the shared PCH when TBB-related cache variables change, e.g. by touching/removing cmake_pch.hxx.gch (or the PCH target) before the JS reconfigure+build step.",
+    "Consider disabling CMAKE_COMPILE_WARNING_AS_ERROR for this specific re-build invocation (or scoping -Werror=invalid-pch out) as a short-term mitigation while the PCH invalidation is fixed.",
+    "Escalate to the build/CI infra owners given this is the 15th consecutive post-commit occurrence of this exact signature with no fix landed yet (first seen 2026-09-25)."
+  ],
+  "prevention_strategies": "Avoid re-running `cmake -S <repo> -B <dir>` configure + build against a build directory that already has a precompiled header generated under different TBB/compiler-flag settings. When CI pipelines reconfigure an existing build tree with changed cache variables (ENABLE_SYSTEM_TBB, CPACK_GENERATOR, etc.), either use an isolated build directory per configuration variant or explicitly invalidate the PCH artifacts as part of the reconfigure step so ninja regenerates them before relying on -Werror=invalid-pch.",
+  "historical_context": "Identical signature (0ee6d7327812b344) recorded 14 prior times between 2026-09-25 and 2026-10-06 (most recently run 37482358384 at 2026-10-06T15:26:00Z), all on the same 'Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)' workflow and all with the identical cc1plus invalid-pch error on the shared cmake_pch.hxx.gch during the OpenVINO JS API build step. No fix has landed across 10+ days of recurrence; this remains an open, unaddressed CI infrastructure defect."
+}
