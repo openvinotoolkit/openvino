@@ -1125,8 +1125,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
             if (m_position_ids_present) {
                 // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D
-                // position_ids [3, BATCH, SEQ_LEN] Copy postion ids with considering the 3D position_ids The caller
-                // tensor is delta-relative during a continued prefill.
+                // position_ids [3, BATCH, SEQ_LEN]
+                // Copy postion ids with considering the 3D position_ids
+                // The caller tensor is delta-relative during a continued prefill.
                 auto last_dim = position_ids->get_shape().size() - 1;
                 const uint32_t pos_src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
                 auto actual_position_ids_slice =
