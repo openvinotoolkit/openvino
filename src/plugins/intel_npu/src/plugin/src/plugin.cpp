@@ -283,10 +283,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    auto mergedConfigAndUnknownProperties =
-        _propertiesManager->getMergedConfigAndUnknownProperties(localProperties, ConfigMergeMode::Compile);
-    auto& localConfig = mergedConfigAndUnknownProperties.first;
-    auto& unknownProperties = mergedConfigAndUnknownProperties.second;
+    auto mergedConfig = _propertiesManager->getMergedConfigForCompilation(localProperties, ConfigMergeMode::Compile);
+    auto& localConfig = mergedConfig.runtimeConfig;
+    auto& compilerProperties = mergedConfig.compilerProperties;
+    auto& unknownProperties = mergedConfig.unknownProperties;
 
     localConfig.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
 
@@ -436,7 +436,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     adapterDesc.bypassCache = !localConfig.get<CACHE_DIR>().empty() || localConfig.get<BYPASS_UMD_CACHING>();
     // Request secure compilation if blob encryption is requested
     adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
-                               localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+                                localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
@@ -611,8 +611,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     OPENVINO_ASSERT(_backend != nullptr, NO_BACKEND_MESSAGE);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    auto [runtimeConfig, unknownProperties] =
-        _propertiesManager->getMergedConfigAndUnknownProperties(properties, ConfigMergeMode::Import);
+    auto [runtimeConfig, unknownProperties] = _propertiesManager->getMergedConfigForImport(properties);
 
     std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
         blobSource,
@@ -686,7 +685,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     auto localConfig =
-        _propertiesManager->getMergedConfigAndUnknownProperties(localProperties, ConfigMergeMode::Query).first;
+        _propertiesManager->getMergedConfigForCompilation(localProperties, ConfigMergeMode::Query).runtimeConfig;
 
     ov::SupportedOpsMap supportedOpsMap;
     try {
