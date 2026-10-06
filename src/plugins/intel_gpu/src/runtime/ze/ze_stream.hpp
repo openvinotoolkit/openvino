@@ -37,7 +37,7 @@ public:
     event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) override;
     event::ptr group_events(std::vector<event::ptr> const& deps) override;
     void wait_for_events(const std::vector<event::ptr>& events) override;
-    void enqueue_barrier(const std::vector<event::ptr>& deps) override;
+    void enqueue_barrier(const std::vector<event::ptr>& deps = {}) override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
@@ -55,13 +55,12 @@ public:
     const ze_engine& get_engine() const { return _engine; }
     ze_command_list_resource get_immediate_command_list() const { return m_imm_cmd_list; }
 private:
-    void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
+    void sync_events(std::vector<event::ptr> const& deps);
 
     const ze_engine& _engine;
     ze_command_list_resource m_imm_cmd_list;
     mutable std::atomic<uint64_t> m_queue_counter{0};
     std::atomic<uint64_t> m_last_barrier{0};
-    std::shared_ptr<ze_event> m_last_barrier_ev;
     std::shared_ptr<ze_base_event_factory> m_ev_factory;
     std::shared_ptr<ze_base_event_factory> m_user_ev_factory;
 #ifdef ENABLE_ONEDNN_FOR_GPU

@@ -12,7 +12,7 @@ Learn how to set OpenVINO options here `src/plugins/intel_gpu/docs/gpu_debug_uti
 
 ## What models are supported
 
-Currently only some static models are supported by the record and replay feature. When network created for the model contains primitives that does not support replay then exception is thrown. Please check `supports_replay()` in the primitives.
+Currently record and replay feature supports only some static models and in-order streams with `SyncMethods::none`. When network created for the model contains primitives that does not support replay then exception is thrown. Please check `supports_replay()` in the primitives.
 
 Support check can be skipped by setting `OV_GPU_RECORD_REPLAY_DYNAMIC=1` option. This option is added to understand performance status with command list.
 
@@ -43,3 +43,7 @@ Command list is recorded at network level and captures input and output memory p
 ## Multiple inference requests
 
 Using record and replay feature with more than 1 inference request can lead to recording invalidation as inference requests can bind to any available stream and update the network.
+
+## Synchronization method
+
+Currently record and replay supports only in-orded execution with `SyncMethods::none` (which is the default configuration for OpenVINO builds with OneDNN enabled). Using `SyncMethods::barriers` or `SyncMethods::events` may result in application hang as signal-wait sequence might not be correctly captured for some events.

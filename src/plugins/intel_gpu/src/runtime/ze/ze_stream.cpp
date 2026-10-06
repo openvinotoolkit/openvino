@@ -319,15 +319,12 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     std::vector<ze_event_handle_t> dep_events;
     std::vector<ze_event_handle_t>* dep_events_ptr = nullptr;
     if (m_sync_method == SyncMethods::events) {
-        for (auto& dep : deps) {
-            if (auto ze_base_ev = std::dynamic_pointer_cast<ze_base_event>(dep)) {
-                if (ze_base_ev->get_handle() != nullptr)
-                    dep_events.push_back(ze_base_ev->get_handle());
-            }
+        dep_events = ze_base_event::get_event_handles(deps, true);
+        if (!dep_events.empty()) {
+            dep_events_ptr = &dep_events;
         }
-        dep_events_ptr = &dep_events;
     } else if (m_sync_method == SyncMethods::barriers) {
-        sync_events(deps, is_output);
+        sync_events(deps);
     }
     bool set_output_event = m_sync_method == SyncMethods::events || is_output;
 
@@ -360,37 +357,30 @@ void ze_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
     }
 }
 
-event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, bool is_output) {
+event::ptr ze_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
+    // Implemented with barriers as there is no marker concept in Level Zero
+    auto ev = std::static_pointer_cast<ze_base_event>(create_base_event());
+    auto ev_handle = ev->get_handle();
+    auto cmd_list_handle = get_command_list().handle();
+
     if (deps.empty()) {
-        auto ev = create_base_event();
-        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(), std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(), 0, nullptr));
+        // Wait for all previous commands
+        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(cmd_list_handle, ev_handle, 0, nullptr));
         return ev;
-    }
-
-    if (m_sync_method  == SyncMethods::events) {
-        std::vector<ze_event_handle_t> dep_events;
-        for (auto& dep : deps) {
-            if (auto ze_base_ev = std::dynamic_pointer_cast<ze_base_event>(dep)) {
-                if (ze_base_ev->get_handle() != nullptr)
-                    dep_events.push_back(ze_base_ev->get_handle());
-            }
+    } else if (m_sync_method  == SyncMethods::events) {
+        auto dep_event_handles = ze_base_event::get_event_handles(deps, true);
+        if (!dep_event_handles.empty()) {
+            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(cmd_list_handle, ev_handle, dep_event_handles.size(), dep_event_handles.data()));
+        } else {
+            OV_ZE_EXPECT(ze::zeCommandListAppendSignalEvent(cmd_list_handle, ev_handle));
         }
-        if (dep_events.empty())
-            return create_user_event(true);
-
-        auto ev = create_base_event();
-        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(),
-                                            std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(),
-                                            static_cast<uint32_t>(dep_events.size()),
-                                            &dep_events.front()));
-        return ev;
     } else if (m_sync_method == SyncMethods::barriers) {
-        sync_events(deps, is_output);
-        assert(m_last_barrier_ev != nullptr);
-        return m_last_barrier_ev;
+        sync_events(deps);
+        OV_ZE_EXPECT(ze::zeCommandListAppendSignalEvent(cmd_list_handle, ev_handle));
     } else {
-        return create_user_event(true);
+        OV_ZE_EXPECT(ze::zeCommandListAppendSignalEvent(cmd_list_handle, ev_handle));
     }
+    return ev;
 }
 
 ze_event::ptr ze_stream::group_events(std::vector<ze_event::ptr> const& deps) {
@@ -449,30 +439,19 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     }
 }
 
-void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
+void ze_stream::sync_events(std::vector<event::ptr> const& deps) {
+    // Enqueue global barrier based on deps stamps
     bool needs_barrier = false;
     for (auto& dep : deps) {
-        auto* ze_base_ev = dynamic_cast<ze_base_event*>(dep.get());
-        assert(ze_base_ev != nullptr);
-        if (ze_base_ev->get_queue_stamp() > m_last_barrier) {
+        auto stamp = static_cast<ze_base_event*>(dep.get())->get_queue_stamp();
+        if (stamp > m_last_barrier) {
             needs_barrier = true;
+            break;
         }
     }
-
     if (needs_barrier) {
-        if (is_output) {
-            m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_base_event());
-            m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
-            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(), m_last_barrier_ev->get_handle(), 0, nullptr));
-        } else {
-            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(), nullptr, 0, nullptr));
-        }
+        enqueue_barrier();
         m_last_barrier = ++m_queue_counter;
-    }
-
-    if (!m_last_barrier_ev) {
-        m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_user_event(true));
-        m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
     }
 }
 

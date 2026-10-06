@@ -1102,6 +1102,10 @@ void network::prepare_record_replay() {
         // Record & replay re-submits a fixed sequence of GPU commands.
         // Only safe when recording iteration produces self-contained GPU command stream that remains valid across iterations.
 
+        // Event/barrier based synchronization can cause hangs during replay
+        if (_stream->get_queue_type() != QueueTypes::in_order || _stream->get_sync_method() != cldnn::SyncMethods::none)
+            return false;
+
         // When model is dynamic it is not safe to fully skip prepare_primitive and execute logic on replay iterations
         if (_is_dynamic)
             return false;
