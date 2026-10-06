@@ -521,23 +521,47 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_u3_weights_byte_pack
     comparator.enable(FunctionsComparator::CONST_VALUES);
 }
 
-TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_u3_misaligned_weights_no_fusion) {
-    // With K=4 each u3 weight row occupies 12 bits, so Concat along N is not byte aligned and
-    // Concat::evaluate fails. The fused weight can't be folded into a Constant, hence the
-    // transformation must bail out and leave the three FCs untouched.
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_u3_misaligned_no_fusion) {
+    // With K=4 each u3 row occupies 12 bits, so Concat along N (or along the zp's first axis) is not byte aligned and
+    // Concat::evaluate fails. The fused constant can't be folded, hence the transformation must bail out and leave
+    // the FCs untouched. Two independent groups of 3 FCs cover different failure points:
+    //  1. u3 weights: the weights folding fails.
+    //  2. u4 weights with u3 zero points and bias Adds: the zero points folding fails after the biases are collected.
+    //     The bias Adds must not be bypassed, as the pass has to leave the model intact when it returns false.
     auto make_model = []() {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 4});
         ov::ResultVector results;
-        for (size_t n : {2, 3, 1}) {
-            auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::u3, ov::Shape{n, 4});
-            auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{n, 1});
-            auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
-                                                                                    weight,
-                                                                                    std::make_shared<ov::intel_gpu::op::Placeholder>(),
-                                                                                    scale);
-            results.push_back(std::make_shared<ov::op::v0::Result>(fc));
+        ov::ParameterVector params;
+        {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 4});
+            params.push_back(input);
+            for (size_t n : {2, 3, 1}) {
+                auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::u3, ov::Shape{n, 4});
+                auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{n, 1});
+                auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                        weight,
+                                                                                        std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                        scale);
+                results.push_back(std::make_shared<ov::op::v0::Result>(fc));
+            }
         }
-        return std::make_shared<ov::Model>(results, ov::ParameterVector{input});
+        {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 4096});
+            params.push_back(input);
+            for (size_t n : {1024, 512, 128}) {
+                auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{n, 4096});
+                auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{n, 32});
+                auto zp = std::make_shared<ov::op::v0::Constant>(ov::element::u3, ov::Shape{1, 1, 4});
+                auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                        weight,
+                                                                                        std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                        scale,
+                                                                                        zp);
+                auto add_input = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, n});
+                auto add = std::make_shared<ov::op::v1::Add>(fc, add_input);
+                results.push_back(std::make_shared<ov::op::v0::Result>(add));
+            }
+        }
+        return std::make_shared<ov::Model>(results, params);
     };
     model = make_model();
     model_ref = make_model();
