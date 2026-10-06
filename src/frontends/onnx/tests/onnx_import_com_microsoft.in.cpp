@@ -5964,17 +5964,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
     test_case.run_with_tolerance_as_fp(0.02f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_unsupported_throws) {
-    try {
-        convert_model("com.microsoft/gqa_softcap.onnx");
-        FAIL() << "ONNX Importer did not reject unsupported softcap for GroupQueryAttention";
-    } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr("softcap"));
-    } catch (...) {
-        FAIL() << "Unexpected exception type thrown";
-    }
-}
-
 // qk_output (emit the QxK' matrix as a 4th output) is not produced by the decomposition, so a model that
 // requests it must be rejected at import rather than silently losing an output.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_unsupported_throws) {
@@ -6123,6 +6112,72 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_head_sink) {
         0.789106f,  -0.130043f, 0.049275f,  0.626235f,  -0.815256f, 0.170577f,  0.713491f,  0.058472f,  -0.689773f,
         0.364511f,  -0.205088f, 0.415036f,  -0.733929f, -0.944356f, 0.106827f,  0.467892f,  0.887448f,  0.174467f,
         -0.191129f, 0.375977f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{2}, head_sink);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// softcap (Gemma-style logit capping): scores become softcap * tanh(score / softcap) after scaling and before
+// the mask/softmax. softcap = 0.1 saturates tanh for these scores, so the capping is clearly visible. Reference:
+// ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap) {
+    const auto model = convert_model("com.microsoft/gqa_softcap.onnx");
+
+    std::vector<float> expected_output = {
+        -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+        -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+        0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+        0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.214008f, -0.048492f, 0.289645f,  0.752963f,
+        -0.158629f, 0.069689f,  -0.570651f, 1.382954f,  0.250342f,  -1.403767f, 0.915178f,  0.599112f,  0.408398f,
+        0.411765f,  -0.032716f, -0.651861f, -0.205174f, -0.063162f, 0.293783f,  0.750353f,  -0.174379f, -0.042039f,
+        -0.573210f, 1.321330f,  0.308692f,  -1.404079f, 0.909665f,  0.568129f,  0.366757f,  0.350544f,  0.026978f,
+        -0.670474f, -0.776449f, 0.098592f,  0.676533f,  0.203838f,  -0.623341f, 0.037592f,  -0.236826f, 0.401858f,
+        -0.360870f, -1.224903f, 0.281626f,  0.396794f,  0.772960f,  0.026209f,  -0.047133f, 0.040054f,  -0.767864f,
+        0.080564f,  0.683670f,  0.197873f,  -0.645680f, -0.105235f, -0.238494f, 0.318463f,  -0.289288f, -1.224444f,
+        0.271549f,  0.356260f,  0.721533f,  -0.053816f, 0.029024f,  0.019603f,  -0.511998f, 0.067603f,  0.651326f,
+        0.137345f,  -0.751427f, -0.166503f, -0.421785f, 0.484596f,  -0.473074f, -0.662645f, 0.162629f,  0.457485f,
+        0.512893f,  0.069955f,  0.170599f,  0.376285f,  -0.506949f, 0.069228f,  0.640191f,  0.154932f,  -0.730161f,
+        -0.123757f, -0.424875f, 0.528880f,  -0.472289f, -0.683008f, 0.184905f,  0.471328f,  0.523721f,  0.099038f,
+        0.145600f,  0.354213f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// softcap combined with a per-head head_sink: the sink logit joins the softmax after capping.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_head_sink) {
+    const auto model = convert_model("com.microsoft/gqa_softcap_head_sink.onnx");
+
+    std::vector<float> head_sink = {-1.088381f, -1.689387f};
+    std::vector<float> expected_output = {
+        -0.231868f, 0.090711f,  0.175533f,  0.571161f,  0.019723f,  1.010810f,  -0.393887f, 1.537365f,  -0.318927f,
+        -1.020339f, 0.714325f,  0.702836f,  0.655426f,  0.826127f,  -0.536759f, -0.315127f, -0.264246f, 0.103378f,
+        0.200043f,  0.650915f,  0.022477f,  1.151955f,  -0.448888f, 1.752036f,  -0.363461f, -1.162814f, 0.814070f,
+        0.800977f,  0.746946f,  0.941484f,  -0.611709f, -0.359130f, -0.183908f, -0.041672f, 0.248907f,  0.647060f,
+        -0.136318f, 0.059888f,  -0.490390f, 1.188443f,  0.215132f,  -1.206328f, 0.786460f,  0.514847f,  0.350957f,
+        0.353851f,  -0.028114f, -0.560178f, -0.189275f, -0.058268f, 0.271019f,  0.692211f,  -0.160867f, -0.038781f,
+        -0.528794f, 1.218945f,  0.284772f,  -1.295282f, 0.839179f,  0.524107f,  0.338338f,  0.323381f,  0.024888f,
+        -0.618522f, -0.697014f, 0.088505f,  0.607319f,  0.182984f,  -0.559570f, 0.033746f,  -0.212598f, 0.360746f,
+        -0.323951f, -1.099588f, 0.252814f,  0.356200f,  0.693882f,  0.023528f,  -0.042311f, 0.035957f,  -0.724795f,
+        0.076045f,  0.645323f,  0.186775f,  -0.609464f, -0.099332f, -0.225117f, 0.300601f,  -0.273062f, -1.155765f,
+        0.256318f,  0.336277f,  0.681063f,  -0.050798f, 0.027396f,  0.018503f,  -0.471413f, 0.062244f,  0.599696f,
+        0.126458f,  -0.691863f, -0.153304f, -0.388351f, 0.446183f,  -0.435574f, -0.610118f, 0.149738f,  0.421221f,
+        0.472237f,  0.064410f,  0.157076f,  0.346458f,  -0.484688f, 0.066188f,  0.612079f,  0.148128f,  -0.698099f,
+        -0.118323f, -0.406218f, 0.505656f,  -0.451550f, -0.653016f, 0.176786f,  0.450631f,  0.500723f,  0.094689f,
+        0.139206f,  0.338659f};
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());

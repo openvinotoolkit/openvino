@@ -124,7 +124,6 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                           ".");
         }
     }
-    FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
     // qk_output (spec: emit the QxK' matrix before/after softmax as a 4th `output_qk` output) is not
     // produced by this decomposition. Reject a non-default value rather than silently dropping the output.
     FRONT_END_OP_CONVERSION_CHECK(qk_output == 0, "GroupQueryAttention: qk_output is not supported.");
@@ -249,7 +248,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            local_window_size,
                                                            sliding_window_cache != 0,
                                                            smooth_softmax == 1,
-                                                           causal != 0)
+                                                           causal != 0,
+                                                           softcap)
         ->outputs();
 }
 

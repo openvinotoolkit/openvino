@@ -8,6 +8,11 @@ graph {
     input: "past_value"
     input: "seqlens_k"
     input: "total_sequence_length"
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: "head_sink"
     output: "output"
     output: "present_key"
     output: "present_value"
@@ -110,6 +115,17 @@ graph {
       tensor_type {
         elem_type: 6
         shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "head_sink"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 2 }
         }
       }
     }

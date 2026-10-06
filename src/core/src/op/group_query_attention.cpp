@@ -50,7 +50,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          int64_t local_window_size,
                                          bool sliding_window_cache,
                                          bool smooth_softmax,
-                                         bool causal)
+                                         bool causal,
+                                         float softcap)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -63,7 +64,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_local_window_size(local_window_size),
       m_sliding_window_cache(sliding_window_cache),
       m_smooth_softmax(smooth_softmax),
-      m_causal(causal) {
+      m_causal(causal),
+      m_softcap(softcap) {
     constructor_validate_and_infer_types();
 }
 
@@ -163,6 +165,10 @@ void GroupQueryAttention::validate_and_infer_types() {
         return types;
     }();
 
+    NODE_VALIDATION_CHECK(this,
+                          m_softcap >= 0.0f,
+                          "GroupQueryAttention expects softcap >= 0 (0 disables it), got: ",
+                          m_softcap);
     NODE_VALIDATION_CHECK(this, m_num_heads > 0, "GroupQueryAttention expects num_heads > 0, got: ", m_num_heads);
     NODE_VALIDATION_CHECK(this,
                           m_kv_num_heads > 0,
@@ -344,6 +350,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("scale", m_scale);
     visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
     visitor.on_attribute("smooth_softmax", m_smooth_softmax);
+    visitor.on_attribute("softcap", m_softcap);
     visitor.on_attribute("v_quant_type", m_v_quant_type);
     return true;
 }
@@ -363,7 +370,8 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_local_window_size,
                                                  m_sliding_window_cache,
                                                  m_smooth_softmax,
-                                                 m_causal);
+                                                 m_causal,
+                                                 m_softcap);
 }
 
 }  // namespace ov::op::internal
