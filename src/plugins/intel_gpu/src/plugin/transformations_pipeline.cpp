@@ -64,6 +64,7 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -125,6 +126,7 @@
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
+#include "plugin/transformations/rope_sdpa_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
@@ -236,6 +238,7 @@
 #include "ov_ops/moe_compressed.hpp"
 #include "ov_ops/grouped_matmul_compressed.hpp"
 #include "openvino/op/roll.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
@@ -499,6 +502,34 @@ bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>
                 queue.push_back(user);
             }
         }
+    }
+    return false;
+}
+
+// The integer K^T*Q path (I8_KQ in sdpa_gen_micro.cpp) rounds the query to s8 while staging it,
+// which gives the product the op specifies only when the query already holds integers in the s8
+// range. That is read off the graph: the query is a Convert from i8, or a Round and a Clamp to
+// integral bounds within [-128, 127], in either order. Ops that only move values are skipped.
+bool holds_s8_integers(std::shared_ptr<const ov::Node> node) {
+    while (is_type_any_of<ov::op::v1::Reshape, ov::op::v1::Transpose, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>(node)) {
+        node = node->get_input_node_shared_ptr(0);
+    }
+    if (const auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(node)) {
+        return convert->get_input_element_type(0) == ov::element::i8;
+    }
+    const auto is_s8_clamp = [](const std::shared_ptr<const ov::Node>& n) {
+        const auto clamp = ov::as_type_ptr<const ov::op::v0::Clamp>(n);
+        return clamp && clamp->get_min() >= -128.0 && clamp->get_max() <= 127.0 && std::floor(clamp->get_min()) == clamp->get_min() &&
+               std::floor(clamp->get_max()) == clamp->get_max();
+    };
+    const auto is_round = [](const std::shared_ptr<const ov::Node>& n) {
+        return ov::is_type<ov::op::v5::Round>(n);
+    };
+    if (is_s8_clamp(node)) {
+        return is_round(node->get_input_node_shared_ptr(0));
+    }
+    if (is_round(node)) {
+        return is_s8_clamp(node->get_input_node_shared_ptr(0));
     }
     return false;
 }
@@ -990,6 +1021,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
+
+            // An integer key or value holds integer values, which the op converts to the query's
+            // type before the attention (see the ScaledDotProductAttention specification). The
+            // micro-kernel SDPA path reads an i8 key or value as it is (sdpa_gen_micro.cpp), so
+            // those stay; any other integer type is decomposed, which inserts that conversion.
+            // An i8 key stays only with a query that provably holds s8 integers, since its
+            // integer K^T*Q path rounds the query (see holds_s8_integers).
+            const auto unsupported_quantized_kv = [](const ov::element::Type& t) {
+                return ov::op::v13::ScaledDotProductAttention::is_quantized_kv_type(t) && t != ov::element::i8;
+            };
+            if (unsupported_quantized_kv(sdpa->get_input_element_type(1)) ||
+                unsupported_quantized_kv(sdpa->get_input_element_type(2))) {
+                return false;
+            }
+            if (sdpa->get_input_element_type(1) == ov::element::i8 && !holds_s8_integers(sdpa->get_input_node_shared_ptr(0))) {
+                return false;
+            }
+
             // TODO: sdpa_opt is not supporting sink_input for 1st token case yet
             constexpr size_t sink_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::SINK;
             if (sdpa->get_input_size() > sink_idx && !device_info.supports_immad) {
@@ -1799,6 +1848,91 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!has_shared_kv_cache_vars(func)) {
             auto kv_cache_compression_dt = config.get_kv_cache_precision();
             manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
+        }
+
+        // Hand SDPA the RoPE cos/sin table so Q is rotated inside the tile load it already does.
+        // This runs after IndirectKVCache and KVCacheCompression on purpose: both match an SDPA by
+        // input count, and a fused SDPA carries two extra inputs that IndirectKVCache's five-input
+        // pattern would otherwise accept, reinterpreting the cos/sin tables as an attention mask
+        // and a scale.
+        //
+        // Only the micro-kernel implements the fused rotation. Once the RoPE is folded away there
+        // is no rotation left to fall back to, and an SDPA implementation manager declining the
+        // node fails model compilation rather than picking another kernel -- so everything that
+        // decides whether the micro-kernel can run has to be decided here, before folding.
+        const bool micro_sdpa_available = device_info.supports_immad &&
+                                          cldnn::query_microkernels_supported(m_context->get_engine(), config) &&
+                                          device_info.arch >= cldnn::gpu_arch::xe_hpg &&
+                                          // ARL-H steers single-token decode away from the micro kernel, so a
+                                          // fused node would compile for prefill and fail at the second token.
+                                          (device_info.gfx_ver.major != 12 || device_info.gfx_ver.minor != 74) &&
+                                          // A 4-bit KV cache disables the micro kernel at execute time.
+                                          ov::element::Type(config.get_kv_cache_precision()).bitwidth() != 4;
+        if (micro_sdpa_available) {
+            pass_config->set_callback<ov::intel_gpu::RoPESDPAFusion>([](const_node_ptr& node) -> bool {
+                // Returning true skips the fusion. Mirrors the per-node conditions in
+                // SDPAOpt::supports_micro_sdpa that are visible on the graph. Anything left
+                // unmirrored is a model that folds here and then fails to compile, because by
+                // then there is no rotation left to fall back to.
+                const auto sdpa = ov::as_type_ptr<const ov::intel_gpu::op::SDPA>(node);
+                if (!sdpa || sdpa->get_output_transpose_order().size() != 4) {
+                    return true;
+                }
+                const auto& key_ps = node->get_input_partial_shape(1);
+                const auto& value_ps = node->get_input_partial_shape(2);
+                if (key_ps.rank().is_dynamic() || value_ps.rank().is_dynamic()) {
+                    return true;
+                }
+                // Read the head and head-count axes through the transpose orders, the way
+                // supports_micro_sdpa does. Indexing the physical shape instead compares the
+                // token counts, which are always equal, so the check would never fire -- and for
+                // the {0, 1, 3, 2} value order this PR introduces it would compare a token count
+                // against a head size and decline every shape where those differ.
+                const auto& order_k = sdpa->get_input1_transpose_order();
+                const auto& order_v = sdpa->get_input2_transpose_order();
+                // The fusion already pins a rank-4 order_q; decline anything else rather than
+                // reproduce the rank-3 extension here.
+                if (order_k.size() != 4 || order_v.size() != 4) {
+                    return true;
+                }
+                // micro-SDPA wants head_size last, and admits one order that moves it: the value
+                // transposed to (..., head_size, tokens), see micro_is_v_transposed. Only the
+                // static {0, 1, 3, 2} case, the one this fusion is tested on, is folded here; it is
+                // a subset of what the kernel accepts, so declining the rest is never wrong. Its
+                // other conditions are pinned by the pattern instead -- a compressed KV cache and
+                // IndirectSDPA are rejected there, and paged attention is a different primitive.
+                static const std::vector<int64_t> transposed_v{0, 1, 3, 2};
+                if (order_v[3] != 3) {
+                    if (order_v != transposed_v || key_ps.is_dynamic() || value_ps.is_dynamic()) {
+                        return true;
+                    }
+                }
+                const auto& k_head_dim = key_ps[order_k[3]];
+                const auto& v_head_dim = value_ps[order_v[3]];
+                const auto& k_heads_dim = key_ps[order_k[1]];
+                const auto& v_heads_dim = value_ps[order_v[1]];
+                if (k_head_dim.is_dynamic() || v_head_dim.is_dynamic() || k_heads_dim.is_dynamic() || v_heads_dim.is_dynamic()) {
+                    return true;
+                }
+                if (k_head_dim != v_head_dim || k_heads_dim != v_heads_dim) {
+                    return true;
+                }
+                const auto k_head_size = k_head_dim.get_length();
+                if (k_head_size > 512) {
+                    return true;
+                }
+                // A single-element attention mask is folded into a scalar only when it is a
+                // Constant; otherwise micro-SDPA declines the node.
+                if (node->get_input_size() > 3) {
+                    const auto& mask_ps = node->get_input_partial_shape(3);
+                    if (mask_ps.is_static() && ov::shape_size(mask_ps.to_shape()) == 1 &&
+                        !ov::is_type<ov::op::v0::Constant>(node->get_input_node_ptr(3))) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            manager.register_pass<ov::intel_gpu::RoPESDPAFusion>();
         }
 
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();

@@ -307,7 +307,8 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{512, 8, 1, 1024, 2, true},
         sdpa_test_params{64, 32, 128, 128, 2, true, data_types::bf16},   // bf16 dynamic
         sdpa_test_params{64, 32, 128, 128, 2, false, data_types::bf16},  // bf16 static
-        sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16}      // bf16 two ranks mask
+        sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16},     // bf16 two ranks mask
+        sdpa_test_params{64, 32, 990, 128, 2, false, data_types::bf16}   // bf16 per-key [b, h, 1, kv] mask (static: MASK_PER_KEY needs a static mask shape)
     ),
     sdpa_gpu_test::PrintToStringParamName
 );
@@ -1430,6 +1431,450 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, false},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false}),
                          sdpa_gpu_gqa_decomp_test::PrintToStringParamName);
+
+// I8_KQ takes an *externally* quantized key: K carries codes and the graph folds its
+// dequantization scale into the SDPA scale input. For one set of codes the answer is therefore
+// the attention computed over those same codes held as f16, which is what each case compares
+// against -- the quantized network on sdpa_micro, the reference on sdpa_ref, both built from one
+// set of integer-valued inputs. The implementation actually selected is asserted, so a case that
+// stopped reaching the micro kernel fails instead of passing vacuously.
+struct micro_sdpa_i8_params {
+    int head_size;
+    int num_heads;
+    int seq_len_q;
+    int seq_len_kv;
+    bool expect_micro;
+    float min_similarity;
+};
+
+class sdpa_micro_i8_test : public ::testing::TestWithParam<micro_sdpa_i8_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<micro_sdpa_i8_params>& info) {
+        const auto& p = info.param;
+        return "d" + std::to_string(p.head_size) + "_h" + std::to_string(p.num_heads) + "_q" +
+               std::to_string(p.seq_len_q) + "_kv" + std::to_string(p.seq_len_kv);
+    }
+};
+
+TEST_P(sdpa_micro_i8_test, i8_key_matches_the_same_codes_held_as_f16) {
+    auto& engine = get_test_engine();
+    const auto& device_info = engine.get_device_info();
+    const auto p = GetParam();
+
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+
+    const ov::Shape q_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_q),
+                            static_cast<size_t>(p.head_size)};
+    const ov::Shape kv_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_kv),
+                             static_cast<size_t>(p.head_size)};
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    // Q is rounded to s8 as it is packed into SLM, so integer-valued inputs make both paths read
+    // the same numbers and any difference is the path's own. The narrow range and the small scale
+    // below keep the softmax mixed rather than one-hot, which is what leaves the result sensitive
+    // to the contraction at all.
+    auto q_codes = rg.generate_random_1d<int>(ov::shape_size(q_shape), -3, 3, 1);
+    auto k_codes = rg.generate_random_1d<int>(ov::shape_size(kv_shape), -3, 3, 1);
+    auto v_codes = rg.generate_random_1d<int>(ov::shape_size(kv_shape), -8, 8, 1);
+    const float scale = 1.0f / 32.0f;
+
+    const layout q_layout(q_shape, data_types::f16, format::bfyx);
+    const layout kv_f16_layout(kv_shape, data_types::f16, format::bfyx);
+    const layout k_i8_layout(kv_shape, data_types::i8, format::bfyx);
+
+    auto fill = [](const memory::ptr& mem, const std::vector<int>& codes) {
+        if (mem->get_layout().data_type == data_types::i8) {
+            set_values(mem, std::vector<int8_t>(codes.begin(), codes.end()));
+        } else {
+            std::vector<ov::float16> values(codes.size());
+            for (size_t i = 0; i < codes.size(); ++i)
+                values[i] = ov::float16(static_cast<float>(codes[i]));
+            set_values(mem, values);
+        }
+    };
+
+    auto run = [&](bool quantized) {
+        const layout k_layout = quantized ? k_i8_layout : kv_f16_layout;
+
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(k_layout);
+        auto v_mem = engine.allocate_memory(kv_f16_layout);
+        fill(q_mem, q_codes);
+        fill(k_mem, k_codes);
+        fill(v_mem, v_codes);
+
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", kv_f16_layout));
+        auto prim = scaled_dot_product_attention("sdpa",
+                                                 {input_info("q"), input_info("k"), input_info("v")},
+                                                 false,
+                                                 -1,
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {},
+                                                 false);
+        prim.scale_val = scale;
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"sdpa", {format::type::bfyx, quantized ? "sdpa_micro" : "sdpa_ref"}}}));
+
+        auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        auto output = net->execute().at("result").get_memory();
+        return std::make_pair(net, output);
+    };
+
+    // The node is renamed to "result" when the trailing reorder is dropped, so look it up by type.
+    auto selected_impl = [](const cldnn::network::ptr& net) {
+        for (const auto& info : net->get_primitives_info()) {
+            if (info.type_id == "scaled_dot_product_attention")
+                return net->get_primitive_info(info.original_id);
+        }
+        return std::string{};
+    };
+
+    auto [ref_net, ref_mem] = run(false);
+    auto [opt_net, opt_mem] = run(true);
+
+    const auto opt_info = selected_impl(opt_net);
+    if (p.expect_micro) {
+        ASSERT_NE(opt_info.find("sdpa_micro"), std::string::npos)
+            << "sdpa_micro was not selected, so an i8 key silently cost the micro kernel. Node "
+               "description was:\n"
+            << opt_info;
+    } else {
+        ASSERT_EQ(opt_info.find("sdpa_micro"), std::string::npos)
+            << "this shape is expected to take the non-micro path; the case no longer covers what "
+               "it was written for. Node description was:\n"
+            << opt_info;
+    }
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_data(opt_mem, get_test_stream());
+    ASSERT_EQ(ref_data.size(), opt_data.size());
+    for (size_t i = 0; i < ref_data.size(); ++i)
+        ASSERT_TRUE(std::isfinite(static_cast<float>(opt_data[i]))) << "non-finite output at index " << i;
+
+    const float sim = cosineSimilarity(ref_data, opt_data);
+    ASSERT_GE(sim, p.min_similarity) << "an i8 key disagrees with the same codes as f16: " << sim;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_micro_i8,
+    sdpa_micro_i8_test,
+    ::testing::Values(
+        // I8_KQ proper: the s8 x s8 -> s32 K^T*Q with an in-kernel quantized Q. Integer-valued Q
+        // makes that packing exact, so these have to reproduce the f16 answer, not approximate it.
+        micro_sdpa_i8_params{64, 4, 128, 256, true, 0.999f},
+        micro_sdpa_i8_params{128, 2, 128, 256, true, 0.999f},
+        micro_sdpa_i8_params{64, 4, 1, 256, false, 0.999f},
+        // head 32 gives D_MAX / 4 = 8 packed rows: one per lane of an 8-wide subgroup (Xe-HPG),
+        // where I8_KQ runs, and too few for a 16-wide one (Xe2 and later), where it declines and
+        // the gemm dequantizes the i8 key instead. Either way the answer must not change, and the
+        // micro kernel must be the one that runs.
+        micro_sdpa_i8_params{32, 4, 128, 256, true, 0.999f}
+    ),
+    sdpa_micro_i8_test::PrintToStringParamName
+);
+
+// I8_VS, the integer V*S. The gemm reads V as its A operand on the systolic pipe and contracts
+// it over the keys, so it needs the key axis contiguous -- which is what the transposed V
+// (input_v_transpose_order {0, 1, 3, 2}) provides and the ordinary layout does not. Both
+// layouts are covered: the transposed one has to take the integer path and stay accurate, and
+// the ordinary one has to keep the f16 V*S path, where the gemm dequantizes the i8 value. That
+// second case is the regression: asking gemmstone for an s8 A in the ordinary layout does yield
+// a kernel on some shapes, and that kernel reads the operand wrong.
+struct micro_sdpa_i8_vs_params {
+    int head_size;
+    int num_heads;
+    int seq_len_q;
+    int seq_len_kv;
+    bool transposed_v;
+    bool i8_key;
+    float min_similarity;
+};
+
+class sdpa_micro_i8_vs_test : public ::testing::TestWithParam<micro_sdpa_i8_vs_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<micro_sdpa_i8_vs_params>& info) {
+        const auto& p = info.param;
+        return "d" + std::to_string(p.head_size) + "_h" + std::to_string(p.num_heads) + "_q" +
+               std::to_string(p.seq_len_q) + "_kv" + std::to_string(p.seq_len_kv) +
+               (p.transposed_v ? "_vt" : "_v") + (p.i8_key ? "_i8k" : "_f16k");
+    }
+};
+
+TEST_P(sdpa_micro_i8_vs_test, i8_value_matches_the_same_codes_held_as_f16) {
+    auto& engine = get_test_engine();
+    const auto& device_info = engine.get_device_info();
+    const auto p = GetParam();
+
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+
+    const size_t heads = static_cast<size_t>(p.num_heads);
+    const size_t hs = static_cast<size_t>(p.head_size);
+    const size_t kv = static_cast<size_t>(p.seq_len_kv);
+
+    const ov::Shape q_shape{1, heads, static_cast<size_t>(p.seq_len_q), hs};
+    const ov::Shape k_shape{1, heads, kv, hs};
+    // A transposed V is physically (batch, heads, head_size, tokens).
+    const ov::Shape v_shape = p.transposed_v ? ov::Shape{1, heads, hs, kv} : ov::Shape{1, heads, kv, hs};
+    const std::vector<int64_t> v_order =
+        p.transposed_v ? std::vector<int64_t>{0, 1, 3, 2} : std::vector<int64_t>{0, 1, 2, 3};
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto q_codes = rg.generate_random_1d<int>(ov::shape_size(q_shape), -3, 3, 1);
+    auto k_codes = rg.generate_random_1d<int>(ov::shape_size(k_shape), -3, 3, 1);
+    auto v_codes = rg.generate_random_1d<int>(ov::shape_size(v_shape), -8, 8, 1);
+    const float scale = 1.0f / 32.0f;
+
+    auto fill = [](const memory::ptr& mem, const std::vector<int>& codes) {
+        if (mem->get_layout().data_type == data_types::i8) {
+            set_values(mem, std::vector<int8_t>(codes.begin(), codes.end()));
+        } else {
+            std::vector<ov::float16> values(codes.size());
+            for (size_t i = 0; i < codes.size(); ++i)
+                values[i] = ov::float16(static_cast<float>(codes[i]));
+            set_values(mem, values);
+        }
+    };
+
+    auto run = [&](bool quantized) {
+        const layout q_layout(q_shape, data_types::f16, format::bfyx);
+        const layout k_layout(k_shape, quantized && p.i8_key ? data_types::i8 : data_types::f16, format::bfyx);
+        const layout v_layout(v_shape, quantized ? data_types::i8 : data_types::f16, format::bfyx);
+
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(k_layout);
+        auto v_mem = engine.allocate_memory(v_layout);
+        fill(q_mem, q_codes);
+        fill(k_mem, k_codes);
+        fill(v_mem, v_codes);
+
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", v_layout));
+        auto prim = scaled_dot_product_attention("sdpa",
+                                                 {input_info("q"), input_info("k"), input_info("v")},
+                                                 false,
+                                                 -1,
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 v_order,
+                                                 {0, 1, 2, 3},
+                                                 {},
+                                                 false);
+        prim.scale_val = scale;
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"sdpa", {format::type::bfyx, quantized ? "sdpa_micro" : "sdpa_ref"}}}));
+
+        auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        auto output = net->execute().at("result").get_memory();
+        return std::make_pair(net, output);
+    };
+
+    auto selected_impl = [](const cldnn::network::ptr& net) {
+        for (const auto& info : net->get_primitives_info()) {
+            if (info.type_id == "scaled_dot_product_attention")
+                return net->get_primitive_info(info.original_id);
+        }
+        return std::string{};
+    };
+
+    auto [ref_net, ref_mem] = run(false);
+    auto [opt_net, opt_mem] = run(true);
+
+    const auto opt_info = selected_impl(opt_net);
+    ASSERT_NE(opt_info.find("sdpa_micro"), std::string::npos)
+        << "sdpa_micro was not selected, so an i8 value silently cost the micro kernel. Node "
+           "description was:\n"
+        << opt_info;
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_data(opt_mem, get_test_stream());
+    ASSERT_EQ(ref_data.size(), opt_data.size());
+    for (size_t i = 0; i < ref_data.size(); ++i)
+        ASSERT_TRUE(std::isfinite(static_cast<float>(opt_data[i]))) << "non-finite output at index " << i;
+
+    const float sim = cosineSimilarity(ref_data, opt_data);
+    ASSERT_GE(sim, p.min_similarity) << "an i8 value disagrees with the same codes as f16: " << sim;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_micro_i8_vs,
+    sdpa_micro_i8_vs_test,
+    ::testing::Values(
+        // Transposed V: I8_VS runs. The softmax operand is quantized to a [0, 127] grid, which is
+        // the one deliberately lossy step here and the only reason this bound is not 0.999.
+        micro_sdpa_i8_vs_params{64, 4, 128, 256, true, false, 0.99f},
+        micro_sdpa_i8_vs_params{128, 2, 128, 256, true, false, 0.99f},
+        // Both integer contractions at once.
+        micro_sdpa_i8_vs_params{64, 4, 128, 256, true, true, 0.99f},
+        // Ordinary V layout: I8_VS must decline and the gemm dequantize the i8 value, which is
+        // exact. A gate that admitted the integer path here would land far below this bound.
+        micro_sdpa_i8_vs_params{64, 4, 128, 256, false, false, 0.999f},
+        micro_sdpa_i8_vs_params{128, 2, 128, 256, false, false, 0.999f}
+    ),
+    sdpa_micro_i8_vs_test::PrintToStringParamName
+);
+
+// The fused query rotation (has_rope_q) against the same rotation applied on the host: Q
+// arrives as [batch, tokens, heads, head_size] under the {0, 2, 1, 3} order the fusion pins,
+// and the two trailing inputs are the interleaved (batch, tokens, head_size) cos/sin table.
+// The table holds arbitrary values rather than true cosines, so an element read from the
+// wrong row, pair or batch cannot cancel out.
+struct micro_sdpa_rope_q_params {
+    int batch;
+    int head_size;
+    int num_heads;
+    int seq_len;
+};
+
+class sdpa_micro_rope_q_test : public ::testing::TestWithParam<micro_sdpa_rope_q_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<micro_sdpa_rope_q_params>& info) {
+        const auto& p = info.param;
+        return "b" + std::to_string(p.batch) + "_d" + std::to_string(p.head_size) + "_h" + std::to_string(p.num_heads) + "_l" +
+               std::to_string(p.seq_len);
+    }
+};
+
+TEST_P(sdpa_micro_rope_q_test, fused_rotation_matches_the_rotation_applied_on_the_host) {
+    auto& engine = get_test_engine();
+    const auto& device_info = engine.get_device_info();
+    const auto p = GetParam();
+
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+
+    const size_t b = static_cast<size_t>(p.batch);
+    const size_t heads = static_cast<size_t>(p.num_heads);
+    const size_t hs = static_cast<size_t>(p.head_size);
+    const size_t len = static_cast<size_t>(p.seq_len);
+    const ov::Shape q_shape{b, len, heads, hs};
+    const ov::Shape kv_shape{b, heads, len, hs};
+    const ov::Shape table_shape{b, len, hs};
+    const std::vector<int64_t> q_order{0, 2, 1, 3};
+    const std::vector<int64_t> identity{0, 1, 2, 3};
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto q = rg.generate_random_1d<ov::float16>(ov::shape_size(q_shape), -1.0f, 1.0f);
+    const auto k = rg.generate_random_1d<ov::float16>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+    const auto v = rg.generate_random_1d<ov::float16>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+    const auto cos = rg.generate_random_1d<ov::float16>(ov::shape_size(table_shape), -1.0f, 1.0f);
+    const auto sin = rg.generate_random_1d<ov::float16>(ov::shape_size(table_shape), -1.0f, 1.0f);
+
+    std::vector<ov::float16> q_rotated(q.size());
+    for (size_t bi = 0; bi < b; ++bi) {
+        for (size_t t = 0; t < len; ++t) {
+            for (size_t h = 0; h < heads; ++h) {
+                for (size_t d = 0; d < hs; d += 2) {
+                    const size_t qi = ((bi * len + t) * heads + h) * hs + d;
+                    const size_t ti = (bi * len + t) * hs + d;
+                    const float x0 = q[qi], x1 = q[qi + 1];
+                    q_rotated[qi] = ov::float16(static_cast<float>(cos[ti]) * x0 - static_cast<float>(sin[ti]) * x1);
+                    q_rotated[qi + 1] = ov::float16(static_cast<float>(cos[ti + 1]) * x1 + static_cast<float>(sin[ti + 1]) * x0);
+                }
+            }
+        }
+    }
+
+    auto run = [&](bool fused) {
+        const layout q_layout(q_shape, data_types::f16, format::bfyx);
+        const layout kv_layout(kv_shape, data_types::f16, format::bfyx);
+        const layout table_layout(table_shape, data_types::f16, format::bfyx);
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(kv_layout);
+        auto v_mem = engine.allocate_memory(kv_layout);
+        set_values(q_mem, fused ? q : q_rotated);
+        set_values(k_mem, k);
+        set_values(v_mem, v);
+
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", kv_layout));
+        topo.add(input_layout("v", kv_layout));
+        std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
+        memory::ptr cos_mem, sin_mem;
+        if (fused) {
+            cos_mem = engine.allocate_memory(table_layout);
+            sin_mem = engine.allocate_memory(table_layout);
+            set_values(cos_mem, cos);
+            set_values(sin_mem, sin);
+            topo.add(input_layout("cos", table_layout));
+            topo.add(input_layout("sin", table_layout));
+            inputs.emplace_back("cos");
+            inputs.emplace_back("sin");
+        }
+        topo.add(scaled_dot_product_attention("sdpa", inputs, false, -1, q_order, identity, identity, identity, {}, false, false, fused));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, fused ? "sdpa_micro" : "sdpa_ref"}}}));
+
+        auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        if (fused) {
+            net->set_input_data("cos", cos_mem);
+            net->set_input_data("sin", sin_mem);
+        }
+        return std::make_pair(net, net->execute().at("result").get_memory());
+    };
+
+    auto [ref_net, ref_mem] = run(false);
+    auto [fused_net, fused_mem] = run(true);
+
+    std::string fused_info;
+    for (const auto& info : fused_net->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention")
+            fused_info = fused_net->get_primitive_info(info.original_id);
+    }
+    ASSERT_NE(fused_info.find("sdpa_micro"), std::string::npos) << "sdpa_micro was not selected; node description was:\n" << fused_info;
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> fused_data(fused_mem, get_test_stream());
+    ASSERT_EQ(ref_data.size(), fused_data.size());
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(ref_data[i]), static_cast<float>(fused_data[i]), 0.02f) << "mismatch at index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_micro_rope_q,
+                         sdpa_micro_rope_q_test,
+                         ::testing::Values(micro_sdpa_rope_q_params{2, 64, 4, 128},
+                                           micro_sdpa_rope_q_params{2, 128, 2, 128},
+                                           micro_sdpa_rope_q_params{1, 64, 4, 77}),
+                         sdpa_micro_rope_q_test::PrintToStringParamName);
+
 #endif
 
 enum class sdpa_ref_accuracy_case { uniform_16, uniform_32, uniform_64, nonuniform, nonuniform_33, nonuniform_100, mask, causal };

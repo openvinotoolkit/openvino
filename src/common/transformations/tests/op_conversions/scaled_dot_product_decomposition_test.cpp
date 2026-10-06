@@ -10,6 +10,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
@@ -425,5 +426,30 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
         auto ref = scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, sinks);
         model_ref = std::make_shared<ov::Model>(OutputVector{ref},
                                                 ParameterVector{query, key, value, attention_mask, scale, sinks});
+    }
+}
+
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionIntegerKeyValue) {
+    const auto query = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
+    const auto key = std::make_shared<v0::Parameter>(element::i8, PartialShape{1, 32, 32});
+    const auto value = std::make_shared<v0::Parameter>(element::u4, PartialShape{1, 32, 32});
+    const auto attention_mask = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
+    const auto scale = std::make_shared<v0::Parameter>(element::f16, PartialShape{1});
+    {
+        const auto sdpa =
+            std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, false);
+        model =
+            std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, attention_mask, scale});
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    }
+    {
+        const auto ref = scaled_dot_product_attention_decomposition(query,
+                                                                    std::make_shared<v0::Convert>(key, element::f16),
+                                                                    std::make_shared<v0::Convert>(value, element::f16),
+                                                                    attention_mask,
+                                                                    scale,
+                                                                    false);
+        model_ref =
+            std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask, scale});
     }
 }

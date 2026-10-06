@@ -17,9 +17,13 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -197,6 +201,65 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicQuantization,
                                          DynamicQuantizeParams{true, false, 1, false},
                                          DynamicQuantizeParams{true, true, 16, true},
                                          DynamicQuantizeParams{true, false, 16, true}));
+
+// An i8 key stays on the GPU only when the query provably holds s8 integers, because the integer
+// K^T*Q path rounds the query; any other query is decomposed, which converts the key exactly as
+// the op specifies.
+enum class QueryProducer { parameter, round_then_clamp, clamp_then_round, convert_from_i8, round_unclamped, clamp_fractional_bound };
+
+class IntegerKeySDPATransformPipelineTest : public testing::TestWithParam<std::tuple<QueryProducer, bool>> {};
+
+TEST_P(IntegerKeySDPATransformPipelineTest, KeepsTheNodeOnlyForAnIntegerQuery) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "The integer SDPA path requires IMMAD support";
+    }
+    const auto& [producer, expect_kept] = GetParam();
+
+    const ov::PartialShape shape{1, 8, 32, 64};
+    auto query_input = std::make_shared<v0::Parameter>(producer == QueryProducer::convert_from_i8 ? element::i8 : element::f16, shape);
+    ov::Output<ov::Node> query = query_input;
+    switch (producer) {
+    case QueryProducer::parameter:
+        break;
+    case QueryProducer::round_then_clamp:
+        query = std::make_shared<v0::Clamp>(std::make_shared<ov::op::v5::Round>(query, ov::op::v5::Round::RoundMode::HALF_TO_EVEN), -128.0, 127.0);
+        break;
+    case QueryProducer::clamp_then_round:
+        query = std::make_shared<ov::op::v5::Round>(std::make_shared<v0::Clamp>(query, -128.0, 127.0), ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+        break;
+    case QueryProducer::convert_from_i8:
+        query = std::make_shared<v0::Convert>(query, element::f16);
+        break;
+    case QueryProducer::round_unclamped:
+        query = std::make_shared<ov::op::v5::Round>(query, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+        break;
+    case QueryProducer::clamp_fractional_bound:
+        query = std::make_shared<v0::Clamp>(std::make_shared<ov::op::v5::Round>(query, ov::op::v5::Round::RoundMode::HALF_TO_EVEN), -127.5, 127.0);
+        break;
+    }
+    auto key = std::make_shared<v0::Parameter>(element::i8, shape);
+    auto value = std::make_shared<v0::Parameter>(element::f16, shape);
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, false);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{query_input, key, value});
+
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto config = get_test_default_config(engine);
+    config.finalize(context.get(), model.get());
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+
+    EXPECT_EQ(has_node_type(model, "ScaledDotProductAttention") || has_node_type(model, "SDPA"), expect_kept);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_IntegerKeySDPA,
+                         IntegerKeySDPATransformPipelineTest,
+                         testing::Values(std::make_tuple(QueryProducer::parameter, false),
+                                         std::make_tuple(QueryProducer::round_then_clamp, true),
+                                         std::make_tuple(QueryProducer::clamp_then_round, true),
+                                         std::make_tuple(QueryProducer::convert_from_i8, true),
+                                         std::make_tuple(QueryProducer::round_unclamped, false),
+                                         std::make_tuple(QueryProducer::clamp_fractional_bound, false)));
 
 TEST(XAttentionTransformPipelineTest, NormalizesByTokenFp16RtInfoToCompressedCacheLayout) {
     auto& engine = get_test_engine();

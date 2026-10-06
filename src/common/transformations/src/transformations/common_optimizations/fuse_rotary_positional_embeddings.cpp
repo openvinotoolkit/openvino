@@ -125,7 +125,17 @@ RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
     auto opt_squeeze_1 = pattern::optional<opset1::Squeeze>({x1_1_neg, -1});
     auto opt_unsqueeze = pattern::optional<opset1::Unsqueeze>({opt_squeeze_1, -1});
 
-    auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
+    // Earlier passes rewrite Squeeze/Unsqueeze into Reshape, so a torch unbind+stack spelling
+    // reaches this point in Reshape form and the two optional slots above cannot match it.
+    // Accept that form too, pinned by shape so a genuine reshape cannot slip through: rank 4,
+    // then rank 5 with a unit tail.
+    auto opt_reshape_sq = pattern::optional<opset1::Reshape>({opt_unsqueeze, pattern::any_input()},
+                                                             pattern::shape_matches("[" + num_heads_pattern + ", ?]"));
+    auto opt_reshape_unsq =
+        pattern::optional<opset1::Reshape>({opt_reshape_sq, pattern::any_input()},
+                                           pattern::shape_matches("[" + num_heads_pattern + ", ?, 1]"));
+
+    auto x2 = pattern::wrap_type<opset1::Concat>({opt_reshape_unsq, split->output(0)}, {{"axis", -1}});
     auto x3 = pattern::wrap_type<opset1::Reshape>({x2, pattern::any_input()},
                                                   pattern::shape_matches("[" + num_heads_pattern + ", head_size]"));
 

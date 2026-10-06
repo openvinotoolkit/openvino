@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -53,6 +54,16 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
+
+    /// \brief Tells whether an element type is accepted on the key and value operands as an
+    ///        integer type, whose values the operation converts to the query's type.
+    ///
+    /// Deliberately not element::Type::is_quantized(): that predicate is true for i32, which this
+    /// operation still rejects, and false for u4, which it accepts.
+    static bool is_quantized_kv_type(const element::Type& type);
+
+    /// \brief Tells whether the key or value operand of \p node has an integer type.
+    static bool has_quantized_kv(const ScaledDotProductAttention& node);
 
     bool get_causal() const {
         return m_causal;

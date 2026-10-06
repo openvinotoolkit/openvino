@@ -134,7 +134,8 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     // quantization, zero-point) inputs after the data inputs. Account for them in the input-count
     // validation and forward the quantization attributes to the primitive so the kernel dequantizes
     // the cache on the fly. get_compression_inputs_num() is 0 for the non-compressed path.
-    const auto compression_inputs = op->get_compression_inputs_num();
+    // A RoPE folded into the op for Q (rope_q) appends its cos and sin tables after those.
+    const auto compression_inputs = op->get_compression_inputs_num() + (op->get_rope_q() ? 2 : 0);
     validate_inputs_count(op, {cnt_inputs_with_qkv + compression_inputs,
                                cnt_inputs_with_mask + compression_inputs,
                                cnt_inputs_with_scale + compression_inputs,
@@ -151,7 +152,8 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                                          op->get_quantization_attrs(),
                                                          op->get_kv_compressed(),
                                                          op->get_causal_mask_alignment() ==
-                                                             op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+                                                             op::SDPA::CausalMaskAlignment::LOWER_RIGHT,
+                                                         op->get_rope_q());
     if (scalar_scale) {
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }

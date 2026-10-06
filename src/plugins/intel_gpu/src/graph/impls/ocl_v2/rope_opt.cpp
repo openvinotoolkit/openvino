@@ -50,6 +50,15 @@ size_t get_vec_size(const RuntimeParams& params) {
     return vec_size;
 }
 
+// The interleaved dispatch normally puts BATCH on gws dim 0, which is the largest stride of a
+// bfyx tensor, so a subgroup's lanes land on unrelated cache lines. Reversing dims 0 and 2 puts
+// the rotary/head index -- the contiguous axis -- on the fast dimension instead.
+static bool interleaved_reversed_gws(const RuntimeParams& params) {
+    auto desc = params.typed_desc<rope>();
+    const auto& cfg = desc->config;
+    return cfg.is_interleaved && !cfg.is_qwen && !cfg.is_chatglm && !cfg.is_ltx_video && !cfg.support_3d_rope;
+}
+
 class RopeGenerator : public KernelGenerator {
 public:
     RopeGenerator() : KernelGenerator("rope_opt") {}
@@ -102,6 +111,9 @@ protected:
             jit.make("LTX_VIDEO", true);
         } else if (desc->config.is_interleaved) {
             jit.make("RotateInterleaved", true);
+            if (interleaved_reversed_gws(params)) {
+                jit.make("REVERSED_GWS", true);
+            }
         } else {
             jit.make("RotateHalf", true);
             if (get_vec_size(params) == 1) {
@@ -109,6 +121,9 @@ protected:
             }
         }
         jit.make("VEC_SIZE", get_vec_size(params));
+        if (params.get_output_layout(0).data_type == ov::element::i8) {
+            jit.make("OUTPUT_I8", true);
+        }
         if (in_l.data_type == ov::element::bf16) {
             jit.add(make_type_jit_constants("ACCUMULATOR", ov::element::f32));
         } else if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
@@ -188,6 +203,25 @@ protected:
                         wgs.global[0] = wgs.global[2];
                         wgs.global[2] = tmp;
                     }
+                }
+
+                auto largest_divisor = [](size_t n, size_t cap) {
+                    for (size_t d = std::min(n, cap); d > 1; d--) {
+                        if (n % d == 0) {
+                            return d;
+                        }
+                    }
+                    return size_t{1};
+                };
+
+                if (interleaved_reversed_gws(params)) {
+                    std::swap(wgs.global[0], wgs.global[2]);
+                    // Take as much of dim 0 as divides it, up to two subgroups, then spend what is
+                    // left of the workgroup budget on the sequence dimension.
+                    const size_t max_lws = params.get_device_info().max_work_group_size;
+                    const size_t l0 = largest_divisor(wgs.global[0], std::min<size_t>(32, max_lws));
+                    wgs.local = {l0, largest_divisor(wgs.global[1], std::max(size_t{1}, max_lws / l0)), 1};
+                    return;
                 }
 
                 // We need to set the 1st local workgroup size as large as possible for better performance.

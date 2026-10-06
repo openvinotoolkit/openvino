@@ -6,6 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "scaled_dot_product_attention_shape_inference.hpp"
 
@@ -52,18 +53,33 @@ bool evaluate_node<ov::op::v13::ScaledDotProductAttention>(std::shared_ptr<ov::N
                                                            const ov::TensorVector& inputs) {
     const auto& element_type = node->get_input_element_type(0);
     const auto& mask_element_type = node->get_input_size() >= 4 ? node->get_input_element_type(3) : element_type;
+    // An integer key or value is converted to the query's type, as the op specification defines.
+    ov::TensorVector converted_inputs = inputs;
+    for (size_t i = 1; i <= 2; ++i) {
+        if (ov::op::v13::ScaledDotProductAttention::is_quantized_kv_type(inputs[i].get_element_type())) {
+            ov::TensorVector converted{ov::Tensor(element_type, inputs[i].get_shape())};
+            OPENVINO_ASSERT(ov::op::v0::Convert().evaluate(converted, {inputs[i]}),
+                            "Cannot convert ScaledDotProductAttention input ",
+                            i,
+                            " from ",
+                            inputs[i].get_element_type(),
+                            " to ",
+                            element_type);
+            converted_inputs[i] = converted[0];
+        }
+    }
 #define CASE(type)                                                             \
     case ov::element::type: {                                                  \
         if (mask_element_type == ov::element::boolean) {                       \
             return evaluate<ov::element::type, ov::element::boolean>(          \
                 ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node), \
                 outputs,                                                       \
-                inputs);                                                       \
+                converted_inputs);                                             \
         } else {                                                               \
             return evaluate<ov::element::type, ov::element::type>(             \
                 ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node), \
                 outputs,                                                       \
-                inputs);                                                       \
+                converted_inputs);                                             \
         }                                                                      \
     }
 

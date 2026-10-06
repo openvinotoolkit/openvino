@@ -69,6 +69,12 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
                         consumers_are_sdpa = false;
                         break;
                     }
+                    // VLSDPA takes its key and value in the query's type, while the SDPA op
+                    // also admits an integer key or value.
+                    if (v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
+                        consumers_are_sdpa = false;
+                        break;
+                    }
                 } else {
                     consumers_are_sdpa = false;
                     break;

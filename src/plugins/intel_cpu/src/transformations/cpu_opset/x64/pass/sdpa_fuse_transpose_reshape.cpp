@@ -77,6 +77,13 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
             return false;
         }
 
+        // SDPAWithTransposeReshape reads the key and value at the query's precision, so an integer
+        // one would be reinterpreted rather than converted. Decline: the unfused SDPA gets its key
+        // and value converted on the way in.
+        if (op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
+            return false;
+        }
+
         // Order=[0, 2, 1, 3]
         auto is_expected_transpose = [&](std::shared_ptr<op::v1::Transpose>& transpose) {
             if (transpose) {
