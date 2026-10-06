@@ -87,10 +87,32 @@ const std::vector<MoeTestShapeParams> moe_params_all_experts = {
     },
 };
 
+// Requests of one compiled model running at the same time (see MoEParallelRequestsTest). One request per
+// input below: long and short sequences, a batch of two and a single row, so that requests which overlap
+// run GEMMs of different heights and the single-row GEMV path.
+const std::vector<MoeTestShapeParams> moe_params_parallel_requests = {
+    {
+        {{-1, -1, 128},
+         {{1, 600, 128}, {1, 300, 128}, {2, 200, 128}, {1, 96, 128}, {1, 1, 128}, {1, 48, 128}}},  // data_shape
+        4,                                                                                         // topk
+        16,                                                                                        // number_of_experts
+        256                                                                                        // intermediate_size
+    },
+};
+
 std::vector<ov::AnyMap> generate_additional_config() {
     std::vector<ov::AnyMap> additional_config = {{{ov::hint::inference_precision.name(), ov::element::f32}}};
     if (ov::with_cpu_x86_bfloat16()) {
         additional_config.push_back({{ov::hint::inference_precision.name(), ov::element::bf16}});
+    }
+    return additional_config;
+}
+
+// The same configurations with two streams: two requests execute at the same time, each on its own graph.
+std::vector<ov::AnyMap> generate_two_stream_config() {
+    auto additional_config = generate_additional_config();
+    for (auto& config : additional_config) {
+        config.insert(ov::num_streams(2));
     }
     return additional_config;
 }
@@ -152,6 +174,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_all_experts_rounding_steps,
                                             ::testing::Values(MoEActivationType::SWISH),
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphSmallInputsTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_parallel_requests,
+                         MoEParallelRequestsTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_parallel_requests),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(generate_two_stream_config())),
+                         MoEParallelRequestsTest::getTestCaseName);
 
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
@@ -222,6 +252,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_uneven_routing,
                                             ::testing::ValuesIn(generate_additional_config()),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_parallel_requests,
+                         MoECompressedWeightsParallelRequestsTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_parallel_requests),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(ov::element::u8, ov::element::i4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(16),     // decompression group size
+                                            ::testing::ValuesIn(generate_two_stream_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsParallelRequestsTest::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov
