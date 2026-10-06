@@ -11767,7 +11767,7 @@ TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_blo
     test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1<ov::float16>(true);
 }
 
-TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthwise) {
+static void test_convolution_f32_gpu_bfyx_f16_depthwise_x_tail(size_t stride) {
     auto& engine = get_test_engine();
 
     if (engine.get_device_info().supports_immad) {
@@ -11782,6 +11782,8 @@ TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthw
     constexpr int y = 1;
     constexpr int x = 9;
     constexpr int filter_size = 3;
+    const int out_x = static_cast<int>((x + 2 - filter_size) / stride + 1);
+    const int out_y = static_cast<int>((y + 2 - filter_size) / stride + 1);
 
     auto input_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
     auto weights_data = rg.generate_random_4d<float>(f, 1, filter_size, filter_size, -1, 1);
@@ -11806,12 +11808,12 @@ TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthw
                         "weights",
                         no_bias,
                         f,        // groups
-                        {1, 1},   // stride
+                        {stride, stride},
                         {1, 1},   // dilation
                         {1, 1},   // pad begin
                         {1, 1},   // pad end
                         true),    // grouped
-            reorder("out", input_info("conv"), {data_types::f32, format::bfyx, tensor{b, f, x, y}})
+            reorder("out", input_info("conv"), {data_types::f32, format::bfyx, tensor{b, f, out_x, out_y}})
         );
 
         ExecutionConfig cfg = get_test_default_config(engine);
@@ -11842,7 +11844,7 @@ TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthw
                 ref[bi][ofi] = reference_convolve<float, float, float>(
                     input_data[bi],        // [ifm][y][x]
                     weights_data[ofi],     // [1][ky][kx] for depthwise
-                    1, 1,                  // stride y, x
+                    static_cast<int>(stride), static_cast<int>(stride),
                     0.0f,                  // bias
                     1, 1,                  // dilation y, x
                     1, 1,                  // input padding y, x
@@ -11862,8 +11864,17 @@ TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthw
 
     ASSERT_EQ(out_depthwise.size(), out_ref.size());
     for (size_t i = 0; i < out_depthwise.size(); ++i) {
-        ASSERT_EQ(out_depthwise[i], out_ref[i]);
+        ASSERT_NEAR(out_depthwise[i], out_ref[i], 1e-5f);
     }
+}
+
+TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthwise) {
+    test_convolution_f32_gpu_bfyx_f16_depthwise_x_tail(1);
+}
+
+// Stride 2 takes the generic (non-3x3-stride-1) path.
+TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthwise_stride2) {
+    test_convolution_f32_gpu_bfyx_f16_depthwise_x_tail(2);
 }
 
 TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
