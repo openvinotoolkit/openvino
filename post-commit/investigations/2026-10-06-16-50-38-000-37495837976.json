@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-16-50-38-000-37495837976",
+  "timestamp": "2026-10-06T16:50:38Z",
+  "run_id": "37495837976",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37495837976",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "commit_sha": "0a3cef6638eb37104752a8bc27ad27c4e601e0c1",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+  "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+  "signature_hash": "0ee6d7327812b344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "cc1plus errors 'not a PCH file' for many src/core/reference/*.cpp.o targets, -Werror=invalid-pch escalates to hard build failure"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status job fails because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors",
+    "Repeated for fake_convert.cpp.o, depth_to_space.cpp.o, gather_tree.cpp.o, experimental_detectron_detection_output.cpp.o, function.cpp.o, experimental_detectron_roi_feature_extractor.cpp.o, fft.cpp.o and more under src/core/reference"
+  ],
+  "root_cause": "The ARM64 cross-compilation build uses a precompiled header (cmake_pch.hxx.gch) for the openvino_reference target, and CMAKE_COMPILE_WARNING_AS_ERROR=ON turns the compiler's '-Winvalid-pch' diagnostic into a hard error. GCC rejects the PCH when the .gch file on disk does not match the exact compiler flags/version/state of the invoking translation unit (commonly caused by sccache serving a stale/partial PCH artifact from a previous build, or a race where the PCH is read while still being (re)generated under high parallelism, CMAKE_BUILD_PARALLEL_LEVEL=15). This is the 15th occurrence of the identical signature recorded by this doctor since 2026-09-25, always on this same ARM64 cross-compilation workflow, confirming it is an environment/caching flake rather than a code defect introduced by this specific commit.",
+  "reproduction_steps": "Not reliably reproducible locally outside the CI's sccache-backed, highly-parallel cross-compilation environment. To attempt reproduction: configure with CMAKE_COMPILE_WARNING_AS_ERROR=ON and CMAKE_CXX_COMPILER_LAUNCHER=sccache on an aarch64 cross-toolchain, build openvino_reference with CMAKE_BUILD_PARALLEL_LEVEL>=15 while sharing an sccache server/cache across repeated builds; the PCH invalidation is intermittent and tends to appear after cache reuse across build directories.",
+  "recommended_actions": [
+    "Clear/invalidate the sccache entry (and any shared PCH artifact) for the ARM64 cross-compilation job rather than reusing it across runs when the toolchain or build directory path changes.",
+    "Consider disabling precompiled headers (ENABLE_PCH=OFF equivalent, or per-target skip) specifically for the ARM64 cross-compilation job, since this has now recurred 15 times and is destabilizing post-commit CI.",
+    "Alternatively, downgrade '-Winvalid-pch' from error to warning for this specific job via target_compile_options, or ensure the PCH is regenerated (not fetched from a stale cache) before each build by keying the sccache cache on the exact toolchain version/path.",
+    "Escalate to the CI infra owners: this is a top recurring infra pattern (15 occurrences) and warrants a dedicated fix rather than continued per-run investigation."
+  ],
+  "prevention_strategies": "Key sccache/PCH cache entries on the full toolchain fingerprint (compiler path, version, and all relevant CMake build flags) so stale PCH files cannot be served to an incompatible invocation. Consider making PCH optional/best-effort (fall back to non-PCH compile on cache miss/mismatch) instead of hard-erroring via -Werror=invalid-pch for this specific cross-compilation configuration.",
+  "historical_context": "Identical signature recorded 15 times (first seen 2026-09-25T10:37:07Z, most recently before this run at 2026-10-06T15:59:30Z), always on the Linux ARM64 cross-compilation workflow's Build job. No prior resolution has been recorded; this remains an open, unresolved recurring infrastructure flake."
+}
