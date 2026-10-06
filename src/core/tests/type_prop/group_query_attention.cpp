@@ -401,5 +401,28 @@ TEST(type_prop, group_query_attention_static_past_keeps_capacity) {
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
 }
 
+TEST(type_prop, group_query_attention_bf16_activations_and_cache) {
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(element::bf16),
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false);
+    EXPECT_EQ(op->get_output_element_type(0), element::bf16);
+    EXPECT_EQ(op->get_output_element_type(1), element::bf16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_rejects_integer_query) {
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(element::i32),
+                                                                                      6,
+                                                                                      2,
+                                                                                      1.0f,
+                                                                                      false,
+                                                                                      false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Element type of `query` input is not compatible"));
+}
+
 }  // namespace testing
 }  // namespace ov

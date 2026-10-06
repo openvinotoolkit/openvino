@@ -580,8 +580,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     const auto typed_zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
     // Finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN. The magnitude must
     // match the compute type so it does not overflow to -inf when narrowed: f16 and bf16 have far smaller
-    // ranges than f32. (The core op currently restricts the activation type to {f32, f16}, so bf16 is not
-    // yet reachable here, but keep an explicit branch so a future bf16 activation stays finite.)
+    // ranges than f32.
     std::shared_ptr<ov::Node> minus_inf;
     if (compute_type == ov::element::f16)
         minus_inf = register_new_node(

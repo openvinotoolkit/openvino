@@ -17,6 +17,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -5907,16 +5908,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_with_bias) {
 }
 
 // f16 sliding window: exercises the f16 finite-lowest() masked path (no NaN on masked positions).
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
+namespace {
+// gqa_sliding_window.onnx with the activations and the KV cache retyped to a reduced-precision float type T,
+// checked against the f32 ONNX Runtime reference.
+template <typename T>
+void run_gqa_sliding_window_low_precision(const ov::element::Type& type, float tolerance) {
     ov::frontend::FrontEnd::Ptr front_end;
     auto input_model = load_model("com.microsoft/gqa_sliding_window.onnx", &front_end);
-    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::f16);
-    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::f16);
-    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::f16);
-    const auto model = front_end->convert(input_model);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), type);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), type);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), type);
+    auto model = front_end->convert(input_model);
+    // Read the output back as f32 so it is compared against the f32 reference (the comparison helper has no
+    // bf16 path); the attention itself still runs in T.
+    ov::preprocess::PrePostProcessor ppp(model);
+    ppp.output("output").tensor().set_element_type(ov::element::f32);
+    model = ppp.build();
 
-    using f16 = ov::float16;
-    std::vector<f16> query;
+    std::vector<T> query;
     for (float x : gqa_sliding_window_query())
         query.emplace_back(x);
 
@@ -5936,18 +5945,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
         -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
         -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
         0.181946f,  -0.008489f};
-    std::vector<f16> expected_output;
-    for (float x : expected_output_f32)
-        expected_output.emplace_back(x);
-
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<f16>(Shape{1, 4, 64}, query);
-    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
-    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<T>(Shape{1, 4, 64}, query);
+    test_case.add_input<T>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<T>(Shape{1, 1, 0, 16}, {});
     test_case.add_input<int>(Shape{1, 1}, {3});
     test_case.add_input<int>(Shape{}, {4});
-    test_case.add_expected_output<f16>(Shape{1, 4, 32}, expected_output);
-    test_case.run_with_tolerance_as_fp(0.02f);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output_f32);
+    test_case.run_with_tolerance_as_fp(tolerance);
+}
+}  // namespace
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
+    run_gqa_sliding_window_low_precision<ov::float16>(ov::element::f16, 0.02f);
+}
+
+// bf16 activations and KV cache (ONNX spec type T includes bfloat16): exercises the bf16 finite-lowest() mask.
+// bf16 keeps 8 mantissa bits, so the tolerance is wider than for f16.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_bf16) {
+    run_gqa_sliding_window_low_precision<ov::bfloat16>(ov::element::bf16, 0.05f);
 }
 
 // qk_output (emit the QxK' matrix as a 4th output) is not produced by the decomposition, so a model that
