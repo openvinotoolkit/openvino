@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-07-36-59-596-37427383726",
+  "timestamp": "2026-10-06T07:36:59Z",
+  "run_id": "37427383726",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37427383726",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38611",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38611",
+  "author": "nshchego",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "cc1plus errors with 'not a PCH file' (-Werror=invalid-pch) while compiling src/core/reference sources during the 'CMake configure, build and install - OpenVINO JS API' step, aborting the ninja build."
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "This run reproduces the known recurring build-orchestration defect already tracked under signature 5b4b1e6917a69856 (5 prior occurrences since 2026-09-24, most recently on run 37412634531 for unrelated PR #38030). The 'CMake configure, build and install - OpenVINO JS API' step re-runs CMake configure/build against the same build tree already populated by the preceding native build step, re-triggering compilation of openvino_reference translation units (convert.cpp, depth_to_space.cpp, fake_convert.cpp, etc.) under the JS API's ninja invocation. The already-generated cmake_pch.hxx.gch is concurrently regenerated or invalidated by the JS API configure step re-touching the PCH header, so cc1plus finds a .gch file present but not a valid precompiled header; -Werror=invalid-pch promotes this to a hard build failure. The PR under investigation (#38611, GPU Coverity fixes to src/plugins/intel_gpu/src/graph/impls/ocl/stateless_kv.cpp and ocl_v2/sdpa/sdpa_gen_micro.cpp) does not touch src/core/reference, CMake configuration, or PCH settings, confirming the failure is unrelated to this PR's changes and is purely an infra/build-orchestration issue. Note this run is already on its second attempt (run_attempt=2), i.e. a prior automatic/manual rerun already hit the same defect.",
+  "reproduction_steps": "N/A - requires the exact ARM64 cross-compilation container/build-cache state from CI; not reliably reproducible in a local single-step build. To approximate: build openvino natively for ARM64 cross-compilation, then immediately re-run a second CMake configure+build targeting the OpenVINO JS API bindings against the same openvino_build directory while the PCH for src/core/reference is being regenerated.",
+  "recommended_actions": [
+    "Isolate the JS API CMake configure/build step to use its own build directory (or force a clean PCH regeneration) instead of reusing the native build's openvino_build directory to avoid racing on cmake_pch.hxx.gch.",
+    "Disable precompiled headers (CMAKE_DISABLE_PRECOMPILE_HEADERS / ENABLE_PCH=OFF) for the ARM64 cross-compilation JS API build step, or add an explicit dependency so the JS API build does not re-touch openvino_reference's PCH after the main build already populated it.",
+    "Escalate to CI infra maintainers: this is now the 6th recorded occurrence of this exact signature across six unrelated PRs, and this run already failed on its second attempt, indicating a plain rerun alone is not reliably clearing it."
+  ],
+  "prevention_strategies": "Ensure build steps that reuse the same CMake build tree do not recompile/regenerate shared precompiled headers concurrently with, or immediately after, a prior build step that already populated them. Prefer per-target/per-step isolated build directories, or explicit step ordering/dependencies guaranteeing the PCH is fully materialized (or intentionally disabled) before any second ninja invocation touches the same reference library.",
+  "historical_context": "This exact signature (cc1plus 'not a PCH file' in openvino_reference during ARM64 cross-compilation) has now recurred 6 times since 2026-09-24: runs 36069429763, 36114020917, 36118153521, 37382707255 (PR #38483), 37412634531 (PR #38030), and this run 37427383726 (PR #38611). None of the affected PRs touched src/core/reference, CMake, or PCH configuration, confirming this is a persistent infra/build-orchestration issue unrelated to any single PR's changes."
+}

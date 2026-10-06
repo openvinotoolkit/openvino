@@ -4,10 +4,11 @@
   "signature_hash": "5b4b1e6917a69856",
   "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
   "category": "Infrastructure",
-  "count": 5,
+  "count": 6,
   "first_seen": "2026-09-24T23:04:41Z",
-  "last_seen": "2026-10-06T04:32:00Z",
+  "last_seen": "2026-10-06T07:36:59Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/37427383726",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37412634531",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37382707255",
     "https://github.com/openvinotoolkit/openvino/actions/runs/36118153521",
@@ -15,6 +16,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/36069429763"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38611",
     "https://github.com/openvinotoolkit/openvino/pull/38030",
     "https://github.com/openvinotoolkit/openvino/pull/38483",
     "https://github.com/openvinotoolkit/openvino/pull/38380",
@@ -22,6 +24,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/37942"
   ],
   "recent_timestamps": [
+    "2026-10-06T07:36:59Z",
     "2026-10-06T04:32:00Z",
     "2026-10-05T23:14:06Z"
   ],
