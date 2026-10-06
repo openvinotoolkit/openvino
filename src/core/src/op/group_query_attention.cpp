@@ -176,15 +176,17 @@ void GroupQueryAttention::validate_and_infer_types() {
                           m_kv_num_heads);
 
     // Base input checks in input_check-style form: required + rank/type whitelist.
-    check_input(GroupQueryAttentionInputs::QUERY, {4}, {element::f16, element::f32});
-    check_input(GroupQueryAttentionInputs::KEY, {4}, {element::f16, element::f32});
-    check_input(GroupQueryAttentionInputs::VALUE, {4}, {element::f16, element::f32});
+    // Activations: the ONNX spec type T (f32, f16, bf16).
+    const std::vector<element::Type> float_types{element::f32, element::f16, element::bf16};
+    check_input(GroupQueryAttentionInputs::QUERY, {4}, float_types);
+    check_input(GroupQueryAttentionInputs::KEY, {4}, float_types);
+    check_input(GroupQueryAttentionInputs::VALUE, {4}, float_types);
     check_input(GroupQueryAttentionInputs::PAST_KEY,
                 {4},
-                {element::f32, element::f16, element::i8, element::u8, element::f8e4m3});
+                {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3});
     check_input(GroupQueryAttentionInputs::PAST_VALUE,
                 {4},
-                {element::f32, element::f16, element::i8, element::u8, element::f8e4m3});
+                {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3});
     check_input(GroupQueryAttentionInputs::SEQLENS_K, {1, 2}, integral_types);
     check_input(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH, {0, 1}, integral_types, false);
 
@@ -194,7 +196,7 @@ void GroupQueryAttention::validate_and_infer_types() {
         check_input(GroupQueryAttentionInputs::POSITION_IDS, {1, 2}, integral_types, false);
     }
     check_input(GroupQueryAttentionInputs::ATTENTION_BIAS, {4}, {}, false);
-    check_input(GroupQueryAttentionInputs::HEAD_SINK, {1}, {element::f16, element::f32}, false);
+    check_input(GroupQueryAttentionInputs::HEAD_SINK, {1}, float_types, false);
     // head_sink holds one softmax-sink logit per query head (ONNX spec shape [num_heads]).
     if (get_input_size() > static_cast<size_t>(GroupQueryAttentionInputs::HEAD_SINK)) {
         const auto& sink_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::HEAD_SINK));
