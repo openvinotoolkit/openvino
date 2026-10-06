@@ -2758,19 +2758,23 @@ void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
         it->second = it->second.as<ov::hint::Priority>();
     }
 
-    // Collect every distinct device-level compiled model owned by this partitioned model.
-    // Function bodies, pyramid/HFA final tiles and similar reuse the same instance, so dedup.
+    // Collect every device-level compiled model owned by this partitioned model, once.
+    // Function calls have neither a compiled model nor extra models of their own (they run
+    // their body's), so each model appears only in the submodel which owns it. The extra
+    // models may reuse that submodel's own compiled model (e.g. the last pyramid model or
+    // the HFA final tile), so skip those.
     std::vector<ov::SoPtr<ov::ICompiledModel>> targets;
-    std::set<const ov::ICompiledModel*> visited;
-    auto add_target = [&](const ov::SoPtr<ov::ICompiledModel>& cm) {
-        if (cm && visited.insert(cm._ptr.get()).second) {
-            targets.push_back(cm);
+    for (const auto& desc : m_compiled_submodels) {
+        if (desc.compiled_model) {
+            targets.push_back(desc.compiled_model);
         }
-    };
-    for (auto& desc : m_compiled_submodels) {
-        add_target(desc.compiled_model);
         if (desc.pipeline.for_each_extra_compiled_model) {
-            desc.pipeline.for_each_extra_compiled_model(desc.pipeline.context, add_target);
+            desc.pipeline.for_each_extra_compiled_model(desc.pipeline.context,
+                                                        [&](const ov::SoPtr<ov::ICompiledModel>& cm) {
+                                                            if (cm && cm._ptr != desc.compiled_model._ptr) {
+                                                                targets.push_back(cm);
+                                                            }
+                                                        });
         }
     }
 
