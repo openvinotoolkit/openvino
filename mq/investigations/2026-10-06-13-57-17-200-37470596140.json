@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-13-57-17-200-37470596140",
+  "timestamp": "2026-10-06T13:57:17Z",
+  "run_id": "37470596140",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37470596140",
+  "workflow_name": "Build / Build",
+  "pr_number": "38559",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38559",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install - OpenVINO JS API step fails with cc1plus: not a PCH file [-Werror=invalid-pch] across many unrelated TUs in openvino_reference, aborting the ninja build"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors",
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/einsum.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\nninja: build stopped: subcommand failed.\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "During the 'CMake configure, build and install - OpenVINO JS API' step, the build re-runs cmake with -UTBB* and a reduced option set (CPACK_GENERATOR=NPM, ENABLE_SYSTEM_TBB=OFF, ENABLE_WHEEL=OFF) against the SAME build directory used by the earlier full configure. This reconfigure regenerates the precompiled header source/flags for openvino_reference without correctly regenerating (or invalidating stale cached) cmake_pch.hxx.gch, so GCC's -Winvalid-pch check rejects the now-mismatched .gch artifact as 'not a PCH file', and -Werror promotes it to a hard failure across dozens of independent translation units. This is the same long-standing recurring pattern (11 occurrences since 2026-09-24, 8 in the last 24h) affecting only the ARM64 cross-compilation Build job's JS API reconfigure step; it is not caused by this PR's changes (test-only PyTorch TorchBench changes, no CMake/core files touched).",
+  "reproduction_steps": "N/A (CI-only: requires the ARM64 cross-compile toolchain and the two-stage cmake reconfigure sequence used by the 'CMake configure, build and install - OpenVINO JS API' step; not practically reproducible in a standard dev environment without replicating the exact sccache + PCH cache state).",
+  "recommended_actions": [
+    "Have the JS API reconfigure step pass -DENABLE_PCH=OFF (or clear/regenerate the PCH) when it reuses the existing openvino_build directory with a reduced option set, since the PCH was compiled under different build flags.",
+    "Alternatively, invalidate/remove stale cmake_pch.hxx.gch files under openvino_build/src/core/reference/ before the second cmake --build invocation in the JS API step.",
+    "Re-run the failed jobs for this PR; this is a known infra-level flake unrelated to the PR diff.",
+    "Track root-cause fix for the underlying CMake JS API reconfigure script (likely in cmake/ or the JS API CMakeLists) separately from this PR."
+  ],
+  "prevention_strategies": "Avoid reusing the same CMake build directory across configure passes with different ENABLE_* option sets; use a dedicated build directory (or force a clean regenerate of PCH-dependent files) for the JS API reconfigure step so GCC's PCH consistency check never observes mismatched .gch state.",
+  "historical_context": "Same signature (5b4b1e6917a69856) recorded 11 times since 2026-09-24T23:04:41Z, most recently at 2026-10-06T12:10:34Z (run 37457680616), affecting many unrelated PRs (#37717, #38261, #37908, #38604, #38607, #38611, #38030, #38483, #38380, #38393). This is a persistent infra-level issue in the ARM64 cross-compilation Build job, not specific to this PR."
+}
