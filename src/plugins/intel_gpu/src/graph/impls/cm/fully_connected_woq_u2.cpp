@@ -13,64 +13,74 @@
 namespace ov::intel_gpu::cm {
 namespace {
 
-// Kernel work decomposition (must match woq_u2_gemm_dual.cm defaults NCOL=2, MROWS=32, WG_M=WG_N=8):
-// one 8 x 8 work-group computes a 256 x 256 tile, each thread 32 rows x 32 columns.
+// Tiled kernel work decomposition (must match woq_u2_gemm_dual.cm defaults NCOL=2, MROWS=32,
+// WG_M=WG_N=8): one 8 x 8 work-group computes a 256 x 256 tile, each thread 32 rows x 32 columns.
 constexpr size_t wg_n = 8;
 constexpr size_t wg_m = 8;
 constexpr size_t cols_per_thread = 32;
 constexpr size_t rows_per_thread = 32;
 
-// Dependencies of a compressed FC without bias: 0 = input, 1 = weights, 2 = scale, 3 = zero point.
-constexpr uint32_t scale_idx = 2;
-constexpr uint32_t zp_idx = 3;
+// GEMV kernel (woq_u2_gemm_dual_gemv.cm, built with NCB=1, RBG=1, LS=16, PFG=4): each thread computes
+// 16 columns x 8 rows over all of K, LS threads per work-group, no SLM. Used when M <= gemv_max_m.
+constexpr size_t gemv_cols_per_thread = 16;  // 16 * NCB
+constexpr size_t gemv_rows_per_thread = 8;   // 8 * RBG
+constexpr size_t gemv_ls = 16;               // LS
+constexpr size_t gemv_max_m = 8;
 
-// Index into the FC's dependencies of the SwiGLU multiply's external operand (up_proj's output), or -1
-// if this FC has no fused epilogue. validate_impl (FullyConnectedWoqU2ImplementationManager::
-// is_supported_swiglu_epilogue) guarantees at most this one fused pattern reaches create_impl.
-int32_t epi_dep_idx(const RuntimeParams& params) {
-    for (const auto& fd : params.fused_desc) {
-        if (fd.has_outer_dep())
-            return fd.outer_dep_start_idx;
-    }
-    return -1;
+// M = product of the activation's leading dims (static params only).
+size_t rows_of(const RuntimeParams& params) {
+    const auto& in_shape = params.get_input_layout(0).get_shape();
+    size_t M = 1;
+    for (size_t i = 0; i + 1 < in_shape.size(); i++)
+        M *= in_shape[i];
+    return M;
 }
 
-class WoqU2FCGenerator : public KernelGenerator {
+bool has_bias(const RuntimeParams& params) {
+    return params.bias_layout.has_value();
+}
+
+// The epilogue (epi_mode and the dependency providing its tensor) of this FC; validate_impl guarantees it
+// is supported (create_impl asserts it).
+WoqU2Epilogue epilogue_of(const RuntimeParams& params) {
+    return woq_u2_epilogue(params.fused_desc, has_bias(params));
+}
+
+// Shared by both kernels: same ABI, JIT constants and scalars; they differ in source, build options and
+// launch grid.
+class WoqU2GeneratorBase : public KernelGenerator {
 public:
-    WoqU2FCGenerator() : KernelGenerator("woq_u2_gemm_dual") {}
+    using KernelGenerator::KernelGenerator;
 
 protected:
-    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
-        return KernelGenerator::get_build_options(params) + " -Qxcm_register_file_size=128 ";
-    }
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        const auto epi_idx = epi_dep_idx(params);
-        const bool epi_f16 = epi_idx >= 0 && params.get_input_layout(static_cast<size_t>(epi_idx)).data_type == data_types::f16;
+        const auto epi = epilogue_of(params);
+        const bool epi_f16 = epi.dep >= 0 && params.get_input_layout(static_cast<size_t>(epi.dep)).data_type == data_types::f16;
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             // N-major unless a test selected the group-major path (see fully_connected_woq_u2.hpp).
             make_jit_constant("WLAYOUT", static_cast<int>(woq_u2_weight_layout_for_tests())),
             make_jit_constant("OUT_F16", params.get_output_layout(0).data_type == data_types::f16 ? 1 : 0),
-            make_jit_constant("EPI_F16", epi_f16 ? 1 : 0),
+            make_jit_constant("EPI_F16", epi_f16 ? 1 : 0),      // epilogue tensor is half
         });
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        // Kernel ABI: (A, Wq, scales, zps, epi, C, M, K, N, epi_mode). Plain FC: epi_mode = 0, epi bound
-        // to a harmless placeholder (the kernel never reads it then). gate_proj-style SwiGLU epilogue
-        // (see FullyConnectedWoqU2ImplementationManager::is_supported_swiglu_epilogue): epi_mode = 2,
-        // epi bound to the fused multiply's external operand (up_proj's output).
+        // Kernel ABI: (A, Wq, scales, zps, epi, C, M, K, N, epi_mode). epi is the epilogue tensor (FC bias,
+        // fused add operand or SwiGLU multiply operand, see woq_u2_epilogue); without an epilogue
+        // (epi_mode = 0) the kernel never reads it and the output buffer is bound in its place.
+        const bool bias = has_bias(params);
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INPUT, 0});          // A
-        args.push_back({ArgumentDescriptor::Types::INPUT, 1});          // Wq
-        args.push_back({ArgumentDescriptor::Types::INPUT, scale_idx});  // scales
-        args.push_back({ArgumentDescriptor::Types::INPUT, zp_idx});     // zero points (u8)
-        const auto epi_idx = epi_dep_idx(params);
-        if (epi_idx >= 0)
-            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(epi_idx)});  // epi
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});                                            // A
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});                                            // Wq
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(woq_u2_scale_idx(bias))});  // scales
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(woq_u2_zp_idx(bias))});     // zero points (u8)
+        const auto epi = epilogue_of(params);
+        if (epi.dep >= 0)
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(epi.dep)});  // epi
         else
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});     // epi (unused, epi_mode = 0)
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});         // C
@@ -81,33 +91,68 @@ protected:
         return args;
     }
 
+    // Scalars (M, K, N, epi_mode) of either kernel.
+    static void set_scalars(const RuntimeParams& params, KernelData& kd, size_t M) {
+        const auto& wshape = params.get_input_layout(1).get_shape();  // [N, K]
+        auto& scalars = kd.params.scalars;
+        scalars.resize(4);
+        // epi_mode from the actual bias / fused pattern: 0 none, 1 acc + epi, 2 swish(acc) * epi.
+        const int32_t epi_mode = epilogue_of(params).mode;
+        const size_t vals[4] = {M, wshape[1], wshape[0], static_cast<size_t>(epi_mode)};
+        for (size_t i = 0; i < 4; i++) {
+            scalars[i].t = ScalarDescriptor::Types::INT32;
+            scalars[i].v.s32 = static_cast<int32_t>(vals[i]);
+        }
+    }
+};
+
+// Tiled DPAS kernel (woq_u2_gemm_dual.cm): M > gemv_max_m.
+class WoqU2TiledGenerator : public WoqU2GeneratorBase {
+public:
+    WoqU2TiledGenerator() : WoqU2GeneratorBase("woq_u2_gemm_dual") {}
+
+protected:
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        return KernelGenerator::get_build_options(params) + " -Qxcm_register_file_size=128 ";
+    }
+
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
-            const auto& wshape = params.get_input_layout(1).get_shape();  // [N, K]
-            const auto& in_shape = params.get_input_layout(0).get_shape();
-            const size_t N = wshape[0];
-            const size_t K = wshape[1];
-            size_t M = 1;
-            for (size_t i = 0; i + 1 < in_shape.size(); i++)
-                M *= in_shape[i];
-
+            const size_t N = params.get_input_layout(1).get_shape()[0];
+            const size_t M = rows_of(params);
             auto& wgs = kd.params.workGroups;
             const size_t tiles_n = (N / cols_per_thread + wg_n - 1) / wg_n;
             const size_t tiles_m = ((M + rows_per_thread - 1) / rows_per_thread + wg_m - 1) / wg_m;
             wgs.global = {tiles_n * wg_n, std::max<size_t>(tiles_m, 1) * wg_m, 1};
             wgs.local = {wg_n, wg_m, 1};
+            set_scalars(params, kd, M);
+        }};
+    }
+};
 
-            auto& scalars = kd.params.scalars;
-            scalars.resize(4);
-            // epi_mode 2: gate_proj-style SwiGLU epilogue (swish(acc) * epi); 0: no epilogue. validate_impl
-            // only allows that one fused pattern through, so has_fused_primitives() alone decides it here.
-            const int32_t epi_mode = params.has_fused_primitives() ? 2 : 0;
-            const size_t vals[4] = {M, K, N, static_cast<size_t>(epi_mode)};
-            for (size_t i = 0; i < 4; i++) {
-                scalars[i].t = ScalarDescriptor::Types::INT32;
-                scalars[i].v.s32 = static_cast<int32_t>(vals[i]);
-            }
+// GEMV kernel (woq_u2_gemm_dual_gemv.cm): M <= gemv_max_m (decode).
+// global = (ceil(N / 16 / 16) * 16, ceil(M / 8)), local = (16, 1).
+class WoqU2GemvGenerator : public WoqU2GeneratorBase {
+public:
+    WoqU2GemvGenerator() : WoqU2GeneratorBase("woq_u2_gemm_dual_gemv") {}
+
+protected:
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        return KernelGenerator::get_build_options(params) + " -Qxcm_register_file_size=128 -DNCB=1 -DRBG=1 -DLS=16 -DPFG=4 ";
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            const size_t N = params.get_input_layout(1).get_shape()[0];
+            const size_t M = rows_of(params);
+            auto& wgs = kd.params.workGroups;
+            const size_t groups_n = (N / gemv_cols_per_thread + gemv_ls - 1) / gemv_ls;
+            const size_t groups_m = (M + gemv_rows_per_thread - 1) / gemv_rows_per_thread;
+            wgs.global = {groups_n * gemv_ls, std::max<size_t>(groups_m, 1), 1};
+            wgs.local = {gemv_ls, 1, 1};
+            set_scalars(params, kd, M);
         }};
     }
 };
@@ -116,11 +161,23 @@ class WoqU2FCImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::WoqU2FCImpl)
 
-    Stage::Ptr fc = make_stage<WoqU2FCGenerator>();
+    // Stage indices are their registration order: 0 = tiled, 1 = GEMV.
+    Stage::Ptr tiled = make_stage<WoqU2TiledGenerator>();
+    Stage::Ptr gemv = make_stage<WoqU2GemvGenerator>();
 
     WoqU2FCImpl() : PrimitiveImplOCL(FullyConnectedWoqU2ImplementationManager::get_type_info_static()) {}
     WoqU2FCImpl(const program_node& node, const RuntimeParams& params) : WoqU2FCImpl() {
-        add_stage(fc, params);
+        const auto epi = epilogue_of(params);
+        OPENVINO_ASSERT(epi.ok(), "[GPU] cm::fully_connected::woq_u2 created for ", node.id(), " with an unsupported epilogue: ", epi.error);
+        add_stage(tiled, params);
+        add_stage(gemv, params);
+    }
+
+    // One kernel per execution, chosen by the runtime M (M may be dynamic): GEMV for M <= gemv_max_m.
+    [[nodiscard]] std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
+        if (impl_params.is_dynamic())
+            return _order;
+        return {rows_of(impl_params) <= gemv_max_m ? size_t(1) : size_t(0)};
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
