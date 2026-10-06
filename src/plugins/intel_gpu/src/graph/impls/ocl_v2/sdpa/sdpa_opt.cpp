@@ -234,7 +234,7 @@ public:
         // The sdpa_ocl single-token kernel does support unaligned head sizes (head < d / value < dv /
         // DKS_ACTIVE guards). When it is staged (sdpa_ocl lane, non-indirect decode) it is used instead;
         // when it is not, the ctor stages regular_multi_tokens for a static non-indirect unaligned decode.
-        if (is_prefill || (unaligned_head_size(new_params) && !(!is_indirect && has_stage(ocl_single_token)))) {
+        if (is_prefill || (unaligned_head_size(new_params) && (is_indirect || !has_stage(ocl_single_token)))) {
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }

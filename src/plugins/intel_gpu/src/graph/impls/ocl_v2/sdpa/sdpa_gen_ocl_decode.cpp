@@ -218,11 +218,7 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     if (desc->k_head_size % dpas_k != 0 || desc->v_head_size % subgroup_size != 0) {
         return false;
     }
-    if (desc->kv_heads_num == 0 || desc->heads_num % desc->kv_heads_num != 0) {
-        return false;
-    }
-
-    return true;
+    return desc->kv_heads_num != 0 && desc->heads_num % desc->kv_heads_num == 0;
 }
 
 std::string SDPAOclDecodeGenerator::get_build_options(const kernel_impl_params& params) const {
