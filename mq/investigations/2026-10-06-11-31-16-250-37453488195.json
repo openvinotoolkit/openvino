@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-11-31-16-250-37453488195",
+  "timestamp": "2026-10-06T11:31:16Z",
+  "run_id": "37453488195",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37453488195",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38261",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38261",
+  "author": "v-Golubev",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install - OpenVINO JS API step failed; underlying compile of openvino_reference objects failed with cc1plus PCH errors"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors",
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/depth_to_space.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors"
+  ],
+  "root_cause": "The precompiled header cmake_pch.hxx.gch for the openvino_reference target is corrupted/stale or mismatched with the compiler invocation used for this translation unit, so cc1plus rejects it with 'not a PCH file'. With -Werror=invalid-pch (CMAKE_COMPILE_WARNING_AS_ERROR=ON) this becomes a hard build failure across dozens of src/core/reference object files in rapid succession, indicating the PCH itself is unusable rather than a single source-level bug. This is a known recurring infrastructure/toolchain issue on the ARM64 cross-compilation job unrelated to the PR's GPU transformation change; it has recurred 9 times since 2026-09-24, with 6 occurrences (including this one) in the last 12 hours alone, suggesting a flaky/stale sccache or PCH cache artifact reused across cross-compilation runners rather than a one-off fluke.",
+  "reproduction_steps": "Not reliably reproducible locally; it stems from a stale/corrupted PCH artifact on the ARM64 cross-compilation CI runner/cache. To attempt reproduction: run the same cmake configure (-DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_FASTER_BUILD=ON) and build openvino_reference with a pre-existing stale cmake_pch.hxx.gch from a prior incompatible compiler/toolchain version, then rebuild without regenerating the PCH.",
+  "recommended_actions": [
+    "Invalidate/clear the sccache and any cached cmake_pch.hxx.gch artifacts used by the ARM64 cross-compilation build cache before the next run (bump a cache key or purge the cache).",
+    "Consider disabling precompiled headers (ENABLE_FASTER_BUILD=OFF) for the openvino_reference target on this cross-compilation job, or set -Wno-error=invalid-pch so a bad PCH triggers a rebuild instead of a hard failure.",
+    "Add a CI step to validate the PCH file (e.g., checksum or recompile-if-stale) before using it in the Build step for this workflow.",
+    "Since this is the 9th occurrence (6 in the last 12h), escalate to the CI infrastructure owners to investigate the underlying cache/runner issue rather than relying on reruns."
+  ],
+  "prevention_strategies": "Key the sccache/PCH cache by compiler version + cmake flags so a toolchain change invalidates stale PCH artifacts; add a post-build sanity check that fails fast with a clear message when a PCH mismatch is detected; consider a periodic cache-clear schedule for the ARM64 cross-compilation job's build cache.",
+  "historical_context": "This exact signature (cc1plus: not a PCH file, -Werror=invalid-pch) has been recorded 8 prior times in the CI Doctor MQ pattern database since 2026-09-24T23:04:41Z, most recently 2026-10-06T10:37:24Z, across many unrelated PRs (e.g. #37908, #38604, #38607, #38611, #38030, #38483, #38380, #38393, #37942), confirming it is an infrastructure/toolchain caching issue on the ARM64 cross-compilation runner rather than code introduced by this PR."
+}
