@@ -712,7 +712,20 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
-        if (MSK_D2 == 1 && MSK_D3 > 1) {
+        if (MSK_D3 == 1) {
+            /* Mask is broadcast over keys ([.., .., Q, 1] or [.., .., 1, 1]): one value per query row. */
+            const uint ldmsk_q = (MSK_D2 == 1) ? 0 : ldmsk;
+#pragma unroll
+            for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                const int q_idx = (int)(wg_j0 + sg_j0_kq) + i0 + get_sub_group_local_id();
+                const half msk_q = (MSK_D2 == 1 || q_idx < q) ? msk[q_idx * ldmsk_q] : 0;
+#pragma unroll
+                for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+                    tile_access(mask_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                            ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = msk_q;
+                }
+            }
+        } else if (MSK_D2 == 1) {
             // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
             // In the case of single query dimension, set ld and offset_r to zero
             // to avoid exceeding bounds for single dimension.
@@ -1464,8 +1477,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
 #endif
 #if WITH_ATTN_MASK && defined(PREFETCH_MASK)
-        /* Prefetch next mask tile. */
-        if (!last) {
+        /* Prefetch next mask tile. A key-broadcast mask (MSK_D3 == 1) has no further tiles. */
+        if (!last && MSK_D3 > 1) {
             if (MSK_D2 == 1) {
                 /* Mask is broadcast over queries ([.., .., 1, K]): only one row exists.
                    Striding by ldmsk per query would prefetch far past the end of the mask buffer. */

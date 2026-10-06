@@ -229,6 +229,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIS
 static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
 static constexpr Property<bool, ov::PropertyMutability::RW> pa_integrity_check{"GPU_PA_INTEGRITY_CHECK"};
 static constexpr Property<std::vector<int>, ov::PropertyMutability::RW> micro_sdpa_workgroup_config{"GPU_MICRO_SDPA_WORKGROUP_CONFIG"};
+static constexpr Property<int, ov::PropertyMutability::RW> micro_sdpa_disable_prefetch{"GPU_MICRO_SDPA_DISABLE_PREFETCH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
 }  // namespace ov::intel_gpu
 
