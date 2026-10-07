@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-07-13-34-38-000-37618643779",
+  "timestamp": "2026-10-07T13:34:38Z",
+  "run_id": "37618643779",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37618643779",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38577",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38577",
+  "author": "dependabot[bot]",
+  "category": "Flaky Test",
+  "title": "esrgan-tf2 NPU model-hub TensorFlow conversion test killed with signal on Windows",
+  "signature": "test process was killed with a signal 3221225477 during npu model hub tensorflow tests|Flaky Test",
+  "signature_hash": "bd9158503c84555c",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 5010",
+      "conclusion": "failure",
+      "symptom": "test_tf_convert_model.py::TestTFHubConvertModel::test_convert_model_precommit[NPU-esrgan-tf2-...] subprocess killed with signal 3221225477 (STATUS_ACCESS_VIOLATION) on Windows NPU runner"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregated status check failed because NPU Models Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "error_message, *ret_args = queue.get(timeout=timeout) -> _queue.Empty",
+    "multiprocessing.context.TimeoutError: esrgan-tf2 running timed out!",
+    "multiprocessing.context.ProcessError: esrgan-tf2 was killed with a signal 3221225477",
+    "FAILED install\\tests\\model_hub_tests\\tensorflow\\test_tf_convert_model.py::TestTFHubConvertModel::test_convert_model_precommit[NPU-esrgan-tf2-...] - multiprocessing.context.ProcessError: esrgan-tf2 was killed with a signal 3221225477",
+    "= 1 failed, 7 passed, 7 skipped, 937 deselected, 1 xfailed, 2 warnings in 726.41s (0:12:06) ="
+  ],
+  "root_cause": "The 'esrgan-tf2' TensorFlow model conversion test on the Windows NPU runner (platform 5010) ran in a child process via multiprocessing_utils.multiprocessing_run with a 600s timeout. The queue.get() timed out (TimeoutError), and when the harness checked the child process state it found the process had already exited with code 3221225477 (0xC0000005, STATUS_ACCESS_VIOLATION) rather than returning a result. This is a native crash in the child process (likely in the NPU compile-only conversion/driver path for this specific TF-Hub model), not a Python-level assertion failure, and is unrelated to the PR under test, which only bumps the pyjwt dependency used by an unrelated CI labeller script (.github/scripts/external_pr_labeller/requirements.txt). This matches a recurring class of STATUS_ACCESS_VIOLATION crashes previously seen for other NPU model-hub tests (e.g. EasyOCR detector, pattern 00df33024e43569d), indicating general NPU Windows runner/driver instability for certain large or complex models rather than a code regression.",
+  "reproduction_steps": "On a Windows machine with an NPU device and the CI runner's driver/runtime stack (platform id 5010), run: python -m pytest install/tests/model_hub_tests/tensorflow/test_tf_convert_model.py -k 'esrgan-tf2' -m precommit. Reproduction outside CI is unreliable since it depends on native NPU driver/runtime state and model-specific memory pressure.",
+  "recommended_actions": [
+    "Re-run the failed NPU Models Tests / 5010 job; STATUS_ACCESS_VIOLATION crashes in native NPU compile-only conversion are typically transient runner/driver issues, not deterministic code regressions.",
+    "If esrgan-tf2 recurs consistently on NPU, escalate to the NPU plugin team to capture a native crash dump/driver log during compile-only conversion of this model.",
+    "Consider adding a skip/xfail marker for esrgan-tf2 on NPU precommit (similar to other models already marked skip/xfail in this test file) if it keeps blocking unrelated merge-queue PRs."
+  ],
+  "prevention_strategies": "Track NPU model-hub TensorFlow test stability separately (e.g., a flaky-test dashboard) so unrelated dependency-bump PRs are not blocked by known-flaky native NPU crashes. Consider increasing the per-model timeout or isolating heavy models like esrgan-tf2 that may stress the NPU driver more than others.",
+  "historical_context": "A related but distinct pattern (EasyOCR detector model killed with the same signal 3221225477 during NPU PyTorch model-hub tests, signature_hash 00df33024e43569d) occurred once before (run 35192554362, PR #38209). Several benchmark_app STATUS_ACCESS_VIOLATION crashes on Windows have also been recorded (signature hashes 058ea9d678d180f9, 2fe5fca9503d7326, 51203fa3d66f0e88, d94e7bf016670e8e), confirming recurring native-crash flakiness on Windows NPU/CPU runners across multiple unrelated test suites."
+}
