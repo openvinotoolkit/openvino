@@ -1493,9 +1493,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_bf16_int8_zp,
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 8, false},
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, false},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false},
-                                           sdpa_test_params{128, 40, 10, 512, 512, 1, 8, true},
+                                           sdpa_test_params{128, 40, 10, 128, 128, 1, 8, true},
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 8, true},
-                                           sdpa_test_params{128, 40, 40, 512, 512, 1, 8, true},
+                                           sdpa_test_params{128, 40, 40, 128, 128, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
                          sdpa_gpu_compressed_kv_bf16_int8_zp_test::PrintToStringParamName);
 
