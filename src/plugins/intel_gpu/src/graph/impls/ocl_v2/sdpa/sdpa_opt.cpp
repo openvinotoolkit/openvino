@@ -126,6 +126,7 @@ public:
         const auto& params = *instance.get_impl_params();
         auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
         bool is_prefill = is_prefill_stage(new_params);
+        const bool use_multi_tokens = is_prefill || unaligned_head_size(new_params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
@@ -139,8 +140,8 @@ public:
         const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
         const bool is_per_channel_kv = SDPAOpt::has_per_channel_compressed_kv(new_params);
 
-        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
-            GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
+        if (has_stage(regular_micro_multi_tokens) && use_multi_tokens && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
+            GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
         }
 #endif
@@ -148,8 +149,8 @@ public:
         // So far this case was observed only from the non-lm models such as vision embedding model.
         // If we need to optimize unaligned head size SDPA for 2nd+ token phase of LM model,
         // we'll need to fix single_token kernel to support unaligned head size.
-        if (is_prefill || unaligned_head_size(new_params)) {
-            GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
+        if (use_multi_tokens) {
+            GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -200,13 +201,6 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     if (device_info.supports_immad) {
         const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
         if (device_info.arch < gpu_arch::xe_hpg || !supports_microkernels) {
-            return false;
-        }
-        // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
-        // accuracy issues (produces inf/nan) after oneDNN main branch integration.
-        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
-        const auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
-        if (device_info.arch == gpu_arch::xe3p && k_head_size <= 64) {
             return false;
         }
     } else {
