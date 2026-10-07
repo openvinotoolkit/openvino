@@ -591,8 +591,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
-    const ov::element::TypeVector supported_woq_types =
-        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2};
+    // The int3 FC kernel quantizes activations to int8 in-kernel, so u3 weights are kept compressed only when
+    // dynamic quantization is allowed. Otherwise (group size 0, or a model that caps the group size via
+    // GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX) they are decompressed and the f16 path is used.
+    const bool dyn_quan_allowed = config.get_dynamic_quantization_group_size() != 0 &&
+                                  config.get_dynamic_quantization_group_size_max() >= config.get_dynamic_quantization_group_size();
+    ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2};
+    if (dyn_quan_allowed) {
+        supported_woq_types.push_back(ov::element::u3);
+    }
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
     const bool disable_gated_mlp_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_gated_mlp_fusion(), true);
@@ -677,9 +684,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::TransposeMatMul>();
 
-        manager.register_pass<ov::pass::MarkDequantization>(
-            std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u3, ov::element::u2},
-            !device_info.supports_immad);
+        manager.register_pass<ov::pass::MarkDequantization>(supported_woq_types, !device_info.supports_immad);
         if (config.get_use_onednn() && m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe3p) {
             manager.register_pass<ov::pass::MarkDequantization>(
                 std::vector<ov::element::Type>{ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1, ov::element::f8e8m0},

@@ -268,6 +268,26 @@ TEST_P(MatmulWeightsDecompression, Inference) {
     check_results();
 }
 
+// A model that caps the dynamic quantization group size below the requested one opts out of int8
+// activations. The int3 FC kernel always quantizes activations, so u3 weights must be decompressed then.
+class MatmulWeightsDecompressionU3DynQuanOptOut : public MatmulWeightsDecompression {
+protected:
+    void SetUp() override {
+        MatmulWeightsDecompression::SetUp();
+        this->configuration.insert({"GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX", uint64_t{64}});
+    }
+};
+
+TEST_P(MatmulWeightsDecompressionU3DynQuanOptOut, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
+        for (const auto& output : n->outputs()) {
+            ASSERT_NE(output.get_element_type(), ov::element::u3) << n->get_friendly_name();
+        }
+    }
+}
+
 const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};
 const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2};
 const std::vector<bool> transpose_weights = {true, false};
@@ -406,6 +426,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::ValuesIn(group_size),
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_u3_dyn_quan,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1, 1, 1024}, {16, 1, 1024}}},
+                                                                            {1024, 1024}, 128}),
+                                            ::testing::Values(ov::element::u3),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(128),
+                                            ::testing::Values(2.0f)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_u3_dyn_quan_opt_out,
+                         MatmulWeightsDecompressionU3DynQuanOptOut,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1, 1, 1024}, {16, 1, 1024}}},
+                                                                            {1024, 1024}, 128}),
+                                            ::testing::Values(ov::element::u3),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(128),
+                                            ::testing::Values(2.0f)),
+                         MatmulWeightsDecompressionU3DynQuanOptOut::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_precomputed_reduction,
                          MatmulWeightsDecompression,
