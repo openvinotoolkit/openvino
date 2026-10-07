@@ -98,6 +98,7 @@
 #include "plugin/transformations/decompose_one_hot_non_const_values.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
+#include "plugin/transformations/dynamic_same_padding_fusion.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
@@ -844,6 +845,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // whose ConstantFolding folds the mask away when indices and depth are constants.
         manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
 
+        // Fuse dynamic padding before CommonOptimizations decomposes its shape arithmetic.
+        manager.register_pass<ov::intel_gpu::DynamicSamePaddingFusion>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
