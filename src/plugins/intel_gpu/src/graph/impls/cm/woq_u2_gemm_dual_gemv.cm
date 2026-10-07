@@ -7,6 +7,14 @@
 // stores C as half (the f32 result rounded to nearest even), EPI_F16 reads epi as half and widens to
 // float right after the load, file-scope types are defined once (*_ONCE guards) and the macros are
 // #undef'd at the end. No SLM, no barriers.
+//
+// v2 (decode tuning, cold-L2 measured -- every launch after a 64 MiB L2 flush, as in a real decode
+// step): (a) each thread takes 2 adjacent 16-column blocks when one block per thread would exceed
+// GEMV_MAXT = 960 threads (the dispatch grid follows the same rule): 1x5120x17920 0.44 -> 0.36 ms;
+// (b) with few threads (N/16 <= GEMV_DEEPT = 400) the weight prefetch goes PFG_DEEP = 8 groups ahead
+// with L1PL_DEEP = 2 lines per column (WLAYOUT 1): 1x17920x5120 0.32 -> 0.30 ms; otherwise PFG = 4,
+// L1PL = 1 as in v1. Launch: global = (ceil(ceil(N/16) / cseq / LS) * LS, ceil(M/8)), local = (LS, 1),
+// cseq = 2 if N/16 > GEMV_MAXT else 1.
 #ifndef KERNEL_NAME
 #define KERNEL_NAME woq_matmul
 #endif
@@ -54,13 +62,25 @@
 #define LS 16           // threads per work-group
 #endif
 #ifndef PFG
-#define PFG 4           // weight prefetch distance, groups
+#define PFG 4           // weight prefetch distance, groups (PFG_DEEP when N/16 <= GEMV_DEEPT)
 #endif
 #ifndef WLAYOUT
 #define WLAYOUT 0       // 0: group-major [KG, N, GS/4] (ABI), 1: N-major [N, K/4]
 #endif
 #ifndef L1PL
-#define L1PL 1          // WLAYOUT 1: weight lines per column per prefetch
+#define L1PL 1          // WLAYOUT 1: weight lines per column per prefetch (L1PL_DEEP when deep)
+#endif
+#ifndef PFG_DEEP
+#define PFG_DEEP 8      // deep prefetch for few threads (N/16 <= GEMV_DEEPT)
+#endif
+#ifndef L1PL_DEEP
+#define L1PL_DEEP 2
+#endif
+#ifndef GEMV_DEEPT
+#define GEMV_DEEPT 400  // at most this many column blocks (threads): prefetch PFG_DEEP / L1PL_DEEP
+#endif
+#ifndef GEMV_MAXT
+#define GEMV_MAXT 960   // above this many 16*NCB-column blocks, each thread takes 2 (see the entry)
 #endif
 #define GS 64
 #define GB (GS / 4)     // packed bytes per (group, column)
@@ -79,16 +99,20 @@ struct wgroup {                         // one group of my NCB column blocks
 };
 #endif
 
-extern "C" _GENX_MAIN_ void
-KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],      // half  [M, K]
-           SurfaceIndex Wq [[type("buffer_t")]],      // uchar [KG, N, GS/4]  (WLAYOUT 1: [N, K/4])
-           SurfaceIndex scales [[type("buffer_t")]],  // half  [KG, N]        (WLAYOUT 1: [N, KG])
-           SurfaceIndex zps [[type("buffer_t")]],     // uchar [KG, N]        (WLAYOUT 1: [N, KG])
-           SurfaceIndex epi [[type("buffer_t")]],     // float [M, N] (EPI_F16: half [M, N])
-           SurfaceIndex C [[type("buffer_t")]],       // float [M, N] (OUT_F16: half [M, N])
-           int M, int K, int N, int epi_mode) {
+// The body is instance-specific (it uses this instance's WLAYOUT / OUT_F16 / EPI_F16 / ... macros), and
+// OpenVINO batch-compiles several instances into one program: name it after the entry (KERNEL_NAME).
+#define WOQ_U2_GEMV_CAT2(a, b) a##b
+#define WOQ_U2_GEMV_CAT(a, b) WOQ_U2_GEMV_CAT2(a, b)
+#define GEMV_BODY WOQ_U2_GEMV_CAT(KERNEL_NAME, _gemv_body)
+template <int PF, int LP>
+inline void GEMV_BODY(SurfaceIndex A, SurfaceIndex Wq, SurfaceIndex scales, SurfaceIndex zps,
+                      SurfaceIndex epi, SurfaceIndex C, int M, int K, int N, int epi_mode) {
   const int t = cm_group_id(0) * LS + cm_local_id(0);
-  const int n0 = t * (16 * NCB);
+  // Column blocks per thread: 2 once one block per thread would exceed GEMV_MAXT threads (more than
+  // fit resident; measured cold-L2 at 1x5120x17920: 0.444 -> 0.358 ms), else 1 (fewer threads lose
+  // memory parallelism: 2 blocks at N = 5120 is 1.4x slower). Must match the dispatch grid.
+  const int cseq = (N / (16 * NCB) > GEMV_MAXT) ? 2 : 1;
+  int n0 = t * (16 * NCB) * cseq;                                  // my first column block
   if (n0 >= N) return;                                             // surplus thread
   const int m0 = cm_group_id(1) * (8 * RBG);
   const int KG = K / GS;
@@ -98,6 +122,9 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],      // half  [M, K]
   #pragma unroll
   for (int i = 0; i < 128; i++) sh(i) = 4 * (i / 16);
 
+  // cseq adjacent column blocks, one after another (each walks all of K, as before).
+  for (int cs = 0; cs < cseq; cs++, n0 += 16 * NCB) {
+  if (n0 >= N) break;
   matrix<float, NACC, 128> acc = 0.0f;
   wgroup cur, nxt;
   cur.a = 0;
@@ -138,9 +165,9 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],      // half  [M, K]
     cm_prefetch<8 * NCB, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(scales, gn * 2u);
     cm_prefetch<4 * NCB, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(zps, gn);
 #else
-    if (g % (4 * L1PL) == 0) {                                     // L1PL lines (4 groups each) per column
+    if (g % (4 * LP) == 0) {                                       // LP lines (4 groups each) per column
       #pragma unroll
-      for (int l = 0; l < L1PL; l++)
+      for (int l = 0; l < LP; l++)
         cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
             Wq, w_off + ((unsigned)g * (unsigned)GB + (unsigned)(l * 64)));
     }
@@ -155,17 +182,17 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],      // half  [M, K]
 
   load(cur, 0);
   #pragma unroll
-  for (int p = 1; p < PFG; p++)
+  for (int p = 1; p < PF; p++)
     if (p < KG) prefetch(p);
 #if WLAYOUT == 1
-  // Lines covering groups 1 .. PFG-1 that the in-loop prefetch (multiples of 4*L1PL / 32 / 64) skips.
+  // Lines covering groups 1 .. PF-1 that the in-loop prefetch (multiples of 4*LP / 32 / 64) skips.
   #pragma unroll
-  for (int l = 0; l < (PFG + 3) / 4; l++)
+  for (int l = 0; l < (PF + 3) / 4; l++)
     cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(Wq, w_off + (unsigned)(l * 64));
 #endif
 
   for (int g = 0; g < KG; g++) {
-    if (g + PFG < KG) prefetch(g + PFG);
+    if (g + PF < KG) prefetch(g + PF);
     if (g + 1 < KG) load(nxt, g + 1);
 
 
@@ -246,12 +273,36 @@ KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],      // half  [M, K]
       }
     }
   }
+  }  // column blocks
+}
+
+
+extern "C" _GENX_MAIN_ void
+KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],      // half  [M, K]
+           SurfaceIndex Wq [[type("buffer_t")]],      // uchar [KG, N, GS/4]  (WLAYOUT 1: [N, K/4])
+           SurfaceIndex scales [[type("buffer_t")]],  // half  [KG, N]        (WLAYOUT 1: [N, KG])
+           SurfaceIndex zps [[type("buffer_t")]],     // uchar [KG, N]        (WLAYOUT 1: [N, KG])
+           SurfaceIndex epi [[type("buffer_t")]],     // float [M, N] (EPI_F16: half [M, N])
+           SurfaceIndex C [[type("buffer_t")]],       // float [M, N] (OUT_F16: half [M, N])
+           int M, int K, int N, int epi_mode) {
+  // Few threads (N/16 <= GEMV_DEEPT): prefetch deeper, PFG_DEEP groups / L1PL_DEEP lines (cold-L2
+  // 1x17920x5120 0.32 -> 0.30 ms); otherwise PFG / L1PL (deep costs 3% at N = 7680 and 2% at 17920).
+  // Two compile-time instances, so the prefetch cadence and prologue stay unrolled.
+  if (N / (16 * NCB) <= GEMV_DEEPT)
+    GEMV_BODY<PFG_DEEP, L1PL_DEEP>(A, Wq, scales, zps, epi, C, M, K, N, epi_mode);
+  else
+    GEMV_BODY<PFG, L1PL>(A, Wq, scales, zps, epi, C, M, K, N, epi_mode);
 }
 
 // OpenVINO: keep this instance's macros out of the other kernels batched into the same program.
 #undef OUT_F16
 #undef EPI_F16
 #undef NCB
+#undef GEMV_MAXT
+#undef GEMV_BODY
+#undef GEMV_DEEPT
+#undef PFG_DEEP
+#undef L1PL_DEEP
 #undef RBG
 #undef LS
 #undef PFG
