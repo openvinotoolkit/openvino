@@ -131,8 +131,9 @@ function(ov_add_target)
 
         # remove unnecessary directories
         foreach(excludedDir IN LISTS ARG_EXCLUDED_SOURCE_PATHS)
-            list(FILTER includes EXCLUDE REGEX "${excludedDir}.*")
-            list(FILTER sources EXCLUDE REGEX "${excludedDir}.*")
+            string(REGEX REPLACE "([][+.*?()^$|\\\\])" "\\\\\\1" excludedDirRegex "${excludedDir}")
+            list(FILTER includes EXCLUDE REGEX "^${excludedDirRegex}")
+            list(FILTER sources EXCLUDE REGEX "^${excludedDirRegex}")
         endforeach()
 
         source_group("include" FILES ${includes})
