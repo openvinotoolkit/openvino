@@ -48,6 +48,8 @@ if(ARM_COMPUTE_INCLUDE_DIR OR ARM_COMPUTE_LIB_DIR)
             IMPORTED_LOCATION ${ARM_COMPUTE_LIB})
 
         add_library(arm_compute::half INTERFACE IMPORTED GLOBAL)
+        add_library(ArmCompute::arm_compute ALIAS arm_compute::arm_compute)
+        add_library(ArmCompute::Half ALIAS arm_compute::half)
 
         if(ARM_COMPUTE_INCLUDE_DIR)
             set_target_properties(arm_compute::arm_compute arm_compute::half PROPERTIES
@@ -98,6 +100,7 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
         endif()
 
         add_subdirectory(${ARM_COMPUTE_SOURCE_DIR} ${ARM_COMPUTE_BINARY_DIR} EXCLUDE_FROM_ALL)
+        set_target_properties(arm_compute PROPERTIES OUTPUT_NAME arm_compute-static)
 
         if(NOT TARGET arm_compute::arm_compute)
             add_library(arm_compute::arm_compute ALIAS arm_compute)
@@ -108,7 +111,9 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
             INTERFACE_INCLUDE_DIRECTORIES "${ARM_COMPUTE_SOURCE_DIR}/include")
     endfunction()
 
-    ov_build_compute_library()
+    if(NOT TARGET arm_compute::arm_compute)
+        ov_build_compute_library()
+    endif()
 
     # Setup for oneDNN integration
     set(ACL_FOUND ON)

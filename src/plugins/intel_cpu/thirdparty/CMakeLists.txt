@@ -163,7 +163,7 @@ function(ov_add_onednn)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
         # we cannot use 'ov_install_static_lib' for imported targets,
         # but for this we need to install library files
-        install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
+        install(FILES $<TARGET_FILE:arm_compute::arm_compute>
                 DESTINATION ${OV_CPACK_ARCHIVEDIR}
                 COMPONENT ${OV_CPACK_COMP_CORE}
                 ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
