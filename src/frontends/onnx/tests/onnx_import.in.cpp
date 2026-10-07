@@ -3056,6 +3056,31 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_channel_bcast_opset6) {
+    // Regression test for the legacy PRelu-1/6 broadcasting: a rank-1 slope whose length matches the channel
+    // dimension is shared across channels (aligned with axis 1), which is the behavior of OpenVINO's v0::PRelu.
+    // Unidirectional (numpy-style) broadcasting was only introduced in PRelu-7, so opset <= 6 models must keep the
+    // per-channel semantics (mirrors the ONNX pytorch-converted test_PReLU_*d_multiparam models).
+    auto model = convert_model("prelu_1d_channel_bcast_opset6.onnx");
+
+    Inputs inputs;
+    // Shape{2, 3, 4}
+    inputs.emplace_back(std::vector<float>{-1., -2., -3., -4., 1.,  2.,  3.,  4.,  -5., -6., -7., -8.,
+                                           -1., -1., -1., -1., -2., -2., -2., -2., -3., -3., -3., -3.});
+
+    // Shape{3} - slope broadcast over the channel dimension (axis 1)
+    inputs.emplace_back(std::vector<float>{0.5, 1.0, 2.0});
+
+    // Shape{2, 3, 4}
+    auto expected_output = std::vector<float>{-0.5, -1.0, -1.5, -2.0, 1.0,  2.0,  3.0,  4.0,  -10., -12., -14., -16.,
+                                              -0.5, -0.5, -0.5, -0.5, -2.0, -2.0, -2.0, -2.0, -6.0, -6.0, -6.0, -6.0};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_C_1_1) {
     auto model = convert_model("prelu_c_1_1.onnx");
 
