@@ -1,0 +1,36 @@
+diff --git a/onnx/defs/printer.cc b/onnx/defs/printer.cc
+index 1d43bccb0..fc23d91e6 100644
+--- a/onnx/defs/printer.cc
++++ b/onnx/defs/printer.cc
+@@ -8,6 +8,7 @@
+ #include <charconv>
+ #include <cmath>
+ #include <cstdint>
++#include <cstdio>
+ #include <iomanip>
+ #include <string>
+ #include <type_traits>
+@@ -38,10 +39,20 @@ void PrintNumber(std::ostream& os, T value) {
+       os << (std::signbit(value) ? "-nan" : "nan");
+       return;
+     }
++    // Some standard libraries (libstdc++ < 11, libc++ before macOS 13.3) lack
++    // floating-point std::to_chars, so fall back to snprintf with round-trip
++    // precision. The else branch keeps the integer path from instantiating the
++    // missing overload. The shortest form is lost, but the emitted value still
++    // parses back to the same number.
++    char fp_buf[32];
++    const int fp_len =
++        std::snprintf(fp_buf, sizeof(fp_buf), std::is_same_v<T, float> ? "%.9g" : "%.17g", static_cast<double>(value));
++    os.write(fp_buf, fp_len);
++  } else {
++    std::array<char, 32> buf{};
++    const auto res = std::to_chars(buf.data(), buf.data() + buf.size(), value);
++    os.write(buf.data(), res.ptr - buf.data());
+   }
+-  std::array<char, 32> buf{};
+-  const auto res = std::to_chars(buf.data(), buf.data() + buf.size(), value);
+-  os.write(buf.data(), res.ptr - buf.data());
+ }
+ 
+ bool IsValidIdentifier(const std::string& str) {
