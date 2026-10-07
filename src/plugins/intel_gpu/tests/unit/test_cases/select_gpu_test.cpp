@@ -67,62 +67,6 @@ void test_select_basic(bool is_caching_test) {
     }
 }
 
-TEST(select_gpu_f32, dynamic_byxf) {
-    auto& engine = get_test_engine();
-
-    ov::PartialShape in1_shape  = { 1, 2, 2, 1 };
-    ov::PartialShape in2_shape  = { 1, 2, 2, 1 };
-    ov::PartialShape mask_shape = { 1, 2, 2, 1 };
-
-    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, format::byxf };
-    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, format::byxf };
-    layout mask_layout   { ov::PartialShape::dynamic(mask_shape.size()), data_types::f32, format::byxf };
-
-    auto input1 = engine.allocate_memory({ in1_shape,  data_types::f32, format::byxf });
-    auto input2 = engine.allocate_memory({ in2_shape,  data_types::f32, format::byxf });
-    auto mask   = engine.allocate_memory({ mask_shape, data_types::f32, format::byxf });
-
-    set_values(input1, { 1.f, 0.f, 5.f, 1.5f});
-    set_values(input2, { 0.5f, 2.5f, 1.5f, 3.f});
-    set_values(mask,   { 0.f, 0.f, 1.f, 1.f});
-
-    topology topology;
-    topology.add(input_layout("input1", input1_layout));
-    topology.add(input_layout("input2", input2_layout));
-    topology.add(input_layout("mask", mask_layout));
-    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-
-    network.set_input_data("input1", input1);
-    network.set_input_data("input2", input2);
-    network.set_input_data("mask", mask);
-
-    auto inst = network.get_primitive("select");
-    ASSERT_EQ(inst->input_memory(0).get_layout().format, format::byxf);
-
-    auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-    ASSERT_TRUE(impl->is_dynamic());
-
-    auto outputs = network.execute();
-    ASSERT_EQ(inst->output_memory(0).get_layout().format, format::bfyx);
-    auto output = outputs.at("select").get_memory();
-
-    // Note: select's dynamic-shape ref kernel writes its output in bfyx (its chosen preferred
-    // output format), even though the inputs are byxf, so the answers below are expressed in
-    // bfyx (f-major) order rather than the byxf (f-minor) order the inputs were set in.
-    float answers[4] = { 0.5f, 5.f, 2.5f, 1.5f };
-
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-
-    for (int i = 0; i < 4; i++) {
-        ASSERT_EQ(answers[i], output_ptr[i]);
-    }
-}
-
 TEST(select_gpu_f32, select_basic) {
     test_select_basic<float>(false);
 }
@@ -2772,20 +2716,28 @@ TEST(select_gpu_f32, select_different_formats) {
     }
 }
 
-TEST(select_gpu_f32, dynamic) {
+struct select_dynamic_params {
+    format::type input_format;
+    std::vector<float> expected_output;
+};
+
+class select_gpu_f32_dynamic : public ::testing::TestWithParam<select_dynamic_params> {};
+
+TEST_P(select_gpu_f32_dynamic, basic) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
     ov::PartialShape in1_shape  = { 2, 2, 2, 2 };
     ov::PartialShape in2_shape  = { 2, 2, 2, 2 };
     ov::PartialShape mask_shape = { 2, 2, 2, 1 };
 
-    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, format::bfyx };
-    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, format::bfyx };
-    layout mask_layout   { ov::PartialShape::dynamic(mask_shape.size()), data_types::f32, format::bfyx };
+    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, p.input_format };
+    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, p.input_format };
+    layout mask_layout   { ov::PartialShape::dynamic(mask_shape.size()), data_types::f32, p.input_format };
 
-    auto input1 = engine.allocate_memory({ in1_shape,  data_types::f32, format::bfyx });
-    auto input2 = engine.allocate_memory({ in2_shape,  data_types::f32, format::bfyx });
-    auto mask   = engine.allocate_memory({ mask_shape, data_types::f32, format::bfyx });
+    auto input1 = engine.allocate_memory({ in1_shape,  data_types::f32, p.input_format });
+    auto input2 = engine.allocate_memory({ in2_shape,  data_types::f32, p.input_format });
+    auto mask   = engine.allocate_memory({ mask_shape, data_types::f32, p.input_format });
 
     set_values(input1, {
         1.f,  0.f,
@@ -2851,27 +2803,50 @@ TEST(select_gpu_f32, dynamic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("select").get_memory();
-
-    float answers[16] = {
-        0.5f,  2.5f,
-        1.5f,  3.f,
-
-        2.f,   0.f,
-        6.f,   5.2f,
-
-        15.f,  17.f,
-        7.f,   12.f,
-
-        4.f,   -0.5f,
-        -0.5f, -2.5f
-    };
+    // select's dynamic-shape ref kernel always writes its output in bfyx
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
 
-    for (int i = 0; i < 16; i++) {
-        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    for (size_t i = 0; i < p.expected_output.size(); i++) {
+        ASSERT_TRUE(are_equal(p.expected_output[i], output_ptr[i]));
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(select_gpu_f32,
+                         select_gpu_f32_dynamic,
+                         ::testing::Values(
+                             select_dynamic_params{format::bfyx, {
+                                 0.5f,  2.5f,
+                                 1.5f,  3.f,
+
+                                 2.f,   0.f,
+                                 6.f,   5.2f,
+
+                                 15.f,  17.f,
+                                 7.f,   12.f,
+
+                                 4.f,   -0.5f,
+                                 -0.5f, -2.5f
+                             }},
+                             // inputs are the same buffers interpreted in byxf order, output is bfyx
+                             select_dynamic_params{format::byxf, {
+                                 0.5f,  1.5f,
+                                 2.f,   6.f,
+
+                                 2.5f,  3.f,
+                                 0.f,   5.2f,
+
+                                 15.f,  8.f,
+                                 4.f,   8.f,
+
+                                 0.5f,  12.f,
+                                 6.5f,  -2.5f
+                             }}),
+                         [](const ::testing::TestParamInfo<select_dynamic_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(select_gpu_f32, select_basic_cached) {
