@@ -17,14 +17,16 @@ int main(int argc, char** argv) {
             std::cerr << "Usage: gguf_extension_runner EXTENSION_LIBRARY MODEL.gguf [TOKENS] [--stateful]\n";
             return 2;
         }
-        const auto tokens = argc >= 4 ? std::stoul(argv[3]) : 3;
+        const bool stateful = argc >= 4 && std::string(argv[argc - 1]) == "--stateful";
+        const auto argument_count = argc - (stateful ? 1 : 0);
+        if (argument_count > 4)
+            throw std::invalid_argument("Expected --stateful after TOKENS");
+        const auto tokens = argument_count == 4 ? std::stoul(argv[3]) : 3;
         if (!tokens)
             throw std::invalid_argument("TOKENS must be positive");
         std::shared_ptr<ov::frontend::FrontEnd> frontend = std::make_shared<ov::frontend::gguf::FrontEnd>();
         frontend->add_extension(std::string(argv[1]));
-        if (argc == 5) {
-            if (std::string(argv[4]) != "--stateful")
-                throw std::invalid_argument("Expected --stateful");
+        if (stateful) {
             frontend->add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         }
         auto model = frontend->convert(frontend->load(std::string(argv[2])));
