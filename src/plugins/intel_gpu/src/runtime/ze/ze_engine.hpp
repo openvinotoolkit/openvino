@@ -30,7 +30,7 @@ public:
     memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) override;
     memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool host_read_only = false) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
-    bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
+    bool is_the_same_buffer(const memory& mem1, const memory& mem2) const override;
 
     void* get_user_context(runtime_types rt_type) const override;
 

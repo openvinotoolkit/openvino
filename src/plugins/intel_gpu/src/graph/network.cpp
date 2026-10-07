@@ -668,7 +668,7 @@ bool network::can_bind_user_output_memory(const primitive_id& output_id, const m
     if (!output->is_output() || candidate.buffer_ptr() == nullptr || candidate.size() == 0)
         return false;
 
-    auto& engine = const_cast<cldnn::engine&>(get_engine());
+    const auto& engine = get_engine();
     const auto candidate_type = candidate.get_allocation_type();
     const auto candidate_ptr = reinterpret_cast<uintptr_t>(candidate.buffer_ptr());
     const primitive_inst* aliased_input = nullptr;
