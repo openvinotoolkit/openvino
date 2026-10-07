@@ -1281,17 +1281,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                 } else {
                     m_plugin_outputs[output_idx] = create_plugin_output();
                 }
-            } else if (overlap_unsupported) {
-                // The output buffer partially overlaps an input, or overlaps several: allocate plugin-owned memory
-                // to avoid overwriting the input data before it is read. The result is copied out in wait().
+            } else if (overlap_unsupported || had_caller_owned_output_buffer) {
+                // Unsafe input overlap, or a stale caller binding to drop: use plugin-owned memory, copied out in wait().
                 m_plugin_outputs[output_idx] = create_plugin_output();
-            } else if (had_caller_owned_output_buffer) {
-                // The new host tensor is ineligible for direct binding, so replace the stale caller allocation.
-                m_plugin_outputs[output_idx] = create_or_share_device_tensor(user_tensor_wrapper,
-                                                                             internal_name,
-                                                                             pshape,
-                                                                             device_tensor_et,
-                                                                             need_lockable_mem || convert_needed);
             }
         }
     }
