@@ -28,6 +28,7 @@ void GroupedDepthToSpace::validate_and_infer_types() {
         const auto input_channels = output_shape[1];
         const size_t factor = m_factor_t * m_factor_s * m_factor_s;
         if (input_channels.is_static()) {
+            NODE_VALIDATION_CHECK(this, input_channels.get_length() > 0, "input channels must be greater than zero");
             NODE_VALIDATION_CHECK(this,
                                   (m_output_channels * factor) % input_channels.get_length() == 0,
                                   "output_channels * factor_t * factor_s^2 must be divisible by input channels");

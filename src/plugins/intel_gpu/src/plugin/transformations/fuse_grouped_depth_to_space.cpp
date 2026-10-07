@@ -139,7 +139,7 @@ bool validate_reshape_shapes(const std::shared_ptr<ov::op::v1::Reshape>& factor_
 FuseGroupedDepthToSpace::FuseGroupedDepthToSpace() {
     using namespace ov::pass::pattern;
 
-    auto input_m = any_input();
+    auto input_m = any_input(type_matches_any({ov::element::f16, ov::element::f32, ov::element::u8, ov::element::i8}));
     auto gather_m = wrap_type<ov::op::v8::Gather>({input_m, any_input(), wrap_type<ov::op::v0::Constant>()}, consumers_count(1));
     auto factor_reshape_m = wrap_type<ov::op::v1::Reshape>({gather_m, any_input()}, consumers_count(1));
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({factor_reshape_m, wrap_type<ov::op::v0::Constant>()}, consumers_count(1));

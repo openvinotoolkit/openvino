@@ -37,8 +37,11 @@ std::shared_ptr<ov::op::v0::Constant> i64_scalar(int64_t value) {
     return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {value});
 }
 
-std::shared_ptr<ov::Model> make_dup_up_model(bool with_crop, bool valid_transpose_order = true, bool shape_derived_range_stop = false) {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 2, 3, 5});
+std::shared_ptr<ov::Model> make_dup_up_model(bool with_crop,
+                                             bool valid_transpose_order = true,
+                                             bool shape_derived_range_stop = false,
+                                             ov::element::Type input_type = ov::element::f16) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{1, 4, 2, 3, 5});
 
     ov::Output<ov::Node> range_stop = i64_scalar(4);
     if (shape_derived_range_stop) {
@@ -109,6 +112,16 @@ TEST(FuseGroupedDepthToSpaceTest, FusesConstantFoldedInputs) {
 
 TEST(FuseGroupedDepthToSpaceTest, RejectsDifferentTransposeOrder) {
     EXPECT_EQ(run_fusion(make_dup_up_model(false, false)), nullptr);
+}
+
+TEST(FuseGroupedDepthToSpaceTest, RejectsUnsupportedInputType) {
+    EXPECT_EQ(run_fusion(make_dup_up_model(false, true, false, ov::element::bf16)), nullptr);
+}
+
+TEST(FuseGroupedDepthToSpaceTest, RejectsZeroInputChannels) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 0, 2, 3, 5});
+
+    EXPECT_THROW(static_cast<void>(std::make_shared<ov::intel_gpu::op::GroupedDepthToSpace>(input, 2, 2, 2, 0)), ov::NodeValidationFailure);
 }
 
 }  // namespace

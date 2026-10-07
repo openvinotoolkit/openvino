@@ -21,6 +21,10 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
 
     const size_t block_size = desc->block_size;
 
+    if (impl_param.has_fused_primitives()) {
+        input_layout.data_type = impl_param.get_output_element_type();
+    }
+
     if (desc->mode == depth_to_space_mode::grouped_depth_first) {
         const size_t factor = desc->factor_t * desc->factor_s * desc->factor_s;
         if (format::spatial_num(input_layout.format) != 3 || desc->output_channels * factor % input_layout.feature() != 0) {
@@ -53,10 +57,6 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
         const size_t y = input_layout.spatial(1) * block_size;
         const size_t x = input_layout.spatial(0) * block_size;
         out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y));
-    }
-
-    if (impl_param.has_fused_primitives()) {
-        input_layout.data_type = impl_param.get_output_element_type();
     }
 
     return layout{input_layout.data_type, input_format, out_size};
