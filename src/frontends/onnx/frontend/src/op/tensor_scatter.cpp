@@ -76,6 +76,26 @@ ov::OutputVector tensor_scatter(const ov::frontend::onnx::Node& node) {
                      mode);
     const bool circular = (mode == "circular");
 
+    // The ONNX contract requires sequence_length <= max_sequence_length; the reference
+    // implementation rejects violations. When both the cache (`axis`) and update (`axis`)
+    // dimensions are static, enforce this at conversion time. Otherwise the dynamic runtime
+    // path keeps the behavior defined for valid models; in `circular` mode in particular the
+    // modulo must not be relied upon to silently legalize an oversized update.
+    const auto past_dim = past_cache.get_partial_shape()[axis];
+    const auto update_ps = update.get_partial_shape();
+    if (update_ps.rank().is_static() && update_ps.rank().get_length() == r) {
+        const auto update_dim = update_ps[axis];
+        if (past_dim.is_static() && update_dim.is_static()) {
+            CHECK_VALID_NODE(node,
+                             update_dim.get_length() <= past_dim.get_length(),
+                             "TensorScatter update sequence length (",
+                             update_dim.get_length(),
+                             ") must not exceed the cache sequence length (",
+                             past_dim.get_length(),
+                             ").");
+        }
+    }
+
     // Move the sequence (`axis`) dimension to position 1 so the scatter index needs only
     // (batch, sequence) coordinates. The swap is its own inverse, reused to transpose back.
     const bool needs_transpose = (axis != 1);
