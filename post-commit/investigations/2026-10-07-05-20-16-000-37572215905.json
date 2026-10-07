@@ -1,0 +1,37 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-07-05-20-16-000-37572215905",
+    "timestamp": "2026-10-07T05:20:16Z",
+    "run_id": "37572215905",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37572215905",
+    "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c",
+    "pr_number": "38463",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38463",
+    "author": null,
+    "category": "Flaky Test",
+    "title": "smoke_ConvertCPULayerTest_7D_Dynamic fails on CPU primitive type check (unknown_f32 vs ref_f32)",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected: unknown_f32 Expected: ref_f32 (ConvertCPULayerTest 7D Dynamic ref primType)|Flaky Test",
+    "signature_hash": "56c268ac84902dce",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "CPU functional tests / CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "smoke_ConvertCPULayerTest_7D_Dynamic/ConvertCPULayerTest.CompareWithRefs reports primType 'unknown_f32' instead of expected 'ref_f32'"
+        }
+    ],
+    "key_errors": [
+        "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : unknown_f32 Expected : ref_f32\n\n[  FAILED  ] smoke_ConvertCPULayerTest_7D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[1..5.2..22.2..9.1..4.1..4.1..4.1..4]_TS=(2.17.5.4.3.1.2)_(5.2.3.2.4.1.3)_(1.10.4.1.4.2.3)_inputPRC=f32_specialValue=none_targetPRC=i8_, where GetParam() = (({ 1..5, 2..22, 2..9, 1..4, 1..4, 1..4, 1..4 }, { { 2, 17, 5, 4, 3, 1, 2 }, { 5, 2, 3, 2, 4, 1, 3 }, { 1, 10, 4, 1, 4, 2, 3 } }), f32, i8,  (48 ms)"
+    ],
+    "root_cause": "The test asserts that the executed CPU graph node reports a specific implementation type (selectedType == ref_f32) via the IMPL_TYPE execution-graph property, checked in CPUTestsBase::primTypeCheck (cpu_test_utils.cpp:248). The observed node reported 'unknown_f32' instead, meaning the convert node's selected/queried implementation metadata did not match what the test expects for this particular dynamic 7D shape range (large bounded dynamic dims 1..5/2..22/2..9 with multiple 1..4 ranges) and f32->i8 conversion. This mismatch happens for a single parameterized case out of 71641 executed smoke tests (59793 passed), strongly suggesting either (a) a transient/order-dependent primitive selection issue for this specific shape combination rather than a systemic regression introduced by the merged PR (#38463, a GPU-only SDPA fix unrelated to CPU Convert nodes), or (b) a latent flakiness in how the CPU plugin reports IMPL_TYPE for dynamic-shape Convert kernels with this dimension pattern. The merged PR only touches the GPU plugin's SDPA opt implementation, so it is very unlikely to be the direct cause of a CPU plugin primitive-type mismatch; this looks environment/shape-dependent rather than a code regression from this commit.",
+    "reproduction_steps": "Build the CPU functional test binary and run the specific test:\n\nOV_CPU_DEBUG_LOG=1 ./bin/intel64/Release/ov_cpu_func_tests --gtest_filter='smoke_ConvertCPULayerTest_7D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=*1..5.2..22.2..9.1..4.1..4.1..4.1..4*inputPRC=f32_specialValue=none_targetPRC=i8_*'\n\nIf it does not reproduce on the first run, repeat several times (test_parallel_runner ran this suite with 71641 tests and only this one case failed, suggesting shape- or scheduling-order sensitivity).",
+    "recommended_actions": [
+        "Re-run the single failing test case (`smoke_ConvertCPULayerTest_7D_Dynamic/ConvertCPULayerTest.CompareWithRefs` with the given IS/TS parameters) in isolation and in a full-suite run to confirm whether it is flaky or deterministically reproducible.",
+        "If deterministic, inspect the CPU Convert node's primitive descriptor selection logic for this specific dynamic shape range (bounded dims 1..5, 2..22, 2..9) to see why IMPL_TYPE resolves to 'unknown_f32' instead of 'ref_f32' for f32->i8 conversion.",
+        "Check whether the PR #38463 GPU SDPA change or an unrelated concurrent merge affected shared CPU plugin build artifacts/caches used by this CI run.",
+        "If confirmed flaky, consider adding this parameterized case to the disabled/known-flaky test list with a tracking ticket, or add a retry wrapper for it pending root-cause fix."
+    ],
+    "prevention_strategies": "Add stability tracking for individual parameterized CPU functional test cases that intermittently fail on primType/IMPL_TYPE assertions, and periodically audit implementation-type selection paths for Convert nodes handling large bounded-dynamic multi-dimensional shapes to rule out dynamic-shape-dependent kernel dispatch edge cases.",
+    "historical_context": "A related but distinct pattern (signature_hash d94563b07437b23b) was previously recorded on 2026-09-30: smoke_AvgPool_CPU_4D failing on an ACL primitive type check (undef_f32 vs acl_f32), also a single-test primType mismatch in the same cpu_test_utils.cpp assertion but for a different test suite (ACL AvgPool) and different expected/actual values. This indicates primType/IMPL_TYPE assertion flakiness in CPU functional tests has occurred more than once across different kernels (ACL pooling, now plain CPU Convert), suggesting a broader intermittent issue in how exec-graph IMPL_TYPE is reported rather than an isolated one-off."
+}

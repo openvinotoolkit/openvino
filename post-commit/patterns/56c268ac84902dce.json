@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected: unknown_f32 Expected: ref_f32 (ConvertCPULayerTest 7D Dynamic ref primType)|Flaky Test",
+    "signature_hash": "56c268ac84902dce",
+    "title": "smoke_ConvertCPULayerTest_7D_Dynamic fails on CPU primitive type check (unknown_f32 vs ref_f32)",
+    "category": "Flaky Test",
+    "count": 1,
+    "first_seen": "2026-10-07T05:20:16Z",
+    "last_seen": "2026-10-07T05:20:16Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/37572215905"
+    ],
+    "affected_commits": [
+        "f77c1e9b6d9e746a816c1a20182917f2c327cc7c"
+    ],
+    "recent_timestamps": [
+        "2026-10-07T05:20:16Z"
+    ]
+}

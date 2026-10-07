@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 21,
+  "total": 22,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -223,6 +223,17 @@
       "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
       "category": "Infrastructure",
       "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c"
+    },
+    {
+      "investigation_id": "2026-10-07-05-20-16-000-37572215905",
+      "run_id": "37572215905",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37572215905",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-07T05:20:16Z",
+      "title": "smoke_ConvertCPULayerTest_7D_Dynamic fails on CPU primitive type check (unknown_f32 vs ref_f32)",
+      "category": "Flaky Test",
+      "signature_hash": "56c268ac84902dce",
       "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c"
     }
   ]
