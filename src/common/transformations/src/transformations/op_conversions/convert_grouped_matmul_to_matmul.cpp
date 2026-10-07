@@ -75,7 +75,7 @@ ConvertGroupedMatMulToMatMul::ConvertGroupedMatMulToMatMul() {
             }
             const auto num_groups = b_partial_shape[0].get_length();
 
-            const auto i32 = ov::element::i32;
+            using ov::element::i32;
 
             const auto offsets_in = gmm->input_value(2);
             const auto offsets_et = offsets_in.get_element_type();
@@ -102,9 +102,9 @@ ConvertGroupedMatMulToMatMul::ConvertGroupedMatMulToMatMul() {
                 auto b_index = rg.make<v0::Constant>(i32, ov::Shape{}, g);
                 auto b_g = rg.make<v8::Gather>(mat_b, b_index, gather_axis);  // [N, K]
                 auto mm = rg.make<v0::MatMul>(a_g, b_g, false, true);         // [Mg, N]
-                group_outputs.push_back(mm);
+                group_outputs.push_back(std::move(mm));
 
-                start = end;
+                start = std::move(end);
             }
 
             replacement = rg.make<v0::Concat>(group_outputs, 0);  // [T, N]
