@@ -26,6 +26,8 @@ inline constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DAT
 inline constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
 inline constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
 inline constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
+inline constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION =
+    ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0;
 }  // namespace test_constants
 
 struct ZeroInitStructsMock {
@@ -39,6 +41,8 @@ public:
         uint32_t zeMutableCommandListExtVersion = intel_npu::test_constants::TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION,
         uint32_t zeExternalMemMapSysMemExtVersion =
             intel_npu::test_constants::TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION,
+        uint32_t zeCommandQueueSetPriorityExtVersion =
+            intel_npu::test_constants::TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION,
         ze_api_version_t zeApiVersion = intel_npu::test_constants::TARGET_ZE_API_VERSION);
 
     ~ZeroInitStructsMock();
@@ -78,6 +82,7 @@ private:
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
+    bool _command_queue_set_priority_supported = false;
 
     uint32_t _context_options = 0;
 

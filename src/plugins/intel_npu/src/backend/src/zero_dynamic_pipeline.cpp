@@ -180,7 +180,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         _executionContext.ensureV2(vmRuntime,
                                    init_structs->getContext(),
                                    init_structs->getDevice(),
-                                   commandQueueDesc.shared_common_queue() ? _command_queue->handle() : nullptr,
+                                   commandQueueDesc.sharedCommonQueue() ? _command_queue->handle() : nullptr,
                                    _init_structs->getGraphDdiTable().getImpl(),
                                    _init_structs->getCommandQueueDdiTable().getImpl());
         _runtime_config_command_queue_desc = commandQueueDesc;
@@ -261,7 +261,7 @@ void DynamicPipeline::push() {
 
     const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
     if (useV2Api) {
-        if (commandQueueVersionChanged && commandQueueDesc.shared_common_queue()) {
+        if (commandQueueVersionChanged && commandQueueDesc.sharedCommonQueue()) {
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
         }
 
@@ -282,7 +282,7 @@ void DynamicPipeline::push() {
     }
 
     const auto commandQueueHandle =
-        useV2Api && !commandQueueDesc.shared_common_queue() ? nullptr : _command_queue->handle();
+        useV2Api && !commandQueueDesc.sharedCommonQueue() ? nullptr : _command_queue->handle();
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
     auto& commandLists = _command_list_group;
     auto& dynamicArguments = commandLists->getArguments();
@@ -540,7 +540,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
         if (use_npu_vm_runtime_v2_api(_apiVersion)) {
             const auto commandQueueDesc = _graph->get_command_queue_desc();
-            if (commandQueueDesc.shared_common_queue() && commandQueueDesc.key() != _command_queue->desc().key()) {
+            if (commandQueueDesc.sharedCommonQueue() && commandQueueDesc.key() != _command_queue->desc().key()) {
                 _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
             }
         }
