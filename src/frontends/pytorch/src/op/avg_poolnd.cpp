@@ -98,26 +98,22 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(6),
                                 "Translation for aten::avg_pool2d do not support divisor_override input.");
 
-    // An oversized kernel on an unpadded axis is a global average over that axis. Reduce it before
-    // pooling so the graph remains valid for dynamic spatial dimensions. For padded axes, keep kernels
-    // that fit the padded extent unchanged; only clamp kernels that exceed the entire padded extent.
+    // An oversized kernel on an unpadded axis is PyTorch's way of expressing a global average over that
+    // axis: with ceil_mode the single pooling window is clipped to the feature map and one element is
+    // produced (e.g. EfficientNet's AvgPool2d(1280) over a 7x7 map). ov::op::AvgPool instead requires the
+    // kernel to fit the data, so such axes are lowered to ReduceMean before pooling. This keeps the graph
+    // valid for dynamic spatial dimensions and reproduces PyTorch's result for the traced feature map.
+    // Padded axes keep the regular AvgPool path: the kernel must still fit the padded data, matching
+    // PyTorch's own avg_pool constraint, so no traced-shape-dependent clamping is applied to them.
     const auto traced_shape = context.get_decoder()->get_input_complete_shape(0);
     const auto oversized = oversized_spatial_axes(traced_shape, kernel, dims);
     std::vector<int64_t> reduce_axes;
-    const auto traced_rank = traced_shape.rank().is_static() ? traced_shape.rank().get_length() : 0;
     for (int i = 0; i < dims; ++i) {
         const auto axis = static_cast<size_t>(i);
         if (oversized[axis] && pads[axis] == 0) {
             reduce_axes.push_back(-dims + i);
             kernel[axis] = 1;
             strides[axis] = 1;
-            pads[axis] = 0;
-        } else if (oversized[axis] && traced_rank >= dims) {
-            const auto spatial_dim = traced_shape[traced_rank - dims + i].get_length();
-            const auto padded_dim = spatial_dim + static_cast<int64_t>(pads[axis]) * 2;
-            if (static_cast<int64_t>(kernel[axis]) > padded_dim) {
-                kernel[axis] = static_cast<size_t>(padded_dim);
-            }
         }
     }
     if (!reduce_axes.empty()) {
