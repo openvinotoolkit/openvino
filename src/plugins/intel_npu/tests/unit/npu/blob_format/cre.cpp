@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -61,6 +62,17 @@ CREParams make_test_params(const std::vector<std::shared_ptr<CREToken>>& express
                      unsupported_section_instances,
                      section_instances_unknown_support,
                      expected_result);
+}
+
+CREParams make_test_params_invalid_expression(const std::vector<std::shared_ptr<CREToken>>& expression) {
+    return make_test_params(expression, ov::CompatibilityCheck::UNSUPPORTED);
+}
+
+std::vector<CREParams> generate_invalid_test_cases(
+    const std::vector<std::vector<std::shared_ptr<CREToken>>>& expression) {
+    std::vector<CREParams> result;
+    std::transform(expression.begin(), expression.end(), result.begin(), make_test_params_invalid_expression);
+    return result;
 }
 
 }  // namespace
@@ -166,15 +178,6 @@ using InvalidExpression = CREEvaluationTests;
 TEST_P(InvalidExpression, check_compatibility) {
     OV_EXPECT_THROW(CRE{expression}, InvalidCRE, _);
 }
-
-// using CREAppendSingleToken = ::testing::Test;
-
-// TEST_F(CREAppendSingleToken, AppendValidTokenUpdatesExpression) {
-//     CRE cre;
-//     cre.append_to_expression(ELF_MAIN_SCHEDULE_TOKEN);
-//     EXPECT_EQ(cre.get_expression_length(), 1);
-//     EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{ELF_MAIN_SCHEDULE_TOKEN}));
-// }
 
 // TEST_F(CREAppendSingleToken, AppendMultipleValidTokensAccumulates) {
 //     CRE cre;
@@ -785,128 +788,235 @@ const std::vector<std::shared_ptr<CREToken>> expression_22{CRE::OPEN_PTR, ELF_MA
 const std::vector<std::shared_ptr<CREToken>> expression_23 =
     {CRE::OPEN_PTR, CRE::OPEN_PTR, CRE::NOT_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR, CRE::CLOSE_PTR};
 
-// missing both operands for the OR operator
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_1{ELF_MAIN_SCHEDULE_TOKEN,
-                                                                  CRE::AND_PTR,
-                                                                  CRE::OPEN_PTR,
-                                                                  CRE::OR_PTR,
-                                                                  CRE::CLOSE_PTR};
+std::vector<std::vector<std::shared_ptr<CREToken>>> invalid_expressions{
+    // missing both operands for the OR operator
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, CRE::OR_PTR, CRE::CLOSE_PTR},
 
-// Missing only the first operand for the OR operator
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_15 =
-    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::OR_PTR, CRE::CLOSE_PTR};
+    // Missing only the first operand for the OR operator
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::OR_PTR, CRE::CLOSE_PTR},
 
-// Missing only the second operand for the OR operator
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_16 =
-    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, CRE::OR_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR};
+    // Missing only the second operand for the OR operator
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, CRE::OR_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR},
 
-// missing closed parenthesis
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_2{ELF_MAIN_SCHEDULE_TOKEN,
-                                                                  CRE::AND_PTR,
-                                                                  CRE::OPEN_PTR,
-                                                                  BATCH_SIZE_TOKEN,
-                                                                  CRE::OR_PTR,
-                                                                  ELF_INIT_SCHEDULES_TOKEN};
+    // missing closed parenthesis
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN},
 
-// missing open parenthesis
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_3{ELF_MAIN_SCHEDULE_TOKEN,
-                                                                  CRE::AND_PTR,
-                                                                  BATCH_SIZE_TOKEN,
-                                                                  CRE::OR_PTR,
-                                                                  ELF_INIT_SCHEDULES_TOKEN,
-                                                                  CRE::CLOSE_PTR};
+    // missing open parenthesis
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN, CRE::CLOSE_PTR},
 
-/*
-                ___ AND ___
-               /     |      \
-           *ELF*     OR      OR
-                     |      /  \
-                     0    *WS* *BT*
-*/
-// missing operand for the first OR operator
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_4{ELF_MAIN_SCHEDULE_TOKEN,
-                                                                  CRE::AND_PTR,
-                                                                  CRE::OPEN_PTR,
-                                                                  CRE::OR_PTR,
-                                                                  CRE::CLOSE_PTR,
-                                                                  CRE::OPEN_PTR,
-                                                                  ELF_INIT_SCHEDULES_TOKEN,
-                                                                  CRE::OR_PTR,
-                                                                  BATCH_SIZE_TOKEN,
-                                                                  CRE::CLOSE_PTR};
+    /*
+                    ___ AND ___
+                   /     |      \
+               *ELF*     OR      OR
+                         |      /  \
+                         0    *WS* *BT*
+    */
+    // missing operand for the first OR operator
+    {ELF_MAIN_SCHEDULE_TOKEN,
+     CRE::AND_PTR,
+     CRE::OPEN_PTR,
+     CRE::OR_PTR,
+     CRE::CLOSE_PTR,
+     CRE::OPEN_PTR,
+     ELF_INIT_SCHEDULES_TOKEN,
+     CRE::OR_PTR,
+     BATCH_SIZE_TOKEN,
+     CRE::CLOSE_PTR},
 
-// missing operands for nested operators
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_5 =
-    {CRE::OPEN_PTR, CRE::OR_PTR, CRE::OPEN_PTR, CRE::OR_PTR, CRE::CLOSE_PTR, CRE::CLOSE_PTR, CRE::AND_PTR};
+    // missing operands for nested operators
+    {CRE::OPEN_PTR, CRE::OR_PTR, CRE::OPEN_PTR, CRE::OR_PTR, CRE::CLOSE_PTR, CRE::CLOSE_PTR, CRE::AND_PTR},
 
-// NOT missing operand
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_6{ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::NOT_PTR};
+    // NOT missing operand
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::NOT_PTR},
 
-// chained NOTs with no operand
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_7{CRE::NOT_PTR, CRE::NOT_PTR};
+    // chained NOTs with no operand
+    {CRE::NOT_PTR, CRE::NOT_PTR},
 
-// NOT missing operand before CLOSE
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_8{CRE::OPEN_PTR, CRE::NOT_PTR, CRE::CLOSE_PTR};
+    // NOT missing operand before CLOSE
+    {CRE::OPEN_PTR, CRE::NOT_PTR, CRE::CLOSE_PTR},
 
-// missing operand
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_9{CRE::AND_PTR};
+    // missing operand
+    {CRE::AND_PTR},
 
-// too many operands
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_10{CRE::NOT_PTR,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   BATCH_SIZE_TOKEN};
+    // too many operands
+    {CRE::NOT_PTR, ELF_MAIN_SCHEDULE_TOKEN, BATCH_SIZE_TOKEN},
 
-// missing CLOSE
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_11{CRE::OPEN_PTR,
-                                                                   CRE::OPEN_PTR,
-                                                                   CRE::NOT_PTR,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   CRE::CLOSE_PTR};
+    // missing CLOSE
+    {CRE::OPEN_PTR, CRE::OPEN_PTR, CRE::NOT_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR},
 
-// missing OPEN
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_12{CRE::OPEN_PTR,
-                                                                   CRE::NOT_PTR,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   CRE::CLOSE_PTR,
-                                                                   CRE::CLOSE_PTR};
+    // missing OPEN
+    {CRE::OPEN_PTR, CRE::NOT_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR, CRE::CLOSE_PTR},
 
-// Empty parrentheses cannot play the role of an operand
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_13{ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   CRE::AND_PTR,
-                                                                   CRE::OPEN_PTR,
-                                                                   CRE::CLOSE_PTR};
+    // Empty parrentheses cannot play the role of an operand
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, CRE::CLOSE_PTR},
 
-// The subexpression is just "NOT". The operand is missing
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_14{CRE::OPEN_PTR,
-                                                                   CRE::NOT_PTR,
-                                                                   CRE::CLOSE_PTR,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN};
+    // The subexpression is just "NOT". The operand is missing
+    {CRE::OPEN_PTR, CRE::NOT_PTR, CRE::CLOSE_PTR, ELF_MAIN_SCHEDULE_TOKEN},
 
-// AND has too many operands
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_17{ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   CRE::AND_PTR,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN};
+    // AND has too many operands
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, ELF_MAIN_SCHEDULE_TOKEN, ELF_MAIN_SCHEDULE_TOKEN},
 
-// OR has too many operands
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_18{ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   CRE::OR_PTR,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN};
+    // OR has too many operands
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::OR_PTR, ELF_MAIN_SCHEDULE_TOKEN, ELF_MAIN_SCHEDULE_TOKEN},
 
-// No operator to tie the two tokens
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_19{ELF_MAIN_SCHEDULE_TOKEN, ELF_MAIN_SCHEDULE_TOKEN};
+    // No operator to tie the two tokens
+    {ELF_MAIN_SCHEDULE_TOKEN, ELF_MAIN_SCHEDULE_TOKEN},
 
-// No operator to tie the two subexpressions
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_20{CRE::OPEN_PTR,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   CRE::CLOSE_PTR,
-                                                                   CRE::OPEN_PTR,
-                                                                   ELF_MAIN_SCHEDULE_TOKEN,
-                                                                   CRE::CLOSE_PTR};
+    // No operator to tie the two subexpressions
+    {CRE::OPEN_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR, CRE::OPEN_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR},
 
-// "OR" cannot replace an operand
-const std::vector<std::shared_ptr<CREToken>> invalid_expression_21{ELF_MAIN_SCHEDULE_TOKEN, CRE::OR_PTR, CRE::OR_PTR};
+    // "OR" cannot replace an operand
+    {ELF_MAIN_SCHEDULE_TOKEN, CRE::OR_PTR, CRE::OR_PTR},
+
+    // Can't start with a binary operator
+    {CRE::OR_PTR},
+
+    // Section ID's should always follow section types
+    {ID_0_TOKEN},
+};
+
+using CRETests = ::testing::Test;
+
+TEST_F(CRETests, EmptyCtor) {
+    CRE cre;
+    ASSERT_TRUE(cre.empty());
+    ASSERT_EQ(cre.get_expression_length(), 0);
+    ASSERT_EQ(cre.get_expression(), std::vector<std::shared_ptr<CREToken>>{});
+}
+
+TEST_F(CRETests, NonEmptyCtor) {
+    CRE cre({BATCH_SIZE_TOKEN});
+    ASSERT_FALSE(cre.empty());
+    ASSERT_EQ(cre.get_expression_length(), 1);
+    ASSERT_EQ(cre.get_expression(), std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN});
+}
+
+TEST_F(CRETests, CtorAcceptsAllValidTokenTypes) {
+    const std::vector<std::shared_ptr<CREToken>> expression{ELF_MAIN_SCHEDULE_TOKEN,
+                                                            ID_1_TOKEN,
+                                                            CRE::AND_PTR,
+                                                            BATCH_SIZE_TOKEN,
+                                                            CRE::OR_PTR,
+                                                            CRE::NOT_PTR,
+                                                            CRE::OPEN_PTR,
+                                                            ELF_INIT_SCHEDULES_TOKEN,
+                                                            ID_0_TOKEN,
+                                                            CRE::CLOSE_PTR};
+    CRE cre(expression);
+    ASSERT_FALSE(cre.empty());
+    ASSERT_EQ(cre.get_expression_length(), expression.size());
+    ASSERT_EQ(cre.get_expression(), expression);
+}
+
+TEST_F(CRETests, NonEmptyAppendToExpression) {
+    CRE cre1({BATCH_SIZE_TOKEN});
+    cre1.append_to_expression(ELF_MAIN_SCHEDULE_TOKEN);
+    std::vector<std::shared_ptr<CREToken>> reference{BATCH_SIZE_TOKEN, CRE::AND_PTR, ELF_MAIN_SCHEDULE_TOKEN};
+
+    ASSERT_FALSE(cre1.empty());
+    ASSERT_EQ(cre1.get_expression_length(), reference.size());
+    ASSERT_EQ(cre1.get_expression(), reference);
+
+    CRE cre2;
+    cre2.append_to_expression({BATCH_SIZE_TOKEN, CRE::AND_PTR, ELF_MAIN_SCHEDULE_TOKEN});
+    ASSERT_FALSE(cre2.empty());
+    ASSERT_EQ(cre2.get_expression_length(), reference.size());
+    ASSERT_EQ(cre2.get_expression(), reference);
+}
+
+TEST_F(CRETests, EmptyAppendToExpression) {
+    CRE cre1({BATCH_SIZE_TOKEN});
+    cre1.append_to_expression(std::vector<std::shared_ptr<CREToken>>{});
+    std::vector<std::shared_ptr<CREToken>> reference{BATCH_SIZE_TOKEN};
+
+    ASSERT_FALSE(cre1.empty());
+    ASSERT_EQ(cre1.get_expression_length(), reference.size());
+    ASSERT_EQ(cre1.get_expression(), reference);
+
+    CRE cre2;
+    cre2.append_to_expression(std::vector<std::shared_ptr<CREToken>>{});
+    ASSERT_TRUE(cre2.empty());
+}
+
+TEST_F(CRETests, AppendInvalidExpression) {
+    CRE cre;
+    OV_EXPECT_THROW(cre.append_to_expression(CRE::AND_PTR), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(CRE::OR_PTR), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(CRE::NOT_PTR), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(CRE::OPEN_PTR), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(CRE::CLOSE_PTR), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(ID_0_TOKEN), InvalidCRE, _);
+
+    OV_EXPECT_THROW(cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{CRE::AND_PTR}), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{CRE::OR_PTR}), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{CRE::NOT_PTR}), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{CRE::OPEN_PTR}), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{CRE::CLOSE_PTR}), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{ID_0_TOKEN}), InvalidCRE, _);
+    OV_EXPECT_THROW(cre.append_to_expression({ELF_MAIN_SCHEDULE_TOKEN,
+                                              CRE::AND_PTR,
+                                              BATCH_SIZE_TOKEN,
+                                              CRE::OR_PTR,
+                                              ELF_INIT_SCHEDULES_TOKEN,
+                                              CRE::CLOSE_PTR}),
+                    InvalidCRE,
+                    _);
+}
+
+TEST_F(CRETests, AppendingAvoidsRedundancy) {
+    const std::vector<std::shared_ptr<CREToken>> expression{ELF_MAIN_SCHEDULE_TOKEN,
+                                                            ID_1_TOKEN,
+                                                            CRE::AND_PTR,
+                                                            BATCH_SIZE_TOKEN,
+                                                            CRE::OR_PTR,
+                                                            CRE::NOT_PTR,
+                                                            CRE::OPEN_PTR,
+                                                            ELF_INIT_SCHEDULES_TOKEN,
+                                                            ID_0_TOKEN,
+                                                            CRE::CLOSE_PTR};
+    CRE cre(expression);
+    cre.append_to_expression(expression);
+    ASSERT_EQ(cre.get_expression(), expression);
+    cre.append_to_expression(expression);
+    ASSERT_EQ(cre.get_expression(), expression);
+
+    cre = CRE({BATCH_SIZE_TOKEN});
+    cre.append_to_expression(BATCH_SIZE_TOKEN);
+    ASSERT_EQ(cre.get_expression(), BATCH_SIZE_TOKEN);
+    cre.append_to_expression(BATCH_SIZE_TOKEN);
+    ASSERT_EQ(cre.get_expression(), BATCH_SIZE_TOKEN);
+}
+
+TEST_F(CRETests, AppendAndBrackets) {
+    CRE cre;
+    cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN});
+    ASSERT_EQ(cre.get_expression(), std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN});
+
+    cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{ELF_MAIN_SCHEDULE_TOKEN});
+    std::vector<std::shared_ptr<CREToken>> reference{BATCH_SIZE_TOKEN,
+                                                     CRE::OPEN_PTR,
+                                                     ELF_MAIN_SCHEDULE_TOKEN,
+                                                     CRE::CLOSE_PTR};
+    ASSERT_EQ(cre.get_expression(), reference);
+
+    cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{ELF_MAIN_SCHEDULE_TOKEN});
+    ASSERT_EQ(cre.get_expression(), reference);
+
+    cre.append_to_expression(
+        std::vector<std::shared_ptr<CREToken>>{CRE::OPEN_PTR, ELF_INIT_SCHEDULES_TOKEN, CRE::CLOSE_PTR});
+    reference = std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN,
+                                                       CRE::OPEN_PTR,
+                                                       ELF_MAIN_SCHEDULE_TOKEN,
+                                                       CRE::CLOSE_PTR,
+                                                       CRE::OPEN_PTR,
+                                                       CRE::OPEN_PTR,
+                                                       ELF_INIT_SCHEDULES_TOKEN,
+                                                       CRE::CLOSE_PTR,
+                                                       CRE::CLOSE_PTR};
+    ASSERT_EQ(cre.get_expression(), reference);
+}
+
+std::vector<CREParams> invalid_test_cases = generate_invalid_test_cases(invalid_expressions);
 
 std::vector<CREParams> valid_test_cases{
     make_test_params(expression_1, ov::CompatibilityCheck::SUPPORTED),
@@ -1048,30 +1158,6 @@ INSTANTIATE_TEST_SUITE_P(CRE,
                          ValidExpression,
                          ::testing::ValuesIn(valid_test_cases),
                          CREEvaluationTests::getTestCaseName);
-
-std::vector<CREParams> invalid_test_cases{
-    make_test_params(invalid_expression_1, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_2, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_3, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_4, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_5, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_6, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_7, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_8, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_9, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_10, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_11, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_12, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_13, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_14, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_15, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_16, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_17, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_18, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_19, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_20, ov::CompatibilityCheck::UNSUPPORTED),
-    make_test_params(invalid_expression_21, ov::CompatibilityCheck::UNSUPPORTED),
-};
 
 INSTANTIATE_TEST_SUITE_P(CRE,
                          InvalidExpression,
