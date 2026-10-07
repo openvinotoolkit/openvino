@@ -25,6 +25,8 @@ std::string getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBacken
  */
 std::shared_ptr<IDevice> getDeviceById(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& deviceId);
 std::string getFullDeviceName(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
+std::string getDeviceArchitecture(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                  const std::string& specifiedDeviceName);
 IDevice::Uuid getDeviceUuid(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
 ov::device::LUID getDeviceLUID(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
 uint32_t getSteppingNumber(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
