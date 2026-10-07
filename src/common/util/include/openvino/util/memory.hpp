@@ -143,6 +143,7 @@ struct MemoryProperties {
 /** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
 class MemoryView {
 public:
+    constexpr MemoryView() noexcept = default;
     constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
 
     constexpr const std::byte* data() const noexcept {
