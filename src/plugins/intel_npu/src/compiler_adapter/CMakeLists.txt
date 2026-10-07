@@ -11,10 +11,13 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dynamic_graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ivcl_compiler.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/iprofiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mem_usage.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/model_serializer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/parser.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin_compiler_adapter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vcl_error_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vcl_profiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/vcl_version_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/weightless_graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/weightless_utils.hpp
@@ -32,6 +35,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/parser_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_compiler_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/precomp.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vcl_error_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vcl_profiling_decoder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/weightless_graph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/weightless_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_serializer.cpp

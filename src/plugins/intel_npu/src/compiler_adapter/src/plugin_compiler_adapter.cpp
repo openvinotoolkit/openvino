@@ -20,6 +20,7 @@
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "vcl_profiling_decoder.hpp"
 #include "weightless_graph.hpp"
 #include "weightless_utils.hpp"
 
@@ -57,7 +58,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile start");
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
-
     const auto& compilationMode = config.get<COMPILATION_MODE>();
     const bool isHostCompile = compilationMode.find("HostCompile") != std::string::npos;
     const BlobType blobType =
@@ -99,7 +99,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         compatibilityDescriptor,
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        make_profiling_decoder(config));
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -255,8 +256,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::move(initNetworkMetadata),
         tensorsInits,
         std::move(model),
-        /* persistentBlob = */ true,
-        compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        compatibilityDescriptor,
+        make_profiling_decoder(config));
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -285,6 +287,14 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                   supported ? "is supported" : "is not supported");
 
     return supported;
+}
+
+std::shared_ptr<const IProfilingDecoder> PluginCompilerAdapter::make_profiling_decoder(const Config& config) const {
+    if (!config.get<PERF_COUNT>()) {
+        return nullptr;
+    }
+
+    return makeVCLProfilingDecoder();
 }
 
 }  // namespace intel_npu

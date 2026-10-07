@@ -13,6 +13,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "ivcl_compiler.hpp"
+#include "iprofiling_decoder.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -51,6 +52,13 @@ public:
     uint32_t get_version() const override;
 
 private:
+    /**
+     * @brief Builds a profiling decoder when PERF_COUNT is enabled, otherwise returns null.
+     * @details Decoding needs only the VCL profiling entry points, never a compiler instance, so this does not
+     * trigger a "vclCompilerCreate" / "vclCompilerDestroy" cycle.
+     */
+    std::shared_ptr<const IProfilingDecoder> make_profiling_decoder(const Config& config) const;
+
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     ov::SoPtr<IVCLCompiler> _compiler;

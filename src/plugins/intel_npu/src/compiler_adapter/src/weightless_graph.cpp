@@ -264,14 +264,16 @@ WeightlessGraph::WeightlessGraph(
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const bool blobIsPersistent,
-    const std::optional<std::string>& compatibilityDescriptor)
+    const std::optional<std::string>& compatibilityDescriptor,
+    std::shared_ptr<const IProfilingDecoder> profilingDecoder)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
             std::move(mainMetadata),
             std::move(mainBlob),
             compatibilityDescriptor,
-            blobIsPersistent),
+            blobIsPersistent,
+            std::move(profilingDecoder)),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
