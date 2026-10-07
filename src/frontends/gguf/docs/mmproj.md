@@ -106,7 +106,8 @@ the DeepStack features after the primary ones along `D`.
 ## Runtime metadata
 
 Model rt_info `gguf_mmproj` keeps every source `clip.*` key and adds `<modality>.projector`,
-`<modality>.merge`, `vision.auxiliary_count`, `vision.window_size` (Muse Glimmer) and
+`<modality>.merge`, `vision.auxiliary_count`, the effective `vision.patch_size`,
+`vision.window_size` (Muse Glimmer) and
 `vision.minicpmv_version` / `vision.query_count` (resampler). Values are strings: numeric
 arrays are comma-separated, and string arrays are `length:value` entries flagged by a
 `<key>.encoding` companion. The metadata survives IR serialization and adaptation; supplied
@@ -142,7 +143,24 @@ mode prepares the language model for media injection:
 - Gemma3 and Gemma4 without per-layer embeddings take `token_type_ids [B,T]`: image tokens attend
   bidirectionally within their image, in every Gemma3 layer and in Gemma4 sliding-window layers;
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
-  sections.
+  sections;
+- the per-layer lookup reads image, video and audio placeholders as the padding token, as HF and
+  llama.cpp do.
+
+[`genai_vision_models`](../include/openvino/frontend/gguf/genai_vision.hpp) returns the vision
+encoder in the optimum-intel export layout, so OpenVINO GenAI runs it with the preprocessing it
+uses for exported models:
+
+| Projector | Models | Inputs |
+|---|---|---|
+| `gemma3` | `vision_embeddings` | `pixel_values [1,3,S,S]` |
+| `gemma4v`, `gemma4uv` | `vision_embeddings` | `pixel_values [1,P,patch*patch*3]` with patches in raster order, then padding; `image_position_ids [1,P,2]` as (x, y), -1 for padding |
+| `muse-glimmer` | `vision_embeddings` | `pixel_values [rows*cols,3*patch*patch]`, `image_grid_thw [1,3]`; window, merge and position indices are derived in the graph |
+| `qwen3vl_merger` | `vision_embeddings`, `vision_embeddings_pos`, `vision_embeddings_merger` | flattened patches `hidden_states`; position-table indices `input [4,N]`; `hidden_states`, `attention_mask [1,N,N]`, `rotary_pos_emb [N,head/2]` |
+
+Where llama.cpp departs from HF, these models follow HF: Gemma4 vision uses tanh GELU instead
+of llama.cpp's GELU_QUICK default. Muse Glimmer GGUF files collapse HF's two-frame patch kernel,
+so the layout takes one frame per patch.
 
 Register `GenAIExtension` before converting the language model, as described in
 [runtime.md](runtime.md#stateful-and-genai-conversion). In C++, with a `FrontEndManager manager`

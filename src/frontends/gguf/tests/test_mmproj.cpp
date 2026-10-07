@@ -18,6 +18,9 @@
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/frontend/gguf/genai_vision.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
 
@@ -554,4 +557,179 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "resampler",
                                            "resampler_v2",
                                            "resampler_v4"));
+class GGUFMMProjGenAIVisionLayout : public GGUFMMProjAccuracy {
+protected:
+    ov::Tensor reference(const std::string& step, bool tanh_gelu) {
+        auto source = model->clone();
+        for (const auto& node : source->get_ordered_ops()) {
+            if (tanh_gelu && node->get_friendly_name().find("GGML_UNARY_OP_GELU_QUICK") != std::string::npos)
+                ov::replace_node(
+                    node,
+                    std::make_shared<ov::op::v7::Gelu>(node->input_value(0), ov::op::GeluApproximationMode::TANH));
+        }
+        std::map<std::string, ov::Tensor> inputs;
+        for (const auto& input : source->inputs()) {
+            const auto name = input.get_any_name().substr(std::string("vision.").size());
+            const auto key = step.empty() && name == "pixel_values" ? "inputs" : step + name;
+            inputs[input.get_any_name()] = tensor(key, input.get_element_type());
+        }
+        return infer(source, inputs).front();
+    }
+    int64_t metadata(const std::string& key) const {
+        return std::stoll(model->get_rt_info<std::string>({"gguf_mmproj", key}));
+    }
+    std::vector<ov::Tensor> infer(const std::shared_ptr<ov::Model>& current,
+                                  const std::map<std::string, ov::Tensor>& inputs) {
+        auto request = compile(current);
+        for (const auto& [name, value] : inputs)
+            request.set_tensor(name, value);
+        request.infer();
+        std::vector<ov::Tensor> outputs;
+        for (size_t i = 0; i < current->outputs().size(); ++i) {
+            const auto output = request.get_output_tensor(i);
+            outputs.emplace_back(output.get_element_type(), output.get_shape());
+            output.copy_to(outputs.back());
+        }
+        return outputs;
+    }
+};
+
+TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
+    const auto models = ov::frontend::gguf::genai_vision_models(model);
+    const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
+    const auto patch = size_t(metadata("vision.patch_size"));
+    const bool steps = std::any_of(arrays.begin(), arrays.end(), [](const auto& entry) {
+        return entry.first == "0.embeddings";
+    });
+    for (const std::string step : steps ? std::vector<std::string>{"0.", "1."} : std::vector<std::string>{""}) {
+        SCOPED_TRACE(projector + " " + step);
+        const auto image = tensor(steps ? step + "pixel_values" : "inputs", ov::element::f32);
+        const auto& shape = image.get_shape();
+        const size_t height = shape[2], width = shape[3], rows = height / patch, cols = width / patch;
+        const size_t count = rows * cols;
+        const auto pixel = [&](size_t frame, size_t channel, size_t patch_index, size_t y, size_t x) {
+            const size_t row = patch_index / cols * patch + y, col = patch_index % cols * patch + x;
+            return image.data<const float>()[((frame * 3 + channel) * height + row) * width + col];
+        };
+        std::vector<ov::Tensor> actual;
+        if (projector == "gemma3") {
+            actual = infer(models.at("vision_embeddings"), {{"pixel_values", image}});
+        } else if (projector == "gemma4v" || projector == "gemma4uv") {
+            const size_t padded = count + 3, dim = patch * patch * 3;
+            ov::Tensor values(ov::element::f32, {1, padded, dim});
+            ov::Tensor positions(ov::element::i64, {1, padded, 2});
+            std::fill_n(values.data<float>(), values.get_size(), 0.f);
+            std::fill_n(positions.data<int64_t>(), positions.get_size(), int64_t{-1});
+            const auto x = tensor(step + "position_x", ov::element::i32);
+            const auto y = tensor(step + "position_y", ov::element::i32);
+            for (size_t i = 0; i < count; ++i) {
+                positions.data<int64_t>()[2 * i] = x.data<const int32_t>()[i];
+                positions.data<int64_t>()[2 * i + 1] = y.data<const int32_t>()[i];
+                for (size_t py = 0; py < patch; ++py)
+                    for (size_t px = 0; px < patch; ++px)
+                        for (size_t c = 0; c < 3; ++c)
+                            values.data<float>()[i * dim + (py * patch + px) * 3 + c] = pixel(0, c, i, py, px);
+            }
+            actual =
+                infer(models.at("vision_embeddings"), {{"pixel_values", values}, {"image_position_ids", positions}});
+        } else if (projector == "muse-glimmer") {
+            const size_t dim = 3 * patch * patch;
+            ov::Tensor values(ov::element::f32, {count, dim});
+            for (size_t i = 0; i < count; ++i)
+                for (size_t c = 0; c < 3; ++c)
+                    for (size_t py = 0; py < patch; ++py)
+                        for (size_t px = 0; px < patch; ++px)
+                            values.data<float>()[i * dim + (c * patch + py) * patch + px] = pixel(0, c, i, py, px);
+            ov::Tensor grid(ov::element::i64, {1, 3});
+            grid.data<int64_t>()[0] = 1;
+            grid.data<int64_t>()[1] = int64_t(rows);
+            grid.data<int64_t>()[2] = int64_t(cols);
+            actual = infer(models.at("vision_embeddings"), {{"pixel_values", values}, {"image_grid_thw", grid}});
+        } else {
+            ASSERT_EQ(projector, "qwen3vl_merger");
+            const auto order = tensor("patch_indices", ov::element::i32);
+            const size_t dim = 6 * patch * patch;
+            ov::Tensor hidden(ov::element::f32, {count, dim});
+            for (size_t j = 0; j < count; ++j)
+                for (size_t c = 0; c < 3; ++c)
+                    for (size_t t = 0; t < 2; ++t)
+                        for (size_t py = 0; py < patch; ++py)
+                            for (size_t px = 0; px < patch; ++px)
+                                hidden.data<float>()[j * dim + ((c * 2 + t) * patch + py) * patch + px] =
+                                    pixel(t, c, size_t(order.data<const int32_t>()[j]), py, px);
+            auto embeddings = infer(models.at("vision_embeddings"), {{"hidden_states", hidden}}).front();
+            const size_t embedding_width = embeddings.get_shape()[1];
+
+            const auto& pos_model = models.at("vision_embeddings_pos");
+            size_t side = 0;
+            for (const auto& node : pos_model->get_ordered_ops()) {
+                if (ov::is_type<ov::op::v8::Gather>(node))
+                    side = size_t(std::lround(std::sqrt(double(node->get_input_shape(0)[0]))));
+            }
+            ASSERT_GT(side, 1u);
+            ov::Tensor indices(ov::element::i64, {4, count});
+            std::vector<float> weights(4 * count);
+            for (size_t i = 0; i < count; ++i) {
+                const float h = rows > 1 ? float(i / cols) * float(side - 1) / float(rows - 1) : 0.f;
+                const float w = cols > 1 ? float(i % cols) * float(side - 1) / float(cols - 1) : 0.f;
+                const size_t h0 = size_t(h), w0 = size_t(w);
+                const size_t h1 = std::min(h0 + 1, side - 1), w1 = std::min(w0 + 1, side - 1);
+                const float dh = h - float(h0), dw = w - float(w0);
+                const size_t corners[] = {h0 * side + w0, h0 * side + w1, h1 * side + w0, h1 * side + w1};
+                const float corner_weights[] = {(1 - dh) * (1 - dw), (1 - dh) * dw, dh * (1 - dw), dh * dw};
+                for (size_t k = 0; k < 4; ++k) {
+                    indices.data<int64_t>()[k * count + i] = int64_t(corners[k]);
+                    weights[k * count + i] = corner_weights[k];
+                }
+            }
+            const auto table = infer(pos_model, {{"input", indices}}).front();
+            for (size_t j = 0; j < count; ++j) {
+                const size_t i = size_t(order.data<const int32_t>()[j]);
+                for (size_t k = 0; k < 4; ++k)
+                    for (size_t d = 0; d < embedding_width; ++d)
+                        embeddings.data<float>()[j * embedding_width + d] +=
+                            weights[k * count + i] * table.data<const float>()[(k * count + i) * embedding_width + d];
+            }
+
+            const auto head = metadata("clip.vision.embedding_length") / metadata("clip.vision.attention.head_count");
+            const size_t half = size_t(head / 4);
+            const auto ids = tensor("position_ids", ov::element::i32);
+            ov::Tensor rotary(ov::element::f32, {count, 2 * half});
+            for (size_t j = 0; j < count; ++j)
+                for (size_t q = 0; q < half; ++q) {
+                    const float frequency = std::pow(10000.f, -float(q) / float(half));
+                    rotary.data<float>()[j * 2 * half + q] = float(ids.data<const int32_t>()[j]) * frequency;
+                    rotary.data<float>()[j * 2 * half + half + q] =
+                        float(ids.data<const int32_t>()[count + j]) * frequency;
+                }
+            ov::Tensor mask(ov::element::f32, {1, count, count});
+            std::fill_n(mask.data<float>(), mask.get_size(), 0.f);
+            actual = infer(models.at("vision_embeddings_merger"),
+                           {{"hidden_states", embeddings}, {"attention_mask", mask}, {"rotary_pos_emb", rotary}});
+        }
+        const auto expected = reference(step, projector == "gemma4v");
+        const size_t tokens = expected.get_shape()[2], packed = expected.get_shape()[3];
+        size_t offset = 0;
+        for (const auto& output : actual) {
+            const size_t levels =
+                output.get_shape().size() == 3 && output.get_shape()[0] != 1 ? output.get_shape()[0] : 1;
+            const size_t level_width = output.get_shape().back();
+            ASSERT_EQ(output.get_size(), levels * tokens * level_width);
+            ov_gguf_test::Nmse metric;
+            for (size_t level = 0; level < levels; ++level)
+                for (size_t t = 0; t < tokens; ++t)
+                    for (size_t d = 0; d < level_width; ++d)
+                        metric.add(output.data<const float>()[(level * tokens + t) * level_width + d],
+                                   expected.data<const float>()[t * packed + offset + level * level_width + d]);
+            ov_gguf_test::expect_nmse_below(metric, 1e-10);
+            offset += levels * level_width;
+        }
+        EXPECT_EQ(offset, packed);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Reference,
+    GGUFMMProjGenAIVisionLayout,
+    ::testing::Values("gemma3", "gemma4v", "gemma4v_one_sided", "gemma4uv", "muse-glimmer", "qwen3vl_merger"));
 }  // namespace

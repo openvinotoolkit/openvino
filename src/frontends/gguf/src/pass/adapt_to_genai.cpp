@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -189,6 +190,35 @@ int64_t max_kv_cache_head_size(const std::shared_ptr<ov::Model>& model) {
     return max_hs;
 }
 
+// HF Gemma4 and llama.cpp look up media positions as padding.
+ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Output<ov::Node>& ids) {
+    const auto& rt_info = model.get_rt_info();
+    const auto it = rt_info.find(gguf_tokenizer_metadata_key());
+    if (it == rt_info.end())
+        return ids;
+    const auto& config = it->second.as<std::shared_ptr<GGUFTokenizerMetadata>>()->config;
+    const auto tokens = config.find("tokens");
+    if (tokens == config.end() || !tokens->second.is<std::vector<std::string>>())
+        return ids;
+    int64_t pad = 0;
+    if (const auto p = config.find("padding_token_id"); p != config.end() && p->second.is<ov::Tensor>()) {
+        const auto& value = p->second.as<ov::Tensor>();
+        pad = value.get_element_type() == ov::element::i32 ? value.data<const int32_t>()[0]
+                                                           : value.data<const uint32_t>()[0];
+    }
+    ov::Output<ov::Node> media;
+    const auto& vocabulary = tokens->second.as<std::vector<std::string>>();
+    for (size_t id = 0; id < vocabulary.size(); ++id) {
+        if (vocabulary[id] != "<|image|>" && vocabulary[id] != "<|video|>" && vocabulary[id] != "<|audio|>")
+            continue;
+        auto match = make_shared<ov::op::v1::Equal>(ids, ov::op::v0::Constant::create(ov::element::i64, {}, {id}));
+        media = media.get_node() ? make_shared<ov::op::v1::LogicalOr>(media, match)->output(0) : match->output(0);
+    }
+    if (!media.get_node())
+        return ids;
+    return make_shared<ov::op::v1::Select>(media, ov::op::v0::Constant::create(ov::element::i64, {}, {pad}), ids);
+}
+
 }  // namespace
 
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -261,12 +291,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto embedding = find_boundary(embedding_name);
         const auto width = embedding->get_output_partial_shape(0)[3].get_length();
         // Clone each lookup graph before rewiring the language model. Constants retain shared buffers.
-        const auto extract = [&](const ov::Output<ov::Node>& lookup, const std::string& name) {
+        const auto extract = [&](const ov::Output<ov::Node>& lookup, const std::string& name, bool pad_media) {
             auto extracted = make_shared<ov::Model>(ov::OutputVector{lookup}, ov::ParameterVector{inp_tokens})->clone();
             extracted->get_rt_info() = model->get_rt_info();
             auto ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
             name_output(ids, "input_ids");
-            auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(ids, ov::element::i32),
+            auto lookup_ids = pad_media ? pad_media_placeholders(*model, ids) : ids->output(0);
+            auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(lookup_ids, ov::element::i32),
                                                    v0::Constant::create(ov::element::i64, {2}, {0, 1}));
             auto old_ids = extracted->get_parameters().front();
             old_ids->output(0).replace(ids4->output(0));
@@ -276,7 +307,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             extracted->validate_nodes_and_infer_types();
             return extracted;
         };
-        m_embedding_model = extract(make_shared<v0::Squeeze>(embedding, axis_1), "inputs_embeds");
+        m_embedding_model = extract(make_shared<v0::Squeeze>(embedding, axis_1), "inputs_embeds", false);
         auto per_layer = per_layer_name.empty() ? nullptr : find_boundary(per_layer_name);
         int64_t per_layer_width = 0;
         if (per_layer) {
@@ -292,7 +323,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                                  {4},
                                                  {int64_t{0}, int64_t{0}, per_layer_count, per_layer_width}),
                             true),
-                        "per_layer_inputs");
+                        "per_layer_inputs",
+                        true);
         }
         inputs_embeds = make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, width});
         name_output(inputs_embeds, "inputs_embeds");
