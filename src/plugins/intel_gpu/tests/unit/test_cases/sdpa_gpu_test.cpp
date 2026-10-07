@@ -2036,7 +2036,7 @@ TEST_P(sdpa_ref_scratch_test, native_q_broadcast) {
         net->set_arguments();
         for (const auto& id : net->get_executed_primitive_ids()) {
             const auto instance = net->get_primitive(id);
-            instance->reset_events();
+            instance->clear_events();
             instance->prepare_primitive();
             if (id == "sdpa") {
                 ASSERT_EQ(instance->get_impl()->m_manager->get_type_info(), ov::intel_gpu::ocl::SDPARef::get_type_info_static());

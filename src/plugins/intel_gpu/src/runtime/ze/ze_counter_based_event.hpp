@@ -9,7 +9,7 @@
 
 namespace cldnn {
 namespace ze {
-
+struct ze_base_event_factory;
 
 // ze counter based event.
 // Signaled state is inferred from the number of tasks completed on device.
@@ -25,7 +25,7 @@ public:
         OPENVINO_ASSERT(!m_event.is_empty(), "[GPU] Attempt to create counter based event with empty holder");
     }
 
-    void wait_impl() override;
+    void ze_wait_impl() override;
     void set_impl() override;
     bool is_set_impl() override;
     ze_event_handle_t get_handle() const override;

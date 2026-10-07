@@ -18,6 +18,8 @@
 #include "ze_kernel.hpp"
 #include "ze_memory.hpp"
 #include "ze_common.hpp"
+#include "ze_command_list.hpp"
+#include "ze_command_recorder.hpp"
 
 #include "compute_runtime/ze_intel_gpu.h"
 #include "compute_runtime/ze_stypes.h"
@@ -237,7 +239,7 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     auto device_handle = engine.get_device().handle();
     ze_command_list_handle_t cmd_list = nullptr;
     OV_ZE_EXPECT(ze::zeCommandListCreateImmediate(ctx_handle, device_handle, &command_queue_desc, &cmd_list));
-    m_cmd_list = ze_command_list_resource(cmd_list);
+    m_imm_cmd_list = ze_command_list_resource(cmd_list);
 
     bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
 
@@ -247,9 +249,13 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         use_counter_based_events = false;
     }
 
-    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, config.get_enable_profiling());
+    // Passing reference to not fully formed object is safe here because ze_command_recorder does not call virtual methods for stream
+    m_recorder = std::make_shared<ze_command_recorder>(*this);
+
+    auto profiling_enabled = config.get_enable_profiling();
+    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, profiling_enabled);
     if (use_counter_based_events) {
-        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, profiling_enabled);
     } else {
         // If counter based events are not supported or not used, use the same factory for both user and base events
         m_ev_factory = m_user_ev_factory;
@@ -264,13 +270,17 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
 ze_stream::ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list)
     : stream(detect_queue_type(cmd_list), stream::get_expected_sync_method(config))
     , _engine(engine)
-    , m_cmd_list(std::move(cmd_list)) {
+    , m_imm_cmd_list(std::move(cmd_list)) {
     const auto &info = engine.get_device_info();
     bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
+    auto profiling_enabled = config.get_enable_profiling();
 
-    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, config.get_enable_profiling());
+    // Passing reference to not fully formed object is safe here because ze_command_recorder does not call virtual methods for stream
+    m_recorder = std::make_shared<ze_command_recorder>(*this);
+
+    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, profiling_enabled);
     if (use_counter_based_events) {
-        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, profiling_enabled);
     } else {
         m_ev_factory = m_user_ev_factory;
     }
@@ -285,7 +295,7 @@ ze_stream::~ze_stream() {
     // Destroy OneDNN stream before dropping command list
     _onednn_stream.reset();
 #endif
-    m_cmd_list.drop();
+    m_imm_cmd_list.drop();
 }
 
 void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
@@ -309,15 +319,12 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     std::vector<ze_event_handle_t> dep_events;
     std::vector<ze_event_handle_t>* dep_events_ptr = nullptr;
     if (m_sync_method == SyncMethods::events) {
-        for (auto& dep : deps) {
-            if (auto ze_base_ev = std::dynamic_pointer_cast<ze_base_event>(dep)) {
-                if (ze_base_ev->get_handle() != nullptr)
-                    dep_events.push_back(ze_base_ev->get_handle());
-            }
+        dep_events = ze_base_event::get_event_handles(deps, true);
+        if (!dep_events.empty()) {
+            dep_events_ptr = &dep_events;
         }
-        dep_events_ptr = &dep_events;
     } else if (m_sync_method == SyncMethods::barriers) {
-        sync_events(deps, is_output);
+        sync_events(deps);
     }
     bool set_output_event = m_sync_method == SyncMethods::events || is_output;
 
@@ -326,7 +333,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     auto local = to_group_count(args_desc.workGroups.local);
     ze_group_count_t args = { global.groupCountX / local.groupCountX, global.groupCountY / local.groupCountY, global.groupCountZ / local.groupCountZ };
     OV_ZE_EXPECT(ze::zeKernelSetGroupSize(kern, local.groupCountX, local.groupCountY, local.groupCountZ));
-    OV_ZE_EXPECT(ze::zeCommandListAppendLaunchKernel(m_cmd_list.handle(),
+    OV_ZE_EXPECT(ze::zeCommandListAppendLaunchKernel(get_command_list().handle(),
                                              kern,
                                              &args,
                                              set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle() : nullptr,
@@ -336,41 +343,44 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     return ev;
 }
 
-void ze_stream::enqueue_barrier() {
-    OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(), nullptr, 0, nullptr));
+void ze_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
+    if (deps.empty()) {
+        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(), nullptr, 0, nullptr));
+    } else {
+        auto handles = ze_base_event::get_event_handles(deps, true);
+        if (!handles.empty()) {
+            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(),
+                                                        nullptr,
+                                                        static_cast<uint32_t>(handles.size()),
+                                                        handles.data()));
+        }
+    }
 }
 
-event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, bool is_output) {
+event::ptr ze_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
+    // Implemented with barriers as there is no marker concept in Level Zero
+    auto ev = std::static_pointer_cast<ze_base_event>(create_base_event());
+    auto ev_handle = ev->get_handle();
+    auto cmd_list_handle = get_command_list().handle();
+
     if (deps.empty()) {
-        auto ev = create_base_event();
-        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(), std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(), 0, nullptr));
+        // Wait for all previous commands
+        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(cmd_list_handle, ev_handle, 0, nullptr));
         return ev;
-    }
-
-    if (m_sync_method  == SyncMethods::events) {
-        std::vector<ze_event_handle_t> dep_events;
-        for (auto& dep : deps) {
-            if (auto ze_base_ev = std::dynamic_pointer_cast<ze_base_event>(dep)) {
-                if (ze_base_ev->get_handle() != nullptr)
-                    dep_events.push_back(ze_base_ev->get_handle());
-            }
+    } else if (m_sync_method  == SyncMethods::events) {
+        auto dep_event_handles = ze_base_event::get_event_handles(deps, true);
+        if (!dep_event_handles.empty()) {
+            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(cmd_list_handle, ev_handle, dep_event_handles.size(), dep_event_handles.data()));
+        } else {
+            OV_ZE_EXPECT(ze::zeCommandListAppendSignalEvent(cmd_list_handle, ev_handle));
         }
-        if (dep_events.empty())
-            return create_user_event(true);
-
-        auto ev = create_base_event();
-        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(),
-                                            std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(),
-                                            static_cast<uint32_t>(dep_events.size()),
-                                            &dep_events.front()));
-        return ev;
     } else if (m_sync_method == SyncMethods::barriers) {
-        sync_events(deps, is_output);
-        assert(m_last_barrier_ev != nullptr);
-        return m_last_barrier_ev;
+        sync_events(deps);
+        OV_ZE_EXPECT(ze::zeCommandListAppendSignalEvent(cmd_list_handle, ev_handle));
     } else {
-        return create_user_event(true);
+        OV_ZE_EXPECT(ze::zeCommandListAppendSignalEvent(cmd_list_handle, ev_handle));
     }
+    return ev;
 }
 
 ze_event::ptr ze_stream::group_events(std::vector<ze_event::ptr> const& deps) {
@@ -383,6 +393,7 @@ void ze_stream::wait() {
 
 event::ptr ze_stream::create_user_event(bool set) {
     auto ev = m_user_ev_factory->create_event(++m_queue_counter);
+    ev->set_command_recorder(get_recorder());
     if (set)
         ev->set();
 
@@ -390,7 +401,9 @@ event::ptr ze_stream::create_user_event(bool set) {
 }
 
 event::ptr ze_stream::create_base_event() {
-    return m_ev_factory->create_event(++m_queue_counter);
+    auto ev =  m_ev_factory->create_event(++m_queue_counter);
+    ev->set_command_recorder(get_recorder());
+    return ev;
 }
 
 std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {
@@ -402,7 +415,10 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_cmd_list.handle(), endless_wait));
+    if (get_recorder()->stop_recording()) {
+        GPU_DEBUG_TRACE << "[REC] Recording interrupted by stream::finish" << std::endl;
+    }
+    OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_imm_cmd_list.handle(), endless_wait));
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
@@ -423,30 +439,19 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     }
 }
 
-void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
+void ze_stream::sync_events(std::vector<event::ptr> const& deps) {
+    // Enqueue global barrier based on deps stamps
     bool needs_barrier = false;
     for (auto& dep : deps) {
-        auto* ze_base_ev = dynamic_cast<ze_base_event*>(dep.get());
-        assert(ze_base_ev != nullptr);
-        if (ze_base_ev->get_queue_stamp() > m_last_barrier) {
+        auto stamp = static_cast<ze_base_event*>(dep.get())->get_queue_stamp();
+        if (stamp > m_last_barrier) {
             needs_barrier = true;
+            break;
         }
     }
-
     if (needs_barrier) {
-        if (is_output) {
-            m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_base_event());
-            m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
-            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(), m_last_barrier_ev->get_handle(), 0, nullptr));
-        } else {
-            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(m_cmd_list.handle(), nullptr, 0, nullptr));
-        }
+        enqueue_barrier();
         m_last_barrier = ++m_queue_counter;
-    }
-
-    if (!m_last_barrier_ev) {
-        m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_user_event(true));
-        m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
     }
 }
 
@@ -458,13 +463,27 @@ ze_context_resource ze_stream::get_context() const {
 dnnl::stream& ze_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
+    if (auto active_cmd_list = m_recorder->get_active_command_list()) {
+        return std::static_pointer_cast<ze_command_list>(active_cmd_list)->get_onednn_stream();
+    }
     if (!_onednn_stream) {
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_cmd_list.handle(), m_ev_factory->is_profiling_enabled()));
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_imm_cmd_list.handle(), is_profiling_enabled()));
     }
 
     return *_onednn_stream;
 }
 #endif
+
+command_recorder::ptr ze_stream::get_recorder() const {
+    return m_recorder;
+}
+
+ze_command_list_resource ze_stream::get_command_list() const {
+    if (auto active_cmd_list = m_recorder->get_active_command_list()) {
+        return std::static_pointer_cast<ze_command_list>(active_cmd_list)->resource();
+    }
+    return m_imm_cmd_list;
+}
 
 }  // namespace ze
 }  // namespace cldnn

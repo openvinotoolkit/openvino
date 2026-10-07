@@ -44,6 +44,12 @@ bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
 class SDPAOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
+
+    // The micro-kernel stage (SDPAMicroGenerator) dispatches based on subsequence_begins/max_context_len contents
+    bool supports_replay() const override {
+        return false;
+    }
+
     static constexpr bool indirect = true;
     static constexpr bool prefill = true;
 

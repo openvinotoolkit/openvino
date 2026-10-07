@@ -31,6 +31,7 @@ struct typed_primitive_sycl_impl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
     bool is_onednn() const override { return false; }
+    bool supports_replay() const override { return false; }
 
 protected:
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
