@@ -1006,50 +1006,26 @@ TEST(export_import_top_k_layer_tests, md_sync) {
     test_top_k_layer_md_sync<int>(true);
 }
 
-TEST(arg_max_min_gpu, dynamic_byxf) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ov::PartialShape{2, 3, 4, 5}, data_types::f32, format::byxf});
-    std::vector<float> input_values(2 * 3 * 4 * 5);
-    float value = 0.f;
-    const auto& memory_layout = input->get_layout();
-    for (int32_t b = 0; b < memory_layout.batch(); ++b) {
-        for (int32_t f = 0; f < memory_layout.feature(); ++f) {
-            for (int32_t y = 0; y < memory_layout.spatial(1); ++y) {
-                for (int32_t x = 0; x < memory_layout.spatial(0); ++x) {
-                    const auto offset = memory_layout.get_linear_offset(tensor(batch(b), feature(f), spatial(x, y, 0, 0)));
-                    input_values[offset] = value++;
-                }
-            }
-        }
-    }
-    set_values(input, input_values);
+struct arg_max_min_dynamic_params {
+    format::type input_format;
+    int64_t axis;
+    uint32_t top_k;
+    std::vector<float> expected_output;
+};
 
-    topology topology(input_layout("input", {ov::PartialShape::dynamic(4), data_types::f32, format::byxf}),
-                      arg_max_min("arg_max", {input_info("input")}, ov::op::TopKMode::MAX, 1, 1));
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
+class arg_max_min_gpu_dynamic : public ::testing::TestWithParam<arg_max_min_dynamic_params> {};
 
-    ASSERT_TRUE(network.get_primitive("arg_max")->get_impl()->is_dynamic());
-    auto output = network.execute().at("arg_max").get_memory();
-    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
-    ASSERT_EQ(result.size(), 2 * 4 * 5);
-    for (size_t i = 0; i < result.size(); ++i)
-        EXPECT_FLOAT_EQ(result[i], 2.f);
-}
-
-TEST(arg_max_min_gpu, dynamic) {
+TEST_P(arg_max_min_gpu_dynamic, basic) {
+    const auto& p = GetParam();
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     auto& engine = get_test_engine();
-    const int top_k = 2;
-    auto input_layout_dynamic = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
-    auto input_layout_static = layout{ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx};
+    auto input_layout_dynamic = layout{ov::PartialShape::dynamic(4), data_types::f32, p.input_format};
+    auto input_layout_static = layout{ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, p.input_format};
     auto input = engine.allocate_memory(input_layout_static);
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(arg_max_min("arg_max", { input_info("input") }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(arg_max_min("arg_max", { input_info("input") }, ov::op::TopKMode::MIN, p.top_k, p.axis));
 
     std::vector<float> input_vec = {// y0x0 y0x1 y1x0 y1x1
                                     /*b0f0*/ 0.1f, -0.1f, 0.9f, 1.5f,
@@ -1078,15 +1054,31 @@ TEST(arg_max_min_gpu, dynamic) {
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "arg_max");
 
-    const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
-    ASSERT_EQ(output_ptr.size(), out_size);
-    for (uint32_t i = 0; i < out_size; i++) {
-        ASSERT_FLOAT_EQ(output_ptr[i], i < (out_size / 2) ? 0 : 1);
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
+    for (size_t i = 0; i < p.expected_output.size(); i++) {
+        ASSERT_FLOAT_EQ(output_ptr[i], p.expected_output[i]) << "i=" << i;
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(arg_max_min_gpu,
+                         arg_max_min_gpu_dynamic,
+                         ::testing::Values(arg_max_min_dynamic_params{format::bfyx,
+                                                                      0,
+                                                                      2,
+                                                                      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
+                                           // input_vec is laid out as b,y,x,f here, so features are the innermost 4 values
+                                           arg_max_min_dynamic_params{format::byxf,
+                                                                      1,
+                                                                      1,
+                                                                      {1, 2, 2, 2,
+                                                                       1, 1, 2, 1}}),
+                         [](const ::testing::TestParamInfo<arg_max_min_dynamic_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
 
 TEST(arg_max_min_test, check_second_output_data_type) {
     auto& engine = get_test_engine();

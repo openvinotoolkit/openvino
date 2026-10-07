@@ -2101,41 +2101,23 @@ TEST(gather_gpu_fp32, 322_axisF) {
     }
 }
 
-TEST(gather_gpu_fp32, dynamic_byxf_axisF) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 1, 2}, data_types::f32, format::byxf});
-    auto indices = engine.allocate_memory({ov::PartialShape{2}, data_types::i32, format::bfyx});
-    set_values(input, {1.f, 2.f, 3.f, 4.f});
-    set_values(indices, {1, 0});
+struct gather_dynamic_axisF_params {
+    format::type input_format;
+    ov::Shape data_shape;
+    ov::Shape indices_shape;
+};
 
-    topology topology(input_layout("input", {ov::PartialShape::dynamic(4), data_types::f32, format::byxf}),
-                      input_layout("indices", {ov::PartialShape::dynamic(1), data_types::i32, format::bfyx}),
-                      gather("gather", input_info("input"), input_info("indices"), 1, 0, ov::Shape{}));
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
-    network.set_input_data("indices", indices);
+class gather_gpu_fp32_dynamic_axisF : public ::testing::TestWithParam<gather_dynamic_axisF_params> {};
 
-    ASSERT_TRUE(network.get_primitive("gather")->get_impl()->is_dynamic());
-    auto output = network.execute().at("gather").get_memory();
-    ASSERT_EQ(output->get_layout().format, format::byxf);
-    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
-    ASSERT_EQ(result.size(), 4);
-    EXPECT_FLOAT_EQ(result[0], 2.f);
-    EXPECT_FLOAT_EQ(result[1], 1.f);
-    EXPECT_FLOAT_EQ(result[2], 4.f);
-    EXPECT_FLOAT_EQ(result[3], 3.f);
-}
-
-TEST(gather_gpu_fp32, dynamic_322_axisF) {
+TEST_P(gather_gpu_fp32_dynamic_axisF, basic) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
-    ov::Shape in1_shape = { 3, 3 };
-    ov::Shape in2_shape = { 2, 2 };
-    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
+    const ov::Shape& in1_shape = p.data_shape;
+    const ov::Shape& in2_shape = p.indices_shape;
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, p.input_format};
     auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::i32, format::bfyx};
-    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx}); // data
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, p.input_format}); // data
     auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::i32, format::bfyx}); // Indexes
 
     int64_t axis = 1;
@@ -2161,6 +2143,7 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
     auto outputs = network.execute();
 
     auto output = outputs.at("gather").get_memory();
+    ASSERT_EQ(output->get_layout().format, p.input_format);
     cldnn::mem_lock<int, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<int> expected_results = {1, 0, 2, 1,  11, 10, 12, 11,  21, 20, 22, 21};
@@ -2170,6 +2153,16 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
     }
 }
+
+// For byxf the data buffer is read as x0: f0..f2, x1: f0..f2, x2: f0..f2 and the gathered features stay innermost,
+// so the same buffers and expected results apply to both formats.
+INSTANTIATE_TEST_SUITE_P(gather_gpu_fp32,
+                         gather_gpu_fp32_dynamic_axisF,
+                         ::testing::Values(gather_dynamic_axisF_params{format::bfyx, {3, 3}, {2, 2}},
+                                           gather_dynamic_axisF_params{format::byxf, {1, 3, 1, 3}, {4}}),
+                         [](const ::testing::TestParamInfo<gather_dynamic_axisF_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
 
 TEST(gather_gpu_fp32, indice_out_of_bound) {
     auto& engine = get_test_engine();

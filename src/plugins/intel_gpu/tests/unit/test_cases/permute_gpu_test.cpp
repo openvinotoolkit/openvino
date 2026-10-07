@@ -2133,35 +2133,16 @@ TEST_P(permute_tile_fsv_5d, i64) {
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv);
 }
 
-TEST(permute_gpu_f32_dynamic, byxf_swap_feature_and_x) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 1, 2}, data_types::f32, format::byxf});
-    set_values(input, {1.f, 2.f, 3.f, 4.f});
+class permute_gpu_f32_dynamic_0_2_3_1 : public ::testing::TestWithParam<format::type> {};
 
-    topology topology(input_layout("input", {ov::PartialShape::dynamic(4), data_types::f32, format::byxf}),
-                      permute("permute", input_info("input"), {0, 3, 2, 1}));
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
-
-    ASSERT_TRUE(network.get_primitive("permute")->get_impl()->is_dynamic());
-    auto output = network.execute().at("permute").get_memory();
-    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
-    ASSERT_EQ(result.size(), 4);
-    EXPECT_FLOAT_EQ(result[0], 1.f);
-    EXPECT_FLOAT_EQ(result[1], 3.f);
-    EXPECT_FLOAT_EQ(result[2], 2.f);
-    EXPECT_FLOAT_EQ(result[3], 4.f);
-}
-
-TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
+TEST_P(permute_gpu_f32_dynamic_0_2_3_1, basic) {
+    const format::type input_format = GetParam();
     constexpr size_t array_size = 100;
 
     auto& engine = get_test_engine();
 
-    auto input_layout_dynamic = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
-    auto input_layout_static = layout{ov::PartialShape{2, 5, 5, 2}, data_types::f32, format::bfyx};
+    auto input_layout_dynamic = layout{ov::PartialShape::dynamic(4), data_types::f32, input_format};
+    auto input_layout_static = layout{ov::PartialShape{2, 5, 5, 2}, data_types::f32, input_format};
 
     auto input = engine.allocate_memory(input_layout_static);
 
@@ -2191,6 +2172,7 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
     ASSERT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
+    ASSERT_EQ(output->get_layout().format, input_format);
 
     float answers[array_size] = {
         0.f,  10.f,  20.f,  30.f,  40.f,   1.f,  11.f,  21.f,  31.f,  41.f,
@@ -2210,6 +2192,13 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(permute_gpu_f32_dynamic,
+                         permute_gpu_f32_dynamic_0_2_3_1,
+                         ::testing::Values(format::bfyx, format::byxf),
+                         [](const ::testing::TestParamInfo<format::type>& info) {
+                             return format(info.param).to_string();
+                         });
 
 TEST(permute_gpu_f32_dynamic, fused_op_has_dynamic_shape) {
     auto& engine = get_test_engine();

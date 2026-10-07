@@ -1684,17 +1684,28 @@ TEST(reduce_gpu, cpu_impl_int32) {
     }
 }
 
-TEST(reduce_gpu, dynamic) {
+struct reduce_dynamic_params {
+    format::type input_format;
+    ov::PartialShape input_shape;
+    std::vector<int64_t> axes;
+    std::vector<float> input;
+    std::vector<float> expected_output;
+};
+
+class reduce_gpu_dynamic : public ::testing::TestWithParam<reduce_dynamic_params> {};
+
+TEST_P(reduce_gpu_dynamic, basic) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto input = engine.allocate_memory({p.input_shape, data_types::f32, p.input_format});
 
-    layout in_dyn_layout { ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx };
+    layout in_dyn_layout { ov::PartialShape::dynamic(p.input_shape.size()), data_types::f32, p.input_format };
 
-    set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
+    set_values(input, p.input);
 
     topology topology;
     topology.add(input_layout("input", in_dyn_layout));
-    topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, {1, 2}, 1));
+    topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, p.axes, 1));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1712,63 +1723,34 @@ TEST(reduce_gpu, dynamic) {
     ASSERT_EQ(outputs.begin()->first, "reduce");
 
     auto output = outputs.at("reduce").get_memory();
+    ASSERT_EQ(output->get_layout().format, p.input_format);
 
-    std::vector<float> ref_data = {0.0f, 60.0f};
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
 
-    for (size_t i = 0; i < ref_data.size(); ++i) {
-        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
-    }
-}
-
-class reduce_gpu_byxf_test : public ::testing::TestWithParam<bool> {};
-
-TEST_P(reduce_gpu_byxf_test, sum_spatial) {
-    auto& engine = get_test_engine();
-    const bool is_dynamic = GetParam();
-    const ov::PartialShape input_shape{1, 4, 2, 2};
-    auto input = engine.allocate_memory({input_shape, data_types::f32, format::byxf});
-
-    // byxf memory order: each row is one (y, x) position holding f = 0..3
-    set_values(input, {
-        1.0f, 2.0f, 3.0f, 4.0f,     // y=0, x=0
-        1.0f, 2.0f, 3.0f, 4.0f,     // y=0, x=1
-        1.0f, 2.0f, 3.0f, 4.0f,     // y=1, x=0
-        1.0f, 2.0f, 3.0f, 4.0f,     // y=1, x=1
-    });
-
-    topology topology;
-    const auto in_shape = is_dynamic ? ov::PartialShape::dynamic(4) : input_shape;
-    topology.add(input_layout("input", layout{in_shape, data_types::f32, format::byxf}));
-    topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {2, 3}, true));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
-
-    auto impl = network.get_primitive("reduce")->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-    ASSERT_EQ(impl->is_dynamic(), is_dynamic);
-
-    auto output = network.execute().at("reduce").get_memory();
-    ASSERT_EQ(output->get_layout().format, format::byxf);
-    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({1, 4, 1, 1}));
-
-    // Sum over 4 (y, x) positions for each f
-    std::vector<float> ref_data = {4.0f, 8.0f, 12.0f, 16.0f};
-    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
-    ASSERT_EQ(output_ptr.size(), ref_data.size());
-    for (size_t i = 0; i < ref_data.size(); ++i) {
-        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
+    for (size_t i = 0; i < p.expected_output.size(); ++i) {
+        ASSERT_TRUE(are_equal(p.expected_output[i], output_ptr[i]));
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(reduce_gpu,
-                         reduce_gpu_byxf_test,
-                         ::testing::Bool(),
-                         [](const ::testing::TestParamInfo<bool>& info) {
-                             return info.param ? "dynamic" : "static";
+                         reduce_gpu_dynamic,
+                         ::testing::Values(
+                             reduce_dynamic_params{format::bfwzyx, ov::PartialShape{2, 3, 1, 1, 1, 1}, {1, 2},
+                                                   {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f},
+                                                   {0.0f, 60.0f}},
+                             // prod over f -> out 2x1x2x1
+                             reduce_dynamic_params{format::byxf, ov::PartialShape{2, 3, 2, 1}, {1},
+                                                   {1.0f, 2.0f, 3.0f,      // b0 y0 f0..2
+                                                    4.0f, 5.0f, 6.0f,      // b0 y1 f0..2
+                                                    7.0f, 8.0f, 9.0f,      // b1 y0 f0..2
+                                                    10.0f, 11.0f, 12.0f},  // b1 y1 f0..2
+                                                   {6.0f, 120.0f, 504.0f, 1320.0f}}),
+                         [](const ::testing::TestParamInfo<reduce_dynamic_params>& info) {
+                             std::string name = format(info.param.input_format).to_string() + "_axes";
+                             for (auto axis : info.param.axes)
+                                 name += "_" + std::to_string(axis);
+                             return name;
                          });
 
 TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
