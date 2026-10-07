@@ -17,7 +17,10 @@ constexpr size_t simd = 16;
 constexpr size_t k_chunk = 32;  // u3 values per granule, and the DPAS K step
 constexpr size_t osv = 16;      // output channels per weights block
 constexpr size_t min_quantize_group_size = simd * 2;
+// Batch at or above which the matrix-engine variant wins over the K-split one.
+constexpr size_t dpas_min_batch = 8;
 
+using gemm_config = FullyConnected_int3_dpas::gemm_config;
 using fc_kernel_bf_tiled_utils::get_input_bf_size;
 using fc_kernel_bf_tiled_utils::get_output_aligned_bf_size;
 
@@ -49,12 +52,8 @@ size_t get_input_b_pitch(const fully_connected_params& params) {
 // The decompression scale and zero point are read as whole elements, so a packed
 // type would silently index the wrong value.
 bool is_addressable_dtype(Datatype dt) {
-    return dt == Datatype::F16 || dt == Datatype::F32 || dt == Datatype::INT8 || dt == Datatype::UINT8 ||
-           dt == Datatype::INT32 || dt == Datatype::UINT32;
+    return cldnn::one_of(dt, {Datatype::F16, Datatype::F32, Datatype::INT8, Datatype::UINT8, Datatype::INT32, Datatype::UINT32});
 }
-}  // namespace
-
-namespace fc_kernel_int3_dpas_utils {
 
 // Deliberately not bf_tiled's get_dynamic_quantize_group_size: its per-token branch
 // returns the weight scale group size, which can be the whole of IFM. The group is
@@ -270,6 +269,27 @@ gemm_config get_dpas_config(const fully_connected_params& params) {
     return cfg;
 }
 
+gemm_config get_scalar_config(const fully_connected_params& params) {
+    gemm_config cfg;
+    cfg.dpas = false;
+    cfg.tile_m = 1;
+    cfg.sg_k = 1;
+
+    const size_t group_size = get_quantize_group_size(params);
+    if (group_size == 0)
+        return cfg;
+
+    const size_t groups_k = get_input_bf_size(params).second / group_size;
+    for (size_t candidate : {size_t{8}, size_t{4}, size_t{2}}) {
+        if ((groups_k % candidate) == 0) {
+            cfg.sg_k = candidate;
+            break;
+        }
+    }
+
+    return cfg;
+}
+
 // GEMM variants
 // -------------
 // Every FC builds the activation quantizer (kernel 0) plus a list of GEMM variants
@@ -326,27 +346,6 @@ size_t select_gemm(const fully_connected_params& params, const std::vector<gemm_
     return best;
 }
 
-gemm_config get_scalar_config(const fully_connected_params& params) {
-    gemm_config cfg;
-    cfg.dpas = false;
-    cfg.tile_m = 1;
-    cfg.sg_k = 1;
-
-    const size_t group_size = get_quantize_group_size(params);
-    if (group_size == 0)
-        return cfg;
-
-    const size_t groups_k = get_input_bf_size(params).second / group_size;
-    for (size_t candidate : {size_t{8}, size_t{4}, size_t{2}}) {
-        if ((groups_k % candidate) == 0) {
-            cfg.sg_k = candidate;
-            break;
-        }
-    }
-
-    return cfg;
-}
-
 // One subgroup per quantization group, several subgroups per workgroup where the
 // group count allows it.
 CommonDispatchData get_quantize_dispatch(size_t num_groups) {
@@ -383,9 +382,7 @@ CommonDispatchData get_gemm_dispatch(const fully_connected_params& params, const
     return dispatchData;
 }
 
-}  // namespace fc_kernel_int3_dpas_utils
-
-using namespace fc_kernel_int3_dpas_utils;
+}  // namespace
 
 ParamsKey FullyConnected_int3_dpas::GetSupportedKey() const {
     ParamsKey k;
