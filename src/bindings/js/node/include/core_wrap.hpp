@@ -133,7 +133,7 @@ struct ImportModelContext {
     Napi::ThreadSafeFunction tsfn;
 
     std::stringstream _stream;
-    Napi::Reference<Napi::Buffer<uint8_t>>* _buffer = nullptr;
+    Napi::Reference<Napi::Buffer<uint8_t>> _buffer;
     const char* _buffer_data = nullptr;
     size_t _buffer_size = 0;
 

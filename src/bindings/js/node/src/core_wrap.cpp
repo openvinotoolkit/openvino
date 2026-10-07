@@ -325,7 +325,7 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
 
 void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext* context) {
     context->nativeThread.join();
-    delete context->_buffer;
+    context->_buffer.Reset();
     delete context;
 }
 
@@ -334,7 +334,7 @@ void import_model_thread(ImportModelContext* context, std::mutex& mutex) {
     try {
         const std::lock_guard<std::mutex> lock(mutex);
 
-        if (context->_buffer) {
+        if (!context->_buffer.IsEmpty()) {
             ov::SharedStreamBuffer buffer{context->_buffer_data, context->_buffer_size};
             std::istream stream{&buffer};
             context->_compiled_model =
@@ -373,7 +373,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
             // Prepare validated data that will be transferred to the new thread.
-            auto context_data = new ImportModelContext(env, _core);
+            std::unique_ptr<ImportModelContext> context_data(new ImportModelContext(env, _core));
 
             // Handle Tensor input
             if (ov::js::validate_value<TensorWrap>(env, info[0])) {
@@ -383,8 +383,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
             } else {
                 // Handle Buffer input without copying the model data.
                 const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
-                context_data->_buffer =
-                    new Napi::Reference<Napi::Buffer<uint8_t>>(Napi::Persistent(model_data));
+                context_data->_buffer = Napi::Persistent(model_data);
                 context_data->_buffer_data = reinterpret_cast<const char*>(model_data.Data());
                 context_data->_buffer_size = model_data.Length();
             }
@@ -397,12 +396,14 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
                                                                "TSFN",
                                                                0,
                                                                1,
-                                                               context_data,
+                                                               context_data.get(),
                                                                ImportModelFinalizer,
                                                                (void*)nullptr);
 
-            context_data->nativeThread = std::thread(import_model_thread, context_data, std::ref(_mutex));
-            return context_data->deferred.Promise();
+            context_data->nativeThread = std::thread(import_model_thread, context_data.get(), std::ref(_mutex));
+            const auto promise = context_data->deferred.Promise();
+            context_data.release();  // ownership is transferred to the TSFN finalizer callback
+            return promise;
         } else {
             OPENVINO_THROW("'importModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }

@@ -62,7 +62,7 @@ describe("ov basic tests.", () => {
       assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath));
 
       const savedModel = core.readModelSync(xmlPath);
-      assert.ok(savedModel instanceof ov.Model);
+      assert.doesNotThrow(() => compareModels(model, savedModel));
     });
     it("saveModelSync(model, path, compressToFp16=false)", () => {
       const xmlPath = path.join(outDir, `${model.getName()}_fp32.xml`);
@@ -379,6 +379,7 @@ describe("ov basic tests.", () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
         /'importModelSync' method called with incorrect parameters./,
+      );
     });
     it("Test importModelSync(stream, device, config: tensor) throws", () => {
       assert.throws(
