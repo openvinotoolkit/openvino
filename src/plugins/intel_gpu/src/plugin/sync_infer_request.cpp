@@ -1251,11 +1251,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
             const bool had_caller_owned_output_buffer =
                 m_plugin_outputs.count(output_idx) > 0 && m_plugin_outputs[output_idx].owner == TensorOwner::USER;
             auto& engine = m_graph->get_engine();
-            const bool overlap_unsupported = !can_use_caller_output_memory(user_tensor, user_tensor_wrapper.actual_size);
+            // Caller output memory is only bound directly on iGPU; elsewhere the graph never writes into it.
+            const bool is_igpu = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu;
+            const bool overlap_unsupported = is_igpu && !can_use_caller_output_memory(user_tensor, user_tensor_wrapper.actual_size);
             // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
             const bool can_share_user_usm_host =
-                !convert_needed && !overlap_unsupported &&
-                engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
+                is_igpu && !convert_needed && !overlap_unsupported &&
                 engine.detect_usm_allocation_type(user_tensor->data()) == cldnn::allocation_type::usm_host &&
                 can_use_usm_host(engine, total_output_bytes);
             const bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
