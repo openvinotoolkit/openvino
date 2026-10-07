@@ -686,7 +686,7 @@ TEST(activation_f16_fw_gpu, swoosh_l_and_r) {
     test_swoosh_activation<data_types::f16, ov::float16>(1.0f, 0.313261687f, 4e-2f);
 }
 
-void test_swoosh_pattern_fusion(float offset, float bias) {
+static void test_swoosh_pattern_fusion(float offset, float bias) {
     auto& engine = get_test_engine();
     const std::vector<float> input_values = {-20.0f, -1.0f, 0.0f, 1.0f, 4.0f, 12.0f, 100.0f};
     auto input = engine.allocate_memory(
@@ -739,7 +739,7 @@ void test_swoosh_pattern_fusion(float offset, float bias) {
     ASSERT_NE(network.get_primitive_info("result").find(expected_activation), std::string::npos);
 }
 
-void test_swoosh_converted_subtract_pattern_fusion() {
+static void test_swoosh_converted_subtract_pattern_fusion() {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 4, 1}});
     set_values(input, {-20.0f, 0.0f, 4.0f, 100.0f});
