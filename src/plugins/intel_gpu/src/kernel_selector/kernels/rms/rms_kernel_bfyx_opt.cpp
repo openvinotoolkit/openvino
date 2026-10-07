@@ -9,6 +9,11 @@
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
 
+static bool is_feature_axis_normalization(const rms_params& params) {
+    const auto axis = params.axis < 0 ? params.axis + params.ov_input_rank : params.axis;
+    return axis == 1 && (params.ov_input_rank == 4 || params.ov_input_rank == 5);
+}
+
 // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
 static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, size_t data_size) {
     size_t lws = 1;
@@ -62,8 +67,9 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     }
     jit.AddConstant(MakeJitConstant("RMS_GAMMA_IS_SCALAR", gamma_is_scalar));
 
-    const bool normalize_feature = GetNormalizationAxis(params) == Tensor::DataChannelName::FEATURE;
-    if (normalize_feature) {
+    const bool feature_axis = is_feature_axis_normalization(params);
+    jit.AddConstant(MakeJitConstant("RMS_FEATURE_AXIS", feature_axis));
+    if (feature_axis) {
         if (!params.fused_ops.empty()) {
             std::vector<std::string> idx_order;
             if (params.inputs[0].GetDims().size() == 5) {
@@ -96,7 +102,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         const auto& input = params.inputs[0];
         DimensionAccessHelperJit dims(input);
         std::string data_size;
-        if (normalize_feature) {
+        if (feature_axis) {
             data_size = dims.f();
         } else {
             switch (params.ov_input_rank) {
@@ -139,7 +145,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
-    if (!params.fused_ops.empty() && !normalize_feature) {
+    if (!params.fused_ops.empty() && !feature_axis) {
         switch (params.ov_input_rank) {
             case 1 :
                 jit.AddConstant(MakeJitConstant("LAST_DIM", "b"));
@@ -180,7 +186,7 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     dispatchData.maxSlmSize = max_lws;
     if (!params.has_dynamic_tensors()) {
         // data size to be processed within a LWG
-        if (GetNormalizationAxis(params) == Tensor::DataChannelName::FEATURE) {
+        if (is_feature_axis_normalization(params)) {
             dispatchData.dataSize = input.Feature().v;
             dispatchData.dataCount = input.Batch().v * input.Z().v * input.Y().v * input.X().v;
         } else {
