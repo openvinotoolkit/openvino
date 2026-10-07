@@ -45,25 +45,27 @@ ov::OutputVector prelu(const ov::frontend::onnx::Node& node) {
     // data dimension, producing results that differ from onnxruntime and the ONNX reference evaluator. To preserve
     // ONNX semantics, a rank-1 slope is explicitly reshaped to [1, ..., 1, C] so it is broadcast against the last
     // data dimension.
-    if (slope_rank.is_static() && slope_rank.get_length() == 1) {
-        if (data_rank.is_static() && data_rank.get_length() >= 2) {
-            std::vector<int64_t> target_shape(data_rank.get_length(), 1);
-            target_shape.back() = -1;
-            const auto reshape_pattern =
-                v0::Constant::create(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
-            slope = std::make_shared<v1::Reshape>(slope, reshape_pattern, false);
-        } else if (data_rank.is_dynamic()) {
-            // The data rank is unknown at translation time, so the number of leading singleton dimensions is
-            // computed at runtime: [1, ..., 1, C] = concat(ones(rank(data) - 1), shape(slope)).
-            const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-            const auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
-            const auto data_rank_1d = std::make_shared<v3::ShapeOf>(data_shape, ov::element::i64);
-            const auto leading_ones_count = std::make_shared<v1::Subtract>(data_rank_1d, one);
-            const auto leading_ones = std::make_shared<v3::Broadcast>(one, leading_ones_count);
-            const auto slope_shape = std::make_shared<v3::ShapeOf>(slope, ov::element::i64);
-            const auto reshape_pattern = std::make_shared<v0::Concat>(ov::OutputVector{leading_ones, slope_shape}, 0);
-            slope = std::make_shared<v1::Reshape>(slope, reshape_pattern, false);
-        }
+    const bool slope_rank_is_static_1d = slope_rank.is_static() && slope_rank.get_length() == 1;
+    const bool data_rank_is_static_ge_2 = data_rank.is_static() && data_rank.get_length() >= 2;
+    if (slope_rank_is_static_1d && data_rank_is_static_ge_2) {
+        std::vector<int64_t> target_shape(data_rank.get_length(), 1);
+        target_shape.back() = -1;
+        const auto reshape_pattern =
+            v0::Constant::create(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
+        slope = std::make_shared<v1::Reshape>(slope, reshape_pattern, false);
+    } else if ((slope_rank.is_dynamic() || slope_rank_is_static_1d) &&
+               (data_rank.is_dynamic() || data_rank_is_static_ge_2)) {
+        // Pad the slope shape to the data rank. This also prevents a rank-1 slope from being reinterpreted as a
+        // channel parameter by v0::PRelu.
+        const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        const auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
+        const auto runtime_data_rank = std::make_shared<v3::ShapeOf>(data_shape, ov::element::i64);
+        const auto slope_shape = std::make_shared<v3::ShapeOf>(slope, ov::element::i64);
+        const auto runtime_slope_rank = std::make_shared<v3::ShapeOf>(slope_shape, ov::element::i64);
+        const auto leading_ones_count = std::make_shared<v1::Subtract>(runtime_data_rank, runtime_slope_rank);
+        const auto leading_ones = std::make_shared<v3::Broadcast>(one, leading_ones_count);
+        const auto reshape_pattern = std::make_shared<v0::Concat>(ov::OutputVector{leading_ones, slope_shape}, 0);
+        slope = std::make_shared<v1::Reshape>(slope, reshape_pattern, false);
     }
 
     return {std::make_shared<v0::PRelu>(data, slope)};

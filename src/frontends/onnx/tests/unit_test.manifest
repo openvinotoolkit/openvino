@@ -6,3 +6,8 @@ ONNXLoadTest/FrontEndLoadFromTest.testLoadFromTwoStreams/onnx
 # ov::op::v13::FakeConvert, which supports f8e4m3 and f8e5m2 only
 ONNXFeFloatTypes.quantize_dequantize_linear_float4e2m1
 ONNXFeFloatTypes.quantize_linear_float4e2m1_zero_point
+
+# The CPU plug-in does not support Parameter operations with dynamic rank, so the
+# dynamic-rank PRelu broadcasting scenario is validated on the INTERPRETER backend only
+IE_CPU.onnx_model_prelu_1d_last_dim_bcast_dyn_rank
+IE_CPU.onnx_model_prelu_1d_last_dim_bcast_dyn_slope_rank

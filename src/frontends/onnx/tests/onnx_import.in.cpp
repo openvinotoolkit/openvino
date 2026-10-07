@@ -3014,6 +3014,72 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_channel_bcast_opset6) {
+    // Regression test for the legacy PRelu-1/6 broadcasting: a rank-1 slope whose length matches the channel
+    // dimension is shared across channels (aligned with axis 1), which is the behavior of OpenVINO's v0::PRelu.
+    // Unidirectional (numpy-style) broadcasting was only introduced in PRelu-7, so opset <= 6 models must keep the
+    // per-channel semantics (mirrors the ONNX pytorch-converted test_PReLU_*d_multiparam models).
+    auto model = convert_model("prelu_1d_channel_bcast_opset6.onnx");
+
+    Inputs inputs;
+    // Shape{2, 3, 4}
+    inputs.emplace_back(std::vector<float>{-1., -2., -3., -4., 1.,  2.,  3.,  4.,  -5., -6., -7., -8.,
+                                           -1., -1., -1., -1., -2., -2., -2., -2., -3., -3., -3., -3.});
+
+    // Shape{3} - slope broadcast over the channel dimension (axis 1)
+    inputs.emplace_back(std::vector<float>{0.5, 1.0, 2.0});
+
+    // Shape{2, 3, 4}
+    auto expected_output = std::vector<float>{-0.5, -1.0, -1.5, -2.0, 1.0,  2.0,  3.0,  4.0,  -10., -12., -14., -16.,
+                                              -0.5, -0.5, -0.5, -0.5, -2.0, -2.0, -2.0, -2.0, -6.0, -6.0, -6.0, -6.0};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast_dyn_rank) {
+    // Same regression scenario as onnx_model_prelu_1d_last_dim_bcast, but the data tensor has a dynamic rank so the
+    // normalized slope shape must be constructed from runtime rank information. The rank-1 slope still has to be
+    // aligned with the last data dimension to match ONNX unidirectional (numpy-style) broadcasting.
+    auto model = convert_model("prelu_1d_last_dim_bcast_dyn_rank.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // Shape{1, 3, 2, 3}
+    test_case.add_input<float>(Shape{1, 3, 2, 3},
+                               {-1., -2., -3., 4., -5., 6., -7., -8., -9., -1., 2., -3., -4., -5., -6., 7., -8., -9.});
+
+    // Shape{3}
+    test_case.add_input<float>(Shape{3}, {1., 2., 3.});
+
+    // Shape{1, 3, 2, 3} - slope broadcast over the last dimension
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 3},
+        {-1., -4., -9., 4., -10., 6., -7., -16., -27., -1., 2., -9., -4., -10., -18., 7., -16., -27.});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast_dyn_slope_rank) {
+    // The slope has a dynamic rank and is rank 1 at inference time. It must still be right-aligned with the last
+    // data dimension rather than remapped to the channel axis by v0::PRelu.
+    auto model = convert_model("prelu_1d_last_dim_bcast_dyn_slope_rank.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // Shape{1, 3, 2, 3}
+    test_case.add_input<float>(Shape{1, 3, 2, 3},
+                               {-1., -2., -3., 4., -5., 6., -7., -8., -9., -1., 2., -3., -4., -5., -6., 7., -8., -9.});
+
+    // The slope input is dynamically ranked, but this test supplies a rank-1 tensor.
+    test_case.add_input<float>(Shape{3}, {1., 2., 3.});
+
+    // Shape{1, 3, 2, 3} - slope broadcast over the last dimension
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 3},
+        {-1., -4., -9., 4., -10., 6., -7., -16., -27., -1., 2., -9., -4., -10., -18., 7., -16., -27.});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_C_1_1) {
     auto model = convert_model("prelu_c_1_1.onnx");
 
