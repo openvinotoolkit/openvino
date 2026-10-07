@@ -211,9 +211,8 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHost) {
 
     const std::vector<float> expected{0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f};
     auto actual = request.get_output_tensor();
-    // This asserts the caller-pointer contract and correctness, not that zero-copy actually happened
-    // (data() stays the caller pointer even on the copy path). The graph-shares-caller-allocation
-    // assertion lives in unit/dynamic_execution/zero_copy_output_test.cpp, which can see graph memory.
+    // Verifies caller-pointer identity and values, not zero-copy: data() stays caller-owned even on the copy path.
+    // Graph-level zero-copy is asserted in unit/dynamic_execution/zero_copy_output_test.cpp.
     ASSERT_EQ(actual.data(), usm_allocation.get());
     ASSERT_EQ(actual.get_size(), expected.size());
     for (size_t i = 0; i < actual.get_size(); ++i) {
@@ -521,10 +520,8 @@ TEST(TensorTest, smoke_dynamicOutputSwitchesFromUsmHostToCopyFallback) {
     }
 }
 
-// When the same caller USM-host buffer is supplied as both a dynamic output and an input,
-// the zero-copy binding must be rejected: a tiled MatMul would otherwise overwrite the input
-// buffer before it is fully read, silently corrupting results. The plugin must fall back to an
-// internal output plus copy so the aliased input stays intact until the kernel finishes reading.
+// One caller buffer as dynamic input/output must reject zero-copy: tiled MatMul may overwrite unread input.
+// Verify fallback uses a private output and copy-out, preserving input until the kernel finishes reading.
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostInputOutputAliasIsSafe) {
     auto core = ov::Core();
     if (!gpu_supports_usm_host_output_sharing(core)) {
@@ -540,9 +537,8 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostInputOutputAliasIsSafe) {
     std::vector<float> weights_data;
     auto model = makeDynamicMatMulModel(K, weights_data);
 
-    // f32 inference precision keeps the aliased buffer wired straight into MatMul: without it the
-    // default f16 path inserts Convert/reorder nodes that stage input and output through separate
-    // internal buffers, hiding the in-place aliasing this test must exercise.
+    // Use f32 so input reaches MatMul directly; default f16 inserts Convert/reorder buffers that hide aliasing.
+    // This keeps the test exercising the intended in-place input/output case.
     auto compiled_model = core.compile_model(model, core.get_default_context(ov::test::utils::DEVICE_GPU),
                                              ov::hint::inference_precision(ov::element::f32));
     auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
@@ -672,10 +668,8 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack
     }
 }
 
-// The output overlap must use the caller buffer's capacity, not the current (possibly shrunk) logical
-// shape: after wait() shrinks the output, an input parked in the allocation tail looks disjoint by
-// logical span but is overwritten once the output grows back during execution. The alias guard must
-// still fall back to a plugin buffer + copy-out. Bind large -> shrink -> park input in tail -> grow.
+// Check caller-buffer capacity, not the possibly shrunk logical shape, so growth detects tail aliases.
+// Bind large -> shrink -> park input in tail -> grow; fallback must preserve the aliased input.
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostShrinkThenGrowTailAliasIsSafe) {
     auto core = ov::Core();
     if (!gpu_supports_usm_host_output_sharing(core)) {
