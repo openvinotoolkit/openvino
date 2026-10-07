@@ -71,7 +71,7 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
 namespace detail {
 
 attach_roll_impl::attach_roll_impl() {
-    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
+    auto types = {data_types::boolean, data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
     auto formats = {
         format::bfyx,
         format::b_fs_yx_fsv16,

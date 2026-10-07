@@ -20,6 +20,7 @@ static int64_t read_scalar_value(memory::ptr mem, stream& stream) {
     const layout& prim_layout = mem->get_layout();
 
     switch (prim_layout.data_type) {
+    case data_types::boolean:
     case data_types::u8: {
         mem_lock<uint8_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
@@ -56,6 +57,7 @@ static void write_scalar_value(memory::ptr mem, stream& stream, int64_t input) {
     const layout& prim_layout = mem->get_layout();
 
     switch (prim_layout.data_type) {
+    case data_types::boolean:
     case data_types::u8: {
         validate_input_value<uint8_t>(input);
         mem_lock<uint8_t> lock_prim_output{mem, stream};

@@ -62,6 +62,7 @@ attach_unique_count_impl::attach_unique_count_impl() {
         data_types::f32,
         data_types::i32,
         data_types::i64,
+        data_types::boolean,
     };
 
     auto formats = {
@@ -153,6 +154,7 @@ attach_unique_gather_impl::attach_unique_gather_impl() {
         data_types::f32,
         data_types::i32,
         data_types::i64,
+        data_types::boolean,
     };
 
     auto formats = {

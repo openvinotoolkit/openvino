@@ -14,7 +14,8 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::u8,
         ov::element::i8,
         ov::element::u16,
-        ov::element::i32
+        ov::element::i32,
+        ov::element::boolean
 };
 
 const std::vector<int64_t> batchAxisIndices = { 0L };

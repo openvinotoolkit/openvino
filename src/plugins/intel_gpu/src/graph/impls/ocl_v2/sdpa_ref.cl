@@ -302,7 +302,11 @@ KERNEL(sdpa_ref)(
             #endif
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
             uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0, b1, target_seq_idx, s);
+#ifdef BOOLEAN_ATTN_MASK
+            OUTPUT_COMPUTE_T attn_mask_val = LOAD_INPUT3(attn_mask[attn_mask_offset]) ? OUTPUT_COMPUTE_VAL_ZERO : OUTPUT_COMPUTE_VAL_MIN;
+#else
             OUTPUT_COMPUTE_T attn_mask_val = LOAD_INPUT3(attn_mask[attn_mask_offset]);
+#endif
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
             OUTPUT_COMPUTE_T attn_mask_val = TO_OUTPUT_COMPUTE_T(STATIC_SCALAR_ATTN_MASK_VALUE);
 #else

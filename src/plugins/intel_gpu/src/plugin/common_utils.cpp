@@ -175,7 +175,9 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
     CASE(ov::element::bf16, ov::element::bf16, ov::bfloat16, ov::bfloat16);
     CASE(ov::element::f32, ov::element::bf16, float, ov::bfloat16);
     CASE(ov::element::f16, ov::element::bf16, ov::float16, ov::bfloat16);
+    CASE(ov::element::boolean, ov::element::boolean, bool, bool);
     CASE(ov::element::boolean, ov::element::u8, bool, uint8_t);
+    CASE(ov::element::u8, ov::element::boolean, uint8_t, bool);
 
     OPENVINO_THROW("[GPU] Unsupported element types combination for copy: ", src_et, " -> ", dst_et);
 }
@@ -187,7 +189,7 @@ namespace ov::intel_gpu {
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
         case ov::element::Type_t::dynamic: return true;
-        case ov::element::Type_t::boolean: return true; // converted to u8
+        case ov::element::Type_t::boolean: return true;
         case ov::element::Type_t::bf16: return false;
         case ov::element::Type_t::f16: return true;
         case ov::element::Type_t::f32: return true;
@@ -238,7 +240,7 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
     auto src_et = src->get_element_type();
     auto dst_et = dst->get_layout().data_type;
 
-    if (dst_et == src_et && !transpose) {
+    if (dst_et == src_et && !transpose && !src_layout.data_padding) {
         if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
             auto mem = remote->get_original_memory();
             dst->copy_from(stream, *mem, blocking);

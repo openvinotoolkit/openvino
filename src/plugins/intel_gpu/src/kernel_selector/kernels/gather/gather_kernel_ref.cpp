@@ -37,6 +37,7 @@ static size_t GetGatherChannelIndex(const gather_params& params) {
 
 ParamsKey GatherKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::BOOLEAN);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
@@ -47,6 +48,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT4);
     k.EnableInputDataType(Datatype::F8E4M3);
 
+    k.EnableOutputDataType(Datatype::BOOLEAN);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);

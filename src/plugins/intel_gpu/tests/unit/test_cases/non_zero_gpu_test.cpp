@@ -362,6 +362,15 @@ TEST(test_non_zero, 1d_fp16_48) {
     test_non_zero<ov::float16>(layout{ov::PartialShape{48}, data_types::f16, format::bfyx}, in_data);
 }
 
+TEST(test_non_zero, 2d_boolean_3_4) {
+    std::vector<uint8_t> in_data = {
+        1, 0, 1, 0,
+        0, 1, 0, 0,
+        1, 1, 0, 1,
+    };
+    test_non_zero<uint8_t>(layout{ov::PartialShape{3, 4}, data_types::boolean, format::bfyx}, in_data);
+}
+
 TEST(test_non_zero, 2d_fp32_2_34) {
     std::vector<float> in_data = {
         0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,

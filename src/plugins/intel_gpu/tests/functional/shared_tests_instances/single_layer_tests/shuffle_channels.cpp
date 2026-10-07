@@ -9,6 +9,7 @@
 using ov::test::ShuffleChannelsLayerTest;
 
 const std::vector<ov::element::Type> netPrecisions = {
+    ov::element::boolean,
     ov::element::f32,
     ov::element::f16,
     ov::element::u8,

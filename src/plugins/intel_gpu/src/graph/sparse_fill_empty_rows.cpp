@@ -52,7 +52,7 @@ std::vector<layout> SparseFillEmptyRows_inst::calc_output_layouts(SparseFillEmpt
     return {
         layout{output_shapes[0], indices_layout.data_type, indices_layout.format},
         layout{output_shapes[1], values_layout.data_type, values_layout.format},
-        layout{output_shapes[2], indices_layout.data_type, indices_layout.format}
+        layout{output_shapes[2], data_types::boolean, indices_layout.format}
     };
 }
 

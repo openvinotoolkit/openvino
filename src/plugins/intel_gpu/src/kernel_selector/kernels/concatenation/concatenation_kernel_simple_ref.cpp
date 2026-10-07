@@ -10,6 +10,7 @@ namespace kernel_selector {
 
 ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::BOOLEAN);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
@@ -17,6 +18,7 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
+    k.EnableOutputDataType(Datatype::BOOLEAN);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);

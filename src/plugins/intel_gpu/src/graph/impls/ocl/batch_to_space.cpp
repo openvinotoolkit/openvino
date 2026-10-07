@@ -62,14 +62,17 @@ namespace detail {
 
 attach_batch_to_space_impl::attach_batch_to_space_impl() {
     implementation_map<batch_to_space>::add(impl_types::ocl, typed_primitive_impl_ocl<batch_to_space>::create<batch_to_space_impl>, {
+        std::make_tuple(data_types::boolean, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::boolean, format::bfzyx),
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::boolean, format::bfwzyx),
         std::make_tuple(data_types::f32, format::bfwzyx),
         std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::u8, format::bfwzyx),

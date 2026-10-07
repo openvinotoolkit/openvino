@@ -43,9 +43,16 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
     if (op->get_pad_mode() == ov::op::PadMode::CONSTANT && op->get_input_size() == 4) {
         auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (const_node) {
-            const bool check_value_range = false;  // Allows the usage of infinity value as pad_value
-            OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value, check_value_range),
-                            "Invalid parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            if (const_node->get_element_type() == ov::element::boolean) {
+                const auto values = const_node->cast_vector<bool>();
+                OPENVINO_ASSERT(values.size() == 1,
+                                "Invalid parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                pad_value = values[0] ? 1.f : 0.f;
+            } else {
+                const bool check_value_range = false;  // Allows the usage of infinity value as pad_value
+                OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value, check_value_range),
+                                "Invalid parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
             is_value_const = true;
         }
     }

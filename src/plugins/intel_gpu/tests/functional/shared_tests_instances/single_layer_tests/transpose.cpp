@@ -12,6 +12,7 @@ using ov::test::TransposeLayerTest;
 
 const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32,
+        ov::element::boolean,
 };
 
 /**

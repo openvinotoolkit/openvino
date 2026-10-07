@@ -258,6 +258,9 @@ struct activation_impl : public typed_primitive_impl<activation> {
         const auto* params = instance.get_impl_params();
 
         switch (params->input_layouts[0].data_type) {
+        case data_types::boolean:
+            execute_activation<data_types::boolean>(op, instance, activation_function, additional_params);
+            break;
         case data_types::f32:
             execute_activation<data_types::f32>(op, instance, activation_function, additional_params);
             break;
@@ -314,6 +317,7 @@ attach_activation_impl::attach_activation_impl() {
     };
 
     auto types = {
+        data_types::boolean,
         data_types::f32,
         data_types::f16,
         data_types::bf16,
