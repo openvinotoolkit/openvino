@@ -251,6 +251,12 @@ struct HostFlashAttention {
         _final_tile_model_to_compile.reset();  // Free memory after compilation
     }
 
+    // Past K/V split into per-block inputs by SplitKVCacheIntoBlocks.
+    bool is_block_mode() const {
+        const auto& indices = _sdpa_attention_info._sdpa_indices;
+        return indices.past_key_blocks.size() > 1 && indices.past_value_blocks.size() > 1;
+    }
+
     bool is_valid() const;
 };
 

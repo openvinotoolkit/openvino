@@ -810,6 +810,10 @@ void program::prepare_memory_dependencies() {
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();
+    // Publish sorted restriction vectors before runtime consumers can access them.
+    for (const auto& node : get_processing_order()) {
+        node->get_memory_dependencies();
+    }
 }
 
 std::string program::get_memory_dependencies_string() const {
@@ -1520,8 +1524,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
                 if (is_dynamic_batch_onednn_conv)
                     dynamic_batch_onednn_conv_count++;
-            } else {
+            }
 #endif
+            if (!conv.is_dynamic()) {
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16) {
@@ -1535,9 +1540,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
-#ifdef ENABLE_ONEDNN_FOR_GPU
             }
-#endif
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())

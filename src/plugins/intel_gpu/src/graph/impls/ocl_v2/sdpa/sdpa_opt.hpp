@@ -29,6 +29,7 @@ struct SDPAOpt : public ImplementationManager {
     explicit SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
+    [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
         const auto& supported_precisions = ov::intel_gpu::op::SDPA::get_supported_precisions();
@@ -73,6 +74,9 @@ struct SDPAOpt : public ImplementationManager {
         const bool combine_scales_and_zp = desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
         auto p = node.get_kernel_impl_params();
+        if (has_per_channel_compressed_kv(*p) && !supports_micro_sdpa(*p)) {
+            return false;
+        }
         return !use_asymmetric_quantization || combine_scales_and_zp || supports_micro_sdpa(*p);
     }
 };
