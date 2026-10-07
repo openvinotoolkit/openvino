@@ -57,29 +57,4 @@ protected:
     JitConstants GetGemmJitConstants(const fully_connected_params& params, const gemm_config& cfg) const;
 };
 
-namespace fc_kernel_int3_dpas_utils {
-using namespace kernel_selector;
-using gemm_config = FullyConnected_int3_dpas::gemm_config;
-
-// Batch at or above which the matrix-engine variant wins over the K-split one.
-constexpr size_t dpas_min_batch = 8;
-
-size_t get_quantize_group_size(const fully_connected_params& params);
-bool is_valid_sg_m(const fully_connected_params& params, size_t sg_m);
-bool supports_v2(const fully_connected_params& params);
-bool is_valid_v2_sg_m(const fully_connected_params& params, size_t sg_m);
-gemm_config get_v2_config(size_t sg_m, size_t min_rows);
-void add_large_grf_option(clKernelData& kernel);
-size_t get_dense_sg_m(size_t rows);
-std::vector<gemm_config> get_dense_variants(const fully_connected_params& params);
-bool use_dense_variants(const fully_connected_params& params);
-gemm_config get_dpas_config(const fully_connected_params& params);
-gemm_config get_scalar_config(const fully_connected_params& params);
-std::vector<gemm_config> get_gemm_configs(const fully_connected_params& params, bool dense_variants);
-size_t select_gemm(const fully_connected_params& params, const std::vector<gemm_config>& configs);
-size_t get_quantized_input_size(const fully_connected_params& params);
-CommonDispatchData get_quantize_dispatch(size_t num_groups);
-CommonDispatchData get_gemm_dispatch(const fully_connected_params& params, const gemm_config& cfg);
-}  // namespace fc_kernel_int3_dpas_utils
-
 }  // namespace kernel_selector
