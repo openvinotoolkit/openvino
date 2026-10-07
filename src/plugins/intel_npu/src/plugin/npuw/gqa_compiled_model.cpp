@@ -747,8 +747,10 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
         // Zero-initialize the full physical capacity of every dynamic-axis KV-cache/bias
         // input (past_keys_N, past_values_N, attention_mask) right now, once.
         size_t zeroed_count = 0;
-        for (const auto& [name, axis] : m_compiled_model->m_dynamic_kv_cache_axes) {
-            (void)axis;
+        for (const auto& kv : m_compiled_model->m_dynamic_kv_cache_axes) {
+            // NB: structured bindings can't be captured by lambdas pre-C++20, so use
+            // a plain named local for 'name' instead of a [name, axis] binding here.
+            const auto& name = kv.first;
             auto input_it = std::find_if(inner_model->inputs().begin(),
                                          inner_model->inputs().end(),
                                          [&name](const ov::Output<const ov::Node>& input) {
@@ -829,7 +831,11 @@ void ov::npuw::GQAInferRequest::trace_attention_mask_stats_locked() const {
         return;
     }
     const auto& outer_inputs = m_compiled_model->inputs();
-    for (const auto& [name, axis] : m_compiled_model->m_dynamic_kv_cache_axes) {
+    for (const auto& kv : m_compiled_model->m_dynamic_kv_cache_axes) {
+        // NB: structured bindings can't be captured by lambdas pre-C++20, so use
+        // plain named locals for 'name'/'axis' instead of a [name, axis] binding here.
+        const auto& name = kv.first;
+        const auto axis = kv.second;
         if (ov::npuw::util::contains_ignore_case(name, "past_key") ||
             ov::npuw::util::contains_ignore_case(name, "past_value")) {
             continue;  // KV-cache tensor, not the mask/bias -- already traced/handled elsewhere
@@ -891,7 +897,11 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
     }
 
     const auto& outer_outputs = m_compiled_model->outputs();
-    for (const auto& [name, axis] : output_axes) {
+    for (const auto& kv : output_axes) {
+        // NB: structured bindings can't be captured by lambdas pre-C++20, so use
+        // plain named locals for 'name'/'axis' instead of a [name, axis] binding here.
+        const auto& name = kv.first;
+        const auto axis = kv.second;
         auto port_it = std::find_if(outer_outputs.begin(), outer_outputs.end(), [&](const auto& output) {
             return output.get_node()->get_friendly_name() == name;
         });
@@ -1057,7 +1067,11 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
 
 void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
     const auto& outer_inputs = m_compiled_model->inputs();
-    for (const auto& [name, axis] : m_compiled_model->m_dynamic_kv_cache_axes) {
+    for (const auto& kv : m_compiled_model->m_dynamic_kv_cache_axes) {
+        // NB: structured bindings can't be captured by lambdas pre-C++20, so use
+        // plain named locals for 'name'/'axis' instead of a [name, axis] binding here.
+        const auto& name = kv.first;
+        const auto axis = kv.second;
         auto tensor_it = m_dynamic_kv_cache_tensors.find(name);
         if (tensor_it == m_dynamic_kv_cache_tensors.end()) {
             continue;  // set_tensor() not called yet for this port

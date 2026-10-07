@@ -85,7 +85,11 @@ bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>
                     "GQA model has a dynamic max_seq_len but no resolvable KV-cache Parameter was found");
 
     std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-    for (const auto& [name, axis] : m_dynamic_kv_cache_axes) {
+    for (const auto& kv : m_dynamic_kv_cache_axes) {
+        // NB: structured bindings can't be captured by lambdas pre-C++20, so use
+        // plain named locals for 'name'/'axis' instead of a [name, axis] binding here.
+        const auto& name = kv.first;
+        const auto axis = kv.second;
         const auto& params = model->get_parameters();
         auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
             return parameter->get_friendly_name() == name;
@@ -97,7 +101,8 @@ bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>
     }
     model->reshape(new_shapes);
 
-    for (const auto& [name, axis] : m_dynamic_kv_cache_axes) {
+    for (const auto& kv : m_dynamic_kv_cache_axes) {
+        const auto& name = kv.first;
         const auto& params = model->get_parameters();
         auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
             return parameter->get_friendly_name() == name;
