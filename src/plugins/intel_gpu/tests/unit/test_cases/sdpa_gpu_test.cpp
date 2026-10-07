@@ -1345,7 +1345,8 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
                                        nullptr,
                                        /*symmetric=*/!asymmetric);
 
-    const layout q_layout({batch, q_num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
+    // Q (and therefore the compute type) follows params.dt; KV stays f16 / compressed.
+    const layout q_layout({batch, q_num_heads, seq_q, head_size}, params.dt, format::bfyx);
     const layout kv_deq_layout({batch, kv_num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
     // INT4 stores two adjacent head-dimension values in each byte: [B, H, S, D/2].
     const layout kv_packed_layout({batch, kv_num_heads, seq_kv, packed_head_size}, data_types::i8, format::bfyx);
@@ -1364,7 +1365,11 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     ASSERT_EQ(v_q.packed.size(), ov::shape_size(expected_packed_shape));
 
     auto q_mem = engine.allocate_memory(q_layout);
-    set_values(q_mem, q_data);
+    if (params.dt == data_types::f32) {
+        set_values(q_mem, std::vector<float>(q_data.begin(), q_data.end()));
+    } else {
+        set_values(q_mem, q_data);
+    }
 
     // --- Golden reference: uncompressed float attention on host-dequantized KV (sdpa_ref) ---
     auto make_ref_output = [&]() {
@@ -1483,7 +1488,7 @@ struct sdpa_gpu_compressed_kv_test_base : public ::testing::TestWithParam<sdpa_t
     static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_test_params>& info) {
         const auto& p = info.param;
         return std::string("int") + std::to_string(p.bit_width) + (p.asymmetric ? "_asymmetric_" : "_symmetric_") +
-               (p.num_heads == p.kv_num_heads ? "mha_" : "gqa_") + (p.sequence_length_q == 1 ? "decode" : "prefill");
+               (p.num_heads == p.kv_num_heads ? "mha_" : "gqa_") + (p.sequence_length_q == 1 ? "decode" : "prefill") + (p.dt == data_types::f32 ? "_f32" : "");
     }
 };
 
@@ -1535,7 +1540,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,
                                            sdpa_test_params{128, 40, 10, 512, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, true},
-                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true},
+                                           // f32 compute: dequantized f16 KV must be cast to the Q compute type
+                                           sdpa_test_params{128, 40, 10, 512, 512, 1, 8, false, data_types::f32},
+                                           sdpa_test_params{128, 40, 10, 512, 512, 1, 8, true, data_types::f32},
+                                           sdpa_test_params{128, 40, 40, 512, 512, 1, 8, true, data_types::f32}),
                          sdpa_gpu_compressed_kv_per_token_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
