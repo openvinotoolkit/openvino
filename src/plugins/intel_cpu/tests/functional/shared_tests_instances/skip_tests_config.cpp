@@ -483,9 +483,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(.*smoke_Snippets_MatMult.*)"),
             std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
-            std::regex(R"(.*smoke_Snippets_Dyn.*Mat.*)"),
+            std::regex(R"(.*smoke_Snippets_Dyn(?!MatMult).*Mat.*)"),
             std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
             std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
@@ -503,7 +502,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_Snippets_MHA_3D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
             std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
             std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.12\.64\].*)"),
-            std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
