@@ -10,7 +10,7 @@
 
 namespace ov::intel_gpu::mlir {
 
-template <typename MlirUnaryOp>
+template <linalg::ElementwiseKind Kind>
 struct ConvertUnaryEltwise {
     Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto loc = createLocation(context.context, node);
@@ -21,7 +21,7 @@ struct ConvertUnaryEltwise {
         auto out_ty = importTensor(context.context, ov_out_shape, ov_out_el_ty);
         auto dims = context.get_dynamic_dimension_values(ov_out_shape);
         auto empty = tensor::EmptyOp::create(builder, loc, out_ty, dims);
-        return MlirUnaryOp::create(builder, loc, ::mlir::ValueRange{input}, ::mlir::ValueRange{empty});
+        return linalg::ElementwiseOp::create(builder, loc, ::mlir::ValueRange{input}, ::mlir::ValueRange{empty}, Kind);
     }
 };
 

@@ -8,9 +8,7 @@
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/tensorflow_lite/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 using SubGraphFuncs = std::vector<std::function<std::shared_ptr<ov::Model>()>>;
 
@@ -97,6 +95,4 @@ private:
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow_lite::NodeContext&)>;
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

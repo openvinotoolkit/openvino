@@ -19,10 +19,7 @@
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 using namespace ov::pass;
 using namespace ov::op;
@@ -133,7 +130,4 @@ RemovePackingOps::RemovePackingOps() {
     this->register_matcher(m, callback);
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass
