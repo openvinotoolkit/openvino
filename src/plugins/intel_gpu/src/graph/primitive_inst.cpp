@@ -1440,6 +1440,10 @@ bool primitive_inst::use_async_compilation() {
             if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1) {
                 compile_fc_impls = false;
             }
+            // The int3 FC's dynamic impl holds a kernel for every row count, so static impls would only add compiles
+            if (weights_dt == data_types::u3) {
+                compile_fc_impls = false;
+            }
         } else {
             auto input_dt = fc_node.input().get_output_layout().data_type;
             auto weights_dt = fc_node.weights().get_output_layout().data_type;
@@ -3288,14 +3292,14 @@ bool primitive_inst::is_valid_fusion() const {
     }
 
     if (get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::ocl) {
-        // TODO: Only fc_bf_tiled_kernel, ref kernel and int3_dpas kernel are verified for fused eltwise. To support more fc kernels for eltwise fusion
+        // TODO: Only fc_bf_tiled_kernel, ref kernel and the int3 FC are verified for fused eltwise. To support more fc kernels for eltwise fusion
         if (!get_node().get_selected_impl()) {
             LOG_AND_RETURN_FALSE(_node);
         }
         if (!data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos) &&
-            (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_int3_dpas") == std::string::npos)) {
+            (get_node().get_selected_impl()->get_kernel_name().find("ocl::fc_int3_dpas") == std::string::npos)) {
             LOG_AND_RETURN_FALSE(_node);
         }
     }

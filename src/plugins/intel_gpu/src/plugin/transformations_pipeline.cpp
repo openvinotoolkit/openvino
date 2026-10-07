@@ -1863,9 +1863,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
                 }
-                // u3 FCs run on the OCL int3 kernel, which quantizes activations in-kernel
-                // like bf_tiled and cannot take DynamicQuantize output. Keep in sync with
-                // the u3 bypass in fully_connected_onednn.hpp.
+                // u3 FCs run on the ocl_v2 int3 FC, which quantizes activations in-kernel
+                // and cannot take DynamicQuantize output.
                 if (root->get_input_element_type(1) == ov::element::u3 && root->get_input_partial_shape(1).size() == 2) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: u3 weights are handled in-kernel"
                                     << std::endl;
