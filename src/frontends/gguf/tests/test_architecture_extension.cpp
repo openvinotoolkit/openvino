@@ -23,6 +23,7 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/extension/architecture.hpp"
+#include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/concat.hpp"
@@ -180,6 +181,32 @@ TEST(GGUFArchitectureExtension, DecoderRopeModeReachesTheBuilder) {
     // NORMAL and NEOX lower to different rotation subgraphs, so the two graphs must differ.
     EXPECT_NE(op_histogram(neox), op_histogram(normal))
         << "the registered RoPE mode did not affect the graph, so it is not reaching the builder";
+}
+
+TEST(GGUFGenAIExtension, RegistrationIsLocalAndConversionCanBeRepeated) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path());
+    ASSERT_FALSE(path.empty());
+    ov::frontend::gguf::FrontEnd frontend;
+    auto extension = std::make_shared<ov::frontend::gguf::GenAIExtension>();
+    frontend.add_extension(extension);
+    const auto input = frontend.load(path);
+    for (size_t i = 0; i < 2; ++i) {
+        const auto model = frontend.convert(input);
+        EXPECT_EQ(model->get_variables().size(), 4);
+        EXPECT_NO_THROW(model->input("input_ids"));
+        EXPECT_NO_THROW(model->input("attention_mask"));
+        EXPECT_NO_THROW(model->input("position_ids"));
+        EXPECT_NO_THROW(model->input("beam_idx"));
+        EXPECT_EQ(model->output("logits").get_partial_shape().rank(), 3);
+        EXPECT_FALSE(extension->get_embedding_model());
+    }
+    const auto plain = convert_with(path);
+    EXPECT_TRUE(plain->get_variables().empty());
+    EXPECT_NO_THROW(plain->input("inp_tokens"));
+    OV_EXPECT_THROW(frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>()),
+                    ov::Exception,
+                    testing::HasSubstr("already registered"));
 }
 
 TEST(GGUFArchitectureExtension, DecoderOptionsSelectTheActivation) {
@@ -428,10 +455,7 @@ TEST(GGUFArchitectureExtension, SharedDecoderBlocksMatchNumericallyAcrossPrefill
                                        }},
                 RegistrationMode::Replace));
         }
-        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
-            ov::frontend::gguf::pass::GGUFMakeStateful()));
-        frontend.add_extension(
-            std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
+        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         return frontend.convert(frontend.load(path));
     };
     auto builtin = load(false);

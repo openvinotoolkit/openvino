@@ -1,7 +1,7 @@
 # Running converted GGUF models
 
-`convert()` returns a stateless graph with llama.cpp-style inputs. Two caller-registered passes
-turn a language model into a stateful model with the OpenVINO GenAI interface. Multimodal projector
+`convert()` returns a stateless graph with llama.cpp-style inputs. A caller-registered `GenAIExtension`
+turns a language model into a stateful model with the OpenVINO GenAI interface. Multimodal projector
 files use their own [encoder contract](mmproj.md#graph-boundary).
 
 ## Stateless contract
@@ -23,30 +23,28 @@ below have no Python bindings, and `DecoderTransformationExtension` cannot be co
 
 ## Stateful and GenAI conversion
 
-Register both passes on the frontend before `convert()`. `GGUFMakeStateful` must run while the
-cache-write placeholders still exist; extension passes run before the built-in stateless lowering.
+Register `GenAIExtension` before `convert()`. The frontend creates stateful caches before
+stateless cache lowering, completes normalization (including recurrent-operation fusion), then
+adapts the normalized graph to GenAI. Callers do not register or order individual passes.
 
 ```cpp
-#include <openvino/frontend/extension/decoder_transformation.hpp>
-#include <openvino/frontend/gguf/adapt_to_genai.hpp>
-#include <openvino/frontend/gguf/make_stateful.hpp>
+#include <openvino/frontend/gguf/extension/genai.hpp>
 #include <openvino/frontend/manager.hpp>
 
-using namespace ov::frontend::gguf::pass;
+using namespace ov::frontend::gguf;
 ov::frontend::FrontEndManager manager;
 auto frontend = manager.load_by_framework("gguf");
-frontend->add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(GGUFMakeStateful()));
-frontend->add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(AdaptToGenAI()));
+frontend->add_extension(std::make_shared<GenAIExtension>());
 auto model = frontend->convert(frontend->load("model.gguf"));
 ```
 
-[`GGUFMakeStateful`](../include/openvino/frontend/gguf/make_stateful.hpp) replaces each KV cache
+Internally, [`GGUFMakeStateful`](../include/openvino/frontend/gguf/make_stateful.hpp) replaces each KV cache
 Parameter/Result pair with a Variable, adds `beam_idx` and reorders caches by it. Sliding-window
 caches can be left stateless with `skip_caches`. Recurrent states are declared through the
 `gguf_recurrent_states` rt_info key.
 
 [`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) requires a stateful model and
-exposes GenAI's interface:
+exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 
 | Mode | Inputs | Output |
 |---|---|---|
@@ -62,6 +60,10 @@ exposes GenAI's interface:
   left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
   A consumer must reset, not trim, the states listed in `gguf_recurrent_states`.
 - The pass does not create a tokenizer, sampler or pipeline, and it does not adapt encoder models.
+
+`GGUFMakeStateful` remains independently available through `DecoderTransformationExtension`
+for consumers that keep GGUF IO. The llama.cpp backend uses its own stateful lowering for its
+cache-slot and fixed-mask semantics, without GenAI adaptation.
 
 ## Tokenizer metadata
 

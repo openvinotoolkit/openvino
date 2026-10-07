@@ -41,6 +41,8 @@ public:
     /// - `ov::frontend::gguf::ArchitectureExtension` — registers decoder or custom-family builders
     ///   before load(), without rebuilding the frontend. See docs/extensions.md.
     /// - `ov::frontend::gguf::ProjectorExtension` — registers one mmproj branch before load().
+    /// - `ov::frontend::gguf::GenAIExtension` — creates stateful decoder caches during normalization
+    ///   and adapts the normalized model to GenAI IO before convert() returns.
     /// - `ov::frontend::TelemetryExtension` — stored; callbacks are not currently invoked.
     /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is recursively registered.
     /// - `ov::BaseOpExtension` — recursively registers attached op-level extensions.

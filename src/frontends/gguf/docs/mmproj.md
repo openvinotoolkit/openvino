@@ -144,15 +144,13 @@ mode prepares the language model for media injection:
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
   sections.
 
-Register the stateful pass before converting the language model, as described in
+Register `GenAIExtension` before converting the language model, as described in
 [runtime.md](runtime.md#stateful-and-genai-conversion). In C++, with a `FrontEndManager manager`
 and an already converted combined `mmproj` model:
 
 ```cpp
-#include <openvino/frontend/extension/decoder_transformation.hpp>
 #include <openvino/frontend/gguf/adapt_mmproj_to_genai.hpp>
-#include <openvino/frontend/gguf/adapt_to_genai.hpp>
-#include <openvino/frontend/gguf/make_stateful.hpp>
+#include <openvino/frontend/gguf/extension/genai.hpp>
 
 using namespace ov::frontend::gguf::pass;
 auto vision = mmproj->clone();
@@ -160,12 +158,12 @@ auto audio = mmproj->clone();
 AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::VISION).run_on_model(vision);
 AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::AUDIO).run_on_model(audio);
 auto frontend = manager.load_by_framework("gguf");
-frontend->add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(GGUFMakeStateful()));
+auto genai = std::make_shared<ov::frontend::gguf::GenAIExtension>(
+    ov::frontend::gguf::GenAIExtension::InputMode::EMBEDS_TO_LOGITS);
+frontend->add_extension(genai);
 auto language = frontend->convert(frontend->load("language.gguf"));
-AdaptToGenAI adapt(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
-adapt.run_on_model(language);
-auto token_lookup = adapt.get_embedding_model();
-auto per_layer_lookup = adapt.get_per_layer_embedding_model();
+auto token_lookup = genai->get_embedding_model();
+auto per_layer_lookup = genai->get_per_layer_embedding_model();
 ```
 
 `per_layer_lookup` is null for models without that branch. Compile the selected encoders and

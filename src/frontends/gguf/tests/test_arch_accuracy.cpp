@@ -18,6 +18,7 @@
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
+#include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -89,10 +90,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
         ov::frontend::gguf::FrontEnd frontend;
-        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
-            ov::frontend::gguf::pass::GGUFMakeStateful()));
-        frontend.add_extension(
-            std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
+        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         auto model = frontend.convert(frontend.load(temporary.path));
         check_batched_decode(model);
         ov::pass::Manager manager;
@@ -134,12 +132,18 @@ TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
                 ov::frontend::gguf::pass::GGUFMakeStateful()));
             return frontend.convert(frontend.load(temporary.path));
         };
-        auto token_model = convert(), embedded_model = convert();
+        auto token_model = convert();
         ov::frontend::gguf::pass::AdaptToGenAI().run_on_model(token_model);
-        ov::frontend::gguf::pass::AdaptToGenAI adapter(
-            ov::frontend::gguf::pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
-        ASSERT_TRUE(adapter.run_on_model(embedded_model));
-        const auto embedding_model = adapter.get_embedding_model();
+        ov::frontend::gguf::FrontEnd frontend;
+        auto extension = std::make_shared<ov::frontend::gguf::GenAIExtension>(
+            ov::frontend::gguf::GenAIExtension::InputMode::EMBEDS_TO_LOGITS);
+        frontend.add_extension(extension);
+        const auto input = frontend.load(temporary.path);
+        auto embedded_model = frontend.convert(input);
+        ASSERT_TRUE(extension->get_embedding_model());
+        EXPECT_EQ(bool(extension->get_per_layer_embedding_model()), std::string(family) == "gemma4-ple");
+        embedded_model = frontend.convert(input);
+        const auto embedding_model = extension->get_embedding_model();
         const auto width = embedding_model->output("inputs_embeds").get_partial_shape()[2].get_length();
         const auto embedding_ops = embedding_model->get_ops();
         const bool scaled =
@@ -182,7 +186,7 @@ TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
                 values.set_tensor("token_type_ids", types);
             }
             if (input.get_names().count("per_layer_inputs")) {
-                auto per_layer = compile(adapter.get_per_layer_embedding_model());
+                auto per_layer = compile(extension->get_per_layer_embedding_model());
                 per_layer.set_tensor("input_ids", ids);
                 per_layer.infer();
                 values.set_tensor("per_layer_inputs", per_layer.get_tensor("per_layer_inputs"));
@@ -466,10 +470,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         model_path = temporary->path;
     }
     ov::frontend::gguf::FrontEnd fe;
-    fe.add_extension(
-        std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::GGUFMakeStateful()));
-    fe.add_extension(
-        std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
+    fe.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
     auto model = fe.convert(fe.load(model_path));
     if (mamba) {
         EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{1, -1}));

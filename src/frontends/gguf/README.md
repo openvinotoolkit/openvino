@@ -24,8 +24,8 @@ model = frontend.convert(frontend.load("model.gguf"))
 ```
 
 The result is a stateless graph with llama.cpp-style inputs and explicit cache inputs/outputs.
-In C++, register `GGUFMakeStateful` and `AdaptToGenAI` to obtain a stateful model with the
-OpenVINO GenAI interface; these passes are not available from Python. Tokenizer metadata is attached
+In C++, register [`GenAIExtension`](include/openvino/frontend/gguf/extension/genai.hpp) to obtain a stateful model with the
+OpenVINO GenAI interface; this extension is not available from Python. Tokenizer metadata is attached
 to the converted model's rt_info. See [running converted models](docs/runtime.md) for both contracts.
 Projector files convert to encoder models; see [multimodal conversion](docs/mmproj.md).
 

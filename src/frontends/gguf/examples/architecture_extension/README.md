@@ -46,7 +46,7 @@ python3 src/frontends/gguf/examples/architecture_extension/generate_fixtures.py 
 
 Both projection examples return `[1,1,3,3]` embeddings; with the runner's all-one
 inputs, each token's values are `[3,7,11]`. The decoder example returns `[1,1,16]` last-token logits and
-exercises `DecoderTransformationExtension` through `GGUFMakeStateful` followed by `AdaptToGenAI`.
+exercises `GenAIExtension`, which creates stateful caches and adapts IO after frontend normalization.
 
 The runner registers the library before loading the file, converts it, compiles on
 CPU, fills supported inputs, checks that F32 outputs are finite, and prints output names, shapes, types and first values.

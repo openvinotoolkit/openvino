@@ -7,10 +7,8 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "openvino/frontend/extension/decoder_transformation.hpp"
-#include "openvino/frontend/gguf/adapt_to_genai.hpp"
+#include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
-#include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/openvino.hpp"
 
 int main(int argc, char** argv) {
@@ -27,10 +25,7 @@ int main(int argc, char** argv) {
         if (argc == 5) {
             if (std::string(argv[4]) != "--stateful")
                 throw std::invalid_argument("Expected --stateful");
-            frontend->add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
-                ov::frontend::gguf::pass::GGUFMakeStateful()));
-            frontend->add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
-                ov::frontend::gguf::pass::AdaptToGenAI()));
+            frontend->add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         }
         auto model = frontend->convert(frontend->load(std::string(argv[2])));
         auto compiled = ov::Core{}.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
