@@ -289,8 +289,11 @@ TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     auto input = graph.add_input("x", ov::element::f32, {1, 1, 1, 4});
     auto update = graph.node("GGML_OP_ADD", {state, input});
     graph.add_recurrent_state(state, update);
-    graph.set_output(graph.node("GGML_OP_SCALE", {update}, 0, {{"scale", float{2}}, {"bias", 0.0f}}));
-    auto model = convert(graph.finish());
+    const auto output = graph.node("GGML_OP_SCALE", {update}, 0, {{"scale", float{2}}, {"bias", 0.0f}});
+    graph.set_primary_output(output);
+    const auto built = graph.finish();
+    ASSERT_EQ(built->model_output_names.front(), output.name());
+    auto model = convert(built);
     ASSERT_TRUE(model->get_rt_info().count(pass::gguf_recurrent_states_key()));
     ov::pass::Manager passes;
     passes.register_pass<pass::GGUFMakeStateful>();
@@ -569,6 +572,25 @@ TEST(GGUFBuilderAPI, MergeHeadsAcceptsRuntimeTokenAndHeadDimensions) {
             EXPECT_EQ(result[0].data<float>()[i], input_data.data<float>()[i]);
         }
     }
+}
+
+TEST(GGUFBuilderAPI, ViewReusesWholeConcatInputsAndPreservesNames) {
+    Environment env;
+    GgufGraphContext graph(env.context);
+    auto prefix = graph.add_input("prefix", ov::element::f32, {1, 2, 1, -1});
+    auto suffix = graph.add_input("suffix", ov::element::f32, {1, 2, 1, 3});
+    auto packed = graph.node("GGML_OP_CONCAT", {prefix, suffix}, 0, {{"concat_axis", 0}});
+    for (const auto& slice : std::vector<std::vector<int64_t>>{{3, 0, -3}, {3, -3, 3}, {3, 0, -2}})
+        graph.set_output(graph.node("GGML_OP_VIEW", {packed}, 3, {{"view_slice", slice}}));
+    auto model = convert(graph.finish());
+    EXPECT_EQ(model->get_results()[0]->input_value(0), model->input("prefix"));
+    EXPECT_EQ(model->get_results()[1]->input_value(0), model->input("suffix"));
+    // A view spanning part of the suffix still needs the concatenated tensor.
+    const auto partial = model->get_results()[2]->get_input_node_shared_ptr(0);
+    EXPECT_STREQ(partial->get_type_name(), "Slice");
+    EXPECT_STREQ(partial->get_input_node_shared_ptr(0)->get_type_name(), "Concat");
+    EXPECT_EQ(model->input("prefix").get_node()->get_friendly_name(), "prefix");
+    EXPECT_EQ(model->input("suffix").get_node()->get_friendly_name(), "suffix");
 }
 
 TEST(GGUFBuilderAPI, GenericNodesValidateAttributesThroughConverters) {

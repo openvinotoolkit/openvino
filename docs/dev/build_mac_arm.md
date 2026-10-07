@@ -6,15 +6,16 @@ There are two options how to use OpenVINO on Apple Silicon:
 - (Native) Compile OpenVINO for arm64 architecture. Note, build steps will cover this as a default scenario.
 - (Rosetta) Compile Intel CPU plugin `x86_64` architecture and run under [Rosetta](https://support.apple.com/en-us/HT211861).
 
-The software was validated on:
-- macOS 11.x, 12.x, 13.x, arm64
+The software was:
+- validated on macOS 15 (native arm64)
+- produced for macOS 11.0 (deployment target)
 
 ## Software requirements
 
 - [brew](https://brew.sh) package manager to install additional dependencies. Use [install brew](https://brew.sh) guide to achieve this.
 
 - Installation step for python and python libraries varies depending on the host architecture:
-  - **arm64** Python 3.10 - 3.14 for the OpenVINO Runtime Python API:
+  - **arm64** Python 3.11 - 3.14 for the OpenVINO Runtime Python API:
   ```sh
   % # let's have a look what python versions are available in brew
   % brew search python

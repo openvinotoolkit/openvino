@@ -16,9 +16,7 @@
 #include "arch_registry.hpp"
 #include "openvino/core/except.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
@@ -330,6 +328,4 @@ bool DecoderConfig::is_recurrent_layer(int il) const {
     return full_attn_interval > 0 && ((il + 1) % full_attn_interval != 0);
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

@@ -18,12 +18,14 @@
 //   default stateless lowering ever sees them.
 
 #include <algorithm>
+#include <limits>
 #include <set>
 #include <stdexcept>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
@@ -38,6 +40,7 @@
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
 
 using namespace ov_gguf_test;
 
@@ -451,4 +454,70 @@ TEST(GGUFExtensions, GGUFMakeStatefulRecurrentRewriteIsIdempotent) {
     EXPECT_FALSE(pass.run_on_model(model));
     EXPECT_EQ(model->get_variables().size(), 1);
     EXPECT_EQ(model->get_sinks().size(), 1);
+}
+
+TEST(GGUFExtensions, GGUFMakeStatefulNormalizesCausalConvCache) {
+    using namespace ov::op;
+    // Use the real SSM_CONV translator, with its ggml window and recurrent-state update.
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SSM_CONV")
+                     .input("sx", ov::element::f32, {1, 1, 3, -1})
+                     .input("c", ov::element::f32, {1, 1, 3, 4})
+                     .output("out", ov::element::f32, {1, 1, -1, 3})
+                     .build();
+    const auto sx = ov::as_type_ptr<v0::Parameter>(model->input("sx").get_node_shared_ptr());
+    const auto c = ov::as_type_ptr<v0::Parameter>(model->input("c").get_node_shared_ptr());
+    const auto state = ov::test::utils::make_param(ov::element::f32, ov::Shape{1, 1, 3, 3}, "conv_state");
+    const auto tokens = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, 3, -1}, "tokens");
+    const auto window = std::make_shared<v0::Concat>(ov::OutputVector{state, tokens}, 3);
+    ov::replace_node(sx, window);
+    ov::replace_node(c,
+                     v0::Constant::create(ov::element::f32,
+                                          {1, 1, 3, 4},
+                                          {0.5f, 0.25f, 0.125f, 0.0625f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f}));
+    model->remove_parameter(sx);
+    model->remove_parameter(c);
+    model->add_parameters({state, tokens});
+    const auto update =
+        std::make_shared<v8::Slice>(window,
+                                    v0::Constant::create(ov::element::i64, {1}, {-3}),
+                                    v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()}),
+                                    v0::Constant::create(ov::element::i64, {1}, {1}),
+                                    v0::Constant::create(ov::element::i64, {1}, {3}));
+    update->set_friendly_name("conv_state_out");
+    model->add_results({std::make_shared<v0::Result>(update)});
+    model->get_rt_info()[pass::gguf_recurrent_states_key()] = std::vector<std::string>{"conv_state", "conv_state_out"};
+
+    pass::GGUFMakeStateful normalize;
+    ASSERT_TRUE(normalize.run_on_model(model));
+    EXPECT_FALSE(normalize.run_on_model(model));
+    model->validate_nodes_and_infer_types();
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    auto states = request.query_state();
+    ASSERT_EQ(states.size(), 1);
+    EXPECT_EQ(states[0].get_state().get_shape(), (ov::Shape{1, 3, 4}));
+    // The extra oldest sample must not affect output, even when nonzero.
+    states[0].set_state(make_f32_tensor({1, 3, 4}, {-1000, 1, 2, 3, -2000, 11, 12, 13, -3000, 21, 22, 23}));
+
+    // Real ggml CPU oracle: ssm_conv_oracle.c with n_t=8 and sxd[3*11].
+    const std::vector<float> expected{1.625f, 11, 24, 2.5625f, 12, 25, 3.5f,  13, 26, 4.4375f, 14, 27,
+                                      5.375f, 15, 28, 6.3125f, 16, 29, 7.25f, 17, 30, 8.1875f, 18, 31};
+    size_t past = 0;
+    for (const size_t count : {5, 1, 2}) {
+        std::vector<float> values(3 * count);
+        for (size_t channel = 0; channel < 3; ++channel)
+            for (size_t token = 0; token < count; ++token)
+                values[channel * count + token] = static_cast<float>(channel * 10 + past + token + 4);
+        request.set_tensor("tokens", make_f32_tensor({1, 1, 3, count}, values));
+        request.infer();
+        expect_near(request.get_output_tensor(),
+                    std::vector<float>(expected.begin() + past * 3, expected.begin() + (past + count) * 3),
+                    1e-5f);
+        past += count;
+    }
+    expect_near(states[0].get_state(), {8, 9, 10, 11, 18, 19, 20, 21, 28, 29, 30, 31});
+    states[0].reset();
+    expect_near(states[0].get_state(), std::vector<float>(12, 0));
 }

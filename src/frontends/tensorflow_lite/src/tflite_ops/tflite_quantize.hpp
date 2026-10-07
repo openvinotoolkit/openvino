@@ -11,9 +11,7 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/tensorflow_lite/quantization_info.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 class TFLQuantize : public ov::frontend::tensorflow::InternalOperation {
 public:
@@ -55,6 +53,4 @@ private:
     ov::element::Type m_type;
     const ov::element::Type m_original_type;
 };
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

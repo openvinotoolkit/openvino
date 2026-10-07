@@ -16,10 +16,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace pass {
+namespace ov::frontend::gguf::pass {
 
 LowerSetRowsStateless::LowerSetRowsStateless() {
     auto set_rows_pattern = ov::pass::pattern::wrap_type<SetRows>();
@@ -64,7 +61,4 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
                      callback);
 }
 
-}  // namespace pass
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::pass
