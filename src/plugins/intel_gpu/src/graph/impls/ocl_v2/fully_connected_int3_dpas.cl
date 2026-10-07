@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 // Fully connected with u3 (3-bit unsigned) compressed weights and int8 activations.
 //
@@ -81,7 +82,7 @@
 #   define QUANT_CONVERT_F(v)  convert_float2(v)
 #   define QUANT_CONVERT_C(v)  convert_char2_sat_rte(v)
 #else
-#   error "fully_connected_gpu_int3_dpas.cl - unsupported QUANTIZE_GROUP_SIZE"
+#   error "fully_connected_int3_dpas.cl - unsupported QUANTIZE_GROUP_SIZE"
 #endif
 
 REQD_SUB_GROUP_SIZE(QUANT_SIMD)
@@ -166,13 +167,13 @@ KERNEL(quantize_input)(
 #endif
 
 #if USE_DPAS && (TILE_M % 8) != 0
-#   error "fully_connected_gpu_int3_dpas.cl - the DPAS path needs TILE_M to be a multiple of 8"
+#   error "fully_connected_int3_dpas.cl - the DPAS path needs TILE_M to be a multiple of 8"
 #endif
 #if USE_DPAS && !DPAS_V2 && (CHUNKS_PER_ITER % SG_M) != 0
-#   error "fully_connected_gpu_int3_dpas.cl - SG_M must divide CHUNKS_PER_ITER so the granules split evenly"
+#   error "fully_connected_int3_dpas.cl - SG_M must divide CHUNKS_PER_ITER so the granules split evenly"
 #endif
 #if USE_DPAS && !DPAS_V2 && (GROUPS_K % GROUPS_PER_ITER) != 0
-#   error "fully_connected_gpu_int3_dpas.cl - GROUPS_PER_ITER must divide GROUPS_K"
+#   error "fully_connected_int3_dpas.cl - GROUPS_PER_ITER must divide GROUPS_K"
 #endif
 
 #if DPAS_V2
@@ -191,7 +192,7 @@ KERNEL(quantize_input)(
 #define V2_ITERS_K       (GROUPS_K / V2_GPI)
 #define V2_RB            ((TILE_M + 15) / 16)
 #if (V2_GRAN_PER_ITER % SG_M) != 0 || (GROUPS_K % V2_GPI) != 0 || (V2_GPI % 2) != 0 || (CHUNKS_PER_GROUP % 2) != 0 || SG_M < 2
-#   error "fully_connected_gpu_int3_dpas.cl - invalid DPAS_V2 configuration"
+#   error "fully_connected_int3_dpas.cl - invalid DPAS_V2 configuration"
 #endif
 #if TILE_M == 8
 #   define V2_A_READ intel_sub_group_2d_block_read_8b_8r32x2c
@@ -200,7 +201,7 @@ KERNEL(quantize_input)(
 #elif TILE_M == 32
 #   define V2_A_READ intel_sub_group_2d_block_read_8b_32r32x2c
 #else
-#   error "fully_connected_gpu_int3_dpas.cl - DPAS_V2 needs TILE_M of 8, 16 or 32"
+#   error "fully_connected_int3_dpas.cl - DPAS_V2 needs TILE_M of 8, 16 or 32"
 #endif
 #if DECOMPRESSION_ZP_TERM
 #   define V2_WEI_ZP ((float)(DECOMPRESSION_ZP_VALUE))
@@ -212,7 +213,7 @@ KERNEL(quantize_input)(
 #define V2_SCALE_VEC (WEI_SCALE_G_PITCH == 1 && WEI_SCALE_GROUP_SIZE == GROUP_SIZE)
 #endif
 #if !USE_DPAS && (GROUPS_K % SG_K) != 0
-#   error "fully_connected_gpu_int3_dpas.cl - SG_K must divide GROUPS_K"
+#   error "fully_connected_int3_dpas.cl - SG_K must divide GROUPS_K"
 #endif
 
 // Bit-stream extraction of value i (a literal) from the three granule words.
@@ -303,6 +304,11 @@ KERNEL(fc)(
 #endif
     , const __global char* quantized_input
     , const __global float* quan_var
+    // Rows of the flattened batch, and of one batch for a 3D [B, M, N] output.
+    // Runtime arguments, so that one compiled kernel serves every row count of
+    // its fake-alignment bucket.
+    , const uint batch_size
+    , const uint rows_per_batch
 )
 {
 #if DPAS_V2
@@ -321,7 +327,6 @@ KERNEL(fc)(
     const uint sg   = (uint)get_local_id(1);
     const uint nbw  = (uint)get_group_id(0);
     const uint m0   = ((uint)get_group_id(1) * SG_M + sg) * TILE_M;
-    const uint batch_size = BATCH_SIZE;
     const uint var_pitch  = TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE;
     const __global uint* B = (const __global uint*)weights;
 
@@ -470,7 +475,7 @@ KERNEL(fc)(
                     res += (float)biases[n];
 #endif
                     const uint out_row = row;
-                    const float activated = ACTIVATION_TYPED(res, ACTIVATION_PARAMS_TYPED);
+                    const float activated = res;
 #if HAS_FUSED_OPS
                     FUSED_OPS;
                     result[t] = FUSED_OPS_RESULT;
@@ -493,7 +498,6 @@ KERNEL(fc)(
     const uint n    = nb * SIMD + lane;
 
     const uint var_pitch  = TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE;
-    const uint batch_size = BATCH_SIZE;
 
     const __global uint* B = (const __global uint*)weights;
 
@@ -684,7 +688,7 @@ KERNEL(fc)(
 #endif
             const uint out_row = row;
             const uint output_offset = n * TILE_OUT_F_PITCH + out_row * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
-            const float activated = ACTIVATION_TYPED(res, ACTIVATION_PARAMS_TYPED);
+            const float activated = res;
 #if HAS_FUSED_OPS
             FUSED_OPS;
             output[output_offset] = FUSED_OPS_RESULT;
