@@ -4,8 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include "test_utils.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
 
@@ -147,4 +149,28 @@ TEST(moe_offload_constant, shared_expert_not_cropped_by_partial_upload) {
             << "Shared expert constant at input " << (i + 3)
             << " must NOT be classified as RoutedExpert (would be wrongly cropped by partial upload)";
     }
+}
+
+TEST(moe_offload_constant, partial_upload_uses_preferred_allocation_type) {
+    auto& engine = tests::get_test_engine();
+    auto config = tests::get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::offload_ratio(20));
+    auto graph = MoETestGraph::build();
+    auto constant = graph.constants[0];
+    const auto shape = constant->get_output_shape(0);
+    const auto layout = cldnn::layout(shape,
+                                      cldnn::element_type_to_data_type(constant->get_output_element_type(0)),
+                                      cldnn::format::get_default_format(shape.size()));
+
+    const auto desc = try_prepare_partial_upload(engine,
+                                                 config,
+                                                 constant,
+                                                 shape,
+                                                 layout.data_type,
+                                                 layout.format,
+                                                 layout);
+
+    ASSERT_TRUE(desc.enabled);
+    EXPECT_LT(desc.upload_bytes, layout.bytes_count());
+    EXPECT_EQ(desc.memory->get_allocation_type(), engine.get_preferred_memory_allocation_type());
 }

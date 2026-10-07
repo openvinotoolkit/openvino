@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <openvino/util/file_util.hpp>
@@ -16,6 +17,7 @@
 #include "common_test_utils/unicode_utils.hpp"
 #include "frontend/shared/include/utils.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/frontend/paddle/frontend.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -32,6 +34,50 @@ void append_varint(std::string& out, uint64_t value) {
 
 void append_key(std::string& out, uint32_t field_number, uint8_t wire_type) {
     append_varint(out, (static_cast<uint64_t>(field_number) << 3) | wire_type);
+}
+
+void append_message(std::string& out, uint32_t field_number, const std::string& message) {
+    append_key(out, field_number, 2);
+    append_varint(out, message.size());
+    out.append(message);
+}
+
+void append_string(std::string& out, uint32_t field_number, const std::string& value) {
+    append_message(out, field_number, value);
+}
+
+std::string make_legacy_model_with_weight_name(const std::string& weight_name) {
+    // ProgramDesc.blocks[0].vars[0]: persistable LOD_TENSOR<float, {1}>.
+    std::string tensor_desc;
+    append_key(tensor_desc, 1, 0);  // data_type = FP32
+    append_varint(tensor_desc, 5);
+    append_key(tensor_desc, 2, 0);  // dims = {1}
+    append_varint(tensor_desc, 1);
+
+    std::string lod_tensor_desc;
+    append_message(lod_tensor_desc, 1, tensor_desc);
+
+    std::string var_type;
+    append_key(var_type, 1, 0);  // type = LOD_TENSOR
+    append_varint(var_type, 7);
+    append_message(var_type, 3, lod_tensor_desc);
+
+    std::string var;
+    append_string(var, 1, weight_name);
+    append_message(var, 2, var_type);
+    append_key(var, 3, 0);  // persistable = true
+    append_varint(var, 1);
+
+    std::string block;
+    append_key(block, 1, 0);  // idx = 0
+    append_varint(block, 0);
+    append_key(block, 2, 0);  // parent_idx = 0
+    append_varint(block, 0);
+    append_message(block, 3, var);
+
+    std::string program;
+    append_message(program, 1, block);
+    return program;
 }
 
 std::string make_tensor_desc_bytes(const std::vector<int64_t>& dims, int32_t data_type) {
@@ -179,6 +225,31 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
     const FunctionsComparator::Result res = func_comparator(function, reference);
     ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(Paddle_Reader_Tests, RejectsLegacyWeightPathOutsideModelDirectory) {
+    const auto test_dir = std::filesystem::path(ov::test::utils::generateTestFilePrefix());
+    ov::frontend::paddle::FrontEnd fe;
+    size_t model_index = 0;
+    for (const auto& weight_name : {std::string{"../outside_weight"}, std::string{"/outside_weight"}}) {
+        const auto model_dir = test_dir / ("legacy_model_" + std::to_string(model_index++));
+        ov::util::create_directory_recursive(model_dir);
+
+        {
+            std::ofstream model(model_dir / "__model__", std::ios::binary);
+            ASSERT_TRUE(model.is_open());
+            model << make_legacy_model_with_weight_name(weight_name);
+        }
+
+        try {
+            fe.load({model_dir});
+            FAIL() << "Expected model load to reject a weight path outside the model directory";
+        } catch (const std::exception& ex) {
+            EXPECT_NE(std::string(ex.what()).find("outside the base directory"), std::string::npos) << ex.what();
+        }
+    }
+
+    std::filesystem::remove_all(test_dir);
 }
 
 TEST(Paddle_Reader_Tests, LoadModelWithInvalidTensorDescSize) {

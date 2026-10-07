@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "fusion_test_common.hpp"
+#include "primitive_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/quantize.hpp>
@@ -860,6 +861,57 @@ TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
 #define CASE_FC_FP16_INT8_COMP_DYN_QUAN { 64, 128 }, { 64, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_dyn_quan_and_quantized, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_DYN_QUAN, 3, 3 },
+}));
+
+class fc_compressed_dyn_quan_aligned_outputs : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_compressed_dyn_quan_aligned_outputs, precomputed_reduction) {
+    auto p = GetParam();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    auto input_mem = get_mem(get_input_layout(p), -1, 1);
+    auto weights = data("weights", get_mem(get_weights_layout(p)));
+    auto scale = data("scale", get_mem(get_scale_layout(p, 128), 0.05f));
+
+    dynamic_quantize::Attributes attrs;
+    attrs.group_sizes = {1, 128};
+    attrs.quantization_dt = data_types::i8;
+    attrs.scale_dt = data_types::f16;
+    attrs.precomputed_reduction = true;
+    attrs.precomputed_reduction_dt = data_types::i32;
+
+    auto fc = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", "",
+                              input_info("dyn_quan", 1), input_info(""), input_info(""),
+                              data_types::f16, 2, 2);
+    fc.decompression_zero_point_scalar = 8.0f;
+
+    topology topology(input_layout("input", layout{ov::PartialShape{-1, 128}, data_types::f16, format::bfyx}),
+                      weights, scale, dynamic_quantize("dyn_quan", input_info("input"), attrs, 2, 128), fc,
+                      reorder("reduction", input_info("dyn_quan", 2), layout{ov::PartialShape{97, 1}, data_types::i32, format::bfyx}));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl}}));
+
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(config), false);
+    network->set_input_data("input", input_mem);
+    network->execute();
+
+    auto fc_inst = network->get_primitive("fc_prim");
+    auto dq_inst = network->get_primitive("dyn_quan");
+    const auto aligned_input = fc_inst->get_node().type()->get_fake_aligned_params(*fc_inst->get_impl_params()).input_layouts[0];
+    const auto aligned_rows = aligned_input.get_shape()[0];
+    ASSERT_GT(aligned_rows, 97);
+    ASSERT_FALSE(dq_inst->can_be_optimized());
+    ASSERT_NE(dq_inst->output_memory_ptr(1), nullptr);
+    ASSERT_NE(dq_inst->output_memory_ptr(2), nullptr);
+    EXPECT_GE(dq_inst->output_memory_ptr(1)->size(), aligned_rows * sizeof(ov::float16));
+    EXPECT_GE(dq_inst->output_memory_ptr(2)->size(), aligned_rows * sizeof(int32_t));
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_dyn_quan_aligned_outputs, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ {97, 128}, {97, 128}, {128, 128}, data_types::f16, format::bfyx,
+                                 data_types::u8, format::oiyx, data_types::f16, format::bfyx, 0, 0 },
 }));
 
 class fc_compressed_int8_bias_dynamic_onednn : public FullyConnectedFusingTestOneDNN {};

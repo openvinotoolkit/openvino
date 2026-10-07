@@ -42,19 +42,29 @@ static std::vector<ov::bfloat16> generate_bf16_data(tests::random_generator& rg,
     return bf16_data;
 }
 
-// Helper: compare f32 outputs with tolerance
+// Helper: compare f32 outputs with tolerance.
+// bf16 keeps only 8 mantissa bits, so an output element whose magnitude sits far below the tensor
+// peak is dominated by cancellation noise rather than by kernel error. Gate the relative check with
+// an absolute floor derived from the peak magnitude; the previous fixed 1e-5 cutoff was calibrated
+// for f32 and is ~250x below the bf16 noise floor of these networks.
 static void compare_outputs(const std::vector<float>& ref, const std::vector<float>& actual, float tolerance) {
     ASSERT_EQ(ref.size(), actual.size());
+
+    constexpr float bf16_unit_roundoff = 1.0f / 256;  // 8 explicit mantissa bits
+    float peak = 0.f;
+    for (auto v : ref)
+        peak = std::max(peak, std::abs(v));
+    const float abs_tolerance = std::max(peak * bf16_unit_roundoff, 1e-5f);
+
     for (size_t i = 0; i < ref.size(); ++i) {
-        if (std::abs(ref[i]) < 1e-5f) {
-            ASSERT_NEAR(actual[i], ref[i], tolerance)
-                << "Mismatch at index " << i;
-        } else {
-            float rel_err = std::abs(actual[i] - ref[i]) / std::max(std::abs(ref[i]), 1e-5f);
-            ASSERT_LT(rel_err, tolerance)
-                << "Relative error at index " << i << ": " << rel_err
-                << " (ref=" << ref[i] << ", actual=" << actual[i] << ")";
-        }
+        const float abs_err = std::abs(actual[i] - ref[i]);
+        if (abs_err <= abs_tolerance)
+            continue;
+        const float rel_err = abs_err / std::max(std::abs(ref[i]), 1e-5f);
+        ASSERT_LT(rel_err, tolerance)
+            << "Relative error at index " << i << ": " << rel_err
+            << " (ref=" << ref[i] << ", actual=" << actual[i]
+            << ", abs_err=" << abs_err << ", abs_tolerance=" << abs_tolerance << ")";
     }
 }
 

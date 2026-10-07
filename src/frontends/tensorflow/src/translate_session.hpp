@@ -9,9 +9,7 @@
 #include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/frontend/tensorflow/variables_map.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 struct CachedBodyModelSignature {
     std::string body_name;
@@ -78,6 +76,4 @@ private:
     }
 };
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

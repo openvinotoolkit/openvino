@@ -63,11 +63,13 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (!IsSIMDSizeSupported(params.engineInfo, 8) && !IsSIMDSizeSupported(params.engineInfo, 16))
+    if (!IsSIMDSizeSupported(params.engineInfo, 8) && !IsSIMDSizeSupported(params.engineInfo, 16)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.groups > 1)
+    if (params.groups > 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -86,10 +88,11 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_b_fs
     // TODO: Check if other block size can improve performance
     option.blockHeight = 1;
     option.prefetch = 1;
-    if (output.LogicalSize() < 49 * 1024)
+    if (output.LogicalSize() < 49 * 1024) {
         option.blockWidth = 4;
-    else
+    } else {
         option.blockWidth = 8;
+    }
 
     return option;
 }
@@ -105,8 +108,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32::SetDef
 
     size_t ow_group = 8;
     while (ow_group > 1) {
-        if (CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth) % ow_group == 0)
+        if (CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth) % ow_group == 0) {
             break;
+        }
         ow_group--;
     }
     if (IsSIMDSizeSupported(cp.engineInfo, 8)) {

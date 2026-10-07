@@ -16,10 +16,7 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_merge_op(const NodeContext& node) {
     // Merge can have multiple inputs, one is minimum
@@ -73,7 +70,4 @@ OutputVector translate_merge_op(const NodeContext& node) {
     return merge_node->outputs();
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

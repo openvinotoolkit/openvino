@@ -3,10 +3,13 @@
 //
 #pragma once
 
+#include <string_view>
+
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace test {
@@ -25,6 +28,10 @@ std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
         return std::make_shared<ov::op::v0::Constant>(type, shape, data);
     }
 }
+
+std::shared_ptr<ov::op::v0::Parameter> make_param(ov::element::Type et,
+                                                  const ov::PartialShape& shape,
+                                                  std::string_view name = "");
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

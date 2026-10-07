@@ -290,8 +290,8 @@ void Metadata<METADATA_VERSION_2_3>::read_unchecked(BlobSource& source) {
     source.read_into_buffer(&numberOfInputLayouts, sizeof(numberOfInputLayouts));
     source.read_into_buffer(&numberOfOutputLayouts, sizeof(numberOfOutputLayouts));
 
-    OPENVINO_ASSERT(numberOfInputLayouts + numberOfOutputLayouts <=
-                        (get_and_check_remaining_source_size(source) - FOOTER_SIZE) / SIZE_OF_LAYOUT_SIZE,
+    const size_t maxLayouts = (get_and_check_remaining_source_size(source) - FOOTER_SIZE) / SIZE_OF_LAYOUT_SIZE;
+    OPENVINO_ASSERT(numberOfInputLayouts <= maxLayouts && numberOfOutputLayouts <= maxLayouts - numberOfInputLayouts,
                     "The number of I/O layouts read from the blob is too great relative to the size of the blob");
 
     const auto readNLayouts = [&](const uint64_t numberOfLayouts, const char* loggerAddition) {

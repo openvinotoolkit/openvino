@@ -369,7 +369,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/runtime/allocator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/compute_hash.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/itensor.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/runtime/lazy_buffer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/shared_buffer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/string_aligned_buffer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/tensor.cpp

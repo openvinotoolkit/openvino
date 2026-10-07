@@ -217,8 +217,9 @@ public:
     mutable_array_ref(const mutable_array_ref& other) : _data(other._data), _size(other._size) {}
 
     mutable_array_ref& operator=(const mutable_array_ref& other) {
-        if (this == &other)
+        if (this == &other) {
             return *this;
+        }
         _data = other._data;
         _size = other._size;
         return *this;

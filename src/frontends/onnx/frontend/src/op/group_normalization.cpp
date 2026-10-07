@@ -19,10 +19,7 @@ using ::ONNX_NAMESPACE::TensorProto_DataType;
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_18 {
 ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
@@ -89,7 +86,4 @@ ov::OutputVector group_normalization(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("GroupNormalization", OPSET_SINCE(21), ai_onnx::opset_21::group_normalization);
 }  // namespace opset_21
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

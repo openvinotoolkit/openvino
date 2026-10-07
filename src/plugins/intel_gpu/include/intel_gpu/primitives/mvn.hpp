@@ -52,8 +52,9 @@ struct mvn : public primitive_base<mvn> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const mvn>(rhs);
 
@@ -92,8 +93,9 @@ struct mvn : public primitive_base<mvn> {
         // If all axes from 2 to rank-1 is a part of reduction scope,
         // then it's mapped to the old MVN case and don't require alignment
         for (int64_t i = 2; i < rank; i++) {
-            if (std::find_if(axes.begin(), axes.end(), [i, &shape](const int64_t& v){ return v == i || shape[i].get_max_length() == 1; }) == axes.end())
+            if (std::find_if(axes.begin(), axes.end(), [i, &shape](const int64_t& v){ return v == i || shape[i].get_max_length() == 1; }) == axes.end()) {
                 return true;
+            }
         }
 
         return false;

@@ -44,8 +44,9 @@ struct paged_causal_conv1d : public primitive_base<paged_causal_conv1d> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const paged_causal_conv1d>(rhs);
         return hidden_size == rhs_casted.hidden_size && kernel_size == rhs_casted.kernel_size;

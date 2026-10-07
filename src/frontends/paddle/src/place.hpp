@@ -7,19 +7,13 @@
 #include "input_model.hpp"
 #include "openvino/frontend/manager.hpp"
 
-namespace paddle {
-namespace framework {
-namespace proto {
+namespace paddle::framework::proto {
 class OpDesc;
 class VarDesc;
 
-}  // namespace proto
-}  // namespace framework
-}  // namespace paddle
+}  // namespace paddle::framework::proto
 
-namespace ov {
-namespace frontend {
-namespace paddle {
+namespace ov::frontend::paddle {
 
 class TensorPlace;
 class OpPlace;
@@ -204,6 +198,4 @@ private:
     std::vector<std::weak_ptr<InPortPlace>> m_consuming_ports;
 };
 
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle

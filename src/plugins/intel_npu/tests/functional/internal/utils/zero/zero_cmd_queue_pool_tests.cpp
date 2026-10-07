@@ -295,7 +295,7 @@ TEST_P(ZeroCmdQueuePoolTests, AllCommandQueueOptionsCombinations) {
         << "The test must cover and create all command queue combinations exactly once";
 }
 
-TEST_P(ZeroCmdQueuePoolTests, CreateDifferentCommandQueueForEachDeviceSyncOption) {
+TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsDisabled) {
     if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
         GTEST_SKIP()
             << "ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC command queue option is not supported by the current driver.\n";
@@ -304,7 +304,8 @@ TEST_P(ZeroCmdQueuePoolTests, CreateDifferentCommandQueueForEachDeviceSyncOption
     int owner_a = 1;
     int owner_b = 2;
 
-    // With DEVICE_SYNC enabled, owner_tag participates in the pool key.
+    // With shared_common_queue enabled, owner_tag does not participate in the pool key,
+    // including when DEVICE_SYNC is enabled.
     ::intel_npu::CommandQueueDesc device_sync_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
                                                      ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC,
@@ -328,8 +329,8 @@ TEST_P(ZeroCmdQueuePoolTests, CreateDifferentCommandQueueForEachDeviceSyncOption
         ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, device_sync_desc_b);
 
     EXPECT_NE(queue_device_sync_b, nullptr);
-    EXPECT_NE(queue_device_sync_a_1.get(), queue_device_sync_b.get())
-        << "Different DEVICE_SYNC owner_tag pointers should create different pooled queues";
+    EXPECT_EQ(queue_device_sync_a_1.get(), queue_device_sync_b.get())
+        << "owner_tag should be ignored when shared_common_queue is enabled";
 
     // Without DEVICE_SYNC, owner_tag must not affect pooling.
     ::intel_npu::CommandQueueDesc no_device_sync_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
@@ -350,6 +351,27 @@ TEST_P(ZeroCmdQueuePoolTests, CreateDifferentCommandQueueForEachDeviceSyncOption
     EXPECT_NE(queue_no_device_sync_a, nullptr);
     EXPECT_EQ(queue_no_device_sync_a.get(), queue_no_device_sync_b.get())
         << "owner_tag should be ignored when DEVICE_SYNC option is not set";
+
+    // With shared_common_queue disabled, owner_tag differentiates pooled queues.
+    ::intel_npu::CommandQueueDesc non_shared_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                    ZE_WORKLOAD_TYPE_DEFAULT,
+                                                    0,
+                                                    &owner_a,
+                                                    false};
+    ::intel_npu::CommandQueueDesc non_shared_desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                    ZE_WORKLOAD_TYPE_DEFAULT,
+                                                    0,
+                                                    &owner_b,
+                                                    false};
+    auto queue_non_shared_a =
+        ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, non_shared_desc_a);
+    auto queue_non_shared_b =
+        ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, non_shared_desc_b);
+
+    EXPECT_NE(queue_non_shared_a, nullptr);
+    EXPECT_NE(queue_non_shared_b, nullptr);
+    EXPECT_NE(queue_non_shared_a.get(), queue_non_shared_b.get())
+        << "Different owner_tag pointers should create different queues when shared_common_queue is disabled";
 }
 
 TEST_P(ZeroCmdQueuePoolTests, MultiThreadingTest) {

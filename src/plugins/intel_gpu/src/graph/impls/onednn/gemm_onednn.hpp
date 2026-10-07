@@ -22,8 +22,9 @@ struct GemmImplementationManager : public ImplementationManager {
         assert(node.is_type<gemm>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
         const auto& gemm_node = node.as<gemm>();
         const auto& gemm_prim = gemm_node.get_primitive();
@@ -50,19 +51,23 @@ struct GemmImplementationManager : public ImplementationManager {
             format::bfwzyx,
         };
 
-        if (gemm_prim->alpha != 1.0f || gemm_prim->beta != 0.0f)
+        if (gemm_prim->alpha != 1.0f || gemm_prim->beta != 0.0f) {
             return false;
+        }
 
-        if (out_layout.data_padding)
+        if (out_layout.data_padding) {
             return false;
+        }
 
-        if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64}))
+        if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64})) {
             return false;
+        }
 
         if (!one_of(in0_layout.format.value, supported_formats) ||
             !one_of(in1_layout.format.value, supported_formats) ||
-            !one_of(out_layout.format.value, supported_formats))
+            !one_of(out_layout.format.value, supported_formats)) {
             return false;
+        }
 
         //format bxfy not on whitelist for fusable_output_order_onednn in gemm_inst.h what makes assert error later
         //skipped onednn implementation as ocl is faster
@@ -78,11 +83,13 @@ struct GemmImplementationManager : public ImplementationManager {
                          one_of(in1_dt, {data_types::i8, data_types::u8}) &&
                          one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
 
-        if (!f16f16_case && !bf16bf16_case && !u8s8_case)
+        if (!f16f16_case && !bf16bf16_case && !u8s8_case) {
             return false;
+        }
 
-        if (gemm_prim->indirect_a || gemm_prim->indirect_b)
+        if (gemm_prim->indirect_a || gemm_prim->indirect_b) {
             return false;
+        }
 
         return is_supported_post_ops(node);
     }
@@ -93,8 +100,9 @@ struct GemmImplementationManager : public ImplementationManager {
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-            if (node.get_dependency(idx).is_constant())
+            if (node.get_dependency(idx).is_constant()) {
                 continue;
+            }
 
             size_t out_rank = node.get_output_layout().get_rank();
             auto target_format = format::get_default_format(out_rank);

@@ -20,8 +20,9 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
                                                              kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scaled_dot_product_attention>();
     auto transpose_shape = [](const ov::PartialShape& shape, const std::vector<int64_t>& order) {
-        if (order.empty())
+        if (order.empty()) {
             return shape;
+        }
 
         auto shape_transposed = ov::PartialShape(shape);
         auto rank_diff = shape.size() - order.size();
@@ -35,6 +36,7 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
     };
 
     auto input0_layout = impl_param.get_input_layout(0);
+    auto input1_layout = impl_param.get_input_layout(1);
     auto input2_layout = impl_param.get_input_layout(2);
 
     auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
@@ -46,6 +48,14 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
     auto v_shape = transpose_shape(input2_layout.get_partial_shape(),
                                 desc->input_v_transpose_order);
     output_shape[output_shape.size() - 1] = v_shape[v_shape.size() - 1];
+
+    // The batch dim is numpy-broadcast across Q, K and V.
+    auto k_shape = transpose_shape(input1_layout.get_partial_shape(), desc->input_k_transpose_order);
+    if (k_shape.rank() == q_shape.rank() && v_shape.rank() == q_shape.rank()) {
+        const bool batch_compatible = ov::Dimension::broadcast_merge(output_shape[0], output_shape[0], k_shape[0]) &&
+                                      ov::Dimension::broadcast_merge(output_shape[0], output_shape[0], v_shape[0]);
+        OPENVINO_ASSERT(batch_compatible, "[GPU] SDPA: Q/K/V batch sizes cannot be broadcast");
+    }
 
     output_shape = transpose_shape(output_shape, desc->output_transpose_order);
 

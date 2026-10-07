@@ -12,9 +12,7 @@
 
 using namespace ::ONNX_NAMESPACE;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 std::string get_node_domain(const NodeProto& node_proto) {
     return node_proto.has_domain() ? node_proto.domain() : "";
 }
@@ -78,6 +76,4 @@ void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge
     }
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

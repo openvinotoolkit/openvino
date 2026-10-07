@@ -23,6 +23,17 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         return make_deep_copy<bucketize_impl, kernel_params_t>(*this);
     }
 
+    event::ptr execute_impl(const std::vector<event::ptr>& events, bucketize_inst& instance) override {
+        // Empty buckets still gives a full output of zeros, but the generic skip logic drops the kernel.
+        if (instance.get_input_layout(1).count() == 0) {
+            stream& stream = instance.get_network().get_stream();
+            auto dep = stream.enqueue_marker(events, instance.needs_completion_event());
+            return instance.output_memory_ptr()->fill(stream, {dep}, false);
+        }
+
+        return parent::execute_impl(events, instance);
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<bucketize>();
         auto params = get_default_params<kernel_selector::bucketize_params>(impl_param);

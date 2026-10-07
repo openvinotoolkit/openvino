@@ -24,9 +24,7 @@ using namespace ov::frontend;
 using namespace ov::op;
 using namespace std;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 namespace {
 using ClusterType = pair<unordered_set<shared_ptr<Switch>>, unordered_set<shared_ptr<Merge>>>;
@@ -283,6 +281,4 @@ bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
     return true;
 }
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

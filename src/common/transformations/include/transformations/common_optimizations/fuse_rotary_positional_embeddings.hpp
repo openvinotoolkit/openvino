@@ -24,6 +24,7 @@ class TRANSFORMATIONS_API RoPEShareCosSin;
 class TRANSFORMATIONS_API RoPEFusionGPTOSS;
 class TRANSFORMATIONS_API RoPEFusionLtxVideo;
 class TRANSFORMATIONS_API RoPEFusionCohere;
+class TRANSFORMATIONS_API RoPEFusionSliceAssign;
 
 }  // namespace pass
 }  // namespace ov
@@ -110,6 +111,12 @@ class ov::pass::RoPEFusionCohere : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionCohere");
     RoPEFusionCohere();
+};
+
+class ov::pass::RoPEFusionSliceAssign : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionSliceAssign");
+    RoPEFusionSliceAssign();
 };
 
 /**

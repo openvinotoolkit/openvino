@@ -30,15 +30,15 @@ Install OpenVINO™ Runtime from Conda Forge
 Installing OpenVINO Runtime with Anaconda Package Manager
 ############################################################
 
-1. Set up the Anaconda environment (Python 3.10 used as an example):
+1. Set up the Anaconda environment (Python 3.14 used as an example):
 
    .. code-block:: sh
 
-      conda create --name py310 python=3.10
+      conda create --name py314 python=3.14
 
    .. code-block:: sh
 
-      conda activate py310
+      conda activate py314
 
 2. Update it to the latest version:
 
@@ -50,7 +50,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2026.2.1
+      conda install -c conda-forge openvino=2026.3.1
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the description below, as well as the
@@ -87,7 +87,7 @@ To reactivate your Conda environment, execute the following command:
 
 .. code-block:: sh
 
-    conda activate py310
+    conda activate py314
 
 Once you have reactivated your Conda environment, make sure that all the necessary environment
 variables are properly set and proceed with linking the OpenVINO libraries.
@@ -140,7 +140,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
 
-   conda remove openvino=2026.2.1
+   conda remove openvino=2026.3.1
 
 If you have installed specific components of OpenVINO, you can remove them, using:
 

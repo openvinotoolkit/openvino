@@ -49,11 +49,12 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
         while (!need_reopt.empty()) {
             auto& prop = *need_reopt.front();
             need_reopt.pop_front();
-            if (match(prop))
+            if (match(prop)) {
                 optimize_cascade(prop, need_reopt);
-            else
+            } else {
                 // TODO: Revert extra padding when cascade adjustment failed.
                 prop.can_be_optimized(false);
+            }
         }
         return false;  // node not invalidated
     }

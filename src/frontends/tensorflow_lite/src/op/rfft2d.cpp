@@ -9,10 +9,7 @@
 
 using namespace std;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 
 OutputVector rfft2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = node.get_decoder();
@@ -21,7 +18,4 @@ OutputVector rfft2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
     return rfft->outputs();
 }
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

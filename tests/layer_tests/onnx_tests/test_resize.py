@@ -209,6 +209,56 @@ class TestResize(OnnxRuntimeLayerTest):
         self._test(*self.create_resize_net(**params, precision=precision, ir_version=ir_version),
                    ie_device, precision, ir_version, custom_eps=2.0e-4, temp_dir=temp_dir)
 
+    def create_resize_net_negative_axes(self, input_shape, output_shape, scales, axes,
+                                        coordinate_transformation_mode, mode, precision,
+                                        ir_version):
+        import onnx
+        from onnx import helper, TensorProto, numpy_helper
+
+        roi = helper.make_node('Constant', inputs=[], outputs=['roi'],
+                               value=numpy_helper.from_array(
+                                   np.array([], dtype=np.float32), name='roi'))
+        scales_node = helper.make_node('Constant', inputs=[], outputs=['scales'],
+                                       value=helper.make_tensor(
+                                           'scales', TensorProto.FLOAT,
+                                           [len(scales)], scales))
+        resize_node = helper.make_node(
+            'Resize',
+            inputs=['input', 'roi', 'scales'],
+            outputs=['output'],
+            mode=mode,
+            coordinate_transformation_mode=coordinate_transformation_mode,
+            axes=axes,
+        )
+        x = helper.make_tensor_value_info('input', TensorProto.FLOAT, input_shape)
+        y = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
+        graph_def = helper.make_graph([roi, scales_node, resize_node], 'test_resize_neg_axes',
+                                      [x], [y])
+        onnx_net = onnx_make_model(graph_def, producer_name='test_model',
+                                   opset_imports=[helper.make_opsetid('', 18)])
+        onnx.checker.check_model(onnx_net)
+        ref_net = None
+        return onnx_net, ref_net
+
+    # Test Resize with negative axes (e.g. axes=[-2,-1] equivalent to [2,3] for rank-4 input)
+    test_data_negative_axes = [
+        dict(input_shape=[1, 1, 2, 2], output_shape=[1, 1, 4, 4],
+             scales=[2.0, 2.0], axes=[-2, -1],
+             coordinate_transformation_mode='asymmetric', mode='nearest'),
+        dict(input_shape=[1, 3, 4, 4], output_shape=[1, 3, 2, 2],
+             scales=[0.5, 0.5], axes=[-2, -1],
+             coordinate_transformation_mode='asymmetric', mode='nearest'),
+        dict(input_shape=[1, 1, 2, 2], output_shape=[1, 1, 4, 4],
+             scales=[2.0, 2.0], axes=[-2, -1],
+             coordinate_transformation_mode='align_corners', mode='linear'),
+    ]
+
+    @pytest.mark.parametrize("params", test_data_negative_axes)
+    def test_resize_negative_axes(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_resize_net_negative_axes(**params, precision=precision,
+                                                         ir_version=ir_version),
+                   ie_device, precision, ir_version, custom_eps=2.0e-4, temp_dir=temp_dir)
+
     test_data_cubic = [
         dict(input_shape=[1, 3, 100, 200], output_shape=[1, 3, 350, 150],
              scales=[1.0, 1.0, 3.5, 150 / 200], sizes=None),

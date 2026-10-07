@@ -39,14 +39,17 @@ struct Read<ov::intel_gpu::ImplForcingMap> {
             while (is.good()) {
                 is >> c;
                 if (c == ',') {
-                    if (enclosed_container_level == 0)
+                    if (enclosed_container_level == 0) {
                         break;
+                    }
                 }
-                if (c == '{' || c == '[')
+                if (c == '{' || c == '[') {
                     ++enclosed_container_level;
+                }
                 if (c == '}' || c == ']') {
-                    if (enclosed_container_level == 0)
+                    if (enclosed_container_level == 0) {
                         break;
+                    }
                     --enclosed_container_level;
                 }
 

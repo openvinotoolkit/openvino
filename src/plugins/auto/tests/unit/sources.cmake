@@ -1,0 +1,63 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(OV_AUTO_UNIT_TESTS_SRC
+    ${CMAKE_CURRENT_LIST_DIR}/auto_unit_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/compile_model_metric_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/compile_model_property_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ctput_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/default_perf_hint_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/device_telemetry_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_output_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/get_device_list.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/auto_unit_test.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/gmock_plugin.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/mock_log_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/infer_request_schedule_policy_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/key_network_priority_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/life_time_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/log_utils_format_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/log_utils_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/meta_device_check_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/parse_meta_device_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/perf_curve_table_validator_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/release_helper_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/runtime_fallback_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/select_device_failed_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/select_device_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/set_log_level_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/startup_fallback_property_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/stateful_model_test.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/async_infer_request.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/async_infer_request.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_compiled_model.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_compiled_model.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_schedule.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/common.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_compiled_model.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_compiled_model.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_schedule.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/infer_request.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/infer_request.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/itt.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin_config.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin_config.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/device_telemetry.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/device_telemetry.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/log.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/log.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/log_util.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/non_copyable.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/singleton.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/time_utils.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils/time_utils.hpp
+)

@@ -25,3 +25,79 @@
     <CompilerOptions options="-cl-mad-enable"/>
     <WorkSizes global="B*F*Y*X,1,1"/>
 </CustomLayer>
+
+<CustomLayer name="CustomOpAnyFmt" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_axis_probe">
+        <Source filename="custom_op_any_format.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="ANY"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <!-- Over the individual X and Y extents, not their product, so a transposed output
+         layout changes the dispatch instead of cancelling out. -->
+    <WorkSizes global="X,Y,1"/>
+</CustomLayer>
+
+<CustomLayer name="CustomOpAnyFmt3D" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_axis_probe_3d">
+        <Source filename="custom_op_any_format_3d.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="ANY"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="Y,F,B"/>
+</CustomLayer>
+
+<CustomLayer name="CustomOpTwoIn" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_two_inputs">
+        <Source filename="custom_op_two_inputs.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>
+
+<CustomLayer name="CustomOpAnyFmtYxfb" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_yxfb_copy">
+        <Source filename="custom_op_any_format_yxfb.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="YXFB"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="ANY"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>
+
+<CustomLayer name="CustomOpTwoInFmt" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_second_port_copy">
+        <Source filename="custom_op_two_inputs_fmt.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1" format="YXFB"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="YXFB"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>
+
+<CustomLayer name="CustomOpAnyFmtDyn" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_dyn_copy">
+        <Source filename="custom_op_any_format_dyn.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="ANY"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>

@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include <json_object.h>
 
@@ -32,15 +33,17 @@ std::vector<layout> matrix_nms_inst::calc_output_layouts(matrix_nms_node const& 
             num_classes = std::max(int64_t{1}, num_classes - 1);
         }
         int64_t max_output_boxes_per_class = 0;
-        if (desc->attribs.nms_top_k >= 0)
+        if (desc->attribs.nms_top_k >= 0) {
             max_output_boxes_per_class = std::min(num_boxes, static_cast<int64_t>(desc->attribs.nms_top_k));
-        else
+        } else {
             max_output_boxes_per_class = num_boxes;
+        }
 
         auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-        if (desc->attribs.keep_top_k >= 0)
+        if (desc->attribs.keep_top_k >= 0) {
             max_output_boxes_per_batch =
                 std::min(max_output_boxes_per_batch, static_cast<int64_t>(desc->attribs.keep_top_k));
+        }
 
         first_dim_shape = max_output_boxes_per_batch * scores_ps[0].get_length();
     }
@@ -70,16 +73,19 @@ layout matrix_nms_inst::calc_output_layout(const matrix_nms_node& node, const ke
     auto classes_num = scores_layout.feature();
     const auto boxes_num = boxes_layout.feature();
 
-    if (primitive->attribs.background_class >= 0 && primitive->attribs.background_class < classes_num)
+    if (primitive->attribs.background_class >= 0 && primitive->attribs.background_class < classes_num) {
         classes_num = std::max<ov::Dimension::value_type>(1, classes_num - 1);
+    }
 
     auto max_output_boxes_per_class{boxes_num};
-    if (primitive->attribs.nms_top_k >= 0)
+    if (primitive->attribs.nms_top_k >= 0) {
         max_output_boxes_per_class = std::min<ov::Dimension::value_type>(max_output_boxes_per_class, primitive->attribs.nms_top_k);
+    }
 
     auto max_output_boxes_per_batch = max_output_boxes_per_class * classes_num;
-    if (primitive->attribs.keep_top_k >= 0)
+    if (primitive->attribs.keep_top_k >= 0) {
         max_output_boxes_per_batch = std::min<ov::Dimension::value_type>(max_output_boxes_per_batch, primitive->attribs.keep_top_k);
+    }
 
     auto output_num = max_output_boxes_per_batch * batches_num;
 

@@ -7,10 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 // This transformation replaces pattern Parameter(Dict)->aten::__getitem__
 class DictParameterResolver : public ov::pass::ModelPass {
@@ -25,7 +22,4 @@ public:
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

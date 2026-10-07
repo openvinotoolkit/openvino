@@ -44,15 +44,15 @@ public:
     /// \param recurrent_state_table Paged table of recurrent state snapshots, updated in place
     ///        [num_physical_blocks, num_heads, head_dim, state_size]; an all-zeros tensor before any tokens are cached.
     /// \param subsequence_begins Start indices of each sequence's tokens in the flattened token batch
-    ///        [batch_size_in_sequences + 1], element type i32 or i64.
+    ///        [batch_size_in_sequences + 1], element type i32.
     /// \param la_block_indices Physical block row indices into recurrent_state_table, concatenated across
-    ///        all sequences [num_logical_blocks], element type i32 or i64.
+    ///        all sequences [num_logical_blocks], element type i32.
     /// \param la_block_indices_begins Splits la_block_indices among sequences
-    ///        [batch_size_in_sequences + 1], element type i32 or i64.
+    ///        [batch_size_in_sequences + 1], element type i32.
     /// \param num_processed_tokens Number of tokens already processed for each sequence
-    ///        [batch_size_in_sequences], element type i32 or i64.
+    ///        [batch_size_in_sequences], element type i32.
     /// \param cache_interval Interval (in tokens) at which the recurrent state is cached for each sequence;
-    ///        a value <= 0 disables caching [batch_size_in_sequences], element type i32 or i64.
+    ///        a value <= 0 disables caching [batch_size_in_sequences], element type i32.
     PagedSelectiveSSM(const Output<Node>& A,
                       const Output<Node>& dt,
                       const Output<Node>& B,

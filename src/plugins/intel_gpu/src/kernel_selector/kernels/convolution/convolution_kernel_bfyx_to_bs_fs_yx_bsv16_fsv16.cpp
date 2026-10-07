@@ -62,8 +62,9 @@ bool ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::Validate(const Params& p) const
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    if (output.Feature().v % feature_block_size != 0 || output.Batch().v % batch_block_size != 0)
+    if (output.Feature().v % feature_block_size != 0 || output.Batch().v % batch_block_size != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     if (input.Feature().v != 3) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);

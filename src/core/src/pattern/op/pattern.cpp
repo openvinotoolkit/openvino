@@ -612,6 +612,7 @@ op::Predicate value_matches(const std::string& value_notation) {
         "value_matches('" + value_notation + "')");
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 op::Predicate output_index_matches(size_t expected_index) {
     return op::Predicate(
         [=](const Output<Node>& output) -> bool {
@@ -628,5 +629,6 @@ op::Predicate output_index_matches(const std::vector<size_t>& expected_indices) 
         },
         "output_index_matches({" + ov::util::join(expected_indices) + "})");
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace ov::pass::pattern

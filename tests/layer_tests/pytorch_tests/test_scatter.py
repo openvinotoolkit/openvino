@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 import torch
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestScatter(PytorchLayerTest):
@@ -111,6 +111,7 @@ class TestScatter(PytorchLayerTest):
     ])
     @pytest.mark.parametrize("dtype", ["int32", "float32"])
     @pytest.mark.parametrize(["inplace", "has_out"], [(True, False), (False, True), (False, False)])
+    @pytest.mark.precommit_torch_export
     def test_scatter(self, src, reduce, index, dim, dtype, inplace, has_out, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
@@ -198,6 +199,7 @@ class TestScatterReduce(PytorchLayerTest):
     @pytest.mark.parametrize(["inplace", "has_out"], [(True, False), (False, True), (False, False)])
     @pytest.mark.parametrize("reduce", ["sum", "prod", "mean", "amax", "amin"])
     @pytest.mark.parametrize("include_self", [True, False])
+    @pytest.mark.precommit_torch_export
     def test_scatter_reduce(self, dim, index, src, dtype, inplace, has_out, reduce, include_self, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
@@ -260,7 +262,7 @@ class TestScatterAdd(PytorchLayerTest):
     )
     @pytest.mark.parametrize("src", [torch.arange(1, 26).reshape(5, 5)])
     @pytest.mark.parametrize("dtype", ["int32", "float32"])
-    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
+    @pytest.mark.parametrize("inplace", [True, False])
     def test_scatter_add(self, dim, index, src, dtype, inplace, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
@@ -270,5 +272,5 @@ class TestScatterAdd(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input={"dtype": dtype},
-            fx_kind="aten.scatter_add",
+            fx_kind="aten.scatter_add_" if inplace else "aten.scatter_add",
         )

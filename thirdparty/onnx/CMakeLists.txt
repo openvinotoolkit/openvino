@@ -69,6 +69,7 @@ set(ONNX_USE_PROTOBUF_SHARED_LIBS OFF CACHE BOOL "Use dynamic protobuf by ONNX l
 set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
 set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
+set(ONNX_INSTALL OFF CACHE BOOL "Install ONNX targets, headers and CMake config files" FORCE)
 set(ONNX_CUSTOM_PROTOC_EXECUTABLE "${PROTOC_EXECUTABLE}")
 
 # build targets
@@ -99,28 +100,3 @@ ov_disable_all_warnings(onnx onnx_proto)
 
 ov_install_static_lib(onnx ${OV_CPACK_COMP_CORE})
 ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
-
-# WA for ONNX: protobuf must be findable via an export set when CMake validates
-# install(EXPORT ONNXTargets ...) at configure time.
-if(NOT ENABLE_SYSTEM_PROTOBUF)
-    if(ONNX_USE_LITE_PROTO)
-        set(_onnx_protobuf_root libprotobuf-lite)
-    else()
-        set(_onnx_protobuf_root libprotobuf)
-    endif()
-
-    if(BUILD_SHARED_LIBS)
-        # Shared build: register libprotobuf and ALL transitive deps in ONNXTargets.
-        set(_onnx_pb_roots "${_onnx_protobuf_root}")
-        ov_register_static_deps_in_export(_onnx_pb_roots ONNXTargets)
-        unset(_onnx_pb_roots)
-    else()
-        # Static build: add just libprotobuf to ONNXTargets (original WA).
-        install(TARGETS "${_onnx_protobuf_root}" EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                COMPONENT ${OV_CPACK_COMP_CORE}
-                ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
-    endif()
-
-    unset(_onnx_protobuf_root)
-endif()

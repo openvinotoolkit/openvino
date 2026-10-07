@@ -45,6 +45,10 @@ public:
 
     // returns true if handler has been successfully added
     bool add_event_handler(event_handler handler, void* data);
+#ifdef ENABLE_MLIR_FOR_GPU
+    // return a handle to an underlying event implementation (i.e. cl_event for OpenCL)
+    virtual void* get_native_handle() { return nullptr; }
+#endif
 
     std::vector<instrumentation::profiling_interval> get_profiling_info();
 

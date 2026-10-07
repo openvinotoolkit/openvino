@@ -8,9 +8,10 @@
 
 namespace ov::op::util {
 
-void set_name(ov::Node& node, const std::string& name, size_t output_port) {
-    node.set_friendly_name(name);
-    node.get_output_tensor(output_port).set_names({name});
+void set_name(ov::Node& node, std::string_view name, size_t output_port) {
+    std::string name_str(name);
+    node.set_friendly_name(name_str);
+    node.get_output_tensor(output_port).set_names({std::move(name_str)});
 }
 }  // namespace ov::op::util
 

@@ -9,10 +9,7 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 static const std::unordered_set<std::string> supported_modes = {"nearest", "linear", "cubic"};
 
@@ -130,6 +127,12 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     if (axes_attr.empty()) {
         return {std::make_shared<v11::Interpolate>(data, scale_or_sizes, attrs)};
     }
+
+    const auto data_rank = data.get_partial_shape().rank();
+    for (auto& axis : axes_attr) {
+        axis = common::normalize_axis(node.get_description(), axis, data_rank);
+    }
+
     auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{axes_attr.size()}, axes_attr);
     return {std::make_shared<v11::Interpolate>(data, scale_or_sizes, axes, attrs)};
 }
@@ -156,7 +159,4 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Resize", OPSET_RANGE(1, 10), ai_onnx::opset_1::resize);
 }  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

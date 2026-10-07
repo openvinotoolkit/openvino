@@ -213,8 +213,9 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
 
 KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params) const {
     assert(params.GetType() == KernelType::REORDER);
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
     reorder_weights_params& newParams = *static_cast<reorder_weights_params*>(kd.params.get());

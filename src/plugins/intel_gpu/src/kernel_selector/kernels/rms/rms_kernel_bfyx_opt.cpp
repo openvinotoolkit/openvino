@@ -74,8 +74,9 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
     }
 
-    if (has_padding)
+    if (has_padding) {
         jit.AddConstant(MakeJitConstant("HAS_PADDING", 1));
+    }
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
@@ -193,14 +194,15 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSize % dispatchData.lws[0];
 
-        if (dispatchData.itemsNum >> 3)
+        if (dispatchData.itemsNum >> 3) {
             dispatchData.subgroupBlockSize = 8;
-        else if (dispatchData.itemsNum >> 2)
+        } else if (dispatchData.itemsNum >> 2) {
             dispatchData.subgroupBlockSize = 4;
-        else if (dispatchData.itemsNum >> 1)
+        } else if (dispatchData.itemsNum >> 1) {
             dispatchData.subgroupBlockSize = 2;
-        else
+        } else {
             dispatchData.subgroupBlockSize = 1;
+        }
     } else {
         dispatchData.subgroupBlockSize = 8;
     }
@@ -208,8 +210,9 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
 }
 
 bool RMSKernelBfyxOpt::Validate(const Params& p) const {
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const rms_params& params = static_cast<const rms_params&>(p);
     if (params.elementwise_affine) {

@@ -18,6 +18,11 @@
 namespace intel_npu {
 
 struct MemRefType {
+    static constexpr uint32_t PTR_DIRTY = 1U << 0;
+    static constexpr uint32_t SHAPE_DIRTY = 1U << 1;
+    static constexpr uint32_t STRIDE_DIRTY = 1U << 2;
+    static constexpr uint32_t ALL_DIRTY = PTR_DIRTY | SHAPE_DIRTY | STRIDE_DIRTY;
+
     const void* _basePtr;
     const void* _data;
     int64_t _offset;
@@ -25,8 +30,9 @@ struct MemRefType {
     std::vector<int64_t> _strides;
     int64_t _dimsCount;
     std::shared_ptr<void> _impl;
+    uint32_t _dirtyFlag;
 
-    MemRefType() : _basePtr(nullptr), _data(nullptr), _offset(0), _sizes(), _strides(), _dimsCount(0) {}
+    MemRefType() : _basePtr(nullptr), _data(nullptr), _offset(0), _sizes(), _strides(), _dimsCount(0), _dirtyFlag(0) {}
 
     MemRefType(const void* basePtr,
                const void* data,
@@ -39,7 +45,8 @@ struct MemRefType {
           _offset(offset),
           _sizes(sizes),
           _strides(strides),
-          _dimsCount(dimsCount) {}
+          _dimsCount(dimsCount),
+          _dirtyFlag(0) {}
 
     // Copy intentionally drops the runtime impl: VM MemRef handles must not be aliased
     // across copies (would cause double-destroy / shared device state).
@@ -49,7 +56,8 @@ struct MemRefType {
           _offset(other._offset),
           _sizes(other._sizes),
           _strides(other._strides),
-          _dimsCount(other._dimsCount) {}
+          _dimsCount(other._dimsCount),
+          _dirtyFlag(other._dirtyFlag) {}
     MemRefType& operator=(const MemRefType& other) {
         if (this != &other) {
             _basePtr = other._basePtr;
@@ -58,6 +66,7 @@ struct MemRefType {
             _sizes = other._sizes;
             _strides = other._strides;
             _dimsCount = other._dimsCount;
+            _dirtyFlag = other._dirtyFlag;
             _impl.reset();
         }
         return *this;
@@ -67,10 +76,15 @@ struct MemRefType {
     ~MemRefType() = default;
 
     void setArg(const void* arg);
+    void setOffset(int64_t offset);
     void setSize(const ov::Shape& shape);
     void setStrides(const ov::Strides& strides, int32_t elementSize = 1);
     void set(const void* basePtr, int64_t offset, std::shared_ptr<ov::ITensor> tensor);
     void updateStride();
+    bool isDirty() const;
+    uint32_t getDirtyFlag() const;
+    void markDirty(uint32_t dirtyFlag);
+    void clearDirty();
     bool compare(const MemRefType& memref);
     friend std::ostream& operator<<(std::ostream& os, const MemRefType& memRef);
     std::string toString();

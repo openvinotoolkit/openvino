@@ -218,7 +218,6 @@ private:
                                   cldnn::program_node&,
                                   size_t);
     void add_gru_weights_reorder(primitive_id input_id,
-                                 std::shared_ptr<WeightsReorderParams> reorder_params,
                                  program& p,
                                  cldnn::program_node&,
                                  cldnn::program_node&,
@@ -334,9 +333,7 @@ public:
         }
 
         // If this dependency is already there, exit early
-        const auto& mem_deps = node->get_memory_dependencies();
-        auto it = std::lower_bound(mem_deps.begin(), mem_deps.end(), static_cast<uint32_t>(dep->get_unique_id()));
-        if (it != mem_deps.end() && *it == static_cast<uint32_t>(dep->get_unique_id())) {
+        if (node->has_memory_dependency(static_cast<uint32_t>(dep->get_unique_id()))) {
             return;
         }
 

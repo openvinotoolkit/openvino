@@ -263,6 +263,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_rank_bias) {
+    const auto model = convert_model("dynamic_shapes/conv_with_dynamic_rank_bias.onnx");
+    const auto bias = model->get_parameters().at(2);
+    EXPECT_TRUE(bias->get_partial_shape().rank().is_dynamic());
+
+    // Plugins reject dynamic-rank parameters, so pin the runtime bias shape before inference.
+    model->reshape(std::map<ov::Output<ov::Node>, PartialShape>{{bias->output(0), PartialShape{2}}});
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 3, 3}, std::vector<float>(27, 1.f));
+    test_case.add_input<float>(Shape{2, 3, 2, 2}, std::vector<float>(24, 1.f));
+    test_case.add_input<float>(Shape{2}, {1.f, -2.f});
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, {13.f, 13.f, 13.f, 13.f, 10.f, 10.f, 10.f, 10.f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
     const auto model = convert_model("dynamic_shapes/average_pool_2d_dyn.onnx");
 

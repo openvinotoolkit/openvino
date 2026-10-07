@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <map>
+#include <unordered_map>
+#include <vector>
+
 #include "intel_gpu/graph/program.hpp"
 #include "program_node.h"
-#include <vector>
-#include <map>
-#include <algorithm>
 
 namespace cldnn {
 // helper method for calc_processing order
 void program::nodes_ordering::calc_processing_order_visit(program_node* node) {
-    if (node->is_marked())
+    if (node->is_marked()) {
         return;
+    }
     for (auto* user : node->users) {
         calc_processing_order_visit(user);
     }
@@ -77,11 +80,20 @@ void program::nodes_ordering::calculate_BFS_processing_order() {
     }
 }
 
-// verifies if a given node will be processed before all its dependent nodes
-bool program::nodes_ordering::is_correct(program_node* node) {
-    for (const auto& dep : node->get_dependencies()) {
-        if (get_processing_number(node) < get_processing_number(dep.first)) {
-            return false;
+// Verify that every dependency appears no later than its node in the current processing order.
+bool program::nodes_ordering::is_correct() const {
+    std::unordered_map<const program_node*, size_t> positions;
+    positions.reserve(_processing_order.size());
+    for (const auto* node : _processing_order) {
+        positions.emplace(node, positions.size());
+    }
+
+    for (const auto* node : _processing_order) {
+        const auto position = positions.at(node);
+        for (const auto& dep : node->get_dependencies()) {
+            if (position < positions.at(dep.first)) {
+                return false;
+            }
         }
     }
     return true;

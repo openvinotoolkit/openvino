@@ -41,18 +41,21 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
         input_layout.format == format::winograd_2x3_s1_fused_weights ||
         input_layout.format == format::winograd_6x3_s1_fused_weights ||
         input_layout.format == format::image_2d_weights_winograd_6x3_s1_fbxyb ||
-        input_layout.format == format::image_2d_weights_winograd_6x3_s1_xfbyb)
+        input_layout.format == format::image_2d_weights_winograd_6x3_s1_xfbyb) {
         CLDNN_ERROR_MESSAGE(
             desc->id,
             "Input for convolution should not be in winograd weights format - it is reserved for weights only");
+    }
 
     if (input_layout.format == format::winograd_2x3_s1_data) {
-        if (input_layout.feature() % 32 != 0)
+        if (input_layout.feature() % 32 != 0) {
             CLDNN_ERROR_MESSAGE(desc->id,
                                 "Input for winograd 2x3 convolution should have features count divisable by 32");
-        if (weights_layout.ofm() % 32 != 0)
+        }
+        if (weights_layout.ofm() % 32 != 0) {
             CLDNN_ERROR_MESSAGE(desc->id,
                                 "Number of filters (OFM) for winograd 2x3 convolution should be divisable by 32");
+        }
 
         CLDNN_ERROR_LESS_THAN(desc->id,
                               "input width",
@@ -196,8 +199,9 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) :
     parent(network, node),
     _deform_conv_dep_offset(node.get_deform_conv_dep_offset()) {
-    if (node.is_dynamic())
+    if (node.is_dynamic()) {
         return;
+    }
     OPENVINO_ASSERT(all_not_zeroes(argument->stride), "[GPU] Convolution strides must be positive numbers");
     OPENVINO_ASSERT(all_not_zeroes(argument->dilation), "[GPU] Convolution dilations must be positive numbers");
 

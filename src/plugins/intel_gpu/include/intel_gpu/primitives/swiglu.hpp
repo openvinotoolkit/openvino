@@ -94,8 +94,9 @@ struct swiglu : public primitive_base<swiglu> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const swiglu>(rhs);
         return axis == rhs_casted.axis && glu_stride == rhs_casted.glu_stride &&

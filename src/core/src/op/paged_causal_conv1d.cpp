@@ -65,8 +65,8 @@ void PagedCausalConv1D::validate_and_infer_types() {
     for (size_t i = 4; i < 9; ++i) {
         const auto& et = get_input_element_type(i);
         NODE_VALIDATION_CHECK(this,
-                              et.is_dynamic() || et == ov::element::i32 || et == ov::element::i64,
-                              "Integer inputs must have i32 or i64 element type.");
+                              et.is_dynamic() || et == ov::element::i32,
+                              "Integer inputs must have i32 element type.");
     }
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));

@@ -1988,7 +1988,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
     }();
 
 #if defined(OPENVINO_ARCH_X86_64)
-    jit_mode = mayiuse(cpu::x64::sse41);
+    jit_mode = ov::with_cpu_x86_sse42();
 #else
     jit_mode = false;
 #endif
@@ -2210,11 +2210,11 @@ void TopK::createPrimitive() {
             }
         }
 #if defined(OPENVINO_ARCH_X86_64)
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::avx512_core>>(jcp);
-        } else if (mayiuse(cpu::x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::avx2>>(jcp);
-        } else if (mayiuse(cpu::x64::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::sse41>>(jcp);
         }
 

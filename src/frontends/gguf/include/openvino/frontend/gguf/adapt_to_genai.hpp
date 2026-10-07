@@ -7,10 +7,7 @@
 #include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace pass {
+namespace ov::frontend::gguf::pass {
 
 /// \brief Rewrite a GGUF-frontend model's llama.cpp-style IO into the OpenVINO GenAI
 ///        LLMPipeline IO contract, so the model can be driven by genai's stateful pipeline.
@@ -31,6 +28,7 @@ namespace pass {
 /// the KV-cache sinks are preserved, and beam_idx (created by the make-stateful pass) passes
 /// through unchanged since genai sets that tensor itself.
 ///
+/// token_len_per_seq is optional when the source graph does not consume it.
 /// If the required gguf inputs are absent (e.g. the model is already in genai form), the
 /// pass is a no-op and returns false.
 ///
@@ -59,7 +57,4 @@ private:
     InputMode m_mode;
 };
 
-}  // namespace pass
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::pass

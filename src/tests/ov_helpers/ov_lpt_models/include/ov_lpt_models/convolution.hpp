@@ -62,8 +62,7 @@ public:
         std::shared_ptr<ov::opset1::Constant> weights,
         const ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
         const ov::element::Type precisionAfterOperation,
-        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
-        const ov::element::Type precisionAfterDequantization);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 
     static std::shared_ptr<ov::Model> get(
         const ov::Shape& inputShape,

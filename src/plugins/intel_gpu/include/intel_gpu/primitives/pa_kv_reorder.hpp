@@ -41,8 +41,9 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const pa_kv_reorder>(rhs);
         return is_key_by_channel == rhs_casted.is_key_by_channel && scales_zp_size == rhs_casted.scales_zp_size && kv_heads_num == rhs_casted.kv_heads_num &&

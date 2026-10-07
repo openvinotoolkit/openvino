@@ -46,8 +46,9 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
 
         const auto* params = instance.get_impl_params();
 
-        if (instance.get_impl_params()->input_layouts[0].format != instance.get_impl_params()->input_layouts[0].format)
+        if (instance.get_impl_params()->input_layouts[0].format != instance.get_impl_params()->input_layouts[0].format) {
             OPENVINO_THROW("[GPU] Unsupported reorder case: input and output type are different");
+        }
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;

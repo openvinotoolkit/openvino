@@ -10,10 +10,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace jax {
-namespace op {
+namespace ov::frontend::jax::op {
 
 OutputVector translate_integer_pow(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
@@ -26,7 +23,4 @@ OutputVector translate_integer_pow(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace op
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax::op

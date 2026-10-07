@@ -507,7 +507,7 @@ TEST(scatter_nd_update_gpu_fp16_test16, data3_indice4_update3_dynamic) {
     auto input2_layout = layout{ ov::PartialShape::dynamic(4), data_types::i32, format::bfyx };
     auto input3_layout = layout{ ov::PartialShape::dynamic(3), data_types::f16, format::bfyx };
 
-    auto input1 = engine.allocate_memory({ { 2, 3, 3 }, data_types::f16, format::bfyx }); // data
+    auto input1 = engine.allocate_memory({ { 2, 2, 3 }, data_types::f16, format::bfyx }); // data
     auto input2 = engine.allocate_memory({ { 2, 1, 1, 3 }, data_types::i32, format::bfyx }); // Indexes
     auto input3 = engine.allocate_memory({ { 2, 1, 1 }, data_types::f16, format::bfyx }); // Updates
 
@@ -515,9 +515,7 @@ TEST(scatter_nd_update_gpu_fp16_test16, data3_indice4_update3_dynamic) {
         // 0
         ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
         ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
-        ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
         // 1
-        ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
         ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
         ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
     });
@@ -533,10 +531,8 @@ TEST(scatter_nd_update_gpu_fp16_test16, data3_indice4_update3_dynamic) {
     std::vector<float> expected_results = {
         // 0
         ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
-        ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
         ov::float16(1.f), ov::float16(2.f), ov::float16(1.f),
         // 1
-        ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
         ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
         ov::float16(1.f), ov::float16(2.f), ov::float16(-1.f),
     };

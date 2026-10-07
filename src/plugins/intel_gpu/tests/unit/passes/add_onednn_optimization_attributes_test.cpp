@@ -180,3 +180,66 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
     ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
 }
+
+// Builds input -> conv1 -> ... -> conv{depth} plus eltwise(conv1, conv{depth}), which puts conv1
+// exactly depth-1 dependency(0) hops above the node the eltwise fuses into.
+static add_fusing_type residual_chain_fusing_type(cldnn::engine& engine, size_t depth) {
+    auto in_layout = layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx};
+    auto weight = engine.allocate_memory(layout{ov::PartialShape({16, 16, 1, 1}), data_types::f16, format::bfyx});
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weight", weight));
+    for (size_t i = 1; i <= depth; i++) {
+        auto prev = (i == 1) ? input_info("input") : input_info("conv" + std::to_string(i - 1));
+        topology.add(convolution("conv" + std::to_string(i), prev, "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    }
+    auto last = "conv" + std::to_string(depth);
+    topology.add(eltwise("eltwise", input_info("conv1"), input_info(last), eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltwise"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
+
+    auto& last_node = prog->get_node(last);
+    auto& cldnn_post_ops = last_node.get_fused_primitives();
+    EXPECT_EQ(cldnn_post_ops.size(), 1u) << "the residual eltwise did not fuse into " << last;
+    if (cldnn_post_ops.size() != 1)
+        return add_fusing_type::not_supported;
+    // conv1 feeds both conv2 and the fused eltwise, which is what puts get_add_fusing_type on the
+    // is_direct_ancestor path rather than the single-user shortcut.
+    EXPECT_EQ(prog->get_node("conv1").get_users().size(), 2u);
+    return onednn_add_fusing_helpers::get_add_fusing_type(last_node, cldnn_post_ops[0]);
+}
+
+// An attention residual reaches six hops back -- projection, reshape, attention, reshape, QKV
+// matmul, norm, block input -- and the walk must still find it. See the hop-by-hop listing on
+// max_ancestor_walk_depth in program_helpers.cpp.
+TEST(add_onednn_optimization_attributes, sum_post_op_for_six_hop_residual) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ASSERT_EQ(residual_chain_fusing_type(engine, 7), add_fusing_type::sum);
+}
+
+// Pins the bound from both sides, so that neither raising nor lowering it passes unnoticed.
+// The two depths straddle max_ancestor_walk_depth in program_helpers.cpp: a chain of n
+// convolutions puts the target n-1 hops up, and a bound of N reaches N-1 hops. The lower side is
+// the same depth the test above uses, since the bound is held at the minimum that case needs.
+TEST(add_onednn_optimization_attributes, ancestor_walk_depth_boundary) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ASSERT_EQ(residual_chain_fusing_type(engine, 7), add_fusing_type::sum);
+    ASSERT_EQ(residual_chain_fusing_type(engine, 8), add_fusing_type::binary_per_tensor);
+}

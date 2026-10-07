@@ -8,9 +8,7 @@
 #include "place.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
+namespace ov::frontend::jax {
 
 InputModel::InputModel(const std::shared_ptr<JaxDecoder>& model_decoder) : m_model_decoder(model_decoder) {
     const auto& inputs = m_model_decoder->inputs();
@@ -112,6 +110,4 @@ std::shared_ptr<JaxDecoder> InputModel::get_decoder() const {
     return m_model_decoder;
 }
 
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax

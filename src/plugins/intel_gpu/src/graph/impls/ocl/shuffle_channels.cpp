@@ -30,8 +30,9 @@ struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
         const int32_t number_of_dims = 4;
         int32_t axis = primitive->axis;
 
-        if (axis < 0)
+        if (axis < 0) {
             axis += number_of_dims;
+        }
 
         params.group = primitive->group;
         params.axis = axis;

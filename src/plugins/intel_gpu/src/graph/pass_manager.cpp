@@ -70,8 +70,9 @@ void pass_manager::run(program& p, base_pass& pass) {
     }
 
     std::string dump_file_name;
-    if (pass_count < 10)
+    if (pass_count < 10) {
         dump_file_name += "0";
+    }
     dump_file_name += std::to_string(pass_count) + "_" + pass.get_name();
     p.dump_program(dump_file_name.c_str(), true);
     pass_count++;

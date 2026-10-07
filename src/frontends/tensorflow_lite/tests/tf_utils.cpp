@@ -16,10 +16,7 @@ using namespace ov::frontend;
 // For compatibility purposes, need to remove when will be unused
 const std::string TF_LITE_FE = "tflite";
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace tests {
+namespace ov::frontend::tensorflow_lite::tests {
 
 const std::string TF_LITE_FE = ::TF_LITE_FE;
 
@@ -67,7 +64,4 @@ shared_ptr<Model> convert_model(const string& model_path, const ov::frontend::Co
     return model;
 }
 
-}  // namespace tests
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::tests

@@ -28,8 +28,9 @@ public:
     const ocl_kernel_type& get_handle() const { return _compiled_kernel; }
     ocl_kernel_type& get_handle() { return _compiled_kernel; }
     std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const override {
-        if (reuse_kernel_handle)
+        if (reuse_kernel_handle) {
             return std::make_shared<ocl_kernel>(get_handle(), _kernel_id);
+        }
 
         return std::make_shared<ocl_kernel>(get_handle().clone(), _kernel_id);
     }

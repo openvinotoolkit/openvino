@@ -60,8 +60,9 @@ struct gather_nd : public primitive_base<gather_nd> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const gather_nd>(rhs);
 

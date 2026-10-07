@@ -18,20 +18,23 @@ namespace ov::intel_gpu {
 static size_t get_innermost_size(const std::shared_ptr<ov::op::internal::DynamicQuantize>& op) {
     const auto& in_shape = op->get_input_partial_shape(0);
     const auto& innermost_dim = in_shape[in_shape.size() - 1];
-    if (innermost_dim.is_static())
+    if (innermost_dim.is_static()) {
         return innermost_dim.get_length();
+    }
 
     size_t innermost_size = 0;
     for (const auto& target_input : op->get_output_target_inputs(0)) {
         const auto* fc = ov::as_type<const op::FullyConnectedCompressed>(target_input.get_node());
-        if (fc == nullptr || target_input.get_index() != 0)
+        if (fc == nullptr || target_input.get_index() != 0) {
             continue;
+        }
 
         // Weights are [N, K] when transposed, [K, N] otherwise
         const auto& weights_shape = fc->get_input_partial_shape(1);
         const auto& ifm = weights_shape[weights_shape.size() - (fc->get_transpose_b() ? 1 : 2)];
-        if (!ifm.is_static())
+        if (!ifm.is_static()) {
             continue;
+        }
 
         // Every user consumes the same activations, so they have to agree on the length
         const auto ifm_size = static_cast<size_t>(ifm.get_length());

@@ -22,15 +22,18 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
     auto single_dynamic_dim = [](Output<Node> output) {
         const auto& shape = output.get_partial_shape();
 
-        if (shape.rank().is_dynamic())
+        if (shape.rank().is_dynamic()) {
             return false;
+        }
 
-        if (shape.size() <= 1)
+        if (shape.size() <= 1) {
             return false;
+        }
 
         auto dynamic_dims = 0;
-        for (size_t i = 0; i < shape.size(); i++)
+        for (size_t i = 0; i < shape.size(); i++) {
             dynamic_dims += shape[i].is_dynamic() ? 1 : 0;
+        }
 
         return dynamic_dims == 1;
     };
@@ -58,16 +61,18 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
             int64_t total_dims = 1;
 
             for (auto& dim : ps) {
-                if (dim.is_static())
+                if (dim.is_static()) {
                     total_dims *= dim.get_length();
+                }
             }
 
             return total_dims;
         };
 
         if (static_dims_product(input_ps) != static_dims_product(first_reshape_ps) ||
-            static_dims_product(first_reshape_ps) != static_dims_product(second_reshape_ps))
+            static_dims_product(first_reshape_ps) != static_dims_product(second_reshape_ps)) {
             return false;
+        }
 
         std::vector<int32_t> new_pattern;
         for (auto& dim : second_reshape_ps) {

@@ -4,6 +4,7 @@
 
 #include "transformations.hpp"
 
+#include <algorithm>
 #include <map>
 #include <sstream>
 
@@ -13,6 +14,48 @@
 #include "openvino/op/result.hpp"
 
 namespace intel_npu {
+
+bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>& model,
+                                         ov::intel_npu::CompilerType compilerType,
+                                         bool compilationModeSet,
+                                         bool dynamicShapeToStatic) {
+    if (compilerType != ov::intel_npu::CompilerType::PLUGIN || compilationModeSet || dynamicShapeToStatic) {
+        return false;
+    }
+
+    // HostCompile allocates dynamic buffers from I/O upper bounds, so every dynamic dimension must be bounded.
+    const auto hasFiniteUpperBounds = [](const auto& port) {
+        const auto& shape = port.get_partial_shape();
+        const auto rank = shape.rank();
+        return rank.is_static() && std::all_of(shape.begin(), shape.end(), [](const ov::Dimension& dimension) {
+                   return dimension.get_interval().has_upper_bound();
+               });
+    };
+
+    // Detect a bounded dynamic 4D I/O port that makes the model a HostCompile candidate.
+    const auto isDynamicHostCompilePort = [&hasFiniteUpperBounds](const auto& port) {
+        const auto& shape = port.get_partial_shape();
+        const auto rank = shape.rank();
+        // Keep batch static to avoid failures in ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv, because reshape
+        // operations in these passes do not support dynamic batch shapes.
+        return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && shape[0].is_static() &&
+               hasFiniteUpperBounds(port);
+    };
+
+    const auto& modelInputs = model->inputs();
+    const auto& modelOutputs = model->outputs();
+    const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
+    const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
+
+    // Candidate detection above uses any_of; validate every I/O separately because one unrelated unbounded port
+    // still prevents HostCompile from allocating all dynamic buffers.
+    const bool allPortsHaveFiniteUpperBounds =
+        std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds) &&
+        std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
+
+    return inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds;
+}
+
 namespace batch_helpers {
 
 bool hasOtherDynamicDims(const ov::PartialShape& shape) {
@@ -185,8 +228,8 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model,
 
 std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     std::shared_ptr<const ov::Model> model,
-    FilteredConfig& localConfig,
     const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
+    std::optional<ov::intel_npu::BatchMode> batchMode,
     std::optional<ov::Dimension>& originalBatch,
     Logger logger) {
     // Keep the original model for all no-op/early-return paths.
@@ -194,26 +237,24 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     auto resultModel = std::const_pointer_cast<ov::Model>(model);
     auto successfullyDebatched = false;
 
-    auto batchModeIsAvailable = localConfig.isAvailable(ov::intel_npu::batch_mode.name());
-    ov::intel_npu::BatchMode batchMode;
+    auto batchModeIsAvailable = batchMode.has_value();
+    ov::intel_npu::BatchMode effectiveBatchMode =
+        batchModeIsAvailable ? batchMode.value() : ov::intel_npu::BatchMode::AUTO;
+
     if (batchModeIsAvailable) {
-        batchMode = localConfig.get<BATCH_MODE>();
-        const auto isAutoOrPluginBatch =
-            (batchMode == ov::intel_npu::BatchMode::PLUGIN || batchMode == ov::intel_npu::BatchMode::AUTO);
+        const auto isAutoOrPluginBatch = (effectiveBatchMode == ov::intel_npu::BatchMode::PLUGIN ||
+                                          effectiveBatchMode == ov::intel_npu::BatchMode::AUTO);
 
         if (!isAutoOrPluginBatch) {
             return {resultModel, successfullyDebatched};
         }
-    } else {
-        // If the compiler doesn't support BATCH_MODE, we can still try using batching
-        batchMode = ov::intel_npu::BatchMode::AUTO;
     }
 
     try {
         const auto pluginBatchingIsSupported = validateModelBatch(model, logger);
 
         if (!pluginBatchingIsSupported) {
-            if (batchModeIsAvailable && batchMode == ov::intel_npu::BatchMode::AUTO) {
+            if (batchModeIsAvailable && effectiveBatchMode == ov::intel_npu::BatchMode::AUTO) {
                 logger.info("Batching will be handled by compiler.");
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
@@ -248,12 +289,12 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     } catch (const std::exception& ex) {
         // If plugin-side transformation failed, keep the original model and drop the clone
         resultModel = std::const_pointer_cast<ov::Model>(model);
-        if (batchMode == ov::intel_npu::BatchMode::AUTO) {
+        if (effectiveBatchMode == ov::intel_npu::BatchMode::AUTO) {
             logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                         ex.what());
             if (batchModeIsAvailable) {
                 // If we failed to handle batching on the plugin side, we should reset the batch mode to default
-                // COMPILER But only if the batch mode is available, otherwise we might be running on older compiler
+                // COMPILER but only if the batch mode is available, otherwise we might be running on an older compiler
                 // which doesn't support batch mode at all
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }

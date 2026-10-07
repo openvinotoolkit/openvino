@@ -5,6 +5,8 @@
 #include <limits>
 
 #include "impls/ocl/kernel_selector_helper.h"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "test_utils.h"
 
@@ -146,4 +148,28 @@ TEST(canonicalize_fused_peer_fold, overflow_rejected) {
     auto peer = make_layout({1, 1, big, big, big}, format::bfzyx);
     auto host = make_layout({1, 1, big, big}, format::bfyx);
     ASSERT_FALSE(fold_higher_rank_fused_peer(peer, host).has_value());
+}
+
+// When the peer cannot fold, keep it as-is instead of failing.
+TEST(canonicalize_fused_peer_fold, unfoldable_higher_rank_peer_is_left_untouched) {
+    auto& engine = tests::get_test_engine();
+    program prog(engine, tests::get_test_default_config(engine));
+
+    const auto host = make_layout(ov::PartialShape{}, format::bfyx);  // host rank < 3: no fold exists
+    const auto peer = make_layout({1}, format::bfyx);
+
+    fused_primitive_desc fused(
+        std::make_shared<eltwise>("add", std::vector<input_info>{input_info("host"), input_info("peer")}, eltwise_mode::sum));
+    fused.total_num_deps = 2;
+    fused.outer_dep_start_idx = 1;
+    fused.output_layout = host;
+
+    kernel_impl_params params;
+    params.prog = &prog;
+    params.input_layouts = {host, peer};
+    params.output_layouts = {host};
+    params.fused_desc = {fused};
+
+    const auto updated = canonicalize_fused_shapes(params);
+    EXPECT_EQ(updated.input_layouts[1], peer);
 }

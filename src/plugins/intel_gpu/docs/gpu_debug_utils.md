@@ -52,6 +52,38 @@ Value of the global options is read from env on the first access to the option, 
 
 Full options list is defined in `src/plugins/intel_gpu/include/intel_gpu/runtime/options.inl` file. This can also be printed to console by setting `OV_HELP=1` option
 
+### Quick lookup table for debug configuration
+These are the most commonly used GPU debug knobs.
+
+| Env variable name | When/how to use |
+|---|---|
+| `OV_VERBOSE` | Verbosity level. Supported range: `0` (disabled) to `4` (maximum). |
+| `OV_GPU_LOG_TO_FILE` | Saves verbose logs to the specified file. |
+| `OV_GPU_LIST_LAYERS` | Set to `1` to print the list of executed primitives. This is a subset of the `OV_VERBOSE` log. |
+| `OV_DYNAMIC_QUANTIZATION_GROUP_SIZE` | Sets the dynamic quantization group size. For best accuracy, disable dynamic quantization by setting this value to `0`. |
+| `OV_ACTIVATIONS_SCALE_FACTOR` | Scalar floating-point value used for runtime activation tensor scaling. This is mainly useful for accuracy troubleshooting where `NaN` or `inf` is created in the middle of network execution. |
+| `OV_GPU_DUMP_GRAPHS_PATH` | Saves intermediate graph representations during model compilation to the specified directory. Useful for debugging fusion, layout selection, or opt-out decisions. See the graph dump section below for details. |
+| `OV_GPU_DUMP_MEMORY_POOL` | Enables verbose output for the memory pool. Supported values: `0` (disabled), `1` (summary), `2` (detailed entries). |
+| `OV_GPU_DUMP_SOURCES_PATH` | Saves generated OpenCL sources for each kernel to the specified directory. Useful for debugging kernel generation and source-level issues. See the source dump section below for details. |
+| `OV_GPU_ENABLE_LARGE_ALLOCATIONS` | Allows buffer allocations that exceed the device maximum allocation size. This is enabled by default on Xe2+ platforms. |
+| `OV_GPU_HOST_TIME_PROFILING` | Measures and prints host-side time spent from the beginning of inference until all host work is done and the plugin is ready to block on the final `clFinish()` call. It reports enqueue and wait times separately. Set to `1` for enqueue time only; set to `2` for detailed breakdown (`input processing`, `enqueue`, `wait`, and `output processing`). |
+| `OV_GPU_NETWORK_MARKER` | Inserts named OpenCL marker kernels at the start and end of network execution for tools such as CLIntercept. Useful for low-level debugging of execution traces and device timeline data. |
+| `OV_GPU_PRINT_INPUT_DATA_SHAPES` | Prints network input tensor shapes. Useful for understanding runtime behavior and shape-related issues. |
+| `OV_GPU_VALIDATE_OUTPUT_BUFFER` | Validates output buffers for all layers with `fp16` data type to detect `inf` and `nan` values. |
+
+#### Family of debug configuration options for inspecting intermediate data (primitive output)
+These options enable inspection of intermediate tensor data and are primarily used for accuracy troubleshooting.
+
+| Env variable name | When/how to use |
+|---|---|
+| `OV_GPU_DUMP_TENSORS_PATH` | Saves intermediate input/output tensors for each primitive to the specified directory. This is the main switch for tensor dump mode. See the tensor dump section below for details. |
+| `OV_GPU_DUMP_TENSORS` | Tensor types to dump. Supported values: `all`, `in`, `out`. |
+| `OV_GPU_DUMP_ITERATIONS` | Space-separated list of iterations when the other dump options should be enabled. |
+| `OV_GPU_DUMP_LAYER_NAMES` | Enables dumping only for the specified layer names. |
+| `OV_GPU_DUMP_SRC_TENSORS_AFTER_EXEC` | Enables source data dump after layer execution. Useful for capturing updated state in stateful models. |
+| `OV_GPU_DUMP_TENSORS_FORMAT` | Tensor dump format. Supported values: `binary`, `text`, `text_raw`. Text dumps are planar and are slower because of in-flight reorder. `text_raw` dumps without reordering. For weights, `binary` or `text` is usually preferred because weight-reorder support is not available for all formats. |
+| `OV_GPU_LOAD_DUMP_RAW_BINARY` | Load input data of layers from raw binary dump files. When tensors are dumped in `binary` format, this allows them to be loaded during inference for accuracy debugging. |
+
 ### How to check debug-config works
 All options that are found in environment or config file are printed to stdout:
 ```

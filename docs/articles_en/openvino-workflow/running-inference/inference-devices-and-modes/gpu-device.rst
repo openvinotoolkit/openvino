@@ -456,6 +456,15 @@ Read-only Properties
 - ``ov::intel_gpu::memory_statistics``
 - ``ov::intel_gpu::uarch_version``
 
+.. note::
+
+   ``ov::intel_gpu::device_total_mem_size`` and ``ov::intel_gpu::device_max_alloc_mem_size``
+   (``GPU_DEVICE_TOTAL_MEM_SIZE`` and ``GPU_DEVICE_MAX_ALLOC_MEM_SIZE``) report the
+   device's total and maximum single-allocation memory limits. For guidance on
+   avoiding and troubleshooting out-of-memory and allocation errors on GPU,
+   including iGPU-specific platform considerations, see
+   :doc:`Managing iGPU Memory Allocation for OpenVINO Inference <../optimize-inference/managing-igpu-memory-usage>`.
+
 
 Limitations
 #######################################

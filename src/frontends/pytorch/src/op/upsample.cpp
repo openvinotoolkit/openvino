@@ -9,10 +9,7 @@
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -121,7 +118,4 @@ OutputVector translate_upsample_bicubic2d_aa(const NodeContext& context) {
     return base_translate_upsample(context, v11::Interpolate::InterpolateMode::BICUBIC_PILLOW, 2);
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

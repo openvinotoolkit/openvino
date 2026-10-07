@@ -8,10 +8,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_fill_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Fill", "FILL"});
@@ -22,7 +19,4 @@ OutputVector translate_fill_op(const NodeContext& node) {
     set_node_name(node.get_name(), res);
     return res->outputs();
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

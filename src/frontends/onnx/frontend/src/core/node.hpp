@@ -17,11 +17,8 @@ namespace ONNX_NAMESPACE {
 class NodeProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace error {
-namespace node {
+namespace ov::frontend::onnx {
+namespace error::node {
 struct UnknownAttribute : ov::Exception {
     OPENVINO_SUPPRESS_DEPRECATED_START
     explicit UnknownAttribute(const std::string& node, const std::string& name)
@@ -29,8 +26,7 @@ struct UnknownAttribute : ov::Exception {
     OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
-}  // namespace node
-}  // namespace error
+}  // namespace error::node
 
 // forward declaration
 class Graph;
@@ -308,6 +304,4 @@ inline std::ostream& operator<<(std::ostream& outs, const Node& node) {
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

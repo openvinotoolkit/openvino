@@ -53,45 +53,55 @@ struct ReorderImplementationManager : public ImplementationManager {
         auto out_dt = output_layout.data_type;
 
         // custom layout is requested by onednn only, so we ignore other checks
-        if (output_fmt == format::custom)
+        if (output_fmt == format::custom) {
             return true;
+        }
 
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
-        if (!one_of(input_fmt.value, supported_formats) || !one_of(output_fmt.value, supported_formats))
+        if (!one_of(input_fmt.value, supported_formats) || !one_of(output_fmt.value, supported_formats)) {
             return false;
+        }
 
         // onednn doesn't support paddings
-        if (!is_supported_pad_for_reorder(input_layout) || !is_supported_pad_for_reorder(output_layout))
+        if (!is_supported_pad_for_reorder(input_layout) || !is_supported_pad_for_reorder(output_layout)) {
             return false;
+        }
 
         // Native impl works faster for this type of reorder
-        if (input_fmt == format::bfyx && output_fmt == format::bfyx)
+        if (input_fmt == format::bfyx && output_fmt == format::bfyx) {
             return false;
+        }
 
         // onednn reorder doesn't support different number of dimensions in input and output layouts
-        if (input_fmt.dimension() != output_fmt.dimension())
+        if (input_fmt.dimension() != output_fmt.dimension()) {
             return false;
+        }
 
         if (in_dt == data_types::u16 || in_dt == data_types::u32 || in_dt == data_types::i16 || in_dt == data_types::i64 || out_dt == data_types::u16
-            || out_dt == data_types::u32 || out_dt == data_types::i16 || out_dt == data_types::i64)
+            || out_dt == data_types::u32 || out_dt == data_types::i16 || out_dt == data_types::i64) {
             return false;
+        }
 
         // For mixed precision case, oneDNN is slower than clDNN
-        if (input_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
+        if (input_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt)) {
             return false;
-        if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
+        }
+        if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt)) {
             return false;
+        }
         return output_fmt != format::bfyx || out_dt != data_types::f32;
     }
 
     static bool is_supported_pad_for_reorder(const layout& layout) {
         // check to support the batch/spatial pad for onednn.
-        if (!is_supported_pad(layout))
+        if (!is_supported_pad(layout)) {
             return false;
+        }
 
         // Check feature pad
         const auto& pad = layout.data_padding;

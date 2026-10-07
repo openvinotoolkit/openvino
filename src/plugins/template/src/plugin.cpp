@@ -468,6 +468,11 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"}
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::template_plugin::Plugin, version)
 // ! [plugin:create_plugin_engine]
 
+// ! [plugin:enumerate_dispatch_devices]
+// This plugin does not participate in device-name dispatch; export the probe as a stub.
+OV_DEFINE_PLUGIN_ENUMERATE_STUB()
+// ! [plugin:enumerate_dispatch_devices]
+
 // ! [plugin:get_runtime_requirements]
 std::string_view ov::template_plugin::Plugin::get_runtime_requirements() const {
     return "TEMPLATE_PLUGIN_CAPABILITIES_v1";

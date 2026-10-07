@@ -330,6 +330,27 @@ TEST(constant_folding, constant_broadcast_v1_numpy) {
     ASSERT_EQ(values_expected, values_out);
 }
 
+TEST(constant_folding, constant_broadcast_empty_output_with_zero_input_axis) {
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::f32, Shape{0, 3}, vector<float>{});
+    constant_in->set_friendly_name("constant_in");
+    auto target_shape = ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 3});
+    target_shape->set_friendly_name("target_shape");
+    auto broadcast_v3 = make_shared<op::v3::Broadcast>(constant_in, target_shape, "BIDIRECTIONAL");
+    broadcast_v3->set_friendly_name("test");
+    auto f = make_shared<Model>(broadcast_v3, ParameterVector{});
+
+    run_constant_folding(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v3::Broadcast>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
+
+    auto new_const = get_result_constant(f);
+    ASSERT_TRUE(new_const);
+    check_names(new_const, {"constant_in", "target_shape", "test"}, "test", false);
+    ASSERT_EQ(new_const->get_shape(), (Shape{0, 3}));
+    ASSERT_TRUE(new_const->get_vector<float>().empty());
+}
+
 TEST(constant_folding, constant_unary_binary) {
     vector<int> values_a{1, 2, 3, 4};
     vector<int> values_b{1, 2, 3, 4};

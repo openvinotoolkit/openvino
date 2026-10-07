@@ -24,17 +24,18 @@ constexpr std::array<bool, 2> detectPositive = {true, false};
 
 const ov::AnyMap additional_config = {};
 
-const auto isInfParams = ::testing::Combine(::testing::ValuesIn(inShapesStatic),
-                                            ::testing::ValuesIn(detectNegative),
-                                            ::testing::ValuesIn(detectPositive),
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(additional_config));
-
 TEST_P(IsInfLayerTest, CompareWithRefs) {
     run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_static, IsInfLayerTest, isInfParams, IsInfLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_static,
+                         IsInfLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapesStatic),
+                                            ::testing::ValuesIn(detectNegative),
+                                            ::testing::ValuesIn(detectPositive),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(additional_config)),
+                         IsInfLayerTest::getTestCaseName);
 
 }  // namespace

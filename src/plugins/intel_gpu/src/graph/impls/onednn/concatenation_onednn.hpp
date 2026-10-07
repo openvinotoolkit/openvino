@@ -20,8 +20,9 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         assert(node.is_type<concatenation>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
         // oneDNN classifies DNNL_ARG_MULTIPLE_SRC + i as an attribute argument once i sets the
         // DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS bit, so a concat with more sources than that bit's
@@ -58,32 +59,38 @@ struct ConcatenationImplementationManager : public ImplementationManager {
 
         const auto& out_layout = node.get_output_layout();
 
-        if (!one_of(out_layout.data_type, supported_types))
+        if (!one_of(out_layout.data_type, supported_types)) {
             return false;
+        }
 
-        if (out_layout.data_padding)
+        if (out_layout.data_padding) {
             return false;
+        }
 
         auto is_feature_aligned = [](const layout& l) {
-            if (!format::is_blocked(l.format))
+            if (!format::is_blocked(l.format)) {
                 return true;
+            }
 
             const auto& order = format::internal_order(l.format);
             const size_t feature_dim_idx = order.find('f');
-            if (feature_dim_idx == std::string::npos)
+            if (feature_dim_idx == std::string::npos) {
                 return true;
+            }
 
             auto feature_dim = l.get_partial_shape()[feature_dim_idx];
-            if (feature_dim.is_dynamic())
+            if (feature_dim.is_dynamic()) {
                 return false;
+            }
 
             const auto& block_sizes = format::block_sizes(l.format);
             auto block_it = std::find_if(block_sizes.begin(), block_sizes.end(), [&](const auto& block) {
                 return block.first == feature_dim_idx;
             });
 
-            if (block_it == block_sizes.end())
+            if (block_it == block_sizes.end()) {
                 return true;
+            }
 
             const int feature_block_size = block_it->second;
             return feature_dim.get_length() % feature_block_size == 0;
@@ -98,17 +105,21 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         for (const auto& dep : node.get_dependencies()) {
             const auto& in_layout = dep.first->get_output_layout(false, dep.second);
 
-            if (!one_of(in_layout.data_type, supported_types))
+            if (!one_of(in_layout.data_type, supported_types)) {
                 return false;
+            }
 
-            if (!is_supported_pad(in_layout))
+            if (!is_supported_pad(in_layout)) {
                 return false;
+            }
 
-            if (!one_of(in_layout.format.value, supported_in_fmts))
+            if (!one_of(in_layout.format.value, supported_in_fmts)) {
                 return false;
+            }
 
-            if (!is_feature_aligned(in_layout))
+            if (!is_feature_aligned(in_layout)) {
                 return false;
+            }
         }
 
         return true;

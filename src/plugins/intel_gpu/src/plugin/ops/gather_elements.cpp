@@ -19,8 +19,9 @@ static void CreateGatherElementsOp(ProgramBuilder& p, const std::shared_ptr<ov::
 
     size_t rank = op->get_input_partial_shape(0).size();
     int64_t axis = op->get_axis();
-    if (axis < 0)
+    if (axis < 0) {
         axis += rank;
+    }
     OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int64_t>(rank),
                     "GatherElements axis is not correspond to number of dimensions");
 

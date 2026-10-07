@@ -100,8 +100,9 @@ public:
     static void save(BufferType& buffer, const cldnn::format& format) {
         cldnn::format::type fmt_type = format;
         buffer << make_data(&fmt_type, sizeof(cldnn::format::type));
-        if (fmt_type == cldnn::format::custom)
+        if (fmt_type == cldnn::format::custom) {
             buffer << format.traits();
+        }
     }
 };
 

@@ -8,6 +8,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <vector>
 
@@ -519,17 +520,20 @@ TEST_F(SharedBufferTest, specialization_overload_resolution) {
     }
 }
 
-class MockMappedMemory : public ov::MappedMemory {
+class MockMappedMemory final : public ov::MappedMemory {
 public:
     explicit MockMappedMemory(size_t size) : m_data(size, '\0'), m_id(1) {}
 
-    char* data() noexcept override {
-        return m_data.data();
+    const std::byte* data() const noexcept override final {
+        return reinterpret_cast<const std::byte*>(m_data.data());
     }
-    size_t size() const noexcept override {
+    std::byte* data() noexcept override final {
+        return reinterpret_cast<std::byte*>(m_data.data());
+    }
+    size_t size() const noexcept override final {
         return m_data.size();
     }
-    uint64_t get_id() const noexcept override {
+    std::optional<uint64_t> get_id() const noexcept override {
         return m_id;
     }
 
@@ -539,7 +543,7 @@ public:
 
     MOCK_METHOD(void, hint_evict_mock, (size_t offset, size_t size));
 
-    MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (override));
+    MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (noexcept, override));
 
     MOCK_METHOD(void, hint_prefetch_async, (size_t offset, size_t size), (override));
 

@@ -30,8 +30,9 @@ public:
                    false),
           m_is_prefill(prefill),
           m_is_gqa_single_token(gqa_single_token) {
-        if (gqa_single_token)
+        if (gqa_single_token) {
             OPENVINO_ASSERT(prefill == false, "prefill should be false when gqa_single_token is true");
+        }
     }
 
     [[nodiscard]] std::string get_build_options(const kernel_impl_params& params) const override;

@@ -31,10 +31,12 @@ DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b1_block_multiple_x::get_required_
 
 namespace {
 size_t GetOfmPerWorkitem(size_t filter_ofm_num, size_t localWorkSize) {
-    if (filter_ofm_num % (localWorkSize * 4) == 0)
+    if (filter_ofm_num % (localWorkSize * 4) == 0) {
         return 4;
-    if (filter_ofm_num % (localWorkSize * 2) == 0)
+    }
+    if (filter_ofm_num % (localWorkSize * 2) == 0) {
         return 2;
+    }
     return 1;
 }
 }  // namespace

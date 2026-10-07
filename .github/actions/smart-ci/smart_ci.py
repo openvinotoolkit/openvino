@@ -15,6 +15,15 @@ from ghapi.all import GhApi
 from fnmatch import fnmatch
 
 
+# Changes limited to agentic (gh-aw) workflow files carry no signal for product CI, so a PR or
+# merge-queue entry that touches only these always skips the pipeline.
+ALWAYS_SKIPPABLE_FILE_PATTERNS = (
+    '.github/workflows/*.md',                          # agentic workflow sources
+    '.github/workflows/*.lock.yml',                    # their compiled workflows
+    '.github/workflows/shared/agentic-workflows/*',    # shared fragments they import
+)
+
+
 class ComponentConfig:
     FullScope = {'build', 'test'}
     ScopeKeys = {'build', 'revalidate'}
@@ -241,14 +250,20 @@ def main():
             excepted_labels_only = changed_component_names - excepted_labels == set()
             skip_workflow = excepted_labels_only
 
-        if not skip_workflow and args.skip_when_only_listed_files_changed:
-            # To avoid spending extra API requests running step below only if necessary
-            changed_files = get_changeset(gh_api, args.pr, merge_queue_target_branch, args.commit_sha)
-            patterns = set(args.skip_when_only_listed_files_changed.split(','))
+    # Skip when the whole changeset matches skip patterns. Agentic workflow files are always
+    # skippable (ALWAYS_SKIPPABLE_FILE_PATTERNS); the per-workflow input adds more. Runs for PRs
+    # and merge-queue entries regardless of Smart CI scope, so an agentic-only change is skipped
+    # even when it would otherwise trigger full scope (e.g. via the 'no-match-files' label).
+    if not skip_workflow and (is_merge_queue or args.pr):
+        skip_patterns = set(ALWAYS_SKIPPABLE_FILE_PATTERNS)
+        if args.skip_when_only_listed_files_changed:
+            skip_patterns.update(args.skip_when_only_listed_files_changed.split(','))
 
-            matched_files_only = all(any(fnmatch(f.filename, pattern) for pattern in patterns) for f in changed_files)
-            logger.debug(f"matched files only: {matched_files_only}")
-            skip_workflow = matched_files_only
+        changed_files = get_changeset(gh_api, args.pr, merge_queue_target_branch, args.commit_sha)
+        matched_files_only = bool(changed_files) and \
+            all(any(fnmatch(f.filename, pattern) for pattern in skip_patterns) for f in changed_files)
+        logger.debug(f"matched files only: {matched_files_only}")
+        skip_workflow = matched_files_only
 
     if skip_workflow:
         logger.info(f"All changes are marked for skip, workflow may be skipped")

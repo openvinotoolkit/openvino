@@ -15,9 +15,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sqrt.hpp"
 
-namespace ov {
-namespace op {
-namespace util {
+namespace ov::op::util {
 namespace {
 /// \brief      Specifies method of bias application to avoid numerical problems
 enum class BiasMode {
@@ -159,6 +157,4 @@ std::shared_ptr<ov::Node> lp_norm(const Output<ov::Node>& value,
         return lp_norm(value, p_norm, reduction_axes, bias, keep_dims);
     }
 }
-}  // namespace util
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::util

@@ -12,10 +12,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace detail {
+namespace ov::frontend::onnx::detail {
 using ::ONNX_NAMESPACE::TensorProto;
 template <class T>
 using Buffer = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<T>>>;
@@ -98,7 +95,4 @@ location field is set to this marker, the offset field contain the address of th
 */
 const std::string ORT_MEM_ADDR = "*/_ORT_MEM_ADDR_/*";
 
-}  // namespace detail
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::detail

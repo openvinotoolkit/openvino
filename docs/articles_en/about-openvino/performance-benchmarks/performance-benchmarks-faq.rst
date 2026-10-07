@@ -51,10 +51,6 @@ Performance Information F.A.Q.
         - DeepSeek, HF
         - Auto regressive language
         - 128K
-      * - `Gemma-3-4B-it <https://huggingface.co/google/gemma-3-4b-it>`__
-        - Hugginface
-        - Text-To-Text Decoder-only
-        - 128K
       * - `GPT-OSS-20B <https://huggingface.co/openai/gpt-oss-20b>`__
         - Hugginface
         - Reasoning, agentic and developer use cases.
@@ -63,10 +59,6 @@ Performance Information F.A.Q.
         - Hugginface
         - Reasoning, agentic and developer use cases.
         - 128K
-      * - `Llama-2-7b-chat <https://www.llama.com/>`__
-        - Meta AI
-        - Auto regressive language
-        - 4K
       * - `Llama-3.2-3B-Instruct <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__
         - Meta AI
         - Auto regressive language
@@ -83,17 +75,17 @@ Performance Information F.A.Q.
         - Hugginface
         - Auto regressive language
         - 4096
-      * - `Qwen-2.5-VL-7B-instruct <https://huggingface.co/Qwen/Qwen2.5-VL-7B-instruct>`__
+      * - `Qwen-3.5-9B <https://huggingface.co/Qwen/Qwen3.5-9B>`__
         - Huggingface
-        - Auto regressive language, Agentic
-        - 128K
-      * - `Qwen-3-8B <https://huggingface.co/Qwen/Qwen3-8B>`__
-        - Huggingface
-        - Auto regressive language
-        - 32K
+        - Multimodal, Gated Delta Networks, Sparse MoE
+        - 256K
       * - `Qwen-3.6-27B <https://huggingface.co/Qwen/Qwen3.6-27B>`__
         - Huggingface
         - Causal Language with Vision Encoder
+        - 256K (up to 1M)
+      * - `Qwen-3.6-35B-A3B <https://huggingface.co/Qwen/Qwen3.6-35B-A3b>`__
+        - Huggingface
+        - Causal Language with Vision Encoder, MoE, 256 experts
         - 256K (up to 1M)
       * - `Qwen-3-30B-A3B <https://huggingface.co/Qwen/Qwen3-30B-A3B>`__
         - Huggingface

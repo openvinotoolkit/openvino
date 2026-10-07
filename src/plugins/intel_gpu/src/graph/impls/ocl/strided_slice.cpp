@@ -27,14 +27,17 @@ void pad_vector_to_size(std::vector<T>& data, size_t size, DT value, const std::
         size_t dims_after = data.size() - ellipsis_pos1 - 1;
         size_t ellipsis_pos2 = size - dims_after - 1;;
 
-        for (size_t i = 0; i < ellipsis_pos1; i++)
+        for (size_t i = 0; i < ellipsis_pos1; i++) {
             temp.push_back(data[i]);
+        }
 
-        for (size_t i = ellipsis_pos1; i < ellipsis_pos2 + 1; i++)
+        for (size_t i = ellipsis_pos1; i < ellipsis_pos2 + 1; i++) {
             temp.push_back(value);
+        }
 
-        for (size_t i = 1; i < size - ellipsis_pos2; i++)
+        for (size_t i = 1; i < size - ellipsis_pos2; i++) {
             temp.push_back(data[i + ellipsis_pos1]);
+        }
 
         data = temp;
     } else {
@@ -47,8 +50,9 @@ void pad_vector_to_size(std::vector<T>& data, size_t size, DT value, const std::
 template <typename T, typename MT>
 std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const T& src, const std::vector<MT>& mask) {
     for (size_t i = 0; i < dst.size(); ++i) {
-        if (mask[i])
+        if (mask[i]) {
             dst[i] = src;
+        }
     }
     return dst;
 }
@@ -56,8 +60,9 @@ std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const T& src, con
 template <typename T, typename MT>
 std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const std::vector<T>& src, const std::vector<MT>& mask) {
     for (size_t i = 0; i < dst.size(); ++i) {
-        if (mask[i])
+        if (mask[i]) {
             dst[i] = src[i];
+        }
     }
     return dst;
 }
@@ -117,8 +122,9 @@ public:
 
         auto get_index_end = [&]() {
             size_t offset = 1;
-            if ((begin.empty() || params.has_dynamic_tensors()) && params.begin_type == kernel_selector::base_params::ArgType::Input)
+            if ((begin.empty() || params.has_dynamic_tensors()) && params.begin_type == kernel_selector::base_params::ArgType::Input) {
                 offset++;
+            }
             return offset;
         };
         if (!end.empty() && !params.has_dynamic_tensors()) {
@@ -134,8 +140,9 @@ public:
 
         auto get_index_stride = [&]() {
             size_t offset = get_index_end();
-            if ((end.empty() || params.has_dynamic_tensors()) && params.end_type == kernel_selector::base_params::ArgType::Input)
+            if ((end.empty() || params.has_dynamic_tensors()) && params.end_type == kernel_selector::base_params::ArgType::Input) {
                 offset++;
+            }
             return offset;
         };
         if (!strides.empty() && !params.has_dynamic_tensors()) {
@@ -179,8 +186,9 @@ public:
         std::vector<size_t> logical_dims = params.inputs[0].LogicalDims();
         std::reverse(logical_dims.begin(), logical_dims.end());  // get dims in bfyx order
         std::vector<int32_t> out_shape;
-        for (const auto& dim : logical_dims)
+        for (const auto& dim : logical_dims) {
             out_shape.push_back(static_cast<int32_t>(dim));
+        }
 
         if (params.striding_params.size() == 3) {
             // If the ith bit of begin_mask is not set, begin[i] is ignored and the range of the appropriate dimension starts from 0.
@@ -202,10 +210,12 @@ public:
                 bool should_clamp_end = check_out_of_bounds(end);
 
                 // Convert a negative value which means reverse indexing from the end
-                if (begin < 0)
+                if (begin < 0) {
                     begin += out_shape[dim];  // converted value can be negative if the original one was out of bounds
-                if (end < 0)
+                }
+                if (end < 0) {
                     end += out_shape[dim];
+                }
                 bool is_stride_reverse = stride < 0;
 
                 // Clamping
@@ -223,12 +233,15 @@ public:
                     // sub: begin=-1; end=100;
                     // swap: begin=100; end=-1;
                     // So the kernel will put the slices [99, 0] in reversed order as expected.
-                    if (should_clamp_begin)
+                    if (should_clamp_begin) {
                         begin--;
-                    if (should_clamp_end)
+                    }
+                    if (should_clamp_end) {
                         end--;
-                    if (begin <= end)
+                    }
+                    if (begin <= end) {
                         std::swap(begin, end);
+                    }
                 }
 
                 params.striding_params[0][dim] = begin;

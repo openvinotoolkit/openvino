@@ -69,8 +69,9 @@ ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() 
         const auto& pattern_map = m.get_pattern_value_map();
         auto reduce_orig =
             as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
-        if (!reduce_orig || transformation_callback(reduce_orig))
+        if (!reduce_orig || transformation_callback(reduce_orig)) {
             return false;
+        }
 
         const auto& input_shape = reduce_orig->input_value(0).get_partial_shape();
         const auto& output_shape = reduce_orig->get_output_partial_shape(0);
@@ -99,8 +100,9 @@ ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() 
                 }
             }
         }
-        if (!reduce_new)
+        if (!reduce_new) {
             return false;
+        }
 
         CREATE_REDUCE(reduce_new->get_default_output(), reduce_orig->input_value(1), reduce_orig->get_keep_dims());
         reduce_new->set_friendly_name(reduce_orig->get_friendly_name());

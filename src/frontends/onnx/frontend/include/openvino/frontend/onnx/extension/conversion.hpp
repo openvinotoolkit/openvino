@@ -8,9 +8,7 @@
 #include "openvino/frontend/onnx/node_context.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 class ConversionExtension : public ConversionExtensionBase {
 public:
     OPENVINO_RTTI("frontend::onnx::ConversionExtension", "", ConversionExtensionBase);
@@ -41,6 +39,4 @@ private:
     ov::frontend::CreatorFunction m_converter;
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

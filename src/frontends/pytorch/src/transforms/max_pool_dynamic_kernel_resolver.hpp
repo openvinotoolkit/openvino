@@ -3,14 +3,10 @@
 //
 
 #pragma once
-
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 // Resolves the deferred max_pool placeholder (a PtFrameworkNode emitted by translate_max_pool_base
 // when kernel_size was not a compile-time constant). Runs after shape propagation: a kernel that
@@ -22,7 +18,4 @@ public:
     MaxPoolDynamicKernelResolver();
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

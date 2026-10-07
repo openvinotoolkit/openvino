@@ -267,7 +267,8 @@ cldnn::memory::ptr RemoteContextImpl::try_get_cached_memory(size_t hash) {
     if (!m_memory_cache.has(hash))
         return nullptr;
 
-    if (auto memory = m_memory_cache.get(hash).lock())
+    auto cached_memory = m_memory_cache.get(hash);
+    if (auto memory = cached_memory.lock())
         return memory;
 
     // The last tensor which wrapped that memory is gone, so the entry is erased instead of being kept as the most recently used one

@@ -81,6 +81,13 @@ void ScaledAttnLayerGPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_GPU;
 
     const auto& [inType, _inputShapes, _is_causal, _has_attn, _is_attn_const, _has_scale, _is_scale_const, input_transpose, _has_sink] = this->GetParam();
+    if (inType == ov::element::bf16) {
+        const auto capabilities = core->get_property(targetDevice, ov::device::capabilities);
+        if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+            GTEST_SKIP();
+        configuration.insert(ov::hint::inference_precision(ov::element::bf16));
+    }
+
     is_causal = _is_causal;
     has_attn = _has_attn;
     is_attn_const = _is_attn_const;
@@ -175,7 +182,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
     if (has_sink) {
         size_t num_heads = inputDynamicShapes[0][1].get_length();
         ov::test::utils::InputGenerateData data(0, 5, 100);
-        auto sink_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, ov::Shape{1, num_heads, 1, 1}, data);
+        auto sink_tensor = ov::test::utils::create_and_fill_tensor(inType, ov::Shape{1, num_heads, 1, 1}, data);
         auto sink_const = std::make_shared<ov::op::v0::Constant>(sink_tensor);
         sink_const->set_friendly_name("sink");
         inputs.push_back(sink_const);
@@ -230,6 +237,18 @@ void ScaledAttnLayerGPUTest::SetUp() {
             abs_threshold = 0.005;
             rel_threshold = 0.005;
         }
+    } else if (inType == ov::element::bf16) {
+        // bf16 has ~3 bits fewer mantissa than fp16, so loosen thresholds accordingly.
+        if (has_sink || (has_diff_head_size && !has_scale)) {
+            abs_threshold = 0.1;
+            rel_threshold = 0.1;
+        } else if (has_long_seq || has_non_pow2_head) {
+            abs_threshold = 0.050;
+            rel_threshold = 0.050;
+        } else {
+            abs_threshold = 0.025;
+            rel_threshold = 0.025;
+        }
     }
 }
 
@@ -277,7 +296,8 @@ void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         for (int i = 0; i < 3; ++i) {
             shapes[i] = targetInputStaticShapes[i];
             ov::test::utils::InputGenerateData data(0, 8, 32);
-            ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[i], data);
+            const auto elem_type = model_inputs[i].get_element_type();
+            ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor(elem_type, shapes[i], data);
             inputs.insert({model_inputs[i].get_node_shared_ptr(), data_tensor});
         }
     }
@@ -285,23 +305,24 @@ void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     ov::test::utils::InputGenerateData scale_data(0.1f, 1, 10);
     if (!has_attn && has_scale) {
         shapes.push_back(ov::Shape{});
-        ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[3], attn_data);
+        ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(model_inputs[3].get_element_type(), shapes[3], attn_data);
         inputs.insert({model_inputs[3].get_node_shared_ptr(), attn_tensor});
         if (!is_scale_const) {
             shapes.push_back(ov::Shape{1});
-            ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[4], scale_data);
+            ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(model_inputs[4].get_element_type(), shapes[4], scale_data);
             inputs.insert({model_inputs[4].get_node_shared_ptr(), scale_tensor});
         }
     } else {
         int idx = 3;
         if (has_attn && !is_attn_const) {
             shapes.push_back(targetInputStaticShapes[3]);
-            ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[idx], attn_data);
-            inputs.insert({model_inputs[idx++].get_node_shared_ptr(), attn_tensor});
+            ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(model_inputs[idx].get_element_type(), shapes[idx], attn_data);
+            inputs.insert({model_inputs[idx].get_node_shared_ptr(), attn_tensor});
+            idx++;
         }
         if (has_scale && !is_scale_const) {
             shapes.push_back(ov::Shape{1});
-            ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[idx], scale_data);
+            ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(model_inputs[idx].get_element_type(), shapes[idx], scale_data);
             inputs.insert({model_inputs[idx].get_node_shared_ptr(), scale_tensor});
         }
     }
@@ -691,7 +712,7 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
 const std::vector<std::vector<int64_t>> transpose_value{{0, 1, 2, 3}, {0, 1, 2, 3}, {0, 2, 1, 3}};
 const std::vector<std::vector<int64_t>> transpose_all_4D{{0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}};
 
-const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
+const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::element::f16, ov::element::bf16 /*, ov::element::f32 */),
                                                    testing::ValuesIn(dynamic_shapes_4D),
                                                    testing::Values(true, false),
                                                    testing::Values(true, false),
@@ -932,7 +953,7 @@ const std::vector<std::vector<InputShape>> static_shapes{
     },
 };
 
-const auto static_shape_params = testing::Combine(testing::Values(ov::element::f16),
+const auto static_shape_params = testing::Combine(testing::Values(ov::element::f16, ov::element::bf16),
                                                   testing::ValuesIn(static_shapes),
                                                   testing::Values(true, false),
                                                   testing::Values(true, false),
@@ -946,4 +967,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic_GPU,
                          ScaledAttnLayerGPUTest,
                          static_shape_params,
                          ScaledAttnLayerGPUTest::getTestCaseName);
+
 } // namespace

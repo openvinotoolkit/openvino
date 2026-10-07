@@ -178,7 +178,7 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
         set_dynamic_buffer_offset(dynamic_buffer_exprs);
     }
 
-    return !static_buffer_exprs.empty() && !dynamic_buffer_exprs.empty();
+    return !static_buffer_exprs.empty() || !dynamic_buffer_exprs.empty();
 }
 
 }  // namespace ov::snippets::lowered::pass

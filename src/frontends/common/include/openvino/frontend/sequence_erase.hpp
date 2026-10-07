@@ -7,8 +7,7 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 /// \brief SequenceErase is a helper operation that represents removing one element
 /// from a sequence. Emitted by frontends when the sequence input is not yet
@@ -44,5 +43,4 @@ public:
     }
 };
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

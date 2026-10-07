@@ -736,6 +736,69 @@ TEST_P(UnpackTestsWithScaleAndZeroPointTest3, u4) {
     }
 }
 
+using I8AsymmetricUnpackParams = std::tuple<ov::Shape, ov::element::Type_t, unsigned long, bool, bool>;
+
+class I8AsymmetricUnpackTests : public ::testing::TestWithParam<I8AsymmetricUnpackParams> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<I8AsymmetricUnpackParams>& info) {
+        const auto& [shape, scale_type, n_partitions, use_parallel_for, strict_partitions] = info.param;
+        std::ostringstream result;
+        result << shape[0] << "x" << shape[1] << "_scale_" << scale_type << "_p" << n_partitions
+               << (strict_partitions ? "_SP" : "") << (use_parallel_for ? "_parallel" : "_serial");
+        return result.str();
+    }
+};
+
+TEST_P(I8AsymmetricUnpackTests, i8_asymmetric) {
+    const auto& [shape, scale_type, n_partitions, use_parallel_for, strict_partitions] = GetParam();
+    ov::element::Type scale_element_type = scale_type;
+    const auto rows = shape[0];
+    const auto columns = shape[1];
+    const auto element_count = shape_size(shape);
+
+    std::vector<int8_t> weights(element_count);
+    std::vector<int8_t> zero_points(element_count);
+    for (std::size_t index = 0; index < element_count; ++index) {
+        weights[index] = static_cast<int8_t>(index * 13 - 128);
+        zero_points[index] = static_cast<int8_t>(index * 7 - 128);
+    }
+
+    const std::vector<float> scale_values{1.0f, 0.5f, 2.0f, 0.25f};
+    std::vector<int8_t> scale_storage(scale_element_type.bitwidth() * rows / 8);
+    if (scale_element_type == ov::element::f16) {
+        auto* scale_data = reinterpret_cast<uint16_t*>(scale_storage.data());
+        for (std::size_t row = 0; row < rows; ++row) {
+            scale_data[row] = details::float_to_half(scale_values[row % scale_values.size()]);
+        }
+    } else {
+        auto* scale_data = reinterpret_cast<float*>(scale_storage.data());
+        for (std::size_t row = 0; row < rows; ++row) {
+            scale_data[row] = scale_values[row % scale_values.size()];
+        }
+    }
+
+    auto from = ov::make_tensor(ov::element::i8, shape, weights.data());
+    auto zerop = ov::make_tensor(ov::element::i8, shape, zero_points.data());
+    auto scale = ov::make_tensor(scale_element_type, ov::Shape{rows, 1}, scale_storage.data());
+    auto to = ov::make_tensor(ov::element::f16, shape);
+
+    ov::npuw::util::unpack(from,
+                           zerop,
+                           scale,
+                           to,
+                           ov::npuw::util::UnpackOptions{use_parallel_for,
+                                                         static_cast<std::size_t>(n_partitions),
+                                                         strict_partitions});
+
+    const auto* output = to->data<const ov::float16>();
+    for (std::size_t index = 0; index < element_count; ++index) {
+        const auto row = index / columns;
+        const auto expected = (static_cast<float>(weights[index]) - static_cast<float>(zero_points[index])) *
+                              scale_values[row % scale_values.size()];
+        EXPECT_FLOAT_EQ(static_cast<float>(output[index]), expected);
+    }
+}
+
 #define Tensors [](std::vector<int>& input, std::vector<int>&scale, std::vector<int>&zerop)
 
 

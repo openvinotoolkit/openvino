@@ -7,10 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 // This transformation replaces all prim::TupleUnpack/prim::ListUnpack operations coming after Parameters
 // with more Parameters -- one new parameter for each unpacked output. The original Parameter
@@ -31,7 +28,4 @@ public:
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

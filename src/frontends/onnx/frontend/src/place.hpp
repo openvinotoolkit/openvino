@@ -10,9 +10,7 @@
 #include "editor.hpp"
 #include "openvino/frontend/place.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 class PlaceInputEdge : public ov::frontend::Place {
 public:
@@ -137,6 +135,4 @@ private:
     std::string m_initial_first_output;
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

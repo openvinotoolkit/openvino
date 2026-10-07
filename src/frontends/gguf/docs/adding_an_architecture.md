@@ -11,39 +11,46 @@ translators (`src/op/*.cpp`) run for both the native path and the llama.cpp cgra
 
 | File | Responsibility | Knows about |
 |---|---|---|
-| [`graph_emitter.hpp`](../src/builder/graph_emitter.hpp) | `add_op` / `add_input` / `add_weight` + shape & type bookkeeping | nothing about transformers |
+| [`graph_emitter.hpp`](../src/builder/graph_emitter.hpp) | `add_op` / `add_input` / `add_weight`, using shared converters and OpenVINO shape inference | nothing about transformers |
 | [`blocks/`](../src/builder/blocks) | reusable graph fragments: `common` (norm/scale/bias), `ffn` (dense/GeGLU/MoE), `attention`, `gated_delta_net`, `qkv_repack` | a decoder layer |
 | [`decoder_config.hpp`](../src/builder/decoder_config.hpp) | all per-architecture detection + per-layer accessors | one model's hyperparameters |
 | [`arch/decoder_builder.cpp`](../src/builder/arch/decoder_builder.cpp) | the order a decoder is assembled in | the whole decoder family |
-| [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | which architectures are accepted, and their RoPE mode | names only |
-| [`model_kind.hpp`](../src/builder/model_kind.hpp) | which model *family* a file holds | raw metadata |
-| [`gguf_builder.cpp`](../src/builder/gguf_builder.cpp) | parse → detect family → dispatch to a `ModelBuilder` | the entry point |
+| [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | which architectures are accepted, and their RoPE mode | architecture definitions |
+| [`model_kind.hpp`](../src/builder/model_kind.hpp) | family diagnosis for an unclaimed file | raw metadata |
+| [`gguf_builder.cpp`](../src/builder/gguf_builder.cpp) | parse → resolve definition → invoke its `ModelBuilder` | the entry point |
 
 A single generic `DecoderBuilder` covers the whole "llama family" of decoder-only transformers.
 This is deliberately **not** llama.cpp's one-file-per-architecture layout: llama.cpp needs that
 because every architecture enumerates its tensors by hand, whereas this builder derives them from
 the tensor table, so a same-family architecture costs zero lines of code.
 
-## The 90% case: add a name
+## Two routes: in-tree, or an extension
 
-Most new architectures in the transformer family need **no code** — the builder auto-detects
-their structure from the GGUF tensor table and metadata. To enable one, add its
-`general.architecture` string to `verified_archs()` (or `experimental_archs()`) in
+Both routes use `ArchitectureDefinition`, the same factory, and the same conversion pipeline.
+An external library wraps its definition in `ArchitectureExtension`; the frontend registers that
+same definition in `builtin_architectures()`. See
+[porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md) for the builder API and integration steps.
+
+## The 90% case: add a decoder definition
+
+For an existing decoder topology, add a row to the `decoders` catalog in
 [`arch_registry.cpp`](../src/builder/arch_registry.cpp):
 
 ```cpp
-const std::set<std::string>& experimental_archs() {
-    static const std::set<std::string> archs = {
-        "llama-embed", "exaone4", ...,
-        "your-arch",   // <-- add here
-    };
-    return archs;
-}
+{"your-arch", RopeMode::Neox, Maturity::Experimental},
 ```
 
-Then check whether RoPE is NEOX (rotate-halves) or NORMAL (rotate consecutive pairs) for the
-arch and, if NEOX, add it to `arch_uses_neox_rope()` in the same file (mirror
-`llama_model_rope_type` in llama.cpp). That is the whole change for a same-family arch.
+The catalog owns the architecture name, RoPE mode and maturity together. `verified_archs()` and
+`experimental_archs()` are derived views, not separate registration sites. Check the RoPE mode
+against the reference implementation.
+
+For an architecture requiring overrides, define it with `make_decoder_architecture` and a callback
+returning `DecoderOptions`, then add the definition to `builtin_architectures()`. The exact same
+function can be shipped externally. Overrides are applied before dependent configuration is resolved.
+`qk_norm_after_rope`, `post_norm_only`, `normalize_expert_weights` and `rope_skip_period`
+cover order and routing semantics that tensor names alone cannot determine. For example,
+EXAONE4's `post_attention_norm` is a post-norm, while GPT-OSS uses the same name for a
+pre-FFN norm. Reuse the shared blocks with explicit options for such differences.
 
 ### What is auto-detected (no code needed)
 
@@ -51,15 +58,15 @@ arch and, if NEOX, add it to `arch_uses_neox_rope()` in the same file (mirror
 
 | Feature | Detected from |
 |---|---|
-| Per-head Q/K norm (qwen3, hunyuan) | `blk.0.attn_q_norm.weight` |
+| Per-head Q/K norm (qwen3, hunyuan; ordering is architecture-specific) | `blk.0.attn_q_norm.weight` |
 | Full-width Q/K norm (OLMoE) | `attn_q_norm.weight` width == `n_head*head_size` |
 | Q/K/V projection biases (qwen2) | `blk.0.attn_q.bias` |
 | Output-projection bias | `blk.0.attn_output.bias` |
 | Fused QKV (phi-3, minicpm) | `blk.0.attn_qkv.weight` |
 | Fused gate+up FFN (phi-3) | absence of `blk.0.ffn_gate.weight` |
-| MoE routing (OLMoE, gpt-oss, qwen3moe) | `blk.<lead>.ffn_gate_exps.weight` |
-| Shared experts | `expert_shared_count` metadata + `ffn_*_shexp.weight` |
-| Hybrid dense-lead MoE | `leading_dense_block_count` metadata |
+| MoE routing (OLMoE, gpt-oss, qwen3moe) | `ffn_gate_exps.weight` on the first routed layer |
+| Shared experts | `ffn_*_shexp.weight`, including files without `expert_shared_count` |
+| Hybrid dense-lead MoE | `leading_dense_block_count` and `interleave_moe_layer_step` metadata |
 | RoPE freq factors (llama-3, phi-3) | `rope_freqs.weight` |
 | Scalar scales (minicpm) | `embedding_scale` / `residual_scale` / `logit_scale` metadata |
 | Soft-caps (gemma2/3) | `attn_logit_softcapping` / `final_logit_softcapping` metadata |
@@ -77,6 +84,7 @@ are handled by the per-layer accessors on `DecoderConfig` — the single source 
 so the topology stays declarative:
 
 - `layer_is_swa(il)` — sliding-window layer? (per-layer flag array or period)
+- `layer_is_moe(il)` — routed experts? (dense lead and interleaving stride)
 - `layer_head_size(il)` — head size (SWA layers may differ, e.g. gemma4)
 - `layer_n_head_kv(il)` — KV head count (may vary per layer)
 - `layer_kq_scale(il)` — attention softmax scale (`1/sqrt(layer_head_size(il))` unless overridden)
@@ -113,23 +121,24 @@ To add such a feature:
 
 ## Adding a new model FAMILY (mmproj, audio, encoder-decoder)
 
-An architecture is data; a **family** is code. A family is a distinct graph shape with its own
+An architecture definition selects a builder; a **family** supplies its topology. A family is a distinct graph shape with its own
 inputs and its own notion of a layer — a vision/mmproj encoder and an audio encoder are each one,
 and neither is a causal decoder. Do **not** add flags to `DecoderConfig` for them.
 
-Instead:
+A family does not have to live in this frontend, though. An `ArchitectureExtension` can supply a
+whole `ModelBuilder` and claim the files it owns by a metadata predicate, which is how a vision or
+audio encoder is added without touching anything here; see
+[porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md). The steps below are for a family that
+should ship in-tree; the builder itself is written the same way either way.
 
-1. Detect it in [`model_kind.cpp`](../src/builder/model_kind.cpp). mmproj files set
-   `general.architecture = "clip"` and carry `clip.has_vision_encoder` / `clip.has_audio_encoder`
-   (llama.cpp `tools/mtmd/clip-impl.h`), so `detect_model_kind()` already classifies them; the
-   check runs *before* any decoder hyperparameter is read, because those keys do not exist there.
-2. Add a metadata reader next to `decoder_config_from_meta()` for that family's key layout, and a
-   config struct next to `DecoderConfig`.
-3. Subclass [`ModelBuilder`](../src/builder/model_builder.hpp) in `arch/`, reusing `GraphEmitter`
-   and `blocks/common`. A ViT needs its own attention — non-causal, no KV cache, no RoPE — so it
-   will not reuse `blocks::attention`; this is the same split llama.cpp makes between
-   `llm_graph_context` and `clip_graph`.
-4. Add a branch in `build_ggml_graph_from_gguf()`.
+1. Implement a `ModelBuilder` with the generic `GgufGraphContext::node` API. It invokes the
+   registered frontend converter directly; new operations need no builder-side support.
+   A non-decoder reads its own metadata and does not call `configure_decoder`.
+2. Return an `ArchitectureDefinition` with a unique handler id, GGUF architecture name, factory,
+   and optional metadata predicate. Predicates distinguish, for example, vision and audio files
+   that both name themselves `clip`.
+3. Add that definition to `builtin_architectures()` in `arch_registry.cpp`. Family detection is
+   only a diagnostic fallback when no definition matches; no new dispatch branch is needed.
 
 Nothing in the decoder family changes.
 
@@ -139,6 +148,18 @@ preprocessing is self-gating (`add_rope_sin_cos` only fires when `inp_pos` exist
 passes (`MakeStateful`, `AdaptToGenAI`) are caller-registered rather than built in.
 
 ## Verifying a new architecture
+
+Use the existing suites for different kinds of coverage:
+
+| Suite | What it checks |
+|---|---|
+| [`tests/model_hub_tests/gguf`](../../../../tests/model_hub_tests/gguf) | Real checkpoints: download, conversion, compilation, finite logits and KV-cache updates |
+| [`test_arch_accuracy.cpp`](../tests/test_arch_accuracy.cpp) | Small offline fixtures: full-logit agreement with llama.cpp CPU through prefill and cached decode |
+| Builder API and architecture extension tests | Registration, custom builders, metadata validation, dynamic shapes, operation types and shared-library loading |
+
+Model-hub smoke tests do not compare predicted tokens or logits with a reference and do not
+register architecture extensions. Keep focused regression tests for those behaviors; add real
+checkpoint coverage to the existing model-hub lists.
 
 1. **Converts + compiles**: convert through the frontend, then `core.compile_model(m, "CPU")`.
    The frontend is not auto-selectable, so ask for it by name:
@@ -151,3 +172,9 @@ passes (`MakeStateful`, `AdaptToGenAI`) are caller-registered rather than built 
 4. **No graph regression** for existing archs: `tests/test_arch_conversion.cpp` converts every
    architecture fixture and asserts a pinned `(op count, input count)` fingerprint, so any
    restructuring of a supported architecture shows up there.
+
+5. **Numerical regression**: add a nonzero fixture to `tests/gen_arch_accuracy.py`, evaluate it
+   with `tests/architecture_oracle.cpp` linked to real llama.cpp CPU, and commit its NPZ.
+   Register the case in `test_arch_accuracy.cpp`. Exercise distinct query/KV heads, nonzero
+   token positions, and prefill plus cached decode. Architecture promotion also requires a
+   real-checkpoint comparison; synthetic conversion alone is insufficient.

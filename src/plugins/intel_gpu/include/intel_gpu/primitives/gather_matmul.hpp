@@ -44,8 +44,9 @@ struct gather_matmul : public primitive_base<gather_matmul> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto rhs_casted = downcast<const gather_matmul>(rhs);
         return has_bias == rhs_casted.has_bias && has_zp == rhs_casted.has_zp && n_activated_experts == rhs_casted.n_activated_experts;
     }

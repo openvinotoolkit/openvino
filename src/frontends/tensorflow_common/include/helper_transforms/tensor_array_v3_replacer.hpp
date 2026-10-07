@@ -3,17 +3,13 @@
 //
 
 #pragma once
-
 #include <memory>
 #include <utility>
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace pass {
+namespace ov::frontend::tensorflow::pass {
 
 // This transformation replaces internal operation TensorArrayV3 with a Constant
 // that simulates initial state of tensor array container
@@ -23,7 +19,4 @@ public:
     TensorArrayV3Replacer();
 };
 
-}  // namespace pass
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::pass

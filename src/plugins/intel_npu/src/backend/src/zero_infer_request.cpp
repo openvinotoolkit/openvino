@@ -970,10 +970,22 @@ void ZeroInferRequest::prepare_inputs() {
                             "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
                             inputDescriptor.nameFromCompiler);
             const auto& inputDims = get_user_input(*inputDescriptor.relatedDescriptorIndex)->get_shape();
+            const size_t shapeTensorSize = userTensor.at(SINGLE_TENSOR)->get_size();
 
-            for (size_t i = 0; i < userTensor.at(SINGLE_TENSOR)->get_size(); ++i) {
+            // A shape tensor carries exactly one dimension value per dimension of its related dynamic tensor.
+            // Without this check, "reverseIdx" below underflows for any index past the rank and the read turns
+            // into an out-of-bounds access.
+            OPENVINO_ASSERT(shapeTensorSize == inputDims.size(),
+                            "The shape tensor holds ",
+                            shapeTensorSize,
+                            " element(s), which does not match the rank ",
+                            inputDims.size(),
+                            " of its related dynamic tensor, entry name: ",
+                            inputDescriptor.nameFromCompiler);
+
+            for (size_t i = 0; i < shapeTensorSize; ++i) {
                 const auto reverseIdx = inputDims.size() - 1 - i;
-                userTensor.at(SINGLE_TENSOR)->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
+                userTensor.at(SINGLE_TENSOR)->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims.at(reverseIdx));
             }
         }
 
@@ -1094,14 +1106,28 @@ void ZeroInferRequest::get_result() {
                             "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
                             outputDescriptor.nameFromCompiler);
 
-            ov::Shape actualDims;
-            actualDims.reserve(userTensor->get_size());
+            auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
+            const size_t shapeTensorSize = userTensor->get_size();
+            const size_t relatedTensorRank = tensorToBeReshaped->get_shape().size();
 
-            for (size_t i = 0; i < userTensor->get_size(); ++i) {
-                const auto reverseIdx = userTensor->get_size() - 1 - i;
+            // The contents of a shape tensor are produced by the device, therefore its element count has to match
+            // the rank of the related dynamic tensor before it is turned into a shape. Otherwise an arbitrary rank
+            // built out of arbitrary dimension values would be handed over to "set_shape".
+            OPENVINO_ASSERT(shapeTensorSize == relatedTensorRank,
+                            "The shape tensor holds ",
+                            shapeTensorSize,
+                            " element(s), which does not match the rank ",
+                            relatedTensorRank,
+                            " of its related dynamic tensor, entry name: ",
+                            outputDescriptor.nameFromCompiler);
+
+            ov::Shape actualDims;
+            actualDims.reserve(shapeTensorSize);
+
+            for (size_t i = 0; i < shapeTensorSize; ++i) {
+                const auto reverseIdx = shapeTensorSize - 1 - i;
                 actualDims.push_back(userTensor->data<uint32_t>()[reverseIdx]);
             }
-            auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
             tensorToBeReshaped->set_shape(actualDims);
         }
 

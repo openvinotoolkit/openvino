@@ -6,12 +6,8 @@
 
 #include "openvino/frontend/jax/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
+namespace ov::frontend::jax {
 
 const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr();
 
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax

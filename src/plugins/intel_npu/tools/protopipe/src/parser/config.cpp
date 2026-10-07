@@ -264,6 +264,49 @@ struct convert<NRMSE::Ptr> {
 };
 
 template <>
+struct convert<MAP::Ptr> {
+    static bool decode(const ConfigNode& node, MAP::Ptr& metric) {
+        // NB: If lower than map_threshold - fail.
+        if (!node["map_threshold"]) {
+            THROW_ERROR("Metric \"map\" must have \"map_threshold\" attribute!");
+        }
+        MAP::Params params;
+        params.map_threshold = node["map_threshold"].as<double>();
+        if (node["overlap_threshold"]) {
+            const auto overlap_threshold = node["overlap_threshold"].as<std::string>();
+            // NB: "0.5:0.95" enables COCO-style averaging over IoU thresholds [0.5, 0.95] with step 0.05.
+            if (overlap_threshold == "0.5:0.95") {
+                params.averaged_iou = true;
+            } else {
+                try {
+                    params.overlap_threshold = std::stod(overlap_threshold);
+                } catch (const std::exception&) {
+                    THROW_ERROR("Metric \"map\" attribute \"overlap_threshold\" must be a number in range (0, 1] "
+                                << "or \"0.5:0.95\", but got: " << overlap_threshold);
+                }
+                if (params.overlap_threshold <= 0.0 || params.overlap_threshold > 1.0) {
+                    THROW_ERROR("Metric \"map\" attribute \"overlap_threshold\" must be in range (0, 1] or \"0.5:0.95\"!");
+                }
+            }
+        }
+        if (node["confidence_threshold"]) {
+            params.confidence_threshold = node["confidence_threshold"].as<double>();
+        }
+        if (node["nms_threshold"]) {
+            params.nms_threshold = node["nms_threshold"].as<double>();
+        }
+        if (node["num_classes"]) {
+            params.num_classes = node["num_classes"].as<int>();
+            if (params.num_classes <= 0) {
+                THROW_ERROR("Metric \"map\" attribute \"num_classes\" must be positive!");
+            }
+        }
+        metric = std::make_shared<MAP>(params);
+        return true;
+    }
+};
+
+template <>
 struct convert<IAccuracyMetric::Ptr> {
     static bool decode(const ConfigNode& node, IAccuracyMetric::Ptr& metric) {
         const auto type = node["name"].as<std::string>();
@@ -273,6 +316,8 @@ struct convert<IAccuracyMetric::Ptr> {
             metric = node.as<Cosine::Ptr>();
         } else if (type == "nrmse") {
             metric = node.as<NRMSE::Ptr>();
+        } else if (type == "map") {
+            metric = node.as<MAP::Ptr>();
         } else {
             THROW_ERROR("Unsupported metric type: " << type);
         }

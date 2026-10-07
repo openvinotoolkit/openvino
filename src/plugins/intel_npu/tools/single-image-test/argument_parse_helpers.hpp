@@ -57,6 +57,7 @@ extern std::vector<std::string> camVid12;
 DECLARE_string(network);
 DECLARE_string(input);
 DECLARE_string(compiled_blob);
+DECLARE_string(blob_name_prefix);
 DECLARE_uint32(override_model_batch_size);
 DECLARE_string(device);
 DECLARE_string(config);

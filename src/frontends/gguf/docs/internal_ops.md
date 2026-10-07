@@ -58,6 +58,7 @@ serializable — see the example below.
 
 | Op | GGML op | Path | Fallback |
 |---|---|---|---|
+| `ov::op::internal::SelectiveSSM` | `GGML_OP_SSM_SCAN` | `translate_ssm_scan` (Mamba 2 scalar decay) | No frontend decomposition |
 | `ov::op::internal::GatedDeltaNet` | `GGML_OP_GATED_DELTA_NET` | `translate_gated_delta_net` (scalar gate) | `translate_gated_delta_net_ref` — a serializable `Loop` scan, used for per-key-dimension gating (`kda`) and as a portable fallback |
 
 See [`src/op/gated_delta_net.cpp`](../src/op/gated_delta_net.cpp).

@@ -6,18 +6,14 @@
 #include "openvino/op/log_softmax.hpp"
 #include "utils/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 extern ov::OutputVector negative_log_likelihood_loss_impl(const ov::OutputVector inputs,
                                                           const std::string reduction,
                                                           bool use_ignore_index = false,
                                                           const int64_t ignore_index_value = 0);
-}  // namespace opset_1
-}  // namespace ai_onnx
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1
 
+namespace ov::frontend::onnx {
 ov::OutputVector onnx_softmax_crossentropy_loss(const ov::frontend::onnx::Node& node, int64_t axis_default) {
     const auto& inputs = node.get_ov_inputs();
     const auto& logits = inputs.at(0);
@@ -46,26 +42,22 @@ ov::OutputVector onnx_softmax_crossentropy_loss(const ov::frontend::onnx::Node& 
 
     return outputs;
 }
+}  // namespace ov::frontend::onnx
 
-namespace ai_onnx {
-namespace opset_12 {
+namespace ov::frontend::onnx::ai_onnx::opset_12 {
 
 ov::OutputVector softmax_cross_entropy_loss(const ov::frontend::onnx::Node& node) {
     return onnx_softmax_crossentropy_loss(node, 1);
 }
 
 ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_RANGE(1, 12), ai_onnx::opset_12::softmax_cross_entropy_loss);
-}  // namespace opset_12
+}  // namespace ov::frontend::onnx::ai_onnx::opset_12
 
-namespace opset_13 {
+namespace ov::frontend::onnx::ai_onnx::opset_13 {
 
 ov::OutputVector softmax_cross_entropy_loss(const ov::frontend::onnx::Node& node) {
     return onnx_softmax_crossentropy_loss(node, 1);
 }
 
 ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_SINCE(13), ai_onnx::opset_13::softmax_cross_entropy_loss);
-}  // namespace opset_13
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_13

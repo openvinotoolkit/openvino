@@ -6,12 +6,8 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 using ov::frontend::ComplexTypeMark;
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

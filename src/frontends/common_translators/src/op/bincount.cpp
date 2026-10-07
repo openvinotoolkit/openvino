@@ -13,9 +13,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
-namespace ov {
-namespace frontend {
-namespace common_translators {
+namespace ov::frontend::common_translators {
 
 using namespace ov::op;
 
@@ -53,6 +51,4 @@ OutputVector translate_bincount_common(const NodeContext& context,
     return {result};
 }
 
-}  // namespace common_translators
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::common_translators

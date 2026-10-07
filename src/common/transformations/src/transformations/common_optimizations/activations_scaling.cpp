@@ -168,6 +168,7 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
 
         if (has_bias) {
             auto add = child_node->shared_from_this();
+            output_prec = add->get_output_element_type(0);
             target_inputs = add->get_output_target_inputs(0);
             insert_scale_down_layer(add, bias_index);
             add->revalidate_and_infer_types();

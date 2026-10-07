@@ -50,10 +50,11 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
         const auto batch = is_batched ? input_layout.batch() : 1;
         const auto num_elements = is_batched ? input_layout.feature() : input_layout.batch();
 
-        if (is_batched)
+        if (is_batched) {
             reshaped_input.set_partial_shape({batch, num_elements, num_blocks_l});
-        else
+        } else {
             reshaped_input.set_partial_shape({num_elements, num_blocks_l});
+        }
     } else {
         OPENVINO_ASSERT(input_layout.is_static(), "col2im supports static shape only.");
     }

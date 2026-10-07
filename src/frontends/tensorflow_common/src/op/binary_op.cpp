@@ -42,10 +42,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_binary_op(const NodeContext& node,
                                  const std::function<Output<Node>(Output<Node>&, Output<Node>&)>& create_binary_op) {
@@ -163,7 +160,4 @@ template OutputVector translate_binary_op<v1::Divide>(const NodeContext& node);
 template OutputVector translate_binary_op<v0::SquaredDifference>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::Subtract>(const NodeContext& node);
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

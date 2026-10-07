@@ -14,8 +14,7 @@
 #include "openvino/frontend/place.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 class FrontEnd;
 /// \brief InputModel class represents an original, not yet converted model graph in a
 /// framework format given services to find places of interest in a graph or specialize/edit
@@ -221,5 +220,4 @@ public:
     virtual void set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value);
 };
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

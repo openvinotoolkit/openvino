@@ -20,6 +20,9 @@ std::vector<std::string> camVid12 = {"Sky",        "Building", "Pole", "Road",  
 DEFINE_string(network, "", "Network file (either XML or pre-compiled blob)");
 DEFINE_string(input, "", "Input file(s)");
 DEFINE_string(compiled_blob, "", "Output compiled network file (compiled result blob)");
+DEFINE_string(blob_name_prefix, "",
+        "Optional prefix overriding model-derived blob file naming for auto-generated input/reference/output blobs. "
+        "Explicit --ref_results paths are not modified.");
 DEFINE_uint32(override_model_batch_size, 1, "Enforce a model to be compiled for batch size");
 DEFINE_string(device, "", "Device to use");
 DEFINE_string(config, "", "Path to the configuration file (optional)");
@@ -166,6 +169,7 @@ void utils::parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Network file:                             " << FLAGS_network << std::endl;
     std::cout << "    Input file(s):                            " << FLAGS_input << std::endl;
     std::cout << "    Output compiled network file:             " << FLAGS_compiled_blob << std::endl;
+    std::cout << "    Blob name prefix override:                " << FLAGS_blob_name_prefix << std::endl;
     std::cout << "    Color format:                             " << FLAGS_color_format << std::endl;
     std::cout << "    Input precision:                          " << FLAGS_ip << std::endl;
     std::cout << "    Output precision:                         " << FLAGS_op << std::endl;

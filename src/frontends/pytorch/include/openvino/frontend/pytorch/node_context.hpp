@@ -8,9 +8,7 @@
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 class TranslateSession;
 
@@ -52,6 +50,10 @@ public:
     // Search for input in tensor map and return an output port for already converted op
     // TODO: int due to base class uses it, but naturally it should be size_t for PT
     Output<Node> get_input(int index) const override;
+
+    Output<Node> resolve_tensor(size_t index) const;
+
+    void mutate_input(const std::string& name, Output<Node> ov_output) const;
 
     Output<Node> get_input(const std::string& name) const override;
 
@@ -129,6 +131,8 @@ public:
     std::shared_ptr<ov::Model> convert_subgraph(size_t index) const;
 
 private:
+    void mutate_tensor(size_t input_id, Output<Node> ov_output, const std::string& name) const;
+
     ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
 
     std::shared_ptr<TorchDecoder> m_decoder;
@@ -144,6 +148,4 @@ private:
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::pytorch::NodeContext&)>;
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

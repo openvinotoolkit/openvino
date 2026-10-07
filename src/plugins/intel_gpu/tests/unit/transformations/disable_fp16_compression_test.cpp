@@ -81,7 +81,7 @@ std::shared_ptr<ov::Model> make_qwen_image_model(bool is_reference = false,
     auto mvn = std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     if (is_reference) {
-        for (const auto& node : ov::NodeVector{branch.matmul, branch.output, gate.output, gated_branch, add, mvn})
+        for (const auto& node : ov::NodeVector{branch.output, gate.output, gated_branch, add, mvn})
             ov::disable_conversion(node, ov::element::f16);
     }
 

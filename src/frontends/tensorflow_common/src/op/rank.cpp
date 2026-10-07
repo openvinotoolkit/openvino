@@ -12,10 +12,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 ov::OutputVector translate_rank_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Rank", "RANK"}, true);
@@ -40,7 +37,4 @@ ov::OutputVector translate_rank_op(const NodeContext& node) {
     return {input_rank};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

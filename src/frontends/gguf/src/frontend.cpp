@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 
+#include "builder/arch_registry.hpp"
 #include "builder/gguf_builder.hpp"
 #include "builder/gguf_builder_decoder.hpp"
 #include "input_model.hpp"
@@ -17,12 +18,11 @@
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
+#include "openvino/frontend/gguf/extension/architecture.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // This frontend has two ingest paths, both converging on the same GgufDecoder + op translators:
 //   1. a live GgufDecoder passed in by a direct linker (the llama.cpp ggml-openvino cgraph path);
@@ -45,6 +45,8 @@ struct FrontEnd::Impl {
     // default (stateless) SetRows lowering for an alternative (e.g. a backend stateful lowering).
     std::vector<DecoderTransformationExtension::Ptr> transformation_extensions;
     TelemetryExtension::Ptr telemetry;
+    // Per-instance catalog: runtime registrations do not affect other frontends.
+    ArchRegistry arch_registry;
 };
 
 namespace {
@@ -82,7 +84,12 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     std::shared_ptr<Model> converted_model;
     {
         auto ops = merged_ops(m_impl->op_extension_translators);
-        TranslateSession translate_session(model, ops, m_impl->transformation_extensions);
+        auto conversion_input = gguf_model;
+        if (gguf_model->m_builder) {
+            auto graph = gguf_model->m_builder(ops);
+            conversion_input = std::make_shared<gguf::InputModel>(std::make_shared<GgufBuilderDecoder>(graph));
+        }
+        TranslateSession translate_session(conversion_input, ops, m_impl->transformation_extensions);
         converted_model = translate_session.get_converted_model();
     }
     return converted_model;
@@ -106,6 +113,8 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (const auto& transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_impl->transformation_extensions.push_back(transformation);
+    } else if (const auto& arch_ext = std::dynamic_pointer_cast<ArchitectureExtension>(extension)) {
+        m_impl->arch_registry.add_extension(arch_ext);
     } else if (const auto& telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_impl->telemetry = telemetry;
     } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
@@ -149,9 +158,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         FRONT_END_GENERAL_CHECK(model_path.extension() == ".gguf",
                                 "GGUF Frontend file loading expects a .gguf file, got: ",
                                 model_path.string());
-        auto graph = build_ggml_graph_from_gguf(model_path.string());
-        auto decoder = std::make_shared<GgufBuilderDecoder>(graph);
-        return std::make_shared<InputModel>(decoder);
+        return std::make_shared<InputModel>(load_gguf_builder(model_path.string(), m_impl->arch_registry),
+                                            m_extensions);
     }
 
     FRONT_END_GENERAL_CHECK(false,
@@ -159,9 +167,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                             "or a path to a .gguf file.");
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
 
 // Plugin registration. Exports the standard entry points so FrontEndManager can load the library;
 // selection is covered by the discoverability note at the top of this file.

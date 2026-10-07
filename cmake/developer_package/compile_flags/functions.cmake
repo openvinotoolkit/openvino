@@ -432,7 +432,7 @@ function(ov_target_link_libraries_as_system TARGET_NAME LINK_TYPE)
                 endif()
                 foreach(include_directory IN LISTS include_directories)
                     # cannot include /usr/include headers as SYSTEM
-                    if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
+                    if(NOT "${include_directory}" MATCHES "^/usr/include($|/)")
                         # Note, some include dirs can be wrapper with $<BUILD_INTERFACE:dir1 dir2 ...> and we need to clean it
                         if ("${include_directory}" MATCHES "^\\$<BUILD_INTERFACE:.*>$")
                             string(REGEX REPLACE "^\\$<BUILD_INTERFACE:" "" include_directory "${include_directory}")
