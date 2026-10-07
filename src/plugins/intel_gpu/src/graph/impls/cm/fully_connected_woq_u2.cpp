@@ -26,6 +26,9 @@ constexpr size_t gemv_cols_per_thread = 16;  // 16 * NCB
 constexpr size_t gemv_rows_per_thread = 8;   // 8 * RBG
 constexpr size_t gemv_ls = 16;               // LS
 constexpr size_t gemv_max_m = 8;
+// Above this many 16-column blocks each GEMV thread takes 2 adjacent blocks (cseq = 2); passed to the kernel
+// as GEMV_MAXT, so the grid below and the kernel's own choice always agree.
+constexpr size_t gemv_maxt = 960;
 
 // M = product of the activation's leading dims (static params only).
 size_t rows_of(const RuntimeParams& params) {
@@ -132,14 +135,16 @@ protected:
 };
 
 // GEMV kernel (woq_u2_gemm_dual_gemv.cm): M <= gemv_max_m (decode).
-// global = (ceil(N / 16 / 16) * 16, ceil(M / 8)), local = (16, 1).
+// blocks = ceil(N / 16), cseq = 2 if blocks > gemv_maxt else 1 (column blocks per thread),
+// global = (ceil(blocks / cseq / 16) * 16, ceil(M / 8)), local = (16, 1).
 class WoqU2GemvGenerator : public WoqU2GeneratorBase {
 public:
     WoqU2GemvGenerator() : WoqU2GeneratorBase("woq_u2_gemm_dual_gemv") {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
-        return KernelGenerator::get_build_options(params) + " -Qxcm_register_file_size=128 -DNCB=1 -DRBG=1 -DLS=16 -DPFG=4 ";
+        return KernelGenerator::get_build_options(params) + " -Qxcm_register_file_size=128 -DNCB=1 -DRBG=1 -DLS=16 -DPFG=4 -DGEMV_MAXT=" +
+               std::to_string(gemv_maxt) + " ";
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -148,7 +153,9 @@ protected:
             const size_t N = params.get_input_layout(1).get_shape()[0];
             const size_t M = rows_of(params);
             auto& wgs = kd.params.workGroups;
-            const size_t groups_n = (N / gemv_cols_per_thread + gemv_ls - 1) / gemv_ls;
+            const size_t blocks = (N + gemv_cols_per_thread - 1) / gemv_cols_per_thread;
+            const size_t cseq = blocks > gemv_maxt ? 2 : 1;
+            const size_t groups_n = ((blocks + cseq - 1) / cseq + gemv_ls - 1) / gemv_ls;
             const size_t groups_m = (M + gemv_rows_per_thread - 1) / gemv_rows_per_thread;
             wgs.global = {groups_n * gemv_ls, std::max<size_t>(groups_m, 1), 1};
             wgs.local = {gemv_ls, 1, 1};
