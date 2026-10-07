@@ -4,10 +4,11 @@
   "signature_hash": "5b4b1e6917a69856",
   "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
   "category": "Infrastructure",
-  "count": 14,
+  "count": 15,
   "first_seen": "2026-09-24T23:04:41Z",
-  "last_seen": "2026-10-06T14:58:37Z",
+  "last_seen": "2026-10-07T09:34:46Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/37598300093",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37479314236",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37476784927",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37470596140",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/37448993556",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37438183236",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37431189452",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/37427383726",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/37412634531"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/37427383726"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38645",
     "https://github.com/openvinotoolkit/openvino/pull/38407",
     "https://github.com/openvinotoolkit/openvino/pull/38601",
     "https://github.com/openvinotoolkit/openvino/pull/38559",
@@ -28,21 +29,16 @@
     "https://github.com/openvinotoolkit/openvino/pull/37908",
     "https://github.com/openvinotoolkit/openvino/pull/38604",
     "https://github.com/openvinotoolkit/openvino/pull/38607",
-    "https://github.com/openvinotoolkit/openvino/pull/38611",
-    "https://github.com/openvinotoolkit/openvino/pull/38030"
+    "https://github.com/openvinotoolkit/openvino/pull/38611"
   ],
   "recent_timestamps": [
+    "2026-10-07T09:34:46Z",
     "2026-10-06T14:58:37Z",
     "2026-10-06T14:40:00Z",
     "2026-10-06T13:57:17Z",
     "2026-10-06T12:10:34Z",
     "2026-10-06T11:31:16Z",
-    "2026-10-06T10:37:24Z",
-    "2026-10-06T09:24:53Z",
-    "2026-10-06T08:31:17Z",
-    "2026-10-06T07:36:59Z",
-    "2026-10-06T04:32:00Z",
-    "2026-10-05T23:14:06Z"
+    "2026-10-06T10:37:24Z"
   ],
   "rerun_search_string": "not a PCH file [-Werror=invalid-pch]"
 }
