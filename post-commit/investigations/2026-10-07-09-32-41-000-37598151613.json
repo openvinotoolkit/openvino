@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-07-09-32-41-000-37598151613",
+  "timestamp": "2026-10-07T09:32:41Z",
+  "run_id": "37598151613",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37598151613",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "commit_sha": "85f36e7eea05976a96b61fd155cfd4ec38500479",
+  "pr_number": "38619",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38619",
+  "author": "davidsnam-intel",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+  "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+  "signature_hash": "0ee6d7327812b344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install - OpenVINO JS API step fails: cc1plus reports the shared precompiled header 'not a PCH file' and treats it as an error under -Werror=invalid-pch"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "(same error repeats for depth_to_space.cpp, fake_convert.cpp, gather_tree.cpp, fft.cpp, group_convolution.cpp, experimental_detectron_detection_output.cpp, experimental_detectron_roi_feature_extractor.cpp, function.cpp and others - 14 occurrences total in this run)"
+  ],
+  "root_cause": "The OpenVINO JS API build step reconfigures and rebuilds the openvino_build directory in-place with a different cmake invocation (-DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF) after the main build/install/packaging steps already compiled the tree with ENABLE_FASTER_BUILD=ON (precompiled headers). The JS API cmake reconfigure does not regenerate the openvino_reference target's cmake_pch.hxx.gch, so GCC's cc1plus picks up the now-stale/incompatible precompiled header object left over from the first build and rejects it as 'not a PCH file' under -Werror=invalid-pch, failing every translation unit in src/core/reference that includes it. This is the same recurring failure signature already tracked in the pattern database (17 prior occurrences since 2026-09-25), confirming it is a persistent ARM64 cross-compilation CI infrastructure defect in how the JS API build step reuses the shared build directory, not a defect introduced by PR #38619 (whose diff only touches GPU pooling rounding-mode logic, unrelated to PCH/build-directory handling).",
+  "reproduction_steps": "1. Build openvino for arm64 cross-compilation with ENABLE_FASTER_BUILD=ON (precompiled headers) using the full set of cmake options from the 'Build' job. 2. Without cleaning openvino_build, re-run cmake on the same build dir with -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF (the JS API step) and then `cmake --build`. 3. Observe cc1plus failing with 'not a PCH file [-Werror=invalid-pch]' for src/core/reference translation units.",
+  "recommended_actions": [
+    "Make the JS API build step use a separate/clean build directory (or pass -DENABLE_FASTER_BUILD=OFF for that reconfigure) instead of reusing openvino_build in place after the main build already ran with PCH enabled",
+    "Alternatively, force regeneration of the cmake_pch.hxx.gch for affected targets (e.g. touch/remove the .gch before the JS API cmake invocation) so it is rebuilt for the new configuration",
+    "Add a CI step that removes stale .gch files when CPACK_GENERATOR/ENABLE_SYSTEM_TBB/ENABLE_WHEEL options change between consecutive cmake invocations on the same build tree",
+    "Escalate to the ARM64 cross-compilation CI job owners given this is the 18th occurrence of the identical signature"
+  ],
+  "prevention_strategies": "Avoid reconfiguring and rebuilding the same CMake build directory with materially different options (CPACK_GENERATOR, ENABLE_SYSTEM_TBB, ENABLE_WHEEL) when precompiled headers are enabled; either disable PCH for secondary/partial reconfigures or isolate them into dedicated build directories so stale .gch artifacts can never be picked up by a different compiler invocation.",
+  "historical_context": "Identical signature (cc1plus invalid-pch on cmake_pch.hxx.gch, Infrastructure category) recorded 17 times previously in the pattern database between 2026-09-25 and 2026-10-07, always on the ARM64 cross-compilation ubuntu_22 workflow. This run is the 18th occurrence; no fix has landed yet despite repeated recurrence."
+}
