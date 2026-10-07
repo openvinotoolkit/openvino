@@ -983,7 +983,8 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     }
     case activation_func::softplus: {
-        jit.add(make_jit_constant(macro_def, log(exp(input) + one)));
+        const auto threshold = (calc_dt == ov::element::f32) ? "20.0f"_jit : "11.0h"_jit;
+        jit.add(make_jit_constant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input)));
         break;
     }
     case activation_func::softsign: {
