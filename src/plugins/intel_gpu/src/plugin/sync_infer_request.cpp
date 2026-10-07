@@ -1346,9 +1346,8 @@ bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::IT
     for (const auto& entry : *inputs) {
         const auto& wrapper = entry.second;
         const auto [input_ptr, input_logical_size] = tensor_alias_range(wrapper.ptr);
-        // Symmetric to the output span: a caller may have shrunk this input's logical shape while
-        // keeping a larger backing allocation, so an output starting in that unshrunk tail must still
-        // be seen as overlapping.
+        // Like the output span, input overlap checks use recorded capacity, not the possibly shrunk logical shape.
+        // This catches outputs starting in an input's unused allocation tail.
         const size_t input_size = std::max(input_logical_size, wrapper.actual_size);
         if (!byte_ranges_overlap(output_ptr, output_size, input_ptr, input_size))
             continue;
