@@ -1,0 +1,2 @@
+# Tests: test_transformations.py
+optimum-intel==1.27.0

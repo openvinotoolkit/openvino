@@ -1,4 +1,4 @@
-# optimum-intel required by transformation tests (PA, StatefulToStateless, etc.)
+# Tests: test_pa_transformation.py, test_stateful_to_stateless_transformation.py
 # Pinned to a known-working commit for compatibility.
 # optimum-intel@8ba536cd requires transformers>=4.36,<4.52
 transformers==4.51.3

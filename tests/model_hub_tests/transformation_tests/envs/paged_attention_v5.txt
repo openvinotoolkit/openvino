@@ -1,0 +1,6 @@
+# KV-cache/state transformations (SDPAToPagedAttention, StatefulToStateless) on models that need transformers 5.
+# Tests: test_pa_gemma4_transformation.py, test_stateful_to_stateless_transformation.py
+# Same transformers/huggingface-hub pins as pytorch/envs/llm.txt.
+transformers==5.5.3
+huggingface-hub==1.10.1
+optimum-intel==2.2.0

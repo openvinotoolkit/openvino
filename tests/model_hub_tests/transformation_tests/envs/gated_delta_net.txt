@@ -1,4 +1,4 @@
-# GatedDeltaNet -> PagedGatedDeltaNet fusion test environment overrides.
+# Tests: test_gated_delta_net_transformation.py
 # Qwen3-Next linear attention requires transformers>=4.57 and optimum-intel>=2.0.
 optimum-intel==2.2.0
 transformers==4.57.6

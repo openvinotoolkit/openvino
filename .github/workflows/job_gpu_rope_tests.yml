@@ -154,15 +154,10 @@ jobs:
 
       - name: Install RoPE test requirements
         run: |
-          # rope_gpu.txt holds GPU-only deps (diffusers + transformers bump);
-          # kept out of the shared rope.txt because the CPU RoPE flow installs
-          # that file too and diffusers breaks optimum-intel there — see
-          # rope_gpu.txt. All three resolved in one pip pass so transformers is
-          # not installed then re-installed (faster, single consistent resolve).
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope_gpu.txt
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/fusions.txt \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/rope_gpu.txt
 
       - name: OpenVINO GPU RoPE Tests
         env:

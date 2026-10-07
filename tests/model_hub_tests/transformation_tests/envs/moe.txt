@@ -1,4 +1,4 @@
-# MoE Fusion test environment overrides
+# Tests: test_moe_transformation.py
 optimum-intel==1.25.2
 transformers==4.53.3
 # transformers 4.53 needs huggingface-hub>=0.30,<1.0; override hf_transformers pin
