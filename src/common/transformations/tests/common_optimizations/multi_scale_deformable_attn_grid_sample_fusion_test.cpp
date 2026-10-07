@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -350,6 +351,8 @@ TEST(MSDAInternalOp, WrongValueRank) {
     auto starts = T::Constant::create(element::i32, Shape{1}, {0});
     auto locations = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 7, 2, 1, 4, 2});
     auto weights = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 7, 2, 1, 4});
-    EXPECT_THROW(std::make_shared<ov::op::internal::MSDA>(OutputVector{value, shapes, starts, locations, weights}),
-                 ov::NodeValidationFailure);
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<ov::op::internal::MSDA>(OutputVector{value, shapes, starts, locations, weights}),
+        ov::NodeValidationFailure,
+        testing::HasSubstr("MSDA value input must be 4D"));
 }
