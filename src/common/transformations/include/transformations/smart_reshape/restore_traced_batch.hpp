@@ -23,8 +23,10 @@ class TRANSFORMATIONS_API RestoreTracedBatch;
  * batch one turns into a constant. Only this subgraph is matched: a leading constant one cannot be told apart from an
  * intentional collapse in general, so the pass is not a generic batch restoration.
  *
- * The batch may reach the last `Reshape` through a `Convert`. A pinned shape target shared with other `Reshape`s is
- * copied, so only the matched one is restored.
+ * In both pinned targets the baked constant one is replaced with the batch read from the `Parameter` shape, reusing
+ * the `Gather(ShapeOf(Parameter), 0)` that the last `Reshape` already takes it from, optionally through a `Convert`.
+ * The targets are edited in place: the baked dimension belongs to the shape tensor, so every `Reshape` reading it
+ * needs the same restored batch.
  *
  * ## Before
  *
