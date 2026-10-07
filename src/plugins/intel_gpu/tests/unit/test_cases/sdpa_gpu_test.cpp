@@ -475,6 +475,125 @@ TEST(sdpa_gpu_causal_mask, decode_32q_8kv_1024seq) {
     run_sdpa_causal_mask(1, 32, 8, 1, 1024, 128);
 }
 
+// Attention sink on the multi-token sdpa_opt kernel, with and without FlashAttention-v2 online softmax,
+// against a host reference. Sink logits dominate the softmax denominator, so a missing renormalization
+// shows up as an output scale error that is checked element-wise (cosine similarity is scale-invariant).
+// The scalar mask keeps micro SDPA out, so the regular multi-token sdpa_opt kernel is exercised.
+struct sdpa_gpu_sink_test : public ::testing::TestWithParam<std::tuple<bool, int>> {
+    static std::string PrintToStringParamName(const testing::TestParamInfo<ParamType>& info) {
+        const auto [use_flashattn_v2, seq_kv] = info.param;
+        return std::string(use_flashattn_v2 ? "flashattn_v2" : "no_flashattn_v2") + "_kv" + std::to_string(seq_kv);
+    }
+};
+
+TEST_P(sdpa_gpu_sink_test, matches_independent_reference) {
+    const auto [use_flashattn_v2, seq_kv] = GetParam();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    constexpr int num_heads = 4;
+    constexpr int seq_q = 32;
+    constexpr int head_size = 64;
+
+    const layout q_layout({1, num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
+    const layout kv_layout({1, num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+    const layout scalar_layout({1}, data_types::f16, format::bfyx);
+    const layout sink_layout({1, num_heads, 1, 1}, data_types::f16, format::bfyx);
+
+    const auto q_data = rg.generate_random_1d<ov::float16>(q_layout.count(), -1.0f, 1.0f);
+    const auto k_data = rg.generate_random_1d<ov::float16>(kv_layout.count(), -1.0f, 1.0f);
+    const auto v_data = rg.generate_random_1d<ov::float16>(kv_layout.count(), -1.0f, 1.0f);
+    const auto sink_data = rg.generate_random_1d<ov::float16>(sink_layout.count(), 5.0f, 7.0f);
+    const ov::float16 scale(1.0f / std::sqrt(static_cast<float>(head_size)));
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+    auto mask_mem = engine.allocate_memory(scalar_layout);
+    auto scale_mem = engine.allocate_memory(scalar_layout);
+    auto sink_mem = engine.allocate_memory(sink_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(mask_mem, {ov::float16(0.0f)});
+    set_values(scale_mem, {scale});
+    set_values(sink_mem, sink_data);
+
+    topology topo;
+    topo.add(input_layout("q", q_layout));
+    topo.add(input_layout("k", kv_layout));
+    topo.add(input_layout("v", kv_layout));
+    topo.add(input_layout("mask", scalar_layout));
+    topo.add(input_layout("scale", scalar_layout));
+    topo.add(input_layout("sink", sink_layout));
+    topo.add(scaled_dot_product_attention("sdpa",
+                                          {input_info("q"), input_info("k"), input_info("v"), input_info("mask"), input_info("scale"), input_info("sink")},
+                                          false,
+                                          -1,
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3}));
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f32));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg.set_property(ov::intel_gpu::could_use_flashattn_v2(use_flashattn_v2));
+
+    auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+    net->set_input_data("q", q_mem);
+    net->set_input_data("k", k_mem);
+    net->set_input_data("v", v_mem);
+    net->set_input_data("mask", mask_mem);
+    net->set_input_data("scale", scale_mem);
+    net->set_input_data("sink", sink_mem);
+    auto out_mem = net->execute().at("result").get_memory();
+
+    // softmax(scale * q.k) over [keys, sink]; the sink contributes to the denominator only.
+    std::vector<float> expected(q_layout.count());
+    std::vector<float> logits(seq_kv);
+    for (int h = 0; h < num_heads; ++h) {
+        const float sink = static_cast<float>(sink_data[h]);
+        for (int i = 0; i < seq_q; ++i) {
+            const auto* q = &q_data[(h * seq_q + i) * head_size];
+            float max_logit = sink;
+            for (int j = 0; j < seq_kv; ++j) {
+                const auto* k = &k_data[(h * seq_kv + j) * head_size];
+                float dot = 0.0f;
+                for (int d = 0; d < head_size; ++d) {
+                    dot += static_cast<float>(q[d]) * static_cast<float>(k[d]);
+                }
+                logits[j] = dot * static_cast<float>(scale);
+                max_logit = std::max(max_logit, logits[j]);
+            }
+            float denom = std::exp(sink - max_logit);
+            for (int j = 0; j < seq_kv; ++j) {
+                logits[j] = std::exp(logits[j] - max_logit);
+                denom += logits[j];
+            }
+            auto* out = &expected[(h * seq_q + i) * head_size];
+            for (int j = 0; j < seq_kv; ++j) {
+                const auto* v = &v_data[(h * seq_kv + j) * head_size];
+                for (int d = 0; d < head_size; ++d) {
+                    out[d] += logits[j] / denom * static_cast<float>(v[d]);
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_NEAR(expected[i], out_ptr[i], 2e-3f) << "index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_sink,
+                         sdpa_gpu_sink_test,
+                         ::testing::Combine(::testing::Bool(), ::testing::Values(32, 300)),
+                         sdpa_gpu_sink_test::PrintToStringParamName);
+
 struct micro_sdpa_prefetch_k_params {
     int head_size;
     int num_heads;
