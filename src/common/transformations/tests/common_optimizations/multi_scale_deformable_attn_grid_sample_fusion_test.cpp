@@ -2,31 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/op/add.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/grid_sample.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/parameter.hpp>
-#include <openvino/op/reduce_sum.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/result.hpp>
-#include <openvino/op/squeeze.hpp>
-#include <openvino/op/transpose.hpp>
-#include <openvino/op/variadic_split.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/msda.hpp>
-#include <transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.hpp>
+#include <sstream>
+#include <string>
+#include <tuple>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/grid_sample.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "ov_ops/msda.hpp"
 
-using namespace testing;
 using namespace ov;
 
 namespace {
@@ -74,7 +75,7 @@ size_t level_w(size_t l) {
 // Multiply and last-axis ReduceSum followed by the output projection
 // Transpose([0,2,1]). Parameters: [0] value, [1] locations, [2] weights,
 // [3] optional second value source.
-std::shared_ptr<ov::Model> build_pattern(const PatternParams& p) {
+std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
     namespace v0 = ov::op::v0;
     namespace v1 = ov::op::v1;
     namespace v8 = ov::op::v8;
@@ -192,134 +193,148 @@ std::shared_ptr<ov::Model> build_pattern(const PatternParams& p) {
     return std::make_shared<ov::Model>(OutputVector{output}, params, "MSDAGridSamplePattern");
 }
 
-std::shared_ptr<ov::op::internal::MSDA> msda_of(const std::shared_ptr<ov::Model>& model) {
-    for (auto& op : model->get_ops())
-        if (ov::is_type<ov::op::internal::MSDA>(op))
-            return ov::as_type_ptr<ov::op::internal::MSDA>(op);
-    return nullptr;
-}
+// The MSDA the fusion produces for getModel(p): value, the level sizes and
+// start offsets, the [0,1] locations and the weights operand.
+std::shared_ptr<ov::Model> getModelRef(const PatternParams& p) {
+    namespace v0 = ov::op::v0;
+    namespace v1 = ov::op::v1;
 
-size_t run_fusion(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::MultiScaleDeformableAttnGridSampleFusion>();
-    manager.run_passes(model);
-    return count_ops_of_type<ov::op::internal::MSDA>(model);
+    size_t keys = 0;
+    std::vector<int32_t> spatial_shapes, level_starts;
+    for (size_t l = 0; l < p.levels; ++l) {
+        spatial_shapes.push_back(static_cast<int32_t>(level_h(l)));
+        spatial_shapes.push_back(static_cast<int32_t>(level_w(l)));
+        level_starts.push_back(static_cast<int32_t>(keys));
+        keys += level_h(l) * level_w(l);
+    }
+    auto value = std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, keys, p.heads, p.embed});
+    auto locations =
+        std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, p.queries, p.heads, p.levels, p.points, 2});
+    auto weights =
+        std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, p.queries, p.heads, p.levels, p.points});
+    auto weights_value = std::make_shared<v1::Reshape>(
+        weights,
+        i64_const({int64_t(p.batch), int64_t(p.queries), int64_t(p.heads), int64_t(p.levels), int64_t(p.points)}),
+        true);
+    auto msda = std::make_shared<ov::op::internal::MSDA>(
+        OutputVector{value,
+                     v0::Constant::create(element::i32, Shape{p.levels, 2}, spatial_shapes),
+                     v0::Constant::create(element::i32, Shape{p.levels}, level_starts),
+                     locations,
+                     weights_value});
+    return std::make_shared<ov::Model>(OutputVector{msda}, ParameterVector{value, locations, weights});
 }
 
 }  // namespace
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, four_levels_four_points) {
-    PatternParams p;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 1);
-    EXPECT_EQ(count_ops_of_type<ov::op::v9::GridSample>(model), 0);
-    // The [0,1] locations parameter feeds MSDA directly.
-    const auto msda = msda_of(model);
-    ASSERT_NE(msda, nullptr);
-    EXPECT_TRUE(ov::is_type<T::Parameter>(msda->get_input_node_ptr(3)));
-}
+class MultiScaleDeformableAttnGridSampleFusionTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::pass::MultiScaleDeformableAttnGridSampleFusion>();
+    }
+};
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, three_levels_two_points) {
-    PatternParams p;
-    p.levels = 3;
-    p.points = 2;
-    p.heads = 3;
-    p.embed = 16;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 1);
-    EXPECT_EQ(count_ops_of_type<ov::op::v9::GridSample>(model), 0);
-}
+// levels, points, heads, channels per head, Gather with a [1] index and Squeeze
+using FusionParams = std::tuple<size_t, size_t, size_t, size_t, bool>;
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, single_level) {
-    PatternParams p;
-    p.levels = 1;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 1);
-    EXPECT_EQ(count_ops_of_type<ov::op::v9::GridSample>(model), 0);
-}
+class MultiScaleDeformableAttnGridSampleFusionFused : public MultiScaleDeformableAttnGridSampleFusionTest,
+                                                      public testing::WithParamInterface<FusionParams> {
+public:
+    MultiScaleDeformableAttnGridSampleFusionFused() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_wrong_normalization) {
-    // Add(Multiply(x, 3), -1) does not map [0,1] to the GridSample coordinate
-    // range, so the pattern must be rejected.
+    static std::string getTestCaseName(const testing::TestParamInfo<FusionParams>& info) {
+        const auto& [levels, points, heads, embed, squeezed] = info.param;
+        std::ostringstream name;
+        name << "levels=" << levels << "_points=" << points << "_heads=" << heads << "_embed=" << embed
+             << (squeezed ? "_squeezed_index" : "_scalar_index");
+        return name.str();
+    }
+
+protected:
+    void SetUp() override {
+        MultiScaleDeformableAttnGridSampleFusionTest::SetUp();
+        PatternParams p;
+        std::tie(p.levels, p.points, p.heads, p.embed, p.squeezed_level_index) = GetParam();
+        model = getModel(p);
+        model_ref = getModelRef(p);
+    }
+};
+
+TEST_P(MultiScaleDeformableAttnGridSampleFusionFused, Fused) {}
+
+INSTANTIATE_TEST_SUITE_P(MultiScaleDeformableAttnGridSampleFusion,
+                         MultiScaleDeformableAttnGridSampleFusionFused,
+                         testing::Values(FusionParams{4, 4, 2, 32, false},
+                                         FusionParams{3, 2, 3, 16, false},
+                                         FusionParams{1, 4, 2, 32, false},
+                                         FusionParams{4, 4, 2, 32, true},
+                                         FusionParams{2, 2, 2, 16, true}),
+                         MultiScaleDeformableAttnGridSampleFusionFused::getTestCaseName);
+
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, WrongNormalization) {
+    // Add(Multiply(x, 3), -1) does not map [0,1] to the GridSample coordinate range.
     PatternParams p;
     p.wrong_normalization = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
+    model = getModel(p);
 }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_dynamic_value) {
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, DynamicValue) {
     PatternParams p;
     p.dynamic_value = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
-    EXPECT_EQ(count_ops_of_type<ov::op::v9::GridSample>(model), p.levels);
+    model = getModel(p);
 }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_align_corners) {
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, AlignCorners) {
     PatternParams p;
     p.align_corners = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
+    model = getModel(p);
 }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_nearest_mode) {
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, NearestMode) {
     PatternParams p;
     p.mode = ov::op::v9::GridSample::InterpolationMode::NEAREST;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
+    model = getModel(p);
 }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_mismatched_ancestry) {
-    // The second level samples a different value tensor.
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, LevelsSampleDifferentValues) {
     PatternParams p;
     p.foreign_second_level_value = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
+    model = getModel(p);
 }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_wrong_coords_order) {
-    // Transpose([0,1,2,3,4]) keeps the coordinate Reshape valid but feeds
-    // GridSample a different location order than MSDA reads.
+// The remaining graphs are shape compatible with the pattern but read the
+// elements in a different order than MSDA.
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, WrongCoordsOrder) {
     PatternParams p;
     p.wrong_coords_order = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
+    model = getModel(p);
 }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_wrong_weights_order) {
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, WrongWeightsOrder) {
     PatternParams p;
     p.wrong_weights_order = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
+    model = getModel(p);
 }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_swapped_level_locations) {
-    // Level l samples the locations of another level.
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, SwappedLevelLocations) {
     PatternParams p;
     p.levels = 2;
     p.points = 2;
     p.swapped_level_locations = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
+    model = getModel(p);
 }
 
-TEST(MultiScaleDeformableAttnGridSampleFusion, squeezed_level_index) {
-    PatternParams p;
-    p.squeezed_level_index = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 1);
-    EXPECT_EQ(count_ops_of_type<ov::op::v9::GridSample>(model), 0);
-}
-
-TEST(MultiScaleDeformableAttnGridSampleFusion, negative_squeezed_swapped_level_locations) {
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, SwappedLevelLocationsSqueezedIndex) {
     PatternParams p;
     p.squeezed_level_index = true;
     p.swapped_level_locations = true;
-    auto model = build_pattern(p);
-    EXPECT_EQ(run_fusion(model), 0);
+    model = getModel(p);
 }
 
-TEST(MSDAInternalOp, dynamic_rank_inputs) {
+TEST(MSDAInternalOp, DynamicRankInputs) {
     auto value = std::make_shared<T::Parameter>(element::f32, PartialShape::dynamic());
     auto shapes = T::Constant::create(element::i32, Shape{1, 2}, {4, 5});
     auto starts = T::Constant::create(element::i32, Shape{1}, {0});
@@ -329,7 +344,7 @@ TEST(MSDAInternalOp, dynamic_rank_inputs) {
     EXPECT_EQ(msda->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 7, Dimension::dynamic()}));
 }
 
-TEST(MSDAInternalOp, rejects_wrong_value_rank) {
+TEST(MSDAInternalOp, WrongValueRank) {
     auto value = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 20, 16});
     auto shapes = T::Constant::create(element::i32, Shape{1, 2}, {4, 5});
     auto starts = T::Constant::create(element::i32, Shape{1}, {0});

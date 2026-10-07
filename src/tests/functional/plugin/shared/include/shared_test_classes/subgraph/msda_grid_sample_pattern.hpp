@@ -3,22 +3,24 @@
 //
 #pragma once
 
-#include "common_test_utils/test_constants.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include <string>
+
+#include "shared_test_classes/subgraph/msda_pattern.hpp"
 
 namespace ov {
 namespace test {
 
-// GridSample based multi-scale deformable attention with a non-default
-// geometry (3 levels x 2 points, 2 heads) fused into the internal MSDA op by
-// the GPU plugin pipeline.
-class MSDAGridSamplePattern : public ov::test::SubgraphBaseTest {
+// VariadicSplit and Gather based formulation of multi-scale deformable
+// attention, as exported for Deformable-DETR, GroundingDINO and RT-DETR: the
+// levels are VariadicSplit outputs of value and take their locations with a
+// scalar Gather index.
+class MSDAGridSamplePattern : public SubgraphBaseTest, public testing::WithParamInterface<MSDAPatternParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MSDAPatternParams>& obj);
+
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    size_t expected_msda_count() const {
-        return 1;
-    }
 };
 
 }  // namespace test

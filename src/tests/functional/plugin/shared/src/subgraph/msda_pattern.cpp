@@ -1,243 +1,144 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "shared_test_classes/subgraph/msda_pattern.hpp"
 
-#include <gtest/gtest.h>
-
 #include <memory>
-#include <openvino/pass/serialize.hpp>
-#include <openvino/runtime/core.hpp>
+#include <sstream>
+#include <vector>
 
-#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/pass/manager.hpp"
-#include "ov_ops/msda.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/grid_sample.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {
 
-#define NUM_HEAD 1
+namespace {
 
-using namespace ov::opset10;
+std::shared_ptr<ov::op::v0::Constant> i64_const(const std::vector<int64_t>& v) {
+    return ov::op::v0::Constant::create(element::i64, ov::Shape{v.size()}, v);
+}
 
-void MSDAPattern::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+}  // namespace
+
+std::string msda_shapes_to_string(const MSDAShapes& shapes) {
+    std::ostringstream result;
+    result << "levels=";
+    for (size_t l = 0; l < shapes.levels.size(); ++l)
+        result << (l ? "_" : "") << shapes.levels[static_cast<size_t>(l)].first << "x"
+               << shapes.levels[static_cast<size_t>(l)].second;
+    result << ",B=" << shapes.batch << ",Q=" << shapes.queries << ",H=" << shapes.heads << ",D=" << shapes.embed
+           << ",P=" << shapes.points;
+    return result.str();
+}
+
+void msda_generate_inputs(const std::shared_ptr<ov::Model>& model,
+                          const std::vector<ov::Shape>& shapes,
+                          std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
     inputs.clear();
-    const auto& funcInputs = function->inputs();
-
-    for (size_t i = 0; i < funcInputs.size(); ++i) {
-        const auto& param = funcInputs[i];
-        const ov::Shape& shape = targetInputStaticShapes[i];
-        const auto& dtype = param.get_element_type();
-
-        ov::Tensor tensor(dtype, shape);
-
-        if (i == 0) {
-            auto* data = tensor.data<float>();
-            std::fill(data, data + tensor.get_size(), 1.3f);
-
-        } else if (i == 2) {
-            auto* data = tensor.data<float>();
-            std::fill(data, data + tensor.get_size(), 1.0f);
-
-        } else if (i == 1) {
-            auto* data = tensor.data<float>();
-            const size_t total = tensor.get_size();
-            for (size_t j = 0; j < total; ++j) {
-                data[j] = static_cast<float>(j) / static_cast<float>(total - 1);
-            }
-        }
-        inputs[param.get_node_shared_ptr()] = tensor;
+    const auto& params = model->inputs();
+    for (size_t i = 0; i < params.size(); ++i) {
+        ov::Tensor tensor(params[i].get_element_type(), shapes[i]);
+        auto* data = tensor.data<float>();
+        // Input 1 holds the sampling locations.
+        const float lo = (i == 1) ? 0.05f : -1.f;
+        const float hi = (i == 1) ? 0.95f : 1.f;
+        for (size_t j = 0; j < tensor.get_size(); ++j)
+            data[j] = lo + (hi - lo) * (static_cast<float>((j * 17 + i * 31) % 101) / 100.f);
+        inputs[params[i].get_node_shared_ptr()] = tensor;
     }
 }
 
-std::shared_ptr<ov::Node> build_grid_sample_block(const std::shared_ptr<ov::Node>& attn_Reshape,
-                                                  const std::shared_ptr<ov::Node>& attn_Sub,
-                                                  std::initializer_list<int> slice_start,
-                                                  std::initializer_list<int> slice_end,
-                                                  std::initializer_list<int> scale_size,
-                                                  std::initializer_list<int> sub_indices,
-                                                  std::initializer_list<int> sub_axis) {
-    using namespace ov::opset10;
-
-    auto Constant_124164 = Constant::create(element::i64, Shape{slice_start.size()}, slice_start);
-    auto Constant_125832 = Constant::create(element::i64, Shape{slice_end.size()}, slice_end);
-    auto Constant_124170 = Constant::create(element::i64, Shape{2}, {1, 1});
-    auto attn_Slice = std::make_shared<StridedSlice>(attn_Reshape,
-                                                     Constant_124164,
-                                                     Constant_125832,
-                                                     Constant_124170,
-                                                     std::vector<int64_t>{1, 0},
-                                                     std::vector<int64_t>{1, 0});
-    auto attn_Reshape_4 =
-        std::make_shared<Reshape>(attn_Slice, Constant::create(element::i64, Shape{3}, {0, 0, 256}), true);
-    auto attn_Transpose =
-        std::make_shared<Transpose>(attn_Reshape_4, Constant::create(element::i64, Shape{3}, {0, 2, 1}));
-    // [?,256,16700] [?,256,4200] [?,256,1050] [?,256,273] =>
-    // {-1,32,100,167}  {-1,32,50,84} {-1,32,25,42} {-1,32,13,21}
-    auto attn_Reshape_5 =
-        std::make_shared<Reshape>(attn_Transpose,
-                                  Constant::create(element::i64, Shape{scale_size.size()}, scale_size),
-                                  true);
-
-    // [1,22223,8,1,4,2] ?? [1,22223,8,4,2] ??
-    auto attn_Gather_9 =
-        std::make_shared<Gather>(attn_Sub,
-                                 Constant::create(element::i64, Shape{sub_indices.size()}, sub_indices),
-                                 Constant::create(element::i64, Shape{sub_axis.size()}, sub_axis),
-                                 0);
-    auto attn_squeeze =
-        std::make_shared<Squeeze>(attn_Gather_9, Constant::create(element::i64, Shape{1}, sub_axis));  // FIXME???
-    auto attn_Transpose_1 =
-        std::make_shared<Transpose>(attn_squeeze, Constant::create(element::i64, Shape{5}, {0, 2, 1, 3, 4}));
-    auto attn_Reshape_6 =
-        std::make_shared<Reshape>(attn_Transpose_1, Constant::create(element::i64, Shape{4}, {-1, 22223, 4, 2}), true);
-    GridSample::Attributes attributes = {false,
-                                         GridSample::InterpolationMode::BILINEAR,
-                                         GridSample::PaddingMode::ZEROS};
-    auto attn_GridSample = std::make_shared<GridSample>(attn_Reshape_5, attn_Reshape_6, attributes);
-    auto attn_Unsqueeze_31 = std::make_shared<Reshape>(attn_GridSample,
-                                                       Constant::create(element::i64, Shape{5}, {-1, 32, 22223, 1, 4}),
-                                                       false);
-
-    return attn_Unsqueeze_31;
+std::string MSDAPattern::getTestCaseName(const testing::TestParamInfo<MSDAPatternParams>& obj) {
+    const auto& [shapes, device] = obj.param;
+    return msda_shapes_to_string(shapes) + ",targetDevice=" + device;
 }
 
-std::shared_ptr<ov::Node> build_concated_grid_samplers(const std::shared_ptr<ov::Node>& attn_value,
-                                                       const std::shared_ptr<ov::Node>& attn_offsets) {
-    using namespace ov::opset10;
-
-    auto attn_Mul = std::make_shared<Multiply>(attn_offsets,
-                                               Constant::create(element::f32,
-                                                                Shape{
-                                                                    1,
-                                                                    1,
-                                                                    1,
-                                                                    1,
-                                                                    1,
-                                                                    1,
-                                                                },
-                                                                {2}));
-    auto attn_Sub = std::make_shared<Add>(attn_Mul,
-                                          Constant::create(element::f32,
-                                                           Shape{
-                                                               1,
-                                                               1,
-                                                               1,
-                                                               1,
-                                                               1,
-                                                               1,
-                                                           },
-                                                           {-1}));
-    attn_Sub->set_friendly_name("attn_Sub");
-
-    // 0
-    auto attn_Unsqueeze_31 =
-        build_grid_sample_block(attn_value, attn_Sub, {0, 0}, {0, 16700}, {-1, 32, 100, 167}, {0}, {3});
-
-    // 1
-    auto attn_Unsqueeze_32 =
-        build_grid_sample_block(attn_value, attn_Sub, {0, 16700}, {0, 20900}, {-1, 32, 50, 84}, {1}, {3});
-
-    // 2
-    auto attn_Unsqueeze_33 =
-        build_grid_sample_block(attn_value, attn_Sub, {0, 20900}, {0, 21950}, {-1, 32, 25, 42}, {2}, {3});
-
-    // 3
-    auto attn_Unsqueeze_34 =
-        build_grid_sample_block(attn_value, attn_Sub, {0, 21950}, {0, 22223}, {-1, 32, 13, 21}, {3}, {3});
-
-    auto attn_Concat_17 = std::make_shared<Concat>(
-        ov::NodeVector{attn_Unsqueeze_31, attn_Unsqueeze_32, attn_Unsqueeze_33, attn_Unsqueeze_34},
-        -2);  //  tensor_array<f16[?,32,22223,4,4]>
-              //  /encoder/layers.1/self_attn/Concat_17(/encoder/layers.1/self_attn/Unsqueeze_31,
-              //  /encoder/layers.1/self_attn/Unsqueeze_32, /encoder/layers.1/self_attn/Unsqueeze_33,
-              //  /encoder/layers.1/self_attn/Unsqueeze_34)
-    auto attn_Reshape_17 = std::make_shared<Reshape>(
-        attn_Concat_17,
-        Constant::create(element::i64, Shape{4}, {0, 32, 0, 16}),
-        true);  //  tensor_array<f16[?,32,22223,16]>
-                //  /encoder/layers.1/self_attn/Reshape_17(/encoder/layers.1/self_attn/Concat_17, Constant_650341)
-
-    return attn_Reshape_17;
-}
-
-std::shared_ptr<ov::Node> build_attn_aggregate(const std::shared_ptr<ov::Node>& input_attn_weight,
-                                               const std::shared_ptr<ov::Node>& grid_sample) {
-    using namespace ov::opset10;
-    auto attn_Transpose_8 = std::make_shared<Transpose>(
-        input_attn_weight,
-        Constant::create(
-            element::i64,
-            Shape{5},
-            {0, 2, 1, 3, 4}));  //  tensor_array<f16[?,8,22223,4,4]>
-                                //  /encoder/layers.1/self_attn/Transpose_8(/encoder/layers.1/self_attn/Reshape_3,
-                                //  Constant_51230)
-    auto attn_Reshape_16 = std::make_shared<Reshape>(
-        attn_Transpose_8,
-        Constant::create(element::i64, Shape{4}, {-1, 1, 0, 16}),
-        true);  //  tensor_array<f16[?,1,22223,16]>
-                //  /encoder/layers.1/self_attn/Reshape_16(/encoder/layers.1/self_attn/Transpose_8, Constant_650344)
-    auto attn_Mul_3 = std::make_shared<Multiply>(
-        grid_sample,
-        attn_Reshape_16,
-        "numpy");  //  tensor_array<f16[?,32,22223,16]>
-                   //  /encoder/layers.1/self_attn/Mul_3(/encoder/layers.1/self_attn/Reshape_17,
-                   //  /encoder/layers.1/self_attn/Reshape_16)
-    auto attn_ReduceSum = std::make_shared<ReduceSum>(
-        attn_Mul_3,
-        Constant::create(element::i64, Shape{1}, {-1}),
-        false);  //  tensor_array<f16[?,32,22223]>
-                 //  /encoder/layers.1/self_attn/ReduceSum(/encoder/layers.1/self_attn/Mul_3, Constant_62256)
-    auto attn_Reshape_18 = std::make_shared<Reshape>(
-        attn_ReduceSum,
-        Constant::create(element::i64, Shape{3}, {-1, 256, 0}),
-        true);  //  tensor_array<f16[?,256,22223]>
-                //  /encoder/layers.1/self_attn/Reshape_18(/encoder/layers.1/self_attn/ReduceSum, Constant_650345)
-    auto attn_output_proj_MatMul_transpose_a = std::make_shared<Transpose>(
-        attn_Reshape_18,
-        Constant::create(
-            element::i64,
-            Shape{3},
-            {0,
-             2,
-             1}));  //  tensor_array<f16[?,22223,256]>
-                    //  /encoder/layers.1/self_attn/output_proj/MatMul/transpose_a(/encoder/layers.1/self_attn/Reshape_18,
-                    //  Constant_48800)
-    return attn_output_proj_MatMul_transpose_a;
-}
-
-std::shared_ptr<ov::Model> build_model_msda(ov::PartialShape value_shape,
-                                            ov::PartialShape offset_shape,
-                                            ov::PartialShape weight_shape) {
-    using namespace ov::opset10;
-
-    auto input_attn_value = std::make_shared<Parameter>(element::f32, value_shape);
-    auto input_attn_offsets = std::make_shared<Parameter>(element::f32, offset_shape);
-    auto input_attn_weight = std::make_shared<Parameter>(element::f32, weight_shape);
-
-    auto grid_sample_1 = build_concated_grid_samplers(input_attn_value, input_attn_offsets);
-    auto attn_Transpose_1 = build_attn_aggregate(input_attn_weight, grid_sample_1);
-    grid_sample_1->set_friendly_name("grid_sample_1");
-    attn_Transpose_1->set_friendly_name("attn_output_proj_MatMul_transpose_a_1");
-
-    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attn_Transpose_1)},
-                                       ParameterVector{input_attn_value, input_attn_offsets, input_attn_weight},
-                                       "MSDA_Pattern_Model");
+void MSDAPattern::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    msda_generate_inputs(function, targetInputStaticShapes, inputs);
 }
 
 void MSDAPattern::SetUp() {
-    // The GPU MSDA primitive is implemented for static shapes only.
-    ov::PartialShape value_shape = PartialShape{1, 22223, 8, 32};
-    ov::PartialShape offset_shape = PartialShape{1, 22223, 8, 4, 4, 2};
-    ov::PartialShape weight_shape = PartialShape{1, 22223, 8, 4, 4};
-    InputShape input_value_shape = {value_shape, {Shape{1, 22223, 8, 32}}};
-    InputShape input_offset_shape = {offset_shape, {Shape{1, 22223, 8, 4, 4, 2}}};
-    InputShape input_weight_shape = {weight_shape, {Shape{1, 22223, 8, 4, 4}}};
-    init_input_shapes({input_value_shape, input_offset_shape, input_weight_shape});
-    targetDevice = ov::test::utils::DEVICE_GPU;
-    function = build_model_msda(value_shape, offset_shape, weight_shape);
+    const auto& [shapes, device] = GetParam();
+    targetDevice = device;
+    const auto Q = static_cast<int64_t>(shapes.queries);
+    const auto H = static_cast<int64_t>(shapes.heads), D = static_cast<int64_t>(shapes.embed);
+    const auto P = static_cast<int64_t>(shapes.points), L = static_cast<int64_t>(shapes.levels.size());
+    int64_t keys = 0;
+    for (const auto& [h, w] : shapes.levels)
+        keys += static_cast<int64_t>(h * w);
+
+    const ov::Shape value_shape{shapes.batch, static_cast<size_t>(keys), shapes.heads, shapes.embed};
+    const ov::Shape locations_shape{shapes.batch, shapes.queries, shapes.heads, shapes.levels.size(), shapes.points, 2};
+    const ov::Shape weights_shape{shapes.batch, shapes.queries, shapes.heads, shapes.levels.size(), shapes.points};
+    auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, value_shape);
+    auto locations = std::make_shared<ov::op::v0::Parameter>(element::f32, locations_shape);
+    auto weights = std::make_shared<ov::op::v0::Parameter>(element::f32, weights_shape);
+
+    const ov::Shape scalar_6d{1, 1, 1, 1, 1, 1};
+    auto scaled =
+        std::make_shared<ov::op::v1::Multiply>(locations, ov::op::v0::Constant::create(element::f32, scalar_6d, {2}));
+    auto coords =
+        std::make_shared<ov::op::v1::Add>(scaled, ov::op::v0::Constant::create(element::f32, scalar_6d, {-1}));
+
+    ov::OutputVector level_outputs;
+    int64_t start = 0;
+    for (int64_t l = 0; l < L; ++l) {
+        const auto h = static_cast<int64_t>(shapes.levels[static_cast<size_t>(l)].first);
+        const auto w = static_cast<int64_t>(shapes.levels[static_cast<size_t>(l)].second);
+        auto slice = std::make_shared<ov::op::v1::StridedSlice>(value,
+                                                                i64_const({0, start}),
+                                                                i64_const({0, start + h * w}),
+                                                                i64_const({1, 1}),
+                                                                std::vector<int64_t>{1, 0},
+                                                                std::vector<int64_t>{1, 0});
+        auto image_flat = std::make_shared<ov::op::v1::Reshape>(slice, i64_const({0, 0, H * D}), true);
+        auto image_transpose = std::make_shared<ov::op::v1::Transpose>(image_flat, i64_const({0, 2, 1}));
+        auto image = std::make_shared<ov::op::v1::Reshape>(image_transpose, i64_const({-1, D, h, w}), true);
+
+        auto gathered = std::make_shared<ov::op::v8::Gather>(coords, i64_const({l}), i64_const({3}), 0);
+        auto squeezed = std::make_shared<ov::op::v0::Squeeze>(gathered, i64_const({3}));
+        auto coords_transpose = std::make_shared<ov::op::v1::Transpose>(squeezed, i64_const({0, 2, 1, 3, 4}));
+        auto grid_coords = std::make_shared<ov::op::v1::Reshape>(coords_transpose, i64_const({-1, Q, P, 2}), true);
+
+        ov::op::v9::GridSample::Attributes attributes{false,
+                                                      ov::op::v9::GridSample::InterpolationMode::BILINEAR,
+                                                      ov::op::v9::GridSample::PaddingMode::ZEROS};
+        auto grid = std::make_shared<ov::op::v9::GridSample>(image, grid_coords, attributes);
+        level_outputs.push_back(std::make_shared<ov::op::v1::Reshape>(grid, i64_const({-1, D, Q, 1, P}), false));
+        start += h * w;
+    }
+
+    auto concat = std::make_shared<ov::op::v0::Concat>(level_outputs, -2);
+    auto values = std::make_shared<ov::op::v1::Reshape>(concat, i64_const({0, D, 0, L * P}), true);
+    auto weights_transpose = std::make_shared<ov::op::v1::Transpose>(weights, i64_const({0, 2, 1, 3, 4}));
+    auto weights_reshape = std::make_shared<ov::op::v1::Reshape>(weights_transpose, i64_const({-1, 1, 0, L * P}), true);
+    auto weighted = std::make_shared<ov::op::v1::Multiply>(values, weights_reshape);
+    auto reduce = std::make_shared<ov::op::v1::ReduceSum>(weighted, i64_const({-1}), false);
+    auto heads_output = std::make_shared<ov::op::v1::Reshape>(reduce, i64_const({-1, H * D, 0}), true);
+    auto output = std::make_shared<ov::op::v1::Transpose>(heads_output, i64_const({0, 2, 1}));
+
+    function = std::make_shared<ov::Model>(ov::OutputVector{output},
+                                           ov::ParameterVector{value, locations, weights},
+                                           "MSDAPattern");
+    // The fused kernel computes the pixel coordinates as x * W - 0.5 instead of
+    // GridSample's ((2 * x - 1 + 1) * W - 1) / 2 and accumulates the samples in
+    // another order, which differs from the reference by f32 rounding only.
+    abs_threshold = 1e-5f;
+    rel_threshold = 1e-5f;
+    init_input_shapes(static_shapes_to_test_representation({value_shape, locations_shape, weights_shape}));
 }
 
 }  // namespace test

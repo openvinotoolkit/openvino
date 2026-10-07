@@ -8,17 +8,10 @@
 namespace ov {
 namespace test {
 
-TEST_F(MSDAGridSamplePattern, Inference) {
+TEST_P(MSDAGridSamplePattern, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    // The pattern must be fused into a single MSDA primitive on the GPU.
-    size_t msda_nodes = 0;
-    for (const auto& op : compiledModel.get_runtime_model()->get_ops()) {
-        const auto rt = op->get_rt_info();
-        const auto it = rt.find("layerType");
-        if (it != rt.end() && it->second.as<std::string>().find("msda") != std::string::npos)
-            ++msda_nodes;
-    }
-    EXPECT_EQ(msda_nodes, expected_msda_count());
+    CheckNumberOfNodesWithType(compiledModel, "msda", 1);
 }
 
 }  // namespace test
