@@ -996,6 +996,65 @@ TEST_P(DisableIdleMemoryPruningPropertyTests, MergedConfigurationDoesNotChangeTh
     ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>());
 }
 
+// DEVICE_ARCHITECTURE must always report the name of the resolved device, no matter how DEVICE_ID identifies it.
+class DeviceArchitecturePropertyTests : public PropertiesManagerTests {
+protected:
+    std::string expectedArchitecture;
+
+    void SetUp() override {
+        PropertiesManagerTests::SetUp();
+
+        const auto device = backend ? backend->getDevice() : nullptr;
+        if (device == nullptr) {
+            GTEST_SKIP() << "No NPU device available.";
+        }
+        expectedArchitecture = device->getName();
+    }
+
+    std::string getArchitecture(const ov::AnyMap& arguments = {}) const {
+        return propertiesManager->getProperty(ov::device::architecture.name(), arguments).as<std::string>();
+    }
+};
+
+TEST_P(DeviceArchitecturePropertyTests, IsSupported) {
+    ASSERT_TRUE(propertiesManager->isPropertySupported(ov::device::architecture.name()));
+}
+
+TEST_P(DeviceArchitecturePropertyTests, DefaultDeviceReturnsDeviceName) {
+    std::string architecture;
+    OV_ASSERT_NO_THROW(architecture = getArchitecture());
+    ASSERT_FALSE(architecture.empty());
+    ASSERT_EQ(architecture, expectedArchitecture);
+}
+
+TEST_P(DeviceArchitecturePropertyTests, DeviceIdAsIndexArgumentReturnsDeviceName) {
+    std::string architecture;
+    OV_ASSERT_NO_THROW(architecture = getArchitecture({ov::device::id("0")}));
+    ASSERT_NE(architecture, "0");
+    ASSERT_EQ(architecture, expectedArchitecture);
+}
+
+TEST_P(DeviceArchitecturePropertyTests, DeviceIdAsNameArgumentReturnsDeviceName) {
+    std::string architecture;
+    OV_ASSERT_NO_THROW(architecture = getArchitecture({ov::device::id(expectedArchitecture)}));
+    ASSERT_EQ(architecture, expectedArchitecture);
+}
+
+TEST_P(DeviceArchitecturePropertyTests, DeviceIdAsIndexInConfigReturnsDeviceName) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({ov::device::id("0")}));
+
+    std::string architecture;
+    OV_ASSERT_NO_THROW(architecture = getArchitecture());
+    ASSERT_NE(architecture, "0");
+    ASSERT_EQ(architecture, expectedArchitecture);
+}
+
+TEST_P(DeviceArchitecturePropertyTests, UnknownDeviceIdIsNotSupported) {
+    OV_EXPECT_THROW(getArchitecture({ov::device::id("UNKNOWN_DEVICE")}),
+                    ov::Exception,
+                    HasSubstr("Unsupported configuration key: DEVICE_ARCHITECTURE"));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
@@ -1045,6 +1104,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          DisableIdleMemoryPruningPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         DeviceArchitecturePropertyTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
