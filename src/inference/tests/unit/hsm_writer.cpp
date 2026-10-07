@@ -297,7 +297,7 @@ TEST(HsmWriterTest, rejects_inline_payload_exceeding_entry_capacity) {
     std::stringstream stream;
     auto writer = open_writer(stream);
     const std::string too_big(25, 'x');  // inline capacity is 24 bytes
-    EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(too_big)), ov::AssertFailure);
+    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(too_big)));
 }
 
 TEST(HsmWriterTest, rejects_non_power_of_two_alignment) {

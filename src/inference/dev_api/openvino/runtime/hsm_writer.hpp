@@ -68,6 +68,9 @@ class ISectionWriterHandler;
  * #SectionEncoder overload produces data on demand instead, for a payload with no existing view (e.g.
  * generated, or only transiently alive). @p device is always explicit - pass #any_device_id for a
  * Core-owned section.
+ * @note Tag mode support is asymmetric: an inline @p tag (#SectionTag::is_inline()) is only accepted by
+ * the #ov::util::MemoryView overload; both #SectionEncoder overloads are pointer-mode only and reject
+ * an inline @p tag.
  */
 class OPENVINO_RUNTIME_API IWriter {
 public:
@@ -93,6 +96,7 @@ public:
      * @brief Adds a section owned by @p device whose content is produced on demand by @p encode, for a
      * payload that doesn't exist as a view yet (e.g. generated, or assembled piecemeal) - avoids an
      * intermediate allocation just to call the view overload.
+     * @note Pointer-mode only; see the view overload for inline-mode.
      * @note @p encode is invoked at most once per finalization attempt - see #finalize()'s note on how
      * a repeated call, or a call after an exception, is handled by the concrete implementation. It must
      * write exactly @p size bytes to `sink` (across one or more calls) - never buffer a copy of its own
@@ -103,8 +107,8 @@ public:
      * @param size The size of the section's payload.
      * @param encode The encoder that produces the section's content.
      * @param align The alignment requirements for the section.
-     * @return true if the section was added; false if the destination has run out of room or the write
-     * failed.
+     * @return true if the section was added; false if @p tag is inline, the destination has run out of
+     * room, or the write failed.
      */
     virtual bool add_section(DeviceId device,
                              SectionTagReserved tag,
@@ -126,8 +130,8 @@ public:
      * @param tag The section tag.
      * @param encode The encoder that produces the section's content.
      * @param align The alignment requirements for the section.
-     * @return true if the section was added; false if the destination has run out of room or the write
-     * failed.
+     * @return true if the section was added; false if @p tag is inline, the destination has run out of
+     * room, or the write failed.
      */
     virtual bool add_section(DeviceId device,
                              SectionTagReserved tag,

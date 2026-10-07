@@ -328,14 +328,15 @@ bool DeferredWriter::add_section(DeviceId device,
                                  SectionTagReserved tag,
                                  ov::util::MemoryView payload,
                                  SectionAlignment align) {
-    if (tag.is_inline()) {
-        OPENVINO_ASSERT(payload.size() <= k_inline_capacity,
-                        "HSM inline section payload exceeds the manifest entry's inline capacity");
-        m_sections.emplace_back(align, payload, device, tag);
-    } else {
+    if (tag.is_pointer())                                    {
         m_sections.emplace_back(resolve_alignment(align), payload, device, tag);
+        return true;
+    } else if (payload.size() <= k_inline_capacity) {
+        m_sections.emplace_back(align, payload, device, tag);
+        return true;
+    } else {
+        return false;
     }
-    return true;
 }
 
 bool DeferredWriter::add_section(DeviceId device,
@@ -343,21 +344,29 @@ bool DeferredWriter::add_section(DeviceId device,
                                  size_t size,
                                  SectionEncoder encode,
                                  SectionAlignment align) {
-    OPENVINO_ASSERT(!tag.is_inline(), "HSM fill-in-place sections must be pointer-mode");
-    const auto resolved = resolve_alignment(align);
-    m_sections.emplace_back(resolved, PendingEncode{size, std::move(encode)}, device, tag);
-    return true;
+    OPENVINO_DEBUG_ASSERT(!tag.is_inline(), "HSM fill-in-place sections must be pointer-mode");
+    if (tag.is_inline()) {
+        return false;
+    } else {
+        const auto resolved = resolve_alignment(align);
+        m_sections.emplace_back(resolved, PendingEncode{size, std::move(encode)}, device, tag);
+        return true;
+    }
 }
 
 bool DeferredWriter::add_section(DeviceId device,
                                  SectionTagReserved tag,
                                  SectionEncoder encode,
                                  SectionAlignment align) {
-    OPENVINO_ASSERT(!tag.is_inline(), "HSM fill-in-place sections must be pointer-mode");
-    const auto resolved = resolve_alignment(align);
-    m_sections.emplace_back(resolved, std::move(encode), device, tag);
-    m_has_unsized_section = true;
-    return true;
+    OPENVINO_DEBUG_ASSERT(!tag.is_inline(), "HSM fill-in-place sections must be pointer-mode");
+    if (tag.is_inline()) {
+        return false;
+    } else {
+        const auto resolved = resolve_alignment(align);
+        m_sections.emplace_back(resolved, std::move(encode), device, tag);
+        m_has_unsized_section = true;
+        return true;
+    }
 }
 
 std::error_code DeferredWriter::finalize() {

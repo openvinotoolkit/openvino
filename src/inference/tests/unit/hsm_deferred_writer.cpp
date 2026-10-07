@@ -214,19 +214,33 @@ TEST(HsmDeferredWriterTest, finalize_reports_write_failed_when_the_stream_is_alr
 
 // --- add_section() validates its inputs ---
 
-TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_an_inline_mode_tag) {
+#ifndef NDEBUG
+TEST(HsmDeferredWriterTest, sized_section_encoder_debug_asserts_on_an_inline_mode_tag) {
     std::stringstream stream;
     auto writer = open_writer(stream);
     EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, 4, [](const hsm::SectionSink&) {}),
                  ov::AssertFailure);
 }
 
-TEST(HsmDeferredWriterTest, unsized_section_encoder_rejects_an_inline_mode_tag) {
+TEST(HsmDeferredWriterTest, unsized_section_encoder_debug_asserts_on_an_inline_mode_tag) {
     std::stringstream stream;
     auto writer = open_writer(stream);
     EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, [](const hsm::SectionSink&) {}),
                  ov::AssertFailure);
 }
+#else
+TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_an_inline_mode_tag) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_id_tag, 4, [](const hsm::SectionSink&) {}));
+}
+
+TEST(HsmDeferredWriterTest, unsized_section_encoder_rejects_an_inline_mode_tag) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_id_tag, [](const hsm::SectionSink&) {}));
+}
+#endif
 
 // --- finalize() semantics ---
 
