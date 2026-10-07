@@ -110,6 +110,15 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         src_strides = get_strides();
         dst_strides = dst->get_strides();
 
+        OPENVINO_ASSERT(src_strides.size() == shape_rank && dst_strides.size() == shape_rank,
+                        "Tensor strides rank must match shape rank for copy_to (src_strides: ",
+                        src_strides.size(),
+                        ", dst_strides: ",
+                        dst_strides.size(),
+                        ", shape: ",
+                        shape_rank,
+                        ")");
+
         ov::Strides src_str, dst_str;
 
         // Calculate src and dst shapes

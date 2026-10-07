@@ -448,17 +448,45 @@ public:
             std::distance(new_shape.cbegin(), new_dim.base()) - 1);
 
         m_shape = std::move(new_shape);
+        update_padded_strides();
     }
 
     size_t get_offset() const {
         return m_offset;
     }
 
+    const Strides& get_strides() const {
+        const auto& owner_strides = m_owner->get_strides();
+        return m_padded_strides.size() == m_shape.size() ? m_padded_strides : owner_strides;
+    }
+
 protected:
+    void update_padded_strides() {
+        const auto& owner_strides = m_owner->get_strides();
+        if (m_shape.size() <= owner_strides.size()) {
+            m_padded_strides.clear();
+            return;
+        }
+        const auto pad = m_shape.size() - owner_strides.size();
+        m_padded_strides.assign(m_shape.size(), 0);
+        if (!owner_strides.empty()) {
+            std::copy(owner_strides.begin(), owner_strides.end(), m_padded_strides.begin() + pad);
+            for (size_t i = pad; i > 0; --i) {
+                m_padded_strides[i - 1] = m_shape[i] * m_padded_strides[i];
+            }
+        } else if (!m_padded_strides.empty()) {
+            m_padded_strides.back() = m_owner->get_element_type().size();
+            for (size_t i = m_padded_strides.size() - 1; i > 0; --i) {
+                m_padded_strides[i - 1] = m_shape[i] * m_padded_strides[i];
+            }
+        }
+    }
+
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
     const Shape m_capacity;
     const size_t m_offset;
+    Strides m_padded_strides;
 };
 
 /**
@@ -475,7 +503,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return BaseRoiTensor::get_strides();
     }
 
     const Shape& get_shape() const override {
@@ -525,7 +553,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return BaseRoiTensor::get_strides();
     }
 
     const Shape& get_shape() const override {

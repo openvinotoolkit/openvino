@@ -693,8 +693,45 @@ TEST_F(OVTensorTest, setShapeExpandRoiRank) {
 
     EXPECT_NO_THROW(roi_tensor.set_shape({1, 1, 2}));
     EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1, 2}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({64, 64, 4}));
+
     EXPECT_NO_THROW(roi_tensor.set_shape({1, 1, 2, 2}));
     EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1, 2, 2}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({128, 128, 64, 4}));
+}
+
+TEST_F(OVTensorTest, copyToExpandedRoiRank) {
+    ov::Tensor owner{ov::element::i64, {1}};
+    ov::Tensor roi{owner, {0}, {1}};
+    ov::Tensor src{ov::element::i64, {1, 1}};
+    src.data<int64_t>()[0] = 42;
+
+    EXPECT_NO_THROW(src.copy_to(roi));
+    EXPECT_EQ(roi.get_shape(), ov::Shape({1, 1}));
+    EXPECT_EQ(roi.get_strides(), ov::Strides({8, 8}));
+    EXPECT_EQ(roi.data<int64_t>()[0], 42);
+
+    ov::Tensor dst{ov::element::i64, {1, 1}};
+    EXPECT_NO_THROW(roi.copy_to(dst));
+    EXPECT_EQ(dst.get_shape(), ov::Shape({1, 1}));
+    EXPECT_EQ(dst.get_strides(), ov::Strides({8, 8}));
+    EXPECT_EQ(dst.data<int64_t>()[0], 42);
+}
+
+TEST_F(OVTensorTest, setShapeExpandScalarRoiRank) {
+    ov::Tensor t{ov::element::i32, {}};
+    t.data<int32_t>()[0] = 99;
+    ov::Tensor roi_tensor{t, {}, {}};
+
+    EXPECT_NO_THROW(roi_tensor.set_shape({1}));
+    EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({4}));
+    EXPECT_EQ(roi_tensor.data<int32_t>()[0], 99);
+
+    EXPECT_NO_THROW(roi_tensor.set_shape({1, 1}));
+    EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({4, 4}));
+    EXPECT_EQ(roi_tensor.data<int32_t>()[0], 99);
 }
 
 TEST_F(OVTensorTest, setShapeInvalidExpandRoiRank) {
