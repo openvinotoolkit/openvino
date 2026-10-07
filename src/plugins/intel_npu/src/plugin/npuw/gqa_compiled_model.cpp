@@ -636,9 +636,11 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     LOG_BLOCK();
     GQA_TRACE("GQACompiledModel::export_model() begin, m_dynamic_kv_cache_axes has " << m_dynamic_kv_cache_axes.size()
                                                                                      << " entries:");
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     for (const auto& [name, axis] : m_dynamic_kv_cache_axes) {
         GQA_TRACE("    '" << name << "' -> axis " << axis);
     }
+#endif
     using namespace ov::npuw::s11n;
     write_header(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
 
@@ -683,9 +685,11 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
 
     GQA_TRACE("    read " << outer_parameters.size() << " outer parameters, " << outer_results.size()
                           << " outer results, " << dynamic_kv_cache_axes.size() << " dynamic-axis entries:");
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     for (const auto& [name, axis] : dynamic_kv_cache_axes) {
         GQA_TRACE("        '" << name << "' -> axis " << axis);
     }
+#endif
 
     auto outer_model =
         std::make_shared<ov::Model>(ov::as_output_vector(outer_results), outer_parameters, "gqa_outer_model");
@@ -810,7 +814,7 @@ void ov::npuw::GQAInferRequest::trace_sequence_length_inputs_locked() const {
             continue;
         }
         const auto& tensor = m_inner_request->get_tensor(map_port_locked(*it));
-        const auto value = ov::npuw::read_scalar_int_tensor(tensor);
+        [[maybe_unused]] const auto value = ov::npuw::read_scalar_int_tensor(tensor);
         GQA_TRACE("pre-infer sequence-length input '" << candidate << "' shape=" << tensor->get_shape() << " value="
                                                       << (value ? std::to_string(*value) : std::string("<n/a>")));
     }
@@ -858,6 +862,7 @@ void ov::npuw::GQAInferRequest::infer() {
         // The app-level error codes (e.g. PsResult::InferenceError) surfaced to the user
         // carry no detail about what actually failed inside OV/the NPU driver -- print the
         // real exception message here before it propagates and gets wrapped away.
+        (void)ex;  // only referenced by GQA_TRACE, a no-op outside NPU_PLUGIN_DEVELOPER_BUILD
         GQA_TRACE("GQAInferRequest::infer() -> inner request infer() THREW: " << ex.what());
         throw;
     } catch (...) {
