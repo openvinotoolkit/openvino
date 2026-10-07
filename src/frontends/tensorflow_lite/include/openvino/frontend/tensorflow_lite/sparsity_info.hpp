@@ -12,9 +12,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 class TENSORFLOW_LITE_FRONTEND_API SparsityInfo : public ov::RuntimeAttribute {
 public:
@@ -131,6 +129,4 @@ private:
     // Unpack sparse tensor and return pointer on unpacked data
     void* densify();
 };
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

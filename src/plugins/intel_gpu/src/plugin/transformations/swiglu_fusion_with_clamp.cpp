@@ -70,8 +70,10 @@ namespace intel_gpu {
                 gate_idx = 1;
             }
 
-            auto slice1_node_ptr = ov::as_type_ptr<ov::op::v8::Slice>(pattern_map.at(slice1_m).get_node_shared_ptr());
-            auto slice1_in_ps = slice1_node_ptr->get_input_partial_shape(0);
+            PartialShape slice1_in_ps;
+            if (auto slice1_node_ptr = ov::as_type_ptr<ov::op::v8::Slice>(pattern_map.at(slice1_m).get_node_shared_ptr())) {
+                slice1_in_ps = slice1_node_ptr->get_input_partial_shape(0);
+            }
             auto last_dim = slice1_in_ps.rank().get_length() - 1;
 
             auto axis_node_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(slice1_axis_const_m).get_node_shared_ptr());

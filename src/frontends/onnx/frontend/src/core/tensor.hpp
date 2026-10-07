@@ -24,9 +24,7 @@
 
 using namespace ov::frontend::onnx::common;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 using ::ONNX_NAMESPACE::TensorProto;
 using ::ONNX_NAMESPACE::TensorProto_DataLocation;
@@ -490,6 +488,4 @@ std::vector<char> Tensor::get_data() const;
 template <>
 std::vector<std::string> Tensor::get_data() const;
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

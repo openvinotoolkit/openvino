@@ -1,0 +1,10 @@
+# Extra dependencies for test_npu_models.py
+# Newer than envs/hf_transformers.txt to cover qwen3 and friends, capped below 4.53:
+# from there torch.jit.trace fails for every attention decoder (bisected on
+# Qwen2.5-0.5B with torch 2.12 - 4.52.4 traces, 4.53.3 does not).
+transformers==4.52.4
+huggingface-hub==0.35.3
+timm==1.0.24
+psutil==7.2.2
+super-image==0.2.0
+easyocr==1.7.2

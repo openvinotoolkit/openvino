@@ -4,14 +4,8 @@
 
 #include "reverse_op.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs reverse(const NodeContext& node) {
     return reverse_op(node);
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

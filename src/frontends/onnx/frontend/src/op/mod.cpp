@@ -10,11 +10,7 @@
 #include "openvino/op/floor_mod.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> dividend{node.get_ov_inputs().at(0)};
     ov::Output<ov::Node> divisor{node.get_ov_inputs().at(1)};
@@ -35,8 +31,4 @@ ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Mod", OPSET_SINCE(1), ai_onnx::opset_1::mod);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

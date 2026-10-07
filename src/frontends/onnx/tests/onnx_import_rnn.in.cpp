@@ -32,6 +32,35 @@ using namespace ov::frontend::onnx::tests;
 static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
+static std::vector<float> transpose(const std::vector<float>& data,
+                                    const Shape& shape,
+                                    const std::vector<size_t>& order) {
+    const size_t rank = shape.size();
+    Shape out_shape(rank);
+    for (size_t i = 0; i < rank; ++i)
+        out_shape[i] = shape[order[i]];
+
+    std::vector<size_t> in_strides(rank, 1);
+    for (size_t i = rank; i > 1; --i)
+        in_strides[i - 2] = in_strides[i - 1] * shape[i - 1];
+
+    std::vector<float> out(data.size());
+    std::vector<size_t> out_coord(rank, 0);
+    for (size_t i = 0; i < out.size(); ++i) {
+        size_t in_offset = 0;
+        for (size_t d = 0; d < rank; ++d)
+            in_offset += out_coord[d] * in_strides[order[d]];
+        out[i] = data[in_offset];
+
+        for (size_t d = rank; d > 0; --d) {
+            if (++out_coord[d - 1] < out_shape[d - 1])
+                break;
+            out_coord[d - 1] = 0;
+        }
+    }
+    return out;
+}
+
 // ONNX LSTM tests (implemented by OpenVINO LSTMCell and LSTMSequence)
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_default_const) {
     auto model = convert_model("lstm_fwd_default_const.onnx");
@@ -202,39 +231,150 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_bidir_mixed_seq_const) {
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
+// Inputs and reference outputs of lstm_fwd_mixed_seq.onnx, in the ONNX layout=0 convention:
+// X is [seq=2, batch=2, input=1], Y is [seq, num_directions=1, batch, hidden=3]
+// and Y_h/Y_c are [num_directions, batch, hidden].
+namespace lstm_fwd_mixed_seq {
+const std::vector<float> in_X{1.f, 2.f, 10.f, 11.f};
+const std::vector<float> in_W{0.1f, 0.2f, 0.3f, 0.4f, 1.f, 2.f, 3.f, 4.f, 10.f, 11.f, 12.f, 13.f};
+const std::vector<float> in_R(36, 0.1f);
+const std::vector<float> in_B(24, 0.f);
+const std::vector<int> in_sequence_lens{1, 2};
+
+const std::vector<float> out_Y{0.28828835f,
+                               0.36581863f,
+                               0.45679406f,
+                               0.34526032f,
+                               0.47220859f,
+                               0.55850911f,
+                               0.f,
+                               0.f,
+                               0.f,
+                               0.85882828f,
+                               0.90703777f,
+                               0.92382453f};
+const std::vector<float> out_Y_h{0.28828835f, 0.36581863f, 0.45679406f, 0.85882828f, 0.90703777f, 0.92382453f};
+const std::vector<float> out_Y_c{0.52497941f, 0.54983425f, 0.5744428f, 1.3249796f, 1.51063104f, 1.61451544f};
+}  // namespace lstm_fwd_mixed_seq
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq) {
     auto model = convert_model("lstm_fwd_mixed_seq.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    int hidden_size{3};
-    test_case.add_input<float>({1.f, 2.f, 10.f, 11.f});                                                // X
-    test_case.add_input<float>({0.1f, 0.2f, 0.3f, 0.4f, 1.f, 2.f, 3.f, 4.f, 10.f, 11.f, 12.f, 13.f});  // W
-    test_case.add_input(std::vector<float>(4 * hidden_size * hidden_size, 0.1f));                      // R
-    test_case.add_input(std::vector<float>(8 * hidden_size, 0.0f));                                    // B
-    test_case.add_input<int>({1, 2});                                                                  // seq_lengths
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_X);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_W);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_R);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_B);
+    test_case.add_input<int>(lstm_fwd_mixed_seq::in_sequence_lens);
 
-    test_case.add_expected_output<float>(Shape{2, 1, 2, 3},
-                                         {0.28828835f,
-                                          0.36581863f,
-                                          0.45679406f,
-                                          0.34526032f,
-                                          0.47220859f,
-                                          0.55850911f,
-                                          0.f,
-                                          0.f,
-                                          0.f,
-                                          0.85882828f,
-                                          0.90703777f,
-                                          0.92382453f});  // Y_data
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 3},
-        {0.28828835f, 0.36581863f, 0.45679406f, 0.85882828f, 0.90703777f, 0.92382453f});  // Y_h_data
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 3},
-        {0.52497941f, 0.54983425f, 0.5744428f, 1.3249796f, 1.51063104f, 1.61451544f});  // Y_c_data
+    test_case.add_expected_output<float>(Shape{2, 1, 2, 3}, lstm_fwd_mixed_seq::out_Y);
+    test_case.add_expected_output<float>(Shape{1, 2, 3}, lstm_fwd_mixed_seq::out_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 2, 3}, lstm_fwd_mixed_seq::out_Y_c);
 
     // We have to enlarge tolerance bits to 3 - it's only one bit more than default value.
     // The discrepancies may occur at most on 7th decimal position.
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+// Same operator and the same weights as lstm_fwd_mixed_seq, but with the opset 14 `layout`
+// attribute set to 1, so the batch axis comes first in X, Y, Y_h and Y_c. sequence_lens stays
+// [batch] in both layouts, which also guards against permuting it by mistake.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq_layout_1) {
+    auto model = convert_model("lstm_fwd_mixed_seq_layout_1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // X: [seq, batch, input] -> [batch, seq, input]
+    test_case.add_input<float>(transpose(lstm_fwd_mixed_seq::in_X, Shape{2, 2, 1}, {1, 0, 2}));
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_W);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_R);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_B);
+    test_case.add_input<int>(lstm_fwd_mixed_seq::in_sequence_lens);
+
+    // Y: [seq, num_directions, batch, hidden] -> [batch, seq, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{2, 2, 1, 3},
+                                         transpose(lstm_fwd_mixed_seq::out_Y, Shape{2, 1, 2, 3}, {2, 0, 1, 3}));
+    // Y_h, Y_c: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{2, 1, 3},
+                                         transpose(lstm_fwd_mixed_seq::out_Y_h, Shape{1, 2, 3}, {1, 0, 2}));
+    test_case.add_expected_output<float>(Shape{2, 1, 3},
+                                         transpose(lstm_fwd_mixed_seq::out_Y_c, Shape{1, 2, 3}, {1, 0, 2}));
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+// Inputs and reference outputs of lstm_fwd_initial_h_c.onnx, in the ONNX layout=0 convention.
+// W, R and B are reused from lstm_fwd_mixed_seq; seq_length and batch_size differ on purpose so
+// that a wrong axis order changes the output shapes. The expected values were computed from the
+// ONNX LSTM specification and cross-checked against onnx.reference.ReferenceEvaluator.
+namespace lstm_fwd_initial_h_c {
+const std::vector<float> in_X{1.f, 2.f, 10.f, 11.f, 5.f, 6.f};
+const std::vector<float> in_initial_h{-0.16f, -0.07f, 0.02f, 0.11f, 0.20f, 0.29f};
+const std::vector<float> in_initial_c{-0.09f, -0.03f, 0.03f, 0.09f, 0.15f, 0.21f};
+
+const std::vector<float> out_Y{0.24263948f,
+                               0.34453541f,
+                               0.47140008f,
+                               0.40377864f,
+                               0.57015294f,
+                               0.68911171f,
+                               0.81572270f,
+                               0.88674504f,
+                               0.91484076f,
+                               0.88340819f,
+                               0.93248248f,
+                               0.95069653f,
+                               0.86339754f,
+                               0.97003090f,
+                               0.98395663f,
+                               0.91011900f,
+                               0.98452914f,
+                               0.99148357f};
+const std::vector<float> out_Y_h{0.86339754f, 0.97003090f, 0.98395663f, 0.91011900f, 0.98452914f, 0.99148357f};
+const std::vector<float> out_Y_c{1.86717939f, 2.18597698f, 2.40985966f, 2.14066553f, 2.49125576f, 2.72758770f};
+}  // namespace lstm_fwd_initial_h_c
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_initial_h_c) {
+    auto model = convert_model("lstm_fwd_initial_h_c.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(lstm_fwd_initial_h_c::in_X);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_W);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_R);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_B);
+    test_case.add_input<float>(lstm_fwd_initial_h_c::in_initial_h);
+    test_case.add_input<float>(lstm_fwd_initial_h_c::in_initial_c);
+
+    test_case.add_expected_output<float>(Shape{3, 1, 2, 3}, lstm_fwd_initial_h_c::out_Y);
+    test_case.add_expected_output<float>(Shape{1, 2, 3}, lstm_fwd_initial_h_c::out_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 2, 3}, lstm_fwd_initial_h_c::out_Y_c);
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+// layout=1 twin of lstm_fwd_initial_h_c, covering the permutation of the explicitly provided
+// initial_h and initial_c against the same reference values.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_initial_h_c_layout_1) {
+    auto model = convert_model("lstm_fwd_initial_h_c_layout_1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // X: [seq, batch, input] -> [batch, seq, input]
+    test_case.add_input<float>(transpose(lstm_fwd_initial_h_c::in_X, Shape{3, 2, 1}, {1, 0, 2}));
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_W);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_R);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_B);
+    // initial_h, initial_c: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_input<float>(transpose(lstm_fwd_initial_h_c::in_initial_h, Shape{1, 2, 3}, {1, 0, 2}));
+    test_case.add_input<float>(transpose(lstm_fwd_initial_h_c::in_initial_c, Shape{1, 2, 3}, {1, 0, 2}));
+
+    // Y: [seq, num_directions, batch, hidden] -> [batch, seq, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{2, 3, 1, 3},
+                                         transpose(lstm_fwd_initial_h_c::out_Y, Shape{3, 1, 2, 3}, {2, 0, 1, 3}));
+    // Y_h, Y_c: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{2, 1, 3},
+                                         transpose(lstm_fwd_initial_h_c::out_Y_h, Shape{1, 2, 3}, {1, 0, 2}));
+    test_case.add_expected_output<float>(Shape{2, 1, 3},
+                                         transpose(lstm_fwd_initial_h_c::out_Y_c, Shape{1, 2, 3}, {1, 0, 2}));
+
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
@@ -804,6 +944,37 @@ public:
         -1.70845091e-01f, 1.31205237e+00f,  2.28988096e-01f,  -5.51795721e-01f, -9.49851334e-01f, 1.28619313e+00f,
         1.28273416e+00f,  2.92767227e-01f,  -3.92974496e-01f, 2.09084296e+00f,  -1.28314102e+00f, -1.19076264e+00f,
         -3.52258608e-02f, -4.47186083e-02f, 6.82157278e-01f,  -2.59570718e-01f, 1.50172567e+00f,  -2.76523419e-02f,
+    };
+
+    // Reference outputs of gru_fwd_bias_initial_h.onnx, in the ONNX layout=0 convention:
+    // Y is [seq=4, num_directions=1, batch=3, hidden=5] and Y_h is [num_directions=1, batch=3, hidden=5].
+    std::vector<float> out_fwd_bias_initial_h_Y{
+        -0.9559332f,  0.4372494f,   0.9967716f,  -0.9079381f,  -1.2538278f,  1.9265908f,   -0.8437393f,  -1.2057271f,
+        -0.25887525f, -0.52679026f, -0.3619178f, 0.67928517f,  0.9486744f,   -0.12006134f, -1.3862017f,  -0.98941356f,
+        0.80389524f,  0.97586197f,  -0.9343586f, -0.74858856f, 1.797039f,    -0.7873732f,  -0.72469383f, -0.5866635f,
+        -0.42103744f, -0.8406298f,  0.85877097f, 0.6349921f,   -0.55897295f, -0.6168443f,  -0.99686503f, 0.87408733f,
+        0.87070423f,  -0.9564345f,  0.52932394f, 1.577129f,    -0.6935871f,  -0.304804f,   -0.75392795f, -0.20703818f,
+        -0.93796504f, 0.9220495f,   0.36017662f, -0.7007159f,  0.06962098f,  -0.22581682f, 0.9119905f,   -0.64628327f,
+        -0.79374063f, -0.82321495f, 1.2853851f,  -0.6176347f,  0.6865668f,   -0.85147655f, 0.0379298f,   -0.96323603f,
+        0.9265786f,   0.54976916f,  -0.8037839f, 0.73501444f,
+    };
+
+    std::vector<float> out_fwd_bias_initial_h_Y_h{
+        -0.22581682f,
+        0.9119905f,
+        -0.64628327f,
+        -0.79374063f,
+        -0.82321495f,
+        1.2853851f,
+        -0.6176347f,
+        0.6865668f,
+        -0.85147655f,
+        0.0379298f,
+        -0.96323603f,
+        0.9265786f,
+        0.54976916f,
+        -0.8037839f,
+        0.73501444f,
     };
 
 protected:
@@ -1377,38 +1548,34 @@ OPENVINO_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_bias_initial_
     test_case.add_input<float>(in_initial_h);
 
     // Y
-    test_case.add_expected_output<float>(
-        Shape{4, 1, 3, 5},
-        std::vector<float>{
-            -0.9559332f,  0.4372494f,   0.9967716f,   -0.9079381f,  -1.2538278f,  1.9265908f,   -0.8437393f,
-            -1.2057271f,  -0.25887525f, -0.52679026f, -0.3619178f,  0.67928517f,  0.9486744f,   -0.12006134f,
-            -1.3862017f,  -0.98941356f, 0.80389524f,  0.97586197f,  -0.9343586f,  -0.74858856f, 1.797039f,
-            -0.7873732f,  -0.72469383f, -0.5866635f,  -0.42103744f, -0.8406298f,  0.85877097f,  0.6349921f,
-            -0.55897295f, -0.6168443f,  -0.99686503f, 0.87408733f,  0.87070423f,  -0.9564345f,  0.52932394f,
-            1.577129f,    -0.6935871f,  -0.304804f,   -0.75392795f, -0.20703818f, -0.93796504f, 0.9220495f,
-            0.36017662f,  -0.7007159f,  0.06962098f,  -0.22581682f, 0.9119905f,   -0.64628327f, -0.79374063f,
-            -0.82321495f, 1.2853851f,   -0.6176347f,  0.6865668f,   -0.85147655f, 0.0379298f,   -0.96323603f,
-            0.9265786f,   0.54976916f,  -0.8037839f,  0.73501444f,
-        });
+    test_case.add_expected_output<float>(Shape{4, 1, 3, 5}, out_fwd_bias_initial_h_Y);
     // Y_h
-    test_case.add_expected_output<float>(Shape{1, 3, 5},
-                                         std::vector<float>{
-                                             -0.22581682f,
-                                             0.9119905f,
-                                             -0.64628327f,
-                                             -0.79374063f,
-                                             -0.82321495f,
-                                             1.2853851f,
-                                             -0.6176347f,
-                                             0.6865668f,
-                                             -0.85147655f,
-                                             0.0379298f,
-                                             -0.96323603f,
-                                             0.9265786f,
-                                             0.54976916f,
-                                             -0.8037839f,
-                                             0.73501444f,
-                                         });
+    test_case.add_expected_output<float>(Shape{1, 3, 5}, out_fwd_bias_initial_h_Y_h);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
+}
+
+// Same operator and the same weights as gru_fwd_bias_initial_h, but with the opset 14
+// `layout` attribute set to 1, so the batch axis comes first in X, initial_h, Y and Y_h.
+// Feeding the permuted inputs must yield the permuted outputs of the layout=0 model.
+OPENVINO_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_bias_initial_h_layout_1) {
+    auto model = convert_model("gru_fwd_bias_initial_h_layout_1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X: [seq, batch, input] -> [batch, seq, input]
+    test_case.add_input<float>(transpose(in_X, Shape{4, 3, 2}, {1, 0, 2}));
+    test_case.add_input<float>(in_W);
+    test_case.add_input<float>(in_R);
+    test_case.add_input<float>(in_B);
+    // initial_h: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_input<float>(transpose(in_initial_h, Shape{1, 3, 5}, {1, 0, 2}));
+
+    // Y: [seq, num_directions, batch, hidden] -> [batch, seq, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{3, 4, 1, 5},
+                                         transpose(out_fwd_bias_initial_h_Y, Shape{4, 1, 3, 5}, {2, 0, 1, 3}));
+    // Y_h: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{3, 1, 5},
+                                         transpose(out_fwd_bias_initial_h_Y_h, Shape{1, 3, 5}, {1, 0, 2}));
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 4);
 }
 
@@ -1720,6 +1887,64 @@ public:
         -0.6936281f, 1.002422f,    -1.770847f,  -0.94642f,   -1.8135757f, 1.8819852f,  -0.10852333f, -0.26120332f,
         1.0223165f,  -0.7468837f,  0.28566906f, 0.92321056f, 0.22521864f, 1.1123824f,  -0.9298287f,  1.2141289f,
         1.3470556f,  -0.32972014f,
+    };
+
+    // Reference outputs of rnn_fwd_bias_initial_h.onnx, in the ONNX layout=0 convention:
+    // Y is [seq=4, num_directions=1, batch=3, hidden=5] and Y_h is [num_directions=1, batch=3, hidden=5].
+    std::vector<float> out_fwd_bias_initial_h_Y{
+        0.55277014f,  0.15672898f,  -0.25152922f, -0.63345766f, 0.99974346f, 0.94002223f,  -0.97647303f, -0.9999884f,
+        0.9752002f,   0.97388494f,  0.9967754f,   0.96745205f,  0.7899921f,  0.92003024f,  -0.43116868f, 0.11219919f,
+        0.895327f,    0.21749747f,  0.6617017f,   0.99962795f,  0.37670398f, 0.7918401f,   -0.99966455f, 0.9961897f,
+        0.9995159f,   -0.84224236f, 0.92083716f,  -0.99834263f, 0.9435711f,  0.8485148f,   0.699257f,    0.9983405f,
+        -0.87222385f, 0.05191362f,  0.9878634f,   0.75459063f,  0.8326433f,  -0.99705976f, 0.62511444f,  0.99979305f,
+        0.99925995f,  0.94032586f,  -0.86841005f, -0.8692311f,  0.9974319f,  -0.37055743f, -0.54580235f, -0.8618355f,
+        0.6927968f,   0.99997866f,  0.15482295f,  0.90996563f,  -0.9992051f, 0.784014f,    0.9999677f,   -0.30979204f,
+        0.99138904f,  -0.10645419f, -0.18203181f, 0.9996245f,
+    };
+
+    std::vector<float> out_fwd_bias_initial_h_Y_h{
+        -0.37055743f,
+        -0.54580235f,
+        -0.8618355f,
+        0.6927968f,
+        0.99997866f,
+        0.15482295f,
+        0.90996563f,
+        -0.9992051f,
+        0.784014f,
+        0.9999677f,
+        -0.30979204f,
+        0.99138904f,
+        -0.10645419f,
+        -0.18203181f,
+        0.9996245f,
+    };
+
+    // Reference outputs of rnn_bidirectional.onnx, in the ONNX layout=0 convention:
+    // Y is [seq=4, num_directions=2, batch=3, hidden=5] and Y_h is [num_directions=2, batch=3, hidden=5].
+    std::vector<float> out_bidirectional_Y{
+        0.02254748f,  0.15776646f,  -0.8229023f,  0.19205809f,  0.76984656f,  -0.00603169f, -0.02861464f, 0.04512155f,
+        -0.0011912f,  -0.02572936f, -0.13703543f, -0.49651444f, -0.78868157f, 0.3566854f,   0.8758509f,   -0.9964788f,
+        -0.15236056f, 0.5478349f,   0.14500666f,  0.61871886f,  0.03722596f,  -0.81331265f, 0.99774206f,  -0.888188f,
+        -0.5575663f,  -0.9284624f,  -0.5595875f,  0.9986867f,   -0.18373811f, 0.8451735f,   -0.43823165f, -0.1904698f,
+        0.8320786f,   0.9830735f,   0.61861455f,  0.19109797f,  0.6440699f,   0.00962079f,  -0.32752872f, -0.5050589f,
+        -0.23455954f, 0.9517933f,   0.9050665f,   0.91091585f,  -0.77941567f, -0.9915407f,  -0.23976672f, 0.04337811f,
+        0.2958206f,   -0.3979709f,  -0.9083327f,  -0.21814531f, 0.9981259f,   -0.8650538f,  -0.4886601f,  -0.8349008f,
+        -0.7880142f,  0.99017143f,  -0.9816452f,  -0.93827677f, 0.16374564f,  0.98451114f,  -0.821692f,   -0.6319715f,
+        -0.01324981f, 0.28117967f,  0.20685172f,  0.01166677f,  -0.5441829f,  -0.5463746f,  -0.85301256f, 0.52109087f,
+        -0.8317892f,  -0.9676957f,  -0.30258918f, -0.9810498f,  -0.83153796f, -0.9676579f,  0.5483788f,   0.42533123f,
+        -0.9851954f,  -0.5354376f,  0.6905062f,   -0.46665573f, -0.851916f,   -0.9073148f,  0.16276085f,  0.9518349f,
+        -0.8635942f,  -0.92539954f, 0.33436012f,  -0.988292f,   0.9238765f,   0.94239855f,  0.24151397f,  0.5482547f,
+        0.76547384f,  -0.81047577f, -0.6625802f,  -0.09694612f, 0.9948462f,   -0.6242633f,  -0.19065344f, -0.36072153f,
+        -0.99407107f, 0.94602585f,  0.55862486f,  0.2306763f,   0.22547626f,  0.37753606f,  -0.9951596f,  -0.74445903f,
+        -0.6766813f,  0.32036817f,  0.33250773f,  -0.9957684f,  -0.7924f,     -0.40261805f, -0.34061068f, -0.55580306f,
+    };
+
+    std::vector<float> out_bidirectional_Y_h{
+        0.33436012f,  -0.988292f,   0.9238765f,  0.94239855f, 0.24151397f,  0.5482547f,   0.76547384f,  -0.81047577f,
+        -0.6625802f,  -0.09694612f, 0.9948462f,  -0.6242633f, -0.19065344f, -0.36072153f, -0.99407107f, -0.9964788f,
+        -0.15236056f, 0.5478349f,   0.14500666f, 0.61871886f, 0.03722596f,  -0.81331265f, 0.99774206f,  -0.888188f,
+        -0.5575663f,  -0.9284624f,  -0.5595875f, 0.9986867f,  -0.18373811f, 0.8451735f,
     };
 
 protected:
@@ -2297,38 +2522,34 @@ OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_
     test_case.add_input<float>(in_initial_h);
 
     // Y
-    test_case.add_expected_output<float>(
-        Shape{4, 1, 3, 5},
-        std::vector<float>{
-            0.55277014f,  0.15672898f,  -0.25152922f, -0.63345766f, 0.99974346f,  0.94002223f, -0.97647303f,
-            -0.9999884f,  0.9752002f,   0.97388494f,  0.9967754f,   0.96745205f,  0.7899921f,  0.92003024f,
-            -0.43116868f, 0.11219919f,  0.895327f,    0.21749747f,  0.6617017f,   0.99962795f, 0.37670398f,
-            0.7918401f,   -0.99966455f, 0.9961897f,   0.9995159f,   -0.84224236f, 0.92083716f, -0.99834263f,
-            0.9435711f,   0.8485148f,   0.699257f,    0.9983405f,   -0.87222385f, 0.05191362f, 0.9878634f,
-            0.75459063f,  0.8326433f,   -0.99705976f, 0.62511444f,  0.99979305f,  0.99925995f, 0.94032586f,
-            -0.86841005f, -0.8692311f,  0.9974319f,   -0.37055743f, -0.54580235f, -0.8618355f, 0.6927968f,
-            0.99997866f,  0.15482295f,  0.90996563f,  -0.9992051f,  0.784014f,    0.9999677f,  -0.30979204f,
-            0.99138904f,  -0.10645419f, -0.18203181f, 0.9996245f,
-        });
+    test_case.add_expected_output<float>(Shape{4, 1, 3, 5}, out_fwd_bias_initial_h_Y);
     // Y_h
-    test_case.add_expected_output<float>(Shape{1, 3, 5},
-                                         std::vector<float>{
-                                             -0.37055743f,
-                                             -0.54580235f,
-                                             -0.8618355f,
-                                             0.6927968f,
-                                             0.99997866f,
-                                             0.15482295f,
-                                             0.90996563f,
-                                             -0.9992051f,
-                                             0.784014f,
-                                             0.9999677f,
-                                             -0.30979204f,
-                                             0.99138904f,
-                                             -0.10645419f,
-                                             -0.18203181f,
-                                             0.9996245f,
-                                         });
+    test_case.add_expected_output<float>(Shape{1, 3, 5}, out_fwd_bias_initial_h_Y_h);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
+}
+
+// Same operator and the same weights as rnn_fwd_bias_initial_h, but with the opset 14
+// `layout` attribute set to 1, so the batch axis comes first in X, initial_h, Y and Y_h.
+// Feeding the permuted inputs must yield the permuted outputs of the layout=0 model.
+OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h_layout_1) {
+    auto model = convert_model("rnn_fwd_bias_initial_h_layout_1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X: [seq, batch, input] -> [batch, seq, input]
+    test_case.add_input<float>(transpose(in_X, Shape{4, 3, 2}, {1, 0, 2}));
+    test_case.add_input<float>(in_W);
+    test_case.add_input<float>(in_R);
+    test_case.add_input<float>(in_B);
+    // initial_h: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_input<float>(transpose(in_initial_h, Shape{1, 3, 5}, {1, 0, 2}));
+
+    // Y: [seq, num_directions, batch, hidden] -> [batch, seq, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{3, 4, 1, 5},
+                                         transpose(out_fwd_bias_initial_h_Y, Shape{4, 1, 3, 5}, {2, 0, 1, 3}));
+    // Y_h: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{3, 1, 5},
+                                         transpose(out_fwd_bias_initial_h_Y_h, Shape{1, 3, 5}, {1, 0, 2}));
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
 }
 
@@ -2342,38 +2563,29 @@ OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidirectional) {
     test_case.add_input<float>(in_bdir_R);
 
     // Y
-    test_case.add_expected_output<float>(
-        Shape{4, 2, 3, 5},
-        std::vector<float>{
-            0.02254748f,  0.15776646f,  -0.8229023f,  0.19205809f,  0.76984656f,  -0.00603169f, -0.02861464f,
-            0.04512155f,  -0.0011912f,  -0.02572936f, -0.13703543f, -0.49651444f, -0.78868157f, 0.3566854f,
-            0.8758509f,   -0.9964788f,  -0.15236056f, 0.5478349f,   0.14500666f,  0.61871886f,  0.03722596f,
-            -0.81331265f, 0.99774206f,  -0.888188f,   -0.5575663f,  -0.9284624f,  -0.5595875f,  0.9986867f,
-            -0.18373811f, 0.8451735f,   -0.43823165f, -0.1904698f,  0.8320786f,   0.9830735f,   0.61861455f,
-            0.19109797f,  0.6440699f,   0.00962079f,  -0.32752872f, -0.5050589f,  -0.23455954f, 0.9517933f,
-            0.9050665f,   0.91091585f,  -0.77941567f, -0.9915407f,  -0.23976672f, 0.04337811f,  0.2958206f,
-            -0.3979709f,  -0.9083327f,  -0.21814531f, 0.9981259f,   -0.8650538f,  -0.4886601f,  -0.8349008f,
-            -0.7880142f,  0.99017143f,  -0.9816452f,  -0.93827677f, 0.16374564f,  0.98451114f,  -0.821692f,
-            -0.6319715f,  -0.01324981f, 0.28117967f,  0.20685172f,  0.01166677f,  -0.5441829f,  -0.5463746f,
-            -0.85301256f, 0.52109087f,  -0.8317892f,  -0.9676957f,  -0.30258918f, -0.9810498f,  -0.83153796f,
-            -0.9676579f,  0.5483788f,   0.42533123f,  -0.9851954f,  -0.5354376f,  0.6905062f,   -0.46665573f,
-            -0.851916f,   -0.9073148f,  0.16276085f,  0.9518349f,   -0.8635942f,  -0.92539954f, 0.33436012f,
-            -0.988292f,   0.9238765f,   0.94239855f,  0.24151397f,  0.5482547f,   0.76547384f,  -0.81047577f,
-            -0.6625802f,  -0.09694612f, 0.9948462f,   -0.6242633f,  -0.19065344f, -0.36072153f, -0.99407107f,
-            0.94602585f,  0.55862486f,  0.2306763f,   0.22547626f,  0.37753606f,  -0.9951596f,  -0.74445903f,
-            -0.6766813f,  0.32036817f,  0.33250773f,  -0.9957684f,  -0.7924f,     -0.40261805f, -0.34061068f,
-            -0.55580306f,
-        });
+    test_case.add_expected_output<float>(Shape{4, 2, 3, 5}, out_bidirectional_Y);
     // Y_h
-    test_case.add_expected_output<float>(
-        Shape{2, 3, 5},
-        std::vector<float>{
-            0.33436012f,  -0.988292f,   0.9238765f,   0.94239855f,  0.24151397f,  0.5482547f,
-            0.76547384f,  -0.81047577f, -0.6625802f,  -0.09694612f, 0.9948462f,   -0.6242633f,
-            -0.19065344f, -0.36072153f, -0.99407107f, -0.9964788f,  -0.15236056f, 0.5478349f,
-            0.14500666f,  0.61871886f,  0.03722596f,  -0.81331265f, 0.99774206f,  -0.888188f,
-            -0.5575663f,  -0.9284624f,  -0.5595875f,  0.9986867f,   -0.18373811f, 0.8451735f,
-        });
+    test_case.add_expected_output<float>(Shape{2, 3, 5}, out_bidirectional_Y_h);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 6);
+}
+
+// layout=1 twin of rnn_bidirectional. num_directions=2 keeps the Y permutation honest, and
+// the absent initial_h also covers building the default initial state from the permuted X.
+OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_bidirectional_layout_1) {
+    auto model = convert_model("rnn_bidirectional_layout_1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X: [seq, batch, input] -> [batch, seq, input]
+    test_case.add_input<float>(transpose(in_X, Shape{4, 3, 2}, {1, 0, 2}));
+    test_case.add_input<float>(in_bdir_W);
+    test_case.add_input<float>(in_bdir_R);
+
+    // Y: [seq, num_directions, batch, hidden] -> [batch, seq, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{3, 4, 2, 5},
+                                         transpose(out_bidirectional_Y, Shape{4, 2, 3, 5}, {2, 0, 1, 3}));
+    // Y_h: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{3, 2, 5}, transpose(out_bidirectional_Y_h, Shape{2, 3, 5}, {1, 0, 2}));
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 6);
 }
 
