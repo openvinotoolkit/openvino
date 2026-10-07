@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "conv_mul_add_fq_block.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
