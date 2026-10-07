@@ -77,7 +77,6 @@ template <class>
 class SharedBuffer;
 template <class>
 struct SoPtr;
-class MappedMemory;
 class Model;
 enum class CacheMode;
 namespace element {
@@ -126,7 +125,8 @@ public:
 };
 
 using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
-using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
+// Type-erased keep-alive: the shared object may be an ov::MappedMemory or a user-provided ov::Tensor.
+using Weights = ov::SharedBuffer<std::shared_ptr<void>>;
 using WeightsPtr = std::shared_ptr<Weights>;
 
 struct CompiledContext {
@@ -159,7 +159,7 @@ struct WeightsContext {
     WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
     // NOTE: This constructor is used on blob import to carry the resolved weight source
-    // (embedded weights, mmap'ed weights file, or model-backed constants cache).
+    // (user-provided weights tensor, mmap'ed weights file, or model-backed constants cache).
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,

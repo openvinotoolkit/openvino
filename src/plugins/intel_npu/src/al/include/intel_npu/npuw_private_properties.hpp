@@ -7,6 +7,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/runtime/file_handle.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov::intel_npu::detail {
 
@@ -21,6 +22,10 @@ inline constexpr NPUWProperty<Option> npuw_property{::intel_npu::NPUWOptionMeta<
 namespace ov::intel_npu::npuw {
 
 inline constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"NPUW_WEIGHTS_HANDLE_PROVIDER"};
+
+// Import-only: raw bytes of the weights file (e.g. from ov::read_tensor_data) for a weightless blob.
+// The tensor must outlive the compiled model; weights are viewed, not copied, on import.
+inline constexpr ov::Property<ov::Tensor> weights_tensor{"NPUW_WEIGHTS_TENSOR"};
 
 namespace llm {
 

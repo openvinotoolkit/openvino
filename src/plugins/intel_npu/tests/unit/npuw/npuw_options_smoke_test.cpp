@@ -181,6 +181,11 @@ std::vector<Case> make_cases() {
              EXPECT_EQ(std::string(ov::intel_npu::npuw::weights_handle_provider.name()),
                        "NPUW_WEIGHTS_HANDLE_PROVIDER");
          }},
+        {"NPUW_WEIGHTS_TENSOR",
+         {},
+         [](const ::intel_npu::Config&) {
+             EXPECT_EQ(std::string(ov::intel_npu::npuw::weights_tensor.name()), "NPUW_WEIGHTS_TENSOR");
+         }},
     };
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD

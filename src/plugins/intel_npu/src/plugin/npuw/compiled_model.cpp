@@ -125,9 +125,26 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     std::string weights_path;
     WeightsContext::ConstsCache consts_cache;
     ov::FileHandleProvider handle_provider = nullptr;
+    WeightsPtr weights = nullptr;
     if (is_weightless) {
+        // Priority: NPUW_WEIGHTS_TENSOR > NPUW_WEIGHTS_HANDLE_PROVIDER > WEIGHTS_PATH > MODEL_PTR
+        if (const auto tensor_it = properties.find(ov::intel_npu::npuw::weights_tensor.name());
+            tensor_it != properties.end()) {
+            if (tensor_it->second.is<ov::Tensor>()) {
+                const auto tensor = std::make_shared<ov::Tensor>(tensor_it->second.as<ov::Tensor>());
+                NPUW_ASSERT(*tensor && tensor->get_byte_size() > 0 && "Empty tensor passed in NPUW_WEIGHTS_TENSOR.");
+                NPUW_ASSERT(tensor->get_element_type() != ov::element::string &&
+                            "NPUW_WEIGHTS_TENSOR must hold raw weights bytes, not strings.");
+                // Only ever read from; the view may legitimately be backed by a read-only mmap.
+                auto* data = const_cast<char*>(static_cast<const char*>(std::as_const(*tensor).data()));
+                weights = std::make_shared<Weights>(data, tensor->get_byte_size(), tensor);
+            } else {
+                LOG_WARN("NPUW_WEIGHTS_TENSOR property is present but is not an ov::Tensor; falling back to other "
+                         "weightless import sources");
+            }
+        }
         if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
-            handle_it != properties.end()) {
+            !weights && handle_it != properties.end()) {
             if (handle_it->second.is<ov::FileHandleProvider>()) {
                 handle_provider = handle_it->second.as<ov::FileHandleProvider>();
             } else {
@@ -135,11 +152,12 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                          "other weightless import sources");
             }
         }
-        if (!handle_provider && properties.find(ov::weights_path.name()) != properties.end()) {
+        const bool resolved = weights || handle_provider;
+        if (!resolved && properties.find(ov::weights_path.name()) != properties.end()) {
             weights_path = properties.at(ov::weights_path.name()).as<std::string>();
             NPUW_ASSERT(!weights_path.empty() &&
                         "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
-        } else if (!handle_provider && properties.find(ov::hint::model.name()) != properties.end()) {
+        } else if (!resolved && properties.find(ov::hint::model.name()) != properties.end()) {
             auto model_ptr = std::const_pointer_cast<ov::Model>(
                                  properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
                                  ->clone();
@@ -161,13 +179,13 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                 std::size_t size = c->get_byte_size();
                 consts_cache[{offset, size}] = node;
             }
-        } else if (!handle_provider) {
-            NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
+        } else if (!resolved) {
+            NPUW_ASSERT(false && "Blob is weightless but no NPUW_WEIGHTS_TENSOR, NPUW_WEIGHTS_HANDLE_PROVIDER, "
+                                 "WEIGHTS_PATH nor MODEL_PTR property is provided!");
         }
     }
 
-    WeightsPtr weights = nullptr;
-    if (is_weightless) {
+    if (is_weightless && !weights) {
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (handle_provider) {
             ov::FileHandle handle = handle_provider();
