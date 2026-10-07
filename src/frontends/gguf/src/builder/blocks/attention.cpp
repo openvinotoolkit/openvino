@@ -10,10 +10,7 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/qkv_repack.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 using ov::element::f32;
 
@@ -64,7 +61,7 @@ std::string attention(GraphEmitter& e,
         register_qwen35_q_gate(e, cfg, il);
         e.add_weight(p + "attn_k.weight");
         e.add_weight(p + "attn_v.weight");
-    } else if (cfg.has_fused_qkv) {
+    } else if (e.has_weight(p + "attn_qkv.weight")) {
         register_fused_qkv(e, cfg, il);
     } else {
         e.add_weight(p + "attn_q.weight");
@@ -86,7 +83,8 @@ std::string attention(GraphEmitter& e,
     // Q/K/V projection biases (qwen2 / qwen2.5: separate attn_{q,k,v}.bias; phi-3-style
     // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
     // register_fused_qkv above).
-    if (cfg.has_qkv_bias) {
+    // Qwen35 repacks a joint Q/gate projection; retain its separate bias policy.
+    if (cfg.is_qwen35 ? cfg.has_qkv_bias : e.has_weight(p + "attn_q.bias")) {
         q = add_bias(e, q, p + "attn_q.bias", p + "Qcur_b");
         k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
         v = add_bias(e, v, p + "attn_v.bias", p + "Vcur_b");
@@ -183,7 +181,7 @@ std::string attention(GraphEmitter& e,
     const std::string kc = "cache_k_l" + std::to_string(anchor_il);
     const std::string vc = "cache_v_l" + std::to_string(anchor_il);
 
-    if (has_own_kv) {
+    if (!cfg.embedding_model && has_own_kv) {
         // Per-layer f16 KV cache Parameters. The K/V read back out of a cache are f16, and so is
         // Q after its convert in the translator, so the FLASH_ATTN inputs agree.
         const ov::PartialShape cache_shape = ps({1, D, n_head_kv_l, head_size_l});
@@ -202,7 +200,7 @@ std::string attention(GraphEmitter& e,
         // sink paired with the cache's ReadValue).
         graph.model_output_names.push_back(kc);
         graph.model_output_names.push_back(vc);
-    } else {
+    } else if (!cfg.embedding_model) {
         // Shared-KV layer: K/V have already been set in the anchor layer's SET_ROWS.
         // Use the anchor's combined cache. If the current layer has a smaller head size
         // (SWA shared layer vs a global anchor), slice K/V to the layer's head_size along
@@ -231,12 +229,16 @@ std::string attention(GraphEmitter& e,
     // FLASH_ATTN_EXT(q, k, v, mask[, sinks]) -> [1, n_tokens, n_head, head_size].
     // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
     const std::string mask_name = is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask";
-    std::vector<std::string> attn_in = {q, k, v, mask_name};
+    std::vector<std::string> attn_in = {q, k, v};
+    if (!cfg.embedding_model || cfg.causal_attention)
+        attn_in.push_back(mask_name);
     if (cfg.has_sinks) {
         e.add_named_weight(p + "attn_sinks.weight");
         attn_in.push_back(p + "attn_sinks.weight");
     }
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
+    if (cfg.embedding_model)
+        attn_attrs["f32_attention"] = true;
     if (cfg.attn_soft_cap != 0.0f) {
         attn_attrs["kq_soft_cap"] = cfg.attn_soft_cap;
     }
@@ -266,13 +268,10 @@ std::string attention(GraphEmitter& e,
     // output projection (+ optional bias)
     e.add_weight(p + "attn_output.weight");
     auto attn_out = e.add_op("GGML_OP_MUL_MAT", p + "attn_out", {p + "attn_output.weight", attn_2d});
-    if (cfg.has_attn_out_bias) {
+    if (cfg.is_qwen35 ? cfg.has_attn_out_bias : e.has_weight(p + "attn_output.bias")) {
         attn_out = add_bias(e, attn_out, p + "attn_output.bias", p + "attn_out_b");
     }
     return attn_out;
 }
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks

@@ -1,0 +1,41 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(SNIPPETS_TESTS_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lir_comparator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lir_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/linear_ir.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/loop_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/buffer_allocation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/compute_buffer_allocation_size.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/extracted_loop_invariants.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/init_loops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_load_store.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_specific_iterations.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/loop.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/move_scalar_to_consumer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/optimize_domain.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/set_buffer_reg_group.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/split_loops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowering_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/canonicalization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/collapse_subgraph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/fake_quantize_decomposition_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/fuse_transpose_brgemm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gated_mlp_tokenization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gn_decomposition.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gn_tokenization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/mha_tokenization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/mlp_seq_tokenization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/online_softmax_decomposition.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/precision_propagation_convert_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/precision_propagation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/precision_propagation_get_precisions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/softmax_decomposition.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/softmax_reshape_elimination.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime_configurator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/broadcast_merge_dim.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/split_dim_m.cpp
+)

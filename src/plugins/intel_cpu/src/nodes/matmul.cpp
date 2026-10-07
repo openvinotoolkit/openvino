@@ -266,7 +266,12 @@ void MatMul::createPrimitive() {
 
     m_memory[ARG_DST] = getDstMemoryAtPort(0);
 
-    m_executor = m_factory->make(m_memory, false);
+    // If any input tensor is known to be empty at compile time, the executor is never used:
+    // the output is either empty (the node is not executable) or a null matrix (see prepareParams() and execute()).
+    // So there is no need to create it, moreover, the primitive can't be created for an empty problem.
+    if (!getInputShapeAtPort(0).hasZeroDims() && !getInputShapeAtPort(1).hasZeroDims()) {
+        m_executor = m_factory->make(m_memory, false);
+    }
 
     Node::createPrimitive();
 }

@@ -16,9 +16,7 @@
 #include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "quant/gguf.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Whole-model builder for the causal decoder family: the "llama family" of dense and MoE
 // decoder-only transformers (llama-3, qwen2/2.5/3, phi-3, minicpm, gemma 1-4, gpt-oss, OLMoE,
@@ -62,12 +60,13 @@ private:
 
     // Final norm, lm_head, and the optional logit scale / soft-cap.
     std::string build_head(const std::string& cur);
+    bool selects_output_rows(int il) const {
+        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model;
+    }
 
     DecoderConfig m_cfg;
     GraphEmitter m_emit;
     blocks::KvCachePlan m_kv;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

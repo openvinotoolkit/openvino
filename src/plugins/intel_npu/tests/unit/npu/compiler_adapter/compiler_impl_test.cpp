@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -14,7 +15,8 @@
 #include <vector>
 
 #include "fake_vcl.hpp"
-#include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "model_serializer.hpp"
@@ -25,12 +27,18 @@
 #include "ze_graph_ext_wrappers.hpp"
 
 using ::fake_vcl::FakeVcl;
-using ::intel_npu::FilteredConfig;
+using ::intel_npu::Config;
 using ::intel_npu::IDevice;
 using ::intel_npu::OptionsDesc;
+using ::intel_npu::OptionSupportCache;
+using ::intel_npu::ScopedOptionSupportCache;
 using ::intel_npu::VCLCompilerImpl;
 
 namespace {
+
+/// Two distinct cache keys, standing in for the plugin and driver adapters sharing one cache.
+constexpr OptionSupportCache::CacheKey kFirstKey = 1u;
+constexpr OptionSupportCache::CacheKey kSecondKey = 2u;
 
 /// Registers just the options the compiler-in-plugin path reads, so `config.get<>` resolves.
 std::shared_ptr<OptionsDesc> makeOptionsDesc() {
@@ -40,10 +48,10 @@ std::shared_ptr<OptionsDesc> makeOptionsDesc() {
     return desc;
 }
 
-FilteredConfig makeConfig() {
+Config makeConfig() {
     // Registration is all that is needed: compileWsIterative writes WS_COMPILE_CALL_NUMBER via
     // update(), and MODEL_SERIALIZER_VERSION is read through config.get<>.
-    return FilteredConfig(makeOptionsDesc());
+    return Config(makeOptionsDesc());
 }
 
 /// A minimal model with one weight, enough for the serializer to produce a real IR.
@@ -62,6 +70,18 @@ struct VCLCompilerImplTest : public ::testing::Test {
     std::shared_ptr<VCLCompilerImpl> makeCompiler(
         const std::optional<IDevice::DeviceProperties>& props = std::nullopt) {
         return std::make_shared<VCLCompilerImpl>(fake.functions(), props);
+    }
+
+    /// A compiler that routes its option-support answers through `cache` under `key`. Without a
+    /// cache the compiler is queried on every call, which is the makeCompiler() behaviour above.
+    std::shared_ptr<VCLCompilerImpl> makeCachingCompiler(const std::shared_ptr<OptionSupportCache>& cache,
+                                                         const OptionSupportCache::CacheKey key = kFirstKey) {
+        return std::make_shared<VCLCompilerImpl>(fake.functions(), std::nullopt, ScopedOptionSupportCache{cache, key});
+    }
+
+    /// Number of times the compiler library was actually asked about an option.
+    size_t optionQueryCount() const {
+        return fake.callCount("vclGetCompilerIsOptionSupported");
     }
 };
 
@@ -329,6 +349,245 @@ TEST_F(VCLCompilerImplTest, GetSupportedOptionsThrowsWhenTheSizingCallFails) {
     auto compiler = makeCompiler();
     fake.failWith("vclGetCompilerSupportedOptions", VCL_RESULT_ERROR_UNKNOWN);
     EXPECT_THROW(compiler->get_supported_options(), ov::Exception);
+}
+
+//
+// --- option support cache ---
+//
+// The cache used to live in PluginCompilerAdapter; it now sits behind VCLCompilerImpl, so every
+// caller (adapter, serializeConfig, serializeIR) shares one set of answers. The cache is keyed by
+// (cache key, option name) only - it carries no value - which is what the tests below pin down.
+//
+
+TEST_F(VCLCompilerImplTest, WithoutACacheEveryIsOptionSupportedCallReachesTheCompiler) {
+    // The baseline the cache is measured against: a null cache means no memoisation at all.
+    auto compiler = makeCompiler();
+
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION"));
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION"));
+
+    EXPECT_EQ(optionQueryCount(), 2u);
+}
+
+TEST_F(VCLCompilerImplTest, IsOptionSupportedIsAnsweredFromTheCacheOnRepeatedQueries) {
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION"));
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION"));
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION"));
+
+    EXPECT_EQ(optionQueryCount(), 1u);
+    EXPECT_EQ(cache->isOptionSupported(kFirstKey, "SOME_OPTION"), std::make_optional(true));
+}
+
+TEST_F(VCLCompilerImplTest, IsOptionSupportedCachesNegativeAnswersToo) {
+    // "Not supported" is just as expensive to re-derive as "supported", and the compiler's answer
+    // cannot change for a given compiler instance.
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+    fake.unsupportedOptions.insert("MISSING_OPTION");
+
+    EXPECT_FALSE(compiler->is_option_supported("MISSING_OPTION"));
+    EXPECT_EQ(optionQueryCount(), 1u);
+
+    // Make the fake start advertising the option: the cached "false" must still win, proving the
+    // second call never reached the library.
+    fake.unsupportedOptions.clear();
+    EXPECT_FALSE(compiler->is_option_supported("MISSING_OPTION"));
+    EXPECT_EQ(optionQueryCount(), 1u);
+    EXPECT_EQ(cache->isOptionSupported(kFirstKey, "MISSING_OPTION"), std::make_optional(false));
+}
+
+TEST_F(VCLCompilerImplTest, QueriesCarryingAValueAlwaysReachTheCompiler) {
+    // The cache key is the option name alone, so it cannot tell whether a specific value is
+    // accepted. Serving a valued query from it would answer a different question.
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION", std::string("VALUE_A")));
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION", std::string("VALUE_A")));
+
+    EXPECT_EQ(optionQueryCount(), 2u);
+}
+
+TEST_F(VCLCompilerImplTest, AValuedQueryNeitherReadsNorWritesTheCache) {
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+    fake.unsupportedOptions.insert("SOME_OPTION");
+
+    // A rejected value must not be recorded as "the option is unsupported": the name-only answer
+    // is a different fact, and caching the value verdict under the name would corrupt it.
+    EXPECT_FALSE(compiler->is_option_supported("SOME_OPTION", std::string("BAD_VALUE")));
+    EXPECT_FALSE(cache->isOptionSupported(kFirstKey, "SOME_OPTION").has_value());
+
+    fake.unsupportedOptions.clear();
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION"));
+    EXPECT_EQ(cache->isOptionSupported(kFirstKey, "SOME_OPTION"), std::make_optional(true));
+}
+
+TEST_F(VCLCompilerImplTest, ACachedNameOnlyAnswerDoesNotShortCircuitAValuedQuery) {
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION"));
+    ASSERT_EQ(optionQueryCount(), 1u);
+
+    EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION", std::string("VALUE_A")));
+    EXPECT_EQ(optionQueryCount(), 2u);
+    ASSERT_EQ(fake.optionSupportQueries.size(), 2u);
+    ASSERT_TRUE(fake.optionSupportQueries[1].second.has_value());
+    EXPECT_EQ(*fake.optionSupportQueries[1].second, "VALUE_A");
+}
+
+TEST_F(VCLCompilerImplTest, GetSupportedOptionsPopulatesTheCacheForLaterQueries) {
+    // The bulk list is the cheap way to fill the cache: one library call, then every listed option
+    // is answered locally. This is why get_supported_options writes through to the cache.
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+
+    ASSERT_EQ(compiler->get_supported_options(), std::vector<std::string>({"OPT_A", "OPT_B", "OPT_C"}));
+
+    EXPECT_TRUE(compiler->is_option_supported("OPT_A"));
+    EXPECT_TRUE(compiler->is_option_supported("OPT_B"));
+    EXPECT_TRUE(compiler->is_option_supported("OPT_C"));
+    EXPECT_EQ(optionQueryCount(), 0u);
+}
+
+TEST_F(VCLCompilerImplTest, OptionsAbsentFromTheBulkListStillReachTheCompiler) {
+    // setSupportedOptions only records positives, so an unlisted option is "unknown", not "false".
+    // Treating it as false would deny options a newer library accepts but does not enumerate.
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+    (void)compiler->get_supported_options();
+
+    EXPECT_TRUE(compiler->is_option_supported("OPT_UNLISTED"));
+    EXPECT_EQ(optionQueryCount(), 1u);
+}
+
+TEST_F(VCLCompilerImplTest, GetSupportedOptionsWithoutACacheDoesNotThrow) {
+    auto compiler = makeCompiler();
+    EXPECT_NO_THROW((void)compiler->get_supported_options());
+}
+
+TEST_F(VCLCompilerImplTest, EntriesAreScopedToTheCacheKey) {
+    // One cache is shared by the plugin and driver adapters under different keys. Their compilers
+    // accept different options, so an answer must never leak across keys.
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto first = makeCachingCompiler(cache, kFirstKey);
+    auto second = makeCachingCompiler(cache, kSecondKey);
+
+    EXPECT_TRUE(first->is_option_supported("SOME_OPTION"));
+    ASSERT_EQ(optionQueryCount(), 1u);
+
+    EXPECT_TRUE(second->is_option_supported("SOME_OPTION"));
+    EXPECT_EQ(optionQueryCount(), 2u);
+}
+
+TEST_F(VCLCompilerImplTest, CompilersSharingAKeyShareTheirAnswers) {
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto first = makeCachingCompiler(cache, kFirstKey);
+    auto second = makeCachingCompiler(cache, kFirstKey);
+
+    EXPECT_TRUE(first->is_option_supported("SOME_OPTION"));
+    ASSERT_EQ(optionQueryCount(), 1u);
+
+    EXPECT_TRUE(second->is_option_supported("SOME_OPTION"));
+    EXPECT_EQ(optionQueryCount(), 1u);
+}
+
+TEST_F(VCLCompilerImplTest, CachedAnswersOutliveTheCompilerThatProducedThem) {
+    // The cache belongs to the plugin, not to a compiler instance: a compiler recreated for a
+    // second compile must not have to re-query.
+    auto cache = std::make_shared<OptionSupportCache>();
+    {
+        auto compiler = makeCachingCompiler(cache);
+        EXPECT_TRUE(compiler->is_option_supported("SOME_OPTION"));
+    }
+    ASSERT_EQ(optionQueryCount(), 1u);
+
+    auto recreated = makeCachingCompiler(cache);
+    EXPECT_TRUE(recreated->is_option_supported("SOME_OPTION"));
+    EXPECT_EQ(optionQueryCount(), 1u);
+}
+
+TEST_F(VCLCompilerImplTest, CompileHonoursACachedNegativeWithoutQueryingTheCompiler) {
+    // The whole point of moving the cache behind the compiler: the build-flag construction inside
+    // compile() goes through the same memoised answers, not just the adapter's public API.
+    auto cache = std::make_shared<OptionSupportCache>();
+    const std::string serializerVersion{ov::intel_npu::model_serializer_version.name()};
+    cache->addSupportedOption(kFirstKey, serializerVersion, false);
+    auto compiler = makeCachingCompiler(cache);
+
+    const auto [tensor, compatibility] = compiler->compile(makeModel(), makeConfig());
+    (void)tensor;
+    (void)compatibility;
+
+    ASSERT_EQ(fake.buildFlags.size(), 1u);
+    EXPECT_EQ(fake.buildFlags[0].find(serializerVersion), std::string::npos);
+    // The cached "false" is authoritative: the library was never asked whether it knows the option.
+    // Valued probes for a concrete serializer version still go through, by design.
+    const bool askedByNameOnly = std::any_of(fake.optionSupportQueries.begin(),
+                                             fake.optionSupportQueries.end(),
+                                             [&serializerVersion](const auto& query) {
+                                                 return query.first == serializerVersion && !query.second.has_value();
+                                             });
+    EXPECT_FALSE(askedByNameOnly);
+}
+
+TEST_F(VCLCompilerImplTest, CompileAsksAboutEachOptionNameOnlyOnceWhenCaching) {
+    // compile() consults option support from several places - serializeIR, the serializer-version
+    // write-back and serializeConfig - so without the cache the same name is queried repeatedly.
+    // Valued queries (serializeIR probes concrete serializer versions) are exempt by design.
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+
+    const auto result = compiler->compile(makeModel(), makeConfig());
+    (void)result;
+
+    ASSERT_FALSE(fake.optionSupportQueries.empty());
+    std::vector<std::string> names;
+    for (const auto& query : fake.optionSupportQueries) {
+        if (!query.second.has_value()) {
+            names.push_back(query.first);
+        }
+    }
+    ASSERT_FALSE(names.empty()) << "expected at least one name-only option query during compile()";
+    std::sort(names.begin(), names.end());
+    EXPECT_EQ(std::adjacent_find(names.begin(), names.end()), names.end())
+        << "an option name was queried more than once despite the cache";
+}
+
+TEST_F(VCLCompilerImplTest, WithoutACacheCompileRepeatsTheSameOptionQueries) {
+    // The counterpart of the test above: it is only the cache that collapses the duplicates, so a
+    // regression that stops wiring it would show up here as an unchanged query count.
+    auto compiler = makeCompiler();
+
+    const auto result = compiler->compile(makeModel(), makeConfig());
+    (void)result;
+
+    std::vector<std::string> names;
+    for (const auto& query : fake.optionSupportQueries) {
+        if (!query.second.has_value()) {
+            names.push_back(query.first);
+        }
+    }
+    std::sort(names.begin(), names.end());
+    EXPECT_NE(std::adjacent_find(names.begin(), names.end()), names.end());
+}
+
+TEST_F(VCLCompilerImplTest, TheBulkListContradictingACachedNegativeIsRejected) {
+    // Documents the cache's conflict guard as seen through the compiler: once an option is recorded
+    // as unsupported, a bulk list that advertises it is a genuine inconsistency rather than an
+    // update, and setSupportedOptions refuses it instead of silently flipping the answer.
+    auto cache = std::make_shared<OptionSupportCache>();
+    auto compiler = makeCachingCompiler(cache);
+    fake.unsupportedOptions.insert("OPT_A");
+
+    ASSERT_FALSE(compiler->is_option_supported("OPT_A"));
+
+    fake.unsupportedOptions.clear();
+    EXPECT_THROW((void)compiler->get_supported_options(), ov::Exception);
 }
 
 //
