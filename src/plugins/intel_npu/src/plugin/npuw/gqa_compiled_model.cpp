@@ -74,9 +74,10 @@ bool gqa_trace_enabled() {
 // NPUW_LLM_MAX_CONTEXT_LEN), set via the OPENVINO_NPUW_GQA_CTX_LEN environment variable.
 // Lets a run be repointed to a different context length without plumbing the property
 // through the app; takes priority over both the NPUW_LLM_MAX_CONTEXT_LEN property and its
-// own default when set. Parsed once and cached; an unparsable value is ignored (falls
-// back to the property/default) rather than failing the whole run. Like the rest of
-// NPUW's env-based debug knobs (see logging.cpp), this only does anything in
+// own default when set. Parsed once and cached; an unparsable value is NOT silently
+// ignored - std::stoull's exception is left to propagate so a malformed override is
+// surfaced to the caller instead of silently falling back to the property/default. Like
+// the rest of NPUW's env-based debug knobs (see logging.cpp), this only does anything in
 // NPU_PLUGIN_DEVELOPER_BUILD; production builds never read the environment.
 std::optional<size_t> gqa_ctx_len_env_override() {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -85,11 +86,7 @@ std::optional<size_t> gqa_ctx_len_env_override() {
         if (raw == nullptr) {
             return std::optional<size_t>{};
         }
-        try {
-            return std::optional<size_t>{static_cast<size_t>(std::stoull(raw))};
-        } catch (...) {
-            return std::optional<size_t>{};
-        }
+        return std::optional<size_t>{static_cast<size_t>(std::stoull(raw))};
     }();
     return value;
 #else
