@@ -4,12 +4,10 @@
 
 #include "single_op_tests/grouped_matmul.hpp"
 
-#include <algorithm>
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "openvino/runtime/properties.hpp"
 
 namespace {
 using ov::test::GroupedMatMulCompressedLayerTest;
