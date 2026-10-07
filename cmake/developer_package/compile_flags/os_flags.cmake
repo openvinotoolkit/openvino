@@ -25,6 +25,9 @@ if(NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
+# enforces a compiler-version floor when CMAKE_CXX_STANDARD is raised above the 17 default
+include(compile_flags/cxx_standard)
+
 if(ENABLE_COVERAGE)
     ov_add_compiler_flags(--coverage)
     ov_add_compiler_flags(-fprofile-update=atomic)
