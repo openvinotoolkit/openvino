@@ -898,8 +898,7 @@ void PluginPropertyManager::registerProperties() {
         return decltype(ov::device::uuid)::value_type{devUuid};
     }, readOnlySetter);
     register_property(ov::device::architecture.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
-        const auto devName = utils::getDeviceName(_backend, getDeviceIdOrDefault(arguments));
-        return utils::getPlatformByDeviceName(devName);
+        return utils::getDeviceArchitecture(_backend, getDeviceIdOrDefault(arguments));
     }, readOnlySetter);
     register_property(ov::device::full_name.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
         return utils::getFullDeviceName(_backend, getDeviceIdOrDefault(arguments));
