@@ -88,6 +88,20 @@ public:
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
 
+    /**
+     * @brief Tells whether the graph is known to require the initialize stage.
+     * @return `true` only when the driver states the requirement. Anything that leaves it
+     *         unestablished - no graph handle, a driver too old to express it, or a failed
+     *         query - reports `false`.
+     */
+    bool isInitStageRequired(const GraphDescriptor& graphDescriptor) const;
+
+    /**
+     * @brief Tells whether the graph was compiled with layer profiling enabled.
+     * @return `std::nullopt` if the driver is too old to answer.
+     */
+    std::optional<bool> isProfilingEnabled(const GraphDescriptor& graphDescriptor) const;
+
     void evict_memory(const GraphDescriptor& graphDescriptor) const;
 
     /**
@@ -113,6 +127,20 @@ private:
 
     Logger _logger;
 };
+
+/**
+ * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
+ * ones.
+ *
+ * @param arg The main Level Zero structure from which most metadata will be extracted.
+ * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
+ * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for
+ * the referenced attribute.
+ * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
+ */
+IODescriptor createIODescriptorFromLevelZero(uint32_t indexUsedByDriver,
+                                             const ze_graph_argument_properties_3_t& arg,
+                                             const std::optional<ze_graph_argument_metadata_t>& metadata);
 
 // Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
 std::unordered_set<std::string> parseQueryResult(std::vector<char>& data);

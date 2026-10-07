@@ -26,7 +26,11 @@ struct ConvertRelu {
         auto empty = tensor::EmptyOp::create(builder, loc, outType, dynamic_dimensions);
         auto zero = getConstant(builder, ov_output_element_type, 0);
         auto fill = linalg::FillOp::create(builder, loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
-        auto relu = linalg::MaxOp::create(builder, loc, mlir::ValueRange{input, fill.getResult(0)}, mlir::ValueRange{empty});
+        auto relu = linalg::ElementwiseOp::create(builder,
+                                                  loc,
+                                                  mlir::ValueRange{input, fill.getResult(0)},
+                                                  mlir::ValueRange{empty},
+                                                  linalg::ElementwiseKind::max_signed);
         return relu;
     }
 };

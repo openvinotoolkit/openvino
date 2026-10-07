@@ -725,8 +725,12 @@ class TestLLMModel(TestTorchConvertModel):
         ("cohere_gptq", "shuyuej/aya-23-8B-GPTQ"),
         ("mbart_gptq", "Shivam098/opt-translation"),
         ("llama_awq", "TheBloke/open-llama-3b-v2-wizard-evol-instuct-v2-196k-AWQ"),
-        ("qwen3_compressed_tensors",
-         "cyankiwi/Qwen3.5-4B-AWQ-4bit"),  # repo name is misleading; config has quant_method=compressed-tensors
+        # repo name is misleading; config has quant_method=compressed-tensors
+        pytest.param("qwen3_compressed_tensors", "cyankiwi/Qwen3.5-4B-AWQ-4bit",
+                     marks=pytest.mark.xfail(
+                         reason="Multimodal checkpoint: transformers<5.8 drops its quantization_config in "
+                                "AutoModelForCausalLM (huggingface/transformers#45494); newer versions load it, "
+                                "but ignore-list names don't match, so linear_attn.in_proj_a/b are initialized randomly")),
     ])
     @pytest.mark.nightly
     def test_convert_model_nightly(self, name, type, ie_device):
