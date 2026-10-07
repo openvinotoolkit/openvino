@@ -596,7 +596,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
 
     cldnn::format format = format::fbyx;
     if (weight_rank == 3)
-      format = format::byfx;
+        format = format::byfx;
 
     auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
     if (need_reorder(decompression_scale_idx, weight_rank)) {

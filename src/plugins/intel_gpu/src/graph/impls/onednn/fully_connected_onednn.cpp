@@ -17,6 +17,44 @@
 namespace cldnn {
 namespace onednn {
 
+static ov::Dimension::value_type get_decompression_groups(const layout& param_layout,
+                                                          size_t ifm_dim_idx,
+                                                          ov::Dimension::value_type ifm,
+                                                          ov::Dimension::value_type output_features) {
+    auto is_valid_group_count = [ifm](ov::Dimension::value_type groups) {
+        return groups > 0 && ifm % groups == 0;
+    };
+
+    if (param_layout.count() == 1) {
+        return 1;
+    }
+
+    const auto& param_shape = param_layout.get_partial_shape();
+    if (param_shape.size() == 2) {
+        const auto dim0 = param_layout.get_dim(0);
+        const auto dim1 = param_layout.get_dim(1);
+        if (dim1 == output_features && dim0 != output_features) {
+            OPENVINO_ASSERT(is_valid_group_count(dim0),
+                            "[GPU] Decompression group count should evenly divide IFM dimension.");
+            return dim0;
+        }
+        if (dim0 == output_features && dim1 != output_features) {
+            OPENVINO_ASSERT(is_valid_group_count(dim1),
+                            "[GPU] Decompression group count should evenly divide IFM dimension.");
+            return dim1;
+        }
+
+        OPENVINO_ASSERT(ifm_dim_idx < param_shape.size(), "[GPU] Invalid 2D decompression parameter shape.");
+        const auto legacy_groups = param_layout.get_dim(ifm_dim_idx);
+        const auto other_dim = param_layout.get_dim(1 - ifm_dim_idx);
+        OPENVINO_ASSERT(other_dim == ifm && is_valid_group_count(legacy_groups),
+                        "[GPU] 2D decompression parameter shape should be aligned to output features or IFM dimension.");
+        return legacy_groups;
+    }
+
+    return param_layout.get_dim(ifm_dim_idx);
+}
+
 struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     using parent = typed_primitive_onednn_impl<fully_connected>;
     using parent::parent;
@@ -263,6 +301,9 @@ public:
             [](ov::Dimension d) { return d.get_length() > 1; });
         weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
         const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
+        const auto ofm_dim_idx = prim->weights_transposed ? (weight_rank - 2) : (weight_rank - 1);
+        const auto ifm = weights_layout.get_dim(ifm_dim_idx);
+        const auto output_features = weights_layout.get_dim(ofm_dim_idx);
 
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         const auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
@@ -277,12 +318,16 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
-            const auto ngroups = scale_layout.get_dim(ifm_dim_idx);
+            const auto ngroups = get_decompression_groups(scale_layout, ifm_dim_idx, ifm, output_features);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
             } else if (ngroups == 1) {
+                OPENVINO_ASSERT(ifm % ngroups == 0,
+                                "[GPU] Decompression group count should evenly divide IFM dimension.");
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             } else {
+                OPENVINO_ASSERT(ngroups > 0 && ifm % ngroups == 0,
+                                "[GPU] Decompression group count should evenly divide IFM dimension.");
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
             }
         }
@@ -297,10 +342,14 @@ public:
                 if (dzp_layout.count() == 1) {
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    auto ngroups = dzp_layout.get_dim(ifm_dim_idx);
+                    auto ngroups = get_decompression_groups(dzp_layout, ifm_dim_idx, ifm, output_features);
                     if (ngroups == 1) {
+                        OPENVINO_ASSERT(ifm % ngroups == 0,
+                                        "[GPU] Decompression group count should evenly divide IFM dimension.");
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
+                        OPENVINO_ASSERT(ngroups > 0 && ifm % ngroups == 0,
+                                        "[GPU] Decompression group count should evenly divide IFM dimension.");
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
                     }
                 }
@@ -370,6 +419,11 @@ public:
             auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
             weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
             OPENVINO_ASSERT(weight_rank <= 3, "Currently only weights with equal to or less than 3D is supported");
+            // IFM (K) dimension position depends on weight layout orientation.
+            const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
+            const auto ofm_dim_idx = prim->weights_transposed ? (weight_rank - 2) : (weight_rank - 1);
+            const auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
+            const auto output_features = arg.get_dependency(1).get_output_layout().get_dim(ofm_dim_idx);
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
             int grouped = (1 << prim->input_size) - 1;
@@ -378,10 +432,9 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                // IFM (K) dimension position depends on weight layout orientation.
-                const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
-                const auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
-                const auto ngroups = scale_layout.get_dim(ifm_dim_idx);
+                const auto ngroups = get_decompression_groups(scale_layout, ifm_dim_idx, ifm, output_features);
+                OPENVINO_ASSERT(ngroups > 0 && ifm % ngroups == 0,
+                                "[GPU] Decompression group count should evenly divide IFM dimension.");
                 group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
@@ -411,7 +464,9 @@ public:
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
                     auto dzp_ifm_dim_idx = prim->weights_transposed ? (dzp_rank - 1) : (dzp_rank - 2);
-                    auto ngroups = dzp_layout.get_dim(dzp_ifm_dim_idx);
+                    auto ngroups = get_decompression_groups(dzp_layout, dzp_ifm_dim_idx, ifm, output_features);
+                    OPENVINO_ASSERT(ngroups > 0 && ifm % ngroups == 0,
+                                    "[GPU] Decompression group count should evenly divide IFM dimension.");
                     if (ngroups == 1 && dzp_rank <= 2) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
