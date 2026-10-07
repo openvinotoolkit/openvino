@@ -328,7 +328,7 @@ bool DeferredWriter::add_section(DeviceId device,
                                  SectionTagReserved tag,
                                  ov::util::MemoryView payload,
                                  SectionAlignment align) {
-    if (tag.is_pointer())                                    {
+    if (tag.is_pointer()) {
         m_sections.emplace_back(resolve_alignment(align), payload, device, tag);
         return true;
     } else if (payload.size() <= k_inline_capacity) {

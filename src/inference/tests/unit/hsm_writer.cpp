@@ -578,6 +578,88 @@ TEST(HsmWriterTest, handler_based_add_section_reuses_one_handler_for_several_sec
     EXPECT_EQ(payload_string(*container, *shards[1]), "shard-1");
 }
 
+TEST(HsmWriterTest, handler_forwards_to_a_named_member_function_instead_of_inlining_logic_in_the_lambda) {
+    struct CompiledOptions {
+        uint32_t version;
+        float scale;
+    };
+
+    class OptionsHandler : public hsm::ISectionWriterHandler {
+    public:
+        explicit OptionsHandler(CompiledOptions options) : m_options(options) {}
+
+        void handle_section(hsm::IWriter& writer) const override {
+            // The lambda is only a one-line forwarder; write_options() below is an ordinary member
+            // function - as long or recursive as needed, with full access to this handler's own state.
+            writer.add_section(fake_device_id,
+                               hsm::SectionTag::make_device_tag(/*local_id=*/10, /*is_inline=*/false),
+                               sizeof(m_options),
+                               [this](const hsm::SectionSink& sink) {
+                                   write_options(sink);
+                               });
+        }
+
+    private:
+        void write_options(const hsm::SectionSink& sink) const {
+            sink({reinterpret_cast<const std::byte*>(&m_options), sizeof(m_options)});
+        }
+
+        CompiledOptions m_options;
+    };
+
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    OptionsHandler handler(CompiledOptions{7, 0.5f});
+    writer.add_sections({&handler});
+    ASSERT_FALSE(writer.finalize());
+
+    const auto container = parse_container(stream.str());
+    ASSERT_TRUE(container.has_value());
+    const auto tag = hsm::SectionTag::make_device_tag(10, false);
+    const auto* section = find_entry(*container, fake_device_id, tag.id());
+    ASSERT_NE(section, nullptr);
+    CompiledOptions decoded{};
+    std::memcpy(&decoded, container->bytes.data() + section->offset, sizeof(decoded));
+    EXPECT_EQ(decoded.version, 7u);
+    EXPECT_FLOAT_EQ(decoded.scale, 0.5f);
+}
+
+TEST(HsmWriterTest, section_encoder_composes_from_several_sub_encoders) {
+    auto compose = [](std::vector<hsm::SectionEncoder> parts) -> hsm::SectionEncoder {
+        return [parts = std::move(parts)](const hsm::SectionSink& sink) {
+            for (const auto& part : parts) {
+                part(sink);
+            }
+        };
+    };
+
+    const std::string header = "head-";
+    const std::string body = "body-";
+    const std::string footer = "foot";
+    hsm::SectionEncoder encode = compose({
+        [&header](const hsm::SectionSink& sink) {
+            sink({reinterpret_cast<const std::byte*>(header.data()), header.size()});
+        },
+        [&body](const hsm::SectionSink& sink) {
+            sink({reinterpret_cast<const std::byte*>(body.data()), body.size()});
+        },
+        [&footer](const hsm::SectionSink& sink) {
+            sink({reinterpret_cast<const std::byte*>(footer.data()), footer.size()});
+        },
+    });
+
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    writer.add_section(hsm::any_device_id, hsm::model_tag, header.size() + body.size() + footer.size(), encode);
+    ASSERT_FALSE(writer.finalize());
+
+    const auto container = parse_container(stream.str());
+    ASSERT_TRUE(container.has_value());
+    const auto* model = find_entry(*container, hsm::any_device_id, hsm::model);
+    ASSERT_NE(model, nullptr);
+    EXPECT_EQ(payload_string(*container, *model), "head-body-foot");
+}
+
 // --- Wire-format compatibility: the writer's output must satisfy hsm_format.hpp's own contract ---
 
 TEST(HsmWriterTest, written_header_satisfies_the_format_contract) {
