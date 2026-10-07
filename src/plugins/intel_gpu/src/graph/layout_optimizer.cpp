@@ -1146,7 +1146,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     }
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
-    bool use_onednn_impls = contains_onednn_impls_optimization_attribute(&node) && input_layout.data_type != data_types::f32;
+    bool use_onednn_impls = contains_onednn_impls_optimization_attribute(&node);
 
     // convolution_gpu_1d_small_ic_gemm declares no fused ops, but a single
     // dependency-free activation still reaches it through convolution_params::activations
