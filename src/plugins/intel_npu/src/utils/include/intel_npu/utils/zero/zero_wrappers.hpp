@@ -64,7 +64,7 @@ public:
 
 private:
     bool ownerTagRequired() const;
-    void updatekey();
+    void updateKey();
 
     const void* ownerTag() const {
         return _owner_tag;

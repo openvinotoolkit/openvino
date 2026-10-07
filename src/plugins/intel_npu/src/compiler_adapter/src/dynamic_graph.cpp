@@ -212,10 +212,9 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
-    if (_commandQueueDesc.workload() == zeWorkloadType) {
-        return;
-    }
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the workload type must be applied directly on it.
     if (_commandQueue && zeWorkloadType.has_value()) {
         // When shared common queue is disabled, workload type is set per command queue.
         // Update the existing queue if it has already been created.
@@ -224,6 +223,8 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
         return;
     }
 
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
     _commandQueueDesc.setWorkload(zeWorkloadType);
 }
 
@@ -232,10 +233,9 @@ void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
-    if (_commandQueueDesc.priority() == zeModelPriority) {
-        return;
-    }
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the priority must be applied on it (directly, or by recreating it on legacy drivers).
     if (_commandQueue) {
         if (_zeroInitStruct->isCommandQueueSetPrioritySupported()) {
             _commandQueue->setPriority(zeModelPriority);
@@ -251,9 +251,12 @@ void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
             _workloadType = std::nullopt;  // Clear the cached workload type after applying it to the new queue
         }
 
+        _commandQueueDesc.setPriority(zeModelPriority);
         _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
     }
 
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
     _commandQueueDesc.setPriority(zeModelPriority);
 }
 

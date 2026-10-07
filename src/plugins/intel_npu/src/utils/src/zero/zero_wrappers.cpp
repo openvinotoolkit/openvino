@@ -12,7 +12,7 @@
 namespace intel_npu {
 
 CommandQueueDesc::CommandQueueDesc() {
-    updatekey();
+    updateKey();
 }
 CommandQueueDesc::CommandQueueDesc(ze_command_queue_priority_t priority,
                                    std::optional<ze_command_queue_workload_type_t> workload,
@@ -24,15 +24,15 @@ CommandQueueDesc::CommandQueueDesc(ze_command_queue_priority_t priority,
       _options(options),
       _owner_tag(owner_tag),
       _shared_common_queue(shared_common_queue) {
-    updatekey();
+    updateKey();
 }
 void CommandQueueDesc::setPriority(ze_command_queue_priority_t priority) {
     _priority = priority;
-    updatekey();
+    updateKey();
 }
 void CommandQueueDesc::setWorkload(std::optional<ze_command_queue_workload_type_t> workload) {
     _workload = workload;
-    updatekey();
+    updateKey();
 }
 bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
     if (_priority != other._priority || _workload != other._workload || _options != other._options ||
@@ -53,7 +53,7 @@ bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
 bool CommandQueueDesc::ownerTagRequired() const {
     return !_shared_common_queue;
 }
-void CommandQueueDesc::updatekey() {
+void CommandQueueDesc::updateKey() {
     uint64_t hash = zero_hashing::kFnvOffsetBasis64;
     hash = zero_hashing::hashCombine64(hash, static_cast<uint64_t>(_priority));
     if (_workload.has_value()) {
