@@ -142,11 +142,6 @@ public:
 
         if (has_stage(regular_micro_multi_tokens) && use_multi_tokens && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens \n";
-        // NOTE: The condition here must stay consistent with the stage-selection logic in the constructor
-        // (is_prefill_stage(params) || unaligned_head_size(params)), otherwise a stage that was never created
-        // (and thus has no compiled kernel) may be looked up here, leading to a crash.
-        // if (has_stage(regular_micro_multi_tokens) && (is_prefill || unaligned_head_size(new_params)) && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
-        //     GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill or unaligned head size \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
         }
 #endif
