@@ -14,15 +14,10 @@ endif()
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-file(GLOB_RECURSE LIBRARY_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
-  )
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
-file(GLOB_RECURSE KERNELS
-    "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/*.cl"
-  )
+set(LIBRARY_SRC ${GPU_KERNEL_SELECTOR_SOURCES})
+set(KERNELS ${GPU_KERNEL_SELECTOR_CL_KERNELS})
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).

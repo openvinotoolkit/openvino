@@ -1,0 +1,134 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(GPU_RUNTIME_MAIN_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/debug_configuration.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/device.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/device_query.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dispatch_probe.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/engine.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/engine_configuration.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/event.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/execution_config.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/file_util.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/format.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/layout.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/memory_pool.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/runtime_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_predictor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/stream.cpp
+)
+
+# sycl_*.{h,hpp,cpp} require the SYCL compiler and are added separately,
+# conditioned on OV_GPU_WITH_SYCL.
+set(GPU_RUNTIME_OCL_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_base_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_command_queues_builder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_command_queues_builder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_common.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_device.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_device.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_device_clock.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_device_clock.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_device_detector.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_device_detector.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_engine.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_engine.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_engine_factory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_event.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_ext.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_kernel.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_kernel.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_kernel_builder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_memory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_stream.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_stream.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_user_event.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_user_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/ocl_wrapper.hpp
+)
+
+set(GPU_RUNTIME_OCL_SYCL_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/sycl_engine.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/sycl_engine.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/sycl_stream.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ocl/sycl_stream.hpp
+)
+
+set(GPU_RUNTIME_ZE_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_base_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_base_event_factory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_counter_based_event.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_counter_based_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_counter_based_event_factory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_counter_based_event_factory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_device.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_device.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_device_detector.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_device_detector.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_empty_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_engine.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_engine.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_engine_factory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_event.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_event_factory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_event_factory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_events.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_events.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_kernel.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_kernel_builder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_kernel_builder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_memory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_ocl_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_ocl_interop.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_ocl_interop.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_ocl_owner.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_owner.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_resource.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_resource_interop.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_resource_interop.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_stream.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_stream.hpp
+)
+
+set(GPU_RUNTIME_ZE_COMPUTE_RUNTIME_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/ze/compute_runtime/ze_intel_gpu.h
+    ${CMAKE_CURRENT_LIST_DIR}/ze/compute_runtime/ze_stypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/ze/compute_runtime/zex_common.h
+    ${CMAKE_CURRENT_LIST_DIR}/ze/compute_runtime/zex_event.h
+)
+
+set(GPU_RUNTIME_SYCL_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_base_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_base_kernel.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_base_kernel.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_command_queues_builder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_command_queues_builder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_device.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_device.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_device_detector.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_device_detector.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_engine.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_engine.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_engine_factory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_event.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_event.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_kernel.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_kernel.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_memory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_stream.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_stream.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_wrapper.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.hpp
+)
