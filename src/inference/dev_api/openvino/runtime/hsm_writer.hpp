@@ -40,6 +40,9 @@ using SectionEncoder = std::function<void(const SectionSink& sink)>;
  * @p size_align: `0` (the default) inherits @p offset_align's value - the common case of padding the
  * offset and the slot size the same way; set it explicitly (`1` for no slot padding, or another power of
  * two) only when the slot size genuinely needs to differ from the offset alignment.
+ * @note Always relative to the container's own first byte, never to the destination's absolute address -
+ * getting that to line up with a real page boundary (e.g. for `mmap`) is the caller's responsibility:
+ * place the container's first byte at a page-aligned position in the destination.
  */
 struct SectionAlignment {
     size_t offset_align = 1;
