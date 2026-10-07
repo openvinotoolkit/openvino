@@ -4,6 +4,7 @@
 
 #include "convert_fc_to_compressed.hpp"
 
+#include <algorithm>
 #include <memory>
 
 #include "compressed_weights_pattern.hpp"
@@ -138,12 +139,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
         std::shared_ptr<ov::Node> fc_input_scale = scale;
         std::shared_ptr<ov::Node> fc_input_zp = optional_zero_point;
-        const auto scale_rank = scale->get_shape().size();
-        const auto scale_ifm_dim_idx = scale_rank == 0 ? 0 : (scale_rank - (has_transpose ? 2 : 1));
-        const auto zp_rank = optional_zero_point ? optional_zero_point->get_shape().size() : 0;
-        const auto zp_ifm_dim_idx = zp_rank == 0 ? 0 : (zp_rank - (has_transpose ? 2 : 1));
+        const bool transpose_b_scale = !has_transpose;
+        const bool transpose_b_zp = !has_transpose;
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
+        if (ov::is_type<ov::op::v0::Convert>(optional_zero_point)) {
+            result_nodes.push_back(optional_zero_point);
+        }
 
         if (fc_input_b->get_output_partial_shape(0).size() != fc_input_scale->get_shape().size()) {
             OPENVINO_ASSERT(!weights_are_constant);
@@ -187,7 +189,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         if (has_transpose_before_reshape) {
             const auto& reshape = pattern_map.at(transpose_before_reshape_m).get_node_shared_ptr();
-            const auto& reshape_const_node = pattern_map.at(transpose_const_m);
+            const auto& reshape_const_node = reshape->input_value(1);
             fc_input_b = reshape->clone_with_new_inputs({fc_input_b->output(0), reshape_const_node});
             result_nodes.push_back(fc_input_b);
 
@@ -229,8 +231,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc_input_zp,
                                                                     fc->get_output_type(),
                                                                     fc->get_transpose_b(),
-                                                                    scale_ifm_dim_idx,
-                                                                    zp_ifm_dim_idx);
+                                                                    transpose_b_scale,
+                                                                    transpose_b_zp);
         } else {
             new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a,
                                                                     fc_input_b,
@@ -238,8 +240,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc_input_scale,
                                                                     fc->get_output_type(),
                                                                     fc->get_transpose_b(),
-                                                                    scale_ifm_dim_idx,
-                                                                    zp_ifm_dim_idx);
+                                                                    transpose_b_scale,
+                                                                    transpose_b_zp);
         }
 
         result_nodes.push_back(new_fc);

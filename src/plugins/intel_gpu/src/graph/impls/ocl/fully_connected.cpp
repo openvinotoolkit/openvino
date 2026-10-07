@@ -177,10 +177,10 @@ public:
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         params.allowInputReordering = true;
 
-        auto convert_decompression_tensor = [&](const layout& param_layout, const int64_t ifm_dim_idx) {
+        auto convert_decompression_tensor = [&](const layout& param_layout, const bool transpose_b_param) {
             auto tensor = convert_data_tensor(param_layout);
 
-            if (tensor.GetLayout() == kernel_selector::DataLayout::bfyx && ifm_dim_idx == 0 && tensor.Feature().v == params.weights.OFM().v) {
+            if (tensor.GetLayout() == kernel_selector::DataLayout::bfyx && !transpose_b_param && tensor.Feature().v == params.weights.OFM().v) {
                 // bfyx [G, N] already stores N in the innermost physical dimension. Reinterpret it as
                 // fbyx so existing kernels continue to address batch as N and feature as G.
                 return kernel_selector::DataTensor(tensor.GetDims(),
@@ -198,10 +198,10 @@ public:
         bool with_zp = primitive->decompression_zero_point.is_valid();
         if (compressed) {
             params.compressed = true;
-            params.decompression_scale = convert_decompression_tensor(updated_impl_param.input_layouts[2], primitive->scale_ifm_dim_idx);
+            params.decompression_scale = convert_decompression_tensor(updated_impl_param.input_layouts[2], primitive->transpose_b_scale);
             if (with_zp) {
                 params.has_decompression_zp = true;
-                params.decompression_zero_point = convert_decompression_tensor(updated_impl_param.input_layouts[3], primitive->zp_ifm_dim_idx);
+                params.decompression_zero_point = convert_decompression_tensor(updated_impl_param.input_layouts[3], primitive->transpose_b_zp);
                 if (updated_impl_param.input_layouts[3].get_linear_size() == 1 && primitive->decompression_zero_point_scalar.has_value()) {
                     params.scalar_zp = true;
                     params.zp_value = primitive->decompression_zero_point_scalar.value();

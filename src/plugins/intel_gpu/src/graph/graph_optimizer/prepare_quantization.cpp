@@ -558,8 +558,8 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
     };
 
-    auto need_reorder = [&](size_t dep_id, size_t weight_rank, size_t ifm_dim_idx) {
-        if (ifm_dim_idx != 1)
+    auto need_reorder = [&](size_t dep_id, size_t weight_rank, bool transpose_b_param) {
+        if (!transpose_b_param)
             return false;
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
@@ -593,13 +593,13 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
 
     auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
     // OCL/oneDNN kernel requires decompression scale/zp in layout where scale_ofm dimension is innermost
-    if (need_reorder(decompression_scale_idx, weight_rank, fc_prim->scale_ifm_dim_idx)) {
+    if (need_reorder(decompression_scale_idx, weight_rank, fc_prim->transpose_b_scale)) {
         reorder_bfyx(decompression_scale_idx, format);
     }
 
     if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
-        if (need_reorder(decompression_zp_idx, weight_rank, fc_prim->zp_ifm_dim_idx)) {
+        if (need_reorder(decompression_zp_idx, weight_rank, fc_prim->transpose_b_zp)) {
             reorder_bfyx(decompression_zp_idx, format);
         }
     }

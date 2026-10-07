@@ -24,8 +24,8 @@ public:
                              const ov::Output<Node>& a_precomputed_reduction,
                              const ov::element::Type output_type = ov::element::dynamic,
                              const bool transpose_b = true,
-                             const int64_t scale_ifm_dim_idx = 1,
-                             const int64_t zp_ifm_dim_idx = 1);
+                             const bool transpose_b_scale = true,
+                             const bool transpose_b_zp = true);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
@@ -34,8 +34,8 @@ public:
                              const ov::Output<Node>& w_decompression_zero_point,
                              const ov::element::Type output_type = ov::element::dynamic,
                              const bool transpose_b = true,
-                             const int64_t scale_ifm_dim_idx = 1,
-                             const int64_t zp_ifm_dim_idx = 1);
+                             const bool transpose_b_scale = true,
+                             const bool transpose_b_zp = true);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
@@ -43,19 +43,19 @@ public:
                              const ov::Output<Node>& w_decompression_scale,
                              const ov::element::Type output_type = ov::element::dynamic,
                              const bool transpose_b = true,
-                             const int64_t scale_ifm_dim_idx = 1,
-                             const int64_t zp_ifm_dim_idx = 1);
+                             const bool transpose_b_scale = true,
+                             const bool transpose_b_zp = true);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
-    int64_t get_scale_ifm_dim_idx() const { return m_scale_ifm_dim_idx; }
-    int64_t get_zp_ifm_dim_idx() const { return m_zp_ifm_dim_idx; }
+    bool get_transpose_b_scale() const { return m_transpose_b_scale; }
+    bool get_transpose_b_zp() const { return m_transpose_b_zp; }
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
 private:
-    // transpose_b by default indicates ifm_dim_idx is in the last dimension
-    int64_t m_scale_ifm_dim_idx = 1;
-    int64_t m_zp_ifm_dim_idx = 1;
+    // true: scale/zp layout is [N, groups]; false: [groups, N]
+    bool m_transpose_b_scale = true;
+    bool m_transpose_b_zp = true;
 };
 
 }   // namespace ov::intel_gpu::op

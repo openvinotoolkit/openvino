@@ -6,14 +6,6 @@
 
 namespace ov::intel_gpu::op {
 
-namespace {
-int64_t resolve_ifm_dim_idx(const ov::Output<Node>& input, int64_t index) {
-    const auto rank = input.get_partial_shape().rank();
-    OPENVINO_ASSERT(rank.is_static(), "A static scale/ZP rank is required to determine its last dimension");
-    return std::max<int64_t>(0, std::min(index, rank.get_length() - 1));
-}
-}  // namespace
-
 FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::Output<Node>& B,
                                                    const ov::Output<Node>& bias,
@@ -24,11 +16,11 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::Output<Node>& a_precomputed_reduction,
                                                    const ov::element::Type output_type,
                                                    const bool transpose_b,
-                                                   const int64_t scale_ifm_dim_idx,
-                                                   const int64_t zp_ifm_dim_idx)
-    : FullyConnected(A, B, bias, output_type, transpose_b) {
-    m_scale_ifm_dim_idx = resolve_ifm_dim_idx(w_decompression_scale, scale_ifm_dim_idx);
-    m_zp_ifm_dim_idx = resolve_ifm_dim_idx(w_decompression_zero_point, zp_ifm_dim_idx);
+                                                   const bool transpose_b_scale,
+                                                   const bool transpose_b_zp)
+    : FullyConnected(A, B, bias, output_type, transpose_b),
+      m_transpose_b_scale(transpose_b_scale),
+      m_transpose_b_zp(transpose_b_zp) {
     set_argument(3, w_decompression_scale);
     set_argument(4, w_decompression_zero_point);
     set_argument(5, a_decompression_scale);
@@ -44,11 +36,11 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::Output<Node>& w_decompression_zero_point,
                                                    const ov::element::Type output_type,
                                                    const bool transpose_b,
-                                                   const int64_t scale_ifm_dim_idx,
-                                                   const int64_t zp_ifm_dim_idx)
-    : FullyConnected(A, B, bias, output_type, transpose_b) {
-    m_scale_ifm_dim_idx = resolve_ifm_dim_idx(w_decompression_scale, scale_ifm_dim_idx);
-    m_zp_ifm_dim_idx = resolve_ifm_dim_idx(w_decompression_zero_point, zp_ifm_dim_idx);
+                                                   const bool transpose_b_scale,
+                                                   const bool transpose_b_zp)
+    : FullyConnected(A, B, bias, output_type, transpose_b),
+      m_transpose_b_scale(transpose_b_scale),
+      m_transpose_b_zp(transpose_b_zp) {
     set_argument(3, w_decompression_scale);
     set_argument(4, w_decompression_zero_point);
     validate_and_infer_types();
@@ -60,11 +52,11 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::Output<Node>& w_decompression_scale,
                                                    const ov::element::Type output_type,
                                                    const bool transpose_b,
-                                                   const int64_t scale_ifm_dim_idx,
-                                                   const int64_t zp_ifm_dim_idx)
-    : FullyConnected(A, B, bias, output_type, transpose_b) {
-    m_scale_ifm_dim_idx = resolve_ifm_dim_idx(w_decompression_scale, scale_ifm_dim_idx);
-    m_zp_ifm_dim_idx = zp_ifm_dim_idx;
+                                                   const bool transpose_b_scale,
+                                                   const bool transpose_b_zp)
+    : FullyConnected(A, B, bias, output_type, transpose_b),
+      m_transpose_b_scale(transpose_b_scale),
+      m_transpose_b_zp(transpose_b_zp) {
     set_argument(3, w_decompression_scale);
     validate_and_infer_types();
 }
@@ -74,8 +66,8 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
 
     if (new_args.size() == 4) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_output_type, m_transpose_b,
-                                                          m_scale_ifm_dim_idx,
-                                                          m_zp_ifm_dim_idx);
+                                                          m_transpose_b_scale,
+                                                          m_transpose_b_zp);
     }
     if (new_args.size() == 5) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0),
@@ -85,8 +77,8 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           new_args.at(4),
                                                           m_output_type,
                                                           m_transpose_b,
-                                                          m_scale_ifm_dim_idx,
-                                                          m_zp_ifm_dim_idx);
+                                                          m_transpose_b_scale,
+                                                          m_transpose_b_zp);
     }
     if (new_args.size() == 8) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0),
@@ -99,16 +91,16 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           new_args.at(7),
                                                           m_output_type,
                                                           m_transpose_b,
-                                                          m_scale_ifm_dim_idx,
-                                                          m_zp_ifm_dim_idx);
+                                                          m_transpose_b_scale,
+                                                          m_transpose_b_zp);
     }
     OPENVINO_THROW("Unexpected inputs count for FullyConnectedCompressed op: ", new_args.size());
 }
 
 bool FullyConnectedCompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     FullyConnected::visit_attributes(visitor);
-    visitor.on_attribute("scale_ifm_dim_idx", m_scale_ifm_dim_idx);
-    visitor.on_attribute("zp_ifm_dim_idx", m_zp_ifm_dim_idx);
+    visitor.on_attribute("transpose_b_scale", m_transpose_b_scale);
+    visitor.on_attribute("transpose_b_zp", m_transpose_b_zp);
     return true;
 }
 }  // namespace ov::intel_gpu::op
