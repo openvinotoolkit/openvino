@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 20,
+  "total": 21,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -215,6 +215,15 @@
       "category": "Infrastructure",
       "signature_hash": "0ee6d7327812b344",
       "commit_sha": "0a3cef6638eb37104752a8bc27ad27c4e601e0c1"
+    },
+    {
+      "investigation_id": "2026-10-07-05-03-57-000-37572215900",
+      "run_id": "37572215900",
+      "timestamp": "2026-10-07T05:03:57Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c"
     }
   ]
 }

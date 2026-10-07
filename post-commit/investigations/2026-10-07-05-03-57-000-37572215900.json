@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-07-05-03-57-000-37572215900",
+  "timestamp": "2026-10-07T05:03:57Z",
+  "run_id": "37572215900",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37572215900",
+  "workflow_name": "Build",
+  "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+  "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+  "signature_hash": "0ee6d7327812b344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install - OpenVINO JS API step fails compiling einsum.cpp with invalid-pch error"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/einsum.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The ARM64 cross-compilation build uses precompiled headers (ENABLE_FASTER_BUILD=ON) and sccache for distributed/remote compilation caching. The cmake_pch.hxx.gch precompiled header artifact becomes stale, truncated, or incompatible with the compiler invocation that consumes it (likely due to a cache race or a corrupted/partial sccache entry for the PCH generation step), so cc1plus rejects it as not a valid PCH file. Because -Werror=invalid-pch is enabled (via CMAKE_COMPILE_WARNING_AS_ERROR=ON), this otherwise-recoverable warning aborts the ninja build. This exact signature has now recurred 16 times across the last two weeks on this same ARM64 cross-compilation job, always in src/core/reference (einsum.cpp in this run, other objects in prior runs), confirming it is a build/cache infrastructure issue rather than a source-code regression tied to any specific commit.",
+  "reproduction_steps": "Not reliably reproducible locally since it depends on sccache/PCH cache state. To approximate: build OpenVINO for aarch64 cross-compilation with -DENABLE_FASTER_BUILD=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON and sccache enabled as the compiler launcher, then re-run the build after invalidating or truncating the sccache entry for cmake_pch.hxx.gch to simulate a corrupted PCH artifact.",
+  "recommended_actions": [
+    "Disable or relax -Werror=invalid-pch for this configuration (or drop ENABLE_COMPILE_WARNING_AS_ERROR for PCH-related diagnostics) so a stale PCH triggers a rebuild instead of a hard failure.",
+    "Investigate whether sccache is caching the generated cmake_pch.hxx.gch artifact itself and returning a corrupted/truncated copy; consider excluding PCH .gch outputs from sccache or verifying cache integrity before reuse.",
+    "Add a build-time check/retry that removes and regenerates cmake_pch.hxx.gch when cc1plus reports an invalid-pch error, instead of failing the whole build.",
+    "Given this has recurred 16 times, escalate to the CI/build infrastructure owners for the ubuntu_22_arm64_cross_compilation runner/container image rather than treating each occurrence as a one-off."
+  ],
+  "prevention_strategies": "Track PCH/sccache cache hit-rate and corruption metrics for the ARM64 cross-compilation job; add a cache-busting or integrity-verification step for precompiled headers before relying on them in a Werror build. Consider disabling ENABLE_FASTER_BUILD (PCH) specifically for this cross-compilation configuration until the underlying cache corruption is fixed.",
+  "historical_context": "Identical signature first seen 2026-09-25 and recorded 15 times previously (pattern 0ee6d7327812b344), most recently 2026-10-06T16:50:38Z. This is now the 16th occurrence, all on the ubuntu_22_arm64_cross_compilation Build job, consistently tied to the shared cmake_pch.hxx.gch precompiled header becoming invalid mid-build."
+}

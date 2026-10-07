@@ -4,10 +4,11 @@
   "signature_hash": "0ee6d7327812b344",
   "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
   "category": "Infrastructure",
-  "count": 16,
+  "count": 17,
   "first_seen": "2026-09-25T10:37:07Z",
-  "last_seen": "2026-10-06T16:50:38Z",
+  "last_seen": "2026-10-07T05:03:57Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/37572215900",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37495837976",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37488947582",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37482358384",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/37458813239",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37448674288",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37444849394",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/37440842108",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/37437000273"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/37440842108"
   ],
   "affected_commits": [
+    "f77c1e9b6d9e746a816c1a20182917f2c327cc7c",
     "0a3cef6638eb37104752a8bc27ad27c4e601e0c1",
     "ed4493b1a4efc33f4c1e52195a7e663c502320c2",
     "03916107a8c6beb3f8d837a3b96f945904c6c026",
@@ -28,10 +29,10 @@
     "89a76b7ac307ba065dbf61af12e17747b431eafb",
     "e345d4559f5db304ebdcc43ab644c75b8c81d5d3",
     "1cdeaedefbb03ad043cb6c83d7462d9c2442b885",
-    "c026cb63b3e9f5f9345daf7c382006cf9e8e3373",
-    "23efa670f1c1008cd7468a285f4622ec3d3658f2"
+    "c026cb63b3e9f5f9345daf7c382006cf9e8e3373"
   ],
   "recent_timestamps": [
+    "2026-10-07T05:03:57Z",
     "2026-10-06T16:50:38Z",
     "2026-10-06T15:59:30Z",
     "2026-10-06T15:26:00Z",
@@ -43,9 +44,6 @@
     "2026-10-06T10:14:30Z",
     "2026-10-06T09:39:25Z",
     "2026-10-06T08:52:00Z",
-    "2026-10-06T06:26:52Z",
-    "2026-10-06T04:20:18Z",
-    "2026-10-06T01:01:26Z",
-    "2026-10-06T00:24:07Z"
+    "2026-10-06T06:26:52Z"
   ]
 }
