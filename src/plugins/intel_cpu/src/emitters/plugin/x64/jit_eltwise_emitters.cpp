@@ -895,7 +895,12 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         const Address& source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
         h->uni_vmovss(xmm0, source);
         h->uni_vmovss(xmm1, h->ptr[h->rsp + h->rbx + get_vec_length() + i * sizeof(float)]);
+        // All live vector registers are spilled; avoid AVX-to-SSE transitions in libm.
+        h->uni_vzeroupper();
         h->call(h->rbp);
+        if (isa == x64::sse41) {
+            h->uni_vzeroupper();
+        }
         h->uni_vmovss(source, xmm0);
     }
 
@@ -1887,7 +1892,12 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             const Address& source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
             h->uni_vmovss(xmm0, source);
             h->uni_vmovss(xmm1, h->ptr[h->rsp + h->rbx + get_vec_length() + i * sizeof(float)]);
+            // All live vector registers are spilled; avoid AVX-to-SSE transitions in libm.
+            h->uni_vzeroupper();
             h->call(h->rbp);
+            if (isa == x64::sse41) {
+                h->uni_vzeroupper();
+            }
             h->uni_vmovss(source, xmm0);
         }
 
