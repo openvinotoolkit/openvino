@@ -63,3 +63,45 @@ def grouped_matmul(
         "GroupedMatMul",
         as_nodes(*inputs, name=name),
     )
+
+
+@nameable_op
+def rgb_to_nv12(
+    arg: NodeInput,
+    single_plane: bool = True,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs RGBtoNV12 operation.
+
+    :param arg: The node providing data for the operation in RGB format (NHWC layout).
+    :param single_plane: If True, output is single plane NV12 [N, H*3/2, W, 1].
+                         If False, output has two planes: Y [N, H, W, 1] and UV [N, H/2, W/2, 2].
+    :param name: The optional name for the created output node.
+    :return: The new node performing RGBtoNV12 operation.
+    """
+    return _get_node_factory_opset17().create(
+        "RGBtoNV12",
+        as_nodes(arg, name=name),
+        {"single_plane": single_plane},
+    )
+
+
+@nameable_op
+def bgr_to_nv12(
+    arg: NodeInput,
+    single_plane: bool = True,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs BGRtoNV12 operation.
+
+    :param arg: The node providing data for the operation in BGR format (NHWC layout).
+    :param single_plane: If True, output is single plane NV12 [N, H*3/2, W, 1].
+                         If False, output has two planes: Y [N, H, W, 1] and UV [N, H/2, W/2, 2].
+    :param name: The optional name for the created output node.
+    :return: The new node performing BGRtoNV12 operation.
+    """
+    return _get_node_factory_opset17().create(
+        "BGRtoNV12",
+        as_nodes(arg, name=name),
+        {"single_plane": single_plane},
+    )
