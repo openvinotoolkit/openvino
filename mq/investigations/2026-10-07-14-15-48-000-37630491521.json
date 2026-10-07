@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-07-14-15-48-000-37630491521",
+  "timestamp": "2026-10-07T14:15:48Z",
+  "run_id": "37630491521",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37630491521",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38389",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38389",
+  "author": "mryzhov",
+  "category": "Flaky Test",
+  "title": "smoke_ConvertCPULayerTest_7D_Dynamic - primType is unexpected : unknown_i32 Expected : acl_i32",
+  "signature": "primType is unexpected : unknown_i32 Expected : acl_i32|Flaky Test",
+  "signature_hash": "67be3af52d03d193",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Single smoke_ConvertCPULayerTest_7D_Dynamic ACL Convert test asserts primType unknown_i32 vs expected acl_i32"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_ConvertCPULayerTest_7D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[?.?.?.?.?.?.?]_TS=(2.4.4.4.3.3.1)_(2.17.5.4.3.2.1)_(1.2.3.4.5.6.7)_inputPRC=i32_specialValue=none_targetPRC=f32_",
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : unknown_i32 Expected : acl_i32",
+    "[  FAILED  ] smoke_ConvertCPULayerTest_7D_Dynamic/ConvertCPULayerTest.CompareWithRefs/... (92 ms)",
+    "ERROR:test_parallel_runner:Run is not successful\n##[error]Process completed with exit code 255."
+  ],
+  "root_cause": "Only 1 of 71,641 CPU functional tests failed: a single ACL-backed ConvertCPULayerTest_7D_Dynamic case asserted the selected primitive implementation type was 'acl_i32' but the runtime reported 'unknown_i32'. This is the same recurring ACL (ARM Compute Library) primitive-selection flakiness previously observed across ConvertCPULayerTest, MatMulLayerCPUTest, MatMulDecompressConvertTest, and PoolingLayerCPUTest on ARM64 (patterns 76751669c7a78fcd, 0de8f57e3fb03230, eb0b94c864ee1a85), where ACL's kernel-selection heuristics intermittently fail to register a primitive type for certain input shapes/precisions depending on runner load or threading, independent of the code under test. PR #38389 changes only src/common/transformations/.../restore_traced_batch.* (a new smart_reshape transformation) and has no relation to the CPU plugin's ACL dispatch code or ConvertCPULayerTest, confirming the failure is unrelated to the PR diff.",
+  "reproduction_steps": "Build CPU plugin for ARM64 (Ubuntu 22.04 cross-compilation) and run: ov_cpu_func_tests --gtest_filter=*smoke_ConvertCPULayerTest_7D_Dynamic/ConvertCPULayerTest.CompareWithRefs*inputPRC=i32*primitive=acl* repeatedly; the ACL primType assertion in cpu_test_utils.cpp:248 fails intermittently depending on ACL kernel/primitive selection for i32 Convert inputs.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job; this is known flaky ACL primitive-selection behavior unrelated to PR #38389's diff.",
+    "Track the recurring ACL primType mismatch (unknown_* vs acl_*/undef_* vs acl_*) across Convert/MatMul/Pooling CPU layer tests as a single ARM64 CPU-plugin flakiness ticket and consider adding a bounded retry or diagnostic logging around the primTypeCheck assertion in cpu_test_utils.cpp.",
+    "No action required on PR #38389 itself - the failure is confined to an unrelated ARM64/ACL CPU functional test."
+  ],
+  "prevention_strategies": "Add a short internal retry (or gtest repeat) for primTypeCheck specifically for ACL-backed primitives in cpu_test_utils.cpp, since ACL kernel/primitive selection can legitimately vary by runtime/thread count; log both selected and expected primitive type on mismatch to speed up triage without blocking unrelated merge-queue PRs.",
+  "historical_context": "This is the 6th recorded ACL primType-mismatch signature variant since July 2026 (siblings: 76751669c7a78fcd, 0de8f57e3fb03230, cb7d14bccc236de4, eb0b94c864ee1a85 count=4, and the earlier Code-Issue-labeled 75ebbbb77b09e3b0 for the identical i32/acl_i32 text which turned out, on repeated unrelated-PR occurrences of the broader pattern family, to be the same recurring ACL flakiness rather than a genuine code defect)."
+}
