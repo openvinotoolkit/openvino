@@ -52,6 +52,17 @@ constexpr std::optional<SectionSlot> reserve_slot(size_t cursor, size_t size, Se
     }
 }
 
+constexpr Header make_header(size_t manifest_offset, size_t manifest_size, size_t container_size) {
+    return {
+        BlobMagic::single,
+        FormatVersion::major,
+        FormatVersion::minor,
+        container_size,
+        manifest_offset,
+        manifest_size,
+    };
+}
+
 }  // namespace
 
 std::optional<size_t> DeferredWriter::reserve(BufferDestination& destination, size_t extra) {
@@ -401,13 +412,8 @@ std::error_code DeferredWriter::finalize() {
             }
 
             if (destination_good()) {
-                Header header{};
-                header.magic = BlobMagic::single;
-                header.version_major = FormatVersion::major;
-                header.version_minor = FormatVersion::minor;
-                header.manifest_offset = body_size;
-                header.manifest_size = section_count * sizeof(ManifestEntry);
-                header.container_size = body_size + header.manifest_size;
+                const auto manifest_size = section_count * sizeof(ManifestEntry);
+                const auto header = make_header(body_size, manifest_size, body_size + manifest_size);
                 write({reinterpret_cast<const std::byte*>(&header), sizeof(header)});
                 manifest_offset = body_size;
             }
@@ -426,17 +432,9 @@ std::error_code DeferredWriter::finalize() {
         if (m_has_unsized_section) {
             manifest_offset = written_size();  // now known: right before the manifest is written
         }
-        for (size_t i = 0; i < entries.size() && destination_good(); ++i) {
-            write({reinterpret_cast<const std::byte*>(&entries[i]), sizeof(entries[i])});
-        }
+        write({reinterpret_cast<const std::byte*>(entries.data()), entries.size() * sizeof(ManifestEntry)});
         if (m_has_unsized_section && destination_good()) {
-            Header header{};
-            header.magic = BlobMagic::single;
-            header.version_major = FormatVersion::major;
-            header.version_minor = FormatVersion::minor;
-            header.manifest_offset = manifest_offset;
-            header.manifest_size = entries.size() * sizeof(ManifestEntry);
-            header.container_size = written_size();
+            const auto header = make_header(manifest_offset, entries.size() * sizeof(ManifestEntry), written_size());
             patch(0, {reinterpret_cast<const std::byte*>(&header), sizeof(header)});
         }
         m_result = destination_good() ? std::error_code{} : make_error_code(WriteErrc::write_failed);
