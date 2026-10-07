@@ -6,6 +6,7 @@
 
 #include "../../../logging.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "openvino/op/constant.hpp"
 
 using ov::npuw::online::Repeated;
 using ov::npuw::online::util::ReadAttributes;
@@ -17,6 +18,13 @@ std::string ov::npuw::online::util::getMetaDesc(const std::shared_ptr<ov::Node>&
 
     for (const auto& input : ov_node->inputs()) {
         ss << input.get_element_type() << ' ' << input.get_shape() << ' ';
+        // Static shape/index/mask tensors are not interchangeable with runtime
+        // metadata: merging them produces incomplete constant match banks
+        // (e.g. full vs sliding-window attention in a MoE model). Keep floating
+        // activations/weights on the existing irregular-I/O matching path.
+        const auto type = input.get_element_type();
+        if (type == ov::element::boolean || type == ov::element::i32 || type == ov::element::i64)
+            ss << "const=" << ov::is_type<ov::op::v0::Constant>(input.get_source_output().get_node()) << ' ';
     }
     for (const auto& output : ov_node->outputs()) {
         ss << output.get_element_type() << ' ' << output.get_shape() << ' ';
