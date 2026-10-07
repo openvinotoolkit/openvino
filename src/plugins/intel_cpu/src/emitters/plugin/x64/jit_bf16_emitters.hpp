@@ -108,7 +108,7 @@ private:
             auto out = Xmm(to_reg_idx(out_vec_idxs[0]));
 
             h->uni_vpsrld(aux, in, 16);
-            h->uni_vpandd(aux, aux, table_val("one"));
+            h->uni_vandps(aux, aux, table_val("one"));
             h->uni_vpaddd(aux, aux, table_val("even"));
             h->uni_vpaddd(aux, aux, in);
             h->uni_vpsrld(aux, aux, 16);

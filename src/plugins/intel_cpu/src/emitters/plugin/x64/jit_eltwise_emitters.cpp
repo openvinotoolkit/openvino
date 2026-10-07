@@ -26,7 +26,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/clamp.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "utils/general_utils.h"
