@@ -7,6 +7,8 @@
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
@@ -54,10 +56,10 @@ ov::OutputVector conv(const ov::frontend::onnx::Node& node,
     if (ov::op::util::is_null(bias)) {
         return {conv_node};
     } else {
-        const auto& bias_ps = bias.get_partial_shape();
-
-        FRONT_END_GENERAL_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
-                                "The bias input needs to be 1D vector");
+        // ONNX Runtime reads a non-1D bias (e.g. [1, C, 1, 1]) as its C flattened values.
+        if (bias.get_partial_shape().rank() != 1) {
+            bias = std::make_shared<v1::Reshape>(bias, v0::Constant::create(ov::element::i64, {1}, {-1}), false);
+        }
 
         const std::string onnx_name = !node.get_name().empty() ? node.get_name() : node.output(0);
         conv_node->set_friendly_name(onnx_name + "/WithoutBiases");
