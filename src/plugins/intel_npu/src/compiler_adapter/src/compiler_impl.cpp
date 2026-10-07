@@ -703,7 +703,7 @@ constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
 
 ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::optional<IDevice::DeviceProperties>& deviceProperties,
                                         const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
-    auto vclLoader = VCLLoader::getInstance(ov::util::path_to_string(ov::util::get_ov_lib_path()));
+    auto vclLoader = VCLLoader::getInstance();
     OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
 
     auto compiler =
