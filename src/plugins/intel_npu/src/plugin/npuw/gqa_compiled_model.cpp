@@ -835,7 +835,7 @@ void ov::npuw::GQAInferRequest::trace_attention_mask_stats_locked() const {
         // NB: structured bindings can't be captured by lambdas pre-C++20, so use
         // plain named locals for 'name'/'axis' instead of a [name, axis] binding here.
         const auto& name = kv.first;
-        const auto axis = kv.second;
+        [[maybe_unused]] const auto axis = kv.second;  // only referenced by GQA_TRACE below
         if (ov::npuw::util::contains_ignore_case(name, "past_key") ||
             ov::npuw::util::contains_ignore_case(name, "past_value")) {
             continue;  // KV-cache tensor, not the mask/bias -- already traced/handled elsewhere
