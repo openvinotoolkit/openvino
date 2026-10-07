@@ -91,6 +91,8 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 # Setup pip
 ENV PIP_VERSION="24.0"
+# pip 24.0 is incompatible with Python 3.15 (abstract importlib.metadata Distribution.locate_file)
+ENV PIP_VERSION_PY315="26.2.1"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3-8.py && \
     curl https://bootstrap.pypa.io/pip/3.9/get-pip.py -o get-pip-3-9.py && \
@@ -102,8 +104,8 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.15 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.15t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.15 get-pip.py --no-cache-dir pip==${PIP_VERSION_PY315} && \
+    python3.15t get-pip.py --no-cache-dir pip==${PIP_VERSION_PY315} && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.10

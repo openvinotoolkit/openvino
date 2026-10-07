@@ -21,16 +21,16 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
-        curl \
-        git \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Python
-        python3.15-dev \
-        python3.15-venv \
-        && \
+    curl \
+    git \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # Python
+    python3.15-dev \
+    python3.15-venv \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 # Install openvino dependencies
@@ -41,9 +41,11 @@ RUN chmod +x /install_openvino_dependencies.sh && \
 
 # Setup pip
 ENV PIP_VERSION="24.0"
+# pip 24.0 is incompatible with Python 3.15 (abstract importlib.metadata Distribution.locate_file)
+ENV PIP_VERSION_PY315="26.2.1"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.15 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.15 get-pip.py --no-cache-dir pip==${PIP_VERSION_PY315} && \
     rm -f get-pip.py
 
 # Use Python 3.15 as default instead of Python 3.10
