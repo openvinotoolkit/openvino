@@ -79,7 +79,9 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
             .github/actions/install_ov_wheels/action.yml
+            .github/actions/npu_metrics_baseline/action.yml
             .github/scripts/parse_npu_compiler_log.py
+            .github/scripts/compare_npu_compiler_metrics.py
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -105,6 +107,15 @@ jobs:
       # runner leaks into this one.
       - name: Reset NPU compiler metrics files
         run: Remove-Item "${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_*" -ErrorAction SilentlyContinue
+
+      # Metrics of the last push to master, used by the comparison step at the end of the job.
+      - name: Restore NPU compiler metrics baseline
+        uses: ./openvino/.github/actions/npu_metrics_baseline
+        with:
+          mode: restore
+          platform: ${{ matrix.npu-platform }}
+          model-scope: ${{ inputs.model-scope }}
+          metrics-dir: ${{ env.INSTALL_TEST_DIR }}
 
       # Every test step below redirects pytest stdout/stderr into a per-suite log
       # so that parse_npu_compiler_log.py can extract per-model compilation memory
@@ -205,6 +216,17 @@ jobs:
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_npu_models_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
+
+      # Report-only comparison with the restored baseline. On pushes to master this also
+      # refreshes the baseline cache. Must run after all suites have written their metrics.
+      - name: Compare NPU compiler metrics with baseline
+        if: ${{ !cancelled() }}
+        uses: ./openvino/.github/actions/npu_metrics_baseline
+        with:
+          mode: compare
+          platform: ${{ matrix.npu-platform }}
+          model-scope: ${{ inputs.model-scope }}
+          metrics-dir: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

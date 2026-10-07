@@ -1,0 +1,65 @@
+name: 'NPU compiler metrics baseline'
+description: |
+  Keeps the NPU compiler metrics JSON of the last push to master in the GitHub Actions cache.
+  "restore" fetches it at the start of a job. "compare" reports the differences between the
+  restored baseline and the metrics of the current run, and on pushes to master refreshes the
+  cache. The comparison is report-only and never fails the job.
+inputs:
+  mode:
+    description: '"restore" or "compare"'
+    required: true
+  platform:
+    description: 'NPU platform, e.g. 3720'
+    required: true
+  model-scope:
+    description: 'Model scope of the run, e.g. precommit'
+    required: true
+  metrics-dir:
+    description: 'Directory holding TEST-npu_compiler_<platform>.json of the current run'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    # Restored into its own directory so resets and artifact globs of the caller never touch it.
+    # The key never matches exactly (run_id), so the newest cache for this platform/scope is
+    # picked through restore-keys.
+    - name: Restore NPU compiler metrics baseline
+      if: inputs.mode == 'restore'
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ inputs.metrics-dir }}\npu_baseline
+        key: npu-models-baseline-${{ inputs.platform }}-${{ inputs.model-scope }}-${{ github.run_id }}
+        restore-keys: |
+          npu-models-baseline-${{ inputs.platform }}-${{ inputs.model-scope }}-
+
+    - name: Compare NPU compiler metrics with baseline
+      if: inputs.mode == 'compare'
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        $current = "${{ inputs.metrics-dir }}\TEST-npu_compiler_${{ inputs.platform }}.json"
+        if (Test-Path $current) {
+          python3 "${{ github.action_path }}\..\..\scripts\compare_npu_compiler_metrics.py" `
+            --baseline "${{ inputs.metrics-dir }}\npu_baseline\TEST-npu_compiler_${{ inputs.platform }}.json" `
+            --current $current `
+            --output "${{ inputs.metrics-dir }}\TEST-npu_compiler_diff_${{ inputs.platform }}.json" `
+            --title "NPU ${{ inputs.platform }} compiler metrics vs. last master run"
+        } else {
+          Write-Host "No metrics were produced by this run; nothing to compare."
+        }
+
+    # Only master pushes refresh the baseline; PRs and merge queue runs just read it.
+    # This replaces the restored file, so it must stay after the comparison above.
+    - name: Stage NPU compiler metrics baseline
+      if: inputs.mode == 'compare' && github.event_name == 'push' && github.ref_name == 'master'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force "${{ inputs.metrics-dir }}\npu_baseline" | Out-Null
+        Copy-Item "${{ inputs.metrics-dir }}\TEST-npu_compiler_${{ inputs.platform }}.json" "${{ inputs.metrics-dir }}\npu_baseline\" -ErrorAction Stop
+
+    - name: Save NPU compiler metrics baseline
+      if: inputs.mode == 'compare' && github.event_name == 'push' && github.ref_name == 'master'
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ inputs.metrics-dir }}\npu_baseline
+        key: npu-models-baseline-${{ inputs.platform }}-${{ inputs.model-scope }}-${{ github.run_id }}
