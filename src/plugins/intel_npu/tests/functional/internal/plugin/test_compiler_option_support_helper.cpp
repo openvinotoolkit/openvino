@@ -22,6 +22,18 @@
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
 
+namespace {
+// These tests run against a real driver and a real compiler library, so the provider loads one.
+// Process-scoped for the test binary, which is what the plugin does per plugin instance.
+::intel_npu::VCLFunctionTableProvider testVclFunctions() {
+    static auto holder =
+        std::make_shared<::intel_npu::VCLLoaderHolder>(ov::test::utils::getOpenvinoLibDirectory());
+    return [] {
+        return holder->functions();
+    };
+}
+}  // namespace
+
 namespace ov {
 namespace test {
 namespace behavior {
@@ -70,7 +82,7 @@ protected:
         compilerType = GetParam();
         backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
         helper =
-            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory());
+            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory{testVclFunctions()});
     }
 
     void TearDown() override {
@@ -334,7 +346,7 @@ protected:
 
         backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
         helper =
-            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory());
+            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory{testVclFunctions()});
     }
 
     void TearDown() override {

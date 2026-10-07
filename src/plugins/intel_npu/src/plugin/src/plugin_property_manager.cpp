@@ -104,10 +104,12 @@ namespace intel_npu {
 PluginPropertyManager::PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                                              const ov::SoPtr<IEngineBackend>& backend,
                                              const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
+                                             VCLFunctionTableProvider vclFunctions,
                                              Logger& logger)
     : _config(options),
       _backend(backend),
       _compilerOptionSupportHelper(optionSupportHelper),
+      _vclFunctions(std::move(vclFunctions)),
       _logger(logger) {
     if (_backend == nullptr) {
         _logger.info("No backend is available. Backend/device-dependent properties will be unavailable.");
@@ -395,7 +397,7 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
                                                                  getPlatformOrDefault(arguments),
                                                                  device == nullptr ? deviceId : device->getName());
 
-        CompilerAdapterFactory factory;
+        CompilerAdapterFactory factory{_vclFunctions};
         factory.decideCompilerType(compilerType.value(), device, compilationPlatform);
         return compilerType;
     } catch (const std::exception& ex) {
@@ -948,7 +950,7 @@ void PluginPropertyManager::registerProperties() {
             }
 
             try {
-                CompilerAdapterFactory factory;
+                CompilerAdapterFactory factory{_vclFunctions};
                 return factory.getCompiler(_backend, compilerType.value(), compilationPlatform) != nullptr;
             } catch (...) {
                 return false;
@@ -967,7 +969,7 @@ void PluginPropertyManager::registerProperties() {
                     device == nullptr ? deviceId : device->getName());
             }
 
-            CompilerAdapterFactory factory;
+            CompilerAdapterFactory factory{_vclFunctions};
             return factory.getCompiler(_backend, compilerType.value(), compilationPlatform)->get_version();
         },
         [](const ov::Any&) {

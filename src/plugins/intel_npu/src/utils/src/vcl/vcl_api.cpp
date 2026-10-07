@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
+#include <utility>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -45,22 +46,16 @@ VCLLoader::VCLLoader(const std::string& library_dir) : _logger("VCLLoader", Logg
 #undef vcl_symbol_statement
 }
 
-const std::shared_ptr<const VCLLoader> VCLLoader::getInstance() {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lock(mtx);
+VCLLoaderHolder::VCLLoaderHolder(std::string library_dir) : _library_dir(std::move(library_dir)) {}
 
-    static std::shared_ptr<const VCLLoader> instance = nullptr;
-
-    if (!instance) {
-        const auto library_dir = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        if (library_dir.empty()) {
-            OPENVINO_THROW("VCLLoader instance has not been loaded yet, and no valid path was provided to load it.");
-        }
-        // Not make_shared: the loading constructor is private so that this is the only way to load.
-        instance = std::shared_ptr<const VCLLoader>(new VCLLoader(library_dir));
+std::shared_ptr<const VCLFunctionTable> VCLLoaderHolder::functions() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_loader == nullptr) {
+        OPENVINO_ASSERT(!_library_dir.empty(), "Cannot load the VCL compiler library: no library directory was given");
+        // Deliberately not cached on failure: see the note on the class.
+        _loader = std::make_shared<const VCLLoader>(_library_dir);
     }
-
-    return instance;
+    return _loader->sharedFunctions();
 }
 
 }  // namespace intel_npu

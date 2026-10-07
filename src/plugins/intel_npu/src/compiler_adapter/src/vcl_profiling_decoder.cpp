@@ -11,8 +11,10 @@
 #include <cstring>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "intel_npu/profiling.hpp"
+#include "openvino/core/except.hpp"
 #include "vcl_error_utils.hpp"
 
 namespace intel_npu {
@@ -92,6 +94,10 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
 
     // Return processed profiling info
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
+}
+
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions) {
+    return std::make_shared<VCLProfilingDecoder>(std::move(functions));
 }
 
 }  // namespace intel_npu

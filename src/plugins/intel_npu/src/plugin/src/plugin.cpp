@@ -181,6 +181,9 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     Logger::global().setLevel(config->get<LOG_LEVEL>());
     _logger.setLevel(config->get<LOG_LEVEL>());
 
+    // Owns the compiler library for this plugin's lifetime; nothing is loaded until first use.
+    _vclLoader = std::make_shared<VCLLoaderHolder>(ov::util::path_to_string(ov::util::get_ov_lib_path()));
+
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
     // backend registry shall be created after configs are updated
     _backendsRegistry = std::make_unique<BackendsRegistry>();
@@ -194,9 +197,13 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, CompilerAdapterFactory());
-    _propertiesManager =
-        std::make_unique<PluginPropertyManager>(options, _backend, _compilerOptionSupportHelper, _logger);
+    _compilerOptionSupportHelper =
+        std::make_shared<CompilerOptionSupportHelper>(_backend, CompilerAdapterFactory{vcl_functions()});
+    _propertiesManager = std::make_unique<PluginPropertyManager>(options,
+                                                                 _backend,
+                                                                 _compilerOptionSupportHelper,
+                                                                 vcl_functions(),
+                                                                 _logger);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -278,7 +285,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    CompilerAdapterFactory factory;
+    CompilerAdapterFactory factory{vcl_functions()};
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
                                         compilationPlatform,
@@ -611,7 +618,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     }
 
     const std::shared_ptr<IGraph> graph =
-        blobFormatImporter->create_graph(_backend, "net" + std::to_string(_compiledModelLoadCounter++), get_core());
+        blobFormatImporter->create_graph(_backend,
+                                         "net" + std::to_string(_compiledModelLoadCounter++),
+                                         get_core(),
+                                         vcl_functions());
 
     return std::make_shared<CompiledModel>(blobFormatImporter->create_dummy_model(),
                                            shared_from_this(),
@@ -654,7 +664,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    CompilerAdapterFactory factory;
+    CompilerAdapterFactory factory{vcl_functions()};
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
                                         compilationPlatform,

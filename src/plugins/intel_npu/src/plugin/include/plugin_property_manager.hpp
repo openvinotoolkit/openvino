@@ -18,6 +18,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
@@ -29,6 +30,7 @@ public:
     PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                           const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
+                          VCLFunctionTableProvider vclFunctions,
                           Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
@@ -60,6 +62,8 @@ private:
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
+    // Only used to build the compiler adapters the compiler-dependent properties need.
+    VCLFunctionTableProvider _vclFunctions;
     Logger& _logger;
 
     mutable std::mutex _mutex;

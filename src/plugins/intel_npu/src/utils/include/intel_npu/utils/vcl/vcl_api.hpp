@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -76,17 +78,17 @@ struct VCLFunctionTable {
 /**
  * @brief Owns the loaded VCL compiler library and the function table resolved out of it.
  *
- * The loading constructor is private: `getInstance` is the only way to load, so the process cannot
- * end up with two independently dlopen'd copies of the compiler library.
+ * Ownership is the caller's: whoever constructs a loader decides how long the library stays
+ * loaded. The plugin owns one for its lifetime, via VCLLoaderHolder.
  */
 class VCLLoader final : public std::enable_shared_from_this<VCLLoader> {
 public:
+    explicit VCLLoader(const std::string& library_dir);
+
     VCLLoader(const VCLLoader& other) = delete;
     VCLLoader(VCLLoader&& other) = delete;
     void operator=(const VCLLoader&) = delete;
     void operator=(VCLLoader&&) = delete;
-
-    static const std::shared_ptr<const VCLLoader> getInstance();
 
     /**
      * @brief The function table, sharing this loader's lifetime.
@@ -101,11 +103,46 @@ public:
     }
 
 private:
-    explicit VCLLoader(const std::string& library_dir);
-
     VCLFunctionTable _functions;
     std::shared_ptr<void> lib;
     Logger _logger;
+};
+
+/**
+ * @brief How to obtain the VCL entry points, resolved on first use.
+ *
+ * Lazy by contract: the library must not be loaded until something actually needs to compile or to
+ * decode a profiling buffer, so a driver-only flow never pays for it. Tests supply a populated
+ * table with no library behind it at all.
+ */
+using VCLFunctionTableProvider = std::function<std::shared_ptr<const VCLFunctionTable>()>;
+
+/**
+ * @brief Owns one lazily loaded VCL compiler library.
+ *
+ * Loads at most once, on the first call to `functions()`. Intended to be held by the plugin, so
+ * that the library is released when the plugin is destroyed rather than at static teardown.
+ *
+ * @note A failed load is not remembered - a later call tries again. Nothing retries in a tight
+ * loop: CompilerAdapterFactory caches "plugin compiler absent" separately.
+ */
+class VCLLoaderHolder final {
+public:
+    explicit VCLLoaderHolder(std::string library_dir);
+
+    VCLLoaderHolder(const VCLLoaderHolder&) = delete;
+    VCLLoaderHolder& operator=(const VCLLoaderHolder&) = delete;
+
+    /**
+     * @brief The entry points, loading the library if this is the first call.
+     * @throws ov::Exception when the library cannot be loaded.
+     */
+    std::shared_ptr<const VCLFunctionTable> functions() const;
+
+private:
+    std::string _library_dir;
+    mutable std::mutex _mutex;
+    mutable std::shared_ptr<const VCLLoader> _loader;
 };
 
 }  // namespace intel_npu

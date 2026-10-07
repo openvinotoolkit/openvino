@@ -132,4 +132,18 @@ private:
     Logger _logger;
 };
 
+/**
+ * @brief Builds a compiler-in-plugin over the given VCL entry points.
+ *
+ * @param functions The entry points, as handed out by VCLLoader::sharedFunctions(). The compiler
+ *        keeps them, and they keep the library loaded, so no separate pairing is needed.
+ * @param optionSupportCache Bound here to the compiler-in-plugin's own cache key. Callers hand over
+ *        the shared cache rather than a pre-bound one, so a compiler can never be paired with a key
+ *        that belongs to a different compiler's answers.
+ */
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(
+    std::shared_ptr<const VCLFunctionTable> functions,
+    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
+    const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
+
 }  // namespace intel_npu

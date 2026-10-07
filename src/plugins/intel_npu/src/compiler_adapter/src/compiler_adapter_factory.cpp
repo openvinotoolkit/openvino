@@ -16,20 +16,32 @@ namespace intel_npu {
 
 namespace {
 
-std::shared_ptr<IVCLCompiler> makePluginCompiler(std::shared_ptr<const VCLFunctionTable>& functions,
+// Resolves the entry points and composes the compiler-in-plugin over them, translating any failure
+// into the aborting message callers expect. Composing here, rather than inside
+// PluginCompilerAdapter, keeps the adapter free of any knowledge of how a compiler is obtained.
+//
+// This is also the only place the provider is invoked, so the library is loaded if and only if a
+// compiler-in-plugin is actually being built.
+std::shared_ptr<IVCLCompiler> makePluginCompiler(const VCLFunctionTableProvider& vclFunctions,
                                                  const std::shared_ptr<IDevice>& device,
                                                  const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
-    auto vclLoader = VCLLoader::getInstance();
-    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-    functions = vclLoader->sharedFunctions();
-    return std::make_shared<VCLCompilerImpl>(
-        functions,
-        device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
-        ScopedOptionSupportCache{optionSupportCache,
-                                 static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
+    try {
+        auto compiler = makeVCLCompiler(vclFunctions(),
+                                        device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()}
+                                               : std::nullopt,
+                                        optionSupportCache);
+        return compiler._ptr;
+    } catch (const std::exception& vclException) {
+        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
+    }
 }
 
 }  // namespace
+
+CompilerAdapterFactory::CompilerAdapterFactory(VCLFunctionTableProvider vclFunctions)
+    : _vclFunctions(std::move(vclFunctions)) {
+    OPENVINO_ASSERT(_vclFunctions != nullptr, "CompilerAdapterFactory requires a way to obtain the VCL entry points");
+}
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,
@@ -48,17 +60,16 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     }
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-        std::shared_ptr<const VCLFunctionTable> functions;
         std::shared_ptr<IVCLCompiler> compiler;
         try {
-            compiler = makePluginCompiler(functions, device, optionSupportCache);
+            compiler = makePluginCompiler(_vclFunctions, device, optionSupportCache);
         } catch (const std::exception& vclException) {
             OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
         }
 
         std::shared_ptr<IProfilingDecoder> profilingDecoder;
         try {
-            profilingDecoder = std::make_shared<VCLProfilingDecoder>(functions);
+            profilingDecoder = makeVCLProfilingDecoder(_vclFunctions());
         } catch (const std::exception& ex) {
             Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s",
                                      ex.what());
@@ -135,9 +146,8 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
 
     if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
         std::shared_ptr<IVCLCompiler> pluginCompiler;
-        std::shared_ptr<const VCLFunctionTable> functions;
         try {
-            pluginCompiler = makePluginCompiler(functions, device, optionSupportCache);
+            pluginCompiler = makePluginCompiler(_vclFunctions, device, optionSupportCache);
         } catch (...) {
             _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
             if (onlineCompilation) {
@@ -149,7 +159,7 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
         std::shared_ptr<IProfilingDecoder> profilingDecoder;
         try {
-            profilingDecoder = std::make_shared<VCLProfilingDecoder>(functions);
+            profilingDecoder = makeVCLProfilingDecoder(_vclFunctions());
         } catch (const std::exception& ex) {
             Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s",
                                      ex.what());
