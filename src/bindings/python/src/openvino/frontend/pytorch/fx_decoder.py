@@ -545,6 +545,37 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         _input = self._raw_input(index)
         return self.get_shape_for_value(_input)
 
+    def get_input_complete_shape(self, index):
+        # Complete traced shape of the input with statically known extents preserved. Unlike
+        # get_input_shape (and get_shape_for_value), which intentionally generalize to a fully dynamic
+        # shape so conversion does not over-specialize, this keeps the concrete dimensions recorded by
+        # torch.export while leaving symbolic (dynamic) dimensions dynamic. It is used only to recognize
+        # shape-dependent op configurations - e.g. an avg_pool whose kernel is larger than the feature
+        # map - and is never baked into the produced graph.
+        complete = self._complete_shape_for_value(self._raw_input(index))
+        if complete is not None:
+            return complete
+        return self.get_input_shape(index)
+
+    @staticmethod
+    def _complete_shape_for_value(value):
+        if value is None or not hasattr(value, "meta"):
+            return None
+        meta = value.meta
+        shape = None
+        tensor_meta = meta.get("tensor_meta")
+        if tensor_meta is not None and hasattr(tensor_meta, "shape"):
+            shape = tensor_meta.shape
+        else:
+            fake = meta.get("val")
+            if isinstance(fake, torch.Tensor):
+                shape = fake.shape
+        if shape is None:
+            return None
+        # Symbolic dimensions (torch.SymInt) stay dynamic; concrete dimensions keep their extent.
+        dims = [-1 if isinstance(dim, torch.SymInt) else int(dim) for dim in shape]
+        return PartialShape(dims)
+
     def get_input_strides(self, index: int) -> list:
         raw_input = self._raw_input(index)
         if isinstance(raw_input, torch.fx.node.Node) and hasattr(raw_input, "meta"):
