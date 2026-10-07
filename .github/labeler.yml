@@ -208,6 +208,16 @@
 - 'src/core/pattern/**/*'
 - 'src/core/pass/**/*'
 - 'src/core/include/openvino/pass/**/*'
+- any: ['src/plugins/intel_cpu/src/transformations/**/*',
+        '!src/plugins/intel_cpu/src/transformations/**/op/**/*']
+- 'src/plugins/intel_cpu/tests/unit/transformations/**/*'
+- 'src/plugins/intel_cpu/tests/functional/utils/transformations/**/*'
+- any: ['src/plugins/intel_gpu/src/plugin/transformations/**/*',
+        '!src/plugins/intel_gpu/src/plugin/transformations/op/**/*',
+        '!src/plugins/intel_gpu/src/plugin/transformations/mlir/**/*']
+- 'src/plugins/intel_gpu/tests/unit/transformations/**/*'
+- 'src/plugins/intel_npu/src/plugin/npuw/moe_transformations/**/*'
+- 'src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/**/*'
 
 'category: licensing':
 - 'licensing/**/*'
