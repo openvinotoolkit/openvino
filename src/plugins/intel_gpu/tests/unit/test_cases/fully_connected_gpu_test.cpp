@@ -3183,8 +3183,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
     void test_compressed_int8_transpose_scale_zp(bool is_caching_test) {
         auto& engine = get_test_engine();
 
-        auto ofm = 3;
-        auto ifm = 32;
+        constexpr size_t ofm = 3;
+        constexpr size_t ifm = 32;
         constexpr size_t group_size = 16;
 
         auto input_mem = engine.allocate_memory({ {1, 2, ifm}, data_types::f16, format::bfyx });
