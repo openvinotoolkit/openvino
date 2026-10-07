@@ -1743,8 +1743,15 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                 return;
             }
             const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-            if (submodel_desc.compiled_model != nullptr &&
-                link.second >= submodel_desc.compiled_model->inputs().size()) {
+            if (submodel_desc.compiled_model == nullptr) {
+                return;
+            }
+            // Block-KV HFA has one function param per KV block, more than its tile model's inputs.
+            // Routed ports are function params, all of them are before the closure.
+            const std::size_t n_inputs = ov::npuw::attn::has_block_kv_hfa(submodel_desc.pipeline)
+                                             ? submodel_desc.param_base
+                                             : submodel_desc.compiled_model->inputs().size();
+            if (link.second >= n_inputs) {
                 OPENVINO_THROW("Invalid ",
                                table_name,
                                "[",
@@ -1754,7 +1761,7 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                                " for submodel ",
                                link.first,
                                " (inputs: ",
-                               submodel_desc.compiled_model->inputs().size(),
+                               n_inputs,
                                ")");
             }
         };
