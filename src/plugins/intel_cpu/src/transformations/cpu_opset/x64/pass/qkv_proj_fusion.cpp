@@ -36,7 +36,8 @@ using namespace ov::op;
 ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
     MATCHER_SCOPE(QKVProjFusionPass1);
 
-    auto input = pattern::any_input(pattern::rank_equals(3));
+    // QKVProjection flattens all leading dims into M, so a flattened [tokens, hidden] input works as well.
+    auto input = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
 
     auto q_proj_weight_const_i8 =
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
@@ -190,7 +191,8 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
 ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
     MATCHER_SCOPE(QKVProjFusionPass2);
 
-    auto input = pattern::any_input(pattern::rank_equals(3));
+    // QKVProjection flattens all leading dims into M, so a flattened [tokens, hidden] input works as well.
+    auto input = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
 
     auto qkv_proj_weight_const = pattern::wrap_const();
     auto qkv_proj_cvt =
