@@ -195,10 +195,10 @@ TEST_F(OVRemoteTensorVA_Test, smoke_recycled_surface_id_is_reimported) {
     preprocessor.input().model().set_layout("NCHW");
     model = preprocessor.build();
 
-    const auto infer_mean = [&]() {
-        auto compiled_model = core.compile_model(model, context);
-        auto request = compiled_model.create_infer_request();
-        auto nv12 = context.create_tensor_nv12(surface_height, surface_width, surface);
+    auto compiled_model = core.compile_model(model, context);
+    auto request = compiled_model.create_infer_request();
+    const auto infer_mean = [&](VASurfaceID input_surface) {
+        auto nv12 = context.create_tensor_nv12(surface_height, surface_width, input_surface);
         request.set_input_tensor(0, nv12.first);
         request.set_input_tensor(1, nv12.second);
         request.infer();
@@ -210,10 +210,16 @@ TEST_F(OVRemoteTensorVA_Test, smoke_recycled_surface_id_is_reimported) {
 
     const VASurfaceID original_id = surface;
     ASSERT_TRUE(va_device.fill_nv12_surface(surface, surface_width, surface_height, 16, 128, 128));
-    const auto original_mean = infer_mean();
+    const auto original_mean = infer_mean(surface);
 
-    // infer_mean() releases every remote tensor and infer request before the surface is destroyed. The weak cache
-    // entry must therefore expire before VA-API can recycle the numeric surface ID.
+    VASurfaceID replacement_surface = va_device.create_nv12_surface(surface_width, surface_height);
+    ASSERT_NE(replacement_surface, VA_INVALID_SURFACE);
+    ASSERT_NE(replacement_surface, original_id);
+    ASSERT_TRUE(va_device.fill_nv12_surface(replacement_surface, surface_width, surface_height, 128, 128, 128));
+    infer_mean(replacement_surface);
+
+    // Keep the request and compiled model alive, but process a replacement input before destroying the old surface.
+    // This releases the request and plugin references to the old import, so its weak cache entry must expire.
     bool is_recycled = false;
     const size_t max_attempts = 8;
     for (size_t attempt = 0; attempt < max_attempts && !is_recycled; attempt++) {
@@ -223,11 +229,14 @@ TEST_F(OVRemoteTensorVA_Test, smoke_recycled_surface_id_is_reimported) {
         is_recycled = surface == original_id;
     }
 
-    if (!is_recycled)
+    if (!is_recycled) {
+        va_device.destroy_surface(replacement_surface);
         GTEST_SKIP() << "VA-API did not reassign the released surface id, cache aliasing can't be exercised";
+    }
 
     ASSERT_TRUE(va_device.fill_nv12_surface(surface, surface_width, surface_height, 235, 128, 128));
-    const auto reimported_mean = infer_mean();
+    const auto reimported_mean = infer_mean(surface);
+    va_device.destroy_surface(replacement_surface);
 
     ASSERT_GT(reimported_mean, original_mean + 200.0);
 }
