@@ -22,6 +22,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -35,6 +36,8 @@ std::shared_ptr<ov::op::v0::Constant> scalar(int64_t value) {
     return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {value});
 }
 
+enum class DynamicPaddingVariant { Canonical, MisplacedTemporal, NonzeroSpatial };
+
 std::shared_ptr<ov::Model> make_avg_down_model(int64_t input_channels,
                                                int64_t output_channels,
                                                int64_t factor_t,
@@ -42,7 +45,8 @@ std::shared_ptr<ov::Model> make_avg_down_model(int64_t input_channels,
                                                bool add_pad,
                                                bool valid_transpose = true,
                                                bool add_consumer = false,
-                                               bool dynamic_temporal_pad = false) {
+                                               bool dynamic_temporal_pad = false,
+                                               DynamicPaddingVariant padding_variant = DynamicPaddingVariant::Canonical) {
     const int64_t input_time = 5;
     const int64_t input_height = 8;
     const int64_t input_width = 10;
@@ -69,10 +73,17 @@ std::shared_ptr<ov::Model> make_avg_down_model(int64_t input_channels,
             auto negated_mod = std::make_shared<ov::op::v1::Multiply>(inner_mod, shape_part({-1}));
             auto subtract = std::make_shared<ov::op::v1::Add>(shape_part({factor_t}), negated_mod);
             auto outer_mod = std::make_shared<ov::op::v1::FloorMod>(subtract, shape_part({factor_t}));
-            auto padding_values = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{shape_part({0, 0, 0, 0}), outer_mod, shape_part({0})}, 0);
+            ov::OutputVector padding_parts =
+                {shape_part({0}), shape_part({0}), shape_part({0}), shape_part({0}), outer_mod, shape_part({0})};
+            if (padding_variant == DynamicPaddingVariant::MisplacedTemporal) {
+                std::swap(padding_parts[0], padding_parts[4]);
+            } else if (padding_variant == DynamicPaddingVariant::NonzeroSpatial) {
+                padding_parts[0] = shape_part({1});
+            }
+            auto padding_values = std::make_shared<ov::op::v0::Concat>(padding_parts, 0);
             auto paired_padding = std::make_shared<ov::op::v1::Reshape>(padding_values, shape_part({-1, 2}), false);
             auto split_padding = std::make_shared<ov::op::v1::Split>(paired_padding, scalar(1), 2);
-            auto first_column = std::make_shared<ov::op::v1::Reshape>(split_padding->output(0), shape_part({3}), false);
+            auto first_column = std::make_shared<ov::op::v0::Squeeze>(split_padding->output(0), shape_part({1}));
             auto reversed_padding = std::make_shared<ov::op::v8::Gather>(first_column, shape_part({2, 1, 0}), scalar(0));
             pads_begin = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{shape_part({0, 0}), reversed_padding}, 0);
         }
@@ -199,11 +210,7 @@ TEST(FuseAvgDownTest, RewritesDynamicTemporalPadsWithStaticSourceChannels) {
 }
 
 TEST(FuseAvgDownTest, RejectsMisplacedDynamicTemporalPadding) {
-    auto model = make_avg_down_model(96, 192, 2, 2, true, true, false, true);
-    const auto pad = find_pad(model);
-    ASSERT_TRUE(pad);
-    auto misplaced_padding = std::make_shared<ov::op::v8::Gather>(pad->input_value(1), shape_part({2, 1, 0, 3, 4}), scalar(0));
-    pad->input(1).replace_source_output(misplaced_padding);
+    auto model = make_avg_down_model(96, 192, 2, 2, true, true, false, true, DynamicPaddingVariant::MisplacedTemporal);
 
     run_pass(model);
 
@@ -211,11 +218,7 @@ TEST(FuseAvgDownTest, RejectsMisplacedDynamicTemporalPadding) {
 }
 
 TEST(FuseAvgDownTest, RejectsNonzeroDynamicSpatialPadding) {
-    auto model = make_avg_down_model(96, 192, 2, 2, true, true, false, true);
-    const auto pad = find_pad(model);
-    ASSERT_TRUE(pad);
-    auto nonzero_padding = std::make_shared<ov::op::v1::Add>(pad->input_value(1), shape_part({0, 0, 0, 1, 0}));
-    pad->input(1).replace_source_output(nonzero_padding);
+    auto model = make_avg_down_model(96, 192, 2, 2, true, true, false, true, DynamicPaddingVariant::NonzeroSpatial);
 
     run_pass(model);
 

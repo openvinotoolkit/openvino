@@ -4,6 +4,7 @@
 
 #include "fuse_avg_down.hpp"
 
+#include <algorithm>
 #include <optional>
 
 #include "intel_gpu/op/grouped_space_to_depth.hpp"
@@ -23,7 +24,9 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 
@@ -99,6 +102,48 @@ bool is_padding_formula(const std::shared_ptr<ov::Node>& node, const ov::Output<
     return false;
 }
 
+bool is_padding_formula_value(const ov::Output<ov::Node>& output, const ov::Output<ov::Node>& data, int64_t factor_t) {
+    if (is_padding_formula(output.get_node_shared_ptr(), data, factor_t)) {
+        return true;
+    }
+    if (!has_vector_size(output, 1)) {
+        return false;
+    }
+    const auto node = output.get_node_shared_ptr();
+    if (ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v0::Squeeze>(node) || ov::is_type<ov::op::v1::Reshape>(node)) {
+        return is_padding_formula_value(node->input_value(0), data, factor_t);
+    }
+    return false;
+}
+
+bool validate_padding_values(const std::shared_ptr<ov::op::v0::Concat>& padding_values,
+                             const ov::Output<ov::Node>& data,
+                             int64_t factor_t) {
+    if (!padding_values || padding_values->get_axis() != 0) {
+        return false;
+    }
+
+    size_t offset = 0;
+    bool found_temporal_padding = false;
+    for (const auto& input : padding_values->input_values()) {
+        const auto shape = input.get_partial_shape();
+        if (!shape.is_static() || shape.size() != 1) {
+            return false;
+        }
+        const auto size = static_cast<size_t>(shape[0].get_length());
+        if (offset == 4 && size == 1 && is_padding_formula_value(input, data, factor_t)) {
+            found_temporal_padding = true;
+        } else {
+            const auto values = get_i64_values(input);
+            if (!values || values->size() != size || std::any_of(values->begin(), values->end(), [](int64_t value) { return value != 0; })) {
+                return false;
+            }
+        }
+        offset += size;
+    }
+    return offset == 6 && found_temporal_padding;
+}
+
 bool is_dynamic_temporal_padding(const ov::Output<ov::Node>& output, const ov::Output<ov::Node>& data, int64_t factor_t) {
     const auto pads_begin = ov::as_type_ptr<ov::op::v0::Concat>(output.get_node_shared_ptr());
     if (!pads_begin || pads_begin->get_axis() != 0 || pads_begin->get_input_size() != 2 || !has_values(pads_begin->input_value(0), {0, 0})) {
@@ -110,12 +155,22 @@ bool is_dynamic_temporal_padding(const ov::Output<ov::Node>& output, const ov::O
         return false;
     }
 
-    const auto first_column = ov::as_type_ptr<ov::op::v1::Reshape>(reverse->get_input_node_shared_ptr(0));
-    if (!first_column || first_column->get_special_zero() || !has_values(first_column->input_value(1), {3})) {
+    const auto first_column = reverse->input_value(0).get_node_shared_ptr();
+    ov::Output<ov::Node> split_output;
+    if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(first_column)) {
+        if (reshape->get_special_zero() || !has_values(reshape->input_value(1), {3})) {
+            return false;
+        }
+        split_output = reshape->input_value(0);
+    } else if (const auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(first_column)) {
+        if (!has_values(squeeze->input_value(1), {1})) {
+            return false;
+        }
+        split_output = squeeze->input_value(0);
+    } else {
         return false;
     }
 
-    const auto split_output = first_column->input_value(0);
     const auto split = ov::as_type_ptr<ov::op::v1::Split>(split_output.get_node_shared_ptr());
     if (!split || split_output.get_index() != 0 || split->get_num_splits() != 2 || !has_values(split->input_value(1), {1})) {
         return false;
@@ -127,9 +182,7 @@ bool is_dynamic_temporal_padding(const ov::Output<ov::Node>& output, const ov::O
     }
 
     const auto padding_values = ov::as_type_ptr<ov::op::v0::Concat>(paired_padding->get_input_node_shared_ptr(0));
-    return padding_values && padding_values->get_axis() == 0 && padding_values->get_input_size() == 3 &&
-           has_values(padding_values->input_value(0), {0, 0, 0, 0}) &&
-           is_padding_formula(padding_values->get_input_node_shared_ptr(1), data, factor_t) && has_values(padding_values->input_value(2), {0});
+    return validate_padding_values(padding_values, data, factor_t);
 }
 
 bool validate_temporal_padding(const std::shared_ptr<ov::op::v12::Pad>& pad, int64_t factor_t) {
