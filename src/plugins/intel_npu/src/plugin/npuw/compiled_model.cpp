@@ -23,6 +23,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/make_tensor.hpp"  // get_tensor_buffer
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "orc/schema_npuw.hpp"
@@ -126,6 +127,7 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     WeightsContext::ConstsCache consts_cache;
     ov::FileHandleProvider handle_provider = nullptr;
     WeightsPtr weights = nullptr;
+    std::shared_ptr<ov::AlignedBuffer> weights_buffer = nullptr;
     if (is_weightless) {
         // Priority: NPUW_WEIGHTS_TENSOR > NPUW_WEIGHTS_HANDLE_PROVIDER > WEIGHTS_PATH > MODEL_PTR
         if (const auto tensor_it = properties.find(ov::intel_npu::npuw::weights_tensor.name());
@@ -138,6 +140,9 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                 // Only ever read from; the view may legitimately be backed by a read-only mmap.
                 auto* data = const_cast<char*>(static_cast<const char*>(std::as_const(*tensor).data()));
                 weights = std::make_shared<Weights>(data, tensor->get_byte_size(), tensor);
+                // If the tensor is a view over a buffer (e.g. mmap via ov::read_tensor_data), keep that buffer
+                // too: LazyTensors evict their ranges from it as they are consumed - see op::Const::detach().
+                weights_buffer = ov::get_tensor_buffer(*tensor);
             } else {
                 LOG_WARN("NPUW_WEIGHTS_TENSOR property is present but is not an ov::Tensor; falling back to other "
                          "weightless import sources");
@@ -198,7 +203,7 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
         }
     }
 
-    return WeightsContext(weights, weights_path, consts_cache, bf16_consts, handle_provider);
+    return WeightsContext(weights, weights_path, consts_cache, bf16_consts, handle_provider, weights_buffer);
 }
 
 std::function<std::string(const std::string&)> get_encrypt_callback(const ov::AnyMap& properties) {

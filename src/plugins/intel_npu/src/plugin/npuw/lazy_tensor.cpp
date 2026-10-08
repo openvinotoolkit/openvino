@@ -166,6 +166,7 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         } else {
             // Weights come from NPUW_WEIGHTS_TENSOR: nothing to re-map, just keep the storage referenced.
             m_provided_weights = ctx.weights;
+            m_provided_buffer = ctx.weights_buffer;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
@@ -180,6 +181,23 @@ void Const::detach() {
     m_node.reset();
     m_read_from_bin = ov::Tensor();
     m_mmaped_weights.reset();
+    if (m_provided_weights && m_provided_buffer) {
+        // The weight has been uploaded - give this range of the caller's storage back to the OS
+        // (file-backed pages get dropped; a no-op for storage that cannot be evicted). Wrapping
+        // the range into a SharedBuffer resolves the offset against the root buffer, same as
+        // Constant eviction in constant folding. Without a descriptor the offset cannot be
+        // resolved, so skip rather than evict a wrong range.
+        ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>> range(
+            static_cast<char*>(m_provided_weights->get_ptr(m_offset)),
+            m_byte_size,
+            m_provided_buffer);
+        if (range.get_descriptor()) {
+            range.hint_evict();
+        }
+    }
+    // Drop our share of the caller's storage so it can be freed once the caller lets go of it too.
+    m_provided_weights.reset();
+    m_provided_buffer.reset();
 }
 
 std::size_t Concat::hash() const {
