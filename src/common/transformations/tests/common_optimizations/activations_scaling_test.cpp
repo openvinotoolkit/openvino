@@ -352,11 +352,8 @@ TEST_F(TransformationTestsF, EliminateScalarMulRMSWithoutGammaTest) {
     }
     {
         auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
-        auto rms = std::make_shared<ov::op::internal::RMS>(
-            input,
-            epsilon / scale_factor / scale_factor,
-            ov::element::f16,
-            1);
+        auto rms =
+            std::make_shared<ov::op::internal::RMS>(input, epsilon / scale_factor / scale_factor, ov::element::f16, 1);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
     }
@@ -439,11 +436,8 @@ TEST_F(TransformationTestsF, MulShareTransformationRMSWithoutGammaTest) {
         auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
         auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
         auto mul = std::make_shared<v1::Multiply>(input, scale_const);
-        auto rms = std::make_shared<ov::op::internal::RMS>(
-            mul,
-            epsilon * scale_factor * scale_factor,
-            ov::element::f16,
-            1);
+        auto rms =
+            std::make_shared<ov::op::internal::RMS>(mul, epsilon * scale_factor * scale_factor, ov::element::f16, 1);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms, mul}, ov::ParameterVector{input});
     }

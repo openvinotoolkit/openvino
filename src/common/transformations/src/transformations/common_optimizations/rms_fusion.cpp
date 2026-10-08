@@ -29,9 +29,7 @@ namespace op_util = ov::op::util;
 
 namespace ov::pass {
 
-RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert,
-                                   bool enable_without_gamma,
-                                   bool enable_feature_axis) {
+RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_gamma, bool enable_feature_axis) {
     // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = pattern::any_input();
@@ -159,8 +157,7 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert,
 
             const auto normalized_axis = ov::util::normalize_axis(axes_val[0], rank);
             const bool is_last_axis = normalized_axis == static_cast<size_t>(rank - 1);
-            const bool is_feature_axis =
-                enable_feature_axis && normalized_axis == 1 && (rank == 4 || rank == 5);
+            const bool is_feature_axis = enable_feature_axis && normalized_axis == 1 && (rank == 4 || rank == 5);
             if (!is_last_axis && !is_feature_axis) {
                 return false;
             }
@@ -192,8 +189,9 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert,
         auto output_type = elementwise_affine ? m.get_match_root()->get_output_element_type(0)
                                               : mul_or_div_node->get_output_element_type(0);
         std::shared_ptr<ov::op::internal::RMS> rms =
-            elementwise_affine ? std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type, rms_axis)
-                               : std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type, rms_axis);
+            elementwise_affine
+                ? std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type, rms_axis)
+                : std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type, rms_axis);
         if (elementwise_affine) {
             rms->set_friendly_name(m.get_match_root()->get_friendly_name());
             ov::copy_runtime_info(m.get_matched_nodes(), rms);

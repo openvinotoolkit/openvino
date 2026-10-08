@@ -269,8 +269,7 @@ activations_scaling::MulShareTransformation::MulShareTransformation() {
     MATCHER_SCOPE(MulShareTransformation);
 
     auto mvn_m = pattern::wrap_type<v6::MVN>({pattern::any_input(), pattern::any_input()});
-    auto rms_with_gamma_m =
-        pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(), pattern::any_input()});
+    auto rms_with_gamma_m = pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(), pattern::any_input()});
     auto rms_without_gamma_m = pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input()});
     auto rms_m = std::make_shared<pattern::op::Or>(OutputVector{rms_with_gamma_m, rms_without_gamma_m});
     auto group_norm_m =
