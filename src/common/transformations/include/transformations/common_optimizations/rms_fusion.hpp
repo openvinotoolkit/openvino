@@ -28,9 +28,7 @@ public:
 class ov::pass::RMSFusion : public ov::pass::BackwardGraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("RMSFusion");
-    RMSFusion(bool force_tail_convert = true,
-              bool enable_without_gamma = false,
-              bool enable_feature_axis = false) {
+    RMSFusion(bool force_tail_convert = true, bool enable_without_gamma = false, bool enable_feature_axis = false) {
         add_matcher<RMSFusionMatcher>(force_tail_convert, enable_without_gamma, enable_feature_axis);
     }
 };
