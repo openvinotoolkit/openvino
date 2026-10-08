@@ -751,15 +751,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                 }
                 // The active subrequest is a pyramid variant: bind its own output port rather than
                 // the main compiled model's one (see bind_function_input for the rationale).
-                // Outputs which are not context-independent (variant shape differs) keep the
-                // default binding.
+                // Pyramid variants differ only in the past KV length, so their outputs have the
+                // same shape and element type as the main model's ones.
                 auto& state = get_runtime_state(ctx);
                 ensure_pyramid_selector(ctx, state);
                 const auto pyramid_id = state.pyramid_selector->pyramid_id();
                 const auto& pyramid_oport = pyramid->_compiled_models[pyramid_id]->outputs()[output_idx];
-                if (pyramid_oport.get_partial_shape() != ov::PartialShape(tensor->get_shape())) {
-                    return false;
-                }
+                NPUW_ASSERT(pyramid_oport.get_partial_shape() == ov::PartialShape(tensor->get_shape()) &&
+                            pyramid_oport.get_element_type() == tensor->get_element_type() &&
+                            "Pyramid attention variant output must match the function output");
                 ctx.target_request->set_tensor(pyramid_oport, tensor);
                 return true;
             }
