@@ -189,16 +189,16 @@ protected:
     bool m_is_eagle = false;
 
     // The member m_shared_ctx_ptr holds the context for weight sharing currently used by cross-plugin sharing.
-    // That context consists of the necessary information as source_id, constant_id, and the non-owning view of the source buffer, where the weights are stored.
-    // As in the general case the view may not own the underlying storage,
+    // That context consists of the necessary information as source_id, constant_id, and the non-owning view of the
+    // source buffer, where the weights are stored. As in the general case the view may not own the underlying storage,
     // the source buffer's must be kept alive by each plugin adhering to the weight-sharing contract.
     // Whenever the plugin is a consumer or the producer of
     // weight-sharing context, the source buffer track held on the plugin side. That means each consumer must retain
     // a strong reference to the source buffer for as long as the imported constant may still be used.
-    // m_shared_weight_sources holds strong references to the source buffers to ensure they remain valid even if the original weight-sharing producer is
-    // destroyed.
-    // Expose m_shared_ctx_ptr via get_property(ov::internal::model_sharing_context) so that ov::Core could
-    // write it back into SingleFileStorage after compilation.
+    // m_shared_weight_sources holds strong references to the source buffers to ensure they remain valid even if the
+    // original weight-sharing producer is destroyed. Expose m_shared_ctx_ptr via
+    // get_property(ov::internal::model_sharing_context) so that ov::Core could write it back into SingleFileStorage
+    // after compilation.
     std::shared_ptr<ov::weight_sharing::Context> m_shared_ctx_ptr;
     std::vector<std::shared_ptr<AlignedBuffer>> m_shared_weight_sources;
 };
