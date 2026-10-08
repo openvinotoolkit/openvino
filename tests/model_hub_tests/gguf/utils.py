@@ -234,6 +234,39 @@ def run_gguf_model(repo_id: str, filename: str, device: str = "CPU"):
     return _run_two_steps(compiled_model, is_imrope, recurrent_states)
 
 
+def run_gguf_embedding_model(repo_id: str, filename: str, device: str = "CPU"):
+    model = convert_gguf_model(gguf_hub_download(repo_id, filename))
+    compiled = ov.Core().compile_model(model, device)
+    request = compiled.create_infer_request()
+    assert not request.query_state(), "Embedding model exposes decoder state"
+    output = compiled.output("embeddings")
+    previous = None
+    for count in (3, 1, 3):
+        feed = {}
+        for port in compiled.inputs:
+            name = port.get_any_name()
+            if name == "inp_tokens":
+                values = np.arange(1, count + 1, dtype=np.int32).reshape(1, 1, 1, count)
+            elif name == "inp_pos":
+                values = np.arange(count, dtype=np.int32).reshape(1, 1, 1, count)
+            elif name == "token_len_per_seq":
+                values = np.array([count], dtype=np.int64)
+            elif name == "self_kq_mask":
+                values = np.where(np.arange(count)[None, :] <= np.arange(count)[:, None],
+                                  0, -np.inf).astype(np.float32).reshape(1, 1, count, count)
+            else:
+                raise AssertionError(f"Unexpected embedding input {name}")
+            feed[name] = ov.Tensor(values)
+        embeddings = np.array(request.infer(feed)[output], copy=True)
+        assert embeddings.ndim == 2 and embeddings.shape[0] in (1, count)
+        assert embeddings.shape[1] > 1 and np.isfinite(embeddings).all()
+        assert np.any(embeddings != 0), "Embedding model produced only zeros"
+        if count == 3:
+            if previous is not None:
+                np.testing.assert_allclose(embeddings, previous, rtol=1e-5, atol=1e-6)
+            previous = embeddings
+
+
 def assert_valid_logits(logits: np.ndarray):
     """Basic correctness: a real (non-empty), finite tensor of logits over some vocabulary.
 
