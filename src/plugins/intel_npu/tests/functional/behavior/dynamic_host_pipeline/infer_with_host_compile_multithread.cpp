@@ -17,6 +17,7 @@
 #include <tuple>
 #include <vector>
 
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common/utils.hpp"
 #include "espcn_x2_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -57,6 +58,7 @@ public:
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
+        ov::test::utils::register_template_plugin(core);
 
         std::vector<std::string> deviceNames =
             core.get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
