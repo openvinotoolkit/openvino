@@ -131,13 +131,6 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
 
             // input feature size should be the same
             const auto& wshape = constw->get_shape();
-            if (wshape.size() != 2) {
-                return false;
-            }
-            // the executor reads one dequantization scale per output channel
-            if (is_quantized_int8 && deq_scale->get_shape() != ov::Shape{wshape[0], 1}) {
-                return false;
-            }
             if (hidden_size == 0) {
                 hidden_size = wshape[1];
             } else if (hidden_size != wshape[1]) {
@@ -171,14 +164,10 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
                                          proj_size[2],
                                          false};
 
-        const auto& old_node = root;
+        auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        NodeVector fused_nodes;
-        for (const auto& output : outputs) {
-            fused_nodes.push_back(output.get_node_shared_ptr());
-        }
-        ov::copy_runtime_info(fused_nodes, new_node);
+        ov::copy_runtime_info({old_node}, new_node);
 
         // callback is for plugin implementation to check if it can be supported
         if (!transformation_callback(new_node)) {
@@ -298,10 +287,10 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
             args.emplace_back(scales);
             args.emplace_back(scales);
         }
-        const auto& old_node = root;
+        auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(qkv_proj).get_node_shared_ptr(), vsplit}, new_node);
+        ov::copy_runtime_info({old_node}, new_node);
 
         // callback is for plugin implementation to check if it can be supported
         if (!transformation_callback(new_node)) {

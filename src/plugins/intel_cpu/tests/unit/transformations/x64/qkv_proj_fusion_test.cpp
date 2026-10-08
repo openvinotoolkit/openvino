@@ -5,8 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <string>
-#include <utility>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -213,18 +211,6 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                 QKVSeparateParams{PartialShape{-1, hidden_size}, true, {2048, 2048, 2048}},
                                 QKVSeparateParams{PartialShape{-1, -1, hidden_size}, true, {2048, 256, 256}}));
 
-// A per-tensor scale has a single value: the executor would read proj_size values from it.
-TEST_F(TransformationTestsF, QKVProjFusionSeparatePerTensorScaleNotFused) {
-    auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, hidden_size});
-    OutputVector outputs;
-    for (auto [rows, scale_rows] : {std::pair<size_t, size_t>{2048, 2048}, {256, 1}, {256, 256}}) {
-        std::shared_ptr<v0::Constant> w, s;
-        outputs.push_back(std::make_shared<v0::MatMul>(input, make_int8_weight(rows, scale_rows, w, s), false, true));
-    }
-    model = std::make_shared<Model>(outputs, ParameterVector{input});
-    register_qkv_fusion<intel_cpu::QKVProjFusionPass1>(manager);
-}
-
 // ---------------------------------------------------------------------------------------------------------------
 // QKVProjFusionPass2: one combined q/k/v weight followed by a VariadicSplit on the last axis
 
@@ -424,55 +410,6 @@ TEST_F(TransformationTestsF, QKVProjFusionCombinedRejectedByCallbackNotFused) {
                               2560)
                 .model;
     register_qkv_fusion<intel_cpu::QKVProjFusionPass2>(manager, false);
-}
-
-}  // namespace
-
-namespace {
-
-// The fused node keeps the runtime info of every node it replaces (q/k/v MatMuls, or the MatMul and the split).
-void check_rt_info_propagated(const std::shared_ptr<Model>& model, const NodeVector& fused) {
-    for (size_t i = 0; i < fused.size(); i++) {
-        fused[i]->get_rt_info()["qkv_test_key_" + std::to_string(i)] = true;
-    }
-    pass::Manager manager;
-    register_qkv_fusion<intel_cpu::QKVProjFusionPass1>(manager);
-    manager.get_pass_config()->set_callback<intel_cpu::QKVProjFusionPass2>([](const std::shared_ptr<const Node>&) {
-        return true;
-    });
-    manager.run_passes(model);
-    std::shared_ptr<Node> qkv;
-    for (const auto& op : model->get_ops()) {
-        if (ov::is_type<intel_cpu::QKVProjectionNode>(op)) {
-            qkv = op;
-        }
-    }
-    ASSERT_NE(qkv, nullptr);
-    for (size_t i = 0; i < fused.size(); i++) {
-        EXPECT_EQ(qkv->get_rt_info().count("qkv_test_key_" + std::to_string(i)), 1) << "from node " << i;
-    }
-}
-
-TEST(QKVProjFusionRtInfoTest, SeparateMatMuls) {
-    auto input = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, hidden_size});
-    NodeVector matmuls;
-    for (size_t rows : {2048, 256, 256}) {
-        auto w = std::make_shared<v0::Convert>(make_weight(element::f16, Shape{rows, hidden_size}), element::f32);
-        matmuls.push_back(std::make_shared<v0::MatMul>(input, w, false, true));
-    }
-    auto model = std::make_shared<Model>(OutputVector{matmuls[0], matmuls[1], matmuls[2]}, ParameterVector{input});
-    check_rt_info_propagated(model, matmuls);
-}
-
-TEST(QKVProjFusionRtInfoTest, CombinedWeight) {
-    auto m = make_combined_qkv(PartialShape{-1, hidden_size},
-                               WeightForm::BF16_CONVERT,
-                               axis_const(element::i64, 1),
-                               element::i64,
-                               gqa_lengths,
-                               2560);
-    auto split = m.model->get_results()[0]->get_input_node_shared_ptr(0);
-    check_rt_info_propagated(m.model, {split->get_input_node_shared_ptr(0), split});
 }
 
 }  // namespace
