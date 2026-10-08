@@ -216,6 +216,10 @@ void CompiledModel::export_model(std::ostream& model) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
+    if (m_config.get_offload_ratio() == ov::intel_gpu::OFFLOAD_RATIO_AUTO) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("[GPU] Model caching is not supported for AUTO offload ratio.");
+    }
+
     const ov::EncryptionCallbacks encryption_callbacks = m_config.get_cache_encryption_callbacks();
 
     const ov::CacheMode cache_mode = m_config.get_cache_mode();

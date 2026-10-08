@@ -28,6 +28,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
+#include "ops/moe_offload_constant.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -263,6 +264,21 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
+namespace {
+// If the user requested OFFLOAD_RATIO_AUTO, resolve it into a concrete percentage using the
+// transformed model (which now contains MOECompressed op(s)) and the target device info, then
+// write it back so config.finalize() and downstream graph build see a concrete value.
+void resolve_auto_offload_ratio_if_needed(ExecutionConfig& config,
+                                          const std::shared_ptr<ov::Model>& transformed_model,
+                                          const RemoteContextImpl::Ptr& context) {
+    if (config.get_offload_ratio() != ov::intel_gpu::OFFLOAD_RATIO_AUTO)
+        return;
+    const size_t resolved = resolve_auto_offload_ratio(*transformed_model, context->get_engine());
+    config.set_property({ov::intel_gpu::offload_ratio(static_cast<int64_t>(resolved))});
+    config.set_user_property({ov::intel_gpu::offload_ratio(static_cast<int64_t>(resolved))}, OptionVisibility::RELEASE);
+}
+}  // namespace
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
@@ -275,6 +291,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
+
+    resolve_auto_offload_ratio_if_needed(config, transformed_model, context);
 
     config.finalize(context.get(), transformed_model.get());
     {
@@ -298,6 +316,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
+
+    resolve_auto_offload_ratio_if_needed(config, transformed_model, context_impl);
 
     config.finalize(context_impl.get(), transformed_model.get());
 
@@ -788,6 +808,7 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},
     };
 
