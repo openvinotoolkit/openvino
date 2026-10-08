@@ -166,6 +166,12 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
         return cache.at(device);
     }
 
+    // The probe uses Intel specific instructions, so skip it for other vendors.
+    if (e.get_device_info().vendor_id != INTEL_VENDOR_ID) {
+        cache[device] = false;
+        return false;
+    }
+
     // Fast path mirroring oneDNN's mayiuse_microkernels(): when the driver runtime version is
     // known to support microkernels, skip building the igc_check probe kernel.
     if (driver_version_supports_microkernels(e.get_device_info().driver_version)) {
@@ -306,6 +312,8 @@ data_types from_data_type(kernel_selector::data_type dt) {
         return cldnn::data_types::f16;
     case kernel_selector::data_type::F32:
         return cldnn::data_types::f32;
+    case kernel_selector::data_type::BF16:
+        return cldnn::data_types::bf16;
     case kernel_selector::data_type::F4E2M1:
         return cldnn::data_types::f4e2m1;
     case kernel_selector::data_type::F8E4M3:
@@ -1293,7 +1301,6 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
     params.engineInfo.supports_image = device_info.supports_image;
     params.engineInfo.supports_work_group_collective_functions = device_info.supports_work_group_collective_functions;
-    params.engineInfo.supports_non_uniform_work_group = device_info.supports_non_uniform_work_group;
 
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;

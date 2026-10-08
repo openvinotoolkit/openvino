@@ -66,6 +66,15 @@ public:
         return order;
     }
 
+    static const std::vector<ov::element::Type>& get_supported_precisions() {
+        static const std::vector<ov::element::Type> supported_precisions = {
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::bf16,
+        };
+        return supported_precisions;
+    }
+
 protected:
     bool m_is_causal;
     std::vector<int64_t> m_order_q;

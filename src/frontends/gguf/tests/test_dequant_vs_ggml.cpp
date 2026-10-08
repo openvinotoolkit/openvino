@@ -15,10 +15,12 @@
 // Tolerance: ggml stores K-quant scales as f16 and the dequant subgraph runs in f16,
 // so allow ~3e-3 (matching llama.cpp's MAX_QUANTIZATION_TOTAL_ERROR-class thresholds).
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -75,6 +77,8 @@ const char* type_name(uint32_t type) {
         return "Q6_K";
     case GGUF_TYPE_Q2_0:
         return "Q2_0";
+    case GGUF_TYPE_Q1_0:
+        return "Q1_0";
     default:
         return "";
     }
@@ -220,7 +224,94 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            // Q2_0 is bit-exact: both sides compute (code - 1) * d
                                            // from the same f16 scale, and the u8 zero-point of 1 is
                                            // represented exactly, so no dequant noise is introduced.
-                                           DeqCase{"q2_0", GGUF_TYPE_Q2_0, kTolExact}),
+                                           DeqCase{"q2_0", GGUF_TYPE_Q2_0, kTolExact},
+                                           // Q1_0 is bit-exact: both sides compute bit ? +d : -d from
+                                           // the same f16 scale, with no zero-point rounding at all.
+                                           DeqCase{"q1_0", GGUF_TYPE_Q1_0, kTolExact}),
                          [](const ::testing::TestParamInfo<DeqCase>& i) {
                              return std::string(i.param.stem);
                          });
+
+// Gemma4 global attention can reuse one quantized tensor for both K and V.
+// Constructing its first decompression graph must not reshape the shared scales.
+TEST(GGUFDequant, SharedExtractedWeightsKeepGroupLayout) {
+    constexpr size_t rows = 4, cols = 256, groups = cols / 32;
+    for (const auto type : {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_K}) {
+        const bool asymmetric = type == GGUF_TYPE_Q4_K;
+        const std::string stem = asymmetric ? "q4_k" : "q4_0";
+        SCOPED_TRACE(stem);
+        const auto bytes = load_npy<uint8_t>(stem + "_qbytes");
+        const auto reference = load_npy<float>(stem + "_deq");
+        GgufTensor source{};
+        source.type = type;
+        source.ndim = 2;
+        source.dim[0] = cols;
+        source.dim[1] = rows;
+        source.num_weights = rows * cols;
+        source.bsize = bytes.size();
+        source.weights_data = bytes.data();
+        WeightTensors tensors;
+        tensors.weight =
+            ov::Tensor(asymmetric ? ov::element::u32 : ov::element::i4, {rows, asymmetric ? cols / 8 : cols});
+        tensors.scales = ov::Tensor(ov::element::f16, {rows, groups});
+        if (asymmetric) {
+            tensors.zero_point = ov::Tensor(ov::element::f16, {rows, groups});
+            gguf_fill_asym(source, tensors.weight, tensors.scales, tensors.zero_point);
+        } else {
+            gguf_fill_sym(source, tensors.weight, tensors.scales);
+        }
+        const auto first = make_weight_node(tensors, type, "key");
+        EXPECT_EQ(tensors.scales.get_shape(), (ov::Shape{rows, groups}));
+        if (asymmetric) {
+            EXPECT_EQ(tensors.zero_point.get_shape(), (ov::Shape{rows, groups}));
+        }
+        const auto second = make_weight_node(tensors, type, "value");
+        const auto a = eval_as_f32(first);
+        const auto b = eval_as_f32(second);
+        ASSERT_EQ(a.size(), reference.size());
+        ASSERT_EQ(b.size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i) {
+            EXPECT_EQ(a[i], b[i]);
+            EXPECT_NEAR(a[i], reference[i], 3e-3f);
+        }
+    }
+}
+
+// Matmul weights take an integer zero-point, so Q4_1 is requantized to u4 and Q5_K to u8.
+// The public byte-level entry point decodes Q4_1 and sends Q5_K through Q8_0_C instead, so
+// fill as the loader does. Each 32-value group lands on a grid spanning [min(lo,0), max(hi,0)]:
+// every value is within half a step of it, up to f16 scale rounding.
+TEST(GGUFDequant, IntegerZeroPointRequantizationTracksGgml) {
+    constexpr size_t rows = kRows, cols = kCols, groups = cols / 32;
+    for (const auto& [type, stem, levels] :
+         {std::tuple{GGUF_TYPE_Q4_1, "q4_1", 15.f}, std::tuple{GGUF_TYPE_Q5_K, "q5_k", 255.f}}) {
+        SCOPED_TRACE(stem);
+        const auto bytes = load_npy<uint8_t>(std::string(stem) + "_qbytes");
+        const auto reference = load_npy<float>(std::string(stem) + "_deq");
+        GgufTensor source{};
+        source.type = type;
+        source.ndim = 2;
+        source.dim[0] = cols;
+        source.dim[1] = rows;
+        source.num_weights = rows * cols;
+        source.bsize = bytes.size();
+        source.weights_data = bytes.data();
+        const auto qtype = static_cast<GgufTensorType>(type);
+        ASSERT_EQ(gguf_zero_point_type("blk.0.ffn_up.weight", qtype), ov::element::u8);
+        const bool packed = type == GGUF_TYPE_Q4_1;
+        WeightTensors tensors;
+        tensors.weight = ov::Tensor(packed ? ov::element::u32 : ov::element::u8, {rows, packed ? cols / 8 : cols});
+        tensors.scales = ov::Tensor(ov::element::f16, {rows, groups});
+        tensors.zero_point = ov::Tensor(ov::element::u8, {rows, groups});
+        gguf_fill_asym(source, tensors.weight, tensors.scales, tensors.zero_point);
+        const auto values = eval_as_f32(make_weight_node(tensors, qtype, "blk.0.ffn_up.weight"));
+        ASSERT_EQ(values.size(), reference.size());
+        for (size_t group = 0; group < rows * groups; ++group) {
+            const auto begin = reference.begin() + group * 32;
+            const auto [lo, hi] = std::minmax_element(begin, begin + 32);
+            const float range = std::max(*hi, 0.f) - std::min(*lo, 0.f);
+            for (size_t k = group * 32; k < group * 32 + 32; ++k)
+                ASSERT_LE(std::fabs(values[k] - reference[k]), range * (0.5f / levels + 1e-3f)) << "group " << group;
+        }
+    }
+}

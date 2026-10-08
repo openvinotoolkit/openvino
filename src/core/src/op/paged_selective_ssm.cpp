@@ -66,19 +66,12 @@ void PagedSelectiveSSM::validate_and_infer_types() {
                               state_type == ov::element::bf16,
                           "PagedSelectiveSSM recurrent_state_table must have f32, f16, or bf16 element type.");
 
-    ov::element::Type common_index_type = get_input_element_type(6);
-    bool index_types_merge = true;
-    for (size_t input = 7; input < 11; ++input) {
-        index_types_merge &=
-            ov::element::Type::merge(common_index_type, common_index_type, get_input_element_type(input));
+    for (size_t input = 6; input < 11; ++input) {
+        const auto& et = get_input_element_type(input);
+        NODE_VALIDATION_CHECK(this,
+                              et.is_dynamic() || et == ov::element::i32,
+                              "PagedSelectiveSSM metadata inputs must have i32 element type.");
     }
-    NODE_VALIDATION_CHECK(this,
-                          index_types_merge,
-                          "PagedSelectiveSSM expects all metadata inputs to have the same element type.");
-    NODE_VALIDATION_CHECK(this,
-                          common_index_type.is_dynamic() || common_index_type == ov::element::i32 ||
-                              common_index_type == ov::element::i64,
-                          "PagedSelectiveSSM metadata inputs must have i32 or i64 element type.");
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, common_float_type, output_shapes[0]);

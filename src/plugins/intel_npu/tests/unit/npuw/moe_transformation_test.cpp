@@ -962,6 +962,122 @@ static std::shared_ptr<Model> create_gemma4_expert_graph(size_t num_experts,
     return model;
 }
 
+// Build a Gemma4-style expert subgraph with all newly-optional structural ops absent:
+//  - no Reshape1 (Tile's input/repeats are already 3D, so Tile itself emits
+//    [num_experts, token_count, hidden_dim] with no reshape needed)
+//  - no per-weight Convert after each dequant Multiply (the Multiply output is already fp32)
+//  - no Reshape2 (MatMul_down's output already has the router-score-compatible shape)
+// Mirrors create_gemma4_expert_graph() above but exercises the absent-optional path added
+// to make_swiglu_expert_matcher().
+static std::shared_ptr<Model> create_gemma4_expert_graph_no_optional(size_t num_experts,
+                                                                     size_t hidden_dim = 64,
+                                                                     size_t intermediate_dim = 128,
+                                                                     size_t token_count = 1) {
+    ov::ParameterVector params;
+
+    // Expert input already 3D: [1, token_count, hidden_dim]
+    auto expert_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, token_count, hidden_dim});
+    expert_input->set_friendly_name("expert_input");
+    params.push_back(expert_input);
+
+    // Tile directly produces [num_experts, token_count, hidden_dim]; no Reshape1 needed.
+    auto repeats =
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{static_cast<int64_t>(num_experts), 1, 1});
+    auto tile = std::make_shared<op::v0::Tile>(expert_input, repeats);
+    tile->set_friendly_name("expert_tile");
+
+    // Dequant weight chain feeding MatMul directly (Multiply already fp32; no trailing Convert).
+    auto make_dq_weight_no_convert = [&](const std::string& name, const Shape& weight_shape) -> std::shared_ptr<Node> {
+        auto w_nf4 = std::make_shared<op::v0::Parameter>(element::nf4, weight_shape);
+        w_nf4->set_friendly_name(name + "_nf4");
+        params.push_back(w_nf4);
+        auto w_fp32 = std::make_shared<op::v0::Convert>(w_nf4, element::f32);
+        w_fp32->set_friendly_name(name + "_fp32");
+        Shape scale_shape{weight_shape[0], weight_shape[1], 1};
+        auto scale = std::make_shared<op::v0::Parameter>(element::f32, scale_shape);
+        scale->set_friendly_name(name + "_scale");
+        params.push_back(scale);
+        auto w_scaled = std::make_shared<op::v1::Multiply>(w_fp32, scale);
+        w_scaled->set_friendly_name(name + "_multiply");
+        return w_scaled;
+    };
+
+    // Gate projection: MatMul1(tile, DQ_gate) -> Gelu
+    auto gate_dq = make_dq_weight_no_convert("gate_weights", Shape{num_experts, intermediate_dim, hidden_dim});
+    auto matmul1 = std::make_shared<op::v0::MatMul>(tile, gate_dq, false, true);
+    matmul1->set_friendly_name("expert_matmul1_gate");
+    auto gelu = std::make_shared<op::v7::Gelu>(matmul1);
+    gelu->set_friendly_name("expert_gelu");
+
+    // Up projection: MatMul2(tile, DQ_up)
+    auto up_dq = make_dq_weight_no_convert("up_weights", Shape{num_experts, intermediate_dim, hidden_dim});
+    auto matmul2 = std::make_shared<op::v0::MatMul>(tile, up_dq, false, true);
+    matmul2->set_friendly_name("expert_matmul2_up");
+
+    // SwiGLU merge: Gelu(gate) * up
+    auto multiply1 = std::make_shared<op::v1::Multiply>(gelu, matmul2);
+    multiply1->set_friendly_name("expert_multiply1_swiglu");
+
+    // Down projection: MatMul3(merge, DQ_down); output is already [num_experts, token_count,
+    // hidden_dim], so no Reshape2 is needed before the router-score Multiply.
+    auto down_dq = make_dq_weight_no_convert("down_weights", Shape{num_experts, hidden_dim, intermediate_dim});
+    auto matmul3 = std::make_shared<op::v0::MatMul>(multiply1, down_dq, false, true);
+    matmul3->set_friendly_name("expert_matmul3_down");
+
+    // Pattern root: matmul3 output * scattered router scores
+    auto router_scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{num_experts, token_count, 1});
+    router_scores->set_friendly_name("router_scores");
+    params.push_back(router_scores);
+    auto output_multiply = std::make_shared<op::v1::Multiply>(matmul3, router_scores);
+    output_multiply->set_friendly_name("output_multiply");
+
+    auto result = std::make_shared<op::v0::Result>(output_multiply);
+    auto model = std::make_shared<Model>(ResultVector{result}, params);
+    model->set_friendly_name("gemma4_expert_no_optional_" + std::to_string(num_experts));
+    return model;
+}
+
+// Verify that Gemma4Expert still isolates all matched nodes with the "expert" tag when
+// Reshape1, Reshape2, and the three weight Converts are all absent from the graph.
+TEST_F(MoETransformationTest, Gemma4Expert_NoOptionalReshapesOrConverts_IsolatesNodes) {
+    constexpr size_t num_experts = 8;
+    auto model = create_gemma4_expert_graph_no_optional(num_experts,
+                                                        /*hidden_dim=*/64,
+                                                        /*intermediate_dim=*/128,
+                                                        /*token_count=*/1);
+
+    auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
+    snapshot->buildGraph();
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::moe::Gemma4Expert>(snapshot, "expert");
+    ASSERT_NO_THROW(rewr.run_on_model(model));
+
+    const auto& node_map = *snapshot->getNodeToGroupMap();
+    auto is_isolated = [&](const std::string& name) {
+        for (const auto& [node, group] : node_map) {
+            if (node->get_friendly_name() == name) {
+                return group->isolatedTag() == "expert";
+            }
+        }
+        return false;
+    };
+
+    // The core compute chain must still be isolated even without the optional ops.
+    for (const auto& name : {"expert_tile",
+                             "expert_matmul1_gate",
+                             "expert_gelu",
+                             "gate_weights_multiply",
+                             "expert_matmul2_up",
+                             "up_weights_multiply",
+                             "expert_multiply1_swiglu",
+                             "expert_matmul3_down",
+                             "down_weights_multiply",
+                             "output_multiply"}) {
+        EXPECT_TRUE(is_isolated(name)) << "Expected node \"" << name << "\" to be isolated into the expert group";
+    }
+}
+
 // Verify that Gemma4Expert isolates all matched nodes with the "expert" tag.
 TEST_F(MoETransformationTest, Gemma4Expert_IsolatesNodes) {
     constexpr size_t num_experts = 8;

@@ -16,17 +16,79 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_reshape(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
-    if (context.get_input_shape(0) == context.get_output_shape()) {
+    num_inputs_check(context, 1, 2);
+    if (context.get_input_size() == 2) {
+        // Copy selected dimensions from a reference tensor, preserving variable grids.
+        const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target");
+        const auto axes = context.get_attribute<std::vector<int64_t>>("shape_axes");
+        FRONT_END_OP_CONVERSION_CHECK(target.size() == axes.size(), "Invalid reference reshape pattern");
+        // One ShapeOf for the whole pattern, and one Gather per run of copied axes.
+        const auto reference_shape = std::make_shared<ov::op::v3::ShapeOf>(context.get_input(1), ov::element::i64);
+        ov::OutputVector dimensions;
+        for (size_t i = 0; i < target.size();) {
+            if (axes[i] < 0) {
+                dimensions.push_back(ov::op::v0::Constant::create(ov::element::i64, {1}, {target[i]}));
+                ++i;
+                continue;
+            }
+            std::vector<int> copied;
+            for (; i < target.size() && axes[i] >= 0; ++i)
+                copied.push_back(static_cast<int>(axes[i]));
+            dimensions.push_back(gather_dims(reference_shape, copied));
+        }
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::Reshape>(context.get_input(0),
+                                                   std::make_shared<ov::op::v0::Concat>(dimensions, 0),
+                                                   false)},
+            context.get_name());
+    }
+    const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
+    if (!target.empty() && (context.get_op_case() == 0 || context.get_op_case() == 6)) {
+        auto pattern = ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target);
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::Reshape>(context.get_input(0),
+                                                   pattern,
+                                                   context.get_attribute<bool>("special_zero", false))},
+            context.get_name());
+    }
+    if (context.get_attribute<bool>("merge_heads", false)) {
+        const auto input = context.get_input(0);
+        const auto shape = input.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(shape.rank() == 4, "Head merging requires a rank-4 input");
+        ov::Output<ov::Node> pattern;
+        if (shape[2].is_static() && shape[3].is_static()) {
+            pattern = ov::op::v0::Constant::create(
+                ov::element::i64,
+                {4},
+                std::vector<int64_t>{0, 1, -1, shape[2].get_length() * shape[3].get_length()});
+        } else {
+            auto dimensions = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
+            auto heads =
+                std::make_shared<ov::op::v8::Gather>(dimensions,
+                                                     ov::op::v0::Constant::create(ov::element::i64, {2}, {2, 3}),
+                                                     ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+            auto width =
+                std::make_shared<ov::op::v1::ReduceProd>(heads,
+                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                         true);
+            pattern = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, -1}), width},
+                0);
+        }
+        return rename_outputs_with_suffix({std::make_shared<ov::op::v1::Reshape>(input, pattern, true)},
+                                          context.get_name());
+    }
+    if (!context.get_attribute<bool>("preserve_dynamic_layout", false) &&
+        context.get_input_shape(0) == context.get_output_shape()) {
         return {context.get_input(0)};
     }
 
@@ -118,7 +180,4 @@ OutputVector translate_reshape(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

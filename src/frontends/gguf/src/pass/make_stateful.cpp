@@ -4,21 +4,41 @@
 
 #include "openvino/frontend/gguf/make_stateful.hpp"
 
+#include <algorithm>
+#include <limits>
 #include <memory>
+#include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/set_rows_op.hpp"
 #include "openvino/op/assign.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
@@ -77,6 +97,153 @@ int64_t resolve_append_axis(const ov::PartialShape& ps, const std::string& cache
     return axis;
 }
 
+// ggml keeps K-1 convolution samples in [1, B, C, K-1]. Normalize the private state
+// to Optimum's [B, C, K] convention before creating its Variable, so the existing
+// PagedCausalConv1DFusion can consume it. Keeping one extra sample produces one extra
+// convolution output, which is discarded; the remaining outputs are unchanged.
+void normalize_causal_conv_state(const std::shared_ptr<ov::op::v0::Parameter>& state,
+                                 const std::shared_ptr<ov::op::v0::Result>& state_result) {
+    using namespace ov::op;
+    const auto shape = state->get_partial_shape();
+    if (shape.size() != 4 || shape[0] != 1 || shape[3] == 0 || state->output(0).get_target_inputs().size() != 1)
+        return;
+    const auto update = ov::as_type_ptr<v8::Slice>(state_result->get_input_node_shared_ptr(0));
+    if (!update || update->get_input_size() != 5 || update->output(0).get_target_inputs().size() != 1)
+        return;
+    const auto constant_is = [](const ov::Output<ov::Node>& value, int64_t expected) {
+        const auto constant = ov::as_type_ptr<v0::Constant>(value.get_node_shared_ptr());
+        return constant && constant->cast_vector<int64_t>() == std::vector<int64_t>{expected};
+    };
+    if (!constant_is(update->input_value(1), -shape[3].get_length()) ||
+        !constant_is(update->input_value(2), std::numeric_limits<int64_t>::max()) ||
+        !constant_is(update->input_value(3), 1) || !constant_is(update->input_value(4), 3))
+        return;
+    const auto window = ov::as_type_ptr<v0::Concat>(update->get_input_node_shared_ptr(0));
+    if (!window || window->get_axis() != 3 || window->get_input_size() != 2 ||
+        window->input_value(0) != state->output(0) || window->output(0).get_target_inputs().size() != 2)
+        return;
+    std::shared_ptr<v1::GroupConvolution> conv;
+    for (const auto& input : window->output(0).get_target_inputs()) {
+        const auto reshape = ov::as_type_ptr<v1::Reshape>(input.get_node()->shared_from_this());
+        if (!reshape || reshape->output(0).get_target_inputs().size() != 1)
+            continue;
+        const auto consumer = *reshape->output(0).get_target_inputs().begin();
+        conv = ov::as_type_ptr<v1::GroupConvolution>(consumer.get_node()->shared_from_this());
+    }
+    const auto kernel = shape[3].get_length() + 1;
+    if (!conv || !conv->get_input_partial_shape(0).compatible(ov::PartialShape({shape[1], shape[2], -1})) ||
+        conv->get_input_partial_shape(1) != ov::PartialShape({shape[2], 1, 1, kernel}) ||
+        conv->get_strides() != ov::Strides{1} || conv->get_dilations() != ov::Strides{1} ||
+        conv->get_pads_begin() != ov::CoordinateDiff{0} || conv->get_pads_end() != ov::CoordinateDiff{0} ||
+        conv->get_auto_pad() != ov::op::PadType::EXPLICIT)
+        return;
+
+    // Paged conversion moves tokens from axis 3 to axis 0 of the ggml window.
+    // Restore token-major order before collapsing axes, then expose [B, C, T].
+    const auto token_major = std::make_shared<v1::Transpose>(window->input_value(1),
+                                                             v0::Constant::create(ov::element::i64, {4}, {0, 1, 3, 2}));
+    const auto pattern =
+        v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, -1, shape[2].get_length()});
+    const auto token_rows = std::make_shared<v1::Reshape>(token_major, pattern, true);
+    const auto tokens =
+        std::make_shared<v1::Transpose>(token_rows, v0::Constant::create(ov::element::i64, {3}, {0, 2, 1}));
+    state->set_partial_shape(ov::PartialShape{shape[1], shape[2], kernel});
+    state->validate_and_infer_types();
+    const auto concat = std::make_shared<v0::Concat>(ov::OutputVector{state, tokens}, -1);
+    const auto convolution = conv->clone_with_new_inputs({concat, conv->input_value(1)});
+    const auto end = v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()});
+    const auto step = v0::Constant::create(ov::element::i64, {1}, {1});
+    const auto axis = v0::Constant::create(ov::element::i64, {1}, {2});
+    const auto output = std::make_shared<v8::Slice>(convolution, step, end, step, axis);
+    const auto tail = v0::Constant::create(ov::element::i64, {1}, {-kernel});
+    const auto new_state = std::make_shared<v8::Slice>(concat, tail, end, step, axis);
+    output->set_friendly_name(conv->get_friendly_name());
+    new_state->set_friendly_name(update->get_friendly_name());
+    ov::copy_runtime_info({state, window, conv, update},
+                          {token_major, token_rows, tokens, concat, convolution, output, new_state});
+    ov::replace_node(conv, output);
+    state_result->input(0).replace_source_output(new_state);
+}
+
+// A KV read feeding SDPA: Concat -> [grouped-query broadcast] -> [type alignment] -> [Transpose].
+struct KvRead {
+    const ov::Node* concat = nullptr;
+    std::vector<int64_t> order;  // empty without a Transpose
+};
+
+std::optional<KvRead> match_kv_read(const ov::Output<ov::Node>& value, const ov::ResultVector& results) {
+    using namespace ov::pass::pattern;
+    using ov::pass::operator|;
+    auto kv = wrap_type<ov::op::v0::Concat>();
+    auto present = kv | std::get<0>(ov::op::util::match_multi_query_bcst(kv));
+    // The CPU drops this type alignment before fusing.
+    auto like = any_input();
+    auto aligned = optional<ov::op::v1::ConvertLike, ov::op::v0::Convert>({present, like}) |
+                   optional<ov::op::v0::Convert>({present});
+    auto order = wrap_type<ov::op::v0::Constant>();
+    Matcher matcher(aligned | wrap_type<ov::op::v1::Transpose>({aligned, order}));
+    if (!matcher.match(value))
+        return std::nullopt;
+    const auto& map = matcher.get_pattern_value_map();
+    KvRead read{map.at(kv).get_node(), {}};
+    if (map.count(order))
+        read.order = ov::as_type_ptr<ov::op::v0::Constant>(map.at(order).get_node_shared_ptr())->cast_vector<int64_t>();
+    // Nodes between the cache and SDPA must have no other readers. Walk the matched branch: the
+    // grouped-query Multiply accepts either operand order.
+    std::unordered_set<const ov::Node*> branch;
+    for (const auto& [pattern, bound] : map) {
+        if (pattern != like && !ov::is_type<ov::op::v0::Constant>(bound.get_node()))
+            branch.insert(bound.get_node());
+    }
+    for (auto node = value.get_node(); node != read.concat;) {
+        if (node->get_output_target_inputs(0).size() != 1)
+            return std::nullopt;
+        const auto inputs = node->input_values();
+        const auto next = std::find_if(inputs.begin(), inputs.end(), [&](const ov::Output<ov::Node>& input) {
+            return branch.count(input.get_node());
+        });
+        if (next == inputs.end())
+            return std::nullopt;
+        node = next->get_node();
+    }
+    // The cache feeds SDPA and Assign, plus at most a ShapeOf. Removed Results still hold inputs.
+    auto readers = read.concat->get_output_target_inputs(0);
+    for (auto it = readers.begin(); it != readers.end();) {
+        const auto* result = ov::as_type<ov::op::v0::Result>(it->get_node());
+        const bool detached = result && std::none_of(results.begin(), results.end(), [&](const auto& live) {
+                                  return live.get() == result;
+                              });
+        it = detached ? readers.erase(it) : std::next(it);
+    }
+    const bool shape_of = std::any_of(readers.begin(), readers.end(), [](const ov::Input<ov::Node>& reader) {
+        return ov::is_type_any_of<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>(reader.get_node());
+    });
+    if (readers.size() != 2 && !(readers.size() == 3 && shape_of))
+        return std::nullopt;
+    return read;
+}
+
+// KV-cache Concats that the CPU StatefulSDPAFusion folds into a stateful SDPA.
+std::unordered_set<const ov::Node*> kv_concats_read_by_sdpa(const std::shared_ptr<ov::Model>& model) {
+    std::unordered_set<const ov::Node*> concats;
+    for (const auto& node : model->get_ops()) {
+        if (!ov::is_type<ov::op::v13::ScaledDotProductAttention>(node))
+            continue;
+        const auto key = match_kv_read(node->input_value(1), model->get_results());
+        const auto value = match_kv_read(node->input_value(2), model->get_results());
+        if (!key || !value || key->order != value->order)
+            continue;
+        if (!key->order.empty()) {
+            const auto query = ov::as_type_ptr<ov::op::v1::Transpose>(node->get_input_node_shared_ptr(0));
+            if (!query || !ov::op::util::has_constant_value(query->get_input_node_shared_ptr(1), key->order))
+                continue;
+        }
+        concats.insert(key->concat);
+        concats.insert(value->concat);
+    }
+    return concats;
+}
+
 }  // namespace
 
 const std::string& gguf_recurrent_states_key() {
@@ -127,26 +294,24 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
         if (!param) {
             continue;  // already rewritten (a second run of this pass)
         }
-        const auto& ps = param->get_partial_shape();
-        OPENVINO_ASSERT(ps.is_static(),
+        OPENVINO_ASSERT(param->get_partial_shape().is_static(),
                         "[GGUF] GGUFMakeStateful: recurrent state '",
                         in_name,
                         "' must have a fully static shape, got ",
-                        ps);
+                        param->get_partial_shape());
 
-        // The Result holding this state's new value: the one whose producing node carries the
-        // state's output name. The builder names that node after the state (see the VIEW cases),
-        // which is why those names have to survive translation.
+        // Translation names each Result after the output it holds.
         std::shared_ptr<v0::Result> state_result;
         for (const auto& r : model->get_results()) {
-            const auto producer = r->get_input_node_shared_ptr(0);
-            if (producer->get_friendly_name().find(out_name) != std::string::npos) {
+            if (r->get_friendly_name() == out_name) {
                 state_result = r;
                 break;
             }
         }
         OPENVINO_ASSERT(state_result, "[GGUF] GGUFMakeStateful: no Result produces recurrent state '", out_name, "'");
 
+        normalize_causal_conv_state(param, state_result);
+        const auto& ps = param->get_partial_shape();
         const auto et = param->get_element_type();
         auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ps, et, in_name});
         auto init = v0::Constant::create(et, ps.to_shape(), std::vector<float>(1, 0.0f));
@@ -206,6 +371,12 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::ParameterVector params_to_remove;
     ov::ResultVector results_to_remove;
     ov::SinkVector new_sinks;
+    struct Cache {
+        std::shared_ptr<v6::ReadValue> read_value;
+        const ov::Node* concat;
+        ov::Shape empty_shape;
+    };
+    std::vector<Cache> caches;
     // Same beam_idx Gather axis for every cache; hoisted out of the loop below.
     auto axis0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
@@ -227,6 +398,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         // Variable and its initial extent is 0 (no past on the first inference). Every other axis
         // keeps the Parameter's declared dimension and so must be static to build the init constant.
         ov::PartialShape var_shape = ps;
+        var_shape[0] = ov::Dimension::dynamic();
         var_shape[axis] = ov::Dimension::dynamic();
         auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{var_shape, et, cache_name});
 
@@ -265,6 +437,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         // Reorder the past by beam_idx before appending, so each beam continues its own history.
         auto past = std::make_shared<v8::Gather>(read_value, beam_idx, axis0);
         auto concat = std::make_shared<v0::Concat>(ov::OutputVector{past, new_rows}, axis);
+        caches.push_back({read_value, concat.get(), init_shape});
         concat->set_friendly_name(set_rows->get_friendly_name());
         new_sinks.push_back(std::make_shared<v6::Assign>(concat, var));
 
@@ -293,6 +466,25 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         model->add_parameters({beam_idx});
     }
     finalize_stateful_rewrite(model, results_to_remove, new_sinks, params_to_remove);
+
+    // Fused caches must start with the beam_idx batch. Plain CPU states need a constant init:
+    // a computed one pins the empty token axis and ignores resets.
+    const auto sdpa_caches = kv_concats_read_by_sdpa(model);
+    auto batch = std::make_shared<v3::ShapeOf>(beam_idx, ov::element::i64);
+    for (const auto& cache : caches) {
+        if (!sdpa_caches.count(cache.concat))
+            continue;
+        const auto& shape = cache.empty_shape;
+        auto target = std::make_shared<v0::Concat>(
+            ov::OutputVector{batch,
+                             v0::Constant::create(ov::element::i64,
+                                                  {shape.size() - 1},
+                                                  std::vector<int64_t>(shape.begin() + 1, shape.end()))},
+            0);
+        cache.read_value->input(0).replace_source_output(
+            std::make_shared<v3::Broadcast>(v0::Constant::create(cache.read_value->get_output_element_type(0), {}, {0}),
+                                            target));
+    }
 
     // Recurrent states are independent of the KV caches; a hybrid stack (qwen35) has both.
     make_recurrent_states_stateful(model);

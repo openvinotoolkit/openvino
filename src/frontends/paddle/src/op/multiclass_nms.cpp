@@ -5,10 +5,7 @@
 #include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset9.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs multiclass_nms(const NodeContext& node) {
     using namespace opset9;
     using namespace element;
@@ -76,7 +73,4 @@ NamedOutputs multiclass_nms(const NodeContext& node) {
     return named_outputs;
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

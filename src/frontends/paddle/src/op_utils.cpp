@@ -8,9 +8,7 @@ using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
 using namespace ov::frontend;
 
-namespace ov {
-namespace frontend {
-namespace paddle {
+namespace ov::frontend::paddle {
 Output<Node> get_tensor_list(const OutputVector& node) {
     auto tensor_list = node;
     for (size_t i = 0; i < tensor_list.size(); i++) {
@@ -40,6 +38,4 @@ Output<Node> get_tensor_safe(const Output<Node>& node) {
     }
 }
 
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle

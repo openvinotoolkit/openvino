@@ -11,10 +11,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -90,7 +87,4 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Gemm", OPSET_SINCE(6), ai_onnx::opset_6::gemm);
 }  // namespace opset_6
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

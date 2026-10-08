@@ -1935,7 +1935,8 @@ void TiledPermuteTest::run_test(const std::vector<ov::Dimension::value_type>& si
     std::swap(internal_sizes.at(2), internal_sizes.back());
     cldnn::tensor tensor(internal_sizes);
 
-    cldnn::format format = sizes.size() == 4 ? cldnn::format::bfyx : cldnn::format::bfzyx;
+    cldnn::format format = sizes.size() == 4 ? cldnn::format::bfyx
+                         : (sizes.size() == 5 ? cldnn::format::bfzyx : cldnn::format::bfwzyx);
 
     std::vector<uint16_t> order = {0};
     if (permute_order.empty()) {
@@ -2412,6 +2413,112 @@ TEST_P(permute_f_y_axes_tile, combined) {
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
 }
 
+// IsSwappingFX branch of the tiled kernel (cldnn order [0,2,1,3], i.e. ONNX
+// [0,3,2,1] / NCHW -> NWHC). Note: permute_f_y_axes_tile above forces the
+// separate pre-existing permute_f_y_axes kernel, which accepts cldnn [0,3,2,1]
+// (ONNX [0,2,1,3] / NCHW -> NHCW in bfyx terms) instead.
+class permute_tile_swap_fx_4d : public TiledPermuteTest {};
+
+INSTANTIATE_TEST_SUITE_P(smoke_permute_tile_swap_fx_4d,
+                         permute_tile_swap_fx_4d,
+                         ::testing::ValuesIn(std::vector<TiledPermuteParam>{
+                             {{1, 16, 8, 8}, format::bfyx},
+                             {{1, 32, 64, 32}, format::bfyx},
+                         }),
+                         TiledPermuteTest::PrintToStringParamName);
+
+TEST_P(permute_tile_swap_fx_4d, combined) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 2, 1});
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 2, 1});
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 2, 1});
+}
+
+// Unforced kernel selection for the model's permute (NCHW -> NWHC 4D, f16).
+// No implementation is forced: this asserts that the default selector picks the
+// tiled kernel instead of falling back to permute_ref, which is the behavioral
+// regression this change targets.
+TEST(permute_tile_swap_fx_selection, unforced_uses_tiled_kernel) {
+    auto& engine = get_test_engine();
+    const std::vector<ov::Dimension::value_type> sizes{1, 128, 200, 200};
+    cldnn::tensor tensor(sizes);
+    auto input = engine.allocate_memory(cldnn::layout(cldnn::data_types::f16, cldnn::format::bfyx, tensor));
+    tests::set_random_values<ov::float16>(input);
+
+    topology topology_selection = topology(
+        input_layout("input", input->get_layout()),
+        reorder("reorder", input_info("input"), {cldnn::data_types::f16, format::bfyx, tensor}),
+        permute("output", input_info("reorder"), std::vector<uint16_t>{0, 3, 2, 1}));
+    auto net = get_network(engine, topology_selection, get_test_default_config(engine), get_test_stream_ptr(), false);
+    net->set_input_data("input", input);
+    auto res = net->execute();
+    ASSERT_FALSE(res.empty());
+
+    // The default selection must pick the tiled kernel, not the permute_ref fallback.
+    EXPECT_NE(net->get_primitive_info("output").find("permute_tile_8x8_4x4"), std::string::npos);
+
+    // Numerical sanity: ONNX perm {0,3,2,1} (NCHW -> NWHC) maps
+    // out[b][W][H][C] == in[b][C][H][W]. In cldnn bfyx terms the input is
+    // (b, f=C, y=H, x=W) and the output is (b, f=W, y=H, x=C), so
+    // out[b][fo=W][yo=H][xo=C] == in[b][fi=C][yi=H][xi=W].
+    auto output = res.at("output").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+    const auto in_t = input->get_layout().get_tensor();
+    const auto out_t = output->get_layout().get_tensor();
+    const int32_t IF = in_t.feature[0], IY = in_t.spatial[1], IX = in_t.spatial[0];
+    const int32_t OB = out_t.batch[0], OF = out_t.feature[0], OY = out_t.spatial[1], OX = out_t.spatial[0];
+    cldnn::mem_lock<ov::float16> out_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16> in_ptr(input, get_test_stream());
+    for (int32_t b = 0; b < OB; ++b)
+        for (int32_t fo = 0; fo < OF; ++fo)
+            for (int32_t yo = 0; yo < OY; ++yo)
+                for (int32_t xo = 0; xo < OX; ++xo) {
+                    size_t out_off = ((size_t)(b * OF + fo) * OY + yo) * OX + xo;
+                    size_t in_off = ((size_t)(b * IF + xo) * IY + yo) * IX + fo;
+                    EXPECT_EQ(static_cast<float>(in_ptr[in_off]), static_cast<float>(out_ptr[out_off]))
+                        << "mismatch at b=" << b << " fo=" << fo << " yo=" << yo << " xo=" << xo;
+                }
+}
+
+// IsSwappingFX branch of the tiled kernel extended to 5D (cldnn order
+// [0,2,4,3,1]).
+class permute_tile_swap_fx_5d : public TiledPermuteTest {};
+
+INSTANTIATE_TEST_SUITE_P(smoke_permute_tile_swap_fx_5d,
+                         permute_tile_swap_fx_5d,
+                         ::testing::ValuesIn(std::vector<TiledPermuteParam>{
+                             {{1, 16, 8, 8, 8}, format::bfzyx},
+                             {{1, 16, 4, 8, 16}, format::bfzyx},
+                             {{2, 64, 8, 8, 8}, format::bfzyx},
+                         }),
+                         TiledPermuteTest::PrintToStringParamName);
+
+TEST_P(permute_tile_swap_fx_5d, combined) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 2, 4, 3, 1});
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 2, 4, 3, 1});
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 2, 4, 3, 1});
+}
+
+// IsSwappingFX branch of the tiled kernel extended to 6D (cldnn order
+// [0,2,3,5,4,1]).
+class permute_tile_swap_fx_6d : public TiledPermuteTest {};
+
+INSTANTIATE_TEST_SUITE_P(smoke_permute_tile_swap_fx_6d,
+                         permute_tile_swap_fx_6d,
+                         ::testing::ValuesIn(std::vector<TiledPermuteParam>{
+                             {{1, 8, 4, 4, 4, 4}, format::bfwzyx},
+                             {{1, 16, 4, 4, 8, 8}, format::bfwzyx},
+                         }),
+                         TiledPermuteTest::PrintToStringParamName);
+
+TEST_P(permute_tile_swap_fx_6d, combined) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 2, 3, 5, 4, 1});
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 2, 3, 5, 4, 1});
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 2, 3, 5, 4, 1});
+}
+
 // permute_xy_swap kernel: optimized 4D X<->Y transpose ({0, 1, 3, 2}).
 // Constraints (see PermuteKernel_xy_swap::Validate):
 //   * 4D plain bfyx layout only.
@@ -2612,3 +2719,46 @@ INSTANTIATE_TEST_SUITE_P(, TiledPerformancePermuteTest,
         {{1, 256, 128, 256}, format::bfyx},
         {{1, 256, 256, 128}, format::b_fs_yx_fsv16},
     }));
+
+// The permute_tile_8x8_4x4 kernel now supports the f<->x swap order
+// cldnn [0,2,1,3] (ONNX [0,3,2,1], NCHW -> NWHC).
+TEST(permute_gpu_f32, tile_8x8_4x4_fy_swap) {
+    auto& engine = get_test_engine();
+
+    tensor input_size{1, 16, 16, 8};
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    tests::set_random_values<ov::float16>(input);
+
+    // cldnn order [0,2,1,3] (swap f and x); the input shape is asymmetric so a rotate-only
+    // implementation would produce wrong values.
+    std::vector<uint16_t> order{ 0, 3, 2, 1 };
+    topology topology(input_layout("input", input->get_layout()),
+                      permute("output", input_info("input"), order));
+
+    // reference
+    {
+        ExecutionConfig config_ref = get_test_default_config(engine);
+        ov::intel_gpu::ImplementationDesc ref_impl = { format::bfyx, "permute_ref" };
+        config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "output", ref_impl } }));
+        network network_ref(engine, topology, config_ref);
+        network_ref.set_input_data("input", input);
+        auto outputs_ref = network_ref.execute();
+        auto output_ref = outputs_ref.at("output").get_memory();
+
+        // tiled kernel (the one that must now accept [0,2,1,3])
+        ExecutionConfig config_tile = get_test_default_config(engine);
+        ov::intel_gpu::ImplementationDesc tile_impl = { format::bfyx, "permute_tile_8x8_4x4" };
+        config_tile.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "output", tile_impl } }));
+        network network_tile(engine, topology, config_tile);
+        network_tile.set_input_data("input", input);
+        auto outputs_tile = network_tile.execute();
+        auto output_tile = outputs_tile.at("output").get_memory();
+
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(output_ref, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> tile_ptr(output_tile, get_test_stream());
+        for (size_t i = 0; i < ref_ptr.size(); ++i) {
+            ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(tile_ptr[i]), 1e-3f)
+                << "Mismatch at " << i;
+        }
+    }
+}

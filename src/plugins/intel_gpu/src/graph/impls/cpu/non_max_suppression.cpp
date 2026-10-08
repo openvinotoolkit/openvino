@@ -113,11 +113,13 @@ std::vector<result_indices> run_nms(
 }
 
 template <typename T>
-vector2D<bounding_box> load_boxes_impl(stream& stream, memory::ptr mem, bool center_point) {
+vector2D<bounding_box> load_boxes_impl(stream& stream,
+                                       memory::ptr mem,
+                                       const layout& logical_layout,
+                                       bool center_point) {
     vector2D<bounding_box> result;
-    auto lay = mem->get_layout();
-    auto batch_size = lay.batch();
-    auto boxes_num = lay.feature();
+    auto batch_size = logical_layout.batch();
+    auto boxes_num = logical_layout.feature();
     result.resize(batch_size);
 
     mem_lock<T, mem_lock_type::read> boxes_lock(mem, stream);
@@ -147,25 +149,23 @@ vector2D<bounding_box> load_boxes_impl(stream& stream, memory::ptr mem, bool cen
     return result;
 }
 
-vector2D<bounding_box> load_boxes(stream& stream, memory::ptr mem, bool center_point) {
+vector2D<bounding_box> load_boxes(stream& stream, memory::ptr mem, const layout& logical_layout, bool center_point) {
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::f16:
-        return load_boxes_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, center_point);
+        return load_boxes_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, logical_layout, center_point);
     case cldnn::data_types::f32:
-        return load_boxes_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, center_point);
+        return load_boxes_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, logical_layout, center_point);
     default:
         throw std::runtime_error("Non max suppression - unsupported boxes data type");
     }
 }
 
 template <typename T>
-vector3D<float> load_scores_impl(stream& stream, memory::ptr mem) {
-    auto lay = mem->get_layout();
-    auto batch_size = lay.batch();
-    auto classes_num = lay.feature();
-    auto boxes_num = lay.spatial(1);
-
+vector3D<float> load_scores_impl(stream& stream, memory::ptr mem, const layout& logical_layout) {
+    auto batch_size = logical_layout.batch();
+    auto classes_num = logical_layout.feature();
+    auto boxes_num = logical_layout.spatial(1);
     vector3D<float> result(batch_size, vector2D<float>(classes_num));
 
     mem_lock<T, mem_lock_type::read> lock(mem, stream);
@@ -184,13 +184,13 @@ vector3D<float> load_scores_impl(stream& stream, memory::ptr mem) {
     return result;
 }
 
-vector3D<float> load_scores(stream& stream, memory::ptr mem) {
+vector3D<float> load_scores(stream& stream, memory::ptr mem, const layout& logical_layout) {
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::f16:
-        return load_scores_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem);
+        return load_scores_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, logical_layout);
     case cldnn::data_types::f32:
-        return load_scores_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem);
+        return load_scores_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, logical_layout);
     default:
         throw std::runtime_error("Non max suppression - unsupported scores data type");
     }
@@ -331,8 +331,10 @@ void run(non_max_suppression_inst& instance) {
     auto prim = instance.get_typed_desc<non_max_suppression>();
     auto& stream = instance.get_network().get_stream();
 
-    auto boxes = load_boxes(stream, instance.input_boxes_mem(), prim->center_point_box);
-    auto scores = load_scores(stream, instance.input_scores_mem());
+    const auto& logical_boxes_layout = instance.get_impl_params()->get_input_layout(0);
+    const auto& logical_scores_layout = instance.get_impl_params()->get_input_layout(1);
+    auto boxes = load_boxes(stream, instance.input_boxes_mem(), logical_boxes_layout, prim->center_point_box);
+    auto scores = load_scores(stream, instance.input_scores_mem(), logical_scores_layout);
 
     int num_select_per_class = 0;
     float iou_threshold = 1.f;

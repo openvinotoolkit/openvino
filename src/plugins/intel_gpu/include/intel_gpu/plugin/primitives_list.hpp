@@ -21,6 +21,7 @@ REGISTER_FACTORY(v0, Cosh);
 REGISTER_FACTORY(v0, CumSum);
 REGISTER_FACTORY(v0, CTCGreedyDecoder);
 REGISTER_FACTORY(v0, DepthToSpace);
+REGISTER_FACTORY(internal, GroupedDepthToSpace);
 REGISTER_FACTORY(v0, DetectionOutput);
 REGISTER_FACTORY(v0, Elu);
 REGISTER_FACTORY(v0, Erf);
@@ -302,6 +303,7 @@ REGISTER_FACTORY(internal, RMS);
 REGISTER_FACTORY(internal, GatherCompressed);
 REGISTER_FACTORY(internal, KVCache);
 REGISTER_FACTORY(internal, KVCacheCompressed);
+REGISTER_FACTORY(internal, StatelessKV);
 REGISTER_FACTORY(internal, ReadValue);
 REGISTER_FACTORY(internal, ReadValues);
 REGISTER_FACTORY(internal, Gemm);
@@ -330,3 +332,6 @@ REGISTER_FACTORY(internal, GatherMatmul);
 REGISTER_FACTORY(internal, GatherMatmulCompressed);
 REGISTER_FACTORY(internal, GroupedMatMulCompressed);
 REGISTER_FACTORY(internal, Atan2);
+#ifdef ENABLE_MLIR_FOR_GPU
+REGISTER_FACTORY(internal, MLIR);
+#endif

@@ -8,6 +8,34 @@ import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 
 
+class TestSortOutputs(PytorchLayerTest):
+    def _prepare_input(self):
+        data = [[3, 1, 4, 2], [7, 5, 8, 6]]
+        if self.stable:
+            data = [[3, 1, 3, 1], [2, 2, 1, 1]]
+        return (np.array(data, dtype=np.float32),)
+
+    @pytest.mark.parametrize("stable", [None, False, True])
+    @pytest.mark.parametrize("descending", [False, True])
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_sort_outputs(self, stable, descending, ie_device, precision, ir_version):
+        class SortOutputs(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.stable = stable
+                self.descending = descending
+
+            def forward(self, data):
+                if self.stable is None:
+                    return torch.sort(data, descending=self.descending)
+                return torch.sort(data, stable=self.stable, descending=self.descending)
+
+        self.stable = stable
+        self._test(SortOutputs(), "aten::sort", ie_device, precision, ir_version)
+
+
 class TestSortConstants(PytorchLayerTest):
     def _prepare_input(self):
         return (self.input_tensor,)
