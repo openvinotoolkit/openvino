@@ -18,6 +18,9 @@ std::optional<ov::util::MemoryView> Section::view() const noexcept {
         return ov::util::MemoryView{reinterpret_cast<const std::byte*>(m_entry.inline_bytes.data()),
                                     m_entry.inline_bytes.size()};
     } else {
+        // m_source's alternatives are all nothrow-constructible and m_source is only ever set once via a constructor
+        // init-list, never reassigned - valueless_by_exception() is unreachable.
+        // coverity[UNCAUGHT_EXCEPT:FALSE]
         return std::visit(
             ov::util::VariantVisitor{[](const auto&) -> std::optional<ov::util::MemoryView> {
                                          return std::nullopt;
