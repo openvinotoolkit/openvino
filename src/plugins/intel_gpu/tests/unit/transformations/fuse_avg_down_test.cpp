@@ -120,6 +120,15 @@ void run_pass(const std::shared_ptr<ov::Model>& model) {
     manager.run_passes(model);
 }
 
+std::shared_ptr<ov::op::v12::Pad> find_pad(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ops()) {
+        if (const auto pad = ov::as_type_ptr<ov::op::v12::Pad>(node)) {
+            return pad;
+        }
+    }
+    return {};
+}
+
 TEST(FuseAvgDownTest, RewritesSpatialAverageToAvgPool3D) {
     auto model = make_avg_down_model(96, 96, 1, 2, false);
     run_pass(model);
@@ -158,15 +167,6 @@ TEST(FuseAvgDownTest, RewritesAllTemporalGroupedBlocksToGroupedSpaceToDepth) {
 }
 
 TEST(FuseAvgDownTest, RewritesDynamicTemporalPadsWithStaticSourceChannels) {
-    const auto get_pad = [](const std::shared_ptr<ov::Model>& model) {
-        for (const auto& node : model->get_ops()) {
-            if (const auto pad = ov::as_type_ptr<ov::op::v12::Pad>(node)) {
-                return pad;
-            }
-        }
-        return std::shared_ptr<ov::op::v12::Pad>{};
-    };
-
     const std::vector<std::pair<int64_t, int64_t>> channel_transitions = {
         {96, 192},
         {192, 384},
@@ -175,7 +175,7 @@ TEST(FuseAvgDownTest, RewritesDynamicTemporalPadsWithStaticSourceChannels) {
     for (const auto& [input_channels, output_channels] : channel_transitions) {
         SCOPED_TRACE(input_channels);
         auto model = make_avg_down_model(input_channels, output_channels, 2, 2, true, true, false, true);
-        const auto pad = get_pad(model);
+        const auto pad = find_pad(model);
         ASSERT_TRUE(pad);
         pad->set_output_type(0, pad->get_output_element_type(0), ov::PartialShape::dynamic(5));
         ASSERT_TRUE(pad->get_output_partial_shape(0)[1].is_dynamic());
@@ -186,7 +186,7 @@ TEST(FuseAvgDownTest, RewritesDynamicTemporalPadsWithStaticSourceChannels) {
     }
 
     auto identity_model = make_avg_down_model(768, 768, 1, 1, true, true, true, true);
-    const auto identity_pad = get_pad(identity_model);
+    const auto identity_pad = find_pad(identity_model);
     ASSERT_TRUE(identity_pad);
     identity_pad->set_output_type(0, identity_pad->get_output_element_type(0), ov::PartialShape::dynamic(5));
     ASSERT_TRUE(identity_pad->get_output_partial_shape(0)[1].is_dynamic());
@@ -196,6 +196,30 @@ TEST(FuseAvgDownTest, RewritesDynamicTemporalPadsWithStaticSourceChannels) {
     const auto consumer = identity_model->get_results().front()->get_input_node_shared_ptr(0);
     ASSERT_EQ(consumer->get_type_name(), std::string("Relu"));
     EXPECT_EQ(consumer->get_input_node_ptr(0)->get_type_name(), std::string("Parameter"));
+}
+
+TEST(FuseAvgDownTest, RejectsMisplacedDynamicTemporalPadding) {
+    auto model = make_avg_down_model(96, 192, 2, 2, true, true, false, true);
+    const auto pad = find_pad(model);
+    ASSERT_TRUE(pad);
+    auto misplaced_padding = std::make_shared<ov::op::v8::Gather>(pad->input_value(1), shape_part({2, 1, 0, 3, 4}), scalar(0));
+    pad->input(1).replace_source_output(misplaced_padding);
+
+    run_pass(model);
+
+    EXPECT_EQ(model->get_results().front()->get_input_node_ptr(0)->get_type_name(), std::string("ReduceMean"));
+}
+
+TEST(FuseAvgDownTest, RejectsNonzeroDynamicSpatialPadding) {
+    auto model = make_avg_down_model(96, 192, 2, 2, true, true, false, true);
+    const auto pad = find_pad(model);
+    ASSERT_TRUE(pad);
+    auto nonzero_padding = std::make_shared<ov::op::v1::Add>(pad->input_value(1), shape_part({0, 0, 0, 1, 0}));
+    pad->input(1).replace_source_output(nonzero_padding);
+
+    run_pass(model);
+
+    EXPECT_EQ(model->get_results().front()->get_input_node_ptr(0)->get_type_name(), std::string("ReduceMean"));
 }
 
 TEST(FuseAvgDownTest, RejectsUnexpectedGroupSize) {
