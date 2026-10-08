@@ -24,6 +24,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/hsm_format.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -395,6 +396,23 @@ std::string get_model_hash_sync_key(const std::shared_ptr<const ov::Model>& mode
 ov::SharedContextManager& get_cache_wsh_ctx_manager() {
     static ov::SharedContextManager s_cache_wsh_ctx_manager;
     return s_cache_wsh_ctx_manager;
+}
+
+bool is_hsm_blob(const ov::Tensor& tensor) {
+    return tensor.get_byte_size() >= sizeof(ov::runtime::hsm::Header) &&
+           ov::runtime::hsm::Header::view(tensor.data()).magic == ov::runtime::hsm::BlobMagic::single;
+}
+
+bool is_hsm_blob(std::istream& stream) {
+    if (const auto start = stream.tellg(); start != std::streampos(-1)) {
+        ov::runtime::hsm::Header header{};
+        stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+        stream.clear();  // must clear eof/fail before seekg can restore the original position
+        stream.seekg(start);
+        return header.magic == ov::runtime::hsm::BlobMagic::single;
+    } else {
+        return false;
+    }
 }
 }  // namespace
 
@@ -1920,8 +1938,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
         try {
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Export");
+            const bool emits_hsm = device_supports_internal_property(plugin, ov::internal::emit_hsm_format) &&
+                                   plugin.get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>();
             std::string compiled_model_runtime_properties;
-            if (device_supports_internal_property(plugin, ov::internal::compiled_model_runtime_properties.name())) {
+            if (!emits_hsm &&
+                device_supports_internal_property(plugin, ov::internal::compiled_model_runtime_properties.name())) {
                 compiled_model_runtime_properties =
                     plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
@@ -1939,16 +1960,18 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
             }
             // write compiled blob
             cache_content.m_cache_manager->write_cache_entry(cache_content.m_blob_id, [&](std::ostream& stream) {
-                uint32_t header_size_alignment{};
-                if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
-                    header_size_alignment =
-                        plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
-                }
+                if (!emits_hsm) {
+                    uint32_t header_size_alignment{};
+                    if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
+                        header_size_alignment =
+                            plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
+                    }
 
-                stream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
-                                                 ov::ModelCache::calculate_file_info(cache_content.m_model_path),
-                                                 compiled_model_runtime_properties,
-                                                 header_size_alignment);
+                    stream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
+                                                     ov::ModelCache::calculate_file_info(cache_content.m_model_path),
+                                                     compiled_model_runtime_properties,
+                                                     header_size_alignment);
+                }
                 compiled_model->export_model(stream);
             });
         } catch (const std::ios_base::failure&) {
@@ -1984,44 +2007,55 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                              "Core::load_model_from_cache::ReadStreamAndImport");
                 ov::CompiledBlobHeader header;
                 size_t compiled_blob_offset = 0;
-                try {
-                    ov::util::VariantVisitor header_reader{[&](const ov::Tensor& tensor) {
-                                                               header.read_from_buffer(
-                                                                   static_cast<const char*>(tensor.data()),
-                                                                   tensor.get_byte_size(),
-                                                                   compiled_blob_offset);
-                                                           },
-                                                           [&](std::reference_wrapper<std::istream> stream) {
-                                                               stream >> header;
-                                                           }};
-                    std::visit(header_reader, compiled_blob);
 
-                    if (header.get_file_info() != ov::ModelCache::calculate_file_info(cache_content.m_model_path)) {
-                        // Original file is changed, don't use cache
-                        OPENVINO_THROW("Original model file is changed");
-                    }
-                    if (device_supports_internal_property(plugin,
-                                                          ov::internal::compiled_model_runtime_properties_supported)) {
-                        ov::AnyMap compiled_model_runtime_properties = {
-                            {ov::internal::compiled_model_runtime_properties.name(),
-                             std::string(header.get_runtime_info())}};
-                        auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
-                                                       compiled_model_runtime_properties);
-                        if (!res.as<bool>()) {
-                            OPENVINO_THROW(
-                                "Original model runtime properties have been changed, not supported anymore!");
+                const auto is_hsm = std::visit(
+                    [](const auto& blob) {
+                        return is_hsm_blob(blob);
+                    },
+                    compiled_blob);
+
+                if (!is_hsm) {
+                    try {
+                        ov::util::VariantVisitor header_reader{[&](const ov::Tensor& tensor) {
+                                                                   header.read_from_buffer(
+                                                                       static_cast<const char*>(tensor.data()),
+                                                                       tensor.get_byte_size(),
+                                                                       compiled_blob_offset);
+                                                               },
+                                                               [&](std::reference_wrapper<std::istream> stream) {
+                                                                   stream >> header;
+                                                               }};
+                        std::visit(header_reader, compiled_blob);
+
+                        if (header.get_file_info() != ov::ModelCache::calculate_file_info(cache_content.m_model_path)) {
+                            // Original file is changed, don't use cache
+                            OPENVINO_THROW("Original model file is changed");
                         }
-                    } else {
-                        // Check whether the runtime version is not older than blob version
-                        if (!ov::util::is_version_compatible(
-                                ov::util::Version(header.get_openvino_version()),
-                                ov::util::Version(ov::get_openvino_version().buildNumber))) {
-                            // Build number mismatch, don't use this cache
-                            OPENVINO_THROW("Version does not match");
+                        if (device_supports_internal_property(
+                                plugin,
+                                ov::internal::compiled_model_runtime_properties_supported)) {
+                            ov::AnyMap compiled_model_runtime_properties = {
+                                {ov::internal::compiled_model_runtime_properties.name(),
+                                 std::string(header.get_runtime_info())}};
+                            auto res =
+                                plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
+                                                    compiled_model_runtime_properties);
+                            if (!res.as<bool>()) {
+                                OPENVINO_THROW(
+                                    "Original model runtime properties have been changed, not supported anymore!");
+                            }
+                        } else {
+                            // Check whether the runtime version is not older than blob version
+                            if (!ov::util::is_version_compatible(
+                                    ov::util::Version(header.get_openvino_version()),
+                                    ov::util::Version(ov::get_openvino_version().buildNumber))) {
+                                // Build number mismatch, don't use this cache
+                                OPENVINO_THROW("Version does not match");
+                            }
                         }
+                    } catch (...) {
+                        throw HeaderException();
                     }
-                } catch (...) {
-                    throw HeaderException();
                 }
 
                 ov::AnyMap update_config = config;
