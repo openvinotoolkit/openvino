@@ -267,8 +267,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception&) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -309,8 +309,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception&) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -354,8 +354,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception&) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -449,8 +449,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception&) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -541,8 +541,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception&) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -613,8 +613,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception&) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
 
     for (bool sharedQueue : {true, false}) {
@@ -687,8 +687,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core.compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
-    } catch (const ov::Exception&) {
-        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable" << e.what();;
     }
 
     for (bool sharedQueue : {true, false}) {
