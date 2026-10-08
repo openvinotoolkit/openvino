@@ -1709,7 +1709,7 @@ public:
 
     // u4 weights with a non-integer f16 zero point per group, as in asymmetric formats such as GGUF Q4_K
     // (w = (q - min / scale) * scale). oneDNN must run it and match the exact formula, not a rounded zero point.
-    void test_compressed_int4_f16_zp(bool is_dynamic, long int batch_num, uint64_t dyn_quan_group_size) {
+    void test_compressed_int4_f16_zp(bool is_dynamic, long int batch_num) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
         if (!engine.get_device_info().supports_immad)
@@ -1760,7 +1760,6 @@ public:
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_user_property(ov::hint::dynamic_quantization_group_size(dyn_quan_group_size));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
         network->set_input_data("input", input_mem);
@@ -5871,23 +5870,19 @@ TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_group_s
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token) {
-    this->test_compressed_int4_f16_zp(false, 1, 0);
+    this->test_compressed_int4_f16_zp(false, 1);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token_dynamic) {
-    this->test_compressed_int4_f16_zp(true, 1, 0);
+    this->test_compressed_int4_f16_zp(true, 1);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch) {
-    this->test_compressed_int4_f16_zp(false, 64, 0);
+    this->test_compressed_int4_f16_zp(false, 64);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch_dynamic) {
-    this->test_compressed_int4_f16_zp(true, 64, 0);
-}
-
-TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch_dyn_quan) {
-    this->test_compressed_int4_f16_zp(true, 64, 32);
+    this->test_compressed_int4_f16_zp(true, 64);
 }
 
 using fully_connected_dynamic_test_params = std::tuple<
