@@ -583,7 +583,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
                 if (!const_node)
                     continue;
-                if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()))
+                if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0u)
                     continue;
                 auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_node);
                 if (source_buf) {
