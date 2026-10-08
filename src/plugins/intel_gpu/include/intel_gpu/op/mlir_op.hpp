@@ -8,37 +8,15 @@
 #include <tuple>
 #include <vector>
 
-#include "intel_gpu/runtime/event.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
-namespace cldnn {
-class primitive_inst;
-}
-
 namespace ov::intel_gpu {
 namespace mlir {
-struct MLIRGpuRuntime;
-
-class MLIRGpuProgram {
-public:
-    virtual ~MLIRGpuProgram() = default;
-    MLIRGpuProgram(const MLIRGpuProgram&) = delete;
-    MLIRGpuProgram& operator=(const MLIRGpuProgram&) = delete;
-
-    virtual void wait_compiled() = 0;
-    virtual cldnn::event::ptr execute(MLIRGpuRuntime& runtime,
-                                      const ov::Node& op,
-                                      cldnn::primitive_inst& instance,
-                                      const std::vector<cldnn::event::ptr>& deps,
-                                      bool need_event) = 0;
-
-protected:
-    MLIRGpuProgram() = default;
-};
+class MLIRGpuProgram;
 }  // namespace mlir
 namespace op {
 
