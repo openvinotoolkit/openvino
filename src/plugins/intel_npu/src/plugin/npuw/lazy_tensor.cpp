@@ -4,6 +4,8 @@
 
 #include "lazy_tensor.hpp"
 
+#include <algorithm>
+#include <limits>
 #include <tuple>
 #include <type_traits>
 #include <variant>
@@ -186,6 +188,7 @@ bool Concat::operator==(const Concat& other) const {
 }
 
 ov::Tensor Concat::eval() const {
+    eval_meta();
     std::vector<ov::Tensor> to_concat;
     for (const auto& lt : tensors) {
         to_concat.push_back(lt.eval());
@@ -194,10 +197,24 @@ ov::Tensor Concat::eval() const {
 }
 
 LazyTensor::Meta Concat::eval_meta() const {
+    OPENVINO_ASSERT(!tensors.empty(), "Concat requires at least one tensor");
+    OPENVINO_ASSERT(tensors[0], "Concat requires initialized tensors");
     auto meta = tensors[0].eval_meta();
     ov::Shape shape = meta.shape;
+    OPENVINO_ASSERT(axis < shape.size(), "Concat axis is out of bounds");
     for (std::size_t i = 1; i < tensors.size(); ++i) {
-        shape[axis] += tensors[i].eval_meta().shape[axis];
+        OPENVINO_ASSERT(tensors[i], "Concat requires initialized tensors");
+        const auto next = tensors[i].eval_meta();
+        OPENVINO_ASSERT(next.type == meta.type && next.shape.size() == shape.size(),
+                        "Concat operands must have equal type and rank");
+        for (std::size_t dim = 0; dim < shape.size(); ++dim) {
+            if (dim != axis) {
+                OPENVINO_ASSERT(next.shape[dim] == shape[dim], "Concat non-axis dimensions must match");
+            }
+        }
+        OPENVINO_ASSERT(next.shape[axis] <= std::numeric_limits<std::size_t>::max() - shape[axis],
+                        "Concat axis size overflow");
+        shape[axis] += next.shape[axis];
     }
     return {shape, meta.type};
 }
@@ -206,6 +223,7 @@ void Concat::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     for (auto& lt : tensors) {
         lt.read_weight(ctx);
     }
+    eval_meta();
 }
 
 void Concat::detach() {
@@ -525,6 +543,15 @@ void Const::serialize(ov::npuw::orc::Stream& stream) {
 
 void Concat::serialize(ov::npuw::orc::Stream& stream) {
     stream & axis & tensors;
+    if (stream.input()) {
+        OPENVINO_ASSERT(!tensors.empty(), "Concat requires at least one tensor");
+        OPENVINO_ASSERT(std::all_of(tensors.begin(),
+                                    tensors.end(),
+                                    [](const LazyTensor& tensor) {
+                                        return static_cast<bool>(tensor);
+                                    }),
+                        "Concat requires initialized tensors");
+    }
 }
 
 void Unpack::serialize(ov::npuw::orc::Stream& stream) {

@@ -1771,11 +1771,80 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
 }
 
+TEST(SerializationTest, OVTypes_LazyTensor_concat_rejects_invalid_metadata) {
+    using ov::npuw::weights::LazyTensor;
+
+    auto rank1 = LazyTensor(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.f}));
+    auto rank3 = LazyTensor(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1}, {2.f}));
+    auto different_dim = LazyTensor(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 1, 1}, {3.f, 4.f}));
+    auto different_type =
+        LazyTensor(ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1, 1, 1}, std::vector<int32_t>{5}));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(LazyTensor(std::vector<LazyTensor>{rank1, rank3}, 2).eval_meta(),
+                                  ov::AssertFailure,
+                                  "axis is out of bounds");
+    OV_EXPECT_THROW_HAS_SUBSTRING(LazyTensor(std::vector<LazyTensor>{rank1, rank3}, 2).eval(),
+                                  ov::AssertFailure,
+                                  "axis is out of bounds");
+    OV_EXPECT_THROW_HAS_SUBSTRING(LazyTensor(std::vector<LazyTensor>{}, 0).eval_meta(),
+                                  ov::AssertFailure,
+                                  "requires at least one tensor");
+    OV_EXPECT_THROW_HAS_SUBSTRING(LazyTensor(std::vector<LazyTensor>{rank3, LazyTensor{}}, 2).eval_meta(),
+                                  ov::AssertFailure,
+                                  "requires initialized tensors");
+    OV_EXPECT_THROW_HAS_SUBSTRING(LazyTensor(std::vector<LazyTensor>{rank1, rank3}, 0).eval_meta(),
+                                  ov::AssertFailure,
+                                  "equal type and rank");
+    OV_EXPECT_THROW_HAS_SUBSTRING(LazyTensor(std::vector<LazyTensor>{rank3, different_dim}, 2).eval_meta(),
+                                  ov::AssertFailure,
+                                  "non-axis dimensions must match");
+    OV_EXPECT_THROW_HAS_SUBSTRING(LazyTensor(std::vector<LazyTensor>{rank3, different_type}, 2).eval_meta(),
+                                  ov::AssertFailure,
+                                  "equal type and rank");
+
+    auto valid = LazyTensor(std::vector<LazyTensor>{rank3, rank3}, 2);
+    EXPECT_EQ(valid.eval_meta().shape, (ov::Shape{1, 1, 2}));
+    EXPECT_EQ(valid.eval().get_shape(), (ov::Shape{1, 1, 2}));
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_concat_rejects_invalid_orc) {
+    using namespace ov::npuw::s11n;
+    using ov::npuw::weights::LazyTensor;
+
+    auto rank1 = LazyTensor(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.f}));
+    auto rank3 = LazyTensor(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1}, {2.f}));
+    LazyTensor malformed(std::vector<LazyTensor>{rank1, rank3}, 2);
+    std::stringstream buffer;
+    write(buffer, malformed);
+
+    LazyTensor imported;
+    read(buffer, imported);
+    OV_EXPECT_THROW_HAS_SUBSTRING(imported.read_weight(WeightsContext(nullptr, "", {}, {})),
+                                  ov::AssertFailure,
+                                  "axis is out of bounds");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_concat_rejects_axis_overflow) {
+    using ov::npuw::weights::LazyTensor;
+
+    auto weight = LazyTensor(ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1}, {1}));
+    auto scale = LazyTensor(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f}));
+    auto large = LazyTensor(weight,
+                            LazyTensor{},
+                            scale,
+                            ov::element::f32,
+                            ov::Shape{1, 1, std::numeric_limits<std::size_t>::max()});
+    auto small = LazyTensor(weight, LazyTensor{}, scale, ov::element::f32, ov::Shape{1, 1, 1});
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(LazyTensor(std::vector<LazyTensor>{large, small}, 2).eval_meta(),
+                                  ov::AssertFailure,
+                                  "axis size overflow");
+}
+
 TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
     using namespace ov::npuw::s11n;
 
-    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3},
-                                                       {0, 1, 127, 128, 254, 255}, 0);
+    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3}, {0, 1, 127, 128, 254, 255}, 0);
     auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
     ov::npuw::weights::LazyTensor res;
     const auto expected = var.eval();
