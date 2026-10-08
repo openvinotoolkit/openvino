@@ -7,7 +7,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 #include "openvino/runtime/common.hpp"
@@ -17,7 +19,7 @@ namespace ov::runtime::hsm {
 inline namespace v1 {
 
 /**
- * @brief Callback handed to a #SectionEncoder for storing its content. Call it as many times as
+ * @brief Callback handed to #ISectionEncoder::encode() for storing its content. Call it as many times as
  * convenient - each call goes straight to the final destination, so a caller already holding a contiguous
  * source can store it in one call, and a caller producing data incrementally never has to materialize
  * more than one chunk at a time; the writer itself never buffers a whole section on your behalf.
@@ -32,7 +34,24 @@ using SectionSink = std::function<void(ov::util::MemoryView data)>;
  * the calls must sum to exactly that many bytes; without one, the writer measures however many bytes
  * they turn out to be - see that overload's docs for what that implies for the destination.
  */
-using SectionEncoder = std::function<void(const SectionSink& sink)>;
+class ISectionEncoder {
+public:
+    virtual ~ISectionEncoder() = default;
+
+    /**
+     * @brief Writes this section's content to @p sink.
+     * @note Runs later, at #IWriter::finalize() time, not when passed to #IWriter::add_section() - any
+     * state read here must outlive finalize().
+     */
+    virtual void encode(const SectionSink& sink) const = 0;
+};
+
+/**
+ * @brief Owning handle to an #ISectionEncoder. Shared, not exclusive: a caller that already built and
+ * holds a long-lived encoder can pass the same instance to multiple #IWriter::add_section() calls
+ * (across one writer or several) instead of rebuilding a throwaway one each time.
+ */
+using SectionEncoderPtr = std::shared_ptr<ISectionEncoder>;
 
 /**
  * @brief Pointer-mode start-offset and reserved-slot-size alignment for a section (ignored for inline-mode).
@@ -68,11 +87,11 @@ class ISectionWriterHandler;
 /**
  * @brief Common (device- and destination-agnostic) writer interface for one HSM container.
  * @note #add_section() borrows @p payload (see the concrete class for how long it must stay alive); the
- * #SectionEncoder overload produces data on demand instead, for a payload with no existing view (e.g.
+ * #ISectionEncoder overloads produce data on demand instead, for a payload with no existing view (e.g.
  * generated, or only transiently alive). @p device is always explicit - pass #any_device_id for a
  * Core-owned section.
  * @note Tag mode support is asymmetric: an inline @p tag (#SectionTag::is_inline()) is only accepted by
- * the #ov::util::MemoryView overload; both #SectionEncoder overloads are pointer-mode only and reject
+ * the #ov::util::MemoryView overload; both #ISectionEncoder overloads are pointer-mode only and reject
  * an inline @p tag.
  */
 class OPENVINO_RUNTIME_API IWriter {
@@ -86,7 +105,7 @@ public:
      * @param tag The section tag.
      * @param payload The memory view containing the section's data.
      * @param align The alignment requirements for the section - accepted but ignored for an inline
-     * @p tag, so the same value can be reused across inline and pointer-mode calls; see #SectionAlignment.
+     * @p tag, so the same value can be reused across inline and pointer-mode calls.
      * @return true if the section was added; false if the destination has run out of room or the write
      * failed.
      */
@@ -96,11 +115,11 @@ public:
                              SectionAlignment align = {}) = 0;
 
     /**
-     * @brief Adds a section owned by @p device whose content is produced on demand by @p encode, for a
+     * @brief Adds a section owned by @p device whose content is produced on demand by @p encoder, for a
      * payload that doesn't exist as a view yet (e.g. generated, or assembled piecemeal) - avoids an
      * intermediate allocation just to call the view overload.
      * @note Pointer-mode only; see the view overload for inline-mode.
-     * @note @p encode is invoked at most once per finalization attempt - see #finalize()'s note on how
+     * @note @p encoder is invoked at most once per finalization attempt - see #finalize()'s note on how
      * a repeated call, or a call after an exception, is handled by the concrete implementation. It must
      * write exactly @p size bytes to `sink` (across one or more calls) - never buffer a copy of its own
      * first.
@@ -108,7 +127,7 @@ public:
      * @param device The device that owns the section.
      * @param tag The section tag.
      * @param size The size of the section's payload.
-     * @param encode The encoder that produces the section's content.
+     * @param encoder The encoder that produces the section's content.
      * @param align The alignment requirements for the section.
      * @return true if the section was added; false if @p tag is inline, the destination has run out of
      * room, or the write failed.
@@ -116,14 +135,14 @@ public:
     virtual bool add_section(DeviceId device,
                              SectionTagReserved tag,
                              size_t size,
-                             SectionEncoder encode,
+                             SectionEncoderPtr encoder,
                              SectionAlignment align = {}) = 0;
 
     /**
-     * @brief Adds a section owned by @p device whose content is produced by @p encode and whose size is
-     * only known once @p encode has finished writing it (e.g. serializing an object whose encoded length
+     * @brief Adds a section owned by @p device whose content is produced by @p encoder and whose size is
+     * only known once @p encoder has finished writing it (e.g. serializing an object whose encoded length
      * depends on its runtime data).
-     * @note @p encode is invoked at most once per finalization attempt - see #finalize()'s note on how
+     * @note @p encoder is invoked at most once per finalization attempt - see #finalize()'s note on how
      * a repeated call, or a call after an exception, is handled by the concrete implementation.
      * Pointer-mode only (same restriction as the sized overload for inline tags). Forces #finalize() to
      * revisit the destination once every real size is known, instead of computing the header up front -
@@ -131,14 +150,14 @@ public:
      *
      * @param device The device that owns the section.
      * @param tag The section tag.
-     * @param encode The encoder that produces the section's content.
+     * @param encoder The encoder that produces the section's content.
      * @param align The alignment requirements for the section.
      * @return true if the section was added; false if @p tag is inline, the destination has run out of
      * room, or the write failed.
      */
     virtual bool add_section(DeviceId device,
                              SectionTagReserved tag,
-                             SectionEncoder encode,
+                             SectionEncoderPtr encoder,
                              SectionAlignment align = {}) = 0;
 
     /**

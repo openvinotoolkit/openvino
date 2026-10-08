@@ -27,6 +27,41 @@ ov::util::MemoryView view_of(const std::string& s) {
     return {reinterpret_cast<const std::byte*>(s.data()), s.size()};
 }
 
+// Encodes a live std::string by reference - the referenced string must outlive finalize().
+class StringViewEncoder final : public hsm::ISectionEncoder {
+public:
+    explicit StringViewEncoder(const std::string& text) : m_text(text) {}
+    void encode(const hsm::SectionSink& sink) const override {
+        sink({reinterpret_cast<const std::byte*>(m_text.data()), m_text.size()});
+    }
+
+private:
+    const std::string& m_text;
+};
+
+// Encodes an owned copy of a std::string - safe even if the source is destroyed before finalize().
+class OwnedStringEncoder final : public hsm::ISectionEncoder {
+public:
+    explicit OwnedStringEncoder(std::string text) : m_text(std::move(text)) {}
+    void encode(const hsm::SectionSink& sink) const override {
+        sink({reinterpret_cast<const std::byte*>(m_text.data()), m_text.size()});
+    }
+
+private:
+    std::string m_text;
+};
+
+// Writes "chunk0-chunk1-chunk2-" across three separate sink() calls.
+class ChunkedEncoder final : public hsm::ISectionEncoder {
+public:
+    void encode(const hsm::SectionSink& sink) const override {
+        for (int i = 0; i < 3; ++i) {
+            const std::string chunk = "chunk" + std::to_string(i) + "-";
+            sink({reinterpret_cast<const std::byte*>(chunk.data()), chunk.size()});
+        }
+    }
+};
+
 hsm::DeferredWriter open_writer(std::ostream& stream) {
     auto writer = hsm::DeferredWriter::open(stream);
     EXPECT_TRUE(writer.has_value());
@@ -339,7 +374,7 @@ TEST(HsmWriterTest, zero_size_align_inherits_alignment) {
     EXPECT_EQ(inherited_stream.str(), explicit_stream.str());
 }
 
-// --- add_section() SectionEncoder overloads (sized and unsized) ---
+// --- add_section() ISectionEncoder overloads (sized and unsized) ---
 
 TEST(HsmWriterTest, section_encoder_can_capture_a_copy_of_a_transient_payload) {
     std::stringstream stream;
@@ -349,9 +384,7 @@ TEST(HsmWriterTest, section_encoder_can_capture_a_copy_of_a_transient_payload) {
         writer.add_section(hsm::any_device_id,
                            hsm::model_tag,
                            transient.size(),
-                           [bytes = transient](const hsm::SectionSink& sink) {
-                               sink({reinterpret_cast<const std::byte*>(bytes.data()), bytes.size()});
-                           });
+                           std::make_shared<OwnedStringEncoder>(transient));
     }  // transient destroyed before finalize() - the encoder already captured its own copy
     ASSERT_FALSE(writer.finalize());
 
@@ -367,9 +400,10 @@ TEST(HsmWriterTest, fill_in_place_writes_generated_payload_into_the_destination)
 
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, content.size(), [&content](const hsm::SectionSink& sink) {
-        sink({reinterpret_cast<const std::byte*>(content.data()), content.size()});
-    });
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       content.size(),
+                       std::make_shared<StringViewEncoder>(content));
     ASSERT_FALSE(writer.finalize());
 
     const auto container = parse_container(stream.str());
@@ -384,12 +418,7 @@ TEST(HsmWriterTest, sized_section_encoder_can_split_its_output_into_several_chun
 
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, expected.size(), [](const hsm::SectionSink& sink) {
-        for (int i = 0; i < 3; ++i) {
-            const std::string chunk = "chunk" + std::to_string(i) + "-";
-            sink({reinterpret_cast<const std::byte*>(chunk.data()), chunk.size()});
-        }
-    });
+    writer.add_section(hsm::any_device_id, hsm::model_tag, expected.size(), std::make_shared<ChunkedEncoder>());
     ASSERT_FALSE(writer.finalize());
 
     const auto container = parse_container(stream.str());
@@ -402,20 +431,20 @@ TEST(HsmWriterTest, sized_section_encoder_can_split_its_output_into_several_chun
 TEST(HsmWriterTest, sized_section_encoder_rejects_writing_past_its_declared_size) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, /*size=*/2, [](const hsm::SectionSink& sink) {
-        const std::string data = "too-long";
-        sink({reinterpret_cast<const std::byte*>(data.data()), data.size()});
-    });
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       /*size=*/2,
+                       std::make_shared<OwnedStringEncoder>("too-long"));
     EXPECT_THROW(writer.finalize(), ov::AssertFailure);
 }
 
 TEST(HsmWriterTest, sized_section_encoder_rejects_writing_less_than_its_declared_size) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, /*size=*/10, [](const hsm::SectionSink& sink) {
-        const std::string data = "short";
-        sink({reinterpret_cast<const std::byte*>(data.data()), data.size()});
-    });
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       /*size=*/10,
+                       std::make_shared<OwnedStringEncoder>("short"));
     EXPECT_THROW(writer.finalize(), ov::AssertFailure);
 }
 
@@ -424,12 +453,7 @@ TEST(HsmWriterTest, unsized_section_encoder_discovers_size_after_writing) {
     // variable-length object) - no size is passed to add_section() at all.
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, [](const hsm::SectionSink& sink) {
-        for (int i = 0; i < 3; ++i) {
-            const std::string chunk = "chunk" + std::to_string(i) + "-";
-            sink({reinterpret_cast<const std::byte*>(chunk.data()), chunk.size()});
-        }
-    });
+    writer.add_section(hsm::any_device_id, hsm::model_tag, std::make_shared<ChunkedEncoder>());
     ASSERT_FALSE(writer.finalize());
 
     const auto container = parse_container(stream.str());
@@ -444,9 +468,7 @@ TEST(HsmWriterTest, unsized_section_encoder_works_with_a_preallocated_buffer_too
 
     std::vector<std::byte> buffer(k_buffer_capacity);
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
-    writer.add_section(hsm::any_device_id, hsm::model_tag, [&content](const hsm::SectionSink& sink) {
-        sink({reinterpret_cast<const std::byte*>(content.data()), content.size()});
-    });
+    writer.add_section(hsm::any_device_id, hsm::model_tag, std::make_shared<StringViewEncoder>(content));
     ASSERT_FALSE(writer.finalize());
 
     const auto container = parse_container(buffer.data(), buffer.size());
@@ -513,6 +535,18 @@ TEST(HsmWriterTest, add_sections_skips_a_null_handler) {
 }
 
 TEST(HsmWriterTest, section_encoder_avoids_materializing_a_view_for_a_transient_source_at_all) {
+    // Builds the view into `value` only inside encode(), not ahead of time at add_section() time.
+    class ValueEncoder final : public hsm::ISectionEncoder {
+    public:
+        explicit ValueEncoder(int value) : m_value(value) {}
+        void encode(const hsm::SectionSink& sink) const override {
+            sink({reinterpret_cast<const std::byte*>(&m_value), sizeof(m_value)});
+        }
+
+    private:
+        int m_value;
+    };
+
     class PluginWriter : public hsm::ISectionWriterHandler {
     public:
         void handle_section(hsm::IWriter& writer) const override {
@@ -520,9 +554,7 @@ TEST(HsmWriterTest, section_encoder_avoids_materializing_a_view_for_a_transient_
             writer.add_section(fake_device_id,
                                hsm::SectionTag::make_device_tag(/*local_id=*/6, /*is_inline=*/false),
                                sizeof(value),
-                               [value](const hsm::SectionSink& sink) {
-                                   sink({reinterpret_cast<const std::byte*>(&value), sizeof(value)});
-                               });
+                               std::make_shared<ValueEncoder>(value));
         }
     };
 
@@ -549,13 +581,10 @@ TEST(HsmWriterTest, handler_based_add_section_reuses_one_handler_for_several_sec
 
         void handle_section(hsm::IWriter& writer) const override {
             for (size_t i = 0; i < m_shards.size(); ++i) {
-                writer.add_section(
-                    fake_device_id,
-                    hsm::SectionTag::make_device_tag(/*local_id=*/8, /*is_inline=*/false),
-                    m_shards[i].size(),
-                    [this, i](const hsm::SectionSink& sink) {
-                        sink({reinterpret_cast<const std::byte*>(m_shards[i].data()), m_shards[i].size()});
-                    });
+                writer.add_section(fake_device_id,
+                                   hsm::SectionTag::make_device_tag(/*local_id=*/8, /*is_inline=*/false),
+                                   m_shards[i].size(),
+                                   std::make_shared<StringViewEncoder>(m_shards[i]));
             }
         }
 
@@ -589,14 +618,23 @@ TEST(HsmWriterTest, handler_forwards_to_a_named_member_function_instead_of_inlin
         explicit OptionsHandler(CompiledOptions options) : m_options(options) {}
 
         void handle_section(hsm::IWriter& writer) const override {
-            // The lambda is only a one-line forwarder; write_options() below is an ordinary member
-            // function - as long or recursive as needed, with full access to this handler's own state.
+            // ForwardingEncoder is only a one-line forwarder; write_options() below is an ordinary
+            // member function - as long or recursive as needed, with full access to this handler's state.
+            class ForwardingEncoder final : public hsm::ISectionEncoder {
+            public:
+                explicit ForwardingEncoder(const OptionsHandler& owner) : m_owner(owner) {}
+                void encode(const hsm::SectionSink& sink) const override {
+                    m_owner.write_options(sink);
+                }
+
+            private:
+                const OptionsHandler& m_owner;
+            };
+
             writer.add_section(fake_device_id,
                                hsm::SectionTag::make_device_tag(/*local_id=*/10, /*is_inline=*/false),
                                sizeof(m_options),
-                               [this](const hsm::SectionSink& sink) {
-                                   write_options(sink);
-                               });
+                               std::make_shared<ForwardingEncoder>(*this));
         }
 
     private:
@@ -625,32 +663,37 @@ TEST(HsmWriterTest, handler_forwards_to_a_named_member_function_instead_of_inlin
 }
 
 TEST(HsmWriterTest, section_encoder_composes_from_several_sub_encoders) {
-    auto compose = [](std::vector<hsm::SectionEncoder> parts) -> hsm::SectionEncoder {
-        return [parts = std::move(parts)](const hsm::SectionSink& sink) {
-            for (const auto& part : parts) {
-                part(sink);
+    // A section built from independent sub-encoders composed via a tiny local helper - no new API
+    // needed beyond ISectionEncoder itself: each part is its own encoder, composition just calls each
+    // in turn (e.g. for a section assembled from several sub-objects).
+    class ComposedEncoder final : public hsm::ISectionEncoder {
+    public:
+        explicit ComposedEncoder(std::vector<hsm::SectionEncoderPtr> parts) : m_parts(std::move(parts)) {}
+        void encode(const hsm::SectionSink& sink) const override {
+            for (const auto& part : m_parts) {
+                part->encode(sink);
             }
-        };
+        }
+
+    private:
+        std::vector<hsm::SectionEncoderPtr> m_parts;
     };
 
     const std::string header = "head-";
     const std::string body = "body-";
     const std::string footer = "foot";
-    hsm::SectionEncoder encode = compose({
-        [&header](const hsm::SectionSink& sink) {
-            sink({reinterpret_cast<const std::byte*>(header.data()), header.size()});
-        },
-        [&body](const hsm::SectionSink& sink) {
-            sink({reinterpret_cast<const std::byte*>(body.data()), body.size()});
-        },
-        [&footer](const hsm::SectionSink& sink) {
-            sink({reinterpret_cast<const std::byte*>(footer.data()), footer.size()});
-        },
+    auto encoder = std::make_shared<ComposedEncoder>(std::vector<hsm::SectionEncoderPtr>{
+        std::make_shared<StringViewEncoder>(header),
+        std::make_shared<StringViewEncoder>(body),
+        std::make_shared<StringViewEncoder>(footer),
     });
 
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, header.size() + body.size() + footer.size(), encode);
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       header.size() + body.size() + footer.size(),
+                       std::move(encoder));
     ASSERT_FALSE(writer.finalize());
 
     const auto container = parse_container(stream.str());

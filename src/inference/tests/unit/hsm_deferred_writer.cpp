@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <array>
 #include <limits>
 #include <optional>
 #include <sstream>
@@ -26,6 +25,83 @@ constexpr size_t k_buffer_capacity = 4096;
 ov::util::MemoryView view_of(const std::string& s) {
     return {reinterpret_cast<const std::byte*>(s.data()), s.size()};
 }
+
+// Encodes an owned copy of a std::string - safe even if the source is destroyed before finalize().
+class OwnedStringEncoder final : public hsm::ISectionEncoder {
+public:
+    explicit OwnedStringEncoder(std::string text) : m_text(std::move(text)) {}
+    void encode(const hsm::SectionSink& sink) const override {
+        sink({reinterpret_cast<const std::byte*>(m_text.data()), m_text.size()});
+    }
+
+private:
+    std::string m_text;
+};
+
+// Does nothing - never calls sink() at all.
+class NoOpEncoder final : public hsm::ISectionEncoder {
+public:
+    void encode(const hsm::SectionSink&) const override {}
+};
+
+// Sinks `count` zero bytes in one call.
+class ZeroBytesEncoder final : public hsm::ISectionEncoder {
+public:
+    explicit ZeroBytesEncoder(size_t count) : m_bytes(count) {}
+    void encode(const hsm::SectionSink& sink) const override {
+        sink({m_bytes.data(), m_bytes.size()});
+    }
+
+private:
+    std::vector<std::byte> m_bytes;
+};
+
+// Sinks a declared `size` larger than the single real byte behind `data` - the overflow/capacity check
+// must reject this before any copy happens.
+class OverflowEncoder final : public hsm::ISectionEncoder {
+public:
+    OverflowEncoder(const std::byte* data, size_t size) : m_data(data), m_size(size) {}
+    void encode(const hsm::SectionSink& sink) const override {
+        sink({m_data, m_size});
+    }
+
+private:
+    const std::byte* m_data;
+    size_t m_size;
+};
+
+// Always throws - simulates an encoder that blows up.
+class ThrowingEncoder final : public hsm::ISectionEncoder {
+public:
+    void encode(const hsm::SectionSink&) const override {
+        OPENVINO_THROW("encoder blew up");
+    }
+};
+
+// Counts invocations; throws while `should_throw` is true, otherwise sinks a fixed 4-byte payload.
+class RetryEncoder final : public hsm::ISectionEncoder {
+public:
+    RetryEncoder(int& call_count, bool& should_throw) : m_call_count(call_count), m_should_throw(should_throw) {}
+    void encode(const hsm::SectionSink& sink) const override {
+        ++m_call_count;
+        if (m_should_throw) {
+            OPENVINO_THROW("encoder blew up");
+        }
+        sink({reinterpret_cast<const std::byte*>("data"), 4});
+    }
+
+private:
+    int& m_call_count;
+    bool& m_should_throw;
+};
+
+// Sinks a single empty chunk.
+class EmptyChunkEncoder final : public hsm::ISectionEncoder {
+public:
+    void encode(const hsm::SectionSink& sink) const override {
+        sink(ov::util::MemoryView{});
+    }
+};
 
 hsm::DeferredWriter open_writer(std::ostream& stream) {
     auto writer = hsm::DeferredWriter::open(stream);
@@ -165,9 +241,7 @@ TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_chunk_without_overfl
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
     const std::byte dummy{};
     static constexpr size_t huge = std::numeric_limits<size_t>::max() - 31;
-    writer.add_section(hsm::any_device_id, hsm::model_tag, huge, [&dummy](const hsm::SectionSink& sink) {
-        sink({&dummy, huge});
-    });
+    writer.add_section(hsm::any_device_id, hsm::model_tag, huge, std::make_shared<OverflowEncoder>(&dummy, huge));
     EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
 }
 
@@ -176,10 +250,10 @@ TEST(HsmDeferredWriterTest, sized_section_encoder_fits_a_buffer_sized_to_the_exa
     constexpr size_t exact_capacity = sizeof(hsm::Header) + section_size + sizeof(hsm::ManifestEntry);
     std::vector<std::byte> buffer(exact_capacity);
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
-    writer.add_section(hsm::any_device_id, hsm::model_tag, section_size, [](const hsm::SectionSink& sink) {
-        const std::array<std::byte, section_size> data{};
-        sink({data.data(), data.size()});
-    });
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       section_size,
+                       std::make_shared<ZeroBytesEncoder>(section_size));
     EXPECT_FALSE(writer.finalize());
 }
 
@@ -188,10 +262,10 @@ TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_buffer_one_byte_shor
     constexpr size_t exact_capacity = sizeof(hsm::Header) + section_size + sizeof(hsm::ManifestEntry);
     std::vector<std::byte> buffer(exact_capacity - 1);
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
-    writer.add_section(hsm::any_device_id, hsm::model_tag, section_size, [](const hsm::SectionSink& sink) {
-        const std::array<std::byte, section_size> data{};
-        sink({data.data(), data.size()});
-    });
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       section_size,
+                       std::make_shared<ZeroBytesEncoder>(section_size));
     EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
 }
 
@@ -218,27 +292,51 @@ TEST(HsmDeferredWriterTest, finalize_reports_write_failed_when_the_stream_is_alr
 TEST(HsmDeferredWriterTest, sized_section_encoder_debug_asserts_on_an_inline_mode_tag) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, 4, [](const hsm::SectionSink&) {}),
+    EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, 4, std::make_shared<NoOpEncoder>()),
                  ov::AssertFailure);
 }
 
 TEST(HsmDeferredWriterTest, unsized_section_encoder_debug_asserts_on_an_inline_mode_tag) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, [](const hsm::SectionSink&) {}),
+    EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, std::make_shared<NoOpEncoder>()),
                  ov::AssertFailure);
+}
+
+TEST(HsmDeferredWriterTest, sized_section_encoder_debug_asserts_on_a_null_encoder) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_tag, 4, nullptr), ov::AssertFailure);
+}
+
+TEST(HsmDeferredWriterTest, unsized_section_encoder_debug_asserts_on_a_null_encoder) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    EXPECT_THROW(writer.add_section(hsm::any_device_id, hsm::model_tag, nullptr), ov::AssertFailure);
 }
 #else
 TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_an_inline_mode_tag) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_id_tag, 4, [](const hsm::SectionSink&) {}));
+    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_id_tag, 4, std::make_shared<NoOpEncoder>()));
 }
 
 TEST(HsmDeferredWriterTest, unsized_section_encoder_rejects_an_inline_mode_tag) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_id_tag, [](const hsm::SectionSink&) {}));
+    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_id_tag, std::make_shared<NoOpEncoder>()));
+}
+
+TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_null_encoder) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_tag, 4, nullptr));
+}
+
+TEST(HsmDeferredWriterTest, unsized_section_encoder_rejects_a_null_encoder) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    EXPECT_FALSE(writer.add_section(hsm::any_device_id, hsm::model_tag, nullptr));
 }
 #endif
 
@@ -260,9 +358,7 @@ TEST(HsmDeferredWriterTest, finalize_is_idempotent) {
 TEST(HsmDeferredWriterTest, finalize_propagates_an_exception_thrown_by_a_section_encoder) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, [](const hsm::SectionSink&) -> void {
-        OPENVINO_THROW("encoder blew up");
-    });
+    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, std::make_shared<ThrowingEncoder>());
     EXPECT_THROW(writer.finalize(), ov::Exception);
 }
 
@@ -271,13 +367,7 @@ TEST(HsmDeferredWriterTest, finalize_retries_the_encoder_after_a_thrown_attempt_
     bool should_throw = true;
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, [&](const hsm::SectionSink& sink) {
-        ++call_count;
-        if (should_throw) {
-            OPENVINO_THROW("encoder blew up");
-        }
-        sink({reinterpret_cast<const std::byte*>("data"), 4});
-    });
+    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, std::make_shared<RetryEncoder>(call_count, should_throw));
     EXPECT_THROW(writer.finalize(), ov::Exception);
     EXPECT_EQ(call_count, 1);
 
@@ -356,10 +446,9 @@ TEST(HsmDeferredWriterTest, finalize_detects_a_misplaced_patch_on_an_append_only
     AppendOnlyStreamBuf buf;
     std::ostream stream(&buf);
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, [](const hsm::SectionSink& sink) {
-        const std::string content = "discovered-at-write-time";
-        sink({reinterpret_cast<const std::byte*>(content.data()), content.size()});
-    });
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       std::make_shared<OwnedStringEncoder>("discovered-at-write-time"));
     EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
 }
 
@@ -368,10 +457,9 @@ TEST(HsmDeferredWriterTest, unsized_section_forces_the_header_to_be_patched_afte
     // placeholder-then-patch fallback - verified here by confirming the final header is still correct.
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, [](const hsm::SectionSink& sink) {
-        const std::string content = "discovered-at-write-time";
-        sink({reinterpret_cast<const std::byte*>(content.data()), content.size()});
-    });
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       std::make_shared<OwnedStringEncoder>("discovered-at-write-time"));
     ASSERT_FALSE(writer.finalize());
 
     const auto container = parse_container(stream.str());
@@ -388,10 +476,9 @@ TEST(HsmDeferredWriterTest, patches_the_unsized_section_header_relative_to_a_non
     stream.write(prefix.data(), static_cast<std::streamsize>(prefix.size()));
 
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, [](const hsm::SectionSink& sink) {
-        const std::string content = "discovered-at-write-time";
-        sink({reinterpret_cast<const std::byte*>(content.data()), content.size()});
-    });
+    writer.add_section(hsm::any_device_id,
+                       hsm::model_tag,
+                       std::make_shared<OwnedStringEncoder>("discovered-at-write-time"));
     ASSERT_FALSE(writer.finalize());
 
     const auto whole = stream.str();
@@ -427,9 +514,7 @@ TEST(HsmDeferredWriterTest, empty_pointer_mode_payload_is_written_without_undefi
 TEST(HsmDeferredWriterTest, empty_encoder_chunk_is_written_without_undefined_behavior) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, 0, [](const hsm::SectionSink& sink) {
-        sink(ov::util::MemoryView{});
-    });
+    writer.add_section(hsm::any_device_id, hsm::model_tag, 0, std::make_shared<EmptyChunkEncoder>());
     EXPECT_FALSE(writer.finalize());
 }
 

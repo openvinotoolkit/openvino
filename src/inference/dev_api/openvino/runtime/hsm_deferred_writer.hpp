@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <ostream>
 #include <system_error>
@@ -20,9 +21,9 @@ inline namespace v1 {
 
 /**
  * @brief Writer that accumulates sections as lightweight descriptors and writes them all at #finalize() -
- * #add_section() borrows @p payload (keep it alive until then); for a transient source, capture a copy
- * in a #SectionEncoder closure instead (see #add_section()'s encoder overload) - the writer itself never
- * holds an owned payload buffer.
+ * #add_section() borrows @p payload (keep it alive until then); for a transient source, use an
+ * #ISectionEncoder instead (see #add_section()'s encoder overload) - the writer itself never holds an
+ * owned payload buffer.
  * @note When every section's size is known up front, the header is computed in one pure pass and written
  * first - no seeking back. Using the unsized overload of #add_section() (size only known after encoding)
  * forces the destination to be revisited once, after every real size is known - see #open(std::ostream&).
@@ -61,11 +62,11 @@ public:
     bool add_section(DeviceId device,
                      SectionTagReserved tag,
                      size_t size,
-                     SectionEncoder encode,
+                     SectionEncoderPtr encoder,
                      SectionAlignment align = {}) override;
     bool add_section(DeviceId device,
                      SectionTagReserved tag,
-                     SectionEncoder encode,
+                     SectionEncoderPtr encoder,
                      SectionAlignment align = {}) override;
 
     /**
@@ -73,7 +74,7 @@ public:
      *
      * @return A repeated call after success, or after a normal (non-throwing) failure, just reports the
      * same outcome again. A repeated call after a thrown exception instead retries the whole attempt
-     * from the container's start - each #SectionEncoder may run again.
+     * from the container's start - each #ISectionEncoder may run again.
      */
     std::error_code finalize() override;
 
@@ -84,21 +85,21 @@ private:
     // A section produced on demand at finalize() time - its size is known up front.
     struct PendingEncode {
         size_t size;
-        SectionEncoder encode;
+        SectionEncoderPtr encoder;
     };
 
     // One queued, not-yet-written section; `align` is already resolved to concrete powers of two. Field
     // order (largest-alignment-first) keeps padding to just the trailing (device, tag) pair. A bare
-    // SectionEncoder alternative means the unsized overload was used - size discovered only after it runs.
+    // ISectionEncoder alternative means the unsized overload was used - size discovered only after it runs.
     struct PendingSection {
         SectionAlignment align;
-        std::variant<ov::util::MemoryView, PendingEncode, SectionEncoder> payload;
+        std::variant<ov::util::MemoryView, PendingEncode, SectionEncoderPtr> payload;
         DeviceId device;
         SectionTagReserved tag;
 
         PendingSection(SectionAlignment align, ov::util::MemoryView payload, DeviceId device, SectionTagReserved tag);
         PendingSection(SectionAlignment align, PendingEncode payload, DeviceId device, SectionTagReserved tag);
-        PendingSection(SectionAlignment align, SectionEncoder payload, DeviceId device, SectionTagReserved tag);
+        PendingSection(SectionAlignment align, SectionEncoderPtr payload, DeviceId device, SectionTagReserved tag);
     };
 
     // Where bytes actually go - a stream (own running size tracked, since a stream has no addressable
@@ -145,7 +146,7 @@ private:
     ManifestEntry write_section(DeviceId device,
                                 SectionTagReserved tag,
                                 SectionAlignment alignment,
-                                const SectionEncoder& encode);
+                                const SectionEncoderPtr& encoder);
 
     std::variant<StreamDestination, BufferDestination> m_destination;
     std::vector<PendingSection> m_sections;

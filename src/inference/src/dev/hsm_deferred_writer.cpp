@@ -94,7 +94,7 @@ DeferredWriter::PendingSection::PendingSection(SectionAlignment align,
       tag{tag} {}
 
 DeferredWriter::PendingSection::PendingSection(SectionAlignment align,
-                                               SectionEncoder payload,
+                                               SectionEncoderPtr payload,
                                                DeviceId device,
                                                SectionTagReserved tag)
     : align{align},
@@ -253,15 +253,14 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
     if (destination_good()) {
         size_t remaining = payload.size;
         const SectionSink sink = [this, &remaining](ov::util::MemoryView data) {
-            OPENVINO_ASSERT(data.size() <= remaining, "HSM SectionEncoder wrote past its declared size");
+            OPENVINO_ASSERT(data.size() <= remaining, "HSM encoder wrote past its declared size");
             remaining -= data.size();
             write(data);
         };
-        payload.encode(sink);
+        payload.encoder->encode(sink);
         // A destination that ran out of room mid-encode already failed for an unrelated reason - don't
         // also flag that as a broken encoder.
-        OPENVINO_ASSERT(!destination_good() || remaining == 0,
-                        "HSM SectionEncoder must append exactly its declared size");
+        OPENVINO_ASSERT(!destination_good() || remaining == 0, "HSM encoder must append exactly its declared size");
     }
     if (destination_good()) {
         write_zeros(slot->end - written_size());
@@ -274,7 +273,7 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
 ManifestEntry DeferredWriter::write_section(DeviceId device,
                                             SectionTagReserved tag,
                                             SectionAlignment align,
-                                            const SectionEncoder& encode) {
+                                            const SectionEncoderPtr& encoder) {
     ManifestEntry entry{};
     entry.device = device;
     entry.tag = tag.tag;
@@ -289,7 +288,7 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
         const SectionSink sink = [this](ov::util::MemoryView data) {
             write(data);
         };
-        encode(sink);
+        encoder->encode(sink);
     }
     const size_t real_size = destination_good() ? written_size() - *start : 0;
     if (destination_good()) {
@@ -353,28 +352,30 @@ bool DeferredWriter::add_section(DeviceId device,
 bool DeferredWriter::add_section(DeviceId device,
                                  SectionTagReserved tag,
                                  size_t size,
-                                 SectionEncoder encode,
+                                 SectionEncoderPtr encoder,
                                  SectionAlignment align) {
     OPENVINO_DEBUG_ASSERT(!tag.is_inline(), "HSM fill-in-place sections must be pointer-mode");
-    if (tag.is_inline()) {
+    OPENVINO_DEBUG_ASSERT(encoder != nullptr, "HSM section encoder must not be null");
+    if (tag.is_inline() || !encoder) {
         return false;
     } else {
         const auto resolved = resolve_alignment(align);
-        m_sections.emplace_back(resolved, PendingEncode{size, std::move(encode)}, device, tag);
+        m_sections.emplace_back(resolved, PendingEncode{size, std::move(encoder)}, device, tag);
         return true;
     }
 }
 
 bool DeferredWriter::add_section(DeviceId device,
                                  SectionTagReserved tag,
-                                 SectionEncoder encode,
+                                 SectionEncoderPtr encoder,
                                  SectionAlignment align) {
     OPENVINO_DEBUG_ASSERT(!tag.is_inline(), "HSM fill-in-place sections must be pointer-mode");
-    if (tag.is_inline()) {
+    OPENVINO_DEBUG_ASSERT(encoder != nullptr, "HSM section encoder must not be null");
+    if (tag.is_inline() || !encoder) {
         return false;
     } else {
         const auto resolved = resolve_alignment(align);
-        m_sections.emplace_back(resolved, std::move(encode), device, tag);
+        m_sections.emplace_back(resolved, std::move(encoder), device, tag);
         m_has_unsized_section = true;
         return true;
     }
@@ -390,7 +391,7 @@ std::error_code DeferredWriter::finalize() {
             // computed up front - write a placeholder and patch it once every real size is known.
             write_zeros(sizeof(Header));
         } else {
-            // std::get is safe here - m_has_unsized_section already rules out a SectionEncoder payload.
+            // std::get is safe here - m_has_unsized_section already rules out an ISectionEncoder payload.
             const auto payload_size = [](const PendingSection& section) -> size_t {
                 if (const auto view = std::get_if<ov::util::MemoryView>(&section.payload)) {
                     return view->size();
