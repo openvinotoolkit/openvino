@@ -9,10 +9,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_erfc(const NodeContext& context) {
     // aten::erf(Tensor self) -> Tensor
@@ -28,7 +25,4 @@ OutputVector translate_erfc(const NodeContext& context) {
     return {y};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

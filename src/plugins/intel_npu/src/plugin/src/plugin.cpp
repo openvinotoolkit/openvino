@@ -18,11 +18,6 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "npuw/compiled_model.hpp"
-#include "npuw/flux2_compiled_model.hpp"
-#include "npuw/gqa_compiled_model.hpp"
-#include "npuw/llm_compiled_model.hpp"
-#include "npuw/orc/schema_npuw.hpp"
-#include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -69,38 +64,12 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
-    if (const auto header = ov::npuw::orc::is_orc(stream);
-        header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
-        return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
+    if (ov::npuw::ICompiledModel::is_npuw_blob(stream)) {
+        const auto use_npuw_it = properties.find(ov::intel_npu::use_npuw.name());
+        const bool npuw_enabled = use_npuw_it == properties.end() || use_npuw_it->second.as<bool>();
+        OPENVINO_ASSERT(npuw_enabled, "The blob was exported via NPUW, but NPU_USE_NPUW is disabled.");
+        return ov::npuw::ICompiledModel::import_model(stream, pluginSO, properties);
     }
-
-    // If was exported via NPUW
-    auto stream_start_pos = stream.tellg();
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
-        serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        ov::npuw::s11n::IndicatorType compiled_model_indicator;
-        if (ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size())) {
-            stream.clear();
-            stream.seekg(stream_start_pos);
-
-            if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
-                return ov::npuw::Flux2CompiledModel::import_model(stream, pluginSO, properties);
-            } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
-                return ov::npuw::GQACompiledModel::import_model(stream, pluginSO, properties);
-            } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
-                // Properties are required for ov::weights_path
-                return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
-            } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
-                               "the current ORC serializer.");
-            } else {
-                OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
-            }
-        }
-    }
-    stream.clear();
-    stream.seekg(stream_start_pos);
 
     // Drop NPUW properties if there are any
     for (auto it = properties.begin(); it != properties.end();) {
@@ -158,6 +127,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
+    REGISTER_OPTION(ALLOW_BYTECODE);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
@@ -206,7 +176,7 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     // parse env_variables to get LOG_LEVEL if needed
     options->add<LOG_LEVEL>();
-    std::shared_ptr<FilteredConfig> config = std::make_shared<FilteredConfig>(options);
+    std::shared_ptr<Config> config = std::make_shared<Config>(options);
     config->parseEnvVars();
     Logger::global().setLevel(config->get<LOG_LEVEL>());
     _logger.setLevel(config->get<LOG_LEVEL>());
@@ -296,9 +266,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Determine the final compilation target based on NPU_PLATFORM, determined device name (if any) and the list of
     // available devices (if any)
     const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? std::move(deviceId) : device->getName(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+        utils::getCompilationPlatform(_backend,
+                                      _propertiesManager->determinePlatform(localProperties),
+                                      device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
     CompilerAdapterFactory factory;
@@ -318,46 +288,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto& localConfig = mergedConfigAndUnknownProperties.first;
     auto& unknownProperties = mergedConfigAndUnknownProperties.second;
 
-    localConfig.updateAny(ov::intel_npu::compiler_version.name(), compiler->get_version());
+    localConfig.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
-    if (compilerType == ov::intel_npu::CompilerType::PLUGIN && !localConfig.has<COMPILATION_MODE>() &&
-        !localConfig.get<DYNAMIC_SHAPE_TO_STATIC>()) {
-        // HostCompile allocates dynamic buffers from I/O upper bounds, so every dynamic dimension must be bounded.
-        const auto hasFiniteUpperBounds = [](const auto& port) {
-            const auto& shape = port.get_partial_shape();
-            const auto rank = shape.rank();
-            return rank.is_static() && std::all_of(shape.begin(), shape.end(), [](const ov::Dimension& dimension) {
-                       return dimension.get_interval().has_upper_bound();
-                   });
-        };
-
-        // Detect a bounded dynamic 4D I/O port that makes the model a HostCompile candidate.
-        const auto isDynamicHostCompilePort = [&hasFiniteUpperBounds](const auto& port) {
-            const auto& shape = port.get_partial_shape();
-            const auto rank = shape.rank();
-
-            // Keep batch static to avoid failures in ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv,
-            // because reshape operations in these passes do not support dynamic batch shapes.
-            return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && shape[0].is_static() &&
-                   hasFiniteUpperBounds(port);
-        };
-
-        const auto& modelInputs = model->inputs();
-        const auto& modelOutputs = model->outputs();
-        const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
-        const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
-
-        // Candidate detection above uses any_of; validate every I/O separately because one unrelated unbounded port
-        // still prevents HostCompile from allocating all dynamic buffers.
-        const bool allPortsHaveFiniteUpperBounds =
-            std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds) &&
-            std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
-        if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
-            _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
-                         "for fully-dynamic model (inputs and outputs both dynamic)");
-            localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
-        }
+    if (should_use_host_compile_interpreter(model,
+                                            compilerType,
+                                            localConfig.has<COMPILATION_MODE>(),
+                                            localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+        _logger.info(
+            "NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
+            "for dynamic model (at least one input has a dynamic non-batch dimension, all input ranks static)");
+        localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
     }
 
     // Read the default or explicit compilation mode so automatic and user-selected HostCompile take the same path.
@@ -374,7 +315,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     bool successfullyDebatched = false;
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
-        localConfig.updateAny(ov::intel_npu::batch_mode.name(), mode);
+        localConfig.update(ov::intel_npu::batch_mode.name(), mode);
     };
 
     const auto batchIsAvailable = [&]() {
@@ -490,13 +431,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    AdapterDescriptor adapterDesc;
+    // Bypass the adapter's internal cache if requested explicitly or if the OV cache is enabled
+    adapterDesc.bypassCache = !localConfig.get<CACHE_DIR>().empty() || localConfig.get<BYPASS_UMD_CACHING>();
+    // Request secure compilation if blob encryption is requested
+    adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
+                               localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
-            return compiler->compile(modelToCompile, config);
+            return compiler->compile(modelToCompile, config, adapterDesc);
         }
 
         check_weightless_cache_attribute_occurrence(model);
-        return compiler->compileWS(std::move(modelToCompile), config);
+        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc);
     };
 
     try {
@@ -509,6 +457,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
         const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
+        const bool shouldDisablePerfCountForInferProfiling =
+            localConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER && localConfig.get<PERF_COUNT>();
+
+        Config compilerConfig = localConfig;
+
+        if (shouldDisablePerfCountForInferProfiling) {
+            _logger.info(
+                "%s=INFER: overriding compiler-only PERF_COUNT from YES to NO; runtime configuration remains unchanged",
+                ov::intel_npu::profiling_type.name());
+            compilerConfig.update(ov::enable_profiling.name(), false);
+        }
 
         if (shouldWarnAboutLatency) {
             _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
@@ -522,13 +481,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         if (shouldForceThroughput) {
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
-
-            auto modifiedConfig = localConfig;  // Copy only when needed
-            modifiedConfig.updateAny(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
-            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
-        } else {
-            graph = compileWithConfig(std::move(modelToCompile), localConfig);
+            compilerConfig.update(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
         }
+
+        graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -713,9 +669,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
 
     const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? std::move(deviceId) : device->getName(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+        utils::getCompilationPlatform(_backend,
+                                      _propertiesManager->determinePlatform(localProperties),
+                                      device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
     CompilerAdapterFactory factory;
@@ -748,5 +704,8 @@ std::atomic<int> Plugin::_compiledModelLoadCounter{1};
 
 static const ov::Version version = {CI_BUILD_NUMBER, NPU_PLUGIN_LIB_NAME.data()};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
+
+// This plugin does not participate in device-name dispatch; export the probe as a stub.
+OV_DEFINE_PLUGIN_ENUMERATE_STUB()
 
 }  // namespace intel_npu

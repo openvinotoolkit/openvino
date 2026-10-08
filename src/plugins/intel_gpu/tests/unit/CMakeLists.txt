@@ -18,6 +18,14 @@ endif()
 
 set(TARGET_NAME "ov_gpu_unit_tests")
 
+# The tests compile and link exactly one runtime's stack. In a COMBINED build that is the ZE
+# twin (it owns the unsuffixed targets linked below); otherwise it is the single RT.
+if(GPU_RT_TYPE STREQUAL "COMBINED")
+    set(OV_GPU_TESTS_RT "ZE")
+else()
+    set(OV_GPU_TESTS_RT "${GPU_RT_TYPE}")
+endif()
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
 
 # Files excluded from the completeness check when their corresponding runtime/backend condition
@@ -26,13 +34,13 @@ set(GPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES)
 if(NOT ENABLE_ONEDNN_FOR_GPU)
     list(APPEND GPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${GPU_UNIT_TESTS_ONEDNN_SRCS})
 endif()
-if(NOT GPU_RT_TYPE STREQUAL "OCL")
+if(NOT OV_GPU_TESTS_RT STREQUAL "OCL")
     list(APPEND GPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${GPU_UNIT_TESTS_OCL_RT_SRCS})
 endif()
-if(NOT GPU_RT_TYPE STREQUAL "ZE")
+if(NOT OV_GPU_TESTS_RT STREQUAL "ZE")
     list(APPEND GPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${GPU_UNIT_TESTS_ZE_RT_SRCS})
 endif()
-if(NOT GPU_RT_TYPE STREQUAL "SYCL")
+if(NOT OV_GPU_TESTS_RT STREQUAL "SYCL")
     list(APPEND GPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${GPU_UNIT_TESTS_SYCL_RT_SRCS})
 endif()
 
@@ -72,7 +80,7 @@ ov_add_test_target(
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_TESTS_RT})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

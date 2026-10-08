@@ -7,17 +7,15 @@
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils/conv_factory.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 namespace detail {
 
 std::shared_ptr<ov::Node> add_bias(const ov::Output<ov::Node>& ng_conv, const ov::Output<ov::Node>& bias) {
@@ -58,10 +56,10 @@ ov::OutputVector conv(const ov::frontend::onnx::Node& node,
     if (ov::op::util::is_null(bias)) {
         return {conv_node};
     } else {
-        const auto& bias_ps = bias.get_partial_shape();
-
-        FRONT_END_GENERAL_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
-                                "The bias input needs to be 1D vector");
+        // ONNX Runtime reads a non-1D bias (e.g. [1, C, 1, 1]) as its C flattened values.
+        if (bias.get_partial_shape().rank() != 1) {
+            bias = std::make_shared<v1::Reshape>(bias, v0::Constant::create(ov::element::i64, {1}, {-1}), false);
+        }
 
         const std::string onnx_name = !node.get_name().empty() ? node.get_name() : node.output(0);
         conv_node->set_friendly_name(onnx_name + "/WithoutBiases");
@@ -75,8 +73,4 @@ ov::OutputVector conv(const ov::frontend::onnx::Node& node) {
     return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }
 ONNX_OP("Conv", OPSET_SINCE(1), ai_onnx::opset_1::conv);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1
