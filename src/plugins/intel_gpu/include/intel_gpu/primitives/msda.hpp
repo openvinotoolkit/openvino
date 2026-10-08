@@ -5,16 +5,12 @@
 #pragma once
 #include <vector>
 
-#include "intel_gpu/graph/topology.hpp"
-#include "ov_ops/msda.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
 
-using MSDA = ov::op::internal::MSDA;
-
-/// @brief msda primitive
-/// @details Performs MSDA
+/// @brief Multi-scale deformable attention, the GPU counterpart of ov::op::internal::MSDA.
+/// @details Inputs: value, value_spatial_shapes, level_start_index, sampling_locations and attention_weights.
 struct msda : public primitive_base<msda> {
     CLDNN_DECLARE_PRIMITIVE(msda)
 
@@ -25,11 +21,6 @@ struct msda : public primitive_base<msda> {
     /// @param id                 An identifier of new primitive.
     /// @param inputs             A list of Input primitive ids (inputs).
     msda(const primitive_id& id, const std::vector<input_info>& inputs) : primitive_base(id, inputs) {}
-
-    size_t hash() const override {
-        size_t seed = primitive::hash();
-        return seed;
-    }
 
     bool operator==(const primitive& rhs) const override {
         return compare_common_params(rhs);

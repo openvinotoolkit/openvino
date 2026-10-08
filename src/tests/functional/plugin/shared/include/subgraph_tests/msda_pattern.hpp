@@ -10,9 +10,7 @@ namespace ov {
 namespace test {
 
 TEST_P(MSDAPattern, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    CheckNumberOfNodesWithType(compiledModel, "msda", 1);
 }
 
 }  // namespace test

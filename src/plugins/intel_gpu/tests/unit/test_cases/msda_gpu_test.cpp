@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
-#include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/msda.hpp>
 #include <vector>
 
-#include "msda_inst.h"
-#include "random_generator.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/msda.hpp"
 #include "test_utils.h"
 
 using namespace cldnn;
@@ -28,10 +26,10 @@ struct MsdaCase {
     }
 };
 
-// Host model of msda_opt.cl: per (b, q, h, d) accumulate over levels and
-// points the attention-weighted bilinear sample of value at the [0,1]
-// location, with zero padding outside the feature map and the kernel's
-// sampling convention w_im = loc_x * W - 0.5, h_im = loc_y * H - 0.5.
+// Host model of the MSDA semantics: per (b, q, h, d) accumulate over levels and
+// points the attention-weighted bilinear sample of value at the pixel
+// coordinates x * W - 0.5, y * H - 0.5 of the normalized location (x, y), with
+// zero padding outside the feature map.
 std::vector<float> msda_reference(const MsdaCase& c, const std::vector<float>& value, const std::vector<float>& loc, const std::vector<float>& weights) {
     const size_t B = c.batch, Q = c.queries, H = c.heads, D = c.embed, L = c.levels, P = c.points;
     const size_t K = c.keys();
@@ -81,7 +79,26 @@ std::vector<float> msda_reference(const MsdaCase& c, const std::vector<float>& v
     return out;
 }
 
-void run_msda_case(const MsdaCase& c) {
+// Rounds to the precision the kernel reads, so the host reference sees the
+// same inputs as the device.
+std::vector<float> round_to(data_types type, std::vector<float> values) {
+    if (type == data_types::f16) {
+        for (auto& v : values)
+            v = static_cast<float>(ov::float16(v));
+    }
+    return values;
+}
+
+template <typename T>
+memory::ptr make_input(engine& engine, const ov::PartialShape& shape, data_types type, const std::vector<float>& values) {
+    auto memory = engine.allocate_memory({shape, type, format::get_default_format(shape.size())});
+    std::vector<T> converted(values.begin(), values.end());
+    set_values(memory, converted);
+    return memory;
+}
+
+template <typename T>
+void run_msda_case(const MsdaCase& c, data_types type, bool is_caching_test) {
     auto& engine = get_test_engine();
     const size_t K = c.keys();
 
@@ -89,11 +106,16 @@ void run_msda_case(const MsdaCase& c) {
     for (size_t i = 0; i < value_vec.size(); ++i)
         value_vec[i] = 0.125f * static_cast<float>(i % 97) - 3.0f;
     std::vector<float> loc_vec(c.batch * c.queries * c.heads * c.levels * c.points * 2);
+    // Locations from -0.3 to 1.3 put samples inside the levels, on their
+    // borders and fully outside them.
     for (size_t i = 0; i < loc_vec.size(); ++i)
-        loc_vec[i] = 0.05f + 0.9f * static_cast<float>(i % 13) / 13.f;
+        loc_vec[i] = -0.3f + 0.1f * static_cast<float>(i % 17);
     std::vector<float> weight_vec(c.batch * c.queries * c.heads * c.levels * c.points);
     for (size_t i = 0; i < weight_vec.size(); ++i)
         weight_vec[i] = static_cast<float>((i % 7) + 1) / 8.f;
+    value_vec = round_to(type, value_vec);
+    loc_vec = round_to(type, loc_vec);
+    weight_vec = round_to(type, weight_vec);
 
     std::vector<int32_t> spatial_flat;
     for (const auto& hw : c.spatial)
@@ -105,19 +127,14 @@ void run_msda_case(const MsdaCase& c) {
         position += hw.first * hw.second;
     }
 
-    auto data_value =
-        engine.allocate_memory({ov::PartialShape{int64_t(c.batch), int64_t(K), int64_t(c.heads), int64_t(c.embed)}, data_types::f32, format::bfyx});
-    auto data_spatial_shapes = engine.allocate_memory({ov::PartialShape{int64_t(c.levels), 2, 1, 1}, data_types::i32, format::bfyx});
-    auto data_level_start = engine.allocate_memory({ov::PartialShape{int64_t(c.levels), 1, 1, 1}, data_types::i32, format::bfyx});
-    auto data_sampling_loc = engine.allocate_memory(
-        {ov::PartialShape{int64_t(c.batch), int64_t(c.queries), int64_t(c.heads * c.levels * c.points * 2), 1}, data_types::f32, format::bfyx});
-    auto data_attn_weight = engine.allocate_memory(
-        {ov::PartialShape{int64_t(c.batch), int64_t(c.queries), int64_t(c.heads * c.levels * c.points), 1}, data_types::f32, format::bfyx});
-    set_values(data_value, value_vec);
+    const auto B = int64_t(c.batch), Q = int64_t(c.queries), H = int64_t(c.heads), L = int64_t(c.levels), P = int64_t(c.points);
+    auto data_value = make_input<T>(engine, ov::PartialShape{B, int64_t(K), H, int64_t(c.embed)}, type, value_vec);
+    auto data_spatial_shapes = engine.allocate_memory({ov::PartialShape{L, 2}, data_types::i32, format::bfyx});
+    auto data_level_start = engine.allocate_memory({ov::PartialShape{L}, data_types::i32, format::bfyx});
+    auto data_sampling_loc = make_input<T>(engine, ov::PartialShape{B, Q, H, L, P, 2}, type, loc_vec);
+    auto data_attn_weight = make_input<T>(engine, ov::PartialShape{B, Q, H, L, P}, type, weight_vec);
     set_values(data_spatial_shapes, spatial_flat);
     set_values(data_level_start, starts);
-    set_values(data_sampling_loc, loc_vec);
-    set_values(data_attn_weight, weight_vec);
 
     topology topology;
     topology.add(input_layout("data_value", data_value->get_layout()));
@@ -132,21 +149,30 @@ void run_msda_case(const MsdaCase& c) {
                        input_info("data_sampling_loc"),
                        input_info("data_attn_weight")}));
 
-    auto network = cldnn::network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("data_value", data_value);
-    network.set_input_data("data_spatial_shapes", data_spatial_shapes);
-    network.set_input_data("data_level_start_idx", data_level_start);
-    network.set_input_data("data_sampling_loc", data_sampling_loc);
-    network.set_input_data("data_attn_weight", data_attn_weight);
-    auto outputs = network.execute();
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("data_value", data_value);
+    network->set_input_data("data_spatial_shapes", data_spatial_shapes);
+    network->set_input_data("data_level_start_idx", data_level_start);
+    network->set_input_data("data_sampling_loc", data_sampling_loc);
+    network->set_input_data("data_attn_weight", data_attn_weight);
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.count("msda"), size_t(1));
 
     auto output_memory = outputs.at("msda").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
     const auto ref = msda_reference(c, value_vec, loc_vec, weight_vec);
     ASSERT_EQ(output_memory->count(), ref.size());
-    for (size_t i = 0; i < ref.size(); ++i)
-        ASSERT_NEAR(output_ptr[i], ref[i], 2e-4f) << "index " << i;
+    // The kernel computes in float for both types; f16 only adds the rounding
+    // of the stored result.
+    for (size_t i = 0; i < ref.size(); ++i) {
+        const float tolerance = type == data_types::f16 ? 1e-3f * std::max(1.f, std::abs(ref[i])) : 2e-4f;
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), ref[i], tolerance) << "index " << i;
+    }
+}
+
+void run_msda_case(const MsdaCase& c, bool is_caching_test = false) {
+    run_msda_case<float>(c, data_types::f32, is_caching_test);
+    run_msda_case<ov::float16>(c, data_types::f16, is_caching_test);
 }
 
 }  // namespace
@@ -161,8 +187,20 @@ TEST(msda_gpu, static_reference_single_level_three_points) {
     run_msda_case(c);
 }
 
-TEST(msda_gpu, static_reference_interior_and_border) {
-    // Locations at 0 and 1 exercise the map borders of the bilinear sampler.
+TEST(msda_gpu, static_reference_small_levels) {
+    // On 3x3 and 1x4 levels most samples touch a border or fall outside.
     MsdaCase c{1, 4, 1, 2, 2, 1, {{3, 3}, {1, 4}}};
     run_msda_case(c);
+}
+
+TEST(msda_gpu, static_reference_large_level) {
+    // GroundingDINO 800x1333 stride-8 level: pixel coordinates up to 167 need
+    // more precision than f16 offers for the bilinear weights.
+    MsdaCase c{1, 8, 2, 8, 2, 4, {{100, 167}, {50, 84}}};
+    run_msda_case(c);
+}
+
+TEST(msda_gpu, static_reference_two_levels_cached) {
+    MsdaCase c{1, 2, 2, 4, 2, 2, {{2, 2}, {2, 4}}};
+    run_msda_case(c, true);
 }

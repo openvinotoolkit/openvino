@@ -3,8 +3,6 @@
 //
 #pragma once
 
-#include <map>
-#include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -26,19 +24,17 @@ struct MSDAShapes {
     size_t points;
 };
 
-std::string msda_shapes_to_string(const MSDAShapes& shapes);
+// How the exported graph takes the keys and the locations of a level:
+// VariadicSplit outputs of value and a scalar Gather index (Deformable-DETR,
+// GroundingDINO, RT-DETR exports), or StridedSlice slices of value and a [1]
+// shaped Gather index followed by Squeeze.
+enum class MSDAForm { VariadicSplit, StridedSlice };
 
-// Fills value and weights with values in [-1, 1] and the sampling locations
-// with values in (0, 1), so every sample lands inside its feature level.
-void msda_generate_inputs(const std::shared_ptr<ov::Model>& model,
-                          const std::vector<ov::Shape>& shapes,
-                          std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
+// Shapes, form, inference precision and target device.
+using MSDAPatternParams = std::tuple<MSDAShapes, MSDAForm, ov::element::Type, std::string>;
 
-using MSDAPatternParams = std::tuple<MSDAShapes, std::string>;
-
-// StridedSlice and Gather based formulation of multi-scale deformable
-// attention: every level slices its keys from value with StridedSlice and
-// takes its locations with a [1] shaped Gather index followed by Squeeze.
+// GridSample based multi-scale deformable attention that the plugin fuses into
+// a single MSDA primitive.
 class MSDAPattern : public SubgraphBaseTest, public testing::WithParamInterface<MSDAPatternParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MSDAPatternParams>& obj);
@@ -46,6 +42,7 @@ public:
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void validate() override;
 };
 
 }  // namespace test

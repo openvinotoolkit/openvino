@@ -13,11 +13,11 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/grid_sample.hpp"
 #include "openvino/op/multiply.hpp"
@@ -33,12 +33,15 @@ using namespace ov;
 
 namespace {
 
-namespace T = ov::op::v0;
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v8 = ov::op::v8;
+namespace v9 = ov::op::v9;
 
 // Shape constants: element type and length follow the vector, so heterogeneous
 // literal lists deduce cleanly.
-std::shared_ptr<T::Constant> i64_const(std::vector<int64_t> v) {
-    return T::Constant::create(element::i64, ov::Shape{v.size()}, v);
+std::shared_ptr<v0::Constant> i64_const(std::vector<int64_t> v) {
+    return v0::Constant::create(element::i64, ov::Shape{v.size()}, v);
 }
 
 struct PatternParams {
@@ -50,7 +53,7 @@ struct PatternParams {
     size_t queries = 5;
     bool dynamic_value = false;
     bool align_corners = false;
-    ov::op::v9::GridSample::InterpolationMode mode = ov::op::v9::GridSample::InterpolationMode::BILINEAR;
+    v9::GridSample::InterpolationMode mode = v9::GridSample::InterpolationMode::BILINEAR;
     bool foreign_second_level_value = false;
     bool wrong_normalization = false;
     // Shape-compatible graphs whose element order differs from MSDA.
@@ -60,7 +63,19 @@ struct PatternParams {
     // Gather with a [1] index followed by Squeeze, as in the StridedSlice
     // based exports after GroupedStridedSliceOptimizer.
     bool squeezed_level_index = false;
+    // Level 1 reads output 1 of a second VariadicSplit of value with other split lengths.
+    bool levels_read_different_splits = false;
+    // Element type of value and weights, and of locations when it differs.
+    element::Type data_type = element::f32;
+    element::Type locations_type = element::dynamic;
+    // A Convert to f32 between the last Reshape and Transpose, as the GPU
+    // pipeline leaves it when f16 inference keeps the model output in f32.
+    bool converted_output = false;
 };
+
+element::Type locations_type(const PatternParams& p) {
+    return p.locations_type == element::dynamic ? p.data_type : p.locations_type;
+}
 
 // Spatial size of level l: h = 4 + 2 * l, w = 5 + l.
 size_t level_h(size_t l) {
@@ -73,15 +88,10 @@ size_t level_w(size_t l) {
 // Builds the GridSample based multi-scale deformable attention pattern as it
 // reaches the GPU plugin pipeline: VariadicSplit(value) per-level image
 // chains, Gather per-level location slices, GridSample, Concat, broadcast
-// Multiply and last-axis ReduceSum followed by the output projection
-// Transpose([0,2,1]). Parameters: [0] value, [1] locations, [2] weights,
-// [3] optional second value source.
+// Multiply and last-axis ReduceSum followed by the final Transpose([0,2,1]).
+// Parameters: [0] value, [1] locations, [2] weights, [3] optional second value
+// source.
 std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
-    namespace v0 = ov::op::v0;
-    namespace v1 = ov::op::v1;
-    namespace v8 = ov::op::v8;
-    namespace v9 = ov::op::v9;
-
     size_t keys = 0;
     for (size_t l = 0; l < p.levels; ++l)
         keys += level_h(l) * level_w(l);
@@ -89,18 +99,17 @@ std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
     PartialShape value_ps(Shape{p.batch, keys, p.heads, p.embed});
     if (p.dynamic_value)
         value_ps[0] = Dimension::dynamic();
-    auto value = std::make_shared<v0::Parameter>(element::f32, value_ps);
+    auto value = std::make_shared<v0::Parameter>(p.data_type, value_ps);
     value->set_friendly_name("value");
-    auto weights =
-        std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, p.queries, p.heads, p.levels, p.points});
+    auto weights = std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, p.queries, p.heads, p.levels, p.points});
     weights->set_friendly_name("weights");
 
     // Locations: Add(Multiply(x, 2), -1) normalizes [0,1] locations to the
     // [-1,1] coordinates GridSample consumes.
     std::shared_ptr<v0::Parameter> loc_param =
-        std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, p.queries, p.heads, p.levels, p.points, 2});
-    auto scale = v0::Constant::create(element::f32, Shape{1}, {p.wrong_normalization ? 3.f : 2.f});
-    auto minus_one = v0::Constant::create(element::f32, Shape{1}, {-1.f});
+        std::make_shared<v0::Parameter>(locations_type(p), Shape{p.batch, p.queries, p.heads, p.levels, p.points, 2});
+    auto scale = v0::Constant::create(locations_type(p), Shape{1}, {p.wrong_normalization ? 3.f : 2.f});
+    auto minus_one = v0::Constant::create(locations_type(p), Shape{1}, {-1.f});
     std::shared_ptr<ov::Node> normalized =
         std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(loc_param, scale), minus_one);
     loc_param->set_friendly_name("locations");
@@ -108,7 +117,7 @@ std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
     ParameterVector params{value, loc_param, weights};
     std::shared_ptr<v0::Parameter> foreign_value;
     if (p.foreign_second_level_value) {
-        foreign_value = std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, keys, p.heads, p.embed});
+        foreign_value = std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, keys, p.heads, p.embed});
         foreign_value->set_friendly_name("foreign_value");
         params.push_back(foreign_value);
     }
@@ -117,7 +126,7 @@ std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
     std::vector<int64_t> split_sizes;
     for (size_t l = 0; l < p.levels; ++l)
         split_sizes.push_back(static_cast<int64_t>(level_h(l) * level_w(l)));
-    auto axis_one = T::Constant::create(element::i64, Shape{}, {1});
+    auto axis_one = v0::Constant::create(element::i64, Shape{}, {1});
     splits.push_back(
         std::make_shared<v1::VariadicSplit>(value,
                                             axis_one,
@@ -127,11 +136,22 @@ std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
             std::make_shared<v1::VariadicSplit>(foreign_value,
                                                 axis_one,
                                                 v0::Constant::create(element::i64, Shape{p.levels}, split_sizes)));
+    if (p.levels_read_different_splits) {
+        // Output 1 keeps its size but starts one key later, and the sizes still add up to the keys.
+        auto shifted_sizes = split_sizes;
+        shifted_sizes[0] += 1;
+        shifted_sizes[2] -= 1;
+        splits.push_back(
+            std::make_shared<v1::VariadicSplit>(value,
+                                                axis_one,
+                                                v0::Constant::create(element::i64, Shape{p.levels}, shifted_sizes)));
+    }
 
     OutputVector level_outputs;
     for (size_t l = 0; l < p.levels; ++l) {
         const size_t h = level_h(l), w = level_w(l), s = h * w;
-        const auto& split = (p.foreign_second_level_value && l == 1) ? splits[1] : splits[0];
+        const bool second_split = (p.foreign_second_level_value || p.levels_read_different_splits) && l == 1;
+        const auto& split = second_split ? splits[1] : splits[0];
 
         // Image chain: Reshape -> Transpose -> Reshape -> GridSample input 0.
         auto image_flat =
@@ -148,8 +168,8 @@ std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
         const auto level_index = int64_t(p.swapped_level_locations ? p.levels - 1 - l : l);
         std::shared_ptr<ov::Node> gathered = std::make_shared<v8::Gather>(
             normalized,
-            T::Constant::create(element::i64, p.squeezed_level_index ? Shape{1} : Shape{}, {level_index}),
-            T::Constant::create(element::i64, Shape{}, {3}));
+            v0::Constant::create(element::i64, p.squeezed_level_index ? Shape{1} : Shape{}, {level_index}),
+            v0::Constant::create(element::i64, Shape{}, {3}));
         if (p.squeezed_level_index)
             gathered = std::make_shared<v0::Squeeze>(gathered, i64_const({3}));
         auto coords_transpose =
@@ -188,18 +208,18 @@ std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
 
     auto mul = std::make_shared<v1::Multiply>(values_reshape, weights_reshape);
     auto reduce = std::make_shared<v1::ReduceSum>(mul, i64_const({-1}), false);
-    auto root = std::make_shared<v1::Reshape>(reduce, i64_const({-1, int64_t(p.heads * p.embed), 0}), true);
-    auto output = std::make_shared<v1::Transpose>(root, i64_const({0, 2, 1}));
+    std::shared_ptr<ov::Node> heads =
+        std::make_shared<v1::Reshape>(reduce, i64_const({-1, int64_t(p.heads * p.embed), 0}), true);
+    if (p.converted_output)
+        heads = std::make_shared<v0::Convert>(heads, element::f32);
+    auto output = std::make_shared<v1::Transpose>(heads, i64_const({0, 2, 1}));
 
-    return std::make_shared<ov::Model>(OutputVector{output}, params, "MSDAGridSamplePattern");
+    return std::make_shared<ov::Model>(OutputVector{output}, params, "MSDAPattern");
 }
 
 // The MSDA the fusion produces for getModel(p): value, the level sizes and
 // start offsets, the [0,1] locations and the weights operand.
 std::shared_ptr<ov::Model> getModelRef(const PatternParams& p) {
-    namespace v0 = ov::op::v0;
-    namespace v1 = ov::op::v1;
-
     size_t keys = 0;
     std::vector<int32_t> spatial_shapes, level_starts;
     for (size_t l = 0; l < p.levels; ++l) {
@@ -208,11 +228,10 @@ std::shared_ptr<ov::Model> getModelRef(const PatternParams& p) {
         level_starts.push_back(static_cast<int32_t>(keys));
         keys += level_h(l) * level_w(l);
     }
-    auto value = std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, keys, p.heads, p.embed});
+    auto value = std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, keys, p.heads, p.embed});
     auto locations =
-        std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, p.queries, p.heads, p.levels, p.points, 2});
-    auto weights =
-        std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, p.queries, p.heads, p.levels, p.points});
+        std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, p.queries, p.heads, p.levels, p.points, 2});
+    auto weights = std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, p.queries, p.heads, p.levels, p.points});
     auto weights_value = std::make_shared<v1::Reshape>(
         weights,
         i64_const({int64_t(p.batch), int64_t(p.queries), int64_t(p.heads), int64_t(p.levels), int64_t(p.points)}),
@@ -223,7 +242,10 @@ std::shared_ptr<ov::Model> getModelRef(const PatternParams& p) {
                      v0::Constant::create(element::i32, Shape{p.levels}, level_starts),
                      locations,
                      weights_value});
-    return std::make_shared<ov::Model>(OutputVector{msda}, ParameterVector{value, locations, weights});
+    std::shared_ptr<ov::Node> output = msda;
+    if (p.converted_output)
+        output = std::make_shared<v0::Convert>(msda, element::f32);
+    return std::make_shared<ov::Model>(OutputVector{output}, ParameterVector{value, locations, weights});
 }
 
 }  // namespace
@@ -236,8 +258,8 @@ protected:
     }
 };
 
-// levels, points, heads, channels per head, Gather with a [1] index and Squeeze
-using FusionParams = std::tuple<size_t, size_t, size_t, size_t, bool>;
+// batch, levels, points, heads, channels per head, Gather with a [1] index and Squeeze
+using FusionParams = std::tuple<size_t, size_t, size_t, size_t, size_t, bool>;
 
 class MultiScaleDeformableAttnGridSampleFusionFused : public MultiScaleDeformableAttnGridSampleFusionTest,
                                                       public testing::WithParamInterface<FusionParams> {
@@ -247,10 +269,10 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<FusionParams>& info) {
-        const auto& [levels, points, heads, embed, squeezed] = info.param;
+        const auto& [batch, levels, points, heads, embed, squeezed] = info.param;
         std::ostringstream name;
-        name << "levels=" << levels << "_points=" << points << "_heads=" << heads << "_embed=" << embed
-             << (squeezed ? "_squeezed_index" : "_scalar_index");
+        name << "batch=" << batch << "_levels=" << levels << "_points=" << points << "_heads=" << heads
+             << "_embed=" << embed << (squeezed ? "_squeezed_index" : "_scalar_index");
         return name.str();
     }
 
@@ -258,7 +280,7 @@ protected:
     void SetUp() override {
         MultiScaleDeformableAttnGridSampleFusionTest::SetUp();
         PatternParams p;
-        std::tie(p.levels, p.points, p.heads, p.embed, p.squeezed_level_index) = GetParam();
+        std::tie(p.batch, p.levels, p.points, p.heads, p.embed, p.squeezed_level_index) = GetParam();
         model = getModel(p);
         model_ref = getModelRef(p);
     }
@@ -268,12 +290,23 @@ TEST_P(MultiScaleDeformableAttnGridSampleFusionFused, Fused) {}
 
 INSTANTIATE_TEST_SUITE_P(MultiScaleDeformableAttnGridSampleFusion,
                          MultiScaleDeformableAttnGridSampleFusionFused,
-                         testing::Values(FusionParams{4, 4, 2, 32, false},
-                                         FusionParams{3, 2, 3, 16, false},
-                                         FusionParams{1, 4, 2, 32, false},
-                                         FusionParams{4, 4, 2, 32, true},
-                                         FusionParams{2, 2, 2, 16, true}),
+                         testing::Values(FusionParams{1, 4, 4, 2, 32, false},
+                                         FusionParams{1, 3, 2, 3, 16, false},
+                                         FusionParams{1, 1, 4, 2, 32, false},
+                                         FusionParams{1, 4, 4, 2, 32, true},
+                                         FusionParams{2, 4, 4, 4, 32, false},
+                                         FusionParams{2, 3, 2, 3, 16, true}),
                          MultiScaleDeformableAttnGridSampleFusionFused::getTestCaseName);
+
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, ConvertedOutput) {
+    // f16 subgraph whose output the plugin keeps in f32.
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    PatternParams p;
+    p.data_type = element::f16;
+    p.converted_output = true;
+    model = getModel(p);
+    model_ref = getModelRef(p);
+}
 
 TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, WrongNormalization) {
     // Add(Multiply(x, 3), -1) does not map [0,1] to the GridSample coordinate range.
@@ -309,7 +342,9 @@ TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, LevelsSampleDifferentValues
 // The remaining graphs are shape compatible with the pattern but read the
 // elements in a different order than MSDA.
 TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, WrongCoordsOrder) {
+    // With as many queries as heads only the Transpose order differs.
     PatternParams p;
+    p.queries = p.heads;
     p.wrong_coords_order = true;
     model = getModel(p);
 }
@@ -335,24 +370,16 @@ TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, SwappedLevelLocationsSqueez
     model = getModel(p);
 }
 
-TEST(MSDAInternalOp, DynamicRankInputs) {
-    auto value = std::make_shared<T::Parameter>(element::f32, PartialShape::dynamic());
-    auto shapes = T::Constant::create(element::i32, Shape{1, 2}, {4, 5});
-    auto starts = T::Constant::create(element::i32, Shape{1}, {0});
-    auto locations = std::make_shared<T::Parameter>(element::f32, PartialShape::dynamic());
-    auto weights = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 7, 2, 1, 4});
-    auto msda = std::make_shared<ov::op::internal::MSDA>(OutputVector{value, shapes, starts, locations, weights});
-    EXPECT_EQ(msda->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 7, Dimension::dynamic()}));
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, LevelsReadDifferentSplits) {
+    // Level 1 reads a split output of the right size at another offset of value.
+    PatternParams p;
+    p.levels = 3;
+    p.levels_read_different_splits = true;
+    model = getModel(p);
 }
 
-TEST(MSDAInternalOp, WrongValueRank) {
-    auto value = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 20, 16});
-    auto shapes = T::Constant::create(element::i32, Shape{1, 2}, {4, 5});
-    auto starts = T::Constant::create(element::i32, Shape{1}, {0});
-    auto locations = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 7, 2, 1, 4, 2});
-    auto weights = std::make_shared<T::Parameter>(element::f32, PartialShape{1, 7, 2, 1, 4});
-    OV_EXPECT_THROW(
-        std::ignore = std::make_shared<ov::op::internal::MSDA>(OutputVector{value, shapes, starts, locations, weights}),
-        ov::NodeValidationFailure,
-        testing::HasSubstr("MSDA value input must be 4D"));
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, LocationsTypeDiffersFromValue) {
+    PatternParams p;
+    p.locations_type = element::f16;
+    model = getModel(p);
 }

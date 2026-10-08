@@ -40,18 +40,14 @@ namespace v8 = ov::op::v8;
 namespace v9 = ov::op::v9;
 using namespace ov::pass::pattern;
 
-// Dimension names bound by both the level and the aggregation patterns. The
-// level patterns additionally bind h, w and HW per level.
-const std::vector<std::string> shared_dims{"B", "S", "H", "D", "Q", "L", "P", "BH", "HD"};
-
 // One feature level: GridSample of VariadicSplit output l of value, sampled at
 // the coordinates 2 * locations[:, :, :, l] - 1.
 struct LevelPattern {
-    std::shared_ptr<ov::Node> value, image_flat, locations, gather, root;
+    std::shared_ptr<ov::Node> value, split, image_flat, locations, gather, root;
 
     LevelPattern() {
         value = any_input(has_static_shape() && shape_matches("B, S, H, D"));
-        auto split = wrap_type<v1::VariadicSplit>({value, 1, any_input()});
+        split = wrap_type<v1::VariadicSplit>({value, 1, any_input()});
         image_flat = wrap_type<v1::Reshape>({split, any_input()}, shape_matches("B, HW, HD"));
         auto image_transpose = wrap_type<v1::Transpose>({image_flat, {0, 2, 1}});
         auto image = wrap_type<v1::Reshape>({image_transpose, any_input()}, shape_matches("BH, D, h, w"));
@@ -63,19 +59,28 @@ struct LevelPattern {
         gather = wrap_type<v8::Gather>(
             {coords, wrap_const(), wrap_type<v0::Constant>(value_matches("3") || value_matches("-3"))},
             {{"batch_dims", 0}});
-        // A [1] shaped Gather index keeps the level axis until a Squeeze removes it.
+        // A [1] shaped Gather index keeps the level axis until a Squeeze (or an
+        // equivalent Reshape) removes it.
         auto level_coords = optional<v0::Squeeze, v1::Reshape>({gather, any_input()});
         auto coords_transpose =
             wrap_type<v1::Transpose>({level_coords, {0, 2, 1, 3, 4}}, shape_matches("B, H, Q, P, 2"));
         auto grid_coords = wrap_type<v1::Reshape>({coords_transpose, any_input()}, shape_matches("BH, Q, P, 2"));
-        auto grid =
-            wrap_type<v9::GridSample>({image, grid_coords},
-                                      {{"align_corners", false}, {"mode", "bilinear"}, {"padding_mode", "zeros"}});
+        // MSDA takes value and locations of one element type.
+        auto grid = wrap_type<v9::GridSample>(
+            {image, grid_coords},
+            attrs_match({{"align_corners", false}, {"mode", "bilinear"}, {"padding_mode", "zeros"}}) &&
+                ov::pass::pattern::op::Predicate(
+                    [](const ov::Output<ov::Node>& output) {
+                        const auto node = output.get_node();
+                        return node->get_input_element_type(0) == node->get_input_element_type(1);
+                    },
+                    "same_data_and_grid_type"));
         root = wrap_type<v0::Unsqueeze, v1::Reshape>({grid, any_input()}, shape_matches("BH, D, Q, 1, P"));
     }
 };
 
 struct Level {
+    const ov::Node* split;
     ov::Output<ov::Node> value, locations;
     int64_t h, w;
     ov::NodeVector nodes;
@@ -87,12 +92,12 @@ bool same_value(const PatternSymbolMap& symbols, const std::string& name, const 
 }
 
 // Matches every input of the Concat against the level pattern. The checks
-// relate several levels or are products of dimensions, so the shape notation
-// cannot express them: level l reads VariadicSplit output l and
+// below relate several levels or multiply dimensions, which the shape notation
+// cannot express: level l reads output l of one VariadicSplit and
 // locations[:, :, :, l], all levels share the value and locations tensors, the
-// level sizes add up to the S keys, BH = B * H and HD = H * D. The shared
-// dimension names are added to `symbols` so the aggregation pattern checks
-// them as well.
+// level sizes add up to the S keys, BH = B * H and HD = H * D. The dimension
+// names shared with the aggregation pattern are added to `symbols`, so that
+// pattern checks them as well; h, w and HW are bound per level only.
 std::optional<std::vector<Level>> match_levels(const LevelPattern& pattern,
                                                const ov::Output<ov::Node>& concat_output,
                                                PatternSymbolMap& symbols) {
@@ -111,12 +116,13 @@ std::optional<std::vector<Level>> match_levels(const LevelPattern& pattern,
             return std::nullopt;
         const auto& pm = matcher.get_pattern_value_map();
         const auto& dims = matcher.get_symbols();
-        Level level{pm.at(pattern.value),
+        const auto split_output = pm.at(pattern.image_flat).get_node()->input_value(0);
+        Level level{split_output.get_node(),
+                    pm.at(pattern.value),
                     pm.at(pattern.locations),
                     dims.at("h").i(),
                     dims.at("w").i(),
                     matcher.get_matched_nodes()};
-        const auto split_output = pm.at(pattern.image_flat).get_node()->input_value(0);
         const auto index =
             ov::as_type_ptr<v0::Constant>(pm.at(pattern.gather).get_node()->get_input_node_shared_ptr(1));
         OPENVINO_ASSERT(index,
@@ -124,9 +130,10 @@ std::optional<std::vector<Level>> match_levels(const LevelPattern& pattern,
         if (split_output.get_index() != l ||
             index->cast_vector<int64_t>() != std::vector<int64_t>{static_cast<int64_t>(l)} ||
             dims.at("HW").i() != level.h * level.w ||
-            (!levels.empty() && (level.value != levels.front().value || level.locations != levels.front().locations)))
+            (!levels.empty() && (level.split != levels.front().split || level.value != levels.front().value ||
+                                 level.locations != levels.front().locations)))
             return std::nullopt;
-        for (const auto& name : shared_dims) {
+        for (const char* name : {"B", "S", "H", "D", "Q", "L", "P", "BH", "HD"}) {
             if (!same_value(level_dims, name, dims.at(name)) || !same_value(symbols, name, dims.at(name)))
                 return std::nullopt;
             level_dims.emplace(name, dims.at(name));
@@ -148,8 +155,6 @@ std::optional<std::vector<Level>> match_levels(const LevelPattern& pattern,
 
 ov::pass::MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusion() {
     MATCHER_SCOPE(MultiScaleDeformableAttnGridSampleFusion);
-    using ov::pass::pattern::Matcher;
-    using ov::pass::pattern::PatternSymbolMap;
 
     const auto level_pattern = std::make_shared<LevelPattern>();
     auto concat_m =
@@ -165,8 +170,11 @@ ov::pass::MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGrid
     auto weights_reshape_m = wrap_type<v1::Reshape>({weights_transpose_m, any_input()}, shape_matches("BH, 1, Q, LP"));
     auto weighted_m = wrap_type<v1::Multiply>({values_m, weights_reshape_m});
     auto reduce_m = wrap_type<v1::ReduceSum>({weighted_m, -1}, {{"keep_dims", false}});
-    auto heads_m = wrap_type<v1::Reshape>({reduce_m, any_input()}, consumers_count(1) && shape_matches("B, HD, Q"));
-    auto output_m = wrap_type<v1::Transpose>({heads_m, {0, 2, 1}});
+    auto heads_m = wrap_type<v1::Reshape>({reduce_m, any_input()}, shape_matches("B, HD, Q"));
+    // When the subgraph is a model output that f16 inference keeps in f32, the
+    // GPU pipeline reaches this pass with a Convert before the last Transpose.
+    auto heads_convert_m = optional<v0::Convert>({heads_m});
+    auto output_m = wrap_type<v1::Transpose>({heads_convert_m, {0, 2, 1}});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -196,9 +204,15 @@ ov::pass::MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGrid
                                                                               starts,
                                                                               levels->front().locations,
                                                                               pattern_map.at(weights_m)});
-        msda->set_friendly_name(output->get_friendly_name());
-        ov::copy_runtime_info(fused, {shapes, starts, msda});
-        ov::replace_node(output, msda);
+        ov::NodeVector created{shapes, starts, msda};
+        std::shared_ptr<ov::Node> result = msda;
+        if (pattern_map.count(heads_convert_m)) {
+            result = std::make_shared<v0::Convert>(msda, output->get_output_element_type(0));
+            created.push_back(result);
+        }
+        result->set_friendly_name(output->get_friendly_name());
+        ov::copy_runtime_info(fused, created);
+        ov::replace_node(output, result);
         return true;
     };
 

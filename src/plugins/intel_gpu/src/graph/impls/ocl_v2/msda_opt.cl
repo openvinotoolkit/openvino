@@ -2,114 +2,82 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// N, SPATIAL_SIZE, NUM_HEADS, EMBED_DIMS, NUM_LEVELS, NUM_QUERY and NUM_POINT
-// are checked against plain input buffer element counts and supplied by the host
-// as JIT constants. The plugin may collapse the original 6-D/5-D input ranks.
+// Multi-scale deformable attention. Every work item computes one output
+// element (b, q, m, c): the sum over levels and points of the attention weight
+// times value bilinearly sampled at the point location, with zero padding and
+// align_corners=false, which is the GridSample sampling the fusion replaces.
+//
+// The pixel coordinates and the bilinear weights are float, as in
+// grid_sample_opt_bilinear_zeros.cl; the samples are also accumulated in float
+// and converted to OUTPUT_TYPE on store. One work item per output channel
+// keeps the corner loads of neighboring work items contiguous along D.
+//
+// SPATIAL_SIZE, NUM_QUERY, NUM_HEADS, EMBED_DIMS, NUM_LEVELS and NUM_POINT are
+// JIT constants; the inputs are plain, so they are indexed linearly.
 
-inline INPUT0_TYPE FUNC(ms_deform_attn_im2col_bilinear)(
-    __global const INPUT0_TYPE *bottom_data, const int height, const int width,
-    const int nheads, const int ed, const INPUT0_TYPE h,
-    const INPUT0_TYPE w, const int m, const int c) {
-  const int h_low = floor(h);
-  const int w_low = floor(w);
-  const int h_high = h_low + 1;
-  const int w_high = w_low + 1;
-
-  const INPUT0_TYPE lh = h - h_low;
-  const INPUT0_TYPE lw = w - w_low;
-  const INPUT0_TYPE hh = 1 - lh, hw = 1 - lw;
-
-  const int w_stride = nheads * ed;
-  const int h_stride = width * w_stride;
-  const int h_low_ptr_offset = h_low * h_stride;
-  const int h_high_ptr_offset = h_low_ptr_offset + h_stride;
-  const int w_low_ptr_offset = w_low * w_stride;
-  const int w_high_ptr_offset = w_low_ptr_offset + w_stride;
-  const int base_ptr = m * ed + c;
-
-  INPUT0_TYPE v1 = 0;
-  if (h_low >= 0 && w_low >= 0) {
-    const int ptr1 = h_low_ptr_offset + w_low_ptr_offset + base_ptr;
-    v1 = bottom_data[ptr1];
-  }
-  INPUT0_TYPE v2 = 0;
-  if (h_low >= 0 && w_high <= width - 1) {
-    const int ptr2 = h_low_ptr_offset + w_high_ptr_offset + base_ptr;
-    v2 = bottom_data[ptr2];
-  }
-  INPUT0_TYPE v3 = 0;
-  if (h_high <= height - 1 && w_low >= 0) {
-    const int ptr3 = h_high_ptr_offset + w_low_ptr_offset + base_ptr;
-    v3 = bottom_data[ptr3];
-  }
-  INPUT0_TYPE v4 = 0;
-  if (h_high <= height - 1 && w_high <= width - 1) {
-    const int ptr4 = h_high_ptr_offset + w_high_ptr_offset + base_ptr;
-    v4 = bottom_data[ptr4];
-  }
-
-  const INPUT0_TYPE w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
-
-  const INPUT0_TYPE val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
-  return val;
-}
+typedef INPUT0_TYPE data_et;
+typedef float coord_et;
+typedef float accumulator_et;
 
 KERNEL(multi_scale_deformable_attn)(
-    OPTIONAL_SHAPE_INFO_ARG
-    __global const INPUT0_TYPE *data_value,            //# (bs, num_keys, NUM_HEADS, EMBED_DIMS)
-    __global const int *data_spatial_shapes,        //# (NUM_LEVELS, 2) Spatial shape of each feature map, last dimension 2 represent (h, w)
-    __global const int *data_level_start_index,     //# (NUM_LEVELS, ) start index of each level and can be represented as [0, h_0*w_0, h_0*w_0+h_1*w_1, ...].
-    __global const INPUT0_TYPE *data_sampling_loc,     //# (bs ,num_queries, NUM_HEADS, NUM_LEVELS, num_points, 2), the last dimension 2 represent (x, y).
-    __global const INPUT0_TYPE *data_attn_weight,      //# (bs ,num_queries, NUM_HEADS, NUM_LEVELS, num_points), weight of sampling points
-    __global OUTPUT_TYPE *output) {                  //# (bs, num_queries, NUM_HEADS * EMBED_DIMS), output
-  {
-    int index = get_global_id(2);
-    if (index >= N)
-      return;
+    __global const INPUT0_TYPE* restrict data_value,         // (bs, num_keys, NUM_HEADS, EMBED_DIMS)
+    __global const int* restrict data_spatial_shapes,        // (NUM_LEVELS, 2), (h, w) of every level
+    __global const int* restrict data_level_start_index,     // (NUM_LEVELS), first key of every level
+    __global const INPUT3_TYPE* restrict data_sampling_loc,  // (bs, num_queries, NUM_HEADS, NUM_LEVELS, NUM_POINT, 2), level-normalized (x, y)
+    __global const INPUT4_TYPE* restrict data_attn_weight,   // (bs, num_queries, NUM_HEADS, NUM_LEVELS, NUM_POINT)
+    __global OUTPUT_TYPE* restrict output) {                 // (bs, num_queries, NUM_HEADS * EMBED_DIMS)
+    const int index = get_global_id(2);
+    const int c = index % EMBED_DIMS;
+    const int sampling_index = index / EMBED_DIMS;  // (b, q, m)
+    const int m = sampling_index % NUM_HEADS;
+    const int b = sampling_index / (NUM_HEADS * NUM_QUERY);
 
-    int _temp = index;
-    const int c_col = _temp % EMBED_DIMS;
-    _temp /= EMBED_DIMS;
-    const int sampling_index = _temp;
-    const int m_col = _temp % NUM_HEADS;
-    _temp /= NUM_HEADS;
-    _temp /= NUM_QUERY;
-    const int b_col = _temp;
+    const int key_stride = NUM_HEADS * EMBED_DIMS;
+    __global const data_et* batch_value = data_value + b * SPATIAL_SIZE * key_stride + m * EMBED_DIMS + c;
+    int weight_index = sampling_index * NUM_LEVELS * NUM_POINT;
 
-    __global INPUT0_TYPE *data_col_ptr = output + index;
-    int data_weight_ptr = sampling_index * NUM_LEVELS * NUM_POINT;
-    int data_loc_w_ptr = data_weight_ptr << 1;
-    const int qid_stride = NUM_HEADS * EMBED_DIMS;
-    const int data_value_ptr_init_offset = b_col * SPATIAL_SIZE * qid_stride;
-    INPUT0_TYPE col = 0;
+    accumulator_et acc = 0;
+    for (int l = 0; l < NUM_LEVELS; ++l) {
+        const int height = data_spatial_shapes[2 * l];
+        const int width = data_spatial_shapes[2 * l + 1];
+        __global const data_et* level_value = batch_value + data_level_start_index[l] * key_stride;
 
-    for (int l_col = 0; l_col < NUM_LEVELS; ++l_col) {
-      const int level_start_id = data_level_start_index[l_col];
-      const int spatial_h_ptr = l_col << 1;
-      const int spatial_h = data_spatial_shapes[spatial_h_ptr];
-      const int spatial_w = data_spatial_shapes[spatial_h_ptr + 1];
-      __global const INPUT0_TYPE *data_value_ptr =
-          data_value +
-          (data_value_ptr_init_offset + level_start_id * qid_stride);
-      for (int p_col = 0; p_col < NUM_POINT; ++p_col) {
-        const INPUT0_TYPE loc_w = data_sampling_loc[data_loc_w_ptr];
-        const INPUT0_TYPE loc_h = data_sampling_loc[data_loc_w_ptr + 1];
-        const INPUT0_TYPE weight = data_attn_weight[data_weight_ptr];
+        for (int p = 0; p < NUM_POINT; ++p, ++weight_index) {
+            // GridSample unnormalizes the coordinate 2 * x - 1 to
+            // ((2 * x - 1 + 1) * width - 1) / 2 = x * width - 0.5.
+            const coord_et x = (coord_et)data_sampling_loc[2 * weight_index] * width - 0.5f;
+            const coord_et y = (coord_et)data_sampling_loc[2 * weight_index + 1] * height - 0.5f;
+            const accumulator_et attention = (accumulator_et)data_attn_weight[weight_index];
 
-        const INPUT0_TYPE h_im = loc_h * spatial_h - 0.5;
-        const INPUT0_TYPE w_im = loc_w * spatial_w - 0.5;
+            const int x0 = (int)floor(x);
+            const int y0 = (int)floor(y);
+            const coord_et dx = x - x0;
+            const coord_et dy = y - y0;
 
-        if (h_im > -1 && w_im > -1 && h_im < spatial_h && w_im < spatial_w) {
-          col += FUNC_CALL(ms_deform_attn_im2col_bilinear)(data_value_ptr, spatial_h,
-                                                spatial_w, NUM_HEADS, EMBED_DIMS,
-                                                h_im, w_im, m_col, c_col) *
-                 weight;
+            const bool x0_valid = x0 >= 0 && x0 < width;
+            const bool x1_valid = x0 + 1 >= 0 && x0 + 1 < width;
+            const bool y0_valid = y0 >= 0 && y0 < height;
+            const bool y1_valid = y0 + 1 >= 0 && y0 + 1 < height;
+            const int x0c = x0_valid ? x0 : 0;
+            const int x1c = x1_valid ? x0 + 1 : 0;
+            const int y0c = y0_valid ? y0 : 0;
+            const int y1c = y1_valid ? y0 + 1 : 0;
+
+            // The corners are loaded unconditionally from clamped, in-bounds
+            // offsets and masked afterwards, which avoids divergent branches
+            // around the loads (see LOAD_INPUT in grid_sample_opt_bilinear_zeros.cl).
+            const data_et v00_d = level_value[(y0c * width + x0c) * key_stride];
+            const data_et v01_d = level_value[(y0c * width + x1c) * key_stride];
+            const data_et v10_d = level_value[(y1c * width + x0c) * key_stride];
+            const data_et v11_d = level_value[(y1c * width + x1c) * key_stride];
+
+            const accumulator_et v00 = (y0_valid && x0_valid) ? (accumulator_et)v00_d * (1 - dx) : 0;
+            const accumulator_et v01 = (y0_valid && x1_valid) ? (accumulator_et)v01_d * dx : 0;
+            const accumulator_et v10 = (y1_valid && x0_valid) ? (accumulator_et)v10_d * (1 - dx) : 0;
+            const accumulator_et v11 = (y1_valid && x1_valid) ? (accumulator_et)v11_d * dx : 0;
+
+            acc += attention * ((1 - dy) * (v00 + v01) + dy * (v10 + v11));
         }
-
-        data_weight_ptr += 1;
-        data_loc_w_ptr += 2;
-      }
     }
-    *data_col_ptr = col;
-  }
+    output[index] = TO_OUTPUT_TYPE(acc);
 }

@@ -11,21 +11,15 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(msda);
 
 template <typename ShapeType>
 std::vector<layout> msda_inst::calc_output_layouts(const msda_node& /*node*/, const kernel_impl_params& impl_param) {
-    auto feat_value_input_layout = impl_param.get_input_layout(0);
-    auto attn_weights_input_layout = impl_param.get_input_layout(4);
-
-    auto output_type = feat_value_input_layout.data_type;
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
-    }
-
-    const auto feat_value_ps = feat_value_input_layout.get_partial_shape();
-    const auto attn_weight_ps = attn_weights_input_layout.get_partial_shape();
-    auto output_shape = ov::PartialShape({feat_value_ps[0], attn_weight_ps[1], feat_value_ps[2] * feat_value_ps[3]});
-
-    format output_format = format::adjust_to_rank(feat_value_input_layout.format, output_shape.size());
-    return {layout{output_shape, output_type, output_format}};
+    // value [B, S, H, D] and attention_weights [B, Q, H, L, P] give the output [B, Q, H * D].
+    const auto& value_layout = impl_param.get_input_layout(0);
+    const auto value = value_layout.get_partial_shape();
+    const auto weights = impl_param.get_input_layout(4).get_partial_shape();
+    const ov::PartialShape output_shape{value[0], weights[1], value[2] * value[3]};
+    return {layout{output_shape, value_layout.data_type, format::get_default_format(output_shape.size())}};
 }
+
+template std::vector<layout> msda_inst::calc_output_layouts<ov::PartialShape>(const msda_node& node, const kernel_impl_params& impl_param);
 
 std::string msda_inst::to_string(const msda_node& node) {
     auto node_info = node.desc_to_json();
