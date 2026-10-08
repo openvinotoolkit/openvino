@@ -46,7 +46,7 @@ public:
 
     // Runs the FC on u3 weights and compares it with the reference kernel. For every row count in rows_list
     // (batch for a 2D input, seq_len for a 3D one), expected_gemms lists the GEMM variants a static impl has to hold.
-    // A dynamic network has to run every row count on one dynamic impl holding all variants.
+    // A dynamic network runs every new row count on one dynamic impl holding all variants.
     void run(const Int3FcParams& p,
              bool is_dynamic,
              bool is_caching_test,
@@ -144,12 +144,17 @@ public:
             auto inst = net->get_primitive("fc_prim");
             auto impl = inst->get_impl();
             ASSERT_NE(impl, nullptr);
-            ASSERT_EQ(impl->is_dynamic(), is_dynamic) << "rows = " << rows;
-            ASSERT_EQ(impl->get_kernel_name().rfind("ocl::fc_int3_dpas", 0), 0u) << "rows = " << rows << ", impl = " << impl->get_kernel_name();
-            if (first_impl == nullptr) {
-                first_impl = impl;
+            // Async compilation may swap in a static impl for a row count the dynamic network has seen before.
+            if (!is_dynamic) {
+                ASSERT_FALSE(impl->is_dynamic());
             }
-            ASSERT_EQ(impl, first_impl) << "rows = " << rows;
+            ASSERT_EQ(impl->get_kernel_name().rfind("ocl::fc_int3_dpas", 0), 0u) << "rows = " << rows << ", impl = " << impl->get_kernel_name();
+            if (impl->is_dynamic()) {
+                if (first_impl == nullptr) {
+                    first_impl = impl;
+                }
+                ASSERT_EQ(impl, first_impl) << "rows = " << rows;
+            }
             // Static f16 FCs do not take fused eltwise ops (fc_supports_fusings).
             if (p.fused_eltwise && is_dynamic) {
                 ASSERT_TRUE(inst->has_fused_primitives()) << "rows = " << rows;
@@ -161,7 +166,7 @@ public:
                     gemms.push_back(id);
                 }
             }
-            if (is_dynamic) {
+            if (impl->is_dynamic()) {
                 for (const std::string variant : {"scalar", "v1_t8", "v1_t16", "v1_t32_sg1"}) {
                     ASSERT_TRUE(std::any_of(gemms.begin(),
                                             gemms.end(),
@@ -197,6 +202,7 @@ public:
             }
             ASSERT_LT(std::sqrt(err2 / std::max(ref2, 1e-12)), 0.02) << "rows = " << rows;
         }
+        ASSERT_EQ(first_impl != nullptr, is_dynamic);
     }
 
     static bool has_v2() {

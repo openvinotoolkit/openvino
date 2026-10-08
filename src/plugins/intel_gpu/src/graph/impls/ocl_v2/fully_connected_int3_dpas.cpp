@@ -376,6 +376,12 @@ protected:
         jit.make("TILE_OUT_F_PITCH", 1);
         jit.make("TILE_OUT_B_PITCH", info.ofm);
         jit.make("OUTPUT_OFFSET", 0);
+        // A constant lets the compiler fold the row bounds checks around the loads and stores
+        if (params.is_dynamic()) {
+            jit.make("BATCH_SIZE", "rows");
+        } else {
+            jit.make("BATCH_SIZE", get_rows(params.get_input_layout(0)));
+        }
 
         jit.make("FILTER_TYPE", "uchar");
         jit.make("DECOMPRESSION_SCALE_TYPE", to_ocl_type(params.get_input_layout(scale_idx).data_type));
@@ -412,11 +418,18 @@ protected:
         jit.make("SG_K", m_cfg.dpas ? 1 : get_scalar_sg_k(info));
 
         // The store addresses output element (out_row, n), out_row being the row of the flattened batch. A 3D bfyx
-        // output [B, M, N] splits it back into b and f.
+        // output [B, M, N] splits it back into b and f. The fused ops compute this index per element, so M is a
+        // constant wherever it is static.
         if (params.has_fused_primitives()) {
             std::vector<std::string> idx_order = {"out_row", "n", "0", "0"};
-            if (params.get_output_layout(0).get_partial_shape().size() == 3) {
-                idx_order = {"(out_row / rows_per_batch)", "(out_row % rows_per_batch)", "n", "0"};
+            const auto& out_pshape = params.get_output_layout(0).get_partial_shape();
+            if (out_pshape.size() == 3) {
+                if (out_pshape[0].is_static() && out_pshape[0].get_length() == 1) {
+                    idx_order = {"0", "out_row", "n", "0"};
+                } else {
+                    const std::string m = out_pshape[1].is_static() ? std::to_string(out_pshape[1].get_length()) : "rows_per_batch";
+                    idx_order = {"(out_row / " + m + ")", "(out_row % " + m + ")", "n", "0"};
+                }
             }
             FusedOpsConfiguration conf = {"", idx_order, "activated", ov::element::f32, 1};
             jit.add(make_fused_ops_jit_constants(params, {conf}));
