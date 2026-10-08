@@ -25,7 +25,13 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
 
     // Group (IFM) axis is last for [N, groups] (transpose_b) and second-to-last for [groups, N].
     static int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param) {
-        const auto rank = static_cast<int64_t>(param_layout.get_partial_shape().size());
+        const auto& pshape = param_layout.get_partial_shape();
+        const auto rank = static_cast<int64_t>(std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& d) {
+            return d.is_dynamic() || d.get_length() != 1;
+        }));
+        // A single non-unit dim holds only OC; point past it so get_dim() hits the padded 1 (one IFM group).
+        if (rank == 1)
+            return rank;
         return std::max<int64_t>(0, transpose_b_param ? rank - 1 : rank - 2);
     }
 
