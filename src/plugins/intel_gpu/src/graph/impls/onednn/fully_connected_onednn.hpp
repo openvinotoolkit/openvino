@@ -120,8 +120,8 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         size_t decompression_param_idx = fc_prim->bias.is_valid() ? 3 : 2;
         if (fc_prim->decompression_scale.is_valid()) {
             if (!node.get_dependency(decompression_param_idx).is_constant()) {
-                in_fmts[decompression_param_idx] = node.get_input_layout(decompression_param_idx).format;
-            }
+        if (fc_prim->decompression_scale.is_valid() && !node.get_dependency(decompression_param_idx).is_constant()) {
+            in_fmts[decompression_param_idx] = node.get_input_layout(decompression_param_idx).format;
             decompression_param_idx++;
         }
         if (fc_prim->decompression_zero_point.is_valid() && !node.get_dependency(decompression_param_idx).is_constant()) {
