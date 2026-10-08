@@ -115,8 +115,18 @@ struct Header {
      * in place, no copy.
      * @warning No bounds checking: caller must ensure `data` points to at least `sizeof(Header)` readable bytes.
      */
-    static const Header& view(const uint8_t* data) noexcept {
+    static const Header& view(const void* data) noexcept {
         return *reinterpret_cast<const Header*>(data);
+    }
+
+    /**
+     * @brief Non-owning view of the header at the start of an HSM container buffer - reinterprets the bytes
+     * in place, no copy.
+     * @note Debug-asserts if @p data is too small for a Header; still the caller's responsibility in Release.
+     */
+    static const Header& view(ov::util::MemoryView data) noexcept {
+        OPENVINO_DEBUG_ASSERT(data.size() >= sizeof(Header));
+        return view(data.data());
     }
 };
 #pragma pack(pop)
