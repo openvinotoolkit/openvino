@@ -285,9 +285,14 @@ void primitive_inst::check_memory_compatibility(const memory& mem, const layout&
 
 event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = get_network().get_engine();
+    // A dynamic output bound at the same pointer may still change capacity, e.g. a smaller caller view.
+    const auto same_capacity = [&]() {
+        const auto& new_layout = mem_new->get_layout();
+        return new_layout.data_type == _outputs[idx]->get_layout().data_type && new_layout.get_linear_size() == _max_output_layout_count[idx];
+    };
     // skip all the buzz if no action actually required
     event::ptr ev = nullptr;
-    if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
+    if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx]) && (!is_dynamic() || same_capacity())) {
         // The remote permute alias is stored only for the primary output owned by this primitive.
         if (idx == 0)
             _remote_permute_output_alias.reset();

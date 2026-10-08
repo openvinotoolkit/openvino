@@ -1270,11 +1270,14 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                 return {create_device_tensor(actual_memory_shape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN};
             };
             if (can_share_user_usm_host) {
-                auto candidate = create_or_share_device_tensor(user_tensor_wrapper,
-                                                               internal_name,
-                                                               pshape,
-                                                               device_tensor_et,
-                                                               need_lockable_mem || convert_needed);
+                // Bind the caller's full recorded capacity: wait() may have shrunk the tensor's logical shape.
+                const ov::Shape capacity_shape{user_tensor_wrapper.actual_size * 8 / device_tensor_et.bitwidth()};
+                TensorWrapper candidate{std::make_shared<RemoteTensorImpl>(m_context,
+                                                                           capacity_shape,
+                                                                           ::data_type_for_remote_tensor(device_tensor_et),
+                                                                           TensorType::BT_USM_SHARED,
+                                                                           user_tensor->data()),
+                                        TensorOwner::USER};
                 auto candidate_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(candidate.ptr);
                 if (candidate_tensor && candidate_tensor->get_memory() &&
                     network->can_bind_user_output_memory(internal_name, *candidate_tensor->get_memory())) {
@@ -1291,6 +1294,10 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
 
     // Missing output in _plugin_outputs means that the network is dynamic and outputs couldn't be pre-allocated
     if (m_plugin_outputs.find(output_idx) == m_plugin_outputs.end()) {
+        // Requests on one stream share the network: drop a caller buffer bound by another request.
+        if (is_dynamic) {
+             network->release_user_output_memory(internal_name);
+        }
         // For dynamic PLUGIN-owned outputs with an OutputMemoryBlock, register the block
         // into the network so that realloc_outputs() can use it for zero-copy output.
         if (is_dynamic && user_tensor_wrapper.owner == TensorOwner::PLUGIN) {

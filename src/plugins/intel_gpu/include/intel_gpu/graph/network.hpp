@@ -206,6 +206,10 @@ public:
     /// Invalidates cached output memory so the graph falls back to its normal memory pool.
     void unregister_output_memory_block(const primitive_id& id);
 
+    /// @brief Detach output `id` from memory bound by an earlier set_output_memory(..., is_remote=true),
+    /// e.g. by another infer request sharing this network, so its writers re-acquire their memory.
+    void release_user_output_memory(const primitive_id& id);
+
     /// @brief Get the registered output memory block for a primitive, or nullptr if none.
     ov::intel_gpu::OutputMemoryBlock* get_output_memory_block(const primitive_id& id) const;
 
@@ -260,6 +264,8 @@ private:
     memory::ptr _shape_info_ptr;
 
     std::unordered_map<primitive_id, memory::ptr> _output_remote_mem_ptrs;
+    // Unlike _output_remote_mem_ptrs, kept after wait(): primitives still hold this memory until released.
+    std::unordered_map<primitive_id, memory::ptr> _bound_user_output_memory;
     // Non-owning pointers to OutputMemoryBlocks, keyed by Result node's primitive_id.
     // Owned by SyncInferRequest::m_output_memory_blocks. One entry per OV model output.
     std::unordered_map<primitive_id, ov::intel_gpu::OutputMemoryBlock*> _output_memory_blocks;

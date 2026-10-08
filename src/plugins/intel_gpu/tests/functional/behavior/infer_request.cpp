@@ -440,6 +440,54 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthBeyondCapacityIsSafe
     }
 }
 
+// Rebinding a smaller view at the same pointer must shrink the bound capacity, so the GPU never writes past the new view.
+// f32 keeps the Result a skipped reorder; f16 makes it a converting reorder that writes the caller buffer itself.
+class TensorSmallerViewSamePointer : public ::testing::TestWithParam<ov::element::Type> {};
+
+TEST_P(TensorSmallerViewSamePointer, smoke_dynamicOutputCallerOwnedUsmHostSmallerViewSamePointerIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(),
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(GetParam()));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    const ov::Shape large_shape{8, 4};
+    const ov::Shape small_shape{2, 4};
+    const ov::Shape run_shape{4, 4};
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, large_shape);
+    auto* caller_data = static_cast<float*>(usm_allocation.get());
+
+    request.set_output_tensor(ov::Tensor(ov::element::f32, large_shape, caller_data));
+    ov::Tensor large_input(ov::element::f32, large_shape);
+    std::fill_n(large_input.data<float>(), large_input.get_size(), 1.0f);
+    request.set_input_tensor(large_input);
+    OV_ASSERT_NO_THROW(request.infer());
+
+    request.set_output_tensor(ov::Tensor(ov::element::f32, small_shape, caller_data));
+    constexpr float sentinel = -19.0f;
+    std::fill_n(caller_data, ov::shape_size(large_shape), sentinel);
+
+    // The run exceeds the small view but fits the first binding's capacity; wait() then throws as the view can't grow.
+    ov::Tensor run_input(ov::element::f32, run_shape);
+    std::fill_n(run_input.data<float>(), run_input.get_size(), 1.0f);
+    request.set_input_tensor(run_input);
+    ASSERT_ANY_THROW(request.infer());
+
+    for (size_t i = ov::shape_size(small_shape); i < ov::shape_size(large_shape); ++i) {
+        ASSERT_FLOAT_EQ(caller_data[i], sentinel) << "write past the caller's view at element " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         TensorSmallerViewSamePointer,
+                         ::testing::Values(ov::element::f32, ov::element::f16),
+                         [](const ::testing::TestParamInfo<ov::element::Type>& info) { return info.param.get_type_name(); });
+
 // Rebinding to a different caller USM-host allocation writes the new buffer, leaves the old untouched.
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRebindsAllocation) {
     auto core = ov::Core();
@@ -517,6 +565,107 @@ TEST(TensorTest, smoke_dynamicOutputSwitchesFromUsmHostToCopyFallback) {
     for (size_t i = 0; i < ov::shape_size(shape); ++i) {
         ASSERT_FLOAT_EQ(usm_data[i], sentinel);
         ASSERT_FLOAT_EQ(host_output[i], 3.0f);
+    }
+}
+
+// Requests on one stream share a network; a caller buffer bound by one must not receive another's output.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostNotUsedByOtherRequest) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto compiled_model =
+        core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU), ov::num_streams(1));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    const ov::Shape shape{16, 4};
+    const size_t size = ov::shape_size(shape);
+
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto* caller_data = static_cast<float*>(usm_allocation.get());
+    auto caller_request = compiled_model.create_infer_request();
+    ov::Tensor caller_input(ov::element::f32, shape);
+    std::fill_n(caller_input.data<float>(), size, 1.0f);
+    caller_request.set_input_tensor(caller_input);
+    caller_request.set_output_tensor(ov::Tensor(ov::element::f32, shape, caller_data));
+
+    // false: plugin-owned output; true: caller host memory that is copied out rather than imported.
+    for (const bool host_output : {false, true}) {
+        auto other_request = compiled_model.create_infer_request();
+        ov::Tensor other_input(ov::element::f32, shape);
+        other_request.set_input_tensor(other_input);
+        std::vector<float> host_buffer(size);
+        if (host_output) {
+            other_request.set_output_tensor(ov::Tensor(ov::element::f32, shape, host_buffer.data()));
+        }
+
+        // Unchanged shapes, so nothing but the binding itself can redirect the writer.
+        for (const float value : {2.0f, 3.0f}) {
+            OV_ASSERT_NO_THROW(caller_request.infer());
+            for (size_t i = 0; i < size; ++i) {
+                ASSERT_FLOAT_EQ(caller_data[i], 1.0f) << "host_output=" << host_output << " index=" << i;
+            }
+
+            constexpr float sentinel = -41.0f;
+            std::fill_n(caller_data, size, sentinel);
+            std::fill_n(other_input.data<float>(), size, value);
+            OV_ASSERT_NO_THROW(other_request.infer());
+
+            auto actual = other_request.get_output_tensor();
+            ASSERT_EQ(actual.get_size(), size);
+            for (size_t i = 0; i < size; ++i) {
+                ASSERT_FLOAT_EQ(actual.data<const float>()[i], value) << "host_output=" << host_output << " index=" << i;
+                ASSERT_FLOAT_EQ(caller_data[i], sentinel) << "host_output=" << host_output << " index=" << i;
+            }
+        }
+    }
+}
+
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRebindsAcrossRequests) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(),
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::num_streams(1),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    const ov::Shape shape{16, 4};
+    const size_t size = ov::shape_size(shape);
+    auto first_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto second_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto* first_data = static_cast<float*>(first_allocation.get());
+    auto* second_data = static_cast<float*>(second_allocation.get());
+
+    auto first_request = compiled_model.create_infer_request();
+    auto second_request = compiled_model.create_infer_request();
+    ov::Tensor first_input(ov::element::f32, shape);
+    ov::Tensor second_input(ov::element::f32, shape);
+    std::fill_n(first_input.data<float>(), size, 1.0f);
+    std::fill_n(second_input.data<float>(), size, 2.0f);
+    first_request.set_input_tensor(first_input);
+    second_request.set_input_tensor(second_input);
+    first_request.set_output_tensor(ov::Tensor(ov::element::f32, shape, first_data));
+    second_request.set_output_tensor(ov::Tensor(ov::element::f32, shape, second_data));
+
+    constexpr float sentinel = -41.0f;
+    for (int iter = 0; iter < 2; ++iter) {
+        std::fill_n(first_data, size, sentinel);
+        std::fill_n(second_data, size, sentinel);
+        OV_ASSERT_NO_THROW(first_request.infer());
+        for (size_t i = 0; i < size; ++i) {
+            ASSERT_FLOAT_EQ(first_data[i], 1.0f) << "iteration=" << iter << " index=" << i;
+            ASSERT_FLOAT_EQ(second_data[i], sentinel) << "iteration=" << iter << " index=" << i;
+        }
+
+        std::fill_n(first_data, size, sentinel);
+        OV_ASSERT_NO_THROW(second_request.infer());
+        for (size_t i = 0; i < size; ++i) {
+            ASSERT_FLOAT_EQ(second_data[i], 2.0f) << "iteration=" << iter << " index=" << i;
+            ASSERT_FLOAT_EQ(first_data[i], sentinel) << "iteration=" << iter << " index=" << i;
+        }
     }
 }
 
