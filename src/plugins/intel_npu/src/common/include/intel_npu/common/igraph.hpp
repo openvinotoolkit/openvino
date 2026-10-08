@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -13,11 +14,13 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "openvino/runtime/itensor.hpp"
-#include "openvino/runtime/profiling_info.hpp"
-#include "openvino/runtime/so_ptr.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
+
+class IProfilingDecoder;
+
+using ProfilingDecoderFactory = std::function<std::unique_ptr<IProfilingDecoder>()>;
 
 enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
 
@@ -49,7 +52,8 @@ public:
      */
     virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const;
 
-    virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
+    virtual std::optional<ov::Tensor> get_profiling_network() const;
+    virtual ProfilingDecoderFactory get_profiling_decoder_factory() const;
 
     virtual void set_argument_value(uint32_t id, const void* data) const;
     virtual void set_argument_value_with_strides(uint32_t id,

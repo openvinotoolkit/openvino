@@ -12,7 +12,6 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "iprofiling_decoder.hpp"
 #include "ivcl_compiler.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
@@ -55,7 +54,7 @@ private:
     /**
      * @brief Builds a profiling decoder when PERF_COUNT is enabled, otherwise returns null.
      */
-    std::shared_ptr<const IProfilingDecoder> make_profiling_decoder(const Config& config) const;
+    ProfilingDecoderFactory make_profiling_decoder_factory(const Config& config) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;

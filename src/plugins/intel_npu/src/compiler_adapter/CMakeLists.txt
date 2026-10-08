@@ -11,7 +11,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dynamic_graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ivcl_compiler.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/iprofiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mem_usage.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/model_serializer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/parser.hpp
@@ -58,6 +57,7 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
+        ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include
         $<TARGET_PROPERTY:openvino_npu_vm_utils,INTERFACE_INCLUDE_DIRECTORIES>
 )
 

@@ -8,7 +8,7 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
-#include "iprofiling_decoder.hpp"
+#include "zero_profiling_decoder.hpp"
 
 namespace intel_npu {
 
@@ -22,8 +22,10 @@ public:
      */
     explicit VCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions);
 
-    std::vector<ov::ProfilingInfo> decode(const std::vector<uint8_t>& profData,
-                                          const std::vector<uint8_t>& network) const override;
+    std::vector<ov::ProfilingInfo> decode(const IGraph& graph,
+                                          const zeroProfiling::ProfilingQuery& query) const override;
+
+    std::vector<ov::ProfilingInfo> decode(const std::vector<uint8_t>& profData, const ov::Tensor& network) const;
 
 private:
     std::shared_ptr<const VCLFunctionTable> _functions;
@@ -36,6 +38,6 @@ private:
  * @details For callers (e.g. Parser) that have not already resolved a VCLFunctionTable of their own. Throws if
  * the VCL compiler library cannot be loaded.
  */
-std::shared_ptr<const IProfilingDecoder> makeVCLProfilingDecoder();
+ProfilingDecoderFactory makeVCLProfilingDecoderFactory();
 
 }  // namespace intel_npu

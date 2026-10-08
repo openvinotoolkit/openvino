@@ -5,6 +5,7 @@
 #include "vcl_profiling_decoder.hpp"
 
 #include <gtest/gtest.h>
+#include <ze_graph_profiling_ext.h>
 
 #include <memory>
 #include <string>
@@ -12,10 +13,18 @@
 
 #include "fake_vcl.hpp"
 #include "openvino/core/except.hpp"
-#include "ze_graph_ext_wrappers.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using ::fake_vcl::FakeVcl;
 using ::intel_npu::VCLProfilingDecoder;
+
+namespace {
+
+ov::Tensor makeNetworkTensor() {
+    return ov::Tensor(ov::element::u8, ov::Shape{4});
+}
+
+}  // namespace
 
 struct VCLProfilingDecoderTest : public ::testing::Test {
     FakeVcl fake;
@@ -73,7 +82,7 @@ TEST_F(VCLProfilingDecoderTest, DecodeFollowsCreateGetDestroyOrdering) {
     auto decoder = makeDecoder();
 
     const std::vector<uint8_t> profData{1, 2, 3};
-    const std::vector<uint8_t> network{4, 5, 6, 7};
+    const ov::Tensor network = makeNetworkTensor();
     const auto info = decoder->decode(profData, network);
 
     EXPECT_EQ(fake.callCount("vclProfilingCreate"), 1u);
@@ -92,7 +101,7 @@ TEST_F(VCLProfilingDecoderTest, DecodeFollowsCreateGetDestroyOrdering) {
 TEST_F(VCLProfilingDecoderTest, DecodeSizesByLayerInfoStride) {
     fake.profilingPayload.assign(5 * sizeof(ze_profiling_layer_info), 0);
     auto decoder = makeDecoder();
-    EXPECT_EQ(decoder->decode({1}, {2}).size(), 5u);
+    EXPECT_EQ(decoder->decode({1}, makeNetworkTensor()).size(), 5u);
 }
 
 TEST_F(VCLProfilingDecoderTest, DecodeThrowsOnNullData) {
@@ -100,7 +109,7 @@ TEST_F(VCLProfilingDecoderTest, DecodeThrowsOnNullData) {
     auto decoder = makeDecoder();
 
     try {
-        decoder->decode({1}, {2});
+        decoder->decode({1}, makeNetworkTensor());
         FAIL() << "Expected a throw on NULL profiling data";
     } catch (const ov::Exception& error) {
         EXPECT_NE(std::string(error.what()).find("Failed to get VCL profiling output"), std::string::npos);
@@ -114,7 +123,7 @@ TEST_F(VCLProfilingDecoderTest, DecodeThrowsWhenCreateFails) {
     fake.failWith("vclProfilingCreate", VCL_RESULT_ERROR_UNKNOWN);
 
     try {
-        decoder->decode({1}, {2});
+        decoder->decode({1}, makeNetworkTensor());
         FAIL() << "Expected a throw on vclProfilingCreate failure";
     } catch (const ov::Exception& error) {
         EXPECT_NE(std::string(error.what()).find("vclProfilingCreate"), std::string::npos);
@@ -131,7 +140,7 @@ TEST_F(VCLProfilingDecoderTest, DecodeThrowsWhenDestroyFails) {
     fake.failWith("vclProfilingDestroy", VCL_RESULT_ERROR_UNKNOWN);
 
     try {
-        decoder->decode({1}, {2});
+        decoder->decode({1}, makeNetworkTensor());
         FAIL() << "Expected a throw on vclProfilingDestroy failure";
     } catch (const ov::Exception& error) {
         EXPECT_NE(std::string(error.what()).find("vclProfilingDestroy"), std::string::npos);

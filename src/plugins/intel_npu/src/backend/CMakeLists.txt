@@ -12,6 +12,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_pipeline.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_profiling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_profiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_variable_state.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_backend.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_device.cpp

@@ -18,19 +18,19 @@ namespace intel_npu {
 namespace {
 
 /**
- * @brief Builds a profiling decoder when the blob being imported was compiled with the plugin compiler and
+ * @brief Creates a profiling decoder factory when the blob being imported was compiled with the plugin compiler and
  * PERF_COUNT is enabled, otherwise returns null.
  * @details update_compiler_type_if_perf_count() (see "blob_format_importers.cpp") resolves PREFER_PLUGIN to a
  * concrete compiler type before "parse" is ever called whenever PERF_COUNT is set, so "config" here already
  * carries the real answer. This keeps the import path free of the VCL compiler library unless profiling on a
  * plugin-compiled blob was actually requested.
  */
-std::shared_ptr<const IProfilingDecoder> make_profiling_decoder(const Config& config) {
+ProfilingDecoderFactory make_profiling_decoder_factory(const Config& config) {
     if (!config.get<PERF_COUNT>() || config.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::PLUGIN) {
-        return nullptr;
+        return {};
     }
 
-    return makeVCLProfilingDecoder();
+    return makeVCLProfilingDecoderFactory();
 }
 
 }  // namespace
@@ -95,7 +95,7 @@ std::shared_ptr<IGraph> Parser::parse(
                                        mainBlob,
                                        compatibilityDescriptor,
                                        blobIsPersistent,
-                                       make_profiling_decoder(config));
+                                       make_profiling_decoder_factory(config));
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
@@ -126,7 +126,7 @@ std::shared_ptr<IGraph> Parser::parse(
                                              std::move(weightsSource),
                                              blobIsPersistent,
                                              compatibilityDescriptor,
-                                             make_profiling_decoder(config));
+                                             make_profiling_decoder_factory(config));
 }
 
 }  // namespace intel_npu

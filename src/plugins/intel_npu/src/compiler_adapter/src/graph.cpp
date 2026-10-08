@@ -10,7 +10,6 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
 
@@ -21,7 +20,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent,
-             std::shared_ptr<const IProfilingDecoder> profilingDecoder)
+             ProfilingDecoderFactory profilingDecoderFactory)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -29,7 +28,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
-      _profilingDecoder(std::move(profilingDecoder)),
+      _profilingDecoderFactory(std::move(profilingDecoderFactory)),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", Logger::global().level()) {}
 
@@ -151,14 +150,12 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     return std::make_pair(size, std::nullopt);
 }
 
-std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    OPENVINO_ASSERT(_profilingDecoder != nullptr,
-                    "Profiling post-processing requires a profiling decoder, but none was provided for this graph");
+std::optional<ov::Tensor> Graph::get_profiling_network() const {
+    return _blob;
+}
 
-    std::vector<uint8_t> blob(_blob->get_byte_size());
-    blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
-                reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return _profilingDecoder->decode(profData, blob);
+ProfilingDecoderFactory Graph::get_profiling_decoder_factory() const {
+    return _profilingDecoderFactory;
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {

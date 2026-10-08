@@ -8,9 +8,9 @@
 #include <utility>
 
 #include "intel_npu/profiling.hpp"
-#include "openvino/util/file_util.hpp"
 #include "vcl_error_utils.hpp"
-#include "ze_graph_ext_wrappers.hpp"
+#include "ze_graph_profiling_ext.h"
+#include "zero_profiling.hpp"
 
 namespace intel_npu {
 
@@ -25,12 +25,22 @@ VCLProfilingDecoder::VCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable>
                     "Was it populated from a VCLLoader?");
 }
 
+std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const IGraph& graph,
+                                                           const zeroProfiling::ProfilingQuery& query) const {
+    const auto network = graph.get_profiling_network();
+    OPENVINO_ASSERT(network.has_value(), "VCL profiling decoder requires the compiled network blob");
+    return decode(query.getData<uint8_t>(), network.value());
+}
+
 std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uint8_t>& profData,
-                                                           const std::vector<uint8_t>& network) const {
+                                                           const ov::Tensor& network) const {
     _logger.debug("decode start");
 
     vcl_profiling_handle_t profilingHandle;
-    vcl_profiling_input_t profilingInput = {network.data(), network.size(), profData.data(), profData.size()};
+    vcl_profiling_input_t profilingInput = {network.data<const uint8_t>(),
+                                            network.get_byte_size(),
+                                            profData.data(),
+                                            profData.size()};
     vcl_log_handle_t logHandle;
     THROW_ON_FAIL_FOR_VCL(*_functions,
                           "vclProfilingCreate",
@@ -75,10 +85,12 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
-std::shared_ptr<const IProfilingDecoder> makeVCLProfilingDecoder() {
-    auto vclLoader = VCLLoader::getInstance();
-    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-    return std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
+ProfilingDecoderFactory makeVCLProfilingDecoderFactory() {
+    return []() -> std::unique_ptr<IProfilingDecoder> {
+        auto vclLoader = VCLLoader::getInstance();
+        OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+        return std::make_unique<VCLProfilingDecoder>(vclLoader->sharedFunctions());
+    };
 }
 
 }  // namespace intel_npu

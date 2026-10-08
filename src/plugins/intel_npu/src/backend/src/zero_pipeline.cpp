@@ -22,6 +22,14 @@ uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& 
     return graph->get_unique_id();
 }
 
+class DriverProfilingDecoder final : public intel_npu::IProfilingDecoder {
+public:
+    std::vector<ov::ProfilingInfo> decode(const intel_npu::IGraph&,
+                                          const intel_npu::zeroProfiling::ProfilingQuery& query) const override {
+        return query.getLayerStatistics();
+    }
+};
+
 }  // namespace
 
 namespace intel_npu {
@@ -91,6 +99,25 @@ void Pipeline::configure_profiling() {
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
+    if (perf_count_enabled && _config.get<PROFILING_TYPE>() != ov::intel_npu::ProfilingType::INFER) {
+        switch (_config.get<COMPILER_TYPE>()) {
+        case ov::intel_npu::CompilerType::DRIVER:
+            _profiling_decoder = std::make_unique<DriverProfilingDecoder>();
+            break;
+        case ov::intel_npu::CompilerType::PLUGIN: {
+            auto decoderFactory = _graph->get_profiling_decoder_factory();
+            OPENVINO_ASSERT(decoderFactory,
+                            "Profiling decoder factory is missing for a graph using the plugin compiler");
+            _profiling_decoder = decoderFactory();
+            OPENVINO_ASSERT(_profiling_decoder != nullptr,
+                            "Profiling decoder factory returned a null decoder for the plugin compiler");
+            break;
+        }
+        default:
+            OPENVINO_THROW("Cannot create profiling decoder, unknown compiler type");
+        }
+    }
+
     if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         if (perf_count_enabled) {
             _logger.debug("IPipeline - profiling type == ov::intel_npu::ProfilingType::INFER");
@@ -141,17 +168,8 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
         return _npu_profiling->getNpuInferStatistics();
     }
     /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
-        _logger.debug("get_profiling_info - completed with _profiling_query->getLayerStatistics()");
-        return _profiling_query->getLayerStatistics();
-    } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
-        // For plugin compiler retrieve raw profiling data from backend and delegate
-        // processing to the compiler
-        _logger.debug("get_profiling_info - completed with _graph->process_profiling_output()");
-        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
-    } else {
-        OPENVINO_THROW("Cannot get profiling info, unknown compiler type");
-    }
+    OPENVINO_ASSERT(_profiling_decoder != nullptr, "Profiling decoder is unavailable for model-level profiling");
+    return _profiling_decoder->decode(*_graph, *_profiling_query);
 }
 
 Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
