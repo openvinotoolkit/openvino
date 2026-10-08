@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -46,10 +47,14 @@ public:
     mutable int getSupportedOptionsCalls = 0;
     mutable std::vector<std::pair<std::string, std::optional<std::string>>> optionSupportQueries;
     mutable std::vector<size_t> wsIterativeCallNumbers;
+    // The compiler properties received by the last compile*/query call.
+    mutable std::map<std::string, std::string> lastCompilerProperties;
 
-    std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>&,
-                                                              const ::intel_npu::Config&) const override {
+    std::pair<ov::Tensor, std::optional<std::string>> compile(
+        const std::shared_ptr<const ov::Model>&,
+        const std::map<std::string, std::string>& compilerProperties) const override {
         ++compileCalls;
+        lastCompilerProperties = compilerProperties;
         if (throwOnCompile) {
             OPENVINO_THROW("FakeVCLCompiler: compile failed on request");
         }
@@ -58,21 +63,26 @@ public:
 
     std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
         const std::shared_ptr<ov::Model>&,
-        const ::intel_npu::Config&) const override {
+        const std::map<std::string, std::string>& compilerProperties) const override {
         ++compileWsOneShotCalls;
+        lastCompilerProperties = compilerProperties;
         return {wsOneShotResult, compatibility};
     }
 
-    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(const std::shared_ptr<ov::Model>&,
-                                                                         const ::intel_npu::Config&,
-                                                                         size_t callNumber) const override {
+    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(
+        const std::shared_ptr<ov::Model>&,
+        const std::map<std::string, std::string>& compilerProperties,
+        size_t callNumber) const override {
         ++compileWsIterativeCalls;
+        lastCompilerProperties = compilerProperties;
         wsIterativeCallNumbers.push_back(callNumber);
         return {wsIterativeResult, compatibility};
     }
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>&, const ::intel_npu::Config&) const override {
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>&,
+                              const std::map<std::string, std::string>& compilerProperties) const override {
         ++queryCalls;
+        lastCompilerProperties = compilerProperties;
         return queryResult;
     }
 
