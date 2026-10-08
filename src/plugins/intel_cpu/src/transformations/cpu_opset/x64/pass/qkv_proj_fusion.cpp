@@ -131,6 +131,13 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
 
             // input feature size should be the same
             const auto& wshape = constw->get_shape();
+            if (wshape.size() != 2) {
+                return false;
+            }
+            // the executor reads one dequantization scale per output channel
+            if (is_quantized_int8 && deq_scale->get_shape() != ov::Shape{wshape[0], 1}) {
+                return false;
+            }
             if (hidden_size == 0) {
                 hidden_size = wshape[1];
             } else if (hidden_size != wshape[1]) {
@@ -164,10 +171,14 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
                                          proj_size[2],
                                          false};
 
-        auto old_node = root;
+        const auto& old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({old_node}, new_node);
+        NodeVector fused_nodes;
+        for (const auto& output : outputs) {
+            fused_nodes.push_back(output.get_node_shared_ptr());
+        }
+        ov::copy_runtime_info(fused_nodes, new_node);
 
         // callback is for plugin implementation to check if it can be supported
         if (!transformation_callback(new_node)) {
@@ -263,7 +274,9 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
         }
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        if (w_shape[0] != static_cast<uint64_t>(split_lengths[0] + split_lengths[1] + split_lengths[2])) {
+        const auto total_proj_size = static_cast<uint64_t>(split_lengths[0]) + static_cast<uint64_t>(split_lengths[1]) +
+                                     static_cast<uint64_t>(split_lengths[2]);
+        if (w_shape[0] != total_proj_size) {
             return false;
         }
 
@@ -277,14 +290,18 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
         OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
         if (is_quantized_int8) {
             auto scales = pattern_map.at(qkv_proj_weight_scales_per_OC).get_node_shared_ptr();
+            // the executor reads one dequantization scale per output channel of the combined weight
+            if (scales->get_output_partial_shape(0) != ov::PartialShape{static_cast<int64_t>(w_shape[0]), 1}) {
+                return false;
+            }
             args.emplace_back(scales);
             args.emplace_back(scales);
             args.emplace_back(scales);
         }
-        auto old_node = root;
+        const auto& old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({old_node}, new_node);
+        ov::copy_runtime_info({pattern_map.at(qkv_proj).get_node_shared_ptr(), vsplit}, new_node);
 
         // callback is for plugin implementation to check if it can be supported
         if (!transformation_callback(new_node)) {
