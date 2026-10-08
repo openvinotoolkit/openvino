@@ -172,6 +172,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/should_use_host_compile_interpreter_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/compiler_option_support_helper_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/device_helpers_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/option_support_cache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/state_tensor_binding_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp

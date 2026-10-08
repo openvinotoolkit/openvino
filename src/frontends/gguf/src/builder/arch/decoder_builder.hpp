@@ -60,6 +60,9 @@ private:
 
     // Final norm, lm_head, and the optional logit scale / soft-cap.
     std::string build_head(const std::string& cur);
+    bool selects_output_rows(int il) const {
+        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model;
+    }
 
     DecoderConfig m_cfg;
     GraphEmitter m_emit;

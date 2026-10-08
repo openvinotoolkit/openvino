@@ -23,37 +23,26 @@ bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>&
         return false;
     }
 
-    // HostCompile allocates dynamic buffers from I/O upper bounds, so every dynamic dimension must be bounded.
-    const auto hasFiniteUpperBounds = [](const auto& port) {
-        const auto& shape = port.get_partial_shape();
-        const auto rank = shape.rank();
-        return rank.is_static() && std::all_of(shape.begin(), shape.end(), [](const ov::Dimension& dimension) {
-                   return dimension.get_interval().has_upper_bound();
-               });
+    // HostCompile supports dynamic dimensions only; a single dynamic-rank input rules the model out.
+    const auto hasStaticRank = [](const auto& port) {
+        return port.get_partial_shape().rank().is_static();
     };
 
-    // Detect a bounded dynamic 4D I/O port that makes the model a HostCompile candidate.
-    const auto isDynamicHostCompilePort = [&hasFiniteUpperBounds](const auto& port) {
-        const auto& shape = port.get_partial_shape();
-        const auto rank = shape.rank();
-        // Keep batch static to avoid failures in ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv, because reshape
-        // operations in these passes do not support dynamic batch shapes.
-        return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && shape[0].is_static() &&
-               hasFiniteUpperBounds(port);
+    // Any dynamic dimension other than batch, bounded or unbounded, makes the model a HostCompile model: HostCompile
+    // sizes dynamic buffers at run time from the bound tensor or the predicted output shape. A dynamic batch alone is
+    // not supported well by HostCompile yet, so such models are left to plugin batching.
+    const auto isDynamicPort = [](const auto& port) {
+        return batch_helpers::hasOtherDynamicDims(port.get_partial_shape());
     };
 
+    // Only the inputs decide: shape inference does not reach the outputs of some models, which then look fully
+    // dynamic even though the model is a HostCompile one.
     const auto& modelInputs = model->inputs();
-    const auto& modelOutputs = model->outputs();
-    const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
-    const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
+    if (!std::all_of(modelInputs.begin(), modelInputs.end(), hasStaticRank)) {
+        return false;
+    }
 
-    // Candidate detection above uses any_of; validate every I/O separately because one unrelated unbounded port
-    // still prevents HostCompile from allocating all dynamic buffers.
-    const bool allPortsHaveFiniteUpperBounds =
-        std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds) &&
-        std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
-
-    return inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds;
+    return std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicPort);
 }
 
 namespace batch_helpers {

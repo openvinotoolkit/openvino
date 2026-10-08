@@ -38,7 +38,7 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 
 // GGML_OP_GATED_DELTA_NET (qwen3next linear-attention block). Emits the internal (non-opset) op
 // ov::op::internal::GatedDeltaNet for the device's fused kernel; a model using it is not
-// IR-serializable (see docs/internal_ops.md). The fused op only supports scalar gating, so the
+// IR-serializable (see docs/runtime.md). The fused op only supports scalar gating, so the
 // per-key-dimension gating case (kda) uses the serializable Loop reference path below.
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
@@ -60,9 +60,14 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
                                   "GATED_DELTA_NET supports a single recurrent-state snapshot, got K = ",
                                   snapshot_slots);
 
+    // Builder graphs take attention and the state as separate outputs, the state in the op's
+    // [B, H_v, key_dim, value_dim] layout; ggml graphs pack both in ggml's state layout.
+    const bool split_outputs = context.get_attribute<bool>("split_outputs", false);
+
     // kda needs the Loop path; "force_ref" lets tests exercise the Loop path's multi-head packing
     // against the ggml-CPU oracle for the scalar-gate case too.
     if (kda || context.get_attribute<bool>("force_ref", false)) {
+        FRONT_END_OP_CONVERSION_CHECK(!split_outputs, "GATED_DELTA_NET split outputs require the fused path");
         return translate_gated_delta_net_ref(context);
     }
 
@@ -73,9 +78,18 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
+    // ggml normalizes with x / max(||x||, eps); the op's fused normalization adds eps under the
+    // square root instead, which differs for small vectors, so normalize here.
+    if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
+        const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
+        q = make_l2_norm(q, eps);
+        k = make_l2_norm(k, eps);
+    }
+
     // ggml maps GQA heads in tiled order, while the OV op maps repeated heads in grouped order:
-    // tile Q/K along the head axis so their head count matches V.
-    if (H_v != H_k) {
+    // tile Q/K along the head axis so their head count matches V. A builder that already stored
+    // the V heads in grouped order sets "gqa_grouped" and needs no Tile.
+    if (H_v != H_k && !context.get_attribute<bool>("gqa_grouped", false)) {
         const int64_t repeat = H_v / H_k;
         auto repeats = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, repeat, 1});
         q = std::make_shared<ov::op::v0::Tile>(q, repeats);
@@ -85,7 +99,8 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     // ggml state layout (OV notation) is [B, H_v, value_dim, key_dim]; the op expects
     // [B, H_v, key_dim, value_dim].
     auto state_perm = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 1, 3, 2});
-    state = std::make_shared<ov::op::v1::Transpose>(state, state_perm);
+    if (!split_outputs)
+        state = std::make_shared<ov::op::v1::Transpose>(state, state_perm);
 
     // Gate/beta carry a trailing singleton in the scalar-gate case; the op takes them rank-3.
     auto sq_axis_3 = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
@@ -110,9 +125,13 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
         beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
     }
 
-    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta);
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta, false);
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
+    if (split_outputs) {
+        rename_outputs_with_suffix({attn_4d}, context.get_name());
+        return {attn_4d, state_4d};
+    }
 
     // Transpose state back to ggml's [B, H_v, value_dim, key_dim] and pack [attn | state] flat,
     // matching the reference path.
@@ -152,6 +171,14 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
 
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
+    const bool gqa_grouped = context.get_attribute<bool>("gqa_grouped", false);
+
+    // ggml's l2_norm (x / max(||x||, eps)) when the builder asked the fused op to normalize q/k.
+    if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
+        const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
+        q = make_l2_norm(q, eps);
+        k = make_l2_norm(k, eps);
+    }
 
     if (context.has_input("chunk_valid_len")) {
         FRONT_END_OP_CONVERSION_CHECK(v_shape[1].is_static(),
@@ -193,7 +220,10 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
             std::make_shared<ov::op::v3::Broadcast>(q_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto k_bcast =
             std::make_shared<ov::op::v3::Broadcast>(k_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
-        auto perm_5d = ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{0, 2, 1, 3, 4});
+        auto perm_5d = ov::op::v0::Constant::create(
+            ov::element::i64,
+            {5},
+            gqa_grouped ? std::vector<int64_t>{0, 1, 2, 3, 4} : std::vector<int64_t>{0, 2, 1, 3, 4});
         auto q_transposed = std::make_shared<ov::op::v1::Transpose>(q_bcast, perm_5d);
         auto k_transposed = std::make_shared<ov::op::v1::Transpose>(k_bcast, perm_5d);
         // [B, H_v, T, S_v] with T dynamic (-1).
