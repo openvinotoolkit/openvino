@@ -93,6 +93,10 @@ RuntimeRequirements::build_single_section_instance_evaluators(
 ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
+    // "Unknown" should implicitly evaluate to unsupported. Therefore, no evalutors need to be registered for this type.
+    OPENVINO_ASSERT(!type_evaluators.count(SectionTypeCode::UNKNOWN) &&
+                    !instance_evaluators.count(SectionTypeCode::UNKNOWN));
+
     if (!m_compatibility_check_result.has_value()) {
         m_logger.debug("Evaluating the runtime requirements");
 

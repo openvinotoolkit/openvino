@@ -118,6 +118,10 @@ public:
      */
     static CRE from_string(const std::string_view cre, const ov::log::Level log_level = ov::log::Level::WARNING);
 
+    bool operator==(const CRE& other) const;
+
+    bool operator!=(const CRE& other) const;
+
     // TODO reconsider these
     // Some "globals" for convenience
     static inline const auto AND_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);

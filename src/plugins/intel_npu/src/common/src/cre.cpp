@@ -358,6 +358,64 @@ bool CRE::empty() const {
     return m_subexpressions.empty();
 }
 
+bool CRE::operator==(const CRE& other) const {
+    const std::vector<std::shared_ptr<CREToken>> this_expression = get_expression();
+    const std::vector<std::shared_ptr<CREToken>> other_expression = other.get_expression();
+    if (this_expression.size() != other_expression.size()) {
+        return false;
+    }
+
+    for (size_t token_index = 0; token_index < this_expression.size(); ++token_index) {
+        if (is_section_type(this_expression.at(token_index))) {
+            if (!is_section_type(other_expression.at(token_index))) {
+                return false;
+            }
+
+            const SectionType this_type = *std::dynamic_pointer_cast<SectionType>(this_expression.at(token_index));
+            const SectionType other_type = *std::dynamic_pointer_cast<SectionType>(other_expression.at(token_index));
+            if (this_type != other_type) {
+                return false;
+            }
+
+            continue;
+        }
+
+        if (is_section_id(this_expression.at(token_index))) {
+            if (!is_section_id(other_expression.at(token_index))) {
+                return false;
+            }
+
+            const SectionID this_id = *std::dynamic_pointer_cast<SectionID>(this_expression.at(token_index));
+            const SectionID other_id = *std::dynamic_pointer_cast<SectionID>(other_expression.at(token_index));
+            if (this_id != other_id) {
+                return false;
+            }
+
+            continue;
+        }
+
+        OPENVINO_ASSERT(is_cre_special_token(this_expression.at(token_index)),
+                        "Encountered an unknown type of CRE token");
+
+        if (!is_cre_special_token(other_expression.at(token_index))) {
+            return false;
+        }
+
+        const CRESpecialToken this_token = *std::dynamic_pointer_cast<CRESpecialToken>(this_expression.at(token_index));
+        const CRESpecialToken other_token =
+            *std::dynamic_pointer_cast<CRESpecialToken>(other_expression.at(token_index));
+        if (this_token != other_token) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool CRE::operator!=(const CRE& other) const {
+    return !(*this == other);
+}
+
 bool CRE::is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expression) const {
     m_logger.debug("Verifying the correctness of the CRE");
     if (expression.empty()) {

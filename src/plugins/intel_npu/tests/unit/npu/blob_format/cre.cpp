@@ -38,9 +38,15 @@ constexpr std::string_view STRING_THAT_EVALUATES_TO_UNKNOWN = "0";
 const std::string TEST_NAME_FIELDS_SEPARATOR = "__";
 constexpr char VALUES_SEPARATOR = ',';
 
+const auto UNKNOWN_TOKEN = std::make_shared<SectionType>(SectionTypeCode::UNKNOWN);
+const auto RUNTIME_REQUIREMENTS_TOKEN = std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS);
 const auto ELF_MAIN_SCHEDULE_TOKEN = std::make_shared<SectionType>(SectionTypeCode::ELF_MAIN_SCHEDULE);
 const auto ELF_INIT_SCHEDULES_TOKEN = std::make_shared<SectionType>(SectionTypeCode::ELF_INIT_SCHEDULES);
+const auto DYNAMIC_SCHEDULE_TOKEN = std::make_shared<SectionType>(SectionTypeCode::DYNAMIC_SCHEDULE);
+const auto IO_LAYOUTS_TOKEN = std::make_shared<SectionType>(SectionTypeCode::IO_LAYOUTS);
 const auto BATCH_SIZE_TOKEN = std::make_shared<SectionType>(SectionTypeCode::BATCH_SIZE);
+const auto ENCRYPTED_SCHEDULES_FLAG_TOKEN = std::make_shared<SectionType>(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG);
+const auto COMPILER_VERSION_TOKEN = std::make_shared<SectionType>(SectionTypeCode::COMPILER_VERSION);
 
 const auto ID_0_TOKEN = std::make_shared<SectionID>(0);
 const auto ID_1_TOKEN = std::make_shared<SectionID>(1);
@@ -51,6 +57,58 @@ constexpr SectionTypeCode ELF_INIT_SCHEDULES_CODE = SectionTypeCode::ELF_INIT_SC
 constexpr SectionTypeCode BATCH_SIZE_CODE = SectionTypeCode::BATCH_SIZE;
 
 const auto mock_evaluator = std::make_shared<MockInstanceEvaluator>();
+
+CRE make_complex_cre_1() {
+    return CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<SectionType>(SectionTypeCode::ELF_MAIN_SCHEDULE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::NOT),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OPEN),
+                std::make_shared<SectionType>(SectionTypeCode::ELF_INIT_SCHEDULES),
+                std::make_shared<SectionID>(2),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND),
+                std::make_shared<SectionType>(SectionTypeCode::DYNAMIC_SCHEDULE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::NOT),
+                std::make_shared<SectionType>(SectionTypeCode::IO_LAYOUTS),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OPEN),
+                std::make_shared<SectionType>(SectionTypeCode::BATCH_SIZE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::CLOSE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND),
+                std::make_shared<SectionType>(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::CLOSE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<SectionType>(SectionTypeCode::COMPILER_VERSION),
+                std::make_shared<SectionID>(0)});
+}
+
+CRE make_complex_cre_2() {
+    return CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND),
+                std::make_shared<SectionType>(SectionTypeCode::ELF_MAIN_SCHEDULE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::NOT),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OPEN),
+                std::make_shared<SectionType>(SectionTypeCode::DYNAMIC_SCHEDULE),
+                std::make_shared<SectionID>(2),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND),
+                std::make_shared<SectionType>(SectionTypeCode::ELF_INIT_SCHEDULES),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::NOT),
+                std::make_shared<SectionType>(SectionTypeCode::IO_LAYOUTS),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OPEN),
+                std::make_shared<SectionType>(SectionTypeCode::BATCH_SIZE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::CLOSE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND),
+                std::make_shared<SectionType>(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::CLOSE),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<SectionType>(SectionTypeCode::COMPILER_VERSION),
+                std::make_shared<SectionID>(0)});
+}
 
 CREParams make_test_params(const std::vector<std::shared_ptr<CREToken>>& expression,
                            const ov::CompatibilityCheck expected_result,
@@ -788,6 +846,14 @@ const std::vector<std::shared_ptr<CREToken>> expression_22{CRE::OPEN_PTR, ELF_MA
 const std::vector<std::shared_ptr<CREToken>> expression_23 =
     {CRE::OPEN_PTR, CRE::OPEN_PTR, CRE::NOT_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR, CRE::CLOSE_PTR};
 
+const std::vector<std::shared_ptr<CREToken>> expression_24 = {UNKNOWN_TOKEN};
+
+const std::vector<std::shared_ptr<CREToken>> expression_25 = {BATCH_SIZE_TOKEN,
+                                                              CRE::AND_PTR,
+                                                              CRE::OPEN_PTR,
+                                                              UNKNOWN_TOKEN,
+                                                              CRE::CLOSE_PTR};
+
 std::vector<std::vector<std::shared_ptr<CREToken>>> invalid_expressions{
     // missing both operands for the OR operator
     {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, CRE::OR_PTR, CRE::CLOSE_PTR},
@@ -982,9 +1048,9 @@ TEST_F(CRETests, AppendingAvoidsRedundancy) {
 
     cre = CRE({BATCH_SIZE_TOKEN});
     cre.append_to_expression(BATCH_SIZE_TOKEN);
-    ASSERT_EQ(cre.get_expression(), BATCH_SIZE_TOKEN);
+    ASSERT_EQ(cre.get_expression(), std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN});
     cre.append_to_expression(BATCH_SIZE_TOKEN);
-    ASSERT_EQ(cre.get_expression(), BATCH_SIZE_TOKEN);
+    ASSERT_EQ(cre.get_expression(), std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN});
 }
 
 TEST_F(CRETests, AppendAndBrackets) {
@@ -1014,6 +1080,171 @@ TEST_F(CRETests, AppendAndBrackets) {
                                                        CRE::CLOSE_PTR,
                                                        CRE::CLOSE_PTR};
     ASSERT_EQ(cre.get_expression(), reference);
+}
+
+TEST_F(CRETests, EqualityOperatorsOnEmptyExpression) {
+    ASSERT_TRUE(CRE() == CRE());
+    ASSERT_FALSE(CRE() != CRE());
+
+    ASSERT_TRUE(CRE() == CRE({BATCH_SIZE_TOKEN}));
+    ASSERT_FALSE(CRE() != CRE({BATCH_SIZE_TOKEN}));
+}
+
+TEST_F(CRETests, EqualityOperatorsOnSimpleExpressions) {
+    CRE cre1({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS)});
+    CRE cre2({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS)});
+    ASSERT_TRUE(cre1 == cre2);
+    ASSERT_FALSE(cre1 != cre2);
+
+    cre2 = CRE({std::make_shared<SectionType>(SectionTypeCode::BATCH_SIZE)});
+    ASSERT_FALSE(cre1 == cre2);
+    ASSERT_TRUE(cre1 != cre2);
+
+    cre2 = CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND),
+                std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS)});
+    ASSERT_FALSE(cre1 == cre2);
+    ASSERT_TRUE(cre1 != cre2);
+
+    cre1 = CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND),
+                std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS)});
+    ASSERT_TRUE(cre1 == cre2);
+    ASSERT_FALSE(cre1 != cre2);
+
+    cre2 = CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS),
+                std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR),
+                std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS)});
+    ASSERT_FALSE(cre1 == cre2);
+    ASSERT_TRUE(cre1 != cre2);
+
+    cre1 = CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS), std::make_shared<SectionID>(0)});
+    cre2 = CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS), std::make_shared<SectionID>(0)});
+    ASSERT_TRUE(cre1 == cre2);
+    ASSERT_FALSE(cre1 != cre2);
+
+    cre2 = CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS), std::make_shared<SectionID>(1)});
+    ASSERT_FALSE(cre1 == cre2);
+    ASSERT_TRUE(cre1 != cre2);
+}
+
+TEST_F(CRETests, EqualityOperatorsOnComplexExpressions) {
+    const CRE cre1 = make_complex_cre_1();
+    ASSERT_TRUE(cre1 == cre1);
+    ASSERT_FALSE(cre1 == make_complex_cre_2());
+    ASSERT_TRUE(cre1 == make_complex_cre_1());
+}
+
+TEST_F(CRETests, ToStringEmpty) {
+    CRE cre;
+    ASSERT_EQ(cre.to_string(), "");
+}
+
+TEST_F(CRETests, ToStringSingleToken) {
+    CRE cre({RUNTIME_REQUIREMENTS_TOKEN});
+    ASSERT_EQ(cre.to_string(), "RUNTIME_REQUIREMENTS");
+
+    cre = CRE({ELF_MAIN_SCHEDULE_TOKEN});
+    ASSERT_EQ(cre.to_string(), "ELF_MAIN_SCHEDULE");
+
+    cre = CRE({ELF_INIT_SCHEDULES_TOKEN});
+    ASSERT_EQ(cre.to_string(), "ELF_INIT_SCHEDULES");
+
+    cre = CRE({DYNAMIC_SCHEDULE_TOKEN});
+    ASSERT_EQ(cre.to_string(), "DYNAMIC_SCHEDULE");
+
+    cre = CRE({IO_LAYOUTS_TOKEN});
+    ASSERT_EQ(cre.to_string(), "IO_LAYOUTS");
+
+    cre = CRE({BATCH_SIZE_TOKEN});
+    ASSERT_EQ(cre.to_string(), "BATCH_SIZE");
+
+    cre = CRE({ENCRYPTED_SCHEDULES_FLAG_TOKEN});
+    ASSERT_EQ(cre.to_string(), "ENCRYPTED_SCHEDULES_FLAG");
+
+    cre = CRE({COMPILER_VERSION_TOKEN});
+    ASSERT_EQ(cre.to_string(), "COMPILER_VERSION_TOKEN");
+}
+
+TEST_F(CRETests, ToStringAllTokensOneSubexpression) {
+    CRE cre({
+        RUNTIME_REQUIREMENTS_TOKEN,
+        CRE::OR_PTR,
+        ELF_MAIN_SCHEDULE_TOKEN,
+        CRE::AND_PTR,
+        CRE::NOT_PTR,
+        CRE::OPEN_PTR,
+        ELF_INIT_SCHEDULES_TOKEN,
+        ID_2_TOKEN,
+        CRE::AND_PTR,
+        DYNAMIC_SCHEDULE_TOKEN,
+        CRE::OR_PTR,
+        CRE::NOT_PTR,
+        IO_LAYOUTS_TOKEN,
+        CRE::OR_PTR,
+        CRE::OPEN_PTR,
+        BATCH_SIZE_TOKEN,
+        CRE::CLOSE_PTR,
+        CRE::AND_PTR,
+        ENCRYPTED_SCHEDULES_FLAG_TOKEN,
+        CRE::CLOSE_PTR,
+        CRE::OR_PTR,
+        COMPILER_VERSION_TOKEN,
+        ID_0_TOKEN,
+    });
+    ASSERT_EQ(cre.to_string(),
+              "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.NOT.(.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
+              "LAYOUTS.OR.(.BATCH_SIZE.).AND.ENCRYPTED_SCHEDULES_FLAG.).OR.COMPILER_VERSION_0");
+}
+
+TEST_F(CRETests, ToStringAllTokensMultipleSubexpression) {
+    CRE cre({
+        RUNTIME_REQUIREMENTS_TOKEN,
+        CRE::OR_PTR,
+        ELF_MAIN_SCHEDULE_TOKEN,
+    });
+    cre.append_to_expression({ELF_INIT_SCHEDULES_TOKEN,
+                              ID_2_TOKEN,
+                              CRE::AND_PTR,
+                              DYNAMIC_SCHEDULE_TOKEN,
+                              CRE::OR_PTR,
+                              CRE::NOT_PTR,
+                              IO_LAYOUTS_TOKEN,
+                              CRE::OR_PTR,
+                              CRE::OPEN_PTR,
+                              BATCH_SIZE_TOKEN,
+                              CRE::CLOSE_PTR,
+                              CRE::AND_PTR,
+                              ENCRYPTED_SCHEDULES_FLAG_TOKEN});
+    cre.append_to_expression({COMPILER_VERSION_TOKEN, ID_0_TOKEN});
+    ASSERT_EQ(cre.to_string(),
+              "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.(.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
+              "LAYOUTS.OR.(.BATCH_SIZE.).AND.ENCRYPTED_SCHEDULES_FLAG.).AND.(.COMPILER_VERSION_0.)");
+}
+
+TEST_F(CRETests, UnknownToString) {
+    CRE cre({UNKNOWN_TOKEN});
+    OV_EXPECT_THROW(cre.to_string(), ov::Exception, _);
+
+    cre = CRE({ELF_MAIN_SCHEDULE_TOKEN});
+    cre.append_to_expression(UNKNOWN_TOKEN);
+    OV_EXPECT_THROW(cre.to_string(), ov::Exception, _);
+}
+
+TEST_F(CRETests, FromEmptyString) {
+    CRE cre = CRE::from_string("");
+    ASSERT_TRUE(cre.empty());
+}
+
+TEST_F(CRETests, FromStringSingleValidToken) {
+    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS"), CRE({RUNTIME_REQUIREMENTS_TOKEN}));
+    ASSERT_EQ(CRE::from_string("ELF_MAIN_SCHEDULE"), CRE({ELF_MAIN_SCHEDULE_TOKEN}));
+    ASSERT_EQ(CRE::from_string("ELF_INIT_SCHEDULES"), CRE({ELF_INIT_SCHEDULES_TOKEN}));
+    ASSERT_EQ(CRE::from_string("DYNAMIC_SCHEDULE"), CRE({DYNAMIC_SCHEDULE_TOKEN}));
+    ASSERT_EQ(CRE::from_string("IO_LAYOUTS"), CRE({IO_LAYOUTS_TOKEN}));
+    ASSERT_EQ(CRE::from_string("BATCH_SIZE"), CRE({BATCH_SIZE_TOKEN}));
+    ASSERT_EQ(CRE::from_string("ENCRYPTED_SCHEDULES_FLAG"), CRE({ENCRYPTED_SCHEDULES_FLAG_TOKEN}));
+    ASSERT_EQ(CRE::from_string("COMPILER_VERSION_TOKEN"), CRE({COMPILER_VERSION_TOKEN}));
 }
 
 std::vector<CREParams> invalid_test_cases = generate_invalid_test_cases(invalid_expressions);
@@ -1152,6 +1383,9 @@ std::vector<CREParams> valid_test_cases{
 
     make_test_params(expression_22, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
     make_test_params(expression_23, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
+
+    make_test_params(expression_24, ov::CompatibilityCheck::UNSUPPORTED),
+    make_test_params(expression_25, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}),
 };
 
 INSTANTIATE_TEST_SUITE_P(CRE,
