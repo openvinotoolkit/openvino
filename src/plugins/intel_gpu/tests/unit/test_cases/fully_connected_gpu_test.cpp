@@ -5246,6 +5246,98 @@ TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
         ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i << std::endl;
     }
 }
+
+// oneDNN launches a GEMM with more than 65536 output features in several blocks.
+// Each block has to address the grouped decompression scales and zero points with
+// the full output size (int4 lm_head with a single row, GitHub issue #38640).
+enum class large_ofm_zp { none, scalar, grouped };
+
+static void test_compressed_int4_single_row_large_ofm(long int ifm_num, long int ofm_num, large_ofm_zp zp_mode) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const long int group_size = 128;
+    const long int groups_num = ifm_num / group_size;
+    const bool has_zp = zp_mode != large_ofm_zp::none;
+
+    auto input_mem = engine.allocate_memory({ {1, 1, ifm_num}, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, has_zp ? data_types::u4 : data_types::i4, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, groups_num}, data_types::f16, format::fbyx });
+    auto zp_mem = zp_mode == large_ofm_zp::grouped
+                      ? engine.allocate_memory({ {ofm_num, groups_num}, data_types::u8, format::fbyx })
+                      : engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
+
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(ifm_num, -1.0f, 1.0f));
+    set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255));
+    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * groups_num, -0.05f, 0.05f));
+    if (zp_mode == large_ofm_zp::grouped)
+        set_values(zp_mem, rg.generate_random_1d<uint8_t>(ofm_num * groups_num, 0, 15));
+    else
+        set_values<uint8_t>(zp_mem, {8});
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", has_zp ? "zp" : "", data_types::f16, 3, 2);
+    if (zp_mode == large_ofm_zp::scalar)
+        fc_prim.decompression_zero_point_scalar = 8;
+
+    auto build_network = [&](const ov::intel_gpu::ImplementationDesc& fc_impl) {
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            data("zp", zp_mem),
+            fc_prim
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} }));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+        auto network = std::make_shared<cldnn::network>(engine, topology, config);
+        network->set_input_data("input", input_mem);
+        return network;
+    };
+
+    auto get_output = [&](network& net) {
+        auto outputs = net.execute();
+        OPENVINO_ASSERT(outputs.size() == 1);
+        cldnn::mem_lock<ov::float16> output_ptr(outputs.begin()->second.get_memory(), get_test_stream());
+        return std::vector<float>(output_ptr.begin(), output_ptr.end());
+    };
+
+    auto onednn_network = build_network({ format::bfyx, "", impl_types::onednn });
+    ASSERT_TRUE(onednn_network->get_primitive("fc_prim")->get_impl()->is_onednn());
+    auto output = get_output(*onednn_network);
+    auto ref = get_output(*build_network({ format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl }));
+
+    ASSERT_EQ(output.size(), static_cast<size_t>(ofm_num));
+    ASSERT_EQ(ref.size(), output.size());
+    float max_ref = 0.f;
+    for (auto v : ref)
+        max_ref = std::max(max_ref, std::abs(v));
+    ASSERT_GT(max_ref, 0.f);
+    for (size_t i = 0; i < ref.size(); i++) {
+        ASSERT_NEAR(ref[i], output[i], 1e-2f * max_ref) << "ofm = " << i;
+    }
+}
+
+TEST(fully_connected_onednn_gpu, compressed_int4_single_row_large_ofm_grouped_zp) {
+    test_compressed_int4_single_row_large_ofm(4096, 65537, large_ofm_zp::grouped);
+}
+
+TEST(fully_connected_onednn_gpu, compressed_int4_single_row_large_ofm_scalar_zp) {
+    test_compressed_int4_single_row_large_ofm(1024, 65537, large_ofm_zp::scalar);
+}
+
+TEST(fully_connected_onednn_gpu, compressed_int4_single_row_large_ofm_no_zp) {
+    test_compressed_int4_single_row_large_ofm(1024, 65537, large_ofm_zp::none);
+}
+
+TEST(fully_connected_onednn_gpu, compressed_int4_single_row_vocab_size_ofm) {
+    test_compressed_int4_single_row_large_ofm(1024, 128256, large_ofm_zp::grouped);
+}
 #endif
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias) {
