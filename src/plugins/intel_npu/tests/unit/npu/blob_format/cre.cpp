@@ -23,16 +23,35 @@ using CREParams = std::tuple<std::vector<std::shared_ptr<CREToken>>,
                              std::vector<uint16_t>,
                              ov::CompatibilityCheck>;
 
+// TODO could use gtests "MOCK"
+class MockTypeEvaluator : public ISectionTypeEvaluator {
+public:
+    MockTypeEvaluator::MockTypeEvaluator(const bool result) : ISectionTypeEvaluator(), m_result(result) {}
+
+private:
+    bool evaluate() const override {
+        return m_result;
+    }
+
+    bool m_result;
+};
+
 class MockInstanceEvaluator : public ISectionInstanceEvaluator {
 public:
     ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const override {
-        return runtime_requirements.empty() ? ov::CompatibilityCheck::UNSUPPORTED
-                                            : ov::CompatibilityCheck::NOT_APPLICABLE;
+        if (runtime_requirements == STRING_THAT_EVALUATES_TO_SUPPORTED) {
+            return ov::CompatibilityCheck::SUPPORTED;
+        }
+        if (runtime_requirements == STRING_THAT_EVALUATES_TO_UNSUPPORTED) {
+            return ov::CompatibilityCheck::UNSUPPORTED;
+        }
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 };
 
 namespace {
 
+constexpr std::string_view STRING_THAT_EVALUATES_TO_SUPPORTED = "1";
 constexpr std::string_view STRING_THAT_EVALUATES_TO_UNSUPPORTED = "";
 constexpr std::string_view STRING_THAT_EVALUATES_TO_UNKNOWN = "0";
 const std::string TEST_NAME_FIELDS_SEPARATOR = "__";
@@ -58,7 +77,7 @@ constexpr SectionTypeCode ELF_MAIN_SCHEDULE_CODE = SectionTypeCode::ELF_MAIN_SCH
 constexpr SectionTypeCode ELF_INIT_SCHEDULES_CODE = SectionTypeCode::ELF_INIT_SCHEDULES;
 constexpr SectionTypeCode BATCH_SIZE_CODE = SectionTypeCode::BATCH_SIZE;
 
-const auto mock_evaluator = std::make_shared<MockInstanceEvaluator>();
+const auto MOCK_EVALUATOR = std::make_shared<MockInstanceEvaluator>();
 
 CRE make_complex_cre_1() {
     return CRE({std::make_shared<SectionType>(SectionTypeCode::RUNTIME_REQUIREMENTS),
@@ -155,12 +174,12 @@ protected:
         for (const auto id : unsupported_section_instances) {
             section_instance_evaluators.emplace(
                 SectionID(id),
-                SingleSectionInstanceEvaluator(mock_evaluator, STRING_THAT_EVALUATES_TO_UNSUPPORTED));
+                SingleSectionInstanceEvaluator(MOCK_EVALUATOR, STRING_THAT_EVALUATES_TO_UNSUPPORTED));
         }
         for (const auto id : section_instances_unknown_support) {
             section_instance_evaluators.emplace(
                 SectionID(id),
-                SingleSectionInstanceEvaluator(mock_evaluator, STRING_THAT_EVALUATES_TO_UNKNOWN));
+                SingleSectionInstanceEvaluator(MOCK_EVALUATOR, STRING_THAT_EVALUATES_TO_UNKNOWN));
         }
     }
 
@@ -358,7 +377,7 @@ TEST_P(InvalidExpression, check_compatibility) {
 
 const std::vector<std::shared_ptr<CREToken>> expression_1{};
 
-const std::vector<std::shared_ptr<CREToken>> expression_2{RUNTIME_REQUIEMENTS_TOKEN, ID_0_TOKEN};
+const std::vector<std::shared_ptr<CREToken>> expression_2{RUNTIME_REQUIREMENTS_TOKEN, ID_0_TOKEN};
 
 const std::vector<std::shared_ptr<CREToken>> expression_3{ELF_MAIN_SCHEDULE_TOKEN};
 
@@ -1226,6 +1245,105 @@ TEST_F(CRETests, ToStringFromStringChain) {
         ID_0_TOKEN,
     });
     ASSERT_EQ(cre, CRE::from_string(cre.to_string()));
+}
+
+TEST_F(CRETests, SectionTypeEvaluation) {
+    CRE cre({BATCH_SIZE_TOKEN});
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators;
+
+    section_type_evaluators.emplace(BATCH_SIZE_CODE, std::make_shared<MockTypeEvaluator>(true));
+    cre.check_compatibility(section_type_evaluators, {});
+    ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
+    ASSERT_EQ(section_type_evaluators.at(BATCH_SIZE_CODE)->get_result(), true);
+
+    section_type_evaluators.emplace(BATCH_SIZE_CODE, std::make_shared<MockTypeEvaluator>(false));
+    cre.check_compatibility(section_type_evaluators, {});
+    ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
+    ASSERT_EQ(section_type_evaluators.at(BATCH_SIZE_CODE)->get_result(), false);
+}
+
+TEST_F(CRETests, SectionIdEvaluation) {
+    CRE cre({BATCH_SIZE_TOKEN, ID_0_TOKEN});
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators;
+    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> section_instance_evaluators;
+    section_instance_evaluators.emplace(SectionID(0), STRING_THAT_EVALUATES_TO_UNKNOWN);
+
+    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_FALSE(section_instance_evaluators.at(SectionID(0)).evaluated());
+
+    section_type_evaluators.emplace(BATCH_SIZE_CODE, std::make_shared<MockTypeEvaluator>(true));
+    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
+    ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
+    ASSERT_EQ(section_instance_evaluators.at(SectionID(0)).get_result(), ov::CompatibilityCheck::NOT_APPLICABLE);
+
+    section_instance_evaluators.emplace(SectionID(0), STRING_THAT_EVALUATES_TO_SUPPORTED);
+    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
+    ASSERT_EQ(section_instance_evaluators.at(SectionID(0)).get_result(), ov::CompatibilityCheck::SUPPORTED);
+
+    section_instance_evaluators.emplace(SectionID(0), STRING_THAT_EVALUATES_TO_UNSUPPORTED);
+    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
+    ASSERT_EQ(section_instance_evaluators.at(SectionID(0)).get_result(), ov::CompatibilityCheck::UNSUPPORTED);
+}
+
+TEST_F(CRETests, AndShallowEvaluation) {
+    CRE cre({RUNTIME_REQUIREMENTS_TOKEN, CRE::AND_PTR, BATCH_SIZE_TOKEN, ID_0_TOKEN});
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators;
+    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> section_instance_evaluators;
+
+    section_type_evaluators.emplace(RUNTIME_REQUIREMENTS_CODE, std::make_shared<MockTypeEvaluator>(false));
+    section_type_evaluators.emplace(BATCH_SIZE_CODE, std::make_shared<MockTypeEvaluator>(true));
+    section_instance_evaluators.emplace(SectionID(0), STRING_THAT_EVALUATES_TO_UNKNOWN);
+
+    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_TRUE(section_type_evaluators.at(RUNTIME_REQUIREMENTS_CODE)->evaluated());
+    ASSERT_FALSE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
+    ASSERT_FALSE(section_instance_evaluators.at(SectionID(0)).evaluated());
+
+    section_type_evaluators.emplace(RUNTIME_REQUIREMENTS_CODE, std::make_shared<MockTypeEvaluator>(true));
+    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_TRUE(section_type_evaluators.at(RUNTIME_REQUIREMENTS_CODE)->evaluated());
+    ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
+    ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
+}
+
+TEST_F(CRETests, OrShallowEvaluation) {
+    CRE cre({RUNTIME_REQUIREMENTS_TOKEN, CRE::OR_PTR, BATCH_SIZE_TOKEN, ID_0_TOKEN});
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators;
+    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> section_instance_evaluators;
+
+    section_type_evaluators.emplace(RUNTIME_REQUIREMENTS_CODE, std::make_shared<MockTypeEvaluator>(true));
+    section_type_evaluators.emplace(BATCH_SIZE_CODE, std::make_shared<MockTypeEvaluator>(true));
+    section_instance_evaluators.emplace(SectionID(0), STRING_THAT_EVALUATES_TO_UNKNOWN);
+
+    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_TRUE(section_type_evaluators.at(RUNTIME_REQUIREMENTS_CODE)->evaluated());
+    ASSERT_FALSE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
+    ASSERT_FALSE(section_instance_evaluators.at(SectionID(0)).evaluated());
+
+    section_type_evaluators.emplace(RUNTIME_REQUIREMENTS_CODE, std::make_shared<MockTypeEvaluator>(false));
+    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_TRUE(section_type_evaluators.at(RUNTIME_REQUIREMENTS_CODE)->evaluated());
+    ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
+    ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
+}
+
+TEST_F(CRETests, AndDeepEvaluation) {
+    // TODO only main should not evaluate. Also the the deepend or.
+    CRE cre({RUNTIME_REQUIREMENTS_TOKEN,
+             CRE::AND_PTR,
+             CRE::OPEN_PTR,
+             BATCH_SIZE_TOKEN,
+             CRE::AND_PTR,
+             CRE::OPEN_PTR,
+             ELF_MAIN_SCHEDULE_TOKEN,
+             ID_0_TOKEN,
+             CRE::CLOSE_PTR,
+             CRE::CLOSE_PTR,
+             CRE::AND_PTR,
+             ELF_INIT_SCHEDULES_TOKEN});
 }
 
 std::vector<CREParams> invalid_test_cases = generate_invalid_test_cases(invalid_expressions);
