@@ -273,7 +273,6 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
                                    nullptr);
 
     if (bScaleType != BrgemmKernel::ScaleType::NONE) {
-        ctx.has_post_ops = true;
         dnnl::impl::primitive_attr_t attr;
         memory_desc_t Dmd;
         dims_t dims{static_cast<dnnl_dim_t>(ctx.M), static_cast<dnnl_dim_t>(ctx.N)};
@@ -309,9 +308,6 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     if (use_amx) {
         amx_tile_configure(ctx.palette);
     }
-    // Native s8s8 kernels do not require signed-input compensation post-ops.
-    ctx.has_post_ops = false;
-
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success) {
