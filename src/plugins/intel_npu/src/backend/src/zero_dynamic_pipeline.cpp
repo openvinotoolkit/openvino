@@ -262,13 +262,7 @@ void DynamicPipeline::push() {
     const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
     std::shared_ptr<CommandQueue> previousCommandQueue;
     if (useV2Api) {
-<<<<<<< HEAD
         if (commandQueueVersionChanged && commandQueueDesc.sharedCommonQueue()) {
-=======
-        if (commandQueueVersionChanged && commandQueueDesc.shared_common_queue()) {
-            // Keep the old queue alive while the runtime replaces queue-dependent objects in the execution context.
-            previousCommandQueue = _command_queue;
->>>>>>> 144ceeceeb (refator dynamic test)
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
         }
 
@@ -545,15 +539,12 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-<<<<<<< HEAD
         if (use_npu_vm_runtime_v2_api(_apiVersion)) {
             const auto commandQueueDesc = _graph->get_command_queue_desc();
             if (commandQueueDesc.sharedCommonQueue() && commandQueueDesc.key() != _command_queue->desc().key()) {
                 _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
             }
         }
-=======
->>>>>>> 144ceeceeb (refator dynamic test)
         params.executionContext =
             use_npu_vm_runtime_v2_api(_apiVersion) ? _executionContext.handle() : _executionContext.ensure(vmRuntime);
 
