@@ -263,8 +263,15 @@ void DynamicPipeline::push() {
     std::shared_ptr<CommandQueue> previousCommandQueue;
     if (useV2Api) {
         if (commandQueueVersionChanged && commandQueueDesc.shared_common_queue()) {
+        const char* path_env = std::getenv("USE_FIX_PATH");
+        if (path_env != nullptr) {
+            std::cout << "USE_FIX_PATH is set to: " << path_env << std::endl;
             // Keep the old queue alive while the runtime replaces queue-dependent objects in the execution context.
             previousCommandQueue = _command_queue;
+            std::cout << "USE_FIX_PATH is set for keeping previousCommandQueue = _command_queue alive" << std::endl;
+        } else {
+            std::cout << "USE_FIX_PATH is not set. for dynamic pipeline" << std::endl;
+        }
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
         }
 
@@ -541,6 +548,21 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
+        const char* path_env = std::getenv("USE_FIX_PATH");
+        if (path_env != nullptr) {
+            std::cout << "USE_FIX_PATH is set to: " << path_env << std::endl;
+            if (use_npu_vm_runtime_v2_api(_apiVersion)) {
+                const auto commandQueueDesc = _graph->get_command_queue_desc();
+                if (commandQueueDesc.shared_common_queue() && commandQueueDesc.key() != _command_queue->desc().key()) {
+                    _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
+                }
+            }
+            std::cout << "USE_FIX_PATH is set for updating ZeroCmdQueuePool::getInstance().getCommandQueue" << std::endl;
+        } else {
+            std::cout << "USE_FIX_PATH is not set. for updating ZeroCmdQueuePool::getInstance().getCommandQueue" << std::endl;
+        }
+
+
         params.executionContext =
             use_npu_vm_runtime_v2_api(_apiVersion) ? _executionContext.handle() : _executionContext.ensure(vmRuntime);
 

@@ -60,7 +60,15 @@ void NPUVMRuntimeApi::initializeFromBlob(const void* data, size_t size) {
 
 void NPUVMRuntimeApi::initialize(std::string_view libName) {
     const std::string resolvedName{libName.empty() ? MLIR_RUNTIME_NAME : libName};
-    std::lock_guard<std::mutex> lock(g_instanceMutex);
+    const char* path_env = std::getenv("USE_FIX_PATH");
+    if (path_env != nullptr) {
+        std::cout << "USE_FIX_PATH is set to: " << path_env << std::endl;
+        std::lock_guard<std::mutex> lock(g_instanceMutex);
+        std::cout << "Init lock(g_instanceMutex)." << std::endl;
+    } else {
+        std::cout << "USE_FIX_PATH is not set." << std::endl;
+    }
+
     if (g_instanceCreated) {
         if (g_libName != resolvedName) {
             OPENVINO_THROW("NPUVMRuntimeApi is already initialized with '",
@@ -76,12 +84,25 @@ void NPUVMRuntimeApi::initialize(std::string_view libName) {
 }
 
 const std::shared_ptr<NPUVMRuntimeApi>& NPUVMRuntimeApi::getInstance() {
+    // Function-local static: initialization is thread-safe in C++11+ and runs exactly once.
     static std::shared_ptr<NPUVMRuntimeApi> instance = []() {
-        std::lock_guard<std::mutex> lock(g_instanceMutex);
-        auto runtimeApi = std::make_shared<NPUVMRuntimeApi>(g_libName);
+        std::shared_ptr<NPUVMRuntimeApi> runtimeApi;
+        const char* path_env = std::getenv("USE_FIX_PATH");
+        if (path_env != nullptr) {
+            std::cout << "USE_FIX_PATH is set to: " << path_env << std::endl;
+            std::lock_guard<std::mutex> lock(g_instanceMutex);
+            std::cout << "Init lock(g_instanceMutex)." << std::endl;
+            // Explicitly construct with the selected library under the lock.
+            runtimeApi = std::make_shared<NPUVMRuntimeApi>(g_libName);
+        } else {
+            std::cout << "USE_FIX_PATH is not set." << std::endl;
+            // Default construction method.
+            runtimeApi = std::make_shared<NPUVMRuntimeApi>();
+        }
         g_instanceCreated = true;
         return runtimeApi;
     }();
+
     return instance;
 }
 

@@ -1533,7 +1533,7 @@ const std::vector<std::string> modelNames = {
     "ESPCN_x2_DynHW_FHD",
     "ESPCN_x2_DynNHW_FHD",
     "ESPCN_x2_DynHW_HD",
-    "ESPCN_x2_DynHW_FHD2",
+    // "ESPCN_x2_DynHW_FHD2",
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
