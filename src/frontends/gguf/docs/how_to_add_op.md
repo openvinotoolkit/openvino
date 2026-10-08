@@ -1,23 +1,27 @@
 # Adding an op translator to the GGUF frontend
 
-Procedure for enabling a ggml operation. For the *concepts* behind it — the two decoder paths, the
-`GGML_OP_NONE` weight convention, `op_case` numbering, the memory model — read
-`frontend_design.md` first; this document does not repeat them.
+Procedure for enabling a ggml operation. Start with the [two input paths](../README.md),
+[tensor/layout contracts](architectures.md#tensor-operations-and-shapes), and
+[weight representations](quantization.md). Weight leaves use `GGML_OP_NONE` and supply data
+to `translate_weight`; input leaves use the same op name but are resolved to Parameters first.
 
-Related: [adding_an_architecture.md](adding_an_architecture.md) (enabling a model family, which
+Related: [architectures.md](architectures.md) (enabling a model family, which
 usually needs *no* new op), [debugging_accuracy.md](debugging_accuracy.md) (when a translator
 converts but produces wrong numbers).
+
+To supply a converter from an external library without modifying the built-in table, use
+[`ConversionExtension`](extensions.md#add-or-override-an-operation-converter). Register it on the
+same frontend as any architecture or projector extension before conversion.
 
 ## Before writing a translator
 
 Check that an op translator is actually what is missing:
 
-- **A new architecture** normally needs only an entry in `arch_registry.cpp` — see
-  [adding_an_architecture.md](adding_an_architecture.md). Reach for a translator only when the graph
-  genuinely contains a ggml op the table does not have.
+- **A new architecture or projector** needs an appropriate [builder registration](extensions.md#choose-an-extension).
+  Add a translator only when its computation needs an operation missing from the table.
 - **A structurally different use of an existing op** is an `op_case`, not a new translator. Read the
-  `op_case` section of `frontend_design.md` before adding a case — a case that
-  exists only to mean "this came from the builder" is a defect.
+  [tensor operation contracts](architectures.md#tensor-operations-and-shapes) before
+  adding a case. Its number selects a converter's semantic variant, not the decoder's identity.
 - Both decoder paths (native builder and llama.cpp cgraph) share translator bodies, so a change here
   affects both. Keep the body path-agnostic; branch on `op_case`, never on "which decoder made this".
 
@@ -63,6 +67,11 @@ Always finish with `rename_outputs_with_suffix(..., context.get_name())`: the wa
 the `TensorMap` under the decoder's output names, and stable friendly names are what the passes and
 the graph-fingerprint gate rely on.
 
+A ggml node has one output. A native builder may declare more with `add_op(..., extra_outputs)`;
+the translator then returns one output per name, in order. `GATED_DELTA_NET` uses this
+(`split_outputs`) to return the attention and the new recurrent state separately instead of
+ggml's packed tensor.
+
 `NodeContext` ([`src/node_context.hpp`](../src/node_context.hpp)):
 
 | Call | Purpose |
@@ -70,18 +79,52 @@ the graph-fingerprint gate rely on.
 | `get_input(idx)` / `get_input(name)` | Operand as `Output<Node>` |
 | `has_input(name)` | Test an optional operand first |
 | `get_input_size()` | Actual operand count |
-| `get_input_shape(idx)` / `get_output_shape()` | **Static ggml** shape — use when the live OV shape is dynamic (KV-cache path) |
+| `get_input(idx).get_partial_shape()` | Shape inferred by OpenVINO, including dynamic dimensions |
+| `get_input_shape(idx)` | Source layout when supplied by a cgraph decoder; otherwise the inferred input shape padded to GGML rank four |
+| `get_output_shape()` | Legacy cgraph destination layout; unavailable for native builder operations |
 | `get_input_view_element_offset(idx)` | Element (not byte) offset for a ggml VIEW operand |
 | `get_op_case()` | Structural variant (convenience wrapper, defaults to 0) |
-| `get_output_type()` | Declared output element type |
 | `get_attribute<T>(name[, default])` | Any other typed op parameter |
 
 Helpers in [`src/utils.hpp`](../src/utils.hpp): `num_inputs_check`, `get_dimensions`,
 `rename_outputs_with_suffix`, `make_sin_cos` (RoPE), `process_view_input`.
 
-Insert a `Convert` to `get_output_type()` when the op may change element type (`CONCAT`, `CPY`,
-`SET_ROWS`, `GET_ROWS`) rather than assuming the input type. Prefer `ov::op::vX::OpName` over
-`opsetX::OpName`, per the repository convention.
+`TOP_K` accepts an `int64_t` attribute `k`; OpenVINO infers the output shape from the input
+and this parameter. For compatibility, decoders that omit `k` must supply a static last
+output dimension, where ggml stores `k`. An unknown `k` is rejected, never inferred from
+the input width.
+
+`ROPE` accepts an optional `int64_t` attribute `rope_offset` (default zero), matching
+`ggml_rope_set_offset`: rotate `n_dims` channels starting at that even offset and preserve
+the prefix and tail of each head.
+
+`FLASH_ATTN_EXT` accepts an optional boolean `sink_without_mask` attribute for a decoder
+that compacts null ggml sources: set it when `src[3]` is null and `src[4]` contains
+attention sinks, leaving four input tensors. The cgraph convention of naming that
+weight `*.attn_sinks.weight` is also recognized. Otherwise the fourth tensor is
+treated as an attention mask; its shape and element type cannot distinguish a
+mask from sinks (an F32 mask can have the same shape as a sink).
+
+Converters must infer intermediate shapes from their OpenVINO operands, reading only the axes
+needed for the operation. A dynamic token axis does not prevent reading a static head width.
+Use explicit attributes for operation parameters: `reshape_target` / `special_zero`, `view_slice`,
+`repeats`, and TopK `k`. Source destination shapes may provide compatibility defaults for existing
+cgraph importers; native builders never manufacture them. A new converter also serves `GgufGraphContext::node`
+without a separate shape implementation in the builder.
+
+Result-type rules belong in the converter, not in the builder or architecture. `MUL_MAT` and
+`MUL_MAT_ID` produce F32, `TOP_K`/`ARGSORT` produce I32, and `GET_ROWS` returns I32 for integer
+rows and F32 for floating/quantized rows. Type-preserving operations use their input type;
+`SET`, `SET_ROWS` and `CPY` use the destination operand. Construct the OpenVINO computation in
+the appropriate precision; casting an already-overflowed F16 matrix product to F32 is too late.
+
+Only operations with an explicit destination-type parameter accept `dst_type`: a one-input `CPY`
+represents a cast, and `IM2COL` takes the type chosen by the caller. Those converters also accept
+legacy cgraph `output_type` metadata when no destination type can otherwise be determined.
+Native graph nodes have no output-type field or default-type table. A new converter derives its
+own result type from operation semantics, inputs and attributes.
+
+Prefer `ov::op::vX::OpName` over `opsetX::OpName`, per the repository convention.
 
 ## Test, and the coverage gate
 
@@ -112,15 +155,13 @@ TEST(GGUFOps, Scale) {
 `SingleOpBuilder` drives the real `FrontEnd::convert` through an in-memory `SingleOpDecoder`, so no
 `.gguf` file is involved. Helpers are in [`op_test_utils.hpp`](../tests/op_test_utils.hpp).
 
-**Where the expected values come from matters more than the test's shape.** Per the one rule in
-[debugging_accuracy.md](debugging_accuracy.md), the reference must come from real ggml, not from
-your own reading of the op's math:
+Use the [reference policy](debugging_accuracy.md#reference-and-precision):
 
 - Simple elementwise ops with an unambiguous closed form — compute inline in the test.
 - Anything with layout, geometry or head structure (rope, conv, attention, views) — generate the
-  reference from ggml-CPU: an `.npy` fixture via `gen_ggml_reference.c`,
-  or a standalone oracle such as `ssm_conv_oracle.c` / `imrope_oracle.c`, and paste its output with a
-  comment naming the oracle.
+  reference from ggml-CPU with a standalone oracle such as `ssm_conv_oracle.c` / `imrope_oracle.c`
+  (see [the ggml-CPU oracle](debugging_accuracy.md#the-ggml-cpu-oracle)). Commit the oracle with the
+  test and name it in a comment next to the pasted or `.npy` expectations.
 
 Test at realistic dimensions. With one head many layout orders coincide, so a single-head test can
 pass against a wrong reference.
@@ -132,32 +173,15 @@ tuned only on fp32 x86 will fail there.
 To find the closest existing example without reading the whole (large) file:
 
 ```bash
-grep -n "^TEST(" src/frontends/gguf/tests/test_ops.cpp
+rg -n '^TEST\(' src/frontends/gguf/tests/test_ops.cpp
 ```
 
 ## Build and run
 
-The frontend is **off by default** (`ENABLE_OV_GGUF_FRONTEND` in
-[`cmake/features.cmake`](../../../../cmake/features.cmake)); without it the test target does not
-exist.
-
-```bash
-cmake -B build -DENABLE_OV_GGUF_FRONTEND=ON -DENABLE_TESTS=ON
-cmake --build build --target ov_gguf_frontend_tests -j$(nproc)
-
-# iterate on one op ...
-./build/bin/*/*/ov_gguf_frontend_tests --gtest_filter='GGUFOps.<Name>*'
-# ... then unfiltered, so the coverage gate actually runs
-./build/bin/*/*/ov_gguf_frontend_tests
-```
-
-CI runs the same binary in the "GGUF frontend tests" step of
-[`job_cxx_unit_tests.yml`](../../../../.github/workflows/job_cxx_unit_tests.yml), ungated by Smart CI.
-
-For a change that touches a shared translator or a VIEW/`op_case` predicate, also re-run the
-graph-fingerprint check ([`tests/graph_fingerprint.py`](../tests/graph_fingerprint.py)) across the
-supported architectures: a guard that fixes one arch can reject another's legitimately-contiguous
-view.
+Follow [testing.md](testing.md) for build flags, binary paths, filters, and CI coverage.
+Run the frontend binary unfiltered before finishing so the operation-coverage gate executes.
+Shared translator or VIEW/`op_case` changes also need architecture fingerprints and numerical
+regressions: a guard that fixes one model can reject another's legitimately contiguous view.
 
 ## Bringing up a model that hits a missing op
 

@@ -4,8 +4,7 @@
 
 #include "openvino/frontend/sequence_insert.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 SequenceInsert::SequenceInsert(const Output<Node>& input_sequence, const Output<Node>& tensor)
     : FrameworkNode({input_sequence, tensor}, 1) {}
@@ -24,5 +23,4 @@ std::shared_ptr<Node> SequenceInsert::clone_with_new_inputs(const OutputVector& 
     OPENVINO_THROW("SequenceInsert requires 2 or 3 inputs");
 }
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

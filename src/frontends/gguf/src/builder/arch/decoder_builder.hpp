@@ -9,15 +9,14 @@
 #include <string>
 #include <unordered_map>
 
+#include "builder/arch_registry.hpp"
 #include "builder/blocks/attention.hpp"
 #include "builder/decoder_config.hpp"
 #include "builder/graph_emitter.hpp"
-#include "builder/model_builder.hpp"
+#include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "quant/gguf.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Whole-model builder for the causal decoder family: the "llama family" of dense and MoE
 // decoder-only transformers (llama-3, qwen2/2.5/3, phi-3, minicpm, gemma 1-4, gpt-oss, OLMoE,
@@ -36,7 +35,10 @@ class DecoderBuilder : public ModelBuilder {
 public:
     DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
                    std::unordered_map<std::string, ov::Tensor>& weights,
-                   std::unordered_map<std::string, GgufTensorType>& qtypes);
+                   std::unordered_map<std::string, GgufTensorType>& qtypes,
+                   std::optional<RopeMode> rope = {},
+                   const DecoderOptions& options = {},
+                   const std::unordered_map<std::string, CreatorFunction>* translators = nullptr);
 
     std::shared_ptr<GgufGraph> build() override;
 
@@ -58,18 +60,13 @@ private:
 
     // Final norm, lm_head, and the optional logit scale / soft-cap.
     std::string build_head(const std::string& cur);
+    bool selects_output_rows(int il) const {
+        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model;
+    }
 
     DecoderConfig m_cfg;
     GraphEmitter m_emit;
     blocks::KvCachePlan m_kv;
-
-    // Per-node output shapes are STATIC, like the cgraph decoder (which builds the graph for a
-    // concrete token length). We use a representative token length T; the translators emit dynamic
-    // reshapes (-1 / 0) where needed, and MakeStateful + the dynamic input Parameters carry the
-    // real dynamic-ness. T affects only the per-node shape metadata.
-    static constexpr int64_t T = 1;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

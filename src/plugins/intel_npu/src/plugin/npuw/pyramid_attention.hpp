@@ -147,7 +147,11 @@ struct PyramidAttentionContiguousInfo {
     };
 
     std::size_t mask_idx_local = 0u;
-    std::size_t query_size = 0u;
+    // Query axis size of THIS tier's compiled sub-model. May be smaller than the group's
+    // original_query_length if PropagateSliceUp reduced the SDPA's query axis to 1 — use
+    // only for reasoning about this tier's own physical tensors, never as a mask/KV-axis
+    // chunk-size stand-in (see PyramidAttention::original_query_length for that).
+    std::size_t compiled_query_size = 0u;
     std::size_t context_length = 0u;
 
     // Per-step KV slice descriptors used to bind past KV windows to pyramid variants.
@@ -168,7 +172,8 @@ struct PyramidAttentionBlockInfo {
     // model, NOT the global index. Compare against PyramidAttention::global_mask_idx, never
     // against a caller-supplied global input_idx.
     std::size_t mask_idx_local = 0u;
-    std::size_t query_size = 0u;
+    // See PyramidAttentionContiguousInfo::compiled_query_size for the same caveat.
+    std::size_t compiled_query_size = 0u;
     std::size_t context_length = 0u;
 
     // Precomputed set of this variant's LOCAL KV block port indices.
@@ -207,7 +212,11 @@ struct PyramidAttention {
     // Shared data
     std::vector<ov::SoPtr<ov::ICompiledModel>> _compiled_models;
     std::vector<std::size_t> _context_lengths;
-    std::size_t query_size = 0u;
+    // Original (pre-PropagateSliceUp) query/chunk length, recovered via
+    // resolve_original_query_length(). Shared by all tiers; safe to use for mask/KV-axis
+    // "how many new columns" math. NOT the same as compiled_query_size_at(), which reflects
+    // a specific tier's actual (possibly sliced) compiled query axis.
+    std::size_t original_query_length = 0u;
     std::size_t full_context_size = 0u;
     /// Whether non-last pyramid models were compiled with strided-input support.
     bool _can_use_tensor_view = false;
@@ -231,7 +240,7 @@ struct PyramidAttention {
     // Shared per-variant accessors. Returns the LOCAL (this variant's) mask index — do not
     // compare it against a global input_idx; use global_mask_idx for that.
     virtual std::size_t mask_idx_local_at(size_t pyramid_id) const = 0;
-    virtual std::size_t query_size_at(size_t pyramid_id) const = 0;
+    virtual std::size_t compiled_query_size_at(size_t pyramid_id) const = 0;
 
     // Block-mode accessors (contiguous subclass returns empty containers / zero)
     // Contiguous subclass returns empty containers / zero for all of these.
@@ -297,8 +306,8 @@ struct PyramidAttentionContiguous final : PyramidAttention {
     std::size_t mask_idx_local_at(size_t id) const override {
         return _attention_infos[id].mask_idx_local;
     }
-    std::size_t query_size_at(size_t id) const override {
-        return _attention_infos[id].query_size;
+    std::size_t compiled_query_size_at(size_t id) const override {
+        return _attention_infos[id].compiled_query_size;
     }
     const std::unordered_set<size_t>& key_block_port_set_at(size_t) const override;
     const std::unordered_set<size_t>& val_block_port_set_at(size_t) const override;
@@ -339,8 +348,8 @@ struct PyramidAttentionBlock final : PyramidAttention {
     std::size_t mask_idx_local_at(size_t id) const override {
         return _attention_infos[id].mask_idx_local;
     }
-    std::size_t query_size_at(size_t id) const override {
-        return _attention_infos[id].query_size;
+    std::size_t compiled_query_size_at(size_t id) const override {
+        return _attention_infos[id].compiled_query_size;
     }
     const std::unordered_set<size_t>& key_block_port_set_at(size_t id) const override {
         return _attention_infos[id].past_key_block_port_set;

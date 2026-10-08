@@ -13,6 +13,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 #include "op_test_utils.hpp"
 #include "quant/weights.hpp"
@@ -86,33 +87,37 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q4_k", "Q4_K", kTolU4Requant},
                                            WeightCase{"q5_k", "Q5_K", kTolRequant},
                                            WeightCase{"q6_k", "Q6_K", kTolRequant},
-                                           WeightCase{"q2_0", "Q2_0", kTolFaithful}),
+                                           WeightCase{"q2_0", "Q2_0", kTolFaithful},
+                                           WeightCase{"q1_0", "Q1_0", kTolFaithful}),
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });
 
 // token_embd / output are requantized to channel-wise Q8_0_C, and that path reads the zero-point
 // as f16 -- Q2_0 used to hard-code u8 here, which threw for every ternary model.
-TEST(GGUFWeightRequant, Q2_0AsTokenEmbd) {
+TEST(GGUFWeightRequant, Q2_0AsTokenEmbdAndOutput) {
     const auto qbytes = load_npy<uint8_t>("q2_0_qbytes");
     const auto ref = load_npy<float>("q2_0_deq");
     ASSERT_EQ(ref.size(), kRows * kCols);
 
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_NONE")
-                     .output("token_embd.weight", ov::element::f32, {kRows, kCols})
-                     .attr<ov::Tensor>("data", bytes_to_u8_tensor(qbytes))
-                     .attr<std::string>("quant_type", "Q2_0")
-                     .build();
+    for (const std::string name : {"token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_NONE")
+                         .output(name, ov::element::f32, {kRows, kCols})
+                         .attr<ov::Tensor>("data", bytes_to_u8_tensor(qbytes))
+                         .attr<std::string>("quant_type", "Q2_0")
+                         .build();
 
-    auto out = run_on_cpu(model, {});
-    ASSERT_EQ(out.get_size(), ref.size());
+        auto out = run_on_cpu(model, {});
+        ASSERT_EQ(out.get_size(), ref.size());
 
-    const float* a = out.data<float>();
-    float max_diff = 0.f;
-    for (size_t i = 0; i < ref.size(); ++i)
-        max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
-    EXPECT_LE(max_diff, kTolRequant) << "Q2_0 token_embd requant diverges from ggml to_float";
+        const float* a = out.data<float>();
+        float max_diff = 0.f;
+        for (size_t i = 0; i < ref.size(); ++i)
+            max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
+        EXPECT_LE(max_diff, kTolRequant) << "Q2_0 requant diverges from ggml to_float";
+    }
 }
 
 // An F16 weight is wrapped directly as a constant (no dequant); round-trips the raw bytes.
@@ -295,10 +300,13 @@ TEST(GGUFWeight, RejectsMissingAuxiliaryTensors) {
     EXPECT_THROW(make_weight_node(without_zero_point, GGUF_TYPE_Q4_K), ov::Exception);
 }
 
-TEST(GGUFWeight, UsesIntegerZeroPointForQ4KMatmulWeights) {
+TEST(GGUFWeight, UsesIntegerZeroPointForRequantizedMatmulWeights) {
     using namespace ov::frontend::gguf;
 
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q4_K), ov::element::u8);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.ffn_down.weight", GGUF_TYPE_Q4_1), ov::element::u8);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.ssm_out.weight", GGUF_TYPE_Q5_K), ov::element::u8);
     EXPECT_EQ(gguf_zero_point_type("token_embd.weight", GGUF_TYPE_Q4_K), ov::element::f16);
+    EXPECT_EQ(gguf_zero_point_type("output.weight", GGUF_TYPE_Q5_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q2_0), ov::element::u8);
 }

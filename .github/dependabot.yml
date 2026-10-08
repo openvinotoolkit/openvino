@@ -22,6 +22,10 @@ updates:
       - "rkazants"
       - "mryzhov"
     versioning-strategy: increase-if-necessary
+    groups:
+      pip-root:
+        patterns:
+          - "*"
 
   # Python API, Frontends
   - package-ecosystem: pip
@@ -36,8 +40,18 @@ updates:
       - "akuporos"
       - "rkazants"
       - "ceciliapeng2011"
-      - "meiyang-intel"
+      - "almilosz"
     versioning-strategy: increase-if-necessary
+    groups:
+      pip-python-api:
+        patterns:
+          - "*"
+        # exclude packages that usually need a dedicated PR
+        exclude-patterns:
+          - "onnx"
+          - "paddlepaddle"
+          - "tensorflow"
+          - "protobuf"
 
   # Tests
   - package-ecosystem: pip
@@ -52,6 +66,10 @@ updates:
       - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
+    groups:
+      pip-tests:
+        patterns:
+          - "*"
 
   # ovc and Benchmark tools
   - package-ecosystem: pip
@@ -71,13 +89,21 @@ updates:
       - dependency-name: "*"
         dependency-type: "production"
     versioning-strategy: increase-if-necessary
+    groups:
+      pip-tools:
+        patterns:
+          - "*"
 
   #
   # Python Samples
   #
 
   - package-ecosystem: pip
-    directory: "/samples/python/hello_reshape_ssd/"
+    directories:
+      - "/samples/python/hello_reshape_ssd/"
+      - "/samples/python/classification_sample_async/"
+      - "/samples/python/benchmark/bert_benchmark/"
+      - "/samples/python/hello_classification/"
     schedule:
       interval: "daily"
       time: "09:00"
@@ -89,48 +115,10 @@ updates:
       - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
-
-  - package-ecosystem: pip
-    directory: "/samples/python/classification_sample_async/"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Asia/Dubai"
-    open-pull-requests-limit: 10
-    assignees:
-      - "Wovchena"
-      - "p-wysocki"
-      - "akuporos"
-      - "rkazants"
-    versioning-strategy: increase-if-necessary
-
-  - package-ecosystem: pip
-    directory: "/samples/python/benchmark/bert_benchmark/"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Asia/Dubai"
-    open-pull-requests-limit: 10
-    assignees:
-      - "Wovchena"
-      - "p-wysocki"
-      - "akuporos"
-      - "rkazants"
-    versioning-strategy: increase-if-necessary
-
-  - package-ecosystem: pip
-    directory: "/samples/python/hello_classification/"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Asia/Dubai"
-    open-pull-requests-limit: 10
-    assignees:
-      - "Wovchena"
-      - "p-wysocki"
-      - "akuporos"
-      - "rkazants"
-    versioning-strategy: increase-if-necessary
+    groups:
+      pip-samples:
+        patterns:
+          - "*"
 
   # JavaScript API (Node.js bindings)
   - package-ecosystem: npm
@@ -185,6 +173,10 @@ updates:
       - "mryzhov"
       - "akladiev"
     open-pull-requests-limit: 10
+    groups:
+      npm-actions:
+        patterns:
+          - "*"
 
   # Github action workflows
   - package-ecosystem: github-actions
@@ -198,6 +190,10 @@ updates:
       - "mryzhov"
       - "akladiev"
     open-pull-requests-limit: 10
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   # Docker images
   - package-ecosystem: docker
@@ -214,3 +210,7 @@ updates:
       - "mryzhov"
       - "akladiev"
     open-pull-requests-limit: 10
+    groups:
+      docker-images:
+        patterns:
+          - "*"

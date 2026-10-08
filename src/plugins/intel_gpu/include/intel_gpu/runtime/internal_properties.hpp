@@ -23,6 +23,13 @@ static constexpr Property<std::string, PropertyMutability::RO> driver_version{"G
  */
 static constexpr Property<std::string, PropertyMutability::RO> device_id{"GPU_DEVICE_ID"};
 
+/**
+ * @brief Read-only property carrying the compile-time GPU runtime tag ("OCL"/"ZE"/"SYCL").
+ * Folded into the model cache key so OCL and ZE builds never share a cache blob.
+ * The key string is a cache-compatibility constant - do not rename across releases.
+ */
+static constexpr Property<std::string, PropertyMutability::RO> runtime_type{"GPU_RUNTIME_TYPE"};
+
 enum class QueueTypes : int16_t {
     in_order,
     out_of_order
@@ -213,7 +220,7 @@ static constexpr Property<size_t, ov::PropertyMutability::RW> usm_policy{"GPU_US
 static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> shape_predictor_settings{"GPU_SHAPE_PREDICTOR_SETTINGS"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
-static constexpr Property<bool, ov::PropertyMutability::RW> validate_output_buffer{"GPU_VALIDATE_OUTPUT_BUFFER"};
+static constexpr Property<int, ov::PropertyMutability::RW> validate_output_buffer{"GPU_VALIDATE_OUTPUT_BUFFER"};
 static constexpr Property<float, ov::PropertyMutability::RW> mem_pool_util_threshold{"GPU_MEM_POOL_UTIL_THRESHOLD"};
 static constexpr Property<bool, ov::PropertyMutability::RW> dump_src_after_exec{"GPU_DUMP_SRC_TENSORS_AFTER_EXEC"};
 static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"GPU_ALLOW_BYPASS_XATTN_EXEC"};

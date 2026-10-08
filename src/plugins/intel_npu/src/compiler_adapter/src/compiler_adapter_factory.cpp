@@ -4,21 +4,28 @@
 
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 
+#include "compiler_impl.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "plugin_compiler_adapter.hpp"
 
 namespace intel_npu {
 
-ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompilerTypeBasedOnPlatform(
-    std::string_view platform) const {
-    if (platform == ov::intel_npu::Platform::NPU4000 || platform == ov::intel_npu::Platform::NPU5010 ||
-        platform == ov::intel_npu::Platform::NPU5020 || platform == ov::intel_npu::Platform::NPU6010) {
-        return ov::intel_npu::CompilerType::PLUGIN;
+namespace {
+// Loads the compiler-in-plugin, translating any failure into the aborting message callers expect.
+// Composing the compiler here, rather than inside PluginCompilerAdapter, keeps the adapter free of
+// any knowledge of how a compiler is obtained.
+ov::SoPtr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& device,
+                                           const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
+    try {
+        return makeVCLCompiler(
+            device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
+            optionSupportCache);
+    } catch (const std::exception& vclException) {
+        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
     }
-
-    return ov::intel_npu::CompilerType::DRIVER;
 }
+}  // namespace
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,
@@ -37,10 +44,8 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     }
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-        return std::make_unique<PluginCompilerAdapter>(
-            engineBackend ? engineBackend->getInitStructs() : nullptr,
-            optionSupportCache,
-            device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt);
+        return std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
+                                                       makePluginCompiler(device, optionSupportCache));
     }
 
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
@@ -72,41 +77,54 @@ void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& com
     compilerType = resolvePreferPluginCompiler({}, nullptr, device, platform).second;
 }
 
+ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompilerTypeBasedOnPlatform(
+    std::string_view platform) const {
+    if (platform == ov::intel_npu::Platform::NPU4000 || platform == ov::intel_npu::Platform::NPU5010 ||
+        platform == ov::intel_npu::Platform::NPU5020 || platform == ov::intel_npu::Platform::NPU6010) {
+        return ov::intel_npu::CompilerType::PLUGIN;
+    }
+
+    return ov::intel_npu::CompilerType::DRIVER;
+}
+
 std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType>
 CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                     const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                                     const std::shared_ptr<intel_npu::IDevice>& device,
                                                     std::string_view platform) const {
-    if (!device) {
-        return {nullptr, ov::intel_npu::CompilerType::PLUGIN};
-    }
-
-    if (determineAppropriateCompilerTypeBasedOnPlatform(platform) == ov::intel_npu::CompilerType::DRIVER) {
-        return {nullptr, ov::intel_npu::CompilerType::DRIVER};
-    }
-
     const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
-    if (pluginCompilerPresence == PluginCompilerPresence::ABSENT) {
+    const bool onlineCompilation = device && (platform.empty() || device->getName() == platform);
+
+    if (onlineCompilation &&
+        determineAppropriateCompilerTypeBasedOnPlatform(platform) == ov::intel_npu::CompilerType::DRIVER) {
         return {nullptr, ov::intel_npu::CompilerType::DRIVER};
     }
 
     if (pluginCompilerPresence == PluginCompilerPresence::PRESENT) {
-        // Compiler is present, return compiler type as PLUGIN. The actual compiler will be created in getCompiler()
-        // method.
+        // The actual compiler will be created in getCompiler().
         return {nullptr, ov::intel_npu::CompilerType::PLUGIN};
+    }
+
+    if (pluginCompilerPresence == PluginCompilerPresence::ABSENT) {
+        if (onlineCompilation) {
+            return {nullptr, ov::intel_npu::CompilerType::DRIVER};
+        }
+        OPENVINO_THROW("Plugin compiler is absent for offline or cross compilation.");
     }
 
     if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
         try {
-            auto pluginCompiler = std::make_unique<PluginCompilerAdapter>(
-                engineBackend ? engineBackend->getInitStructs() : nullptr,
-                optionSupportCache,
-                device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt);
+            auto pluginCompiler =
+                std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
+                                                        makePluginCompiler(device, optionSupportCache));
             _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
             return {std::move(pluginCompiler), ov::intel_npu::CompilerType::PLUGIN};
         } catch (...) {
             _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
-            return {nullptr, ov::intel_npu::CompilerType::DRIVER};
+            if (onlineCompilation) {
+                return {nullptr, ov::intel_npu::CompilerType::DRIVER};
+            }
+            OPENVINO_THROW("Failed to create plugin compiler for offline or cross compilation.");
         }
     }
 
