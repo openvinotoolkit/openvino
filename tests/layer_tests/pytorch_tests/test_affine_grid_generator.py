@@ -17,14 +17,13 @@ class TestAffineGridGenerator(PytorchLayerTest):
                 super().__init__()
                 self.align_corners = align_corners
                 self.size = size
-                
+
             def forward(self, theta):
                 return torch.nn.functional.affine_grid(theta, self.size, align_corners=self.align_corners)
-        
+
         model = AffineGridGeneratorModel(size, align_corners)
-        ref_net = None
-        
-        return model, ref_net, "aten::affine_grid_generator"
+
+        return model, "aten::affine_grid_generator"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
