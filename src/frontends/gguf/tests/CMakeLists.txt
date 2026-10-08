@@ -24,6 +24,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/utils.cpp"
     "${FE_SRC_DIR}/helper_ops/set_rows_op.cpp"
     "${FE_SRC_DIR}/pass/adapt_to_genai.cpp"
+    "${FE_SRC_DIR}/pass/adapt_mmproj_to_genai.cpp"
     "${FE_SRC_DIR}/pass/lower_set_rows_stateless.cpp"
     "${FE_SRC_DIR}/pass/make_stateful.cpp"
     "${FE_SRC_DIR}/pass/prune_orphaned_parameters.cpp"
@@ -35,14 +36,18 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/gguf_builder_decoder.cpp"
     "${FE_SRC_DIR}/builder/graph_emitter.cpp"
     "${FE_SRC_DIR}/builder/arch_registry.cpp"
+    "${FE_SRC_DIR}/builder/projector_registry.cpp"
     "${FE_SRC_DIR}/builder/decoder_config.cpp"
     "${FE_SRC_DIR}/builder/model_kind.cpp"
     "${FE_SRC_DIR}/extension/architecture.cpp"
+    "${FE_SRC_DIR}/extension/projector.cpp"
     "${FE_SRC_DIR}/builder/api/graph_context.cpp"
     "${FE_SRC_DIR}/builder/api/metadata.cpp"
     "${FE_SRC_DIR}/builder/api/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mamba_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/mmproj_builder.cpp"
+    "${FE_SRC_DIR}/op/multimodal.cpp"
     "${FE_SRC_DIR}/builder/blocks/attention.cpp"
     "${FE_SRC_DIR}/builder/blocks/common.cpp"
     "${FE_SRC_DIR}/builder/blocks/ffn.cpp"
@@ -97,6 +102,7 @@ set(FRONTEND_SRCS
 )
 
 set(TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_mmproj.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_adapt_to_genai.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_accuracy.cpp"
@@ -153,6 +159,13 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
             PATTERN "*.npy"
             PATTERN "*.npz"
             PATTERN "manifest.txt")
+
+# tests/model_hub_tests/gguf/test_gguf_mmproj.py builds this oracle and reuses these helpers.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/mmproj_oracle.cpp"
+              "${CMAKE_CURRENT_SOURCE_DIR}/mmproj_fixtures.py"
+        DESTINATION tests/model_hub_tests/gguf
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 # Sources compiled into the binary: resolve the visibility macros to local definitions, not dllimport.
 target_compile_definitions(${TARGET_NAME} PRIVATE openvino_gguf_frontend_EXPORTS)
