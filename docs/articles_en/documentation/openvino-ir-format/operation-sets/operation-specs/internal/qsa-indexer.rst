@@ -4,30 +4,55 @@ QSAIndexer
 ==========
 
 .. meta::
-  :description: Learn about QSAIndexer - a model-specific, weight-free block-level indexer for Qwen Sparse Attention that consumes externally projected query and token keys, maintains an incremental pooled-key summary cache over the main PagedAttention page table plus a per-sequence pending ring buffer, and emits a clean (sel_indices, sel_count) block selection contract for the unified SparseSDPA / SparsePA consumers.
+  :description: Learn about QSAIndexer - the standard, stateful, functional-interface block-level indexer for Qwen Sparse Attention (QSA). It consumes externally projected query and key tokens plus an external ReadValue/Assign-wired state, maintains an incremental pooled-key summary cache, and emits a clean (sel_indices, sel_count) block-selection contract for the unified SparseSDPA / SparsePA consumers.
 
 **Versioned name**: *QSAIndexer*
 
 **Category**: *Internal*
 
 **Short description**:
-The *QSAIndexer* is the **model-specific plan producer** for Qwen Sparse Attention (QSA). It consumes an
-already-projected indexer query ``q_idx`` and per-token projected keys ``k_idx`` (produced by an ordinary
-``FullyConnected`` / ``MatMul`` outside the op), then performs the *K-side compression chain* — per-token or
-pooled key compression (mean-pool), GemmaRMSNorm, and RoPE at the historical block start — maintains the
-incremental ``summary_cache``, scores each block with a per-head ReLU dot-product reduced across *index* heads,
-and selects the top-:math:`K` blocks. It emits a **clean, producer-complete** ``(sel_indices, sel_count)`` block
-selection contract. The unified consumers ``SparseSDPA`` / ``SparsePA`` are deliberately *plan consumers*:
-they only gather KV at the selected blocks and perform online-softmax attention. No ``index_weights``, no
-output gate, no RoPE/norm parameters, and no ``r-1`` tail hack leak from the producer into the consumer.
+The *QSAIndexer* is the **model-specific plan producer** for Qwen Sparse Attention (QSA) in its
+**standard, non-paged, stateful** form. It is a pure *Functional State Interface* operation: all recurrent
+state (the completed-block summary cache and the incomplete pending block) is passed **in and out** as explicit
+state tensors, which the surrounding graph wires through external ``ReadValue`` / ``Assign`` nodes (optionally
+through a ``Gather(beam_idx)`` for beam search). This makes it suitable for **single-sequence / fixed-batch**
+SDPA pipelines (e.g. the ``LLMInferenceSDPAModule`` in ``openvino.pipeline.mx``) that do not use a paged KV
+cache. For continuous batching over a PagedAttention page table, see the separate
+:doc:`PagedQSAIndexer <paged-qsa-indexer>` operation.
+
+**Functional State Interface and graph wiring**
+
+Unlike the paged variant, *QSAIndexer* owns **no internal, opaque state** and reads **no page table**. It is a
+stateless function of its inputs plus the explicit state passed in on ``summary_past`` / ``pending_past`` /
+``pending_start_past``, and it returns the *updated* state on ``summary_present`` / ``pending_present`` /
+``pending_start_present``. The surrounding graph is responsible for the state lifecycle:
+
+.. code-block:: text
+
+   ReadValue(summary_state)  ----------> summary_past  ----> QSAIndexer ----> summary_present  ----> Assign(summary_state)
+   ReadValue(pending_state)  ----------> pending_past  ----> QSAIndexer ----> pending_present  ----> Assign(pending_state)
+   ReadValue(pending_start)  ----------> pending_start_past -> QSAIndexer -> pending_start_present -> Assign(pending_start)
+
+   Gather(ReadValue(summary_state), beam_idx, axis=0)  ----> summary_past
+   Gather(ReadValue(pending_state), beam_idx, axis=0)  ----> pending_past
+   Gather(ReadValue(pending_start), beam_idx, axis=0)  ----> pending_start_past
+
+   beam_idx (a Parameter) -> Gather(ReadValue(var), beam_idx, axis=0)
+
+When beam search is used, the **state tensors only** are gathered with ``beam_idx`` before the op, so each
+hypothesis branch carries its own independent summary / pending / RoPE-start state. ``beam_idx`` is a plain
+``Parameter``; the ``Gather(ReadValue(var), beam_idx, axis=0)`` applies **only** to the three state tensors
+(``summary_past``, ``pending_past``, ``pending_start_past``) — never to ``q_idx``, ``k_idx``, or
+``k_rope_cos_sin``, which are produced fresh for the step and are identical across hypotheses. The op itself is
+pure: the same inputs yield the same outputs, making it trivially re-runnable for rollback and deterministic
+across devices.
 
 **Detailed description**
 
-The *QSAIndexer* realizes the *producer* side of the sparse-attention split. It is *model-specific*: it
-encodes the exact QSA reference math (mean-pool :math:`\to` RMSNorm :math:`\to` block-start RoPE :math:`\to`
-per-head ReLU score :math:`\to` top-k), in contrast to the *unified* ``SparseSDPA`` / ``SparsePA`` consumers
-which are model-agnostic. The indexer GEMM weight (``index_qk_proj``) is **kept outside** this op as a
-standard ``FullyConnected`` / ``MatMul`` for four reasons:
+The *QSAIndexer* realizes the *producer* side of the sparse-attention split in its **standard, non-paged**
+form. It is *model-specific*: it encodes the exact QSA reference math (mean-pool :math:`\to` RMSNorm :math:`\to`
+block-start RoPE :math:`\to` per-head ReLU score :math:`\to` top-k). The indexer GEMM weight (``index_qk_proj``)
+is **kept outside** this op as a standard ``FullyConnected`` / ``MatMul`` for four reasons:
 
 1. **Quantization (NNCF INT4/FP8).** Keeping the projection as an ordinary MatMul lets the NNCF weight-
    compression passes rewrite it without touching an opaque fused primitive. Dequantizing a compressed
@@ -47,153 +72,108 @@ and a block summary can only be maintained :math:`O(1)` per new token by an inte
 therefore applies to *weights* (explicit, external GEMM) and not to *compression semantics* (atomic, cached,
 inside the op).
 
-**Data flow and cache organization**
+**Head layout and the index-head grouping**
 
-The K-side history is maintained as two caches that reuse the main PagedAttention page table and add one small
-per-sequence ring buffer:
+The indexer distinguishes two head dimensions that are **derived from the input shapes**, not from an attribute:
 
-- ``summary_cache`` ``[num_blocks, 1, page_size / compress_ratio, D_idx]``: the mean-pooled, RMSNorm'ed,
-  block-start-RoPE'ed summary key of each *completed* block. This is the incrementally-updated artifact that
-  makes the per-token update :math:`O(1)`. It is addressed by the **same page table** as the main PagedAttention
-  KV cache (``block_indices`` / ``block_indices_begins``). For sequence ``s``, block ``b`` (covering logical
-  tokens ``[b*r, (b+1)*r - 1]``) is stored at the physical location
-  ``summary_cache[phys, 0, slot_in_block, :]`` with
-  ``phys = block_indices[block_indices_begins[s] + (b * r) // page_size]`` and
-  ``slot_in_block = (b * r % page_size) // r``. This requires ``page_size % compress_ratio == 0`` so every
-  summary slot maps to a fixed position inside one physical page.
-- ``pending_k_cache`` ``[num_slots, compress_ratio, 1, D_idx]``: the projected, per-token indexer keys of the
-  *currently incomplete* block of each sequence, held in a **per-sequence ring buffer** (one ring slot per
-  sequence, addressed by ``slot_mapping``). It is addressed **by logical position**: for a token at logical
-  position :math:`pos`, the ring offset is :math:`off = pos \bmod r` and the key is stored in
-  ``pending_k_cache[slot, off, 0, :]``. Position addressing makes the op **idempotent and decode-continuous**:
-  re-running a step writes the same slot, and a chunked prefill that resumes at ``off == 0`` re-establishes the
-  same block-start state without any internal counter. The ring is *not* a full-history cache (dropping the
-  legacy ``raw_k_cache`` avoids its +12.5% VRAM overhead). RoPE is not baked into these raw keys.
+- ``q_idx`` carries ``H_iq`` index-*query* heads in its penultimate dimension (``[B, L, H_iq, D_idx]``).
+- ``k_idx`` carries ``H_ik`` index-*key* heads in its penultimate dimension (``[B, L, H_ik, D_idx]``).
 
-  .. note::
-     **Decode mode.** With ``capacity = compress_ratio`` (exactly one block per slot), the ring supports
-     **standard greedy / autoregressive decoding only**. Re-running an arbitrary recent step to **roll back a
-     speculative-decode draft** is *not* supported: the ring is overwritten in place once a block completes and
-     would lose the tokens needed to replay a rolled-back prefix. To support rollback of a speculative draft of
-     length :math:`N`, the ring capacity would need to be :math:`C \ge r + N` (as done by vLLM), retaining the
-     last :math:`N` tokens of the previous block alongside the current incomplete block. This spec adopts the
-     compact :math:`C = r` design and defers that extension.
-- ``pending_start_cos_sin`` ``[num_slots, 2 * indexer_rotary_dim]``: the precomputed RoPE ``(cos, sin)`` at the
-  block-start position of the pending block. It is refreshed at the start of each block, i.e. when the first
-  token of a block (``off == 0``) arrives: ``pending_start_cos_sin[slot] = rope_cos_sin[t]`` (see the
-  pseudo-code).
-- ``rope_cos_sin`` ``[tokens, 2 * indexer_rotary_dim]``: per-token RoPE ``(cos, sin)`` for the query step,
-  materialized from the full table by the caller (decouples logical index from RoPE coordinate, see below).
-
-A block is *completed* once exactly :math:`r` raw keys have been appended (the pending ring fills and its
-summary is flushed into ``summary_cache``). The last, partially-filled block of a sequence is *not* summarized
-into ``summary_cache``; instead it is emitted as a **valid block index** in the output (the producer-completeness
-rule), so the consumer gathers it as a partial block without any ``r-1`` tail hack in the selection encoding.
-
-**Logical index vs. RoPE coordinate (M-RoPE)**
-
-The op separates the *logical KV index* used for block addressing and causal filtering from the *RoPE
-coordinate* used for positional rotation. The **logical position** of a token is derived from
-``past_lens`` and the sequence partition (``subsequence_begins``): for sequence ``s`` and token ``t``,
-:math:`pos = past\_lens[s] + (t - subsequence\_begins[s])`. This logical position drives (a) which blocks are
-causally valid and (b) the pending ring slot addressing. The **RoPE coordinate** for the key side is a purely
-positional quantity, captured once per block in ``pending_start_cos_sin``; for the query side it is supplied per
-token via ``rope_cos_sin``, which the caller materializes from the full table using the appropriate (possibly
-M-RoPE) coordinate. This decoupling is what makes 3-axis M-RoPE expressible: each axis rotates over its own
-coordinate (token index, image row, image column) taken from the appropriate position tensor, while the block
-grid and page-table addressing stay purely logical.
-
-**Completeness of the emitted selection**
-
-The emitted plan is a **set of block indices** — unordered and duplicate-free. Every block a query must attend
-to is present as a *valid* index in the contiguous prefix ``sel_indices[:sel_count]``:
-
-- the **top-k scored** complete blocks among the causally-valid complete blocks,
-- the **causal diagonal / incomplete block** (unconditionally appended immediately after the selected complete
-  blocks, so the consumer knows to gather it partially).
-
-No sink / sliding-window declarations are made here: any such blocks, if required by a model, are scored and
-selected through the same top-k path, and the causal-diagonal block is always included. The valid indices are
-written contiguously from slot ``0`` (no interior ``-1`` holes); only the tail past ``sel_count`` is ``-1``
-padded. This is the *producer-completeness* contract: the emitted plan is a **block-level coarse filter (Block
-Eligibility)** — it guarantees no future / not-yet-written complete block leaks into the selection, and it is
-position-free. The consumers (``SparseSDPA`` / ``SparsePA``) never re-derive the block selection; they gather
-exactly the blocks named by the valid prefix of ``sel_indices`` and counted by ``sel_count``, and apply the
-**token-level fine filter (Token-level Precision)** — the exact :math:`kpos \le q_{abs}` causal truncation that
-is the final guarantee of correctness. An empty selection (``sel_count == 0``, e.g. a query with no
-causally-valid complete block) yields a zero-filled selection; the consumer produces a zero output vector for
-that row.
-
-**Score computation**
-
-For a query at logical position :math:`p` with projected query :math:`q \in \mathbb{R}^{H_{idx}\times D_{idx}}`
-and block :math:`b` whose (single) summary key is :math:`\bar{k}_b \in \mathbb{R}^{D_{idx}}`, the per-selection-
-head score is a **grouped reduction over index heads**:
+``H_ik`` is configurable and taken from the ``k_idx`` shape, never hard-coded to ``1``. This lets a single block
+summary key be stored per index-key head, so models that need more than one key projection head are expressible
+without adding a special-case attribute. The score for selection head ``sh`` is a grouped, per-query-head ReLU
+reduction. The grouping is fully determined by the head counts:
 
 .. math::
 
-    s_{b, sh} = \frac{1}{\sqrt{D_{idx}}} \sum_{h \in \mathrm{group}(sh)} \mathrm{ReLU}\!\left( \langle \mathrm{RoPE}_{pos(p)}(\mathrm{RMSNorm}(q_h)),\, \bar{k}_b \rangle \right)
+    H_{iq} \bmod H_{ik} = 0, \quad G = H_{iq} / H_{ik}, \quad \mathrm{kv}(h) = \lfloor h / G \rfloor, \quad
+    \mathrm{sel}(h) = \lfloor \mathrm{kv}(h) \cdot H_{sel} / H_{ik} \rfloor
 
-where :math:`\bar{k}_b = \mathrm{RoPE}_{b\cdot r}(\mathrm{RMSNorm}(\tfrac{1}{r}\sum_{j=0}^{r-1} k_{b\cdot r + j}))`
-(a single key head). The ReLU is applied *per index head before reduction over heads*, matching the reference QSA
-implementation. The indexer query :math:`q` arrives already projected (external GEMM); the op applies the query
-RMSNorm and partial RoPE from ``q_norm_weight`` and ``rope_cos_sin`` at the query's own position.
+    s_{b, sh} = \frac{1}{\sqrt{D_{idx}}} \sum_{\substack{h \in [0, H_{iq}) \\ \mathrm{sel}(h) = sh}}
+        \mathrm{ReLU}\!\left( \langle q_{h}, \bar{k}_{b, \mathrm{kv}(h)} \rangle \right)
 
-The reduction is over ``num_index_heads`` (:math:`H_{idx}`) index heads, partitioned into **disjoint groups**
-indexed by the selection head :math:`sh \in [0, H_{sel})`. Each group :math:`\mathrm{group}(sh)` is the set of
-index heads that contribute to selection head :math:`sh`; the groups must be a partition of :math:`[0, H_{idx})`.
-Under QSA (:math:`H_{sel}=1``) the single group contains all :math:`H_{idx}` index heads, so the score is reduced
-over every index head and emitted on the single selection head. When :math:`H_{sel}>1` the group size is
-:math:`H_{idx} / H_{sel}`, which requires :math:`H_{idx} \bmod H_{sel} == 0`. Because the key summary
-:math:`\bar{k}_b` is a single vector (there is only one key head), every index head in a group scores against
-the same :math:`\bar{k}_b`; only the query head differs.
+where:
 
-**Selection heads vs. index heads**
+- ``H_iq % H_ik == 0`` and :math:`G = H_{iq} / H_{ik}` is the number of index-*query* heads sharing one
+  index-*key* head,
+- :math:`\mathrm{kv}(h) = \lfloor h / G \rfloor` maps index-query head :math:`h` to its index-key head
+  :math:`\mathrm{kv}(h) \in [0, H_{ik})`,
+- :math:`H_{sel} \in \{1, H_{ik}\}` is the number of selection heads, and
+- :math:`\mathrm{sel}(h) = \lfloor \mathrm{kv}(h) \cdot H_{sel} / H_{ik} \rfloor` maps the index-key head of
+  query head :math:`h` to its selection head.
 
-The op distinguishes two head counts:
+:math:`\bar{k}_{b, \mathrm{kv}(h)}` is the per-index-key-head summary key of block :math:`b`. The ReLU is applied
+per index-query head before reduction over heads, matching the reference QSA implementation. Under QSA
+(:math:`H_{iq} = 4`, :math:`H_{ik} = 1`, :math:`H_{sel} = 1`) all four index-query heads map to the single
+index-key head and the single selection head, so the score is the sum over all four per-head ReLU dot-products.
 
-- ``num_index_heads`` (:math:`H_{idx}`): the heads of the indexer projection. Each head produces an independent
-  query/key summary, the per-head ReLU dot-product is summed (in groups) over these heads to yield one scalar per
-  selection head per block.
-- ``h_sel`` (:math:`H_{sel}`): the heads of the emitted *selection*. Under QSA, :math:`H_{sel} = 1` — a single
-  shared selection drives every query/KV head of the main attention. Models with per-KV-head selection use
-  :math:`H_{sel} = H_{kv}` of the main attention.
+**State organization**
 
-Under QSA the score is reduced over all :math:`H_{idx}` index heads (a single group) and then broadcast to the
-single :math:`H_{sel}=1` selection; the two counts coincide only when the model picks a single index head. The
-grouping constraint is :math:`H_{idx} \bmod H_{sel} == 0` (see "Score computation").
+The K-side history is maintained as two explicit state tensors plus one RoPE-start state:
+
+- ``summary_past`` / ``summary_present`` ``[B, H_ik, N_c, D_idx]``: the mean-pooled, RMSNorm'ed, block-start-
+  RoPE'ed summary keys of the **completed** blocks (:math:`N_c = \lfloor (S_0 + L) / r \rfloor` complete blocks
+  after this step, with :math:`S_0` the number of already-stored token positions). This is the incrementally-
+  updated artifact that makes the per-token update :math:`O(1)`.
+- ``pending_past`` / ``pending_present`` ``[B, H_ik, P, D_idx]``: the projected, per-token indexer keys of the
+  **currently incomplete** block, with :math:`P = S_0 \bmod r \in [0, r)` on input (``pending_past``) and
+  :math:`P' = (S_0 + L) \bmod r` on output (``pending_present``). These are the raw
+  (unrotated) keys that will be pooled into the next completed-block summary when the block fills.
+- ``pending_start_past`` / ``pending_start_present`` ``[B, 2 * indexer_rotary_dim]``: the precomputed RoPE
+  ``(cos, sin)`` at the block-start position of the pending block, refreshed when the first token of a block
+  arrives.
+
+The **logical position** of a token is ``S_0 + l`` (batch element ``b``, step token ``l``), where ``S_0`` is the
+number of already-stored key positions for that batch element before this step (equivalently, the length of the
+history already summarized into ``summary_past``/``pending_past``). A block is *completed* once exactly :math:`r`
+raw keys have been appended; the last, partially-filled block is **not** summarized but emitted as a **valid
+block index** in the output (the producer-completeness rule).
+
+**Score computation**
+
+For a query at logical position :math:`p` with projected query :math:`q_h \in \mathbb{R}^{D_{idx}}` (per index-query
+head :math:`h`) and block :math:`b` whose per-index-key-head summary key is
+:math:`\bar{k}_{b, \mathrm{kv}(h)} \in \mathbb{R}^{D_{idx}}`, the per-selection-head score is the grouped reduction
+over index-query heads (see the formula above), mapping each query head to its selection head via
+:math:`\mathrm{sel}(h)`. The ReLU is applied *per index-query head before reduction over heads*, matching the
+reference QSA implementation. The indexer query :math:`q` arrives already projected (external GEMM) and already
+RMSNorm'ed and RoPE'ed; the op does **not** apply RoPE or RMSNorm to the query (those are owned by the surrounding
+attention layer / projection). Only the pooled block key undergoes RMSNorm (via ``k_norm_weight``) and block-start
+RoPE (via the ``k_rope_cos_sin`` state).
+
+The RMSNorm used for the pooled block key is defined as
+
+.. math::
+
+    \mathrm{rms\_norm}(x, w, \mathrm{eps}) = x \cdot \mathrm{rsqrt}\!\left( \mathrm{mean}(x^2) + \mathrm{eps} \right) \cdot w
+
+computed in ``fp32`` regardless of the input precision. Qwen's Gemma-style scale :math:`(1 + w)` is folded by the
+model converter into the stored weight :math:`w' = 1 + w`, so the op consumes the already-shifted weight.
 
 **Selection, tie-breaking, and top-k**
 
 - A block is *causally valid* for a query at logical position :math:`p` iff its last token is at most :math:`p`,
-  i.e. the number of complete blocks a query may attend to is dynamic:
-  :math:`N_{complete}(p) = \lfloor (p + 1) / r \rfloor`. Only these causally-valid complete blocks participate
-  in the top-k (future / not-yet-written blocks never leak into the selection).
+  i.e. :math:`N_{complete}(p) = \lfloor (p + 1) / r \rfloor` blocks are eligible. Only these causally-valid
+  complete blocks participate in the top-k (future / not-yet-written blocks never leak into the selection).
 - The number of selected *complete* blocks per selection head is capped at ``block_topk``; the output width is
-  ``K_max = block_topk + 1`` (the extra slot holds the causal-diagonal / incomplete block, when present). The
-  top-k is taken over the ``min(block_topk, N_complete(p))`` causally-valid complete blocks and written to the
-  contiguous prefix ``sel_indices[0:k]``.
-- **Tie-breaking**: scores are reduced by selection-head group and normalized once. Ties in ``topk`` are broken
-  by a **fixed, well-defined rule inside the op**: among equal scores, the *smaller block index* (earlier block)
-  wins. Formally the op computes the selection as ``argsort(-scores, kind='stable')`` and takes the first ``k``
-  entries, which yields a deterministic, implementation-independent result for any input. Consistency with the
-  reference implementation is exact only when scores are strictly unequal (no ties).
+  ``K_max = block_topk + 1`` (the extra slot holds the causal-diagonal / incomplete block, when present).
+- **Tie-breaking and ordering**: among equal scores the *smaller block index* (earlier block) wins; the op
+  computes the selection as ``argsort(-scores, kind='stable')``, takes the first ``k`` entries, and emits them in
+  **strictly ascending** block order (``sort(order[:k])``), yielding a deterministic, implementation-independent,
+  monotone result. A plugin may rely on ``sel_indices[t, sh, :sel_count]`` being sorted ascending.
 - **Causal-diagonal inclusion**: when the query at logical position :math:`p` lies inside an incomplete block
-  (i.e. :math:`(p+1) \bmod r \neq 0`), the diagonal block with logical index :math:`inc = \lfloor (p+1)/r
-  \rfloor` is written **immediately after the selected complete blocks**, at ``sel_indices[k]``, and
-  ``sel_count = k + 1``. It is always present in the selection, regardless of whether the top-k budget is
-  exhausted. Writing it at ``sel_indices[k]`` (rather than a fixed slot) guarantees the valid prefix is
-  contiguous with no interior ``-1`` holes, so the consumer can iterate ``sel_indices[:sel_count]`` directly.
+  (i.e. :math:`(p+1) \bmod r \neq 0`), the diagonal block with logical index :math:`\lfloor (p+1)/r \rfloor` is
+  written **immediately after** the selected complete blocks, at ``sel_indices[..., k]``, and
+  ``sel_count = k + 1``. Writing it there (rather than a fixed slot) guarantees the valid prefix is contiguous
+  with no interior ``-1`` holes.
 
 **Block grid and causal rules**
 
-The KV history of a sequence is partitioned into blocks of :math:`r` tokens. Block :math:`b` covers tokens
+The KV history of a batch element is partitioned into blocks of :math:`r` tokens. Block :math:`b` covers tokens
 :math:`[b \cdot r, (b+1) \cdot r - 1]`. Scoring is causal: a query at logical position :math:`p` may only select
-complete blocks with :math:`(b{+}1) \cdot r - 1 \le p`, i.e. :math:`b \le \lfloor (p+1)/r \rfloor - 1`; the
-current incomplete block (the causal diagonal) is always appended separately. The op therefore performs the
-**block-level coarse filter (Block Eligibility)**: it never emits future / not-yet-written complete blocks.
-There is no ``is_causal`` attribute. The exact per-token causal truncation is *not* the producer's job — it is
-applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the **token-level fine filter**
+complete blocks with :math:`b \le \lfloor (p+1)/r \rfloor - 1`; the current incomplete block (the causal
+diagonal) is always appended separately. There is no ``is_causal`` attribute; the exact per-token causal
+truncation is applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the **token-level fine filter**
 :math:`kpos \le q_{abs}` (see the consumer specs).
 
 **Pseudo-code (numpy)**
@@ -201,105 +181,94 @@ applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the **token-level f
 .. code-block:: py
     :force:
 
-    def qsa_indexer(q_idx, k_idx, summary_cache, pending_k_cache, pending_start_cos_sin,
-                    slot_mapping, block_indices, block_indices_begins,
-                    subsequence_begins, past_lens,
-                    q_norm_weight, k_norm_weight, rope_cos_sin,
-                    *, compress_ratio, budget, block_topk, num_index_heads, h_sel,
-                    indexer_head_dim, indexer_rotary_dim, num_sequences, page_size, eps, scale):
-        # q_idx:            [tokens, num_index_heads * D_idx]   (projected by external GEMM)
-        # k_idx:            [tokens, D_idx]                      (projected by external GEMM)
-        # summary_cache:    [num_blocks, 1, page_size // r, D_idx]
-        # pending_k_cache:  [num_slots, r, 1, D_idx]             (per-sequence ring, one slot per seq)
-        # pending_start_cos_sin: [num_slots, 2 * indexer_rotary_dim]
-        # slot_mapping:     [num_sequences]   (seq -> ring slot)
-        # block_indices:    [total_logical_blocks]   logical -> physical block map (shared with main PA)
-        # block_indices_begins: [num_sequences + 1]  split pointers into block_indices (len == total_logical_blocks)
-        # subsequence_begins:   [num_sequences + 1]  split pointers into the token stream (len == tokens)
-        # past_lens:        [num_sequences]  (logical length of each sequence before this step)
-        # rope_cos_sin:     [tokens, 2 * indexer_rotary_dim]     (per-token materialized RoPE)
-        # returns: sel_indices [tokens, H_sel, K_max]  (int32; -1 = pad), K_max = block_topk + 1
-        #          sel_count   [tokens, H_sel]         (int32)
-        tokens = q_idx.shape[0]
-        Hidx, Di = num_index_heads, indexer_head_dim
+    def qsa_indexer(q_idx, k_idx, k_rope_cos_sin, summary_past, pending_past, pending_start_past,
+                    k_norm_weight,
+                    *, compress_ratio, block_topk, h_sel, indexer_rotary_dim,
+                    indexer_head_dim, eps, scale):
+        # q_idx:              [B, L, H_iq, D_idx]        (projected, RMSNorm'ed and RoPE'ed externally)
+        # k_idx:              [B, L, H_ik, D_idx]        (projected by external GEMM)
+        # k_rope_cos_sin:     [B, L, 2 * indexer_rotary_dim]  (key-side RoPE (cos,sin); block-start phase)
+        # summary_past:       [B, H_ik, N_c, D_idx]      (completed-block summaries; N_c dynamic)
+        # pending_past:       [B, H_ik, P, D_idx]        (incomplete pending keys; 0 <= P < r)
+        # pending_start_past: [B, 2 * indexer_rotary_dim] (RoPE (cos,sin) at the pending block start)
+        # k_norm_weight:      [D_idx]
+        # returns: sel_indices [B, H_sel, L, K_max]  (int32; -1 = pad), K_max = block_topk + 1
+        #          sel_count   [B, H_sel, L]          (int32)
+        #          summary_present  [B, H_ik, N_c', D_idx]
+        #          pending_present  [B, H_ik, P', D_idx]
+        #          pending_start_present [B, 2 * indexer_rotary_dim]
+        B, L, H_iq, Di = q_idx.shape
+        Hik = k_idx.shape[2]                     # index-key heads, taken from the shape (configurable!)
         Hsel = h_sel
         r = compress_ratio
-        Kmax = block_topk + 1                       # +1 slot for the causal-diagonal / incomplete block
-        head_groups = Hidx // Hsel                   # index heads per selection-head group (Hidx % Hsel == 0)
-        assert page_size % r == 0 and Hidx % Hsel == 0
+        Kmax = block_topk + 1                    # +1 slot for the causal-diagonal / incomplete block
+        G = H_iq // Hik                          # index-query heads per index-key head (H_iq % Hik == 0)
+        assert H_iq % Hik == 0 and Hsel in (1, Hik) and r >= 1
+        S0 = summary_past.shape[2] * r + pending_past.shape[2]   # already-stored logical length
 
-        # 1. Query RMSNorm + partial RoPE at the query's own position.
-        #    RoPE rotates only the first `indexer_rotary_dim` dims; the tail is kept as-is.
-        q = reshape(q_idx, (tokens, Hidx, Di))
-        q = rms_norm(q, q_norm_weight, eps)                                  # [tokens, Hidx, Di]
-        q_r = rope(q[..., :indexer_rotary_dim], rope_cos_sin)                # rotate rotary prefix
-        q = concat([q_r, q[..., indexer_rotary_dim:]], axis=-1)              # keep unrotated tail
+        # 1. Append current keys to the pending block; flush completed blocks into summary_present.
+        #    k_t: [B, H_ik, L, D_idx] (transpose of [B, L, H_ik, D_idx]).
+        k_t = transpose(k_idx, (0, 2, 1, 3))                       # [B, Hik, L, Di]
+        P = pending_past.shape[2]                # number of pending keys carried into this step
+        pending = concat([pending_past, k_t], axis=2)              # [B, Hik, P+L, Di]
+        n_pending = pending.shape[2]
+        n_complete = n_pending // r              # blocks fully filled in this step
+        rem = n_pending % r
+        summary = concat([summary_past,
+                          zeros((B, Hik, n_complete, Di))], axis=2)   # [B, Hik, N_c+n_complete, Di]
+        for b_idx in range(n_complete):
+            b = summary_past.shape[2] + b_idx    # logical block index
+            grp = pending[:, :, b_idx*r : (b_idx+1)*r, :]           # [B, Hik, r, Di]
+            pooled = mean(grp.astype(float32), axis=2).astype(k_idx.dtype)   # [B, Hik, Di]
+            nb = rms_norm(pooled, k_norm_weight, eps)              # [B, Hik, Di]
+            # block-start RoPE phase of this completed block: its first token is at logical offset
+            # j0 = b_idx*r - P within this step (negative => it began before this step, use the pending phase).
+            j0 = b_idx * r - P
+            cs = pending_start_past if j0 < 0 else k_rope_cos_sin[:, j0]   # [B, 2*rot]
+            rot = nb[..., :indexer_rotary_dim]
+            bar = concat([rope(rot, cs), nb[..., indexer_rotary_dim:]], axis=-1)  # [B, Hik, Di]
+            summary[:, :, summary_past.shape[2] + b_idx, :] = bar
+        pending_present = pending[:, :, n_complete*r :, :]         # [B, Hik, rem, Di]
+        summary_present = summary
+        # pending_start_present: the RoPE phase of the next (new) block start.
+        # rem == 0: no pending block remains; the next step's first token starts a new block and refreshes the
+        # phase from its own k_rope_cos_sin row, so the carried value is unused.
+        if rem == 0:
+            pending_start_present = pending_start_past
+        else:
+            j0 = n_complete * r - P          # offset in this step of the first token of the still-open block
+            pending_start_present = pending_start_past if j0 < 0 else k_rope_cos_sin[:, j0]
 
-        # 2. Per-token K-side update, addressed by logical position (idempotent / decode-continuous).
-        #    off = pos % r selects the ring slot; off == 0 re-records the block-start RoPE phase;
-        #    off == r-1 flushes the completed block into summary_cache via the shared page table.
-        for s in range(num_sequences):
-            slot = slot_mapping[s]
-            base = past_lens[s]                         # logical position of the first token of this chunk
-            for t in range(subsequence_begins[s], subsequence_begins[s + 1]):
-                pos = base + (t - subsequence_begins[s])    # global logical position
-                off = pos % r
-                if off == 0:
-                    # first token of a block: record the block-start RoPE phase from this token's table row
-                    pending_start_cos_sin[slot] = rope_cos_sin[t]
-                pending_k_cache[slot, off, 0, :] = k_idx[t]
-                if off == r - 1:
-                    # block `b = pos // r` is now complete: mean-pool (fp32), RMSNorm, partial RoPE, flush
-                    b = pos // r
-                    pooled = mean(pending_k_cache[slot].astype(float32), axis=0).astype(k_idx.dtype)
-                    nb = rms_norm(pooled, k_norm_weight, eps)                    # [Di]
-                    bar = concat([rope(nb[..., :indexer_rotary_dim],
-                                       pending_start_cos_sin[slot]),
-                                  nb[..., indexer_rotary_dim:]], axis=-1)        # keep unrotated tail
-                    phys = block_indices[block_indices_begins[s] + (b * r) // page_size]
-                    slot_in_block = (b * r % page_size) // r
-                    summary_cache[phys, 0, slot_in_block, :] = bar
-
-        # 3. Score the causally-valid complete blocks per selection head (grouped index-head reduction).
-        #    For a query at logical position `pos`, only blocks b < (pos + 1) // r are valid;
-        #    future blocks never enter the top-k.
-        #    seq_of_token(t) := the unique s with subsequence_begins[s] <= t < subsequence_begins[s+1].
-        scores = {}
-        for t in range(tokens):
-            s = seq_of_token(t, subsequence_begins)
-            pos = past_lens[s] + (t - subsequence_begins[s])
-            n_complete = (pos + 1) // r                    # dynamic per-query complete-block count
-            for sh in range(Hsel):
-                h0 = sh * head_groups
-                for b in range(n_complete):
-                    phys = block_indices[block_indices_begins[s] + (b * r) // page_size]
-                    slot_in_block = (b * r % page_size) // r
-                    bar = summary_cache[phys, 0, slot_in_block, :]        # [Di], single key head
-                    # grouped per-index-head ReLU reduction -> scalar
-                    dot = sum(relu(sum(q[t, h0:h0 + head_groups, :] * bar[None, :], axis=-1)), axis=0)
-                    scores[(t, sh, b)] = dot * scale
-
-        # 4. Top-k over causally-valid complete blocks per selection head; stable tie-break (smaller block wins).
-        sel_indices = full((tokens, Hsel, Kmax), -1, dtype=int32)
-        sel_count   = zeros((tokens, Hsel), dtype=int32)
-        for t in range(tokens):
-            s = seq_of_token(t, subsequence_begins)
-            pos = past_lens[s] + (t - subsequence_begins[s])
-            n_complete = (pos + 1) // r
-            for sh in range(Hsel):
-                k = min(block_topk, n_complete)            # pick up to block_topk complete blocks
-                scores_arr = np.array([scores[(t, sh, b)] for b in range(n_complete)])  # [n_complete]
-                order = np.argsort(-scores_arr, kind='stable')
-                picked = order[:k]
-                sel_indices[t, sh, :k] = picked
-                sel_count[t, sh] = k
-                # Causal diagonal: when the query lies inside an incomplete block, append it right after
-                # the selected complete blocks (slot `k`) so the valid prefix stays contiguous (no -1 holes).
-                if (pos + 1) % r != 0:
-                    inc = (pos + 1) // r                   # incomplete block index == floor(pos / r)
-                    sel_indices[t, sh, k] = inc
-                    sel_count[t, sh] = k + 1
-        return sel_indices, sel_count
+        # 2. Score the causally-valid complete blocks per selection head (grouped per-query-head reduction).
+        sel_indices = full((B, Hsel, L, Kmax), -1, dtype=int32)
+        sel_count   = zeros((B, Hsel, L), dtype=int32)
+        for b_batch in range(B):
+            for l in range(L):
+                pos = S0 + l                              # logical position of step token l
+                n_c = (pos + 1) // r                      # causally-valid complete blocks for this query
+                for sh in range(Hsel):
+                    k = min(block_topk, n_c)
+                    # For each index-key head kv, map it to selection head sel = kv*Hsel//Hik and accumulate
+                    # only the query heads that fall in that selection head's group.
+                    scores = np.zeros(n_c)
+                    for kv in range(Hik):
+                        if (kv * Hsel) // Hik != sh:
+                            continue
+                        # index-query heads h in [kv*G, (kv+1)*G) share index-key head kv.
+                        q_h = q_idx[b_batch, l, kv*G:(kv+1)*G, :]               # [G, Di]
+                        bar = summary_present[b_batch, kv, :n_c, :]              # [n_c, Di]
+                        # ReLU per index-query head on the dot product, then sum over heads (reference: relu(q·k).sum(heads))
+                        scores += sum(relu(sum(q_h[None, :, :] * bar[:, None, :], axis=-1)), axis=1)  # [n_c]
+                    scores = scores * scale
+                    order = np.argsort(-scores, kind='stable')
+                    picked = sort(order[:k])              # strictly ascending block indices
+                    sel_indices[b_batch, sh, l, :k] = picked
+                    sel_count[b_batch, sh, l] = k
+                    if (pos + 1) % r != 0:
+                        inc = (pos + 1) // r              # causal-diagonal / incomplete block (> all complete)
+                        sel_indices[b_batch, sh, l, k] = inc
+                        sel_count[b_batch, sh, l] = k + 1
+        return sel_indices, sel_count, summary_present, pending_present, pending_start_present
 
 
 **Attributes**
@@ -308,71 +277,43 @@ applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the **token-level f
 
   * **Description**: :math:`r`, the number of raw token keys pooled into one block key.
   * **Type**: ``int``
-  * **Required**: *yes*
-  * **Constraints**: ``compress_ratio >= 1``. ``page_size % compress_ratio == 0``.
-
-* *budget*
-
-  * **Description**: :math:`B`, the maximum number of selected tokens per query head across complete blocks.
-  * **Type**: ``int``
-  * **Required**: *yes*
-  * **Constraints**: ``budget % compress_ratio == 0``.
+  * **Default value**: ``4``
+  * **Required**: *no*
+  * **Constraints**: ``compress_ratio >= 1``.
 
 * *block_topk*
 
-  * **Description**: Maximum number of *complete* blocks selected per selection head,
-    ``== budget // compress_ratio``. The output width is ``block_topk + 1`` (the extra slot is the causal-
-    diagonal / incomplete block).
+  * **Description**: Maximum number of *complete* blocks selected per selection head. The output width is
+    ``block_topk + 1`` (the extra slot is the causal-diagonal / incomplete block).
   * **Type**: ``int``
   * **Required**: *yes*
   * **Constraints**: ``block_topk >= 1``.
 
-* *num_index_heads* (``indexer_heads``)
-
-  * **Description**: Number of index heads :math:`H_{idx}` that participate in the per-head ReLU score and its
-    reduction over heads. Independent of ``h_sel``.
-  * **Type**: ``int``
-  * **Required**: *yes*
-  * **Constraints**: ``num_index_heads >= 1``; ``q_idx`` last dim ``== num_index_heads * indexer_head_dim``.
-
 * *h_sel*
 
-  * **Description**: Number of selection heads :math:`H_{sel}` in the emitted contract. Must be ``1`` or the
-    ``num_kv_heads`` of the main attention. The :math:`H_{idx}` index heads are partitioned into ``h_sel``
-    disjoint groups (``H_idx % H_sel == 0``); each selection head's score is the sum over its group.
+  * **Description**: Number of selection heads :math:`H_{sel}` in the emitted contract. Must be ``1`` or
+    ``H_ik`` (the index-key head count taken from ``k_idx``). Each index-query head :math:`h` is mapped to a
+    selection head via :math:`\mathrm{sel}(h) = \lfloor \mathrm{kv}(h) \cdot H_{sel} / H_{ik} \rfloor`, where
+    :math:`\mathrm{kv}(h) = \lfloor h / G \rfloor` and :math:`G = H_{iq} / H_{ik}`.
+  * **Type**: ``int``
+  * **Default value**: ``1``
+  * **Required**: *no*
+  * **Constraints**: ``h_sel >= 1``; ``h_sel == 1`` (QSA default) or ``h_sel == H_ik``.
+
+* *indexer_rotary_dim*
+
+  * **Description**: RoPE dimension used by the indexer (partial rotary). Only the first
+    ``indexer_rotary_dim`` dims of a block summary are rotated; the trailing
+    ``indexer_head_dim - indexer_rotary_dim`` dims are passed through unrotated. Must satisfy
+    ``indexer_rotary_dim <= indexer_head_dim``.
   * **Type**: ``int``
   * **Required**: *yes*
-  * **Constraints**: ``h_sel >= 1``; ``h_sel == 1`` (QSA default) or ``h_sel == main num_kv_heads``;
-    ``num_index_heads % h_sel == 0``.
 
 * *indexer_head_dim*
 
   * **Description**: Head dimension :math:`D_{idx}` of the indexer.
   * **Type**: ``int``
   * **Required**: *yes*
-
-* *indexer_rotary_dim*
-
-  * **Description**: RoPE dimension used by the indexer (partial rotary). Only the first
-    ``indexer_rotary_dim`` dims are rotated; the trailing ``indexer_head_dim - indexer_rotary_dim`` dims are
-    passed through unrotated. Must satisfy ``indexer_rotary_dim <= indexer_head_dim``.
-  * **Type**: ``int``
-  * **Required**: *yes*
-
-* *page_size*
-
-  * **Description**: Number of tokens per physical page of the shared main PagedAttention cache. Must be a
-    multiple of ``compress_ratio``.
-  * **Type**: ``int``
-  * **Required**: *yes*
-  * **Constraints**: ``page_size % compress_ratio == 0``.
-
-* *k_norm_type*
-
-  * **Description**: Normalization applied to the pooled block key. Must be ``rms`` (RMSNorm / GemmaRMSNorm).
-  * **Type**: ``enum``
-  * **Required**: *yes*
-  * **Supported values**: ``rms``
 
 * *eps*
 
@@ -391,99 +332,86 @@ applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the **token-level f
 **Inputs**
 
 * **0**: ``q_idx``
-  A 2D tensor of type *T* with shape ``[tokens, num_index_heads * D_idx]``.
-  Projected indexer queries emitted by the external ``FullyConnected`` / ``MatMul`` (``index_qk_proj``).
-  **Required.**
+  A 4D tensor of type *T* with shape ``[B, L, H_iq, D_idx]``.
+  Projected indexer queries emitted by the external ``FullyConnected`` / ``MatMul`` (``index_qk_proj``), already
+  RMSNorm'ed and RoPE'ed (the q-side norm/RoPE live outside the op). **Required.**
 
 * **1**: ``k_idx``
-  A 2D tensor of type *T* with shape ``[tokens, D_idx]``.
-  Current-step projected indexer keys, emitted by the same external ``index_qk_proj``. Stored position-addressed
-  in the owning sequence's pending ring. **Required.**
+  A 4D tensor of type *T* with shape ``[B, L, H_ik, D_idx]``.
+  Current-step projected indexer keys, emitted by the same external ``index_qk_proj``. The index-key head
+  count ``H_ik`` is **derived from this shape** (configurable; never hard-coded to ``1``). Appended to the
+  pending block and pooled into completed-block summaries. **Required.**
 
-* **2**: ``summary_cache``
-  A 4D tensor of type *T* with shape ``[num_blocks, 1, page_size // compress_ratio, D_idx]``.
-  Mean-pooled + RMSNorm'ed + block-start-RoPE'ed summary key of each completed block, addressed through the
-  shared main PA page table (``block_indices`` / ``block_indices_begins``). Updated in place. **Required.**
+* **2**: ``k_rope_cos_sin``
+  A 3D tensor of type *T* with shape ``[B, L, 2 * indexer_rotary_dim]``.
+  Per-token RoPE ``(cos, sin)`` for the key side of this step, prepared by the caller from the full table using
+  the appropriate (possibly M-RoPE) key coordinates. Used to refresh the pending block-start RoPE phase when a
+  new block begins. The ``(cos, sin)`` pairs are laid out in the reference ``rotate_half`` convention. **Required.**
 
-* **3**: ``pending_k_cache``
-  A 4D tensor of type *T* with shape ``[num_slots, compress_ratio, 1, D_idx]``.
-  Per-sequence ring buffer holding the projected, unrotated keys of the currently incomplete block, addressed by
-  logical position (``off = pos % compress_ratio``). **Required.**
+* **3**: ``summary_past``
+  A 4D tensor of type *T* with shape ``[B, H_ik, N_c, D_idx]``.
+  Mean-pooled + RMSNorm'ed + block-start-RoPE'ed summary keys of the completed blocks so far (``N_c`` dynamic).
+  Wired from a ``ReadValue`` node. **Required.**
 
-* **4**: ``pending_start_cos_sin``
-  A 2D tensor of type *T* with shape ``[num_slots, 2 * indexer_rotary_dim]``.
-  RoPE ``(cos, sin)`` at the block-start position of each pending ring slot. Refreshed at the first token of each
-  block (``off == 0``). **Required.**
+* **4**: ``pending_past``
+  A 4D tensor of type *T* with shape ``[B, H_ik, P, D_idx]``.
+  Projected, unrotated keys of the currently incomplete block so far, with ``0 <= P < compress_ratio``. Wired
+  from a ``ReadValue`` node. **Required.**
 
-* **5**: ``slot_mapping``
-  A 1D tensor of type *T_IND* with shape ``[num_sequences]``.
-  Maps each sequence to its pending ring slot. **Required.**
+* **5**: ``pending_start_past``
+  A 2D tensor of type *T* with shape ``[B, 2 * indexer_rotary_dim]``.
+  RoPE ``(cos, sin)`` at the block-start position of the pending block. Wired from a ``ReadValue`` node.
+  **Required.**
 
-* **6**: ``block_indices``
-  A 1D tensor of type *T_IND* with shape ``[total_logical_blocks]``.
-  The main PagedAttention logical-to-physical block map; also addresses ``summary_cache``. **Required.**
-
-* **7**: ``block_indices_begins``
-  A 1D tensor of type *T_IND* with shape ``[num_sequences + 1]``.
-  Splits ``block_indices`` among sequences: sequence ``s`` owns blocks
-  ``block_indices[block_indices_begins[s] : block_indices_begins[s+1]]``. **Required.**
-
-* **8**: ``subsequence_begins``
-  A 1D tensor of type *T_IND* with shape ``[num_sequences + 1]``.
-  Splits the token stream among sequences: sequence ``s`` uses tokens
-  ``[subsequence_begins[s] : subsequence_begins[s + 1]]``. **Required.**
-
-* **9**: ``past_lens``
-  A 1D tensor of type *T_IND* with shape ``[num_sequences]``.
-  Logical KV length of each sequence before this step. The global logical position of a token is
-  ``past_lens[s] + (t - subsequence_begins[s])``. **Required.**
-
-* **10**: ``q_norm_weight``
-  A 1D tensor of type *T* with shape ``[D_idx]``.
-  RMSNorm weight for indexer queries. **Required.**
-
-* **11**: ``k_norm_weight``
+* **6**: ``k_norm_weight``
   A 1D tensor of type *T* with shape ``[D_idx]``.
   RMSNorm weight for pooled block keys. **Required.**
-
-* **12**: ``rope_cos_sin``
-  A 2D tensor of type *T* with shape ``[tokens, 2 * indexer_rotary_dim]``.
-  Per-token RoPE ``(cos, sin)`` for the query step, prepared by the caller from the full table using the query
-  RoPE coordinates (which may be M-RoPE). The ``(cos, sin)`` pairs are laid out in the reference
-  ``rotate_half`` convention; the first ``indexer_rotary_dim`` dims are rotated and the trailing
-  ``indexer_head_dim - indexer_rotary_dim`` dims are passed through unrotated. This decouples the logical index
-  from the RoPE coordinate. **Required.**
 
 
 **Outputs**
 
 * **0**: ``sel_indices``
-  A 3D tensor of type *T_IND* with shape ``[tokens, H_sel, block_topk + 1]``.
-  Selected *block* indices per selection head as an **unordered, duplicate-free set** in the contiguous prefix
-  ``sel_indices[:sel_count]``; the causal-diagonal / incomplete block (when present) is appended immediately
-  after the selected complete blocks. ``-1`` padded only past ``sel_count`` (no interior holes). **Required.**
+  A 4D tensor of type *T_IND* with shape ``[B, H_sel, L, K_max]``.
+  Selected *block* indices per selection head as a **strictly ascending, duplicate-free** sequence in the
+  contiguous prefix ``sel_indices[..., :sel_count]`` (the causal-diagonal / incomplete block, when present, is
+  appended immediately after the selected complete blocks and is always greater than them, so the prefix stays
+  ascending). ``-1`` padded only past ``sel_count`` (no interior holes). The standard form has no ``B_q``: one
+  selection per query token, so the third dimension is ``L``. **Required.**
 
 * **1**: ``sel_count``
-  A 2D tensor of type *T_IND* with shape ``[tokens, H_sel]``.
+  A 3D tensor of type *T_IND* with shape ``[B, H_sel, L]``.
   Number of valid selected blocks per selection head per query. **Required.**
+
+* **2**: ``summary_present``
+  A 4D tensor of type *T* with shape ``[B, H_ik, floor((S_0 + L) / r), D_idx]``.
+  Updated completed-block summary state, wired to an ``Assign`` node. **Required.**
+
+* **3**: ``pending_present``
+  A 4D tensor of type *T* with shape ``[B, H_ik, (S_0 + L) % r, D_idx]``.
+  Updated incomplete-block key state, wired to an ``Assign`` node. **Required.**
+
+* **4**: ``pending_start_present``
+  A 2D tensor of type *T* with shape ``[B, 2 * indexer_rotary_dim]``.
+  Updated block-start RoPE phase, wired to an ``Assign`` node. **Required.**
 
 
 **Shape inference and type rules**
 
 * ``T`` is a floating-point type (``float32``, ``float16``, ``bfloat16``).
 * ``T_IND`` is ``int32`` or ``int64``.
-* ``tokens``, ``num_sequences`` and ``subsequence_begins`` must be consistent:
-  ``subsequence_begins[0] == 0`` and ``subsequence_begins[-1] == tokens``.
-* ``block_indices_begins[0] == 0`` and ``block_indices_begins[-1] == len(block_indices)`` (block splits).
-* ``q_idx`` last dimension equals ``num_index_heads * indexer_head_dim``; ``k_idx`` last dimension equals
-  ``indexer_head_dim``.
-* ``page_size % compress_ratio == 0``; ``summary_cache`` dim 2 equals ``page_size // compress_ratio`` and dim 0
-  equals ``num_blocks`` (shared with the main KV ``key_cache`` dim 0).
-* ``slot_mapping`` length equals ``num_sequences``; ``pending_k_cache`` dim 0 equals ``num_slots`` and dim 1
-  equals ``compress_ratio``.
-* ``num_index_heads % h_sel == 0`` (index heads partition cleanly into selection-head groups).
-* ``sel_indices`` last dimension is fixed at ``block_topk + 1``; ``sel_count[t, sh] <= block_topk + 1``, and the
-  valid prefix ``sel_indices[t, sh, :sel_count[t, sh]]`` contains no ``-1`` entries.
+* ``q_idx`` and ``k_idx`` share the first two dims ``[B, L]``; both last dimensions equal ``indexer_head_dim``.
+  ``q_idx`` penultimate dimension is ``H_iq`` and ``k_idx`` penultimate dimension is ``H_ik``, with
+  ``H_iq % H_ik == 0`` and ``G = H_iq / H_ik`` index-query heads sharing each index-key head.
+* ``H_ik`` (index-key heads) is taken from ``k_idx`` shape; ``H_sel`` is ``1`` or ``H_ik``.
+* ``summary_past`` dim 1 equals ``H_ik``; ``pending_past`` dim 1 equals ``H_ik``; ``pending_past`` dim 2 satisfies
+  ``0 <= P < compress_ratio``.
+* ``pending_start_past`` last dimension equals ``2 * indexer_rotary_dim``; ``k_rope_cos_sin`` dim 2 equals the
+  same.
+* ``sel_indices`` last dimension ``K_max`` equals ``block_topk + 1``; ``sel_count[..., sh] <= K_max``, and the
+  valid prefix ``sel_indices[..., sh, :sel_count[..., sh]]`` is **strictly ascending** and contains no ``-1``
+  entries.
+* ``summary_present`` dim 2 equals ``floor((S_0 + L) / r)``; ``pending_present`` dim 2 equals
+  ``(S_0 + L) % r``, where ``S_0 = summary_past.shape[2] * r + pending_past.shape[2]``.
 * When the selection for a row is empty (``sel_count == 0``), the consumer must produce a zero output vector for
   that row.
 
@@ -496,70 +424,62 @@ applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the **token-level f
 
 **Example**
 
-The example below shows a single query token at logical position ``9`` (``past_lens[0] = 9``, one token in the
-step) with ``compress_ratio = 4``, ``budget = 8``, ``block_topk = 2`` (so ``K_max = block_topk + 1 = 3``),
-``num_index_heads = 1``, ``h_sel = 1``, ``page_size = 16``. The history written before this step covers blocks
-``{0:[0..3], 1:[4..7]}`` (complete) and block ``2:[8]`` (the causal diagonal / incomplete block). Causally-valid
-complete blocks for ``pos = 9`` are those with ``b < (9+1)//4 = 2``, i.e. ``{0, 1}``. After a stable top-2 by
-score over ``{0, 1}`` the selection head emits the top-2 complete blocks ``{1, 0}`` plus the causal-diagonal
-block ``2`` written immediately after them (producer-completeness, contiguous prefix), yielding
-``sel_indices = [[[1, 0, 2]]]`` and ``sel_count = [[3]]``.
+The example below shows a single query token (``B=1``, ``L=1``) at logical position ``S_0 + l = 9`` (``S_0 = 9``,
+one token in the step) with ``compress_ratio = 4``, ``block_topk = 2`` (so ``K_max = block_topk + 1 = 3``),
+``h_sel = 1``, ``H_iq = 4``, ``H_ik = 1``, ``indexer_head_dim = 128``, ``indexer_rotary_dim = 128``. The history
+before this step covers blocks ``{0:[0..3], 1:[4..7]}`` (complete) and block ``2:[8]`` (the causal-diagonal /
+incomplete block). Causally-valid complete blocks for ``pos = 9`` are those with ``b < (9+1)//4 = 2``, i.e.
+``{0, 1}``. After a stable top-2 by score over ``{0, 1}`` the selection head emits the top-2 complete blocks in
+**strictly ascending** order ``{0, 1}`` plus the causal-diagonal block ``2`` written immediately after them
+(always greater than the complete blocks, so the prefix stays ascending), yielding
+``sel_indices = [[[[0, 1, 2]]]]`` and ``sel_count = [[[3]]]``. With ``H_iq = 4`` and ``H_ik = 1``, all four
+index-query heads participate in the single selection head's score.
 
 .. code-block:: xml
    :force:
 
    <layer ... type="QSAIndexer">
-       <data compress_ratio="4" budget="8" block_topk="2"
-             num_index_heads="1" h_sel="1" indexer_head_dim="128"
-             indexer_rotary_dim="128" page_size="16" k_norm_type="rms" eps="1e-6"
+       <data block_topk="2" h_sel="1" indexer_head_dim="128"
+             indexer_rotary_dim="128" compress_ratio="4" eps="1e-6"
              scale="0.088388"/>
        <input>
-           <port id="0">   <!-- q_idx: [tokens, num_index_heads*D_idx] -->
-               <dim>1</dim><dim>128</dim>
-           </port>
-           <port id="1">   <!-- k_idx: [tokens, D_idx] -->
-               <dim>1</dim><dim>128</dim>
-           </port>
-           <port id="2">   <!-- summary_cache: [num_blocks, 1, page_size//r, D_idx] -->
+           <port id="0">   <!-- q_idx: [B, L, H_iq, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>4</dim><dim>128</dim>
            </port>
-           <port id="3">   <!-- pending_k_cache: [num_slots, r, 1, D_idx] -->
-               <dim>1</dim><dim>4</dim><dim>1</dim><dim>128</dim>
+           <port id="1">   <!-- k_idx: [B, L, H_ik, D_idx] -->
+               <dim>1</dim><dim>1</dim><dim>1</dim><dim>128</dim>
            </port>
-           <port id="4">   <!-- pending_start_cos_sin: [num_slots, 2*rotary_dim] -->
+           <port id="2">   <!-- k_rope_cos_sin: [B, L, 2*rotary_dim] -->
+               <dim>1</dim><dim>1</dim><dim>256</dim>
+           </port>
+           <port id="3">   <!-- summary_past: [B, H_ik, N_c, D_idx] -->
+               <dim>1</dim><dim>1</dim><dim>2</dim><dim>128</dim>
+           </port>
+           <port id="4">   <!-- pending_past: [B, H_ik, P, D_idx], 0 <= P < r -->
+               <dim>1</dim><dim>1</dim><dim>1</dim><dim>128</dim>
+           </port>
+           <port id="5">   <!-- pending_start_past: [B, 2*rotary_dim] -->
                <dim>1</dim><dim>256</dim>
            </port>
-           <port id="5">   <!-- slot_mapping: [num_sequences] -->
-               <dim>1</dim>
-           </port>
-           <port id="6">   <!-- block_indices: [total_logical_blocks] -->
-               <dim>1</dim>
-           </port>
-           <port id="7">   <!-- block_indices_begins: [num_sequences+1] -->
-               <dim>2</dim>
-           </port>
-           <port id="8">   <!-- subsequence_begins: [num_sequences+1] -->
-               <dim>2</dim>
-           </port>
-           <port id="9">   <!-- past_lens: [num_sequences] -->
-               <dim>1</dim>
-           </port>
-           <port id="10">  <!-- q_norm_weight: [D_idx] -->
+           <port id="6">   <!-- k_norm_weight: [D_idx] -->
                <dim>128</dim>
-           </port>
-           <port id="11">  <!-- k_norm_weight: [D_idx] -->
-               <dim>128</dim>
-           </port>
-           <port id="12">  <!-- rope_cos_sin: [tokens, 2*rotary_dim] -->
-               <dim>1</dim><dim>256</dim>
            </port>
        </input>
        <output>
-           <port id="13" precision="I32">  <!-- sel_indices: [tokens, H_sel, block_topk+1] -->
-               <dim>1</dim><dim>1</dim><dim>3</dim>
+           <port id="7" precision="I32">  <!-- sel_indices: [B, H_sel, L, K_max] -->
+               <dim>1</dim><dim>1</dim><dim>1</dim><dim>3</dim>
            </port>
-           <port id="14" precision="I32">  <!-- sel_count: [tokens, H_sel] -->
-               <dim>1</dim><dim>1</dim>
+           <port id="8" precision="I32">  <!-- sel_count: [B, H_sel, L] -->
+               <dim>1</dim><dim>1</dim><dim>1</dim>
+           </port>
+           <port id="9">   <!-- summary_present: [B, H_ik, floor((S0+L)/r), D_idx] -->
+               <dim>1</dim><dim>1</dim><dim>2</dim><dim>128</dim>
+           </port>
+           <port id="10">  <!-- pending_present: [B, H_ik, (S0+L)%r, D_idx] -->
+               <dim>1</dim><dim>1</dim><dim>2</dim><dim>128</dim>
+           </port>
+           <port id="11">  <!-- pending_start_present: [B, 2*rotary_dim] -->
+               <dim>1</dim><dim>256</dim>
            </port>
        </output>
    </layer>
