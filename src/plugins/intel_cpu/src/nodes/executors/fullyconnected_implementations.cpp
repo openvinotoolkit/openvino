@@ -159,14 +159,8 @@ static const TypeMapping dnnlMatMulTypeMapping {
     {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights
     {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
-    // compressed fp8 weights: decompressed inside the oneDNN brgemm matmul kernel,
-    // so keep both src and wei precisions as they are and derive bias / dst from src.
-    // The enabled check uses bf16 (the widest-supported precision) rather than the
-    // actual src precision - this row is only ever consulted for a config that
-    // already passed matmul_dnnl's `supports()`, whose first check
-    // (dnnlMatMulSupportedPrecision -> useWeightsDecompressionImpl) already gates
-    // bf16 vs f16 precisely per platform, so a coarser check here cannot admit a
-    // combination `supports()` would have rejected.
+    // fp8 weights are decompressed inside the matmul kernel; the exact bf16/f16 gating
+    // is done by dnnlMatMulSupportedPrecision().
     {{_bf16 | _f16, _f8e4m3 | _f8e5m2, _any, _any},           {bypass(), bypass(), use<0>(), use<0>()},
      []() { return hasFp8WeightsDecompressionSupport(ov::element::bf16); }},
     // @todo should we fallback to FPXX instead of _f32?
@@ -176,7 +170,11 @@ static const TypeMapping dnnlMatMulTypeMapping {
 // clang-format on
 
 [[maybe_unused]] static inline bool noWeightsDecompression(const FCConfig& config) {
-    return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
+    // fp8 weights are decompressed by dnnl::matmul rather than by the dnnl FC primitive
+    const bool fp8Decompression = any_of(weiType(config), f8e4m3, f8e5m2) &&
+                                  DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
+    return !fp8Decompression &&
+           !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
 }
 
 [[maybe_unused]] static inline bool noSparseDecompression(const FCConfig& config) {
@@ -430,10 +428,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     })
                 VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                // FP8 weights decompression has to run on dnnl::matmul: brgemm
-                // inner_product has no xf16 x fp8 dtype combination at all, and even its
-                // pure-fp8 path requires AMX-FP16. Such FullyConnected nodes come in with
-                // rank-2 weights, so the batched-matmul rank checks must be skipped.
+                // fp8 decompression runs on dnnl::matmul with rank-2 weights, skip the rank checks.
                 if (any_of(weiType(config), f8e4m3, f8e5m2) &&
                     DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config))) {
                     VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);

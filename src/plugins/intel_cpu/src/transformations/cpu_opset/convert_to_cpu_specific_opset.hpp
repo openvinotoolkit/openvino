@@ -86,10 +86,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         manager,
         pass::ConvertFullyConnectedToFullyConnectedCompressed,
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
-        // apply_fp8 is true only on HW where oneDNN can decompress fp8 weights inside
-        // the matmul kernel (queried via bf16, the precision supported wherever any
-        // such HW is present). Everywhere else the list stays byte-identical to the
-        // one used before, so the pass keeps its current behavior.
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(
             hasFp8WeightsDecompressionSupport(ov::element::bf16)),
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
