@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -27,7 +28,9 @@ struct PA_KV_reorder : public ImplementationManager {
         }
 
         const auto desc = node.as<cldnn::pa_kv_reorder>().get_primitive();
-        return !desc->has_xattention;
+        const auto& config = node.get_program().get_config();
+        const auto& attn_modes = config.get_attn_mode();
+        return !desc->has_xattention && std::find(attn_modes.begin(), attn_modes.end(), ov::hint::AttnMode::PA_CM) == attn_modes.end();
     }
 };
 
