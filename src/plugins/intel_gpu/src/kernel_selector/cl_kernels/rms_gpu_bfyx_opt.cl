@@ -58,7 +58,15 @@ KERNEL(rms_gpu_bfyx_opt)(
     const uint items_num = data_size / workers_per_data;
     const uint leftovers = data_size % workers_per_data;
 
-    #if HAS_PADDING
+    #if RMS_FEATURE_AXIS
+        uint spatial_idx = data_idx;
+        const uint x_idx = spatial_idx % INPUT0_SIZE_X;
+        spatial_idx /= INPUT0_SIZE_X;
+        const uint y_idx = spatial_idx % INPUT0_SIZE_Y;
+        spatial_idx /= INPUT0_SIZE_Y;
+        const uint z_idx = spatial_idx % INPUT0_SIZE_Z;
+        const uint b_idx = spatial_idx / INPUT0_SIZE_Z;
+    #elif HAS_PADDING
         uint b_idx = 0;
         uint f_idx = 0;
         uint z_idx = 0;
@@ -77,11 +85,13 @@ KERNEL(rms_gpu_bfyx_opt)(
         #endif
 
         const uint input_data_offset = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
-    #else
+    #elif !RMS_FEATURE_AXIS
         const uint input_data_offset = data_idx * data_size;
     #endif
 
+#if !RMS_FEATURE_AXIS
     const uint output_data_offset = data_idx * data_size;
+#endif
 
     const uint subgroup_offset = get_sub_group_id() * get_sub_group_size() * items_num;
 
@@ -91,6 +101,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     __local ACCUMULATOR_TYPE slm_buf[SLM_SIZE];
 
     uint i = 0;
+#if !RMS_FEATURE_AXIS
     if (workers_per_data > SUB_GROUP_SIZE)
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
@@ -109,17 +120,30 @@ KERNEL(rms_gpu_bfyx_opt)(
 #endif
         }
     }
+    #endif
 
     for (; i < items_num; i++)
     {
+    #if RMS_FEATURE_AXIS
+        const uint f_idx = subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size();
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_idx]);
+    #else
         ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
+    #endif
         rms += native_powr(tmp, 2);
         data[i] = tmp;
     }
 
     if (in_data_idx < leftovers)
     {
+#if RMS_FEATURE_AXIS
+        const uint f_idx = workers_per_data * items_num + in_data_idx;
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_idx]);
+#else
         ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_data_offset + workers_per_data * items_num + in_data_idx]);
+#endif
         rms += native_powr(tmp, 2);
         data[items_num] = tmp;
     }
@@ -149,7 +173,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     const ACCUMULATOR_TYPE gamma_scalar = TO_ACCUMULATOR_TYPE(gamma[0]);
 #endif
 
-    #if HAS_FUSED_OPS
+    #if HAS_FUSED_OPS && !RMS_FEATURE_AXIS
         uint b, f, z, y, x;
         #if INPUT_RANK == 1
             f = z = y = x = 1;
@@ -170,6 +194,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     #endif
 
     i = 0;
+#if !RMS_FEATURE_AXIS
     if ((workers_per_data > SUB_GROUP_SIZE) && USE_BLOCK_WRITE)
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
@@ -251,6 +276,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             #endif // !(HAS_DYNAMIC_QUANTIZE)
         }
     }
+#endif
 
 #if HAS_DYNAMIC_QUANTIZE
     int iters_per_scale = 2;
@@ -262,18 +288,29 @@ KERNEL(rms_gpu_bfyx_opt)(
 #endif
     for (; i < items_num; i++)
     {
+#if RMS_FEATURE_AXIS
+        const uint f_idx = subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size();
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+        const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+#endif
 #if ELEMENTWISE_AFFINE
     #if RMS_GAMMA_IS_SCALAR
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i] * gamma_scalar);
     #else
+#if RMS_FEATURE_AXIS
+        ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET + f_idx]);
+#else
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
+#endif
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i] * temp);
     #endif
 #else
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i]);
 #endif
         #if HAS_FUSED_OPS
+        #if !RMS_FEATURE_AXIS
             LAST_DIM = subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size();
+        #endif
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
@@ -286,40 +323,69 @@ KERNEL(rms_gpu_bfyx_opt)(
                 float scale_value = DQ_COMPUTE_MXFP_SCALE(max_value);
                 int i_ = i - iters_per_scale + 1;
                 for (int j = 0; j < iters_per_scale; ++j) {
-                    output[output_data_offset + subgroup_offset + get_sub_group_local_id() + (i_ + j) * get_sub_group_size()]
-                        = DQ_COMPUTE_OUTPUT_VALUE(cache[j], scale_value);
+                    OUTPUT_TYPE output_value = DQ_COMPUTE_OUTPUT_VALUE(cache[j], scale_value);
+                    #if RMS_FEATURE_AXIS
+                        f_idx = subgroup_offset + get_sub_group_local_id() + (i_ + j) * get_sub_group_size();
+                        output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+                        output[output_idx] = output_value;
+                    #else
+                        output[output_data_offset + subgroup_offset + get_sub_group_local_id() + (i_ + j) * get_sub_group_size()] = output_value;
+                    #endif
                 }
                 if (get_sub_group_local_id() == 0) {
-                    int scale_output_idx = (output_data_offset + subgroup_offset + i_ * get_sub_group_size()) / 32;
+                    #if RMS_FEATURE_AXIS
+                        int scale_output_idx = output_idx / 32;
+                    #else
+                        int scale_output_idx = (output_data_offset + subgroup_offset + i_ * get_sub_group_size()) / 32;
+                    #endif
                     scale[scale_output_idx] = DQ_COMPUTE_OUTPUT_SCALE(scale_value);
                 }
                 max_value = DQ_MAX_SEARCH_INIT_VAL;
             }
         #else
-            output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;
+            #if RMS_FEATURE_AXIS
+                output[output_idx] = normalized;
+            #else
+                output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;
+            #endif
         #endif
     }
 
     if (in_data_idx < leftovers)
     {
+    #if RMS_FEATURE_AXIS
+        const uint f_idx = workers_per_data * items_num + in_data_idx;
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+        const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+    #endif
 #if ELEMENTWISE_AFFINE
     #if RMS_GAMMA_IS_SCALAR
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[items_num] * gamma_scalar);
     #else
+#if RMS_FEATURE_AXIS
+        ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET + f_idx]);
+#else
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[workers_per_data * items_num + in_data_idx]);
+#endif
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[items_num] * temp);
     #endif
 #else
         NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[items_num]);
 #endif
         #if HAS_FUSED_OPS
+        #if !RMS_FEATURE_AXIS
             LAST_DIM = workers_per_data * items_num + in_data_idx;
+        #endif
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
-        #if !(HAS_DYNAMIC_QUANTIZE) // DQ never enters this path and causes compilation error because of unsupported cast.
-            output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
-        #endif
+#if !(HAS_DYNAMIC_QUANTIZE) // DQ never enters this path and causes compilation error because of unsupported cast.
+    #if RMS_FEATURE_AXIS
+        output[output_idx] = normalized;
+    #else
+        output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
+    #endif
+#endif
     }
 }
 #undef USE_BLOCK_WRITE

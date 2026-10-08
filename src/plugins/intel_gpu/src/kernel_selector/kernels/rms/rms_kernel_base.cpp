@@ -17,6 +17,13 @@ bool RMSKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
+    const auto axis = params.axis < 0 ? params.axis + params.ov_input_rank : params.axis;
+    const bool last_axis = axis == params.ov_input_rank - 1;
+    const bool feature_axis = axis == 1 && (params.ov_input_rank == 4 || params.ov_input_rank == 5);
+    if (!last_axis && !feature_axis) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     return true;
 }
 
@@ -46,6 +53,11 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
 }
 
 Tensor::DataChannelName RMSKernelBase::GetNormalizationAxis(const rms_params& params) {
+    const auto axis = params.axis < 0 ? params.axis + params.ov_input_rank : params.axis;
+    if (axis == 1 && (params.ov_input_rank == 4 || params.ov_input_rank == 5)) {
+        return Tensor::DataChannelName::FEATURE;
+    }
+
     switch (params.ov_input_rank) {
         case 1: return Tensor::DataChannelName::BATCH;
         case 2: return Tensor::DataChannelName::FEATURE;
