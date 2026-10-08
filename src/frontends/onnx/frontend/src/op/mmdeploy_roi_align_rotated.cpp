@@ -11,11 +11,7 @@
 #include "openvino/op/slice.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
 
@@ -64,8 +60,4 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
                                                    clockwise)};
 }
 ONNX_OP("MMCVRoIAlignRotated", OPSET_SINCE(1), ai_onnx::opset_1::mmdeploy_roi_align_rotated, MMDEPLOY_DOMAIN);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

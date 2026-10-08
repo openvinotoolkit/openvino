@@ -20,9 +20,7 @@
 #include "quant/gguf.hpp"
 #include "quant/weights.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Builds OpenVINO values through the shared GGML converters.
 class GraphEmitter {
@@ -124,6 +122,4 @@ inline ov::PartialShape ps(std::vector<int64_t> dims) {
     return ov::PartialShape(std::move(dims));
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

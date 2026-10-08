@@ -13,10 +13,7 @@
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_unsorted_segment_max_op(const NodeContext& node) {
     default_op_checks(node, 3, {"UnsortedSegmentMax"});
     auto data = node.get_input(0);
@@ -58,7 +55,4 @@ OutputVector translate_unsorted_segment_max_op(const NodeContext& node) {
     set_node_name(node.get_name(), seg_max);
     return {seg_max};
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op
