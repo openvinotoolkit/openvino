@@ -50,7 +50,7 @@ static size_t weight_logical_K(const ov::Shape& shape) {
     return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
 }
 
-Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
+Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
     auto hidden_states_m = pattern::any_input();
@@ -110,9 +110,20 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         }
 
         auto hidden_states = pm.at(hidden_states_m);
-        if (!has_batch_dim) {
-            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+        const auto output_shape = pm.at(end_reshape_m).get_partial_shape();
+        if (!hidden_states.get_partial_shape().same_scheme(output_shape)) {
+            const auto reshaped_hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+            if (!reshaped_hidden_states.get_partial_shape().same_scheme(output_shape)) {
+                return false;
+            }
+            hidden_states = reshaped_hidden_states;
         }
+        const auto hidden_states_rank = hidden_states.get_partial_shape().rank();
+        if (hidden_states_rank.is_dynamic() ||
+            (hidden_states_rank.get_length() != 2 && hidden_states_rank.get_length() != 3)) {
+            return false;
+        }
+        const bool has_batch_dim = hidden_states_rank.get_length() == 3;
 
         auto routing = pm.at(routing_m);
         auto topk_indices = pm.at(topk_indices_m);
@@ -241,7 +252,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     this->register_matcher(matcher, callback);
 }
 
-Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
+Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
     auto hidden_states_m = pattern::any_input();
@@ -306,9 +317,20 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         }
 
         auto hidden_states = pm.at(hidden_states_m);
-        if (!has_batch_dim) {
-            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+        const auto output_shape = pm.at(end_reshape_m).get_partial_shape();
+        if (!hidden_states.get_partial_shape().same_scheme(output_shape)) {
+            const auto reshaped_hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+            if (!reshaped_hidden_states.get_partial_shape().same_scheme(output_shape)) {
+                return false;
+            }
+            hidden_states = reshaped_hidden_states;
         }
+        const auto hidden_states_rank = hidden_states.get_partial_shape().rank();
+        if (hidden_states_rank.is_dynamic() ||
+            (hidden_states_rank.get_length() != 2 && hidden_states_rank.get_length() != 3)) {
+            return false;
+        }
+        const bool has_batch_dim = hidden_states_rank.get_length() == 3;
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
         // Order is enforced by the pattern (value_matches("1, 0")).
