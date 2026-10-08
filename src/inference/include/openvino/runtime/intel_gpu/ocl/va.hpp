@@ -120,6 +120,11 @@ public:
      * @param width A width of Y plane
      * @param nv12_surf NV12 `VASurfaceID` to create NV12 from
      * @return A pair of remote tensors for each plane
+     * @note The application must keep the `VADisplay` and the exact VA surface allocation identified by
+     * `nv12_surf` valid until both returned tensors and every infer request retaining them release all references.
+     * Assigning replacement tensors does not guarantee immediate release; keep the surface valid until the replacement
+     * has been processed by an inference call or the request is destroyed. Destroying the surface or recycling its ID
+     * earlier results in undefined behavior.
      */
     std::pair<VASurfaceTensor, VASurfaceTensor> create_tensor_nv12(const size_t height,
                                                                    const size_t width,
@@ -140,6 +145,11 @@ public:
      * @param surface A `VASurfaceID` to create remote tensor from
      * @param plane An index of a plane inside `VASurfaceID` to create tensor from
      * @return A remote tensor wrapping `VASurfaceID`
+     * @note The application must keep the `VADisplay` and the exact VA surface allocation identified by `surface`
+     * valid until the returned tensor and every infer request retaining it release all references. Assigning a
+     * replacement tensor does not guarantee immediate release; keep the surface valid until the replacement has been
+     * processed by an inference call or the request is destroyed. Destroying the surface or recycling its ID earlier
+     * results in undefined behavior.
      */
     inline VASurfaceTensor create_tensor(const element::Type type,
                                          const Shape& shape,
