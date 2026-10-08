@@ -31,16 +31,13 @@ namespace intel_gpu {
 
 using namespace ov::test;
 
-using TestParams = std::tuple<MoERoutingType, ov::element::Type, bool, size_t, size_t>;
+using TestParams =
+    std::tuple<MoERoutingType, ov::element::Type, bool, size_t, size_t>;  // routing_type, data_precision, with_convert_on_indices, num_expert, top_k
 
 class FuseMoERouterTest : public TransformationTestsF, public ::testing::WithParamInterface<TestParams> {
 public:
     static std::string get_test_case_name(const ::testing::TestParamInfo<TestParams>& info) {
-        const auto routing_type = std::get<0>(info.param);
-        const auto data_precision = std::get<1>(info.param);
-        const bool with_convert = std::get<2>(info.param);
-        const size_t num_expert = std::get<3>(info.param);
-        const size_t top_k = std::get<4>(info.param);
+        const auto& [routing_type, data_precision, with_convert, num_expert, top_k] = info.param;
         std::string name;
         switch (routing_type) {
         case MoERoutingType::SOFTMAX:

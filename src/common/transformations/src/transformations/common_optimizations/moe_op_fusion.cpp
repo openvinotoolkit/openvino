@@ -111,12 +111,10 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
 
         auto hidden_states = pm.at(hidden_states_m);
         const auto output_shape = pm.at(end_reshape_m).get_partial_shape();
+        bool requires_output_reshape = false;
         if (!hidden_states.get_partial_shape().same_scheme(output_shape)) {
-            const auto reshaped_hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
-            if (!reshaped_hidden_states.get_partial_shape().same_scheme(output_shape)) {
-                return false;
-            }
-            hidden_states = reshaped_hidden_states;
+            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+            requires_output_reshape = !hidden_states.get_partial_shape().same_scheme(output_shape);
         }
         const auto hidden_states_rank = hidden_states.get_partial_shape().rank();
         if (hidden_states_rank.is_dynamic() ||
@@ -240,10 +238,17 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
             moe_node = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
         }
 
-        moe_node->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), moe_node);
-        ov::replace_node(m.get_match_root(), moe_node);
-
+        auto replacement = moe_node;
+        if (requires_output_reshape) {
+            moe_node->set_friendly_name(m.get_match_root()->get_friendly_name() + "/MOE");
+            replacement = pm.at(end_reshape_m)
+                              .get_node_shared_ptr()
+                              ->clone_with_new_inputs({moe_node, pm.at(end_reshape_shape_m)});
+            register_new_node(replacement);
+        }
+        replacement->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), {moe_node, replacement});
+        ov::replace_node(m.get_match_root(), replacement);
         register_new_node(moe_node);
         return true;
     };
@@ -318,12 +323,10 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
 
         auto hidden_states = pm.at(hidden_states_m);
         const auto output_shape = pm.at(end_reshape_m).get_partial_shape();
+        bool requires_output_reshape = false;
         if (!hidden_states.get_partial_shape().same_scheme(output_shape)) {
-            const auto reshaped_hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
-            if (!reshaped_hidden_states.get_partial_shape().same_scheme(output_shape)) {
-                return false;
-            }
-            hidden_states = reshaped_hidden_states;
+            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+            requires_output_reshape = !hidden_states.get_partial_shape().same_scheme(output_shape);
         }
         const auto hidden_states_rank = hidden_states.get_partial_shape().rank();
         if (hidden_states_rank.is_dynamic() ||
@@ -455,10 +458,17 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
             moe_node = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
         }
 
-        moe_node->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), moe_node);
-        ov::replace_node(m.get_match_root(), moe_node);
-
+        auto replacement = moe_node;
+        if (requires_output_reshape) {
+            moe_node->set_friendly_name(m.get_match_root()->get_friendly_name() + "/MOE");
+            replacement = pm.at(end_reshape_m)
+                              .get_node_shared_ptr()
+                              ->clone_with_new_inputs({moe_node, pm.at(end_reshape_shape_m)});
+            register_new_node(replacement);
+        }
+        replacement->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), {moe_node, replacement});
+        ov::replace_node(m.get_match_root(), replacement);
         register_new_node(moe_node);
         return true;
     };
