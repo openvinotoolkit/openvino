@@ -157,7 +157,8 @@ private:
     std::vector<cldnn::event::ptr> prepare_input(const std::string& internal_name,
                                                  size_t input_idx,
                                                  const ov::Output<const ov::Node>& port,
-                                                 const TensorWrapper& user_tensor_wrapper);
+                                                 const TensorWrapper& user_tensor_wrapper,
+                                                 bool blocking_upload = false);
     std::vector<cldnn::event::ptr> prepare_output(size_t output_idx, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
     std::vector<cldnn::event::ptr> prepare_batched_input(size_t input_idx,
                                                          const ov::Output<const ov::Node>& port,

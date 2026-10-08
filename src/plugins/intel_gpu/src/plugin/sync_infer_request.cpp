@@ -383,7 +383,13 @@ void SyncInferRequest::enqueue() {
                 auto inputs = m_user_inputs.read();
                 user_tensor = inputs->at(port_idx);
             }
-            auto events = prepare_input(internal_name, port_idx, port, user_tensor);
+            // ensure user tensor is contiguous
+            const auto contiguous_tensor = ensure_contiguous(user_tensor.ptr);
+            const bool is_repacked = contiguous_tensor != user_tensor.ptr;
+            if (is_repacked) {
+                user_tensor = {contiguous_tensor, TensorOwner::PLUGIN};
+            }
+            auto events = prepare_input(internal_name, port_idx, port, user_tensor, is_repacked);
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         }
 
@@ -1015,18 +1021,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
 std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string& internal_name,
                                                                size_t input_idx,
                                                                const ov::Output<const ov::Node>& port,
-                                                               const TensorWrapper& user_tensor_wrapper) {
+                                                               const TensorWrapper& user_tensor_wrapper,
+                                                               bool blocking_upload) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
     auto element_type = user_tensor->get_element_type();
-
-    // ensure user tensor is contiguous
-    const auto contiguous_tensor = ensure_contiguous(user_tensor);
-    const bool is_repacked = contiguous_tensor != user_tensor;
-    const TensorWrapper contiguous_tensor_wrapper = is_repacked ? TensorWrapper(contiguous_tensor, TensorOwner::PLUGIN) : user_tensor_wrapper;
-    user_tensor = contiguous_tensor;
 
     auto remote_tensor_impl_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
     auto iremote_tensor_ptr = std::dynamic_pointer_cast<IRemoteTensor>(user_tensor);
@@ -1036,7 +1037,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     bool is_usm_host_tensor = usm_host_ptr != nullptr && usm_host_ptr->get_impl()->get_context() == m_context;
 
     GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name << " (is_remote_tensor_impl ? " << is_remote_tensor_impl << ", is_usm_host_tensor ? "
-                           << is_usm_host_tensor << ", is_repacked ? " << is_repacked << ", is_generic_remote ? " << is_generic_remote << ")" << std::endl;
+                           << is_usm_host_tensor << ", is_generic_remote ? " << is_generic_remote << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
@@ -1097,7 +1098,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     if (update_device_tensor) {
         // If device input hasn't been created, then try to use user memory if it's usm_host, or allocate new device buffer
         m_plugin_inputs[input_idx] =
-            create_or_share_device_tensor(contiguous_tensor_wrapper, internal_name, pshape, device_tensor_et, convert_needed || need_lockable_mem);
+            create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, convert_needed || need_lockable_mem);
     } else if (!is_remote_tensor_impl) {
         // Device memory has been created on previous iterations. Try to reuse whenever it's possible
         auto device_tensor_wrapper = m_plugin_inputs.at(input_idx);
@@ -1161,9 +1162,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                 // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
                 // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
                 // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
-                // A repacked tensor is a local staging copy that is released when this function returns,
-                // so its upload must complete before then (blocking copy)
-                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem || is_repacked);
+                // blocking_upload: finish the upload before returning, e.g. for a staging tensor from enqueue() that is freed afterwards
+                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem || blocking_upload);
             }
         } else if (is_generic_remote) {
             user_tensor->copy_to(device_tensor);
