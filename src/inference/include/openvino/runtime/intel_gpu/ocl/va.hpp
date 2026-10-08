@@ -123,8 +123,9 @@ public:
      * @note The application must keep the `VADisplay` and the exact VA surface allocation identified by
      * `nv12_surf` valid until both returned tensors and all their copies are destroyed. For every infer request to
      * which either tensor was passed, also keep the surface valid until the request is destroyed or an inference using
-     * a replacement tensor has completed. Destroying the surface or recycling its ID earlier results in undefined
-     * behavior.
+     * a replacement tensor has completed. If either tensor is passed to the AUTO or MULTI plugin, keep the surface
+     * valid until the compiled model is destroyed because its internal requests are not exposed to the
+     * application. Destroying the surface or recycling its ID earlier results in undefined behavior.
      */
     std::pair<VASurfaceTensor, VASurfaceTensor> create_tensor_nv12(const size_t height,
                                                                    const size_t width,
@@ -148,7 +149,9 @@ public:
      * @note The application must keep the `VADisplay` and the exact VA surface allocation identified by `surface`
      * valid until the returned tensor and all its copies are destroyed. For every infer request to which the tensor was
      * passed, also keep the surface valid until the request is destroyed or an inference using a replacement tensor has
-     * completed. Destroying the surface or recycling its ID earlier results in undefined behavior.
+     * completed. If the tensor is passed to the AUTO or MULTI plugin, keep the surface valid until the compiled model
+     * is destroyed because its internal requests are not exposed to the application. Destroying the surface or
+     * recycling its ID earlier results in undefined behavior.
      */
     inline VASurfaceTensor create_tensor(const element::Type type,
                                          const Shape& shape,
