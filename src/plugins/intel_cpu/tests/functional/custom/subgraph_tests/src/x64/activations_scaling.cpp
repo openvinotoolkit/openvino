@@ -121,7 +121,7 @@ TEST_P(ActivationsScalingCPUTest, CompareWithRefs_cached) {
     const std::string cache_dir = ov::test::utils::generateTestFilePrefix() + "_cpu_model_cache";
     ov::test::utils::removeFilesWithExt(cache_dir, "blob");
     ov::test::utils::removeDir(cache_dir);
-    core->set_property(ov::cache_dir(cache_dir));
+    configuration.insert(ov::cache_dir(cache_dir));
     compile_model();  // exports the blob
     run();            // imports it
     EXPECT_TRUE(compiledModel.get_property(ov::loaded_from_cache));

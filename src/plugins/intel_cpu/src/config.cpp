@@ -214,8 +214,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::activations_scale_factor.name()) {
             try {
-                activationsScaleFactorSetExplicitly = true;
                 activationsScaleFactor = val.as<float>();
+                activationsScaleFactorSetExplicitly = true;
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::hint::activations_scale_factor.name(),
