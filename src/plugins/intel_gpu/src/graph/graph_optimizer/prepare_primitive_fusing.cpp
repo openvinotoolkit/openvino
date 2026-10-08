@@ -1417,6 +1417,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input_data.in_shape_of_subgraph || dynamic_quantize_node.in_shape_of_subgraph)
                 return;
 
+            // Incompatible with feature axis.
+            const auto rms_prim = input_data.as<rms>().get_primitive();
+            if (rms_prim->axis != static_cast<int64_t>(input_data.get_output_layout().get_rank()) - 1 && rms_prim->axis != -1)
+                return;
+
             auto dyn_quan_prim = dynamic_quantize_node.get_primitive();
             auto attrs = dyn_quan_prim->attrs;
 
