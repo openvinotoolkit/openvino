@@ -165,6 +165,26 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert,
                 return false;
             }
             if (is_feature_axis) {
+                auto reduce_mean = ov::as_type_ptr<v1::ReduceMean>(mean_node);
+                if (!reduce_mean->get_keep_dims() || pattern_map.count(add_eps_opt_reshape)) {
+                    return false;
+                }
+
+                if (elementwise_affine) {
+                    const auto gamma_shape = pattern_map.at(gamma).get_shape();
+                    if (ov::shape_size(gamma_shape) != 1) {
+                        if (gamma_shape.size() > static_cast<size_t>(rank)) {
+                            return false;
+                        }
+
+                        const auto rank_offset = static_cast<size_t>(rank) - gamma_shape.size();
+                        for (size_t i = 0; i < gamma_shape.size(); ++i) {
+                            if (i + rank_offset != normalized_axis && gamma_shape[i] != 1) {
+                                return false;
+                            }
+                        }
+                    }
+                }
                 rms_axis = 1;
             }
         }

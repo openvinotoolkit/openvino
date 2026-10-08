@@ -210,7 +210,9 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     auto scale_const_m = pattern::wrap_type<v0::Constant>(is_scalar_node);
     auto mul_m = pattern::wrap_type<v1::Multiply>({convert_m, scale_const_m});
     auto mvn_m = pattern::wrap_type<v6::MVN>({mul_m, pattern::any_input()});
-    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({mul_m, pattern::any_input()});
+    auto rms_with_gamma_m = pattern::wrap_type<ov::op::internal::RMS>({mul_m, pattern::any_input()});
+    auto rms_without_gamma_m = pattern::wrap_type<ov::op::internal::RMS>({mul_m});
+    auto rms_m = std::make_shared<pattern::op::Or>(OutputVector{rms_with_gamma_m, rms_without_gamma_m});
     auto group_norm_m =
         pattern::wrap_type<v12::GroupNormalization>({mul_m, pattern::any_input(), pattern::any_input()});
     auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({mul_m});
@@ -267,7 +269,10 @@ activations_scaling::MulShareTransformation::MulShareTransformation() {
     MATCHER_SCOPE(MulShareTransformation);
 
     auto mvn_m = pattern::wrap_type<v6::MVN>({pattern::any_input(), pattern::any_input()});
-    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(), pattern::any_input()});
+    auto rms_with_gamma_m =
+        pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(), pattern::any_input()});
+    auto rms_without_gamma_m = pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input()});
+    auto rms_m = std::make_shared<pattern::op::Or>(OutputVector{rms_with_gamma_m, rms_without_gamma_m});
     auto group_norm_m =
         pattern::wrap_type<v12::GroupNormalization>({pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({pattern::any_input()});

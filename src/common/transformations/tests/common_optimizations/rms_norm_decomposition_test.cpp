@@ -736,3 +736,97 @@ TEST_F(TransformationTestsF, RMSNormFusionFeatureAxisDisabled) {
     model_ref = model->clone();
     manager.register_pass<RMSFusion>(false, true);
 }
+
+TEST_F(TransformationTestsF, RMSNormFusionFeatureAxisSpatialGammaNotAbsorbed) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 2});
+    auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f});
+    auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+    auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
+    auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f});
+    auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+    auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+    auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f});
+    auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, sqrt);
+    auto normalized = std::make_shared<ov::op::v1::Multiply>(input, reciprocal);
+    auto spatial_gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2}, {2.f, 3.f});
+    auto output = std::make_shared<ov::op::v1::Multiply>(normalized, spatial_gamma);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    auto input_ref = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 2});
+    auto rms = std::make_shared<ov::op::internal::RMS>(input_ref, 1e-6f, ov::element::f32, 1);
+    auto spatial_gamma_ref = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2}, {2.f, 3.f});
+    auto output_ref = std::make_shared<ov::op::v1::Multiply>(rms, spatial_gamma_ref);
+    model_ref = std::make_shared<ov::Model>(ov::OutputVector{output_ref}, ov::ParameterVector{input_ref});
+    manager.register_pass<RMSFusion>(false, true, true);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, RMSNormFusionFeatureAxisChannelGamma) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 2});
+        auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f});
+        auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+        auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
+        auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+        auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f});
+        auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, sqrt);
+        auto normalized = std::make_shared<ov::op::v1::Multiply>(input, reciprocal);
+        auto channel_gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 1, 1}, {2.f, 3.f});
+        auto output = std::make_shared<ov::op::v1::Multiply>(normalized, channel_gamma);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+        manager.register_pass<RMSFusion>(false, true, true);
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 2});
+        auto channel_gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 1, 1}, {2.f, 3.f});
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, channel_gamma, 1e-6f, ov::element::f32, 1);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, RMSNormFusionFeatureAxisKeepDimsFalseNotFused) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2, 1, 1});
+    auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f});
+    auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+    auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, false);
+    auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f});
+    auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+    auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+    auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f});
+    auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, sqrt);
+    auto output = std::make_shared<ov::op::v1::Multiply>(input, reciprocal);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    model_ref = model->clone();
+    manager.register_pass<RMSFusion>(false, true, true);
+}
+
+TEST_F(TransformationTestsF, RMSNormFusionFeatureAxisReshapeNotFused) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4, 4});
+    auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f});
+    auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+    auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, false);
+    auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f});
+    auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+    auto reshape_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 4, 4});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(add_eps, reshape_shape, false);
+    auto sqrt = std::make_shared<ov::op::v0::Sqrt>(reshape);
+    auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f});
+    auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, sqrt);
+    auto output = std::make_shared<ov::op::v1::Multiply>(input, reciprocal);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    model_ref = model->clone();
+    manager.register_pass<RMSFusion>(false, true, true);
+}
