@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/result.hpp"
 
 #include <cstring>
 #include <sstream>
 
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+
 namespace {
 
-class DividePythonDivisionTest : public testing::WithParamInterface<std::tuple<ov::element::Type, bool>>,
-                                 virtual public ov::test::SubgraphBaseStaticTest {
+class DividePythonDivisionTest : public testing::WithParamInterface<std::tuple<ov::element::Type, bool>>, virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<ov::element::Type, bool>>& obj) {
         const auto& [et, pythondiv] = obj.param;
@@ -95,10 +95,9 @@ TEST_P(DividePythonDivisionTest, IntegerDividePropagatesPythondiv) {
     run();
 }
 
-}
+}  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_IntegerDivide,
                          DividePythonDivisionTest,
-                         ::testing::Combine(::testing::Values(ov::element::i16, ov::element::i32),
-                                            ::testing::Values(true, false)),
+                         ::testing::Combine(::testing::Values(ov::element::i16, ov::element::i32), ::testing::Values(true, false)),
                          DividePythonDivisionTest::getTestCaseName);
