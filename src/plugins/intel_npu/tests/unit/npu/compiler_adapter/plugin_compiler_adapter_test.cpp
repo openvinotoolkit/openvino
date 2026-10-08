@@ -6,13 +6,13 @@
 
 #include <gtest/gtest.h>
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "fake_vcl_compiler.hpp"
-#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/except.hpp"
@@ -23,8 +23,6 @@
 
 using ::fake_vcl::FakeVCLCompiler;
 using ::intel_npu::AdapterDescriptor;
-using ::intel_npu::Config;
-using ::intel_npu::OptionsDesc;
 using ::intel_npu::PluginCompilerAdapter;
 
 namespace {
@@ -57,25 +55,18 @@ struct PluginCompilerAdapterTest : public ::testing::Test {
         return std::make_unique<PluginCompilerAdapter>(nullptr, ov::SoPtr<::intel_npu::IVCLCompiler>(compiler));
     }
 
-    static std::shared_ptr<OptionsDesc> makeOptionsDesc() {
-        auto desc = std::make_shared<OptionsDesc>();
-        desc->add<::intel_npu::LOG_LEVEL>();
-        desc->add<::intel_npu::COMPILATION_MODE>();
-        desc->add<::intel_npu::SEPARATE_WEIGHTS_VERSION>();
-        desc->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
-        return desc;
-    }
-
-    static Config makeConfig(const std::optional<std::string>& compilationMode = std::nullopt,
-                             const std::optional<std::string>& wsVersion = std::nullopt) {
-        Config config(makeOptionsDesc());
+    // The adapter receives only the compiler properties, values stored as strings.
+    static std::map<std::string, std::string> makeCompilerProperties(
+        const std::optional<std::string>& compilationMode = std::nullopt,
+        const std::optional<std::string>& wsVersion = std::nullopt) {
+        std::map<std::string, std::string> compilerProperties;
         if (compilationMode.has_value()) {
-            config.update({{ov::intel_npu::compilation_mode.name(), *compilationMode}});
+            compilerProperties[ov::intel_npu::compilation_mode.name()] = *compilationMode;
         }
         if (wsVersion.has_value()) {
-            config.update({{ov::intel_npu::separate_weights_version.name(), *wsVersion}});
+            compilerProperties[ov::intel_npu::separate_weights_version.name()] = *wsVersion;
         }
-        return config;
+        return compilerProperties;
     }
 };
 
@@ -97,12 +88,13 @@ TEST_F(PluginCompilerAdapterTest, NullCompilerIsRejected) {
 
 TEST_F(PluginCompilerAdapterTest, CompileProducesAGraphEvenWithoutADriver) {
     auto adapter = makeAdapter();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{});
+    const auto graph = adapter->compile(makeModel(), compilerProperties, AdapterDescriptor{});
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileCalls, 1);
+    EXPECT_EQ(compiler->lastCompilerProperties, compilerProperties);
     // No driver means no Level Zero metadata; the graph is export-only but still constructed.
     EXPECT_TRUE(graph->get_metadata().name.empty());
 }
@@ -110,31 +102,37 @@ TEST_F(PluginCompilerAdapterTest, CompileProducesAGraphEvenWithoutADriver) {
 TEST_F(PluginCompilerAdapterTest, CompilePropagatesCompilerFailures) {
     compiler->throwOnCompile = true;
     auto adapter = makeAdapter();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    EXPECT_THROW(adapter->compile(makeModel(), config, AdapterDescriptor{}), ov::Exception);
+    EXPECT_THROW(adapter->compile(makeModel(), compilerProperties, AdapterDescriptor{}), ov::Exception);
 }
 
 TEST_F(PluginCompilerAdapterTest, CompileDefaultsToTheElfBlobType) {
     // Without a HostCompile mode the ELF path is taken, which does not touch the VM runtime.
     auto adapter = makeAdapter();
-    auto config = makeConfig(std::string("DefaultHW"));
+    auto compilerProperties = makeCompilerProperties(std::string("DefaultHW"));
 
-    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{});
+    const auto graph = adapter->compile(makeModel(), compilerProperties, AdapterDescriptor{});
     ASSERT_NE(graph, nullptr);
 }
 
 TEST_F(PluginCompilerAdapterTest, CompileWSDefaultsToOneShotWhenTheVersionIsUnset) {
     auto adapter = makeAdapter();
-    // SEPARATE_WEIGHTS_VERSION is registered but never set, so the adapter must default it.
-    auto config = makeConfig();
-    ASSERT_FALSE(config.has<::intel_npu::SEPARATE_WEIGHTS_VERSION>());
+    // SEPARATE_WEIGHTS_VERSION is never set, so the adapter must default it.
+    auto compilerProperties = makeCompilerProperties();
+    ASSERT_EQ(compilerProperties.count(ov::intel_npu::separate_weights_version.name()), 0u);
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{});
+    const auto graph = adapter->compileWS(makeWeightlessModel(), compilerProperties, AdapterDescriptor{});
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
     EXPECT_EQ(compiler->compileWsIterativeCalls, 0);
+    // The default is forwarded to the compiler, without touching the caller's properties.
+    const auto wsVersionIt = compiler->lastCompilerProperties.find(ov::intel_npu::separate_weights_version.name());
+    ASSERT_NE(wsVersionIt, compiler->lastCompilerProperties.end());
+    EXPECT_EQ(wsVersionIt->second,
+              ::intel_npu::SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ONE_SHOT));
+    EXPECT_EQ(compilerProperties.count(ov::intel_npu::separate_weights_version.name()), 0u);
 }
 
 TEST_F(PluginCompilerAdapterTest, CompileWSOneShotSplitsMainOffTheBack) {
@@ -143,9 +141,9 @@ TEST_F(PluginCompilerAdapterTest, CompileWSOneShotSplitsMainOffTheBack) {
                                  ov::Tensor(ov::element::u8, ov::Shape{4096}),
                                  ov::Tensor(ov::element::u8, ov::Shape{8192})};
     auto adapter = makeAdapter();
-    auto config = makeConfig(std::nullopt, std::string("ONE_SHOT"));
+    auto compilerProperties = makeCompilerProperties(std::nullopt, std::string("ONE_SHOT"));
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{});
+    const auto graph = adapter->compileWS(makeWeightlessModel(), compilerProperties, AdapterDescriptor{});
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
@@ -155,9 +153,9 @@ TEST_F(PluginCompilerAdapterTest, CompileWSOneShotToleratesASingleTensor) {
     // Only the main schedule came back: the adapter warns but must still produce a graph.
     compiler->wsOneShotResult = {ov::Tensor(ov::element::u8, ov::Shape{4096})};
     auto adapter = makeAdapter();
-    auto config = makeConfig(std::nullopt, std::string("ONE_SHOT"));
+    auto compilerProperties = makeCompilerProperties(std::nullopt, std::string("ONE_SHOT"));
 
-    const auto graph = adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{});
+    const auto graph = adapter->compileWS(makeWeightlessModel(), compilerProperties, AdapterDescriptor{});
 
     ASSERT_NE(graph, nullptr);
     EXPECT_EQ(compiler->compileWsOneShotCalls, 1);
@@ -165,11 +163,11 @@ TEST_F(PluginCompilerAdapterTest, CompileWSOneShotToleratesASingleTensor) {
 
 TEST_F(PluginCompilerAdapterTest, CompileWSIterativeRequiresAGraphHandle) {
     auto adapter = makeAdapter();
-    auto config = makeConfig(std::nullopt, std::string("ITERATIVE"));
+    auto compilerProperties = makeCompilerProperties(std::nullopt, std::string("ITERATIVE"));
 
     // The iterative flow cannot work without a Level Zero graph handle.
     try {
-        adapter->compileWS(makeWeightlessModel(), config, AdapterDescriptor{});
+        adapter->compileWS(makeWeightlessModel(), compilerProperties, AdapterDescriptor{});
         FAIL() << "Expected compileWS(ITERATIVE) to throw without a graph handle";
     } catch (const ov::Exception& error) {
         EXPECT_NE(std::string(error.what()).find("weights separation"), std::string::npos) << error.what();
@@ -180,11 +178,12 @@ TEST_F(PluginCompilerAdapterTest, CompileWSIterativeRequiresAGraphHandle) {
 TEST_F(PluginCompilerAdapterTest, QueryIsDelegatedToTheCompiler) {
     compiler->queryResult = {{"Add_1", "NPU"}};
     auto adapter = makeAdapter();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto supported = adapter->query(makeModel(), config);
+    const auto supported = adapter->query(makeModel(), compilerProperties);
 
     EXPECT_EQ(compiler->queryCalls, 1);
+    EXPECT_EQ(compiler->lastCompilerProperties, compilerProperties);
     ASSERT_EQ(supported.size(), 1u);
     EXPECT_EQ(supported.at("Add_1"), "NPU");
 }
