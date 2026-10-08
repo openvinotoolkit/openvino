@@ -15,21 +15,12 @@
 
 namespace intel_npu {
 
-<<<<<<< HEAD
 bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>& model,
                                          ov::intel_npu::CompilerType compilerType,
                                          bool compilationModeSet,
                                          bool dynamicShapeToStatic) {
     if (compilerType != ov::intel_npu::CompilerType::PLUGIN || compilationModeSet || dynamicShapeToStatic) {
         return false;
-=======
-void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model,
-                                   Config& config,
-                                   const Logger& logger) {
-    if (model == nullptr || config.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::PLUGIN ||
-        config.has<COMPILATION_MODE>() || config.get<DYNAMIC_SHAPE_TO_STATIC>()) {
-        return;
->>>>>>> afe4771776 (fix build issue)
     }
 
     // HostCompile supports dynamic dimensions only; a single dynamic-rank input rules the model out.

@@ -108,12 +108,20 @@ ov::Dimension unbounded() {
     return ov::Dimension::dynamic();
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, BoundedDynamicFourDimensionalInputAndOutputEnableHostCompile) {
-    EXPECT_TRUE(run(make_relu_model({1, bounded(), 16, 32})));
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicHeightEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({1, 3, bounded(), 32})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicWidthEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({1, 3, 16, bounded()})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, DynamicSpatialDimensionsEnableHostCompile) {
     EXPECT_TRUE(run(make_relu_model({1, 3, bounded(), bounded()})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, ChannelOnlyDynamicDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_relu_model({1, bounded(), 16, 32})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, NonPluginCompilerDoesNotEnableHostCompile) {
@@ -155,8 +163,25 @@ TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchOnlyDoesNotEnableHostCom
     EXPECT_FALSE(run(make_relu_model({bounded(), 3, 16, 32})));
 }
 
+<<<<<<< HEAD
 TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedBatchOnlyDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model({unbounded(), 3, 16, 32})));
+=======
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchAndChannelDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_relu_model({bounded(), bounded(), 16, 32})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchWithDynamicHeightEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({bounded(), 3, bounded(), 32})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchWithDynamicWidthEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({bounded(), 3, 16, bounded()})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchAndSpatialEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({bounded(), 3, bounded(), bounded()})));
+>>>>>>> 379a30a16c (update compilation_mode update logic and updte unitTest)
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchOnlyOnEveryPortDoesNotEnableHostCompile) {
