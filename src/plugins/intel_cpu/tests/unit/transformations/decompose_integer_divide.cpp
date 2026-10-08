@@ -10,6 +10,9 @@
 #include <transformations/cpu_opset/common/pass/decompose_integer_divide.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
