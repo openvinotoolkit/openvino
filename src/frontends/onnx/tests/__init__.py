@@ -41,7 +41,7 @@ xfail_issue_33651 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "TfIdfVectorizer")
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
                                       "DFT, LayerNormalization, "
-                                      "MelWeightMatrix, SequenceMap, STFT")
+                                      "MelWeightMatrix, SequenceMap")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "

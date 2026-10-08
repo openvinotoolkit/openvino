@@ -28,10 +28,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace recurrent {
+namespace ov::frontend::onnx::recurrent {
 
 ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                                            int64_t target_rank,
@@ -207,7 +204,4 @@ OpAttributes::OpAttributes(const Node& node)
     m_direction = ov::as_enum<ov::op::RecurrentSequenceDirection>(direction);
 }
 
-}  // namespace recurrent
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::recurrent
