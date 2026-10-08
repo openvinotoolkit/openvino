@@ -183,19 +183,6 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
-    std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
-    if (!model->has_rt_info(rt_info_path)) {
-        // NB: Model isn't compressed by NNCF - skip
-        return false;
-    }
-    auto mode = model->get_rt_info<std::string>(rt_info_path);
-    if (mode.find("int8") != std::string::npos) {
-        return true;
-    }
-    return false;
-}
-
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles = 0;
@@ -354,6 +341,8 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
         } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
                    npu_platform == ov::intel_npu::Platform::NPU5020) {
             set_npu_tiles = true;
+        } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
+            arch_added_compilation_param = "performance-hint-override=latency";
         } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
             arch_added_compilation_param = "performance-hint-override=latency";
         } else {
@@ -813,7 +802,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
-        m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
@@ -1148,7 +1136,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             // Apply optimization to all variants and track results
             size_t optimized_count = 0;
             for (auto& model_variant : generate_model_variants) {
-                if (ov::npuw::util::OptimizeValueTensors(false).run_on_model(model_variant)) {
+                if (ov::npuw::util::OptimizeValueTensors(false, m_is_whisper).run_on_model(model_variant)) {
                     ++optimized_count;
                 }
             }
@@ -1170,7 +1158,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 " variants were optimized, which is not allowed.");
             }
         }
-        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true).run_on_model(prefill_model)) {
+        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true, m_is_whisper).run_on_model(prefill_model)) {
             LOG_DEBUG("V-tensors tranposed in prefill model");
             m_kvcache_desc.v_tensors_transposed_pre = true;
         }
@@ -1194,10 +1182,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
+        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, m_kvcache_desc.v_tensors_transposed_gen)
+            .run_on_model(generate_model_variants[i]);
     }
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
-    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
+    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, m_kvcache_desc.v_tensors_transposed_pre)
+        .run_on_model(prefill_model);
 
     std::optional<std::string> user_compilation_mode_params = std::nullopt;
     if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
@@ -1303,11 +1293,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
-        if (is_int8_compressed(model)) {
-            disable_ws_for_whisper(prefill_config);
-            disable_ws_for_whisper(generate_config);
-            LOG_INFO(" WS is disabled for Whisper int8 model!");
-        }
+        disable_ws_for_whisper(prefill_config);
+        disable_ws_for_whisper(generate_config);
+        LOG_INFO("NPUW_FOLD and NPUW_FUNCALL_FOR_ALL are disabled for Whisper model.");
     }
 
     if (m_is_embedding) {
@@ -1412,6 +1400,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
     // This ensures ShapeOf nodes are already regularized before transformation
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
+        const bool integer_kv_cache =
+            kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
+        OPENVINO_ASSERT(!integer_kv_cache,
+                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE cannot be combined with integer KV-cache precision.");
         OPENVINO_ASSERT(!m_enable_prefix_caching,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
                         "cannot be enabled simultaneously — this combination is not yet supported. "
@@ -1799,6 +1791,18 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         stream & compiled->m_kvcache_sizes;
         uint32_t num_variants = 0;
         stream & num_variants;
+
+        // m_kvcache_sizes and the generate variants are conceptually one object: the size table
+        // has exactly one entry per variant. They are serialized as two independent fields, so a
+        // corrupted blob can declare a size table that disagrees with the variant count. The two
+        // containers are later indexed by each other's size, so a mismatch is an out-of-bounds
+        // access. Enforce the invariant here, at restore time, before anything can consume it.
+        OPENVINO_ASSERT(compiled->m_kvcache_sizes.size() == num_variants,
+                        "NPUW blob: kvcache size table (",
+                        compiled->m_kvcache_sizes.size(),
+                        ") does not match generate variant count (",
+                        num_variants,
+                        ").");
 
         compiled->m_generate_compiled_variants.reserve(num_variants);
 
