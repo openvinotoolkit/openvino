@@ -13,8 +13,8 @@ namespace intel_npu {
 
 /**
  * @brief Decodes raw device profiling data into OpenVINO profiling records.
- * @details Expressed only in OpenVINO and standard types so callers (e.g. "Graph") do not need to know which
- * backend produced the decoding (VCL compiler library, driver, ...).
+ * @details Expressed only in OpenVINO and standard types so callers (e.g. Graph) do not need to know which
+ * backend produced the decoding (VCL compiler library or driver).
  */
 class IProfilingDecoder {
 public:

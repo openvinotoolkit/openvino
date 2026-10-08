@@ -92,7 +92,7 @@ protected:
     std::optional<ov::Tensor> _blob;
     std::optional<std::string> _compatibilityDescriptor;
 
-    // Only populated when profiling output post-processing is required; see "process_profiling_output".
+    // Only populated when profiling output post-processing is required; see process_profiling_output()
     std::shared_ptr<const IProfilingDecoder> _profilingDecoder;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer

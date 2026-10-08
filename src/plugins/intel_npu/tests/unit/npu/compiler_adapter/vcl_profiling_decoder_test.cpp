@@ -25,10 +25,6 @@ struct VCLProfilingDecoderTest : public ::testing::Test {
     }
 };
 
-//
-// --- construction ---
-//
-
 TEST_F(VCLProfilingDecoderTest, ConstructionDoesNotTriggerACompilerCreateGetDestroyCycle) {
     // The whole point of the decoder: decoding never needs a compiler instance.
     auto decoder = makeDecoder();
@@ -72,10 +68,6 @@ TEST_F(VCLProfilingDecoderTest, UnrelatedMissingEntryPointsDoNotBlockConstructio
     EXPECT_NO_THROW(makeDecoder());
 }
 
-//
-// --- decode ---
-//
-
 TEST_F(VCLProfilingDecoderTest, DecodeFollowsCreateGetDestroyOrdering) {
     fake.profilingPayload.assign(2 * sizeof(ze_profiling_layer_info), 0);
     auto decoder = makeDecoder();
@@ -116,7 +108,7 @@ TEST_F(VCLProfilingDecoderTest, DecodeThrowsOnNullData) {
 }
 
 TEST_F(VCLProfilingDecoderTest, DecodeThrowsWhenCreateFails) {
-    // A decodable payload, so the scripted vclProfilingCreate failure is the only reason to throw.
+    // A decodable payload, so the scripted vclProfilingCreate() failure is the only reason to throw.
     fake.profilingPayload.assign(sizeof(ze_profiling_layer_info), 0);
     auto decoder = makeDecoder();
     fake.failWith("vclProfilingCreate", VCL_RESULT_ERROR_UNKNOWN);

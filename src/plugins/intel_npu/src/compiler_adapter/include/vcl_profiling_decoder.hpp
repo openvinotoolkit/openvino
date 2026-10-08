@@ -14,8 +14,6 @@ namespace intel_npu {
 
 /**
  * @brief Decodes VCL profiling output using only the VCL profiling entry points.
- * @details Deliberately holds no compiler handle: decoding a profiling buffer never needs one, so this class
- * does not trigger a "vclCompilerCreate" / "vclCompilerDestroy" cycle.
  */
 class VCLProfilingDecoder final : public IProfilingDecoder {
 public:
@@ -34,8 +32,8 @@ private:
 };
 
 /**
- * @brief Resolves the VCL function table via "VCLLoader" and wraps it in a decoder.
- * @details For callers (e.g. "Parser") that have not already resolved a "VCLFunctionTable" of their own. Throws if
+ * @brief Resolves the VCL function table via VCLLoader and wraps it in a decoder.
+ * @details For callers (e.g. Parser) that have not already resolved a VCLFunctionTable of their own. Throws if
  * the VCL compiler library cannot be loaded.
  */
 std::shared_ptr<const IProfilingDecoder> makeVCLProfilingDecoder();

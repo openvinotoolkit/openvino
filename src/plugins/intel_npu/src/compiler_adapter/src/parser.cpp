@@ -20,7 +20,7 @@ namespace {
 /**
  * @brief Builds a profiling decoder when the blob being imported was compiled with the plugin compiler and
  * PERF_COUNT is enabled, otherwise returns null.
- * @details "update_compiler_type_if_perf_count" (see "blob_format_importers.cpp") resolves PREFER_PLUGIN to a
+ * @details update_compiler_type_if_perf_count() (see "blob_format_importers.cpp") resolves PREFER_PLUGIN to a
  * concrete compiler type before "parse" is ever called whenever PERF_COUNT is set, so "config" here already
  * carries the real answer. This keeps the import path free of the VCL compiler library unless profiling on a
  * plugin-compiled blob was actually requested.
