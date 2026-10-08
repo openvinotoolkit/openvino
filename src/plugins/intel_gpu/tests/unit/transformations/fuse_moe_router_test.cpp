@@ -31,15 +31,16 @@ namespace intel_gpu {
 
 using namespace ov::test;
 
-using TestParams = std::tuple<MoERoutingType, bool, size_t, size_t>;  // routing_type, with_convert_on_indices, num_expert, top_k
+using TestParams = std::tuple<MoERoutingType, ov::element::Type, bool, size_t, size_t>;
 
 class FuseMoERouterTest : public TransformationTestsF, public ::testing::WithParamInterface<TestParams> {
 public:
     static std::string get_test_case_name(const ::testing::TestParamInfo<TestParams>& info) {
         const auto routing_type = std::get<0>(info.param);
-        const bool with_convert = std::get<1>(info.param);
-        const size_t num_expert = std::get<2>(info.param);
-        const size_t top_k = std::get<3>(info.param);
+        const auto data_precision = std::get<1>(info.param);
+        const bool with_convert = std::get<2>(info.param);
+        const size_t num_expert = std::get<3>(info.param);
+        const size_t top_k = std::get<4>(info.param);
         std::string name;
         switch (routing_type) {
         case MoERoutingType::SOFTMAX:
@@ -51,6 +52,7 @@ public:
         default:
             OPENVINO_THROW("Unsupported routing type");
         }
+        name += "_" + data_precision.get_type_name();
         name += with_convert ? "_WithConvert" : "_NoConvert";
         name += "_E" + std::to_string(num_expert) + "_K" + std::to_string(top_k);
         return name;
@@ -97,18 +99,18 @@ static std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> build_sigmoid_routi
 }
 
 TEST_P(FuseMoERouterTest, CompareFunctions) {
-    const auto [routing_type, with_convert_on_indices, num_expert, top_k] = GetParam();
+    const auto [routing_type, data_precision, with_convert_on_indices, num_expert, top_k] = GetParam();
     {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{4, 8, 2048});
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(data_precision, Shape{4, 8, 2048});
         auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});
         auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, num_expert}, {0.2});
+        auto routers = op::v0::Constant::create(data_precision, Shape{2048, num_expert}, {0.2});
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
 
         const auto [routing_out, topk_indices] =
             routing_type == MoERoutingType::SOFTMAX
                 ? build_softmax_routing_for_fuse_test(routing_weights, top_k, with_convert_on_indices)
-                : build_sigmoid_routing_for_fuse_test(routing_weights, element::f16, num_expert, top_k, with_convert_on_indices);
+                : build_sigmoid_routing_for_fuse_test(routing_weights, data_precision, num_expert, top_k, with_convert_on_indices);
 
         // Wrap outputs to avoid feeding Result nodes directly (required by replace_output_update_name)
         auto weights_out = std::make_shared<ov::op::v0::Unsqueeze>(routing_out, ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
@@ -117,10 +119,10 @@ TEST_P(FuseMoERouterTest, CompareFunctions) {
     }
     manager.register_pass<FuseMoERouter>();
     {
-        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{4, 8, 2048});
+        auto hidden_states = std::make_shared<ov::op::v0::Parameter>(data_precision, Shape{4, 8, 2048});
         auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});
         auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
-        auto routers = op::v0::Constant::create(element::f16, Shape{2048, num_expert}, {0.2});
+        auto routers = op::v0::Constant::create(data_precision, Shape{2048, num_expert}, {0.2});
         auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
 
         ov::intel_gpu::op::MoERouterFused::Config router_config;
@@ -129,8 +131,8 @@ TEST_P(FuseMoERouterTest, CompareFunctions) {
         ov::OutputVector router_args{routing_weights};
         if (routing_type == MoERoutingType::SIGMOID_BIAS) {
             router_config.routing_type = ov::intel_gpu::op::MoERouterFused::RoutingType::SIGMOID_BIAS;
-            router_args.push_back(op::v0::Constant::create(element::f16, Shape{1, num_expert}, {0.1f}));
-            router_args.push_back(op::v0::Constant::create(element::f16, Shape{1, 1}, {1e-6f}));
+            router_args.push_back(op::v0::Constant::create(data_precision, Shape{1, num_expert}, {0.1f}));
+            router_args.push_back(op::v0::Constant::create(data_precision, Shape{1, 1}, {1e-6f}));
         }
         auto router_node = std::make_shared<ov::intel_gpu::op::MoERouterFused>(router_args, router_config);
 
@@ -140,35 +142,10 @@ TEST_P(FuseMoERouterTest, CompareFunctions) {
     }
 }
 
-static std::shared_ptr<ov::Model> build_fp32_router_model(MoERoutingType routing_type) {
-    constexpr size_t num_experts = 256;
-    constexpr size_t top_k = 8;
-    auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{22, 2048});
-    auto routers = op::v0::Constant::create(element::f32, Shape{2048, num_experts}, {0.2f});
-    auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states, routers);
-    const auto [routing_out, topk_indices] = routing_type == MoERoutingType::SOFTMAX
-                                                 ? build_softmax_routing_for_fuse_test(routing_weights, top_k, true)
-                                                 : build_sigmoid_routing_for_fuse_test(routing_weights, element::f32, num_experts, top_k, true);
-    auto weights_out = std::make_shared<ov::op::v0::Unsqueeze>(routing_out, ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
-    auto indices_out = std::make_shared<ov::op::v0::Unsqueeze>(topk_indices, ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
-    return std::make_shared<ov::Model>(ov::OutputVector{weights_out, indices_out}, ov::ParameterVector{hidden_states});
-}
-
-TEST_F(TransformationTestsF, FuseMoESoftmaxRouterSkipsFP32) {
-    model = build_fp32_router_model(MoERoutingType::SOFTMAX);
-    model_ref = build_fp32_router_model(MoERoutingType::SOFTMAX);
-    manager.register_pass<FuseMoERouter>();
-}
-
-TEST_F(TransformationTestsF, FuseMoESigmoidRouterSkipsFP32) {
-    model = build_fp32_router_model(MoERoutingType::SIGMOID_BIAS);
-    model_ref = build_fp32_router_model(MoERoutingType::SIGMOID_BIAS);
-    manager.register_pass<FuseMoERouter>();
-}
-
 INSTANTIATE_TEST_SUITE_P(smoke,
                          FuseMoERouterTest,
                          ::testing::Combine(::testing::Values(MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(element::f16, element::f32),
                                             ::testing::Values(true, false),
                                             ::testing::Values(128, 512),
                                             ::testing::Values(8, 10)),

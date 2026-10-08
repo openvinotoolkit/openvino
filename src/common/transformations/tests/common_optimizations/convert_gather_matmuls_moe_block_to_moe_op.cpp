@@ -756,7 +756,7 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_basic) {
 
 TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_without_batch_dim) {
     model = build_3gemm_bgm_model(ov::op::internal::MOE::Activation_type::SWIGLU, false);
-    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>(false);
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_3gemm_bgm_to_moe_reference_model(ov::op::internal::MOE::Activation_type::SWIGLU, false);
 }
 
@@ -795,6 +795,6 @@ TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_basic) {
 
 TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_without_batch_dim) {
     model = build_2gemm_bgm_model(false);
-    manager.register_pass<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>(false);
+    manager.register_pass<ov::pass::Convert2GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_2gemm_bgm_to_moe_reference_model(false);
 }
