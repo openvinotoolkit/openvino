@@ -69,10 +69,6 @@ bool is_aligned_to(T value, T alignment) {
     return value % alignment == 0;
 }
 
-bool is_power_of_two(uint64_t value) {
-    return value > 0 && (value & (value - 1)) == 0;
-}
-
 }  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
@@ -865,7 +861,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (m_prefill_chunk_size >= max_prompt_len) {
             m_use_chunk_prefill = false;
         } else {
-            if (!is_power_of_two(m_prefill_chunk_size)) {
+            if (!ov::npuw::util::is_power_of_two(m_prefill_chunk_size)) {
                 OPENVINO_THROW("Configuration Error: chunk size (",
                                m_prefill_chunk_size,
                                ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
@@ -893,8 +889,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                         "NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE requires dynamic chunked prefill. "
                         "Set NPUW_LLM_PREFILL_HINT=DYNAMIC and make NPUW_LLM_PREFILL_CHUNK_SIZE smaller than "
                         "NPUW_LLM_MAX_PROMPT_LEN.");
-        OPENVINO_ASSERT(is_power_of_two(prefill_shorter_chunk_size),
-                        "NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE must be a power of two.");
         OPENVINO_ASSERT(prefill_shorter_chunk_size < m_prefill_chunk_size,
                         "NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE must be smaller than NPUW_LLM_PREFILL_CHUNK_SIZE.");
     }

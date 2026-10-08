@@ -241,6 +241,21 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ShorterPrefillChunkBuildsExactlyTwoPr
     EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE").as<uint64_t>(), 32u);
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, ShorterPrefillChunkCanBeNonPowerOfTwo) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    const ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                              {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                              {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"},
+                              {"NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE", "48"}};
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), props, recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NE(recorder.find_suffix("_prefill_chunk48"), nullptr);
+    EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE").as<uint64_t>(), 48u);
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, ShorterPrefillChunkMustBeSmallerThanDefaultChunk) {
     RecordingFactory recorder;
     const ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "NO"},
