@@ -121,9 +121,10 @@ public:
      * @param nv12_surf NV12 `VASurfaceID` to create NV12 from
      * @return A pair of remote tensors for each plane
      * @note The application must keep the `VADisplay` and the exact VA surface allocation identified by
-     * `nv12_surf` valid until both returned tensors and all their copies are destroyed. For every infer request to which
-     * either tensor was passed, also keep the surface valid until the request is destroyed or an inference using a
-     * replacement tensor has completed. Destroying the surface or recycling its ID earlier results in undefined behavior.
+     * `nv12_surf` valid until both returned tensors and all their copies are destroyed. For every infer request to
+     * which either tensor was passed, also keep the surface valid until the request is destroyed or an inference using
+     * a replacement tensor has completed. Destroying the surface or recycling its ID earlier results in undefined
+     * behavior.
      */
     std::pair<VASurfaceTensor, VASurfaceTensor> create_tensor_nv12(const size_t height,
                                                                    const size_t width,
