@@ -2803,8 +2803,8 @@ TEST_P(select_gpu_f32_dynamic, basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("select").get_memory();
-    // select's dynamic-shape ref kernel always writes its output in bfyx
-    ASSERT_EQ(output->get_layout().format, format::bfyx);
+    // byxf input is propagated to the output so no reorder is needed after select
+    ASSERT_EQ(output->get_layout().format, p.input_format);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), p.expected_output.size());
@@ -2830,19 +2830,19 @@ INSTANTIATE_TEST_SUITE_P(select_gpu_f32,
                                  4.f,   -0.5f,
                                  -0.5f, -2.5f
                              }},
-                             // inputs are the same buffers interpreted in byxf order, output is bfyx
+                             // inputs are the same buffers interpreted in byxf order, output is byxf (physical order)
                              select_dynamic_params{format::byxf, {
-                                 0.5f,  1.5f,
-                                 2.f,   6.f,
+                                 0.5f,  2.5f,
+                                 1.5f,  3.f,
 
-                                 2.5f,  3.f,
-                                 0.f,   5.2f,
+                                 2.f,   0.f,
+                                 6.f,   5.2f,
 
-                                 15.f,  8.f,
-                                 4.f,   8.f,
+                                 15.f,  0.5f,
+                                 8.f,   12.f,
 
-                                 0.5f,  12.f,
-                                 6.5f,  -2.5f
+                                 4.f,   6.5f,
+                                 8.f,   -2.5f
                              }}),
                          [](const ::testing::TestParamInfo<select_dynamic_params>& info) {
                              return format(info.param.input_format).to_string();
