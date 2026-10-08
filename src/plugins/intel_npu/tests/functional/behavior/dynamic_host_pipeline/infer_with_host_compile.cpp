@@ -97,20 +97,20 @@ public:
 
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
         std::vector<std::string> deviceNames =
-            core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
+            core.get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
         for (auto name : deviceNames) {
             if (target_device.find(name) != std::string::npos) {
                 isTargetDevice = true;
                 break;
             }
         }
-        originalLogLevel = core->get_property("NPU", ov::log::level.name()).as<ov::log::Level>();
+        originalLogLevel = core.get_property("NPU", ov::log::level.name()).as<ov::log::Level>();
 
         APIBaseTest::SetUp();
     }
 
     void TearDown() override {
-        core->set_property("NPU", ov::log::level(originalLogLevel));
+        core.set_property("NPU", ov::log::level(originalLogLevel));
         APIBaseTest::TearDown();
     }
 
@@ -136,7 +136,7 @@ public:
     RuntimeCompareSetupResult prepareRuntimeCompareContext(const std::shared_ptr<ov::Model>& model);
 
 protected:
-    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
+    ov::Core core;
     ov::AnyMap configuration;
     std::string selectedModelName;
     bool isTargetDevice = false;
@@ -214,7 +214,7 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     result.context.model = model;
 
     try {
-        result.context.compiledModel = core->compile_model(model, target_device, configuration);
+        result.context.compiledModel = core.compile_model(model, target_device, configuration);
     } catch (const ov::Exception& e) {
         result.status = RuntimeCompareStatus::fail;
         result.message = std::string("Failed to compile model for target device: ") + e.what();
@@ -222,7 +222,7 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     }
 
     try {
-        result.context.referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        result.context.referenceCompiledModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         result.status = RuntimeCompareStatus::skip;
         result.message = std::string("TEMPLATE plugin is not available for reference comparison: ") + e.what();
@@ -257,14 +257,14 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
 
     ov::CompiledModel compiledModel;
 
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, configuration));
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
 
     ov::InferRequest reqDynamic;
     ov::CompiledModel importedModel;
-    OV_ASSERT_NO_THROW(importedModel = core->import_model(modelStream, target_device));
+    OV_ASSERT_NO_THROW(importedModel = core.import_model(modelStream, target_device));
     OV_ASSERT_NO_THROW(reqDynamic = importedModel.create_infer_request());
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
@@ -281,7 +281,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    core.set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     auto setupResult = prepareRuntimeCompareContext(model);
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
@@ -348,7 +348,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    core.set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     auto setupResult = prepareRuntimeCompareContext(model);
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
@@ -414,7 +414,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    core.set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     auto setupResult = prepareRuntimeCompareContext(model);
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
@@ -446,7 +446,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
     logCapture.clear();
-    auto zeroContext = core->get_default_context(target_device);
+    auto zeroContext = core.get_default_context(target_device);
     auto inputTensorForThirdInfer = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
     auto inputSourceForThirdInfer =
         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 50);
@@ -546,7 +546,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
-    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    core.set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
     auto setupResult = prepareRuntimeCompareContext(model);
     if (setupResult.status == RuntimeCompareStatus::fail) {
         FAIL() << setupResult.message;
@@ -679,7 +679,7 @@ TEST_P(InferWithHostCompileTests, SharedCommonQueue_ZeroTensorInputOutputSet) {
         auto& ctx = setupResult.context;
         const std::string tag = sharedQueue ? "shared" : "nonshared";
 
-        auto zeroContext = core->get_default_context(target_device);
+        auto zeroContext = core.get_default_context(target_device);
         const ov::Shape shape = makeInputShape(model, 1, true);
         ov::Tensor hostInput =
             ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -772,14 +772,14 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_WorkloadType) {
             try {
                 auto savedCfg = configuration;
                 configuration = cfg;
-                compiledModel = core->compile_model(model, target_device, configuration);
+                compiledModel = core.compile_model(model, target_device, configuration);
                 configuration = savedCfg;
             } catch (const ov::Exception& e) {
                 GTEST_SKIP() << "workload_type compile-time config not supported: " << e.what();
             }
             ov::CompiledModel refModel;
             try {
-                refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+                refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
             } catch (const ov::Exception&) {
                 GTEST_SKIP() << "TEMPLATE plugin unavailable";
             }
@@ -811,14 +811,14 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo) {
             try {
                 auto savedCfg = configuration;
                 configuration = cfg;
-                compiledModel = core->compile_model(model, target_device, configuration);
+                compiledModel = core.compile_model(model, target_device, configuration);
                 configuration = savedCfg;
             } catch (const ov::Exception& e) {
                 GTEST_SKIP() << "turbo compile-time config not supported: " << e.what();
             }
             ov::CompiledModel refModel;
             try {
-                refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+                refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
             } catch (const ov::Exception&) {
                 GTEST_SKIP() << "TEMPLATE plugin unavailable";
             }
@@ -865,14 +865,14 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
         try {
             auto savedCfg = configuration;
             configuration = cfg;
-            compiledModel = core->compile_model(model, target_device, configuration);
+            compiledModel = core.compile_model(model, target_device, configuration);
             configuration = savedCfg;
         } catch (const ov::Exception& e) {
             GTEST_SKIP() << "compile_model failed: " << e.what();
         }
         ov::CompiledModel refModel;
         try {
-            refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+            refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
         } catch (const ov::Exception&) {
             GTEST_SKIP() << "TEMPLATE plugin unavailable";
         }
@@ -1003,14 +1003,14 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel) 
     try {
         auto savedCfg = configuration;
         configuration = cfg;
-        compiledModel = core->compile_model(model, target_device, configuration);
+        compiledModel = core.compile_model(model, target_device, configuration);
         configuration = savedCfg;
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "compile_model failed: " << e.what();
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1051,7 +1051,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_SharedCommonQueue) {
     auto model = createModelByName(selectedModelName);
     ov::CompiledModel refModel;
     try {
-        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1065,7 +1065,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_SharedCommonQueue) {
 
         ov::CompiledModel compiledModel;
         try {
-            compiledModel = core->compile_model(model, target_device, cfg);
+            compiledModel = core.compile_model(model, target_device, cfg);
         } catch (const ov::Exception& e) {
             GTEST_SKIP() << "turbo compile-time config not supported: " << e.what();
         }
@@ -1110,14 +1110,14 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests) {
     try {
         auto savedCfg = configuration;
         configuration = cfg;
-        compiledModel = core->compile_model(model, target_device, configuration);
+        compiledModel = core.compile_model(model, target_device, configuration);
         configuration = savedCfg;
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "compile_model failed: " << e.what();
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1207,14 +1207,14 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel_N
     try {
         auto savedCfg = configuration;
         configuration = cfg;
-        compiledModel = core->compile_model(model, target_device, configuration);
+        compiledModel = core.compile_model(model, target_device, configuration);
         configuration = savedCfg;
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "compile_model failed: " << e.what();
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1253,7 +1253,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_NonSharedCommonQueue) 
     auto model = createModelByName(selectedModelName);
     ov::CompiledModel refModel;
     try {
-        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1267,7 +1267,7 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_NonSharedCommonQueue) 
 
         ov::CompiledModel compiledModel;
         try {
-            compiledModel = core->compile_model(model, target_device, cfg);
+            compiledModel = core.compile_model(model, target_device, cfg);
         } catch (const ov::Exception& e) {
             GTEST_SKIP() << "turbo compile-time config not supported in nonshared queue mode: " << e.what();
         }
@@ -1298,14 +1298,14 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSha
     try {
         auto savedCfg = configuration;
         configuration = cfg;
-        compiledModel = core->compile_model(model, target_device, configuration);
+        compiledModel = core.compile_model(model, target_device, configuration);
         configuration = savedCfg;
     } catch (const ov::Exception& e) {
         GTEST_SKIP() << "compile_model failed: " << e.what();
     }
     ov::CompiledModel refModel;
     try {
-        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        refModel = core.compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
@@ -1435,7 +1435,7 @@ TEST_P(InferWithHostCompileTests, MemRefReuse_OutputPtrChange) {
 
         // 3rd inference: set a new output tensor (different pointer, same shape) → recording
         const auto outputShape = ctx.reqDynamic.get_tensor(model->output()).get_shape();
-        auto zeroCtx = core->get_default_context(target_device);
+        auto zeroCtx = core.get_default_context(target_device);
         auto newOutputTensor = zeroCtx.create_host_tensor(model->output().get_element_type(), outputShape);
         OV_ASSERT_NO_THROW(ctx.reqDynamic.set_tensor(model->output(), newOutputTensor));
         OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference, tag + "_v2out_output_ptr_change"));
@@ -1470,7 +1470,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
 
     ov::CompiledModel compiledModel;
     // Compilation shall pass since load of openvino_intel_npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, configuration));
 
     std::stringstream modelStream;
     OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
@@ -1487,7 +1487,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
 
     ov::InferRequest reqDynamic;
     try {
-        ov::CompiledModel importedModel = core->import_model(modelStream, target_device);
+        ov::CompiledModel importedModel = core.import_model(modelStream, target_device);
         reqDynamic = importedModel.create_infer_request();
     } catch (const ov::Exception& e) {
         if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
