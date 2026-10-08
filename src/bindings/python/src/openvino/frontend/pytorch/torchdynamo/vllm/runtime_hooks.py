@@ -12,7 +12,7 @@ vLLM-specific PA-binding knowledge.
 
 import os
 
-from .side_channel import _bind_paged_attention_side_channel
+from .side_channel import _bind_gdn_side_channel, _bind_paged_attention_side_channel
 
 
 # Per-InferRequest caches for the OV_FAST_INFER fast path.
@@ -45,10 +45,13 @@ def run_pa_infer(compiled, req, ov_inputs):
         return None
     if should_skip_pa_infer():
         return PA_SKIP
-    call_kwargs = build_call_kwargs(compiled, ov_inputs)
+    call_kwargs, scatter_back = build_call_kwargs(compiled, ov_inputs)
     if not call_kwargs:
         return None
-    return infer_with_pa(req, compiled, call_kwargs)
+    result = infer_with_pa(req, compiled, call_kwargs)
+    if scatter_back is not None:
+        scatter_back()
+    return result
 
 
 def has_pa_inputs(compiled) -> bool:
@@ -96,12 +99,14 @@ def build_call_kwargs(compiled, ov_inputs):
 
     Walks compiled.inputs in order, mapping each ``__pa__`` Parameter to its
     bound side-channel tensor and every other one to the next entry of
-    ``ov_inputs``. Returns None when there are no PA inputs, in which case the
-    caller should pass ``ov_inputs`` directly.
+    ``ov_inputs``. Returns ``(call_kwargs, scatter_back)``; call_kwargs is None without PA inputs,
+    and scatter_back (if any) must run after infer.
     """
     pa_inputs_by_pos = _bind_paged_attention_side_channel(compiled)
+    gdn_inputs, scatter_back = _bind_gdn_side_channel(compiled)
+    pa_inputs_by_pos.update(gdn_inputs)
     if not pa_inputs_by_pos:
-        return None
+        return None, None
     call_kwargs = {}
     tensor_pos = 0
     for inp in compiled.inputs:
@@ -115,7 +120,7 @@ def build_call_kwargs(compiled, ov_inputs):
         else:
             call_kwargs[inp] = ov_inputs[tensor_pos]
             tensor_pos += 1
-    return call_kwargs
+    return call_kwargs, scatter_back
 
 
 def infer_with_pa(req, compiled, call_kwargs):

@@ -42,6 +42,8 @@ recovered from the FX graph, and guessing either one silently corrupts output:
 
 import logging
 
+from .fx_utils import is_auto_functionalized, replace_mutated_output
+
 logger = logging.getLogger(__name__)
 
 _REGISTERED = False
@@ -125,23 +127,7 @@ def _attention_layer_meta(layer_name):
 def _is_unified_attention_with_output(node) -> bool:
     """Match auto_functionalized_v2(unified_attention_with_output, ...)."""
     import torch
-    if node.op != "call_function":
-        return False
-    tgt = node.target
-    try:
-        auto_fv2 = torch.ops.higher_order.auto_functionalized_v2
-    except Exception:
-        return False
-    if tgt is not auto_fv2:
-        return False
-    if not node.args:
-        return False
-    inner = node.args[0]
-    try:
-        ua_overload = torch.ops.vllm.unified_attention_with_output.default
-    except Exception:
-        return False
-    return inner is ua_overload
+    return is_auto_functionalized(node, lambda: torch.ops.vllm.unified_attention_with_output.default)
 
 
 def rewrite_unified_attention_to_paged_attention(gm) -> int:
@@ -183,27 +169,8 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
                       kv_sharing_target),
             )
 
-        # auto_functionalized_v2 writes output to _all_bases[_output_base_index];
-        # the consumer that matters is getitem(node, 1 + _output_base_index).
-        output_base_index = kw.get("_output_base_index", 0)
-        attn_out_getitem_idx = 1 + (output_base_index or 0)
-
-        for user in list(node.users):
-            if (
-                user.op == "call_function"
-                and user.target is __import__("operator").getitem
-                and len(user.args) == 2
-                and isinstance(user.args[1], int)
-            ):
-                if user.args[1] == attn_out_getitem_idx:
-                    user.replace_all_uses_with(new_node)
-                    gm.graph.erase_node(user)
-                # Getitems of other indices (the op result at 0, other mutated
-                # bases) stay wired to the original node, which then survives.
-
-        if not node.users:
-            gm.graph.erase_node(node)
-        else:
+        # auto_functionalized_v2 writes output to _all_bases[_output_base_index].
+        if not replace_mutated_output(gm, node, new_node, kw.get("_output_base_index")):
             # Consumers remain for bases we did not rewrite, so the original
             # node stays and the partitioner splits here. Correct, just slower.
             logger.debug(

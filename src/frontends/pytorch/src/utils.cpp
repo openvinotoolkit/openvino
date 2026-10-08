@@ -25,6 +25,7 @@
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -1306,6 +1307,36 @@ OutputVector wrap_complex(const NodeContext& context,
         return wrapped;
     }
     return results;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> make_tagged_parameter(const NodeContext& context,
+                                                             const std::string& tag,
+                                                             const element::Type& et,
+                                                             const PartialShape& ps) {
+    auto param = std::make_shared<v0::Parameter>(et, ps);
+    param->set_friendly_name(tag);
+    param->output(0).set_names({tag});
+    // Register so the final Model::check_all_parameters_registered passes.
+    context.add_external_parameter(param);
+    return param;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
+                                                                   const std::string& tag,
+                                                                   const element::Type& et,
+                                                                   const PartialShape& ps) {
+    auto* session = context.get_session();
+    if (session) {
+        auto it = session->m_shared_pa_params.find(tag);
+        if (it != session->m_shared_pa_params.end()) {
+            return it->second;
+        }
+    }
+    auto param = make_tagged_parameter(context, tag, et, ps);
+    if (session) {
+        session->m_shared_pa_params[tag] = param;
+    }
+    return param;
 }
 
 }  // namespace ov::frontend::pytorch

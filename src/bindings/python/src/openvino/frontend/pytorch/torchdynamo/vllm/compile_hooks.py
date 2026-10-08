@@ -240,7 +240,14 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
         if om_input is None:
             continue
         om_input.get_node().set_element_type(_dtype_mapping[input_data.dtype])
-        if dyn:
+        # Upstream size values arrive as 1-element tensors; keep them static [1]
+        # or every shape derived from them becomes dynamic rank (CPU rejects).
+        meta_val = None
+        if placeholders is not None and len(placeholders) == len(args):
+            meta_val = placeholders[idx].meta.get("val")
+        if isinstance(meta_val, (torch.SymInt, int)):
+            om_input.get_node().set_partial_shape(PartialShape(list(input_data.size())))
+        elif dyn:
             om_input.get_node().set_partial_shape(PartialShape([-1] * input_data.ndim))
         else:
             om_input.get_node().set_partial_shape(PartialShape(list(input_data.size())))

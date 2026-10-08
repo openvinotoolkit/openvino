@@ -531,3 +531,114 @@ def _bind_paged_attention_side_channel(compiled):
                 result[name] = sliding_window_np
 
     return result
+
+
+# --- Gated DeltaNet (linear attention) ---------------------------------------
+# vLLM's state pages aren't dense OV tables: gather active slots before infer, scatter back after.
+
+# id(compiled) -> {"layers": {layer: {field: param}}, "shared": {field: param},
+#                  "types": {param: ov element type}}
+_gdn_layout_cache = {}
+
+
+def _gdn_layout(compiled):
+    layout = _gdn_layout_cache.get(id(compiled))
+    if layout is None:
+        layers, shared, types = {}, {}, {}
+        for inp in compiled.inputs:
+            for name in inp.get_names():
+                if not name.startswith("__pa__gdn__"):
+                    continue
+                types[name] = inp.get_element_type()
+                layer, _, field = name[len("__pa__gdn__"):].rpartition("__")
+                if layer == "shared":
+                    shared[field] = name
+                else:
+                    layers.setdefault(layer, {})[field] = name
+                break
+        layout = {"layers": layers, "shared": shared, "types": types}
+        _gdn_layout_cache[id(compiled)] = layout
+    return layout
+
+
+def _bind_gdn_side_channel(compiled):
+    """Bind GDN state tables and metadata; returns (inputs, scatter_back or None)."""
+    layout = _gdn_layout(compiled)
+    if not layout["layers"]:
+        return {}, None
+    import openvino as _ov
+    from vllm.forward_context import get_forward_context
+    from vllm.model_executor.layers.mamba.mamba_utils import is_conv_state_dim_first
+
+    ov_to_torch = {_ov.Type.f32: torch.float32, _ov.Type.bf16: torch.bfloat16, _ov.Type.f16: torch.float16}
+    ctx = get_forward_context()
+    types = layout["types"]
+    dim_first = is_conv_state_dim_first()
+    result = {}
+    writebacks = []
+    step_meta = num_seqs = qsl = idx = fresh = None
+    for layer_name, fields in layout["layers"].items():
+        layer = ctx.no_compile_layers[layer_name]
+        meta = ctx.attn_metadata[layer_name]
+        # GDN layers normally share one metadata object; derive the per-step indices once per object.
+        if meta is not step_meta:
+            assert meta.spec_sequence_masks is None, "speculative decoding is not supported for GDN layers"
+            seqs = meta.num_decodes + meta.num_prefills
+            layer_qsl = meta.non_spec_query_start_loc[: seqs + 1]
+            if step_meta is None:
+                num_seqs, qsl = seqs, layer_qsl
+            else:
+                assert seqs == num_seqs, "GDN layers disagree on batch size"
+                assert torch.equal(layer_qsl, qsl), "GDN layers disagree on batch layout"
+            idx = meta.non_spec_state_indices_tensor[:seqs].long()
+            fresh = None
+            if meta.has_initial_state is not None:
+                fresh = ~meta.has_initial_state[:seqs].bool()
+                if not bool(fresh.any()):
+                    fresh = None
+            step_meta = meta
+        conv_src, rec_src = layer.kv_cache[0], layer.kv_cache[1]
+        # vLLM's kernels read the [slots, H, V, K]-shaped buffer as [slots, H, K, V].
+        slots, heads, v_dim, k_dim = rec_src.shape
+        rec_src = rec_src.view(slots, heads, k_dim, v_dim)
+
+        # vLLM keeps K-1 inputs; OV's K-wide window shifts column 0 out first.
+        conv_name = fields["gdn_conv_state"]
+        conv_dt = ov_to_torch[types[conv_name]]
+        prev = conv_src[idx]
+        if not dim_first:
+            prev = prev.transpose(1, 2)  # [n, K-1, C] -> [n, C, K-1]
+        conv = torch.empty((num_seqs, prev.shape[1], prev.shape[2] + 1), dtype=conv_dt)
+        conv[:, :, 0] = 0
+        conv[:, :, 1:] = prev
+        rec_name = fields["gdn_recurrent_state"]
+        # OV's table is [n, H, V, K].
+        rec = rec_src[idx].transpose(-1, -2).to(ov_to_torch[types[rec_name]]).contiguous()
+        if fresh is not None:
+            conv[fresh] = 0
+            rec[fresh] = 0
+        result[conv_name] = _ov_tensor_over_torch(conv, types[conv_name], _ov)
+        result[rec_name] = _ov_tensor_over_torch(rec, types[rec_name], _ov)
+        writebacks.append((conv_src, rec_src, idx, conv, rec))
+
+    rows = np.arange(num_seqs, dtype=np.int32)
+    shared_vals = {
+        "gdn_subsequence_begins": qsl.to(torch.int32).contiguous().numpy(),
+        # Kernel reads block 0 and writes block 1: both are compact row i.
+        "gdn_block_indices": np.repeat(rows, 2),
+        "gdn_block_indices_begins": np.arange(0, 2 * num_seqs + 1, 2, dtype=np.int32),
+        "gdn_processed_tokens": np.zeros(num_seqs, dtype=np.int32),
+        "gdn_cache_interval": np.zeros(num_seqs, dtype=np.int32),
+    }
+    for field, name in layout["shared"].items():
+        result[name] = shared_vals[field]
+
+    def scatter_back():
+        for conv_dst, rec_dst, idx, conv, rec in writebacks:
+            new_conv = conv[:, :, 1:]
+            if not dim_first:
+                new_conv = new_conv.transpose(1, 2)
+            conv_dst[idx] = new_conv.to(conv_dst.dtype)
+            rec_dst[idx] = rec.transpose(-1, -2).to(rec_dst.dtype)
+
+    return result, scatter_back
