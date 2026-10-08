@@ -1267,6 +1267,23 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                                                                        device_tensor_et,
                                                                        cldnn::format::get_default_format(tensor_shape.size())),
                                                          *m_shape_predictor);
+                // Check if an existing plugin output can be reused, otherwise create a new one.
+                auto existing = m_plugin_outputs.find(output_idx);
+                if (existing != m_plugin_outputs.end() && existing->second.owner == TensorOwner::PLUGIN) {
+                    auto existing_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(existing->second.ptr);
+                    auto required_layout = cldnn::layout(actual_memory_shape,
+                                                         device_tensor_et,
+                                                         cldnn::format::get_default_format(actual_memory_shape.size()));
+                    if (existing_tensor && existing_tensor->get_element_type() == device_tensor_et &&
+                        existing_tensor->get_original_memory()->get_layout().format == required_layout.format &&
+                        existing_tensor->get_original_memory()->count() >= ov::shape_size(actual_memory_shape) &&
+                        existing_tensor->get_original_memory()->size() >= required_layout.bytes_count() &&
+                        (!(need_lockable_mem || convert_needed) ||
+                         existing_tensor->get_original_memory()->get_allocation_type() != cldnn::allocation_type::usm_device)) {
+                        existing_tensor->set_shape(actual_memory_shape);
+                        return existing->second;
+                    }
+                }
                 return {create_device_tensor(actual_memory_shape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN};
             };
             if (can_share_user_usm_host) {
