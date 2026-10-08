@@ -296,7 +296,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                             localConfig.has<COMPILATION_MODE>(),
                                             localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
         _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' for bounded dynamic 4D I/O "
-                     "model (inputs and outputs both dynamic, static batch, other dimensions dynamic)");
+                     "model (inputs and outputs both have a dynamic height or width; batch may be dynamic)");
         localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
     }
 
