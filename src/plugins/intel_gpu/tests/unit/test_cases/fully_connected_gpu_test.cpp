@@ -1707,9 +1707,9 @@ public:
         compare_outputs<ov::float16>(output_mem, ref_output_mem, 12.0f);
     }
 
-    // u4 weights with a non-integer f16 zero point per group, as in asymmetric formats such as GGUF Q4_K
-    // (w = (q - min / scale) * scale). oneDNN must run it and match the exact formula, not a rounded zero point.
-    void test_compressed_int4_f16_zp(bool is_dynamic, long int batch_num) {
+    // u4 or u8 weights with a non-integer f16 zero point per group, as in asymmetric formats such as GGUF Q4_K or
+    // Q5_K (w = (q - min / scale) * scale). oneDNN must run it and match the exact formula, not a rounded zero point.
+    void test_compressed_f16_zp(data_types wei_dt, bool is_dynamic, long int batch_num) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
         if (!engine.get_device_info().supports_immad)
@@ -1721,14 +1721,18 @@ public:
         const long int group_num = ifm_num / group_size;
 
         auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
-        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u4, format::bfyx});
+        const bool is_u4 = wei_dt == data_types::u4;
+        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, wei_dt, format::bfyx});
         auto scale_mem = engine.allocate_memory({{ofm_num, group_num}, data_types::f16, format::bfyx});
         auto zp_mem = engine.allocate_memory({{ofm_num, group_num}, data_types::f16, format::bfyx});
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f, 64);
-        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255, 1);
+        // u8 weights hold 5-bit values here, as GGUF Q5_K / Q5_1 weights do, so their zero points go up to 31
+        auto weights_data =
+            is_u4 ? rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255, 1) : rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 31, 1);
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * group_num, 0.01f, 0.1f, 1000);
-        auto zp_data = rg.generate_random_1d<ov::float16>(ofm_num * group_num, 0.0f, 15.0f);
+        const float zp_max = is_u4 ? 15.0f : 31.0f;
+        auto zp_data = rg.generate_random_1d<ov::float16>(ofm_num * group_num, 0.0f, zp_max);
         set_values(input_mem, input_data);
         set_values(weights_mem, weights_data);
         set_values(scale_mem, scale_data);
@@ -1741,7 +1745,8 @@ public:
                     float acc = 0.0f;
                     for (long int i = 0; i < ifm_num; i++) {
                         const size_t w_idx = o * ifm_num + i;
-                        const float w = static_cast<float>((weights_data[w_idx / 2] >> ((w_idx % 2) * 4)) & 0xF);
+                        const float w =
+                            is_u4 ? static_cast<float>((weights_data[w_idx / 2] >> ((w_idx % 2) * 4)) & 0xF) : static_cast<float>(weights_data[w_idx]);
                         const size_t g = o * group_num + i / group_size;
                         const float zp = round_zp ? std::round(static_cast<float>(zp_data[g])) : static_cast<float>(zp_data[g]);
                         acc += static_cast<float>(input_data[b * ifm_num + i]) * (w - zp) * static_cast<float>(scale_data[g]);
@@ -5870,19 +5875,27 @@ TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_group_s
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token) {
-    this->test_compressed_int4_f16_zp(false, 1);
+    this->test_compressed_f16_zp(data_types::u4, false, 1);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token_dynamic) {
-    this->test_compressed_int4_f16_zp(true, 1);
+    this->test_compressed_f16_zp(data_types::u4, true, 1);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch) {
-    this->test_compressed_int4_f16_zp(false, 64);
+    this->test_compressed_f16_zp(data_types::u4, false, 64);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch_dynamic) {
-    this->test_compressed_int4_f16_zp(true, 64);
+    this->test_compressed_f16_zp(data_types::u4, true, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_f16_zp_single_token) {
+    this->test_compressed_f16_zp(data_types::u8, false, 1);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_f16_zp_batch_dynamic) {
+    this->test_compressed_f16_zp(data_types::u8, true, 64);
 }
 
 using fully_connected_dynamic_test_params = std::tuple<
