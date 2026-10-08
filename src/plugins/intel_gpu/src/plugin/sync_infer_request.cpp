@@ -48,6 +48,8 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
 }
 
 std::shared_ptr<ov::ITensor> ensure_contiguous(const std::shared_ptr<ov::ITensor>& tensor) {
+    // skip remote tensors as RemoteTensorImpl always has default strides for its shape,
+    // and remote ROI tensors are copied via RemoteTensorImpl::copy_to with proper strides
     if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor) != nullptr || tensor->is_continuous()) {
         return tensor;
     }
