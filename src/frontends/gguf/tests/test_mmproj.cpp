@@ -559,14 +559,8 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "resampler_v4"));
 class GGUFMMProjGenAIVisionLayout : public GGUFMMProjAccuracy {
 protected:
-    ov::Tensor reference(const std::string& step, bool tanh_gelu) {
+    ov::Tensor reference(const std::string& step) {
         auto source = model->clone();
-        for (const auto& node : source->get_ordered_ops()) {
-            if (tanh_gelu && node->get_friendly_name().find("GGML_UNARY_OP_GELU_QUICK") != std::string::npos)
-                ov::replace_node(
-                    node,
-                    std::make_shared<ov::op::v7::Gelu>(node->input_value(0), ov::op::GeluApproximationMode::TANH));
-        }
         std::map<std::string, ov::Tensor> inputs;
         for (const auto& input : source->inputs()) {
             const auto name = input.get_any_name().substr(std::string("vision.").size());
@@ -707,7 +701,9 @@ TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
             actual = infer(models.at("vision_embeddings_merger"),
                            {{"hidden_states", embeddings}, {"attention_mask", mask}, {"rotary_pos_emb", rotary}});
         }
-        const auto expected = reference(step, projector == "gemma4v");
+        const auto expected = reference(step);
+        const auto oracle = tensor(step + "embeddings", ov::element::f32);
+        ASSERT_EQ(oracle.get_size(), expected.get_size());
         const size_t tokens = expected.get_shape()[2], packed = expected.get_shape()[3];
         size_t offset = 0;
         for (const auto& output : actual) {
@@ -715,13 +711,17 @@ TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
                 output.get_shape().size() == 3 && output.get_shape()[0] != 1 ? output.get_shape()[0] : 1;
             const size_t level_width = output.get_shape().back();
             ASSERT_EQ(output.get_size(), levels * tokens * level_width);
-            ov_gguf_test::Nmse metric;
+            ov_gguf_test::Nmse metric, oracle_metric;
             for (size_t level = 0; level < levels; ++level)
                 for (size_t t = 0; t < tokens; ++t)
-                    for (size_t d = 0; d < level_width; ++d)
-                        metric.add(output.data<const float>()[(level * tokens + t) * level_width + d],
-                                   expected.data<const float>()[t * packed + offset + level * level_width + d]);
+                    for (size_t d = 0; d < level_width; ++d) {
+                        const auto value = output.data<const float>()[(level * tokens + t) * level_width + d];
+                        const auto index = t * packed + offset + level * level_width + d;
+                        metric.add(value, expected.data<const float>()[index]);
+                        oracle_metric.add(value, oracle.data<const float>()[index]);
+                    }
             ov_gguf_test::expect_nmse_below(metric, 1e-10);
+            ov_gguf_test::expect_nmse_below(oracle_metric, 1e-5);
             offset += levels * level_width;
         }
         EXPECT_EQ(offset, packed);

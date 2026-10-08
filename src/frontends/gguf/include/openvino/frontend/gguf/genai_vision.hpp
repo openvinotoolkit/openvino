@@ -13,12 +13,11 @@
 
 namespace ov::frontend::gguf {
 
-/// Vision models of a converted mmproj in the optimum-intel export layout that OpenVINO GenAI
-/// loads, keyed by GenAI model name: "vision_embeddings" and, for Qwen, "vision_embeddings_pos"
-/// and "vision_embeddings_merger". Their inputs are those of the optimum-intel export, so GenAI
-/// preprocesses media exactly as for that export. Supports the gemma3, gemma4v, gemma4uv,
-/// muse-glimmer and qwen3vl_merger projectors. Where llama.cpp departs from HF, the models follow
-/// HF: Gemma4 vision uses tanh GELU. The source model is left unchanged.
+/// Vision models with inputs compatible with the shared OpenVINO GenAI encoders, keyed by
+/// "vision_embeddings" and, for Qwen, "vision_embeddings_pos" and "vision_embeddings_merger".
+/// Supports gemma3, gemma4v, gemma4uv, muse-glimmer and qwen3vl_merger. The adapted models
+/// preserve llama.cpp computation, including GGUF activation choices. GenAI must configure
+/// preprocessing from GGUF geometry and llama.cpp limits. The source model is left unchanged.
 GGUF_FRONTEND_API std::map<std::string, std::shared_ptr<ov::Model>> genai_vision_models(
     const std::shared_ptr<ov::Model>& mmproj);
 

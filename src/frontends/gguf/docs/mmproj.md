@@ -140,16 +140,18 @@ mode prepares the language model for media injection:
   takes `inputs_embeds [B,T,D]`; token-embedding scaling is applied once;
 - Gemma4 E2B/E4B use a separate `get_per_layer_embedding_model()` whose output feeds
   `per_layer_inputs [B,T,layers,width]`; it is not a second output of `get_embedding_model()`;
-- Gemma3 and Gemma4 without per-layer embeddings take `token_type_ids [B,T]`: image tokens attend
+- Gemma3 and Gemma4 outside the E2B/E4B embedding widths take `token_type_ids [B,T]`: image tokens attend
   bidirectionally within their image, in every Gemma3 layer and in Gemma4 sliding-window layers;
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
   sections;
 - the per-layer lookup reads image, video and audio placeholders as the padding token, as HF and
-  llama.cpp do.
+  llama.cpp do;
+- Gemma4 image attention remains causal at the E2B/E4B embedding widths (1536/2560), matching
+  llama.cpp; other variants allow bidirectional attention within an image in sliding-window layers.
 
 [`genai_vision_models`](../include/openvino/frontend/gguf/genai_vision.hpp) returns the vision
-encoder in the optimum-intel export layout, so OpenVINO GenAI runs it with the preprocessing it
-uses for exported models:
+encoder with inputs compatible with the optimum-intel export layout, allowing OpenVINO GenAI
+to reuse its existing encoders. GGUF preprocessing uses llama.cpp geometry and token limits:
 
 | Projector | Models | Inputs |
 |---|---|---|
@@ -158,9 +160,19 @@ uses for exported models:
 | `muse-glimmer` | `vision_embeddings` | `pixel_values [rows*cols,3*patch*patch]`, `image_grid_thw [1,3]`; window, merge and position indices are derived in the graph |
 | `qwen3vl_merger` | `vision_embeddings`, `vision_embeddings_pos`, `vision_embeddings_merger` | flattened patches `hidden_states`; position-table indices `input [4,N]`; `hidden_states`, `attention_mask [1,N,N]`, `rotary_pos_emb [N,head/2]` |
 
-Where llama.cpp departs from HF, these models follow HF: Gemma4 vision uses tanh GELU instead
-of llama.cpp's GELU_QUICK default. Muse Glimmer GGUF files collapse HF's two-frame patch kernel,
+The adapted graphs preserve llama.cpp computation: Gemma4 retains GELU_QUICK unless the
+GGUF specifies GELU. Muse Glimmer GGUF files collapse HF's two-frame patch kernel,
 so the layout takes one frame per patch.
+
+GenAI selects these settings from the GGUF metadata while keeping the existing exported-model
+processor defaults. GGUF video inputs keep all supplied frames unless the caller provides
+sampled frame indices. Numerical acceptance uses the pinned llama.cpp CPU reference; an
+optimum-intel comparison checks compatibility and does not replace that reference.
+
+Use Q4_0 language checkpoints for quantized generation accuracy tests. Q4_K_M conversion
+currently has an expected accuracy loss relative to llama.cpp; it retains the existing
+conversion until the plugin-side issue is resolved. Q4_K_M differences therefore do not
+establish an mmproj integration regression.
 
 Register `GenAIExtension` before converting the language model, as described in
 [runtime.md](runtime.md#stateful-and-genai-conversion). In C++, with a `FrontEndManager manager`

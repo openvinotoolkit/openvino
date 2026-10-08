@@ -358,8 +358,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<v0::Parameter> token_type_ids;
     const auto arch_it = model->get_rt_info().find("gguf_architecture");
     const auto arch = arch_it != model->get_rt_info().end() ? arch_it->second.as<std::string>() : std::string{};
-    // Gemma4 E2B/E4B, the variants with per-layer token embeddings, keep image attention causal.
-    if (inputs_embeds && (arch == "gemma3" || (arch == "gemma4" && !per_layer_inputs))) {
+    const auto hidden = inputs_embeds ? inputs_embeds->get_partial_shape()[2] : ov::Dimension{};
+    const bool gemma4_causal = hidden == ov::Dimension(1536) || hidden == ov::Dimension(2560);
+    if (inputs_embeds && (arch == "gemma3" || (arch == "gemma4" && !gemma4_causal))) {
         token_type_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
         name_output(token_type_ids, "token_type_ids");
     }

@@ -15,7 +15,6 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/gelu.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -157,17 +156,6 @@ void squeeze_output(const std::shared_ptr<ov::Model>& model) {
     auto features = std::make_shared<v0::Squeeze>(result->input_value(0), i64({0}));
     features->output(0).get_tensor().set_names({"last_hidden_state"});
     result->input(0).replace_source_output(features);
-}
-
-// Without clip.use_gelu llama.cpp runs Gemma4 vision with GELU_QUICK; HF uses tanh GELU.
-void use_tanh_gelu(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& node : model->get_ordered_ops()) {
-        if (node->get_friendly_name().find("GGML_UNARY_OP_GELU_QUICK") == std::string::npos)
-            continue;
-        auto gelu = std::make_shared<v7::Gelu>(node->input_value(0), ov::op::GeluApproximationMode::TANH);
-        gelu->set_friendly_name(node->get_friendly_name());
-        ov::replace_node(node, gelu);
-    }
 }
 
 // Patches fill the leading rows in raster order; padding rows have position -1.
@@ -327,7 +315,6 @@ std::map<std::string, std::shared_ptr<ov::Model>> genai_vision_models(const std:
     if (projector == "qwen3vl_merger")
         return qwen_layout(vision);
     if (projector == "gemma4v" || projector == "gemma4uv") {
-        use_tanh_gelu(vision);
         gemma4_layout(vision, metadata(vision, "vision.patch_size"));
     } else if (projector == "muse-glimmer") {
         muse_layout(vision,
