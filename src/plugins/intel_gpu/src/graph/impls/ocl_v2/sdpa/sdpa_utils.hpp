@@ -42,8 +42,7 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
         return false;
     }
 
-    const auto& attn_mask_layout =
-        params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK);
+    const auto& attn_mask_layout = params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK);
     const auto& attn_mask_pshape = attn_mask_layout.get_partial_shape();
 
     if (!attn_mask_pshape.rank().is_static()) {
