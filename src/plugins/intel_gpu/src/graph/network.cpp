@@ -588,6 +588,15 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     }
 
     auto& eng = get_engine();
+    // Remote outputs need a conservative chain because a runtime-skippable
+    // permute may become executable after shape inference.
+    // Build before invalidation: the chain is filtered by the output's current buffer.
+    auto& output_chains = is_remote ? _remote_output_chains : _output_chains;
+    auto o_iter = output_chains.find(id);
+    if (o_iter == output_chains.end()) {
+        o_iter = output_chains.emplace(id, build_output_chain(p_inst, is_remote)).first;
+    }
+
     if (is_remote && p_inst->is_dynamic()) {
         const auto bound_it = _bound_user_output_memory.find(id);
         if (bound_it == _bound_user_output_memory.end()) {
@@ -602,14 +611,6 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     } else {
         _output_remote_mem_ptrs.erase(id);
         _bound_user_output_memory.erase(id);
-    }
-
-    // Remote outputs need a conservative chain because a runtime-skippable
-    // permute may become executable after shape inference.
-    auto& output_chains = is_remote ? _remote_output_chains : _output_chains;
-    auto o_iter = output_chains.find(id);
-    if (o_iter == output_chains.end()) {
-        o_iter = output_chains.emplace(id, build_output_chain(p_inst, is_remote)).first;
     }
 
     for (auto& prim : o_iter->second) {
