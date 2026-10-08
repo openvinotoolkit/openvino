@@ -595,7 +595,7 @@ TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
     const bool steps = std::any_of(arrays.begin(), arrays.end(), [](const auto& entry) {
         return entry.first == "0.embeddings";
     });
-    for (const std::string step : steps ? std::vector<std::string>{"0.", "1."} : std::vector<std::string>{""}) {
+    for (const std::string& step : steps ? std::vector<std::string>{"0.", "1."} : std::vector<std::string>{""}) {
         SCOPED_TRACE(projector + " " + step);
         const auto image = tensor(steps ? step + "pixel_values" : "inputs", ov::element::f32);
         const auto& shape = image.get_shape();
