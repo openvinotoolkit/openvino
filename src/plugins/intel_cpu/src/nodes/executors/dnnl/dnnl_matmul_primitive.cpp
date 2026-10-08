@@ -518,10 +518,7 @@ bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type in
 #endif
 
 #if defined(OPENVINO_ARCH_X86_64)
-    // bf16/f16 activations x fp8 weights map onto the oneDNN brgemm_matmul
-    // is_bf16_fp8 / is_f16_fp8 configurations: the copy-B stage upconverts the whole
-    // B matrix to xf16 once, then the kernel runs as a plain xf16 GEMM. Gated so that
-    // this predicate keeps its current value on HW without such a kernel.
+    // bf16/f16 x fp8: copy-B upconverts the weights to xf16, then a plain xf16 GEMM runs.
     if (any_of(weightsType, f8e4m3, f8e5m2)) {
         return hasFp8WeightsDecompressionSupport(inputType);
     }
@@ -557,14 +554,8 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
 
     if (srcDesc->getShape().isDynamic() || weiDesc->getShape().isDynamic()) {
         if (attrs.fcSemantic && srcDesc->getShape().getRank() != weiDesc->getShape().getRank()) {
-            // FullyConnected semantic: the weights are a static rank-2 constant while
-            // src / dst are dynamic and may have a higher rank. makeDummyInputDims()
-            // asserts that all three ranks match, and there is nothing to make up for
-            // the weights anyway - only src (and the dst derived from it) need a
-            // representative static shape. K and N have to be taken from the weights
-            // rather than made up, otherwise the reduction dims would not agree.
-            // createDescriptorInternalAsFc() swaps the two trailing weights dims, so
-            // the incoming [OC, IC] descriptor means K == IC and N == OC.
+            // FC semantic: rank-2 static weights with possibly higher-rank dynamic src/dst, so
+            // only src/dst get dummy dims; K == IC and N == OC are taken from the [OC, IC] weights.
             const auto& weiDims = weiDesc->getShape().getStaticDims();
             auto srcDummyDims = MemoryDescUtils::makeDummyShape(srcDesc->getShape()).getStaticDims();
             srcDummyDims.back() = weiDims[weiDims.size() - 1];
