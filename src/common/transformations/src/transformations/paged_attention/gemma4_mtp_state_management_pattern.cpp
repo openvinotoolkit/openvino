@@ -6,21 +6,17 @@
 
 #include <cmath>
 #include <tuple>
-#include <utility>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/abs.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/less_eq.hpp"
-#include "openvino/op/mod.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
@@ -80,47 +76,18 @@ std::shared_ptr<ov::Node> kv_input_path(const std::shared_ptr<ov::Node>& kv_para
     return wrap_type<v1::Reshape>({broadcast, any_input()});
 }
 
-// Resolves the last cached token of every sequence to its (physical block, slot) through the block table
-std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> locate_last_token(
-    const ov::Output<ov::Node>& value_cache,
-    const ov::Output<ov::Node>& past_lens_minus_one,
-    const ov::Output<ov::Node>& block_indices,
-    const ov::Output<ov::Node>& block_indices_begins) {
-    using ov::element::i32;
-    auto axis_0 = v0::Constant::create(i32, ov::Shape{}, {0});
-    auto block_size =  // [] Bs
-        std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(value_cache, i32),
-                                     v0::Constant::create(i32, ov::Shape{}, {2}),
-                                     axis_0);
-    auto begins = std::make_shared<v8::Slice>(block_indices_begins,  // [B_seq + 1] -> [B_seq]
-                                              v0::Constant::create(i32, ov::Shape{1}, {0}),
-                                              v0::Constant::create(i32, ov::Shape{1}, {-1}),
-                                              v0::Constant::create(i32, ov::Shape{1}, {1}),
-                                              v0::Constant::create(i32, ov::Shape{1}, {0}));
-    auto physical_block_id = std::make_shared<v8::Gather>(  // [B_seq]: physical block id
-        block_indices,
-        std::make_shared<v1::Add>(begins, std::make_shared<v1::Divide>(past_lens_minus_one, block_size)),
-        axis_0);
-    auto slot = std::make_shared<v1::Mod>(past_lens_minus_one, block_size);  // [B_seq]: slot inside the block
-    return {physical_block_id, slot};
-}
-
-// Reads cache[block, :, slot, :] out of a [num_blocks, Hk, Bs, S] cache as [B_seq, Hk * S].
-std::shared_ptr<ov::Node> extract_last_token(const ov::Output<ov::Node>& cache,
-                                             const ov::Output<ov::Node>& physical_block_id,
-                                             const ov::Output<ov::Node>& slot,  // [B_seq]
-                                             int64_t width,
-                                             const ov::element::Type& type) {
-    using ov::element::i32;
-    using ov::element::i64;
-    auto blocks =  // [B_seq, Hk, Bs, S]
-        std::make_shared<v8::Gather>(cache, physical_block_id, v0::Constant::create(i32, ov::Shape{}, {0}));
-    auto token =
-        std::make_shared<v8::Gather>(blocks, slot, v0::Constant::create(i32, ov::Shape{}, {2}), 1);  // [B_seq, Hk, S]
-    auto flat = std::make_shared<v1::Reshape>(token,                                                 // [B_seq, Hk * S]
-                                              v0::Constant::create(i64, ov::Shape{2}, std::vector<int64_t>{-1, width}),
-                                              false);
-    return std::make_shared<v0::Convert>(flat, type);
+std::shared_ptr<ov::Node> kv_placeholder(const ov::Output<ov::Node>& total_token_count,
+                                         ov::element::Type q_type,
+                                         int64_t width) {
+    // scalar [] -> [1] = {B_token}
+    auto count =
+        std::make_shared<v0::Unsqueeze>(total_token_count, v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    // [1] = {width}
+    auto width_dim = v0::Constant::create(ov::element::i64, ov::Shape{1}, {width});
+    // [2] = {B_token, width}
+    auto shape = std::make_shared<v0::Concat>(OutputVector{count, width_dim}, 0);
+    // scalar 0 -> [B_token, width] of zeros
+    return std::make_shared<v3::Broadcast>(v0::Constant::create(q_type, ov::Shape{}, {0}), shape);
 }
 
 }  // namespace
@@ -130,17 +97,12 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
     std::unordered_set<std::string>& params_to_remove) {
     MATCHER_SCOPE(Gemma4MTPStateManagementPattern);
 
-    // Hkv and S size the PagedAttention cache and the K/V read back from it, so they have to be static.
     auto borrowed_kv_input = pattern::rank_equals(4) && pattern::has_static_dims({1, 3});
     auto k_param = wrap_type<v0::Parameter>(borrowed_kv_input);
     auto v_param = wrap_type<v0::Parameter>(borrowed_kv_input);
     auto k_to_sdpa = kv_input_path(k_param);
     auto v_to_sdpa = kv_input_path(v_param);
-
-    auto scale_predicate = [](const Output<Node>& output) -> bool {
-        return output.get_partial_shape().is_static() && ov::shape_size(output.get_shape()) == 1;
-    };
-    auto scale_input = any_input(scale_predicate);
+    auto scale_input = any_input(pattern::shape_matches("[]") || pattern::shape_matches("[1]"));
 
     std::shared_ptr<ov::Node> mask_to_sdpa, sliding_window_offset;
     std::tie(mask_to_sdpa, sliding_window_offset) = sliding_window_pattern();
@@ -150,7 +112,7 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
         wrap_type<v13::ScaledDotProductAttention>({any_input(), k_to_sdpa, v_to_sdpa, mask_to_sdpa}) |
         wrap_type<v13::ScaledDotProductAttention>({any_input(), k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
 
-    ov::matcher_pass_callback callback = [=, &pa_params, &params_to_remove](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &params_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto sdpa_node = ov::as_type_ptr<v13::ScaledDotProductAttention>(m.get_match_root());
         if (!sdpa_node) {
@@ -190,26 +152,20 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
         auto q_to_pa =
             std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
-        auto block_indices = pa_params["block_indices"];
-        auto block_indices_begins = pa_params["block_indices_begins"];
-
         // With no K/V projections the current token is taken from the cache itself; PagedAttention then
         // sees it as the one new token, so it has to be excluded from past_lens.
         auto past_lens_minus_one = std::make_shared<v1::Subtract>(
             pa_params["past_lens"],
             v0::Constant::create(pa_params["past_lens"]->get_output_element_type(0), Shape{}, {1}));
-        auto [physical_block_id, slot] =
-            locate_last_token(v_cache_param, past_lens_minus_one, block_indices, block_indices_begins);
-        auto k_to_pa = extract_last_token(k_cache_param,
-                                          physical_block_id,
-                                          slot,
-                                          num_k_heads * k_head_size,
-                                          real_q.get_element_type());
-        auto v_to_pa = extract_last_token(v_cache_param,
-                                          physical_block_id,
-                                          slot,
-                                          num_v_heads * v_head_size,
-                                          real_q.get_element_type());
+
+        auto total_token_count = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(q_to_pa, ov::element::i64),
+                                                              v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
+                                                              v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+
+        auto k_to_pa = kv_placeholder(total_token_count, q_to_pa->get_element_type(), num_k_heads * k_head_size);
+        auto v_to_pa = num_v_heads * v_head_size == num_k_heads * k_head_size
+                           ? k_to_pa
+                           : kv_placeholder(total_token_count, q_to_pa->get_element_type(), num_v_heads * v_head_size);
 
         std::shared_ptr<Node> scale;
         if (pattern_map.count(scale_input)) {
@@ -220,6 +176,7 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
         } else {
             scale = v0::Constant::create(element::f32, Shape{}, {1.0 / std::sqrt(static_cast<float>(k_head_size))});
         }
+
         auto sliding_window = [&]() -> std::shared_ptr<Node> {
             if (!pattern_map.count(sliding_window_offset)) {
                 return v0::Constant::create(element::i32, Shape{}, {0});
@@ -238,8 +195,8 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
         OutputVector pa_arguments = {q_to_pa, k_to_pa, v_to_pa, k_cache_param, v_cache_param};
         pa_arguments.push_back(past_lens_minus_one);
         pa_arguments.push_back(pa_params["subsequence_begins"]);
-        pa_arguments.push_back(block_indices);
-        pa_arguments.push_back(block_indices_begins);
+        pa_arguments.push_back(pa_params["block_indices"]);
+        pa_arguments.push_back(pa_params["block_indices_begins"]);
         pa_arguments.push_back(scale);
         pa_arguments.push_back(sliding_window);
         pa_arguments.push_back(v0::Constant::create(element::f32, Shape{0}, {}));  // alibi_slopes

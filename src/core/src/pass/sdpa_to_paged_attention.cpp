@@ -77,7 +77,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
 
     // A draft model reads the target model's KV cache through its inputs and has no state of its own.
-    OPENVINO_ASSERT(m_draft_model || !model->get_variables().empty(),
+    OPENVINO_ASSERT(m_options.draft_model || !model->get_variables().empty(),
                     "Model is supposed to be stateful, cannot perform "
                     "the SDPAToPagedAttention transformation. "
                     "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "

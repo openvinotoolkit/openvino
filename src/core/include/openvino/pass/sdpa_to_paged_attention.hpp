@@ -173,7 +173,6 @@ private:
     paged_attention::PaParams m_params;
     paged_attention::PaResults m_results;
     paged_attention::Options m_options;
-    bool m_draft_model;
 };
 }  // namespace pass
 }  // namespace ov

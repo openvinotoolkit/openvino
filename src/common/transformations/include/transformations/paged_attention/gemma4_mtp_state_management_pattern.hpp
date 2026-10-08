@@ -27,8 +27,9 @@ class TRANSFORMATIONS_API Gemma4MTPStateManagementPattern;
  * @brief Converts SDPA of a Gemma4 MTP draft model into PagedAttention that reads the target model's KV cache.
  *
  * The draft has no K/V projections and no state: K/V come as model inputs holding the target's cache.
- * They become key_cache.N / value_cache.N (shared by all layers reading the same input), and the last
- * cached token is read back from them as the current K/V.
+ * They become key_cache.N / value_cache.N (shared by all layers reading the same input). PagedAttention runs
+ * read-only and attends over the cache only, so its K/V inputs are zero placeholders of the right shape;
+ * past_lens is reduced by one so that the last cached token takes the place of the current one.
  *
  * Before:
  *
@@ -46,20 +47,19 @@ class TRANSFORMATIONS_API Gemma4MTPStateManagementPattern;
  *
  * After:
  *
- *   +-------+   +-------------+   +-----------+   +----------------+   +---------------+
- *   |   Q   |   | key_cache.N |   | past_lens |   | block_indices* |   | value_cache.N |
- *   +-------+   +-------------+   +-----------+   +----------------+   +---------------+
- *       |          |      |             |                 |                |        |
- *       |          |      |             v                 v                |        |
- *       |          |      |   +----------------------------------------+   |        |
- *       |          |      +-->|     last token extraction subgraph     |<--+        |
- *       |          |          +----------------------------------------+            |
- *       |          |                              |                                 |
- *       |          |                              | K, V, past_lens - 1             |
- *       v          v                              v                                 v
- *   +----------------------------------------------------------------------------------+
- *   |                                  PagedAttention                                  |
- *   +----------------------------------------------------------------------------------+
+ *   +-------+               +-------------+   +---------------+   +-----------+   +----------------+
+ *   |   Q   |               | key_cache.N |   | value_cache.N |   | past_lens |   | block_indices* |
+ *   +-------+               +-------------+   +---------------+   +-----------+   +----------------+
+ *     |   |                        |                  |                 |                  |
+ *     |   v                        |                  |                 v                  |
+ *     | +---------------+          |                  |           +-----------+            |
+ *     | |   zero K, V   |          |                  |           |    - 1    |            |
+ *     | +---------------+          |                  |           +-----------+            |
+ *     |         |                  |                  |                 |                  |
+ *     v         v                  v                  v                 v                  v
+ *   +-----------------------------------------------------------------------------------------------+
+ *   |                             PagedAttention (write_kv_cache=false)                             |
+ *   +-----------------------------------------------------------------------------------------------+
  */
 class ov::pass::Gemma4MTPStateManagementPattern : public ov::pass::MatcherPass {
 public:

@@ -7517,14 +7517,14 @@ std::shared_ptr<Node> make_query(const std::shared_ptr<v0::Parameter>& inputs_em
     return makeOP<v1::Transpose>({heads, {0, 2, 1, 3}});
 }
 
-std::shared_ptr<ov::Model> make_sdpa_model() {
+std::shared_ptr<ov::Model> make_sdpa_model(int full_v_head_size = full_head_size) {
     using ov::test::utils::make_param;
     auto inputs_embeds = make_param(element::f32, PartialShape{DYN, DYN, hidden_size}, "inputs_embeds");
     auto attention_mask = make_param(element::i64, PartialShape{DYN, DYN}, "attention_mask");
     auto full_key =
         make_param(element::f32, PartialShape{DYN, num_kv_heads, DYN, full_head_size}, "full_attention_key");
     auto full_value =
-        make_param(element::f32, PartialShape{DYN, num_kv_heads, DYN, full_head_size}, "full_attention_value");
+        make_param(element::f32, PartialShape{DYN, num_kv_heads, DYN, full_v_head_size}, "full_attention_value");
     auto sliding_key =
         make_param(element::f32, PartialShape{DYN, num_kv_heads, DYN, sliding_head_size}, "sliding_attention_key");
     auto sliding_value =
@@ -7561,7 +7561,7 @@ std::shared_ptr<ov::Model> make_sdpa_model() {
     auto sliding_k = repeat_kv(sliding_key, sliding_head_size);
     auto sliding_v = repeat_kv(sliding_value, sliding_head_size);
     auto full_k = repeat_kv(full_key, full_head_size);
-    auto full_v = repeat_kv(full_value, full_head_size);
+    auto full_v = repeat_kv(full_value, full_v_head_size);
     auto scale = makeConst(element::f32, ov::Shape{}, {1.0f});
 
     OutputVector outputs;
@@ -7606,7 +7606,7 @@ void run_pass(const std::shared_ptr<ov::Model>& model) {
     model->validate_nodes_and_infer_types();
 }
 
-std::shared_ptr<ov::Model> make_pa_model() {
+std::shared_ptr<ov::Model> make_pa_model(int full_v_head_size = full_head_size) {
     using ov::test::utils::make_param;
     auto inputs_embeds = make_param(element::f32, PartialShape{DYN, DYN, hidden_size}, "inputs_embeds");
     auto max_context_len = make_param(element::i32, PartialShape{}, "max_context_len");
@@ -7645,32 +7645,29 @@ std::shared_ptr<ov::Model> make_pa_model() {
     auto make_pa = [&](const Output<Node>& query,
                        const std::shared_ptr<v0::Parameter>& key_cache,
                        const std::shared_ptr<v0::Parameter>& value_cache,
-                       int head_size,
+                       int k_head_size,
+                       int v_head_size,
                        const Output<Node>& window) {
         auto q_to_pa =
             makeOP<v1::Reshape>({makeOP<v1::Transpose>({query, {0l, 2l, 1l, 3l}}), {0l, -1l}}, {special_zero_true});
 
-        // The last cached token is read back as K/V and fed as the current one.
         auto past_lens_minus_one = makeOP<v1::Subtract>({past_lens, 1}, {numpy_broadcast});
-        auto block_size = makeOP<v8::Gather>({makeOP<v3::ShapeOf>({value_cache}, {{"output_type", "i32"}}), 2, 0},
-                                             {{"batch_dims", 0}});
-        auto begins = makeOP<v8::Slice>({block_indices_begins, {0}, {-1}, {1}, {0}});
-        auto block_in_seq =
-            makeOP<v1::Divide>({past_lens_minus_one, block_size}, {numpy_broadcast, {"m_pythondiv", true}});
-        auto block = makeOP<v8::Gather>({block_indices, makeOP<v1::Add>({begins, block_in_seq}, {numpy_broadcast}), 0},
-                                        {{"batch_dims", 0}});
-        auto slot = makeOP<v1::Mod>({past_lens_minus_one, block_size}, {numpy_broadcast});
-        auto read_last_token = [&](const std::shared_ptr<v0::Parameter>& cache) {
-            auto blocks = makeOP<v8::Gather>({cache, block, 0}, {{"batch_dims", 0}});
-            auto token = makeOP<v8::Gather>({blocks, slot, 2}, {{"batch_dims", 1}});
-            auto flat = makeOP<v1::Reshape>({token, makeConst(element::i64, ov::Shape{2}, {-1, head_size})},
-                                            {{"special_zero", false}});
-            return makeOP<v0::Convert>({flat}, {dest_type_f32});
+
+        auto total_token_count =
+            makeOP<v8::Gather>({makeOP<v3::ShapeOf>({q_to_pa}, {{"output_type", "i64"}}), 0, 0}, {{"batch_dims", 0}});
+        auto kv_placeholder = [&](int width) {
+            auto shape = makeOP<v0::Concat>(
+                {makeOP<v0::Unsqueeze>({total_token_count, 0}), makeConst(element::i64, ov::Shape{1}, {width})},
+                {{"axis", 0}});
+            return makeOP<v3::Broadcast>({0.0f, shape}, {{"mode", "numpy"}});
         };
+        // The pass reuses the K placeholder for V when their widths match.
+        auto k_placeholder = kv_placeholder(k_head_size);
+        auto v_placeholder = v_head_size == k_head_size ? k_placeholder : kv_placeholder(v_head_size);
 
         OutputVector args{q_to_pa,
-                          read_last_token(key_cache),
-                          read_last_token(value_cache),
+                          k_placeholder,
+                          v_placeholder,
                           key_cache,
                           value_cache,
                           past_lens_minus_one,
@@ -7698,12 +7695,12 @@ std::shared_ptr<ov::Model> make_pa_model() {
                           qq_bias_begins};
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(args, /*write_kv_cache=*/false);
         pa->get_rt_info()["num_k_heads"] = int64_t{num_kv_heads};
-        pa->get_rt_info()["k_head_size"] = int64_t{head_size};
+        pa->get_rt_info()["k_head_size"] = int64_t{k_head_size};
         pa->get_rt_info()["num_v_heads"] = int64_t{num_kv_heads};
-        pa->get_rt_info()["v_head_size"] = int64_t{head_size};
+        pa->get_rt_info()["v_head_size"] = int64_t{v_head_size};
 
         auto pa_reshape =
-            makeOP<v1::Reshape>({pa->output(0), makeConst(element::i64, ov::Shape{4}, {0, 1, -1, head_size})},
+            makeOP<v1::Reshape>({pa->output(0), makeConst(element::i64, ov::Shape{4}, {0, 1, -1, v_head_size})},
                                 {special_zero_true});
         return makeOP<v1::Transpose>({pa_reshape, {0l, 2l, 1l, 3l}});
     };
@@ -7719,12 +7716,14 @@ std::shared_ptr<ov::Model> make_pa_model() {
                                   key_cache_0,
                                   value_cache_0,
                                   sliding_head_size,
+                                  sliding_head_size,
                                   sliding_window_i32()));
     }
     outputs.push_back(make_pa(make_query(inputs_embeds, full_head_size),
                               key_cache_3,
                               value_cache_3,
                               full_head_size,
+                              full_v_head_size,
                               makeConst(element::i32, ov::Shape({}), MOCK_VALUE)));
     return std::make_shared<ov::Model>(outputs,
                                        ParameterVector{inputs_embeds,
@@ -7745,6 +7744,16 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern) {
     model = gemma4_mtp::make_sdpa_model();
     gemma4_mtp::run_pass(model);
     model_ref = gemma4_mtp::make_pa_model();
+
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern_DifferentKVHeadSizes) {
+    constexpr int full_v_head_size = 256;
+    model = gemma4_mtp::make_sdpa_model(full_v_head_size);
+    gemma4_mtp::run_pass(model);
+    model_ref = gemma4_mtp::make_pa_model(full_v_head_size);
 
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_rt_info_check();
