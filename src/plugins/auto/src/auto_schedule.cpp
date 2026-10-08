@@ -348,9 +348,35 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     }
 
     for (const auto& device : devices_to_precompile) {
-        // Clone synchronously here, before compile_model() returns to the caller
-        const auto model_snapshot = model ? model->clone() : nullptr;
+        // Clone before scheduling; skip this device if cloning fails.
+        std::shared_ptr<ov::Model> model_snapshot;
+        if (model) {
+            try {
+                model_snapshot = model->clone();
+            } catch (const std::exception& e) {
+                LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: %s",
+                              device.device_name.c_str(),
+                              e.what());
+                continue;
+            } catch (...) {
+                LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: unknown exception",
+                              device.device_name.c_str());
+                continue;
+            }
+        }
         m_precompile_executor->run([this, core = m_context->m_ov_core, device, model_snapshot, model_path] {
+            // Wait for ACTUALDEVICE to settle, then skip this device if it was selected as the actual device.
+            if (m_compile_context[ACTUALDEVICE].m_future.valid()) {
+                m_compile_context[ACTUALDEVICE].m_future.wait();
+            }
+            {
+                std::lock_guard<std::mutex> lock(m_context->m_mutex);
+                if (device.device_name == m_compile_context[ACTUALDEVICE].m_device_info.device_name) {
+                    LOG_INFO_TAG("skip cache pre-compilation for device: %s, already compiled as the actual device",
+                                 device.device_name.c_str());
+                    return;
+                }
+            }
             const auto compile_begin = std::chrono::steady_clock::now();
             try {
                 // Follow the same model-source priority as the blob existence check: model first, then path.

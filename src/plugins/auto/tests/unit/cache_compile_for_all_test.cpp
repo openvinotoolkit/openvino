@@ -8,6 +8,7 @@
 #include <sstream>
 #include <thread>
 #include <tuple>
+#include <vector>
 #include "include/auto_unit_test.hpp"
 
 using namespace ov::mock_auto_plugin;
