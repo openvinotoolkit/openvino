@@ -16,7 +16,8 @@ using namespace ov::test::utils;
 
 const ov::AnyMap enable_dyn_quant_config_kleidiai = {ov::hint::dynamic_quantization_group_size(UINT64_MAX)};
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
-const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
+// KleidiAI executor do not support postOps fusion
+const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec};
 
 const std::vector<ov::test::ElementType> weights_precisions_kleidiai = {ov::element::i8, ov::element::i4};
 const std::vector<MatMulDecompressionShapeParams> input_shapes_kleidiai = {
@@ -98,6 +99,8 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_with_groups = {
         32lu},   // group_size = 16  
 }; 
 
+const std::vector<ov::AnyMap> enable_dyn_quant_config_kleidiai_asym = {{ov::hint::dynamic_quantization_group_size(UINT64_MAX), ov::hint::inference_precision("f32")},
+                                                                        {ov::hint::dynamic_quantization_group_size(UINT64_MAX), ov::hint::inference_precision("f16")}};
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeightsGrp_Kleidiai_asym,  
                          MatmulWeightsDecompression,  
                          ::testing::Combine(::testing::ValuesIn(input_shapes_with_groups),  
@@ -108,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeightsGrp_Kleidiai_asym,
                                             ::testing::Values(DecompressionType::full),  // group-wise requires full  
                                             ::testing::Values(DecompressionType::full),  // asymmetric with zero-point  
                                             ::testing::Values(false),  
-                                            ::testing::Values(enable_dyn_quant_config_kleidiai),  
+                                            ::testing::ValuesIn(enable_dyn_quant_config_kleidiai_asym),
                                             ::testing::ValuesIn(fusing_params),  
                                             ::testing::Values(true)),  // should_use_decompression_impl() can also be passed
                          MatmulWeightsDecompression::getTestCaseName);

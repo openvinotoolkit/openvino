@@ -26,10 +26,6 @@
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
 
-#if defined(OPENVINO_ARCH_ARM64)
-#    include <limits>
-#endif
-
 namespace ov::intel_cpu {
 
 using namespace ov::threading;
@@ -514,14 +510,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (hasHardwareSupport(ov::element::f16)) {
                 inferencePrecision = ov::element::f16;
             }
-#    if defined(OPENVINO_ARCH_ARM64)
-            // enforce fp32 inference precision for dynamic quantization
-            // to preserve fp32 matmul output precision
-            if (fcDynamicQuantizationGroupSizeSetExplicitly &&
-                fcDynamicQuantizationGroupSize == std::numeric_limits<uint64_t>::max()) {
-                inferencePrecision = ov::element::f32;
-            }
-#    endif
 #endif
             if (ov::with_cpu_x86_bfloat16()) {
                 inferencePrecision = ov::element::bf16;
