@@ -233,6 +233,8 @@ Tensor read_tensor_data_mmap_impl(std::shared_ptr<MappedMemory> mapped_memory,
                                                                                              mapped_memory->size(),
                                                                                              mapped_memory);
     auto tensor = wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
+    // Expose the mmap-backed buffer so consumers can evict consumed ranges (see ov::get_tensor_buffer).
+    set_tensor_buffer(tensor, shared_buffer);
     if (const auto source_id = mapped_memory->get_id()) {
         set_tensor_source_id(tensor, *source_id);
     }

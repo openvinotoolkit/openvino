@@ -9,6 +9,7 @@
 
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/type/element_type_info.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -128,6 +129,14 @@ public:
         m_source_id = id;
     }
 
+    const std::shared_ptr<ov::AlignedBuffer>& get_buffer() const {
+        return m_buffer;
+    }
+
+    void set_buffer(const std::shared_ptr<ov::AlignedBuffer>& buffer) {
+        m_buffer = buffer;
+    }
+
 protected:
     bool is_pointer_representable(const element::Type& element_type) const {
         if (element_type.is_dynamic()) {
@@ -166,6 +175,8 @@ protected:
     mutable std::once_flag m_strides_once;
     void* m_ptr;
     std::optional<uint64_t> m_source_id;
+    // Buffer this view was created over (if any); see ov::get_tensor_buffer().
+    std::shared_ptr<ov::AlignedBuffer> m_buffer;
 };
 
 /**
@@ -650,6 +661,19 @@ std::optional<uint64_t> get_tensor_source_id(const ov::Tensor& tensor) {
 void set_tensor_source_id(ov::Tensor& tensor, uint64_t id) {
     if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
         itensor->set_source_id(id);
+    }
+}
+
+std::shared_ptr<ov::AlignedBuffer> get_tensor_buffer(const ov::Tensor& tensor) {
+    if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
+        return itensor->get_buffer();
+    }
+    return nullptr;
+}
+
+void set_tensor_buffer(ov::Tensor& tensor, const std::shared_ptr<ov::AlignedBuffer>& buffer) {
+    if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
+        itensor->set_buffer(buffer);
     }
 }
 
