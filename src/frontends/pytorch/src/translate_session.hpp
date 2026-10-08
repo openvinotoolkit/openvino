@@ -8,9 +8,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
 /// translation session: telemetry statistics, operation translators (including extensions) registered for this
@@ -58,6 +56,11 @@ public:
         std::vector<size_t> element_ids;
     };
     std::map<size_t, AliasInfo> m_may_be_alias;
+    // Aliases of tuple elements returned by inlined subgraphs, keyed by tuple tensor id and element index and
+    // registered when an element is selected.
+    std::map<std::pair<size_t, int64_t>, AliasInfo> m_tuple_element_aliases;
+    // Declared outputs of the last converted internal body which are views of its inputs: output index to input id.
+    std::map<size_t, size_t> m_body_output_aliases;
 
     OutputVector convert_node(const NodeContext& context);
 
@@ -73,6 +76,4 @@ private:
     bool m_is_fx = false;
 };
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch
