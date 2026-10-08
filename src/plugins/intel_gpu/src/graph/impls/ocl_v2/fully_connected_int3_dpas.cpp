@@ -31,8 +31,8 @@ constexpr const char* kernel_name = "fully_connected_int3_dpas";
 constexpr size_t simd = 16;
 constexpr size_t k_chunk = 32;  // u3 values per granule, and the DPAS K step
 constexpr size_t osv = 16;      // output channels per weights block
-// Rows at or above which the matrix-engine variants win over the K-split one.
-constexpr size_t dpas_min_rows = 8;
+// Rows at or above which the matrix-engine variants win over the K-split one, which reads all weights once per row.
+constexpr size_t dpas_min_rows = 2;
 // Column blocks per subgroup and rows per subgroup of the v2 path. Its 16 x 64 tiles need 256 registers per thread.
 constexpr size_t v2_nb = 4;
 constexpr size_t v2_tile_m = 16;

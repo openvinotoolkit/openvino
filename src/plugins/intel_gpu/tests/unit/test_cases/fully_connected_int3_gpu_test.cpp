@@ -222,8 +222,8 @@ TEST_F(fully_connected_int3_gpu_tests, scalar_gemm_single_row) {
     run(base, false, false, {1}, {{"scalar"}});
 }
 
-TEST_F(fully_connected_int3_gpu_tests, scalar_gemm_few_rows) {
-    run(base, false, false, {5}, {{"scalar"}});
+TEST_F(fully_connected_int3_gpu_tests, v1_t8_few_rows) {
+    run(base, false, false, {2}, {{"v1_t8"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, v1_t8) {
@@ -323,7 +323,7 @@ TEST_F(fully_connected_int3_gpu_tests, dynamic_grouped_zp) {
 }
 
 TEST_F(fully_connected_int3_gpu_tests, cached_static) {
-    run(base, false, true, {5}, {{"scalar"}});
+    run(base, false, true, {1}, {{"scalar"}});
 }
 
 TEST_F(fully_connected_int3_gpu_tests, cached_static_v2) {
