@@ -169,8 +169,18 @@ processor defaults. GGUF video inputs keep all supplied frames unless the caller
 sampled frame indices. Numerical acceptance uses the pinned llama.cpp CPU reference; an
 optimum-intel comparison checks compatibility and does not replace that reference.
 
-Use Q4_0 language checkpoints for quantized generation accuracy tests. Q4_K_M conversion
-currently has an expected accuracy loss relative to llama.cpp; it retains the existing
+GenAI uses an F16 KV cache for GGUF multimodal models to match llama.cpp's default cache
+precision; explicit cache precision properties take precedence.
+
+Gemma4 sliding-window layers apply the window to image tokens as well as text tokens.
+The GenAI adaptation preserves this behavior through paged attention conversion.
+
+Use language checkpoints containing Q4_0 weights for quantized generation accuracy tests;
+inspect their tensor types because files named Q4_0 can also contain Q5_K/Q6_K weights.
+Q4_0 can still diverge on close greedy choices because the CPU engines use different
+quantized arithmetic. Keep the original llama.cpp comparison and its accuracy thresholds;
+an exact F16 expansion can help distinguish arithmetic differences from integration errors.
+Q4_K_M conversion currently has an expected accuracy loss relative to llama.cpp; it retains the existing
 conversion until the plugin-side issue is resolved. Q4_K_M differences therefore do not
 establish an mmproj integration regression.
 

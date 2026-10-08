@@ -522,6 +522,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (swa_it != rt_info.end()) {
             const auto window = swa_it->second.as<int64_t>();
             auto window_m1 = v0::Constant::create(ov::element::i32, ov::Shape{}, {static_cast<int32_t>(window - 1)});
+            if (arch == "gemma4" && token_type_ids)
+                window_m1->get_rt_info()["image_tokens_use_sliding_window"] = true;
             auto window_start = make_shared<v1::Subtract>(q_pos_col, window_m1);      // [seq, 1]
             auto within_window = make_shared<v1::GreaterEqual>(k_row, window_start);  // [seq, kv_len]
             auto allowed_swa = make_shared<v1::LogicalAnd>(allowed, within_window);   // [seq, kv_len]

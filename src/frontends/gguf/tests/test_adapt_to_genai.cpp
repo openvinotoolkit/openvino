@@ -16,6 +16,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/add.hpp"
@@ -754,6 +755,37 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
         ov::SinkVector{k_assign, v_assign},
         ov::ParameterVector{inp_tokens, inp_pos, self_kq_mask, token_len_per_seq, beam_idx});
 }
+
+class GGUFAdaptToGenAISlidingWindow : public testing::TestWithParam<bool> {};
+
+TEST_P(GGUFAdaptToGenAISlidingWindow, PreservedByPagedAttention) {
+    auto model = build_attention_gguf_model(16, 4);
+    auto mask = find_parameter(model, "self_kq_mask");
+    auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
+    model->add_parameters({swa});
+    mask->output(0).replace(swa->output(0));
+    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{64};
+    AdaptToGenAI(GetParam() ? AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS : AdaptToGenAI::InputMode::IDS_TO_LOGITS)
+        .run_on_model(model);
+    ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model);
+    size_t count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            const auto window = ov::util::get_constant_from_source(pa->input_value(10));
+            ASSERT_NE(window, nullptr);
+            EXPECT_EQ(window->cast_vector<int32_t>(), std::vector<int32_t>{64});
+            if (GetParam()) {
+                ASSERT_TRUE(pa->get_rt_info().count("image_tokens_use_sliding_window"));
+                EXPECT_TRUE(pa->get_rt_info().at("image_tokens_use_sliding_window").as<bool>());
+            }
+            ++count;
+        }
+    }
+    EXPECT_EQ(count, 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(GGUFAdaptToGenAI, GGUFAdaptToGenAISlidingWindow, testing::Bool());
 
 constexpr float lm_head_soft_cap = 5.0f;
 

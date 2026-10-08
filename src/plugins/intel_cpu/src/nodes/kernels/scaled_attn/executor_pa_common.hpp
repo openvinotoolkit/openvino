@@ -65,6 +65,7 @@ struct PagedAttnQuantParams {
     bool quant_key_bychannel = false;
     bool quant_value_bychannel = false;
     bool is_sage_attn = false;
+    bool image_tokens_use_sliding_window = false;
 };
 
 struct AttnWorkItem {
