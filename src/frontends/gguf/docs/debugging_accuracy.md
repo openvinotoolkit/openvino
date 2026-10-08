@@ -1,362 +1,150 @@
-# Debugging Accuracy Issues in the GGUF Frontend / OpenVINO Backend
+# Debugging GGUF accuracy
 
-How to find *why* a GGUF model produces wrong output through the OpenVINO frontend +
-`ggml-openvino` backend, versus the reference llama.cpp CPU path.
+First identify the conversion path and failing boundary. Use the cheapest relevant comparison;
+there is no requirement to complete every diagnostic before inspecting the implicated code.
 
-A field guide, not a spec: the techniques that have paid off and the traps that wasted
-time. Read it before reaching for a debugger.
+| Execution path | Start with | Compare |
+|---|---|---|
+| Native decoder | [Architecture fixtures](../tests/test_data/arch_accuracy/README.md) | Full logits on identical histories: prefill, one-token decode, then cache append |
+| Native mmproj | [Encoder fixtures](../tests/test_data/mmproj_accuracy/README.md) | Same preprocessed pixels/features and indices, each modality, raw and adapted embeddings |
+| llama.cpp OpenVINO backend | [Backend isolation](#llamacpp-backend-isolation) below | Genuine ggml CPU execution versus the OpenVINO backend |
 
----
+Native builders and supplied cgraph decoders share converters, but have different graph construction
+and state/IO adaptation. Backend environment variables do not configure native frontend inference.
+See [testing](testing.md) for commands, acceptance criteria, and how to recognize skipped coverage.
 
-## The one rule: always have an authoritative reference
+## Reference and precision
 
-Every accuracy claim is a comparison, and the reference must be **the real llama.cpp CPU
-implementation** — never one you derived by hand. A hand-written reference (numpy, a C++
-recurrence from the paper) encodes *your* understanding of the op's layout; if that is wrong
-the same way the frontend is, the two agree and the bug hides — or, worse, a correct frontend
-"fails" against your buggy reference and you chase a phantom.
+Use the real llama.cpp/ggml CPU implementation as the reference for model outputs and
+layout-sensitive operations. A hand-written recurrence or NumPy layout transformation can repeat
+the implementation's misunderstanding. Simple elementwise checks with unambiguous closed forms
+may compute their expectations inline; see [operation tests](how_to_add_op.md#test-and-the-coverage-gate).
 
-If you catch yourself typing out an op's math to build an expectation, stop and generate it
-from ggml instead (see [The ggml-CPU oracle](#the-ggml-cpu-oracle)).
+Record both revisions, checkpoint and quantization, input tensors or token history, device,
+inference precision, activation quantization, and cache precision. Use reference-token replay
+after a greedy choice differs; comparing later logits on different histories hides the cause.
+Coherent text is a functional check, not numerical acceptance.
 
-> Trap: with one head (`H=1`) many layout orders coincide, so a single-head unit test can pass
-> against a wrong reference and give false confidence. Test at real dimensions (step 9).
+The same checkpoint does not imply the same arithmetic. Compare against both native quantized
+CPU execution and, when needed, F32 arithmetic on the checkpoint's represented weights. Expanding
+weights preserves the file's original quantization error; it does not recover the publisher's
+F32 weights. Keep these measurements separate and retain failed comparisons. See
+[quantization](quantization.md) for conversion losses, native precision controls, and memory costs.
 
----
+## Localize the failing boundary
 
-## Bisection strategy, coarse to fine
+1. **Inputs:** align tokenization, prompts, chat templates, masks, positions, and preprocessing.
+   For mmproj, check temporal pairs, patch/window order, image range, audio frame layout, and
+   feature packing against [the input contracts](mmproj.md#graph-boundary).
+2. **Time or shape:** compare prefill with decode, then several sequence/image sizes on the
+   same request. Exercise nonzero positions, window boundaries, and state reset. A decode-only
+   failure suggests cache updates or shape-dependent indexing, but does not prove their guilt.
+3. **Adaptation:** compare native outputs before and after `GGUFMakeStateful`, `AdaptToGenAI`,
+   or `AdaptMmprojToGenAI` as appropriate. Use independent clones/requests and retain the same
+   logical inputs. For combined mmproj files, isolate vision and audio separately.
+4. **Intermediates:** compare corresponding tensors in element order using NMSE, absolute/relative
+   error, and cosine where norms are nonzero. Inspect the first material divergence, then test
+   whether correcting or bypassing it fixes the final output.
+5. **Regression:** reproduce the implicated operation at realistic dimensions and keep an oracle
+   fixture. Test all affected converter paths and rerun shared architecture/projector regressions.
 
-Work from the cheapest, coarsest signal to the finest; each step narrows the search space for
-the next. Don't open a debugger until these have cornered the bug.
+A cosine cliff localizes a discrepancy; it does not establish a permutation bug. A smooth slope
+can suggest accumulated numerical error but is not sufficient to exonerate structure. Sums,
+means, minima, and maxima cannot detect permutations. Equal sorted buffers with different element
+order support a layout hypothesis; unequal sorted buffers can also mean the wrong source region
+was selected. Check shapes, strides, offsets, and candidate source tensors before blaming arithmetic.
 
-### 1. Is it an OpenVINO bug at all?
+Near an MoE boundary, compare router logits, selected expert IDs, and the selection cutoff margin.
+A small change near a tie can select another expert and amplify later differences. Identifying
+this sensitivity does not waive the agreed accuracy threshold.
 
-When the output *text* is bad but the graph runs end-to-end, first decide whether OV is even at
-fault, by comparing against a genuine ggml-CPU run of the **same model at the same commit**.
+## llama.cpp backend isolation
 
-> ⚠️ **A build with `-DGGML_OPENVINO=ON` has no CPU backend.** The OV backend registers as a
-> ggml *device* (`OPENVINO0`); no CPU device is registered (`llama-cli --list-devices` shows
-> only `OPENVINO0`). So every "CPU" knob silently runs OV: `env -u GGML_OPENVINO` and
-> `GGML_OPENVINO=""` do nothing (it's a device, not gated by that var), `--device none` runs
-> OV, and `GGML_OPENVINO_DEVICE=CPU` runs OV-on-CPU. "I compared CPU vs OV and they matched" is
-> really OV vs OV — a conclusion that has wasted days.
+Use a compatible backend revision; the repository/ref used by CI are recorded in
+[the backend workflow](../../../../.github/workflows/job_gguf_llamacpp_validation.yml).
+For a model comparison, build ggml CPU and OpenVINO variants from the same llama.cpp revision.
+`GGML_OPENVINO_DEVICE=CPU` selects OpenVINO on CPU, not the ggml CPU oracle. Do not assume
+`--device none` or unsetting an unrelated variable bypasses a compiled-in backend.
 
-The only reliable CPU reference is a second build with OV compiled out, at the same commit:
+From that llama.cpp checkout, create an independent CPU reference build:
 
-```
-cmake -B build-cpu -DGGML_OPENVINO=OFF -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF
-cmake --build build-cpu --target llama-simple llama-eval-callback -j$(nproc)
-```
-
-Compare greedy on **`llama-simple`** (raw completion, no chat template — see the gotcha below):
-
-```
-./build-cpu/bin/llama-simple -m <model>.gguf -n 20 "The capital of France is"   # true ggml CPU
-./build-ov/bin/llama-simple  -m <model>.gguf -n 20 "The capital of France is"   # OpenVINO
-```
-
-- **Both good** → port correct, done.
-- **CPU good, OV bad** → a genuine OV bug; localize with the steps below against `build-cpu`.
-- **Both bad** → only now may it be a shared llama.cpp/model/template issue; confirm the CPU
-  build is genuinely OV-free (`--list-devices`) before believing it.
-
-> **The chat template hides the signal.** `llama-cli`/`llama-completion` apply the model's chat
-> template; a thinking model then emits `<think>` and reasons instead of completing, so greedy
-> output looks degenerate even when the math is fine. Use `llama-simple` for bisection; reserve
-> `llama-cli` for judging end-user quality *after* the math is verified.
-
-### 2. Graph bug or quantization?
-
-Run the **same quantized weights** through the CPU reference and OV, both greedy, and compare
-the first token. Reference right + OV wrong on identical weights ⇒ quantization is ruled out,
-it's a graph/conversion bug. Don't download a higher-precision model to "check quantization" —
-this already answered it for free (and big models often OOM in the frontend; see Gotchas).
-
-### 3. Prefill or decode?
-
-`-n 1` (prefill only) vs `-n 12` (prefill + decode). First token already wrong → the bug is in
-the prefill graph; ignore all state/KV/decode machinery. Prefill right, later tokens drift →
-suspect stateful bookkeeping, the KV/recurrent-state round-trip, or a decode-only path.
-
-### 4. First-divergence diff (highest-yield localization)
-
-Dump every node's output on both backends and diff in graph order. `llama-eval-callback` fires
-per ggml node and prints name, op, shapes and a per-tensor **`sum`** — a cheap, position-stable
-fingerprint. Node names repeat across layers/experts, so align the two logs **positionally**,
-not by name.
-
-```
-./build-cpu/bin/llama-eval-callback -m <model>.gguf -p "The capital of France is" -n 1 > /tmp/cb_ref.log 2>&1
-GGML_OPENVINO_DEVICE=CPU GGML_OPENVINO_STATEFUL_EXECUTION=1 \
-    ./build-ov/bin/llama-eval-callback -m <model>.gguf -p "The capital of France is" -n 1 > /tmp/cb_ov.log 2>&1
-
-awk '/cb_eval:/{n=$2} /sum = /{print n"\t"$3}' /tmp/cb_ref.log > /tmp/ref_pos.txt
-awk '/cb_eval:/{n=$2} /sum = /{print n"\t"$3}' /tmp/cb_ov.log  > /tmp/ov_pos.txt
-paste /tmp/ov_pos.txt /tmp/ref_pos.txt | awk -F'\t' '{
-  d=$2-$4; if(d<0)d=-d; b=($4<0?-$4:$4); if(b<1)b=1; rel=d/b;
-  flag=($1!=$3)?" NAME-MISMATCH":(rel>0.001?" <<< DIFF":"");
-  printf "%3d %-26s ov=%-12s ref=%-12s%s\n", NR,$1,$2,$4,flag }'
+```sh
+cmake -S . -B build-cpu -DGGML_OPENVINO=OFF -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF
+cmake --build build-cpu --target llama-simple llama-eval-callback --parallel
+./build-cpu/bin/llama-simple -m model.gguf -n 12 "The capital of France is"
+./build-ov/bin/llama-simple -m model.gguf -n 12 "The capital of France is"
 ```
 
-Judgement calls, all learned the hard way:
+Here `build-ov` is the separately configured OpenVINO build. Raw completion avoids chat-template
+differences during bisection; test chat behavior separately with matched templates. If both runs
+fail, check the reference/model setup before attributing the problem to OpenVINO. If both produce
+coherent text, continue with the required numerical comparisons.
 
-- **The first *visible* divergence is usually not the root cause** — often benign kernel
-  rounding (a sub-0.2% matmul diff). Confirm a candidate by *eliminating* it (steps 6–7) and
-  seeing the output change; never assume.
-- **Only tensors at subgraph boundaries carry real data** (see the trustworthy-tensor rule in
-  step 5); interior nodes read `0` or stale, so a zero-vs-nonzero "difference" there is an
-  artifact.
-- **The callback perturbs OV's graph split** (it forces boundaries) and may crash OV early, but
-  the prefix is usually enough to find the *first* divergence. For a full-depth sweep that
-  doesn't perturb the split, use `GGML_OPENVINO_DEBUG_OUTPUT` (step 5).
-- **Positional alignment holds only until node order/count diverges** between backends. Past the
-  first genuine name mismatch, trust only rows where both names still agree.
+### Capturing intermediates
 
-### 5. Per-layer sweep — element-wise cosine, never Min/Max/Mean
+`llama-eval-callback` captures ggml node outputs during execution. Its printed sums are useful
+for a preliminary scan; obtain full tensors for an elementwise comparison. Match node identity,
+shape, and execution step: names may repeat, and positional alignment ends when graphs diverge.
 
-> ⚠️ **A permutation-invariant statistic cannot see a permutation bug.** `sum`, mean, min and
-> max are unchanged when a tensor's elements are *reordered*. A whole class of bugs only reorders
-> correct values — partial-rotary rope rotating the wrong slice, a head-scramble from a bad
-> reshape/transpose, interleaved-vs-split-halves, any layout error on an axis a size-1 dim would
-> collapse. A statistic-based per-layer sweep then reports "small diffuse drift, no single broken
-> layer" — a false verdict that has sent debugging down a precision rabbit hole for a day.
-> **Never conclude "drift" from a permutation-invariant metric.**
+Backend instrumentation lives in `ggml/src/ggml-openvino/`, with CPU callback instrumentation in
+`common/debug.cpp`. Check the selected checkout for each control before using it; these are
+backend implementation details, not frontend API guarantees.
 
-`GGML_OPENVINO_DEBUG_OUTPUT=1` prints First/Min/Max/Mean per *subgraph output* at its natural
-boundary (no split perturbation, no early crash), covering every layer to `result_output`. But
-compute **element-wise cosine** against the reference, not the printed statistics:
+| Control | Purpose |
+|---|---|
+| `GGML_OPENVINO_STATEFUL_EXECUTION=1` | Exercise backend KV/recurrent state handling |
+| `GGML_OPENVINO_DUMP_CGRAPH=1` | Inspect subgraph operations and tensor geometry |
+| `GGML_OPENVINO_DEBUG_INPUT=1` / `GGML_OPENVINO_DEBUG_OUTPUT=1` | Inspect bound subgraph inputs/outputs and summary statistics |
+| `GGML_OPENVINO_DUMP_TENSOR=<substring>` | Capture matching OV outputs in element order |
+| `GGML_DUMP_TENSOR=<substring>` | Capture matching CPU eval-callback tensors |
+| `GGML_OPENVINO_DUMP_IR=1` | Inspect serialized graphs, subject to [internal-op limits](runtime.md#internal-operations-and-serialization) |
+| `GGML_OPENVINO_FORCE_F32=1` | Investigate backend precision differences |
+| `GGML_OPENVINO_DISABLE_TYPES=Q8_0,Q6_K` | Isolate handling of selected quantized types |
+| `GGML_OPENVINO_DISABLE_OPS=SSM_CONV,DIV` | Investigate selected operation families through backend fallback |
 
-```
-cos = dot(ov, ref) / (norm(ov) * norm(ref))
-```
+Capture tensors while their buffers are valid. ggml scratch memory can be reused after an
+operation, so a later read of an interior tensor can be stale. Genuine boundary outputs and
+appropriately captured caches are useful comparison points. Promoting extra outputs or enabling
+callbacks can change allocation and graph partitioning; a new crash under instrumentation is
+inconclusive. Matching a cache write bounds only the compared branch, not every parallel path.
 
-Cosine is ~1.0 when the buffers agree elementwise and collapses the instant elements are
-reordered. Sweep it per layer on full-width, same-named, genuine-boundary tensors. The shape of
-the curve *is* the diagnosis:
-
-- **A sharp cliff** at one layer (e.g. 0.999997 → 0.43 between neighbours) = a **localized
-  structural bug** there. Align the cliff to what that layer does differently (e.g. "first layer
-  downstream of a rope layer") to point at the op.
-- **A gentle monotone slope** from ~1.0 = genuine accumulating precision drift — a verdict you
-  earn only when cosine *also* shows a smooth slope.
-
-To place both backends at every layer despite OV crashing early under the eval-callback, match
-the complete ggml-CPU eval-callback `sum` per layer (÷ element count) against the OV
-`DEBUG_OUTPUT` mean for the same layer: a small, one-signed, compounding diff with no single jump
-is a mildly biased op applied every layer; a single jump is a localized bug. (To gauge severity,
-bias logits with `-l <TOKEN_ID>±N` and bisect N until top-1 flips — a tight reference margin but
-a large OV displacement means real distortion, not a rounding-broken tie.)
-
-> **Trustworthy-tensor rule (applies to steps 4, 5, 8).** ggml reuses scratch buffers, so an
-> interior tensor promoted to an output can read memory already clobbered by a later op — you get
-> plausible garbage. Only **persistent buffers** are safe to compare cross-backend: the
-> KV/recurrent-state caches (`cache_k/v/r/s`) and genuine subgraph-boundary outputs. A pure
-> `TRANSPOSE` that appears to change its element `sum` is diagnostic *of this artifact*, not of a
-> transpose bug. Promote at most **one** interior tensor per run; several at once perturb
-> allocation and corrupt each other. Confirming a cache write matches the reference also *bounds*
-> the bug: everything feeding it is correct, so the fault is downstream.
-
-### 6. Quant-path isolation — `GGML_OPENVINO_DISABLE_TYPES`
-
-Forcing a *type* to CPU is surgical: it moves only that quant type's tensors to ggml while
-leaving graph structure intact (unlike forcing an op, step 7). Two high-value moves:
-
-- Disable **one** suspect type to test whether that quant kernel is the culprit.
-- Disable **all** materialized quant types at once
-  (`Q4_0,Q4_1,Q4_K,Q5_K,Q8_0,Q6_K,Q5_1,MXFP4`): every weight matmul then runs on ggml with
-  bit-identical weights and OV executes only the f32/f16 structural ops. Still wrong ⇒ the bug is
-  **structural**, every quant kernel decisively ruled out — a narrowing no single op-force gives.
-
-### 7. Op-family isolation — `GGML_OPENVINO_DISABLE_OPS`
-
-`ggml_backend_openvino_device_supports_op()` decides per op whether OV claims it or ggml's CPU
-kernel runs. `GGML_OPENVINO_DISABLE_OPS=SSM_CONV,DIV` forces the listed ops to CPU; binary-search
-the suspect set. For a novel arch, start with the arch-specific ops (shared ops are already
-exercised by working models).
-
-- **Output correct** → that op (or its glue) was the bug.
-- **Output unchanged** → op exonerated.
-- **New crash / shape error** → *inconclusive*, not guilt: forcing an op re-splits the graph and
-  can surface an unrelated boundary bug. Try another combination, or go to the op-level test.
-
-### 8. Pinpoint a layout / wrong-source bug — full-element dumps, multiset, distribution matching
-
-A cosine cliff (step 5) says *where* the graph scrambles and *that* the bug is a permutation, not
-arithmetic. It doesn't say *what* the wrong tensor is a permutation *of* — usually the whole
-answer, because a scramble means the op read the **wrong source region** (a neighbouring head,
-the sibling half of a joint projection, a strided window read as contiguous).
-
-Dump full element order (not statistics) on both backends:
-
-- OV: `GGML_OPENVINO_DUMP_TENSOR=<name-substr>` → `/tmp/ov_dump_*`, one float per line.
-- CPU: `GGML_DUMP_TENSOR=<name-substr>` (ggml eval-callback) → `/tmp/ref_dump_*`.
-
-Then two comparisons in order:
-
-1. **Multiset (sorted) comparison — layout vs math.** Sort both dumps' nonzero values and
-   compare. Sorted-match ≈ 1.0 but position-wise cosine low ⇒ the numbers are right, only
-   positions wrong: a pure layout/read bug — look at layout, not any kernel's math. Sorted-match
-   also low ⇒ the values differ: a real arithmetic bug — back to steps 6–7 and the oracle.
-2. **Distribution matching against multiple candidate references — the wrong-source finder.**
-   When step 1 says "right numbers, wrong place," the values came from *somewhere*. Dump several
-   candidate reference tensors near the suspect (the sibling projection half, the adjacent head,
-   the pre-/post-transform version) and compare the OV tensor's distribution (sorted multiset;
-   range/mean/std as a quick fingerprint) to each. "OV's X matches the reference's *Y*, not X"
-   names the region the op wrongly grabbed. (Obey the trustworthy-tensor rule.)
-
-Then read the offending op's layout directly. Very often it's a `VIEW`/reshape: dump its ggml
-geometry (`ne[]`, `nb[]` strides, offset) and the `op_case` the decoder assigned. A view whose
-source is strided/gapped (stride ≠ extent, a sub-block of a larger group) but classified as a
-*dense contiguous* window is the bug — the contiguous handler slices through the gap and
-scrambles elements. Fix the **classification** (a stride/density check that routes the strided
-case to a stride-aware handler), not the consumer. `GGML_OPENVINO_DUMP_CGRAPH=1` gives `ne[]`; a
-temporary `getenv`-gated `fprintf` at the classification site gives `nb[]`/offset/op_case.
-
-### 9. Reproduce at the op level with a ggml oracle
-
-Once an op is implicated, stop testing through the full model and reproduce it in the frontend's
-unit tests (`tests/test_ops.cpp`), which build a one-op `ov::Model` via `SingleOpBuilder` and run
-on CPU in milliseconds. This is where the bug is pinned and the regression test lives.
-
-Feed **real model dimensions**, not `1×1×1` — most layout bugs live on an axis a size-1 dim
-collapses: multi-head (`H>1`), GQA repeat (`H_v ≠ H_k`), multi-token (`T>1`), batch (`B>1`). Pull
-the real shapes from a cgraph dump (`GGML_OPENVINO_DUMP_CGRAPH=1`). A test that passes at `H=1`
-proves nothing about a model that uses `H=32`.
-
----
+Fallback experiments can change graph partitioning, precision, and boundary handling. Correct
+output after disabling an operation implicates that path or its integration, not necessarily
+the kernel itself. Unchanged output does not exonerate it if another error masks its effect.
+Enumerate the types actually present before attempting to isolate quantization; a fixed list
+of formats is not proof that every quantized operation has been bypassed.
 
 ## The ggml-CPU oracle
 
-For ground-truth op values, build a tiny C program that links `libggml` + `libggml-cpu`, builds a
-one-node graph, runs it on CPU, and prints the output — those numbers become the `expected`
-array. `tests/gdn_oracle.c` is a worked example; copy its structure.
+Build a small program linking the same ggml CPU libraries as the reference. Construct a graph,
+fill asymmetric inputs, run it, and save all outputs. Existing examples include
+[`gdn_oracle.c`](../tests/gdn_oracle.c), [`ssm_scan_oracle.c`](../tests/ssm_scan_oracle.c), and
+[`imrope_oracle.c`](../tests/imrope_oracle.c). With `LLAMA_SRC` and `LLAMA_BUILD` pointing to the
+CPU-only checkout and build:
 
+```sh
+cc op_oracle.c -o op_oracle -I "$LLAMA_SRC/ggml/include" \
+  -L "$LLAMA_BUILD/bin" -Wl,-rpath,"$LLAMA_BUILD/bin" -lggml -lggml-base -lggml-cpu -lm
+./op_oracle
 ```
-gcc <op>_oracle.c -o <op>_oracle \
-    -I <llama.cpp>/ggml/include \
-    -L <llama.cpp>/build-ov/bin -lggml -lggml-base -lggml-cpu -lm \
-    -Wl,-rpath,<llama.cpp>/build-ov/bin
-LD_LIBRARY_PATH=<llama.cpp>/build-ov/bin ./<op>_oracle
-```
 
-- **Link against the same `libggml` the backend uses.** A stale tree can assert on a different
-  shape than the source you're reading.
-- Set `no_alloc = true` when using `ggml_backend_alloc_ctx_tensors`.
-- Read the op's shape contract from the **header** (`ggml.h`); don't guess `ne[]` order.
-- Fill inputs with distinct, asymmetric values so a transposed/mis-strided axis changes a number.
-- If the op has more than one conversion path (e.g. a fused internal op and a decomposed Loop
-  fallback), assert **both** against the oracle — matching a shared oracle proves both correct.
+Read the operation's dimension contract in `ggml.h`; use `no_alloc = true` with
+`ggml_backend_alloc_ctx_tensors`. Include multiple heads/tokens and unequal query/KV dimensions
+where relevant. Assert fused and decomposed converter paths against the oracle. Model and encoder
+oracles have separate [regeneration instructions](testing.md#fixtures-and-oracles).
 
----
+## Recurring failure patterns
 
-## Bug archetypes
-
-Concrete structural bugs seen so far, each with the generalizable lesson. When a cosine cliff or
-a dynamic-shape crash points near one, check it first.
-
-**A. Geometry read from the tensor instead of the config.** Partial-rotary rope: a head is 256
-wide but only the first 64 dims rotate; taking the rotary width from the tensor's last dim (256)
-rotates the pass-through tail and corrupts every layer using that op. *Lesson: an op must read
-its geometry (rotary width, head count) from the model config, not a tensor dim — the two differ
-whenever a dimension is partial. A test at full width can't catch it.*
-
-**B. A shared precomputed table built with the wrong config flag.** A sin/cos table computed once
-and shared across layers must be built with the same per-op config its consumers assume; a mode
-flag defaulting wrong makes the table's token axis mismatch the data and broadcast-crashes at the
-consuming `Multiply`. *Lesson: a shared/precomputed value must be built with the consumer's
-config; the symptom is a shape/broadcast mismatch, not a wrong number.*
-
-**C. A dynamic-axis slice with a baked absolute offset.** A tail slice (the last *k* columns of a
-window whose length varies prefill vs decode) emitted with an absolute start computed at prefill
-over-reads at decode. *Lesson: anchor a slice to the end it's pinned to — negative start, open
-end — never to an offset baked at prefill.*
-
-**D. A strided VIEW mis-classified as contiguous.** An interleaved layout
-(`[A_h0, B_h0, A_h1, B_h1, …]`) gives a per-`A` view a group stride larger than its extent;
-classified as a dense window, the contiguous handler slices through the gap and scrambles heads.
-*Lesson: a VIEW's handler must be chosen from its strides (`nb[]`), not its element count — two
-views with identical shape and offset but different strides need different handlers.*
-
-> Meta-pattern behind all four: a value *correct for prefill / the common case* (full head, one
-> rope mode, prefill length, a contiguous layout) is hard-coded instead of read from the true
-> per-op/per-step geometry, so it silently breaks at decode or on a different architecture.
-
-> **After any shared-path fix — especially a VIEW/`op_case` predicate — re-run the other
-> supported models and confirm their classification/output is unchanged.** A stride/density guard
-> that fixes arch A can reject arch B's legitimately-contiguous view.
-
----
-
-## Debug env vars
-
-Backend seams live in `ggml/src/ggml-openvino/`. Gate any new debug output on a `getenv` check
-and write to `stderr`.
-
-| Env var | Effect |
+| Pattern | What to inspect |
 |---|---|
-| `GGML_OPENVINO_DEVICE=CPU` | Run OV on CPU. (Still OV, not ggml — see step 1.) |
-| `GGML_OPENVINO_STATEFUL_EXECUTION=1` | Enable the stateful KV/recurrent-state path (real decode flow). |
-| `GGML_OPENVINO_DUMP_CGRAPH=1` | Dump each OV subgraph as `cgraph_ov_N.txt` — ops, names, per-tensor `ne[]`. Primary tool for real op dimensions and how the graph split. |
-| `GGML_OPENVINO_DUMP_IR=1` | Serialize each compiled subgraph to `model_*.xml`. Unavailable for models with internal (non-serializable) ops. |
-| `GGML_OPENVINO_DEBUG_INPUT=1` / `_DEBUG_OUTPUT=1` | Print each bound input / output tensor (name, shape, First/Min/Max/Mean). |
-| `GGML_OPENVINO_DUMP_TENSOR=<substr>` | Dump **full element order** of each matching OV output to `/tmp/ov_dump_*` (one float/line) — for the position-wise + multiset compare of step 8; not permutation-invariant. |
-| `GGML_DUMP_TENSOR=<substr>` (ggml `common/debug.cpp`) | CPU-reference counterpart: matching tensors from the ggml eval-callback, in element order. |
-| `GGML_OPENVINO_DISABLE_OPS=SSM_CONV,DIV` | Force listed ggml ops to CPU (step 7). Re-splits the graph — a new crash is inconclusive. |
-| `GGML_OPENVINO_DISABLE_TYPES=Q8_0,Q6_K` | Force listed quant types to CPU without changing graph structure (step 6). |
-| `GGML_OPENVINO_FORCE_F32=1` | Pin the plugin to f32 ACCURACY mode to test bf16 rounding accumulation. |
-| `GGML_OPENVINO_PROFILING=1` | Per-stage timing (decode/convert/compile/infer). |
-| `GGML_OPENVINO_PRINT_CGRAPH_TENSOR_ADDRESS=1` | Tensor address map (trace pointer aliasing between subgraphs). |
+| Partial rotary geometry | Read rotary width/offset from the operation configuration; do not rotate a whole head when only part is rotary |
+| Shared RoPE tables | The table and each consumer must agree on mode, dimensions, and position sections |
+| Dynamic tail slices | Derive offsets from the live length; a prefill offset can overrun during decode |
+| Strided VIEW treated as dense | Inspect `ne[]`, `nb[]`, element offset, and semantic `op_case`; shape alone does not establish contiguity |
+| Recurrent state shared across subgraphs | Keep per-subgraph bookkeeping separate and test beyond the first decode step |
+| Media adaptation mismatch | Check modality pruning, removed input prefixes, DeepStack splitting, and separate Gemma4 per-layer embeddings |
 
-The frontend converter carries no env-var debug seams — keep them in the backend. When an op has
-two conversion strategies, expose the alternate as an op attribute (e.g. GatedDeltaNet's
-`force_ref` selects the serializable Loop path) so a unit test can pick it via `SingleOpBuilder`
-without touching process env or the production default.
-
----
-
-## Gotchas
-
-- **Big models OOM in the frontend, not just in weight RAM.** Quant types in `supported_types`
-  are materialized as OV constants *in addition to* ggml's copy, ~doubling peak compile memory.
-  Reducing `-c` doesn't help (the blow-up is per-subgraph compilation, not the KV cache). A Q4_K
-  model can OOM where the same-arch Q2_K runs (Q2_K isn't in `supported_types`, stays on CPU).
-  Exit 137 = OOM-killed.
-- **Iterate on a small quant.** BF16 of a 4B model can take ~25 min to load/compile; Q4_K_M loads
-  in seconds and reproduces the same *structural* bugs. Reach for higher precision only if step 2
-  implicates quantization.
-- **Per-subgraph vs shared runtime state.** A model that splits into many subgraphs per token step
-  must not share single-value bookkeeping across them (e.g. `stateful_kv_size` belongs on the
-  per-subgraph context, not the shared one) — a shared counter advances once per subgraph and
-  mis-slices state. Symptom: a ROI error at the *second* decode step, not the first.
-- **An old reference build can predate the arch** and segfault on load — then it can't be the
-  reference; use a fresh `-DGGML_OPENVINO=OFF` build at the current commit (step 1).
-- **Shell:** piped `llama-*` output buffers and never flushes — redirect to a file and grep it.
-  `cd` doesn't persist between calls (use absolute paths). `pkill -9 -f llama` between runs so
-  stale processes don't starve cores.
-
----
-
-## Checklist
-
-1. **Is it an OV bug?** `build-cpu` (`-DGGML_OPENVINO=OFF`) vs `build-ov`, greedy, on
-   `llama-simple`. CPU good + OV bad = OV bug. Both bad = shared (build/tokenizer/template), stop
-   debugging OV.
-2. **Graph or quant?** Same weights, CPU ref vs OV. Wrong on OV only → graph bug, not quant.
-3. **Prefill or decode?** `-n 1` vs `-n 12`.
-4. **First-divergence diff** (`llama-eval-callback`, positional `sum` diff) → first node past
-   rounding. Highest-yield step.
-5. **Per-layer sweep with element-wise cosine**, never Min/Max/Mean. Cliff = localized structural
-   bug; smooth slope = drift. Never conclude "drift" from a permutation-invariant metric.
-6. **`DISABLE_TYPES=<all quant>`** → still wrong ⇒ structural (f32) bug, quant ruled out.
-7. **`DISABLE_OPS`** to force a suspect op to CPU; binary-search. Correct = culprit; new crash =
-   inconclusive (re-split artifact).
-8. **Layout pinpoint:** full-element dumps → multiset compare. Sorted-match high + cosine low =
-   layout/wrong-source bug; match the distribution against candidate references to name the
-   source. For a `VIEW`, inspect `nb[]` + `op_case`, not just `ne[]`.
-9. **Op-level test** in `test_ops.cpp` at real dimensions (H, GQA, T, B not collapsed), against a
-   **ggml-CPU oracle**, never a hand-derived reference; assert every conversion path; leave it as
-   a regression guard.
-10. **Cross-arch regression:** after any shared-path fix, re-run the other supported models.
-
-> Only a divergence you can *eliminate* — and thereby fix the output — is the real culprit; the
-> first visible one is often benign rounding.
+Use small fixtures while localizing. Compilation may materialize additional weight buffers;
+reducing context length does not resolve weight-related memory pressure. Record peak memory for
+large checkpoints. Redirect long-running command output to a file; retain the launched PID and
+terminate that process if necessary, rather than killing every process matching a model runner name.
