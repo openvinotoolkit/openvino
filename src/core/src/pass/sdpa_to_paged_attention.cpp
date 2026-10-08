@@ -61,14 +61,16 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool allow_cache_rotation,
                                                      bool allow_xattention,
                                                      bool allow_adaptive_rkv,
-                                                     bool allow_qq_bias)
+                                                     bool allow_qq_bias,
+                                                     bool draft_model)
     : m_options{use_per_layer_block_indices_inputs,
                 use_score_outputs,
                 allow_score_aggregation,
                 allow_cache_rotation,
                 allow_xattention,
                 allow_adaptive_rkv,
-                allow_qq_bias} {}
+                allow_qq_bias,
+                draft_model} {}
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);

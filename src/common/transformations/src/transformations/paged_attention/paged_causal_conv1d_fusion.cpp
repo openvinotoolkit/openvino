@@ -95,15 +95,14 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         const auto past_state = pm.count(p_past_via_gather) ? pm.at(p_past_via_gather).get_node_shared_ptr() : cache_rv;
         auto token_input = pm.at(p_token_input).get_node_shared_ptr();
 
-        if (!group_conv_node || !cache_rv) {
-            return false;
-        }
+        OPENVINO_ASSERT(group_conv_node);
+        OPENVINO_ASSERT(cache_rv);
 
         const auto& weight_shape = weight_node->get_output_shape(0);
         const size_t hidden_size = weight_shape[0];
         const size_t kernel_size = weight_shape[3];
 
-        const size_t dilation = group_conv_node->get_dilations().size() > 0 ? group_conv_node->get_dilations()[0] : 1;
+        const size_t dilation = group_conv_node->get_dilations()[0];
         const size_t causal_window = (kernel_size - 1) * dilation + 1;
 
         const auto& state_pshape = past_state->get_output_partial_shape(0);
