@@ -208,9 +208,11 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         const auto current_flags = instance.get_impl_params()->flags.to_ulong();
         constexpr size_t mask_args = (1 << cldnn::ExecutionFlags::ARG_UPDATE_REQUIRED) | (1 << cldnn::ExecutionFlags::IMPL_CHANGED);
         constexpr size_t mask_dispatch = (1 << cldnn::ExecutionFlags::SHAPE_CHANGED);
+        // Pending updates are kept until the stage runs: a stage skipped by get_stages_execution_order, or an impl
+        // swapped in without a shape change (async compilation), must still refresh before its next execution.
         for (auto& stage : _stages) {
-            stage->kd.need_args_update = (current_flags & mask_args) != 0;
-            stage->kd.need_dispatch_data_update = (current_flags & mask_dispatch) != 0;
+            stage->kd.need_args_update |= (current_flags & mask_args) != 0;
+            stage->kd.need_dispatch_data_update |= (current_flags & mask_dispatch) != 0;
         }
     }
 
