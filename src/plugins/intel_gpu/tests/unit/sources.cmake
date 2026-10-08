@@ -326,6 +326,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fc_convert_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fc_per_layer_scaling_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fold_activation_transpose_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fold_rms_transposes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_atan2_decomposed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_router_scale_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_router_test.cpp
@@ -409,6 +410,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fc_per_layer_scaling.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fold_activation_transpose.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fold_activation_transpose.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fold_rms_transposes.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fold_rms_transposes.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_atan2_decomposed.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_atan2_decomposed.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_gated_mlp.cpp
