@@ -669,7 +669,7 @@ CRE CRE::from_string(const std::string_view cre, const ov::log::Level log_level)
             break;
         }
         remaining = remaining.substr(dot_location + 1);
-        OPENVINO_ASSERT(!remaining.empty(), "Trailing dot found while parsing the cre \"", cre, "\"");
+        CRE_ASSERT(!remaining.empty(), "Trailing dot found while parsing the cre \"", cre, "\"");
     }
 
     return CRE(expression);

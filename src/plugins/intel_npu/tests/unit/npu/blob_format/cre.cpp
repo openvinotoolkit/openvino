@@ -51,6 +51,7 @@ const auto COMPILER_VERSION_TOKEN = std::make_shared<SectionType>(SectionTypeCod
 const auto ID_0_TOKEN = std::make_shared<SectionID>(0);
 const auto ID_1_TOKEN = std::make_shared<SectionID>(1);
 const auto ID_2_TOKEN = std::make_shared<SectionID>(2);
+const auto LAST_ID_TOKEN = std::make_shared<SectionID>(std::numeric_limits<uint16_t>::max());
 
 constexpr SectionTypeCode ELF_MAIN_SCHEDULE_CODE = SectionTypeCode::ELF_MAIN_SCHEDULE;
 constexpr SectionTypeCode ELF_INIT_SCHEDULES_CODE = SectionTypeCode::ELF_INIT_SCHEDULES;
@@ -236,180 +237,6 @@ using InvalidExpression = CREEvaluationTests;
 TEST_P(InvalidExpression, check_compatibility) {
     OV_EXPECT_THROW(CRE{expression}, InvalidCRE, _);
 }
-
-// TEST_F(CREAppendSingleToken, AppendMultipleValidTokensAccumulates) {
-//     CRE cre;
-//     cre.append_to_expression(ELF_MAIN_SCHEDULE_TOKEN);
-//     cre.append_to_expression(BATCH_SIZE_TOKEN);
-//     cre.append_to_expression(ELF_INIT_SCHEDULES_TOKEN);
-//     EXPECT_EQ(cre.get_expression_length(), 5);
-//     EXPECT_EQ(cre.get_expression(),
-//               (std::vector<CREToken>{ELF_MAIN_SCHEDULE_TOKEN,
-//                                      CRE::AND_PTR,
-//                                      BATCH_SIZE_TOKEN,
-//                                      CRE::AND_PTR,
-//                                      ELF_INIT_SCHEDULES_TOKEN}));
-// }
-
-// TEST_F(CREAppendSingleToken, AppendReservedTokenThrows) {
-//     CRE cre;
-//     EXPECT_ANY_THROW(cre.append_to_expression(CRE::AND_PTR));
-//     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OR_PTR));
-//     EXPECT_ANY_THROW(cre.append_to_expression(CRE::OPEN_PTR));
-//     EXPECT_ANY_THROW(cre.append_to_expression(CRE::CLOSE_PTR));
-//     EXPECT_ANY_THROW(cre.append_to_expression(CRE::NOT_PTR));
-// }
-
-// TEST_F(CREAppendSingleToken, BuildsEvaluableAndExpression) {
-//     CRE cre;
-//     cre.append_to_expression(ELF_MAIN_SCHEDULE_TOKEN);
-//     cre.append_to_expression(BATCH_SIZE_TOKEN);
-
-//     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-//     caps[ELF_MAIN_SCHEDULE_TOKEN] = std::make_shared<SupportedSectionTypeEvaluator>(ELF_MAIN_SCHEDULE_TOKEN);
-//     caps[BATCH_SIZE_TOKEN] = std::make_shared<SupportedSectionTypeEvaluator>(BATCH_SIZE_TOKEN);
-//     EXPECT_TRUE(cre.check_compatibility(caps));
-
-//     caps.erase(BATCH_SIZE_TOKEN);
-//     EXPECT_FALSE(cre.check_compatibility(caps));
-// }
-
-// using CREAppendToken = ::testing::Test;
-
-// TEST_F(CREAppendToken, AppendEmptyVector) {
-//     CRE cre;
-//     cre.append_to_expression(std::vector<CREToken>{});
-//     EXPECT_EQ(cre.get_expression_length(), 0);
-//     EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{}));
-// }
-
-// TEST_F(CREAppendToken, AppendSubexpressionTokens) {
-//     CRE cre;
-//     cre.append_to_expression(
-//         std::vector<CREToken>{CRE::OPEN_PTR, BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN,
-//         CRE::CLOSE_PTR});
-//     EXPECT_EQ(cre.get_expression(),
-//               (std::vector<CREToken>{CRE::OPEN_PTR,
-//                                      BATCH_SIZE_TOKEN,
-//                                      CRE::OR_PTR,
-//                                      ELF_INIT_SCHEDULES_TOKEN,
-//                                      CRE::CLOSE_PTR}));
-
-//     cre.append_to_expression(std::vector<CREToken>{CRE::OPEN_PTR, BATCH_SIZE_TOKEN, CRE::CLOSE_PTR});
-//     EXPECT_EQ(cre.get_expression(),
-//               (std::vector<CREToken>{CRE::OPEN_PTR,
-//                                      BATCH_SIZE_TOKEN,
-//                                      CRE::OR_PTR,
-//                                      ELF_INIT_SCHEDULES_TOKEN,
-//                                      CRE::CLOSE_PTR,
-//                                      CRE::AND_PTR,
-//                                      CRE::OPEN_PTR,
-//                                      BATCH_SIZE_TOKEN,
-//                                      CRE::CLOSE_PTR}));
-// }
-
-// /**
-//  * @brief Upon appending a subexpression, the CRE will add parrethesis automatically if the subexpression is longer
-//  than
-//  * two tokens (to include a valid binary operator) and the expression is not already enclosed.
-//  */
-// TEST_F(CREAppendToken, AppendSubexpressionAddsParrentheses) {
-//     CRE cre;
-//     cre.append_to_expression(std::vector<CREToken>{BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN});
-//     EXPECT_EQ(cre.get_expression(),
-//               (std::vector<CREToken>{CRE::OPEN_PTR,
-//                                      BATCH_SIZE_TOKEN,
-//                                      CRE::OR_PTR,
-//                                      ELF_INIT_SCHEDULES_TOKEN,
-//                                      CRE::CLOSE_PTR}));
-
-//     cre{};
-//     cre.append_to_expression(
-//         std::vector<CREToken>{CRE::OPEN_PTR, BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN});
-//     EXPECT_EQ(cre.get_expression(),
-//               (std::vector<CREToken>{CRE::OPEN_PTR,
-//                                      CRE::OPEN_PTR,
-//                                      BATCH_SIZE_TOKEN,
-//                                      CRE::OR_PTR,
-//                                      ELF_INIT_SCHEDULES_TOKEN,
-//                                      CRE::CLOSE_PTR}));
-
-//     cre{};
-//     cre.append_to_expression(
-//         std::vector<CREToken>{BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN, CRE::CLOSE_PTR});
-//     EXPECT_EQ(cre.get_expression(),
-//               (std::vector<CREToken>{CRE::OPEN_PTR,
-//                                      BATCH_SIZE_TOKEN,
-//                                      CRE::OR_PTR,
-//                                      ELF_INIT_SCHEDULES_TOKEN,
-//                                      CRE::CLOSE_PTR,
-//                                      CRE::CLOSE_PTR}));
-// }
-
-// /**
-//  * @brief Parretheses are not necessary if the subexpression has less than three tokens (no valid binary operator can
-//  be
-//  * there) or if the subexpression is already enclosed.
-//  */
-// TEST_F(CREAppendToken, AppendSubexpressionWithoutParrentheses) {
-//     CRE cre;
-//     cre.append_to_expression(std::vector<CREToken>{CRE::NOT_PTR, BATCH_SIZE_TOKEN});
-//     EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{CRE::NOT_PTR, BATCH_SIZE_TOKEN}));
-
-//     cre{};
-//     cre.append_to_expression(std::vector<CREToken>{CRE::OPEN_PTR, CRE::NOT_PTR, BATCH_SIZE_TOKEN, CRE::CLOSE_PTR});
-//     EXPECT_EQ(cre.get_expression(),
-//               (std::vector<CREToken>{CRE::OPEN_PTR, CRE::NOT_PTR, BATCH_SIZE_TOKEN, CRE::CLOSE_PTR}));
-// }
-
-// /**
-//  * @brief The CRE code should be able to detect duplicate subexpressions (relative to depth level 0) and avoid
-//  inserting
-//  * copies.
-//  */
-// TEST_F(CREAppendToken, AvoidAppendingDuplicates) {
-//     CRE cre;
-//     cre.append_to_expression(BATCH_SIZE_TOKEN);
-//     cre.append_to_expression(BATCH_SIZE_TOKEN);
-//     EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{BATCH_SIZE_TOKEN}));
-
-//     cre{};
-//     cre.append_to_expression(std::vector<CREToken>{CRE::OPEN_PTR,
-//                                                    CRE::NOT_PTR,
-//                                                    BATCH_SIZE_TOKEN,
-//                                                    CRE::OR_PTR,
-//                                                    ELF_INIT_SCHEDULES_TOKEN,
-//                                                    CRE::CLOSE_PTR});
-//     cre.append_to_expression(std::vector<CREToken>{CRE::OPEN_PTR,
-//                                                    CRE::NOT_PTR,
-//                                                    BATCH_SIZE_TOKEN,
-//                                                    CRE::OR_PTR,
-//                                                    ELF_INIT_SCHEDULES_TOKEN,
-//                                                    CRE::CLOSE_PTR});
-//     EXPECT_EQ(cre.get_expression(),
-//               (std::vector<CREToken>{CRE::OPEN_PTR,
-//                                      CRE::NOT_PTR,
-//                                      BATCH_SIZE_TOKEN,
-//                                      CRE::OR_PTR,
-//                                      ELF_INIT_SCHEDULES_TOKEN,
-//                                      CRE::CLOSE_PTR}));
-// }
-
-// TEST_F(CREAppendToken, MixedAppend) {
-//     CRE cre;
-//     cre.append_to_expression(ELF_MAIN_SCHEDULE_TOKEN);
-//     cre.append_to_expression(
-//         std::vector<CREToken>{CRE::OPEN_PTR, BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN,
-//         CRE::CLOSE_PTR});
-
-//     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-//     caps[ELF_MAIN_SCHEDULE_TOKEN] = std::make_shared<SupportedSectionTypeEvaluator>(ELF_MAIN_SCHEDULE_TOKEN);
-//     caps[BATCH_SIZE_TOKEN] = std::make_shared<SupportedSectionTypeEvaluator>(BATCH_SIZE_TOKEN);
-//     EXPECT_TRUE(cre.check_compatibility(caps));
-
-//     caps.erase(ELF_MAIN_SCHEDULE_TOKEN);
-//     EXPECT_FALSE(cre.check_compatibility(caps));
-// }
 
 // class CREOperandsEvaluation : public ::testing::Test {
 // protected:
@@ -1245,6 +1072,118 @@ TEST_F(CRETests, FromStringSingleValidToken) {
     ASSERT_EQ(CRE::from_string("BATCH_SIZE"), CRE({BATCH_SIZE_TOKEN}));
     ASSERT_EQ(CRE::from_string("ENCRYPTED_SCHEDULES_FLAG"), CRE({ENCRYPTED_SCHEDULES_FLAG_TOKEN}));
     ASSERT_EQ(CRE::from_string("COMPILER_VERSION_TOKEN"), CRE({COMPILER_VERSION_TOKEN}));
+}
+
+TEST_F(CRETests, FromStringSectionIDs) {
+    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS_0"), CRE({RUNTIME_REQUIREMENTS_TOKEN, ID_0_TOKEN}));
+    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS_" + std::to_string(std::numeric_limits<uint16_t>::max())),
+              CRE({RUNTIME_REQUIREMENTS_TOKEN, LAST_ID_TOKEN}));
+}
+
+TEST_F(CRETests, FromStringOperators) {
+    ASSERT_EQ(CRE::from_string("NOT.RUNTIME_REQUIREMENTS"), CRE({CRE::NOT_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
+    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS.AND.RUNTIME_REQUIREMENTS"),
+              CRE({RUNTIME_REQUIREMENTS_TOKEN, CRE::AND_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
+    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS.OR.RUNTIME_REQUIREMENTS"),
+              CRE({RUNTIME_REQUIREMENTS_TOKEN, CRE::OR_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
+    ASSERT_EQ(CRE::from_string("(.RUNTIME_REQUIREMENTS.)"),
+              CRE({CRE::OPEN_PTR, RUNTIME_REQUIREMENTS_TOKEN, CRE::CLOSE_PTR}));
+}
+
+TEST_F(CRETests, FromStringComplexExpression) {
+    CRE result = CRE::from_string(
+        "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.NOT.(.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
+        "LAYOUTS.OR.(.BATCH_SIZE.).AND.ENCRYPTED_SCHEDULES_FLAG.).OR.COMPILER_VERSION_0");
+    CRE reference({
+        RUNTIME_REQUIREMENTS_TOKEN,
+        CRE::OR_PTR,
+        ELF_MAIN_SCHEDULE_TOKEN,
+        CRE::AND_PTR,
+        CRE::NOT_PTR,
+        CRE::OPEN_PTR,
+        ELF_INIT_SCHEDULES_TOKEN,
+        ID_2_TOKEN,
+        CRE::AND_PTR,
+        DYNAMIC_SCHEDULE_TOKEN,
+        CRE::OR_PTR,
+        CRE::NOT_PTR,
+        IO_LAYOUTS_TOKEN,
+        CRE::OR_PTR,
+        CRE::OPEN_PTR,
+        BATCH_SIZE_TOKEN,
+        CRE::CLOSE_PTR,
+        CRE::AND_PTR,
+        ENCRYPTED_SCHEDULES_FLAG_TOKEN,
+        CRE::CLOSE_PTR,
+        CRE::OR_PTR,
+        COMPILER_VERSION_TOKEN,
+        ID_0_TOKEN,
+    });
+
+    ASSERT_EQ(result, reference);
+}
+
+TEST_F(CRETests, FromInvalidStrings) {
+    OV_EXPECT_THROW(CRE::from_string("RUNTIMEREQUIREMENTS"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("UNKNOWN"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("runtime_requirements"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("0"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("AND"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("NOT"), InvalidCRE, _);
+    OV_EXPECT_THROW(
+        CRE::from_string("RUNTIME_REQUIREMENTS_" + std::to_string(std::numeric_limits<uint16_t>::max() + 1)),
+        InvalidCRE,
+        _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_-1"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS0"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.0"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_0.0"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_0a0"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_BATCH_SIZE"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTSBATCH_SIZE"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string(".RUNTIME_REQUIREMENTS"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS."), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.OP.BATCH_SIZE"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("NOT..RUNTIME_REQUIREMENTS"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.BATCH_SIZE"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("0.BATCH_SIZE"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.OR.0"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("(.RUNTIME_REQUIREMENTS"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.)"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.NOT.BATCH_SIZE"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("OR.BATCH_SIZE"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.(.BATCH_SIZE.)"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.AND"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.NOT"), InvalidCRE, _);
+}
+
+TEST_F(CRETests, ToStringFromStringChain) {
+    CRE cre({
+        RUNTIME_REQUIREMENTS_TOKEN,
+        CRE::OR_PTR,
+        ELF_MAIN_SCHEDULE_TOKEN,
+        CRE::AND_PTR,
+        CRE::NOT_PTR,
+        CRE::OPEN_PTR,
+        ELF_INIT_SCHEDULES_TOKEN,
+        ID_2_TOKEN,
+        CRE::AND_PTR,
+        DYNAMIC_SCHEDULE_TOKEN,
+        CRE::OR_PTR,
+        CRE::NOT_PTR,
+        IO_LAYOUTS_TOKEN,
+        CRE::OR_PTR,
+        CRE::OPEN_PTR,
+        BATCH_SIZE_TOKEN,
+        CRE::CLOSE_PTR,
+        CRE::AND_PTR,
+        ENCRYPTED_SCHEDULES_FLAG_TOKEN,
+        CRE::CLOSE_PTR,
+        CRE::OR_PTR,
+        COMPILER_VERSION_TOKEN,
+        ID_0_TOKEN,
+    });
+    ASSERT_EQ(cre, CRE::from_string(cre.to_string()));
 }
 
 std::vector<CREParams> invalid_test_cases = generate_invalid_test_cases(invalid_expressions);
