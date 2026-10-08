@@ -229,11 +229,7 @@ protected:
         inType = outType = ov::element::f32;
 
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
-        const auto weights_tensor = ov::test::utils::create_and_fill_tensor(
-            ov::element::f32,
-            ov::Shape{8, 3, 3, 3},
-            ov::test::utils::InputGenerateData(-1, 2, 1357, 1));
-        auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
+        auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{8, 3, 3, 3}, {1.f});
         auto convolution = std::make_shared<ov::op::v1::Convolution>(input,
                                                                      weights,
                                                                      ov::Strides{1, 1},
@@ -258,6 +254,17 @@ protected:
         auto normalized = std::make_shared<ov::op::v1::Multiply>(convolution, reciprocal);
 
         function = std::make_shared<ov::Model>(ov::OutputVector{normalized}, ov::ParameterVector{input});
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& function_inputs = function->inputs();
+        ov::Tensor tensor(function_inputs[0].get_element_type(), target_input_static_shapes[0]);
+        auto* data = tensor.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); ++i) {
+            data[i] = 10000.f;
+        }
+        inputs.insert({function_inputs[0].get_node_shared_ptr(), tensor});
     }
 };
 
