@@ -67,6 +67,7 @@ private:
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
             ov::cache_mode.name(),
+            ov::compilation_target.name(),
             ov::enable_profiling.name(),
             ov::intel_npu::profiling_type.name(),
             ov::device::architecture.name(),

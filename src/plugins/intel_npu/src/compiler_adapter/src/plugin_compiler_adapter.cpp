@@ -313,4 +313,8 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
     return supported;
 }
 
+std::vector<std::string> PluginCompilerAdapter::resolve_compilation_target_bundles(const Config& config) const {
+    return _compiler->resolve_compilation_target_bundles(config);
+}
+
 }  // namespace intel_npu

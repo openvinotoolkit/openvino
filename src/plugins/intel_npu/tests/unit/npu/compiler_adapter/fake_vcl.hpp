@@ -47,6 +47,9 @@ struct FakeProfilingState {
 struct FakeLogState {
     int tag = 5;
 };
+struct FakeCompilationTargetsState {
+    int tag = 6;
+};
 
 class FakeVcl {
 public:
@@ -153,6 +156,19 @@ public:
     int executableDestroyCount = 0;
     int queryDestroyCount = 0;
     int profilingDestroyCount = 0;
+    int compilationTargetsDestroyCount = 0;
+
+    /// The config string handed to vclCompilationTargetsCreate, per call.
+    std::vector<std::string> compilationTargetConfigs;
+    /// Platform vclGetCompilationTargets reports.
+    std::string compilationTargetPlatform = "fake";
+    /// Bundles vclGetCompilationTargets reports, one per SKU variant. Empty means "no target
+    /// resolved" (targetCount == 0, still VCL_RESULT_SUCCESS).
+    std::vector<std::string> compilationTargetBundles{"NPU_PLATFORM=\"fake\""};
+
+    /// Wires the (weak) compilation-targets entry points, simulating a VCL library new enough to
+    /// export them. Left unwired by wire(), matching an older library, until a test opts in.
+    void enableCompilationTargets();
 
     size_t callCount(const std::string& fn) const {
         size_t n = 0;
@@ -184,12 +200,25 @@ public:
     FakeQueryState queryState;
     FakeProfilingState profilingState;
     FakeLogState logState;
+    FakeCompilationTargetsState compilationTargetsState;
 
 private:
     void wire();
 
     std::shared_ptr<intel_npu::VCLFunctionTable> _functions;
     std::map<std::string, vcl_result_t> _results;
+
+    // Backing storage for the char*/uint64_t arrays vclGetCompilationTargets hands out - rebuilt
+    // from compilationTargetBundles on every call, and must outlive the pointers handed to the
+    // caller. _compilationTarget is the single target the array points to (the fake only ever
+    // resolves at most one, matching the production path's always-named-platform queries).
+    std::vector<const char*> _compilationTargetBundlePtrs;
+    std::vector<uint64_t> _compilationTargetBundleSizes;
+    vcl_compilation_target_t _compilationTarget{};
+
+    friend vcl_result_t VCL_APICALL fake_vclGetCompilationTargets(vcl_compilation_targets_handle_t,
+                                                                  const vcl_compilation_target_t**,
+                                                                  uint64_t*);
 };
 
 //
@@ -253,6 +282,70 @@ inline vcl_result_t VCL_APICALL fake_vclCompilerDestroy(vcl_compiler_handle_t) {
     }
     ++self->compilerDestroyCount;
     return self->resultFor("vclCompilerDestroy");
+}
+
+inline vcl_result_t VCL_APICALL fake_vclCompilationTargetsCreate(const char* config, uint64_t configSize,
+                                                                 vcl_compilation_targets_handle_t* targetsHandle,
+                                                                 vcl_log_handle_t* logHandle) {
+    FakeVcl* self = current();
+    if (self == nullptr) {
+        return VCL_RESULT_ERROR_UNKNOWN;
+    }
+    if (config != nullptr) {
+        self->compilationTargetConfigs.emplace_back(config, static_cast<size_t>(configSize));
+    }
+    const vcl_result_t scripted = self->resultFor("vclCompilationTargetsCreate");
+    if (scripted != VCL_RESULT_SUCCESS) {
+        return scripted;
+    }
+    if (targetsHandle != nullptr) {
+        *targetsHandle = reinterpret_cast<vcl_compilation_targets_handle_t>(&self->compilationTargetsState);
+    }
+    if (logHandle != nullptr) {
+        *logHandle = reinterpret_cast<vcl_log_handle_t>(&self->logState);
+    }
+    return VCL_RESULT_SUCCESS;
+}
+
+inline vcl_result_t VCL_APICALL fake_vclGetCompilationTargets(vcl_compilation_targets_handle_t,
+                                                              const vcl_compilation_target_t** targets,
+                                                              uint64_t* targetCount) {
+    FAKE_GUARD(vclGetCompilationTargets)
+    if (targets == nullptr || targetCount == nullptr) {
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    if (self->compilationTargetBundles.empty()) {
+        // No target resolved for this config, still a success per the real API.
+        *targets = nullptr;
+        *targetCount = 0;
+        return VCL_RESULT_SUCCESS;
+    }
+
+    self->_compilationTargetBundlePtrs.clear();
+    self->_compilationTargetBundleSizes.clear();
+    for (const auto& bundle : self->compilationTargetBundles) {
+        self->_compilationTargetBundlePtrs.push_back(bundle.c_str());
+        self->_compilationTargetBundleSizes.push_back(bundle.size());
+    }
+
+    self->_compilationTarget = vcl_compilation_target_t{};
+    self->_compilationTarget.platform = self->compilationTargetPlatform.c_str();
+    self->_compilationTarget.platformSize = self->compilationTargetPlatform.size();
+    self->_compilationTarget.configBundle = self->_compilationTargetBundlePtrs.data();
+    self->_compilationTarget.configBundleSizes = self->_compilationTargetBundleSizes.data();
+    self->_compilationTarget.configBundleCount = self->_compilationTargetBundlePtrs.size();
+    *targets = &self->_compilationTarget;
+    *targetCount = 1;
+    return VCL_RESULT_SUCCESS;
+}
+
+inline vcl_result_t VCL_APICALL fake_vclCompilationTargetsDestroy(vcl_compilation_targets_handle_t) {
+    FakeVcl* self = current();
+    if (self == nullptr) {
+        return VCL_RESULT_ERROR_UNKNOWN;
+    }
+    ++self->compilationTargetsDestroyCount;
+    return self->resultFor("vclCompilationTargetsDestroy");
 }
 
 inline vcl_result_t VCL_APICALL fake_vclCompilerGetProperties(vcl_compiler_handle_t,
@@ -568,6 +661,15 @@ inline void FakeVcl::wire() {
     _functions->vclAllocatedExecutableCreateWSOneShot2 = &fake_vclAllocatedExecutableCreateWSOneShot2;
     // Weak symbols the production path does not use stay null, matching an older library.
     _functions->vclAllocatedExecutableCreate2 = nullptr;
+    _functions->vclCompilationTargetsCreate = nullptr;
+    _functions->vclGetCompilationTargets = nullptr;
+    _functions->vclCompilationTargetsDestroy = nullptr;
+}
+
+inline void FakeVcl::enableCompilationTargets() {
+    _functions->vclCompilationTargetsCreate = &fake_vclCompilationTargetsCreate;
+    _functions->vclGetCompilationTargets = &fake_vclGetCompilationTargets;
+    _functions->vclCompilationTargetsDestroy = &fake_vclCompilationTargetsDestroy;
 }
 
 }  // namespace fake_vcl

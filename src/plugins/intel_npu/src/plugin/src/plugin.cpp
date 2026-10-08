@@ -111,6 +111,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(COMPILER_TYPE);
     REGISTER_OPTION(COMPILER_VERSION);
     REGISTER_OPTION(PLATFORM);
+    REGISTER_OPTION(COMPILATION_TARGET);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
     REGISTER_OPTION(PROFILING_TYPE);
@@ -258,6 +259,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    // Offline target-driven mode: resolves ov::compilation_target into NPU_PLATFORM before
+    // platform/device resolution runs below (see utils::resolveCompilationTarget for the throw
+    // conditions).
+    utils::resolveCompilationTarget(localProperties);
+
     // DEVICE_ID can be passed both as an index and as a platform name.
     // Identify the right device object to be taken into account when the target compilation platform is determined
     std::string deviceId = _propertiesManager->determineDeviceId(localProperties);
@@ -275,7 +281,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
                                         compilationPlatform,
-                                        _compilerOptionSupportHelper->getOptionSupportCache());
+                                        _compilerOptionSupportHelper->getOptionSupportCache(),
+                                        localProperties.count(ov::compilation_target.name()) > 0);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -289,6 +296,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto& unknownProperties = mergedConfigAndUnknownProperties.second;
 
     localConfig.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
+
+    // Only the compiler knows whether the platform ov::compilation_target names resolves to more
+    // than one device variant (e.g. differing tile counts) - ask it, rather than the plugin
+    // guessing. Kept at function scope: a multi-SKU platform resolves to more than one bundle, and
+    // the remaining ones are compiled further down purely to prove each schedule builds correctly -
+    // only the first bundle is actually used for the returned CompiledModel today.
+    std::vector<std::string> compilationTargetBundles;
+    if (localConfig.has<COMPILATION_TARGET>()) {
+        compilationTargetBundles = compiler->resolve_compilation_target_bundles(localConfig);
+        if (!compilationTargetBundles.empty()) {
+            _logger.info("Merging compilation target bundle '%s' into config '%s'",
+                        compilationTargetBundles.front().c_str(),
+                        localConfig.toString().c_str());
+            localConfig.fromString(compilationTargetBundles.front());
+            _logger.info("Config after merging compilation target bundle: '%s'", localConfig.toString().c_str());
+        }
+    }
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
     if (should_use_host_compile_interpreter(model,
@@ -484,6 +508,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
 
         graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
+
+        // WIP: compile model for every resolved bundle
+        if (compilationTargetBundles.size() > 1) {
+            for (size_t i = 1; i < compilationTargetBundles.size(); ++i) {
+                const auto& bundle = compilationTargetBundles[i];
+                try {
+                    Config bundleConfig = compilerConfig;
+                    bundleConfig.fromString(bundle);
+                    auto bundleGraph = compileWithConfig(model->clone(), bundleConfig);
+                    _logger.info("Diagnostic compile of bundle '%s' succeeded; compatibility descriptor: '%s'",
+                                bundle.c_str(),
+                                std::string(bundleGraph->get_compatibility_descriptor().value_or("<none>")).c_str());
+                } catch (const std::exception& ex) {
+                    _logger.warning("Diagnostic compile of bundle '%s' failed: %s", bundle.c_str(), ex.what());
+                } catch (...) {
+                    _logger.warning("Diagnostic compile of bundle '%s' failed with an unexpected exception",
+                                    bundle.c_str());
+                }
+            }
+        }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

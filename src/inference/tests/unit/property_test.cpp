@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <sstream>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -303,6 +304,68 @@ TEST(PropertiesValidation, BoolPropertyAcceptsIntegerValues) {
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(1));
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(2));
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(0));
+}
+
+// --- ov::CompilationTarget stream operators: must round-trip through ov::Any / cache keys / the C API ---
+
+// Multiple device_ids must survive a full write-then-read cycle unchanged.
+TEST(CompilationTargetSerialization, RoundTripsThroughStreamOperators) {
+    const ov::CompilationTarget target{"6010", {0xD71D, 0x7D1D}};
+
+    std::ostringstream out;
+    out << target;
+
+    ov::CompilationTarget restored;
+    std::istringstream(out.str()) >> restored;
+
+    EXPECT_EQ(restored.platform, target.platform);
+    EXPECT_EQ(restored.device_ids, target.device_ids);
+}
+
+// A single device_id (no trailing comma) must parse back correctly too.
+TEST(CompilationTargetSerialization, RoundTripsASingleDeviceId) {
+    const ov::CompilationTarget target{"4000", {0x643E}};
+
+    std::ostringstream out;
+    out << target;
+
+    ov::CompilationTarget restored;
+    std::istringstream(out.str()) >> restored;
+
+    EXPECT_EQ(restored.platform, target.platform);
+    EXPECT_EQ(restored.device_ids, target.device_ids);
+}
+
+// Empty device_ids ([]) must round-trip too, not just the non-empty cases above.
+TEST(CompilationTargetSerialization, RoundTripsNoDeviceIds) {
+    const ov::CompilationTarget target{"4000", {}};
+
+    std::ostringstream out;
+    out << target;
+
+    ov::CompilationTarget restored;
+    std::istringstream(out.str()) >> restored;
+
+    EXPECT_EQ(restored.platform, target.platform);
+    EXPECT_TRUE(restored.device_ids.empty());
+}
+
+TEST(CompilationTargetSerialization, RoundTripsThroughOvAny) {
+    // ov::Any::print()/read() dispatch to the type's own operator<</>>, so this exercises the same
+    // path used for e.g. cache-key computation and the C API, not just direct stream usage.
+    const ov::CompilationTarget target{"6010", {0xD71D, 0x7D1D}};
+
+    ov::Any any = target;
+    std::ostringstream out;
+    any.print(out);
+
+    ov::Any restoredAny = ov::CompilationTarget{};
+    std::istringstream in(out.str());
+    restoredAny.read(in);
+
+    const auto restored = restoredAny.as<ov::CompilationTarget>();
+    EXPECT_EQ(restored.platform, target.platform);
+    EXPECT_EQ(restored.device_ids, target.device_ids);
 }
 
 }  // namespace ov::test
