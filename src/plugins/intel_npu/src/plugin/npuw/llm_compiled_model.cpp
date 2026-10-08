@@ -335,12 +335,14 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
         if (npu_platform == ov::intel_npu::Platform::NPU3720) {
             // Keep baseline settings
         } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
-            arch_added_compilation_param = "performance-hint-override=latency, optimization-level=3";
+            arch_added_compilation_param = "optimization-level=3";
+            // setting max_tiles directly for compatibility reasons
+            config["NPU_TILES"] = npudesc->max_tiles;
         } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
                    npu_platform == ov::intel_npu::Platform::NPU5020) {
             // Keep baseline settings
         } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
-            // Keep baseline settings
+            arch_added_compilation_param = "performance-hint-override=latency";
         } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
             // Keep baseline settings
         } else {
