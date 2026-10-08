@@ -63,6 +63,10 @@ std::pair<const void*, size_t> tensor_alias_range(const std::shared_ptr<ov::ITen
     if (!tensor)
         return {nullptr, 0};
     if (auto remote = std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(tensor)) {
+        // get_memory() builds a reinterpreted memory object, so filter by allocation type first.
+        const auto original = remote->get_original_memory();
+        if (!original || original->get_allocation_type() != cldnn::allocation_type::usm_host)
+            return {nullptr, 0};
         auto memory = remote->get_memory();
         if (memory && memory->get_allocation_type() == cldnn::allocation_type::usm_host)
             return {memory->buffer_ptr(), memory->size()};
@@ -430,6 +434,7 @@ void SyncInferRequest::enqueue() {
         }
     }
 
+    m_input_alias_ranges_valid = false;
     for (const auto& it : m_output_ports_map) {
         size_t port_idx = it.first;
         const auto& port = it.second;
@@ -1350,7 +1355,7 @@ bool SyncInferRequest::is_batched_input(const ov::Output<const ov::Node>& port) 
 }
 
 bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::ITensor>& output_tensor,
-                                                    size_t output_capacity_bytes) const {
+                                                    size_t output_capacity_bytes) {
     const auto [output_ptr, output_logical_size] = tensor_alias_range(output_tensor);
     if (output_ptr == nullptr)
         return true;
@@ -1358,19 +1363,27 @@ bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::IT
     // so use the recorded capacity: a later growth would write the full span and could hit an input in the tail.
     const size_t output_size = std::max(output_logical_size, output_capacity_bytes);
 
-    auto inputs = m_user_inputs.read();
+    if (!m_input_alias_ranges_valid) {
+        m_input_alias_ranges.clear();
+        auto inputs = m_user_inputs.read();
+        for (const auto& entry : *inputs) {
+            const auto& wrapper = entry.second;
+            const auto [input_ptr, input_logical_size] = tensor_alias_range(wrapper.ptr);
+            if (input_ptr == nullptr)
+                continue;
+            // Like the output span, use recorded capacity to catch outputs starting in an input's unused tail.
+            m_input_alias_ranges.push_back({input_ptr, std::max(input_logical_size, wrapper.actual_size)});
+        }
+        m_input_alias_ranges_valid = true;
+    }
+
     size_t overlapping_inputs = 0;
-    for (const auto& entry : *inputs) {
-        const auto& wrapper = entry.second;
-        const auto [input_ptr, input_logical_size] = tensor_alias_range(wrapper.ptr);
-        // Like the output span, input overlap checks use recorded capacity, not the possibly shrunk logical shape.
-        // This catches outputs starting in an input's unused allocation tail.
-        const size_t input_size = std::max(input_logical_size, wrapper.actual_size);
-        if (!byte_ranges_overlap(output_ptr, output_size, input_ptr, input_size))
+    for (const auto& input : m_input_alias_ranges) {
+        if (!byte_ranges_overlap(output_ptr, output_size, input.ptr, input.size))
             continue;
         // A partial/offset overlap is never safe; an exact-address overlap is left to
         // network::can_bind_user_output_memory().
-        if (input_ptr != output_ptr)
+        if (input.ptr != output_ptr)
             return false;
         if (++overlapping_inputs > 1)
             return false;
