@@ -240,25 +240,19 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     cpu_isa_t isa = isa_undef;
     if (use_amx) {
         isa = isa_undef;
+    } else if (is_int8) {
+        // No signed-input compensation buffer is supplied, so native s8s8 dot products are required.
+        isa = mayiuse(avx10_2) ? avx10_2 : avx2_vnni_2;
     } else if (mayiuse(avx512_core)) {
         if (ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 && mayiuse(avx512_core_bf16)) {
             isa = avx512_core_bf16;
         } else if (ctx.dt_in0 == dnnl_data_type_t::dnnl_f16 && mayiuse(avx512_core_fp16)) {
             isa = avx512_core_fp16;
         } else {
-            if (is_int8) {
-                isa = avx512_core_vnni;
-            } else {
-                isa = avx512_core;
-            }
+            isa = avx512_core;
         }
     } else {
-        // s8s8 is only support by avx2_vnni_2
-        if (is_int8) {
-            isa = cpu_isa_t::avx2_vnni_2;
-        } else {
-            isa = cpu_isa_t::avx2;
-        }
+        isa = cpu_isa_t::avx2;
     }
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
@@ -315,7 +309,7 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     if (use_amx) {
         amx_tile_configure(ctx.palette);
     }
-    // s8s8 kernel are only support for amx/vnni_2, s8s8 vis compensation pass is not support
+    // Native s8s8 kernels do not require signed-input compensation post-ops.
     ctx.has_post_ops = false;
 
     brgemm_kernel_t* brgKernel_ = nullptr;
