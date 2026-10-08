@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
@@ -253,10 +254,16 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         const auto& dstStrides1 = m_node->getDstMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dstStrides2 = m_node->getDstMemoryAtPort(2)->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int stride_src = srcStrides[1] * sizeof(T);
-        auto stride_dst_0 = dstStrides0[1];
-        auto stride_dst_1 = dstStrides1[1];
-        auto stride_dst_2 = dstStrides2[1];
+        // All leading dims are flattened into M (dense ncsp layout), so the row stride is the one of
+        // the second-to-last dim, whatever the rank.
+        const auto row_stride = [](const VectorDims& strides) {
+            return strides[strides.size() - 2];
+        };
+        const auto stride_src_elems = row_stride(srcStrides);
+        int stride_src = stride_src_elems * sizeof(T);
+        auto stride_dst_0 = row_stride(dstStrides0);
+        auto stride_dst_1 = row_stride(dstStrides1);
+        auto stride_dst_2 = row_stride(dstStrides2);
 
         auto asym = true;
         for (int m = 0; m < M;) {
@@ -271,7 +278,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             if (m_node->m_config.quantized) {
                 // quantize psrc0 into m_quantized_act buffer
                 // per-token asym
-                m_quant_act.quantize(BM, reinterpret_cast<T*>(psrc0), srcStrides[1]);
+                m_quant_act.quantize(BM, reinterpret_cast<T*>(psrc0), stride_src_elems);
                 pA = reinterpret_cast<uint8_t*>(m_quant_act.data);
                 strideA = m_quant_act.K;
             }

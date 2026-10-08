@@ -17,6 +17,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 
 using namespace testing;
@@ -83,4 +84,86 @@ TEST_F(TransformationTestsF, QKVProjFusion1Test) {
         auto v_proj = std::make_shared<v0::Result>(qkv_proj->output(2));
         model_ref = std::make_shared<ov::Model>(OutputVector{q_proj, k_proj, v_proj}, ParameterVector{input_param});
     }
+}
+namespace {
+
+// Combined q/k/v weight followed by a VariadicSplit (QKVProjFusionPass2).
+std::shared_ptr<ov::Model> make_qkv_combined_model(const PartialShape& input_shape,
+                                                   int64_t split_axis,
+                                                   const element::Type& lengths_type,
+                                                   const std::vector<size_t>& proj_sizes,
+                                                   size_t hidden_size) {
+    auto input_param = std::make_shared<v0::Parameter>(element::f32, input_shape);
+    const auto total = proj_sizes[0] + proj_sizes[1] + proj_sizes[2];
+    auto qkv_proj_weight_const = std::make_shared<v0::Constant>(element::f16, Shape{total, hidden_size});
+    auto qkv_proj_weight_cvt = std::make_shared<v0::Convert>(qkv_proj_weight_const, element::f32);
+    auto qkv_proj = std::make_shared<v0::MatMul>(input_param, qkv_proj_weight_cvt, false, true);
+    auto axis = v0::Constant::create(element::i64, Shape{}, {split_axis});
+    auto lengths = v0::Constant::create(lengths_type, Shape{3}, proj_sizes);
+    auto qkv_split = std::make_shared<v1::VariadicSplit>(qkv_proj, axis, lengths);
+    return std::make_shared<ov::Model>(qkv_split->outputs(), ParameterVector{input_param});
+}
+
+std::shared_ptr<ov::Model> make_qkv_combined_ref(const PartialShape& input_shape,
+                                                 const std::vector<size_t>& proj_sizes,
+                                                 size_t hidden_size) {
+    auto input_param = std::make_shared<v0::Parameter>(element::f32, input_shape);
+    const auto total = proj_sizes[0] + proj_sizes[1] + proj_sizes[2];
+    auto qkv_proj_weight_const = std::make_shared<v0::Constant>(element::f16, Shape{total, hidden_size});
+    intel_cpu::QKVProjectionNode::Config config{false,
+                                                static_cast<int>(hidden_size),
+                                                static_cast<int>(proj_sizes[0]),
+                                                static_cast<int>(proj_sizes[1]),
+                                                static_cast<int>(proj_sizes[2]),
+                                                true};
+    auto qkv_proj = std::make_shared<intel_cpu::QKVProjectionNode>(
+        OutputVector{input_param, qkv_proj_weight_const, qkv_proj_weight_const, qkv_proj_weight_const},
+        config);
+    return std::make_shared<ov::Model>(qkv_proj->outputs(), ParameterVector{input_param});
+}
+
+void register_qkv_fusion(ov::pass::Manager& manager) {
+    manager.register_pass<ov::intel_cpu::QKVProjFusion>();
+    manager.get_pass_config()->set_callback<ov::intel_cpu::QKVProjFusionPass2>(
+        [](const std::shared_ptr<const ov::Node>&) -> bool {
+            return true;
+        });
+}
+
+}  // namespace
+
+// [tokens, hidden] input, GQA sizes, positive split axis and i64 lengths
+TEST_F(TransformationTestsF, QKVProjFusion2Rank2GQATest) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    const size_t hidden_size = 2048;
+    const std::vector<size_t> proj_sizes{2048, 256, 256};
+    const PartialShape input_shape{-1, static_cast<int64_t>(hidden_size)};
+
+    model = make_qkv_combined_model(input_shape, 1, element::i64, proj_sizes, hidden_size);
+    register_qkv_fusion(manager);
+    model_ref = make_qkv_combined_ref(input_shape, proj_sizes, hidden_size);
+}
+
+TEST_F(TransformationTestsF, QKVProjFusion2Rank3Test) {
+    disable_rt_info_check();
+    disable_result_friendly_names_check();
+    const size_t hidden_size = 2048;
+    const std::vector<size_t> proj_sizes{2048, 2048, 2048};
+    const PartialShape input_shape{-1, -1, static_cast<int64_t>(hidden_size)};
+
+    model = make_qkv_combined_model(input_shape, -1, element::i32, proj_sizes, hidden_size);
+    register_qkv_fusion(manager);
+    model_ref = make_qkv_combined_ref(input_shape, proj_sizes, hidden_size);
+}
+
+// A split that does not cut the last (output channel) dim must not fuse.
+TEST_F(TransformationTestsF, QKVProjFusion2NotLastAxisTest) {
+    const size_t hidden_size = 2048;
+    model = make_qkv_combined_model(PartialShape{-1, 3, static_cast<int64_t>(hidden_size)},
+                                    1,
+                                    element::i64,
+                                    {1, 1, 1},
+                                    hidden_size);
+    register_qkv_fusion(manager);
 }
