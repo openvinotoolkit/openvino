@@ -106,8 +106,7 @@ public:
 // decompose_scaled_dot_product_attention_for_whisper() below), there's no SDPA node left
 // to find for it. The decomposition always tags the "QK scaled scores" node with this
 // well-known tensor name, so it doubles as a reliable marker for where the block lives.
-std::vector<std::shared_ptr<ov::Node>> find_decomposed_cross_attn_score_nodes(
-    const std::shared_ptr<ov::Model>& model) {
+std::vector<std::shared_ptr<ov::Node>> find_decomposed_cross_attn_score_nodes(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::shared_ptr<ov::Node>> found;
     for (const auto& op : model->get_ordered_ops()) {
         bool matched = false;
@@ -151,9 +150,8 @@ public:
                 }
             }
         }
-        auto decomposed_cross_attn_nodes =
-            transform_cross_attn ? find_decomposed_cross_attn_score_nodes(model)
-                                 : std::vector<std::shared_ptr<ov::Node>>{};
+        auto decomposed_cross_attn_nodes = transform_cross_attn ? find_decomposed_cross_attn_score_nodes(model)
+                                                                : std::vector<std::shared_ptr<ov::Node>>{};
 
         // Self-attention
         OPENVINO_ASSERT(!self_attn_nodes.empty());
