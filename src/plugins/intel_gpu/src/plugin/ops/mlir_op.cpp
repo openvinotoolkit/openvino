@@ -9,6 +9,7 @@
 #    include "intel_gpu/plugin/common_utils.hpp"
 #    include "intel_gpu/plugin/program_builder.hpp"
 #    include "intel_gpu/primitives/mlir_primitive.hpp"
+#    include "plugin/transformations/mlir/interface/gpu_runtime.hpp"
 
 namespace ov::op::internal {
 using MLIR = ov::intel_gpu::op::MLIROp;

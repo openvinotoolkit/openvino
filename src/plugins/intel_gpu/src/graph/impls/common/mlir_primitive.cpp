@@ -12,6 +12,7 @@
 #    include "intel_gpu/op/mlir_op.hpp"
 #    include "intel_gpu/primitives/mlir_primitive.hpp"
 #    include "mlir_primitive_inst.h"
+#    include "plugin/transformations/mlir/interface/gpu_runtime.hpp"
 #    include "register.hpp"
 #    include "registry/implementation_map.hpp"
 
@@ -34,9 +35,6 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
     explicit mlir_primitive_impl(const mlir_primitive_node& outer) {
         set_node_params(outer);
     }
-
-    mlir_primitive_impl(const mlir_primitive_impl& other) = default;
-    mlir_primitive_impl& operator=(const mlir_primitive_impl&) = delete;
 
     void set_node_params(const program_node& /*arg*/) override {}
 

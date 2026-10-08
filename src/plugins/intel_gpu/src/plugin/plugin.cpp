@@ -50,9 +50,7 @@
 #include "transformations/utils/utils.hpp"
 
 #ifdef OV_GPU_MLIR_BACKEND_LINKED
-namespace ov::intel_gpu::mlir {
-void register_mlir_gpu_runtime();
-}
+#    include "transformations/mlir/interface/gpu_runtime.hpp"
 #endif
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric

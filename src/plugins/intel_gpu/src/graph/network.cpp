@@ -51,6 +51,9 @@
 #include "reshape_inst.h"
 #include "stateless_kv_inst.h"
 #include "to_string_utils.h"
+#ifdef ENABLE_MLIR_FOR_GPU
+#    include "plugin/transformations/mlir/interface/gpu_runtime.hpp"
+#endif
 #ifdef GPU_DEBUG_CONFIG
 #    include <sys/stat.h>
 

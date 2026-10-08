@@ -33,7 +33,7 @@ compiled to a binary (even if the module has dynamic shapes), on `infer()` it la
 ## Communication with the graph-compiler
 
 The MLIR/GC dependent code lives under `transformations/mlir` to avoid bringing mlir/gc includes to the main
-plugin, and is reached through the MLIR-free `MLIRGpuProgram` in `include/intel_gpu/op/mlir_op.hpp`.
+plugin, and is reached through the MLIR-free `MLIRGpuProgram` in `transformations/mlir/interface/gpu_runtime.hpp`.
 The simplified flow is following:
 
 **A. Compilation:**
@@ -61,7 +61,8 @@ which:
 * aggregates the events returned by the program into the event of the primitive.
 
 The compiled program is shared by all the streams of the model. Each `cldnn::network` owns one `GcGpuRuntime`
-bound to its stream, created through `MLIRGpuRuntime::register_factory`.
+bound to its stream, created through `MLIRGpuRuntime::create`. The plugin registers this factory through
+`register_mlir_gpu_runtime()`.
 
 ## Code organization
 
@@ -70,8 +71,8 @@ dedicated OBJECT library `openvino_intel_gpu_mlir_obj` that alone gets the MLIR/
 `GraphCompiler`; the object library is then linked into the plugin. This keeps `mlir/*.h` and `gc/*.h` out of
 every other translation unit.
 
-The only header other plugin code may include from `transformations/mlir/interface/` is `convert.hpp` -
-it is MLIR/GC free. The same applies to the `MLIROp` (`include/intel_gpu/op/mlir_op.hpp`) and
+The headers `convert.hpp` and `gpu_runtime.hpp` in `transformations/mlir/interface/` are MLIR/GC free.
+The same applies to the `MLIROp` (`include/intel_gpu/op/mlir_op.hpp`) and
 `cldnn::mlir_primitive` (`include/intel_gpu/primitives/mlir_primitive.hpp`) declarations: no MLIR/GC types
 cross this boundary, so the whole `graph` library stays MLIR-free.
 
