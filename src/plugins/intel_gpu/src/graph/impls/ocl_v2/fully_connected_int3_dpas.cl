@@ -305,9 +305,8 @@ KERNEL(fc)(
     , const __global char* quantized_input
     , const __global float* quan_var
     // Rows of the flattened batch, and of one batch for a 3D [B, M, N] output.
-    // Runtime arguments, so that one compiled kernel serves every row count of
-    // its fake-alignment bucket.
-    , const uint batch_size
+    // A static kernel takes BATCH_SIZE as a constant instead.
+    , const uint rows
     , const uint rows_per_batch
 )
 {
@@ -327,6 +326,7 @@ KERNEL(fc)(
     const uint sg   = (uint)get_local_id(1);
     const uint nbw  = (uint)get_group_id(0);
     const uint m0   = ((uint)get_group_id(1) * SG_M + sg) * TILE_M;
+    const uint batch_size = BATCH_SIZE;
     const uint var_pitch  = TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE;
     const __global uint* B = (const __global uint*)weights;
 
@@ -498,6 +498,7 @@ KERNEL(fc)(
     const uint n    = nb * SIMD + lane;
 
     const uint var_pitch  = TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE;
+    const uint batch_size = BATCH_SIZE;
 
     const __global uint* B = (const __global uint*)weights;
 
