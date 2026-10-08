@@ -1111,6 +1111,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 eltwise_mode::div
             };
 
+#if OV_GPU_WITH_CM
+            // TEMP DIAGNOSTIC: confirm fuse_eltwise_f is entered for the SwiGLU gate*up multiply and
+            // whether it bails out at the early-return gate below.
+            if (node.id().find("mlp/Mul") != std::string::npos) {
+                GPU_DEBUG_TRACE << node.id() << " : DIAG fuse_eltwise_f entry is_output=" << node.is_output()
+                                 << " inputs_count=" << node.get_inputs_count() << " mode=" << static_cast<int>(prim->mode)
+                                 << " stride_empty=" << prim->stride.empty() << std::endl;
+            }
+#endif
+
             if (node.is_output() || node.get_inputs_count() != 2 ||
                 std::find(supported_modes.begin(), supported_modes.end(), prim->mode) == supported_modes.end() ||
                 !prim->stride.empty())
@@ -1161,6 +1171,19 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = can_fuse_parents[i] && (!parents[i].first->is_constant() || parents[parents.size() - 1 - i].first->is_constant());
             }
+
+#if OV_GPU_WITH_CM
+            // TEMP DIAGNOSTIC: trace why a SwiGLU gate*up multiply does/doesn't fuse onto its FC parents.
+            if (node.id().find("mlp/Mul") != std::string::npos) {
+                GPU_DEBUG_TRACE << node.id() << " : DIAG fuse_eltwise_f parents =";
+                for (size_t i = 0; i < parents.size(); i++) {
+                    GPU_DEBUG_TRACE << " [" << i << "] " << parents[i].first->id()
+                                     << " is_fc=" << parents[i].first->is_type<fully_connected>()
+                                     << " can_fuse=" << can_fuse_parents[i];
+                }
+                GPU_DEBUG_TRACE << std::endl;
+            }
+#endif
 
             if (node.in_shape_of_subgraph || parents[0].first->in_shape_of_subgraph || parents[1].first->in_shape_of_subgraph)
                 return;
@@ -1223,7 +1246,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (!can_fuse_parents[i] || !fc.is_type<fully_connected>() || fc.get_input_layout(1).data_type != data_types::u2 ||
                     !fc.get_input_layout(1).is_static())
                     continue;
-                const auto N = static_cast<int64_t>(fc.get_input_layout(1).get_shape()[0]);
+                // N is the output feature count; for group-major u2 weights [KG, N, GS] it is dim 1, not dim 0.
+                const auto N = ov::intel_gpu::cm::woq_u2_dims(fc.get_input_layout(1)).N;
                 const auto& peer = *parents[parents.size() - 1 - i].first;
                 if (!ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), node.get_output_layout(), N).empty())
                     can_fuse_parents[i] = false;

@@ -1740,7 +1740,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        // The CM u2 group-major FC kernel (Xe2/Xe3 + CM JIT) reads native group-major [KG, N, GS] weights
+        // without a transpose; let the compression pass keep that layout instead of folding the transpose.
+        auto& cm_fc_engine = m_context->get_engine();
+        const bool cm_u2_group_major_supported =
+            (device_info.arch == cldnn::gpu_arch::xe2 || device_info.arch == cldnn::gpu_arch::xe3) &&
+            check_cm_jit_support(cm_fc_engine, config);
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(cm_u2_group_major_supported);
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);

@@ -211,15 +211,19 @@ WoqU2Weights make_weights(engine& engine, int64_t K, int64_t N, ZpKind zk, tests
         zp_u8 = zp_g;
     }
 
+    // Scales / zero points are physically [N, KG] n-major and [KG, N] group-major (the production contract
+    // validate_base checks); the group-major values above are already written in [KG, N] (g * N + n) order.
+    const ov::PartialShape sz_shape =
+        layout == WoqU2WeightLayout::group_major ? ov::PartialShape{KG, N} : ov::PartialShape{N, KG};
     r.weights = engine.allocate_memory({{N, K}, data_types::u2, format::bfyx});
-    r.scale = engine.allocate_memory({{N, KG}, data_types::f16, format::bfyx});
+    r.scale = engine.allocate_memory({sz_shape, data_types::f16, format::bfyx});
     set_values(r.weights, packed);
     set_values(r.scale, scales);
     if (zk == ZpKind::tensor_f16) {
-        r.zp = engine.allocate_memory({{N, KG}, data_types::f16, format::bfyx});
+        r.zp = engine.allocate_memory({sz_shape, data_types::f16, format::bfyx});
         set_values(r.zp, zp_f16);
     } else if (zk == ZpKind::tensor_u8) {
-        r.zp = engine.allocate_memory({{N, KG}, data_types::u8, format::bfyx});
+        r.zp = engine.allocate_memory({sz_shape, data_types::u8, format::bfyx});
         set_values(r.zp, zp_u8);
     }
 

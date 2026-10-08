@@ -27,15 +27,50 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::cm {
 
-// Weight layout woq_u2_gemm_dual.cm is built for (its WLAYOUT). A compressed FC always provides n_major:
-// weights [N, K/4], scales / zero points [N, K/64]. group_major -- weights [K/64, N, 16 B], scales / zero
-// points [K/64, N], the kernel's other path -- is selectable for tests only: the buffers are passed
-// through unchanged, so whoever selects it must fill them in group-major byte order. Read when the
-// kernel is generated (network build).
+// Weight layout woq_u2_gemm_dual.cm is built for (its WLAYOUT), chosen per node from the WEIGHT shape by
+// woq_u2_dims. n_major: 2-D weights [N, K], scales / zero points [N, K/64] -- what a compressed FC
+// provides. group_major (the kernel's native ABI): 3-D weights [KG, N, GS], scales / zero points [KG, N]
+// -- groups outermost, no weight transpose. The weight rank is the layout signal; scales / zero points
+// must then match it (validate_base enforces this).
 enum class WoqU2WeightLayout : int { group_major = 0, n_major = 1 };
+
+// Test-only override for 2-D weight buffers filled with group-major bytes (the conformance test keeps the
+// [N, K] shape and flips this to exercise WLAYOUT 0); unused by the shape-driven production path, which
+// detects group-major from a genuine 3-D [KG, N, GS] weight layout.
 inline WoqU2WeightLayout& woq_u2_weight_layout_for_tests() {
     static WoqU2WeightLayout layout = WoqU2WeightLayout::n_major;
     return layout;
+}
+
+// The quantization group size the CM kernels are built for (GS in the .cm sources).
+constexpr int64_t woq_u2_group_size = 64;
+
+// Physical dimensions of a u2 FC and which kernel weight layout (WLAYOUT) reads them, resolved from the
+// WEIGHT shape: a 3-D weight layout [KG, N, GS] (GS = the kernel's group size) is group-major (N = dim 1,
+// K = dim 0 * dim 2); a 2-D weight layout [N, K] is n-major (its WLAYOUT follows woq_u2_weight_layout_for_tests,
+// n-major in production). The scale / zero-point order must match the resolved layout -- validate_base checks it.
+struct WoqU2Dims {
+    WoqU2WeightLayout layout = WoqU2WeightLayout::n_major;
+    int64_t N = 0, K = 0, KG = 0;
+    bool ok = false;
+};
+inline WoqU2Dims woq_u2_dims(const cldnn::layout& wei) {
+    WoqU2Dims d;
+    const auto ws = wei.get_shape();
+    if (ws.size() == 3 && static_cast<int64_t>(ws[2]) == woq_u2_group_size) {
+        d.layout = WoqU2WeightLayout::group_major;
+        d.N = static_cast<int64_t>(ws[1]);
+        d.K = static_cast<int64_t>(ws[0]) * woq_u2_group_size;
+    } else if (ws.size() == 2) {
+        d.layout = woq_u2_weight_layout_for_tests();  // n-major in production; tests may force group-major on 2-D buffers
+        d.N = static_cast<int64_t>(ws[0]);
+        d.K = static_cast<int64_t>(ws[1]);
+    } else {
+        return d;
+    }
+    d.KG = woq_u2_group_size != 0 ? d.K / woq_u2_group_size : 0;
+    d.ok = true;
+    return d;
 }
 
 // Dependencies of the FC: 0 = input, 1 = weights, [2 = bias], then decompression scale and zero point,
@@ -145,15 +180,17 @@ inline std::string woq_u2_check_epi_operand(const cldnn::layout& epi, const cldn
 }
 
 // u2 weight-only-quantized fully connected layer on XMX/DPAS: woq_u2_gemm_dual.cm (tiled) for M > 8 and
-// woq_u2_gemm_dual_gemv.cm for M <= 8, both built with WLAYOUT=1 (N-major weights and scales / zero points).
+// woq_u2_gemm_dual_gemv.cm for M <= 8. The kernel weight layout (WLAYOUT) is chosen per node by
+// woq_u2_dims: n-major (WLAYOUT 1, weights [N, K], scales / zero points [N, K/64]) as a compressed FC
+// provides, or group-major (WLAYOUT 0, weights [KG, N, GS], scales / zero points [KG, N]).
 //
 // Selected only for: Xe2 or Xe3 with CM JIT support, >= 96 KB SLM; f16 activations without padding; u2
-// weights [N, K] (weights_transposed); f16 decompression scales [N, K/64] bfyx (group size 64); u8
-// decompression zero points [N, K/64] bfyx (required: the kernels have no scalar / f16 / absent zero-point
-// path); no dynamically quantized activations; f16 or f32 output (OUT_F16); K % 64 == 0 and N % 32 == 0;
-// an epilogue woq_u2_epilogue supports (none, bias, fused add, fused SwiGLU) whose tensor passes
-// woq_u2_check_epi_operand (f16 / f32; shaped like the output -- a bias / per-column operand [N] therefore
-// only with M == 1). M (the product of the leading
+// weights [N, K] n-major (weights_transposed) or [KG, N, GS] group-major; f16 per-group decompression
+// scales (group size 64) bfyx; u8 per-group decompression zero points bfyx (required: the kernels have no
+// scalar / f16 / absent zero-point path); no dynamically quantized activations; f16 or f32 output
+// (OUT_F16); K % 64 == 0 and N % 32 == 0; an epilogue woq_u2_epilogue supports (none, bias, fused add,
+// fused SwiGLU) whose tensor passes woq_u2_check_epi_operand (f16 / f32; shaped like the output -- a bias /
+// per-column operand [N] therefore only with M == 1). M (the product of the leading
 // dims) may be dynamic. Everything else falls back to the other fully_connected implementations (for u2:
 // the OCL reference kernel). prepare_quantization keeps per-group scales / zero points of u2 FCs in bfyx for
 // this kernel, and prepare_primitive_fusing lets u2 FCs that pass validate_base take post-op fusions.
@@ -167,7 +204,8 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
 
     [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override {
         assert(node.is_type<fully_connected>());
-        // Everything plain bfyx: the kernel's N-major layout needs scales / zero points physically [N, K/64].
+        // Everything plain bfyx: both kernel layouts read the weights / scales / zero points as plain
+        // memory ([N, K/64] n-major or [KG, N] group-major), so no blocked weight format is needed.
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::bfyx);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::bfyx);
         return {in_fmts, out_fmts};
@@ -210,10 +248,6 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
             CM_FC_LOG_AND_RETURN_FALSE(node, "no decompression scale");
         if (prim->dynamic_quantized_activation)
             CM_FC_LOG_AND_RETURN_FALSE(node, "dynamic quantized activation not supported");
-        if (!prim->weights_transposed)
-            CM_FC_LOG_AND_RETURN_FALSE(node, "weights not transposed");
-        if (prim->weights_rank != 2)
-            CM_FC_LOG_AND_RETURN_FALSE(node, "weights_rank != 2: " << prim->weights_rank);
 
         const bool has_bias = fc_node.bias_term();
         const auto in_layouts = node.get_input_layouts();
@@ -237,17 +271,25 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
         if (out.format != format::bfyx || out.data_padding)
             CM_FC_LOG_AND_RETURN_FALSE(node, "output not plain bfyx");
 
-        // Weights [N, K] (static even when M is dynamic).
-        const auto wshape = wei.get_shape();
-        if (wshape.size() != 2)
-            CM_FC_LOG_AND_RETURN_FALSE(node, "weight shape rank != 2: " << wshape.size());
-        const auto N = static_cast<int64_t>(wshape[0]);
-        const auto K = static_cast<int64_t>(wshape[1]);
+        // Weight layout (n-major [N, K] or group-major [KG, N, GS]) from the weight shape; scales / zero
+        // points must match it (is_per_group below).
+        const auto dims = woq_u2_dims(wei);
+        if (!dims.ok)
+            CM_FC_LOG_AND_RETURN_FALSE(node, "unsupported weight shape rank: " << wei.get_shape().size());
+        const bool group_major = dims.layout == WoqU2WeightLayout::group_major;
+        // The logical matrix is [N, K] for both layouts (out = A * W^T), so the FC is weights_transposed;
+        // n-major weights are the plain 2-D [N, K] (weights_rank 2), group-major the 3-D [KG, N, GS].
+        if (!prim->weights_transposed)
+            CM_FC_LOG_AND_RETURN_FALSE(node, "weights not transposed");
+        if (!group_major && prim->weights_rank != 2)
+            CM_FC_LOG_AND_RETURN_FALSE(node, "n-major weights_rank != 2: " << prim->weights_rank);
+        const auto N = dims.N;
+        const auto K = dims.K;
         if (K % group_size != 0)
             CM_FC_LOG_AND_RETURN_FALSE(node, "K % 64 != 0: K=" << K);
         if (N % 32 != 0)
             CM_FC_LOG_AND_RETURN_FALSE(node, "N % 32 != 0: N=" << N);
-        const auto KG = K / group_size;
+        const auto KG = dims.KG;
 
         // Activations: last dim is K.
         const auto& in_pshape = in.get_partial_shape();
@@ -262,7 +304,10 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
             size_t total = 1;
             for (auto d : s)
                 total *= d;
-            return s.size() >= 2 && static_cast<int64_t>(s[0]) == N && static_cast<int64_t>(total) == N * KG;
+            if (s.size() < 2 || static_cast<int64_t>(total) != N * KG)
+                return false;
+            // group-major: scales / zero points are [KG, N]; n-major: [N, KG].
+            return group_major ? static_cast<int64_t>(s[0]) == KG : static_cast<int64_t>(s[0]) == N;
         };
 
         if (scale.data_type != data_types::f16)
