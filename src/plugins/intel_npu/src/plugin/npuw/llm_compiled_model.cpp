@@ -331,26 +331,20 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
             npu_platform = npudesc->arch;
         }
 
-        bool set_npu_tiles = false;
         std::string arch_added_compilation_param;
         if (npu_platform == ov::intel_npu::Platform::NPU3720) {
-            // Keep baseline settings.
+            // Keep baseline settings
         } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
-            set_npu_tiles = true;
-            arch_added_compilation_param = "optimization-level=3";
+            arch_added_compilation_param = "performance-hint-override=latency, optimization-level=3";
         } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
                    npu_platform == ov::intel_npu::Platform::NPU5020) {
-            set_npu_tiles = true;
+            // Keep baseline settings
         } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
-            arch_added_compilation_param = "performance-hint-override=latency";
+            // Keep baseline settings
         } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
-            arch_added_compilation_param = "performance-hint-override=latency";
+            // Keep baseline settings
         } else {
             LOG_WARN("Unknown NPU platform: " << npu_platform << ". Default config will be used.");
-        }
-
-        if (set_npu_tiles) {
-            config["NPU_TILES"] = npudesc->max_tiles;
         }
 
         if (!arch_added_compilation_param.empty()) {
