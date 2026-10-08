@@ -140,7 +140,7 @@ std::string payload_string(const ParsedContainer& container, const hsm::Manifest
 TEST(HsmWriterTest, empty_container_is_valid_and_has_no_sections) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -156,7 +156,7 @@ TEST(HsmWriterTest, round_trips_inline_and_pointer_sections) {
     auto writer = open_writer(stream);
     writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(id));  // inline-mode Core tag
     writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));  // pointer-mode Core tag
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -182,7 +182,7 @@ TEST(HsmWriterTest, tag_reserved_bytes_round_trip_and_default_to_zero) {
     auto writer = open_writer(stream);
     writer.add_section(fake_device_id, hsm::SectionTagReserved{shard_tag, reserved}, view_of(payload));
     writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(payload));  // bare SectionTag still compiles
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -203,7 +203,7 @@ TEST(HsmWriterTest, device_specific_section_is_scoped_to_its_device) {
     std::stringstream stream;
     auto writer = open_writer(stream);
     writer.add_section(fake_device_id, shard_tag, view_of(payload));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -224,7 +224,7 @@ TEST(HsmWriterTest, aligns_pointer_section_offset_and_pads_slot_to_aligned_size)
     writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(weights), {/*offset_align=*/64});
     // offset_align 1: its offset reveals whether the previous slot's size was padded to 64.
     writer.add_section(fake_device_id, tail_tag, view_of(tail));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(buffer.data(), buffer.size());
     ASSERT_TRUE(container.has_value());
@@ -249,13 +249,13 @@ TEST(HsmWriterTest, zero_alignment_behaves_the_same_as_one) {
     auto zero_writer = open_writer(zero_stream);
     zero_writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(a), {/*offset_align=*/0});
     zero_writer.add_section(fake_device_id, b_tag, view_of(b), {/*offset_align=*/0});
-    ASSERT_FALSE(zero_writer.finalize());
+    ASSERT_EQ(zero_writer.finalize(), std::error_code{});
 
     std::stringstream one_stream;
     auto one_writer = open_writer(one_stream);
     one_writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(a), {/*offset_align=*/1});
     one_writer.add_section(fake_device_id, b_tag, view_of(b), {/*offset_align=*/1});
-    ASSERT_FALSE(one_writer.finalize());
+    ASSERT_EQ(one_writer.finalize(), std::error_code{});
 
     EXPECT_EQ(zero_stream.str(), one_stream.str());
 }
@@ -270,7 +270,7 @@ TEST(HsmWriterTest, size_align_pads_the_slot_independently_of_offset_align) {
     // Offset aligned to 64, but the slot itself only needs to be padded to a multiple of 16.
     writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(weights), {/*offset_align=*/64, /*size_align=*/16});
     writer.add_section(fake_device_id, tail_tag, view_of(tail));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(buffer.data(), buffer.size());
     ASSERT_TRUE(container.has_value());
@@ -285,30 +285,6 @@ TEST(HsmWriterTest, size_align_pads_the_slot_independently_of_offset_align) {
     EXPECT_EQ(tail_entry->offset, weights_entry->offset + 16);
 }
 
-TEST(HsmWriterTest, pads_an_alignment_gap_larger_than_the_internal_zero_fill_chunk) {
-    // write_zeros() fills padding gaps via a small internal buffer reused in a loop - this forces a gap
-    // bigger than that buffer, exercising more than one iteration of it.
-    const std::string a = "a";
-    const std::string b = "b";
-    const auto b_tag = hsm::SectionTag::make_device_tag(5, false);
-
-    std::vector<std::byte> buffer(k_buffer_capacity);
-    auto writer = open_buffer_writer(buffer.data(), buffer.size());
-    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(a), {/*offset_align=*/1024});
-    writer.add_section(fake_device_id, b_tag, view_of(b), {/*offset_align=*/1024});
-    ASSERT_FALSE(writer.finalize());
-
-    const auto container = parse_container(buffer.data(), buffer.size());
-    ASSERT_TRUE(container.has_value());
-    const auto* a_entry = find_entry(*container, hsm::any_device_id, hsm::model);
-    const auto* b_entry = find_entry(*container, fake_device_id, b_tag.id());
-    ASSERT_NE(a_entry, nullptr);
-    ASSERT_NE(b_entry, nullptr);
-    EXPECT_EQ(b_entry->offset, a_entry->offset + 1024);
-    EXPECT_EQ(payload_string(*container, *a_entry), "a");
-    EXPECT_EQ(payload_string(*container, *b_entry), "b");
-}
-
 TEST(HsmWriterTest, preserves_multiple_sections_sharing_one_tag_in_order) {
     const std::string s0 = "shard-0";
     const std::string s1 = "shard-1";
@@ -318,7 +294,7 @@ TEST(HsmWriterTest, preserves_multiple_sections_sharing_one_tag_in_order) {
     auto writer = open_writer(stream);
     writer.add_section(fake_device_id, shard_tag, view_of(s0));
     writer.add_section(fake_device_id, shard_tag, view_of(s1));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -348,7 +324,7 @@ TEST(HsmWriterTest, inline_section_ignores_a_non_power_of_two_alignment) {
     std::stringstream stream;
     auto writer = open_writer(stream);
     EXPECT_NO_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(id), {/*offset_align=*/3}));
-    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(writer.finalize(), std::error_code{});
 }
 
 TEST(HsmWriterTest, zero_size_align_inherits_alignment) {
@@ -360,7 +336,7 @@ TEST(HsmWriterTest, zero_size_align_inherits_alignment) {
     auto inherited = open_writer(inherited_stream);
     inherited.add_section(hsm::any_device_id, hsm::model_tag, view_of(weights), {/*offset_align=*/64});  // size_align=0
     inherited.add_section(fake_device_id, tail_tag, view_of(tail));
-    ASSERT_FALSE(inherited.finalize());
+    ASSERT_EQ(inherited.finalize(), std::error_code{});
 
     std::stringstream explicit_stream;
     auto explicit_same = open_writer(explicit_stream);
@@ -369,7 +345,7 @@ TEST(HsmWriterTest, zero_size_align_inherits_alignment) {
                               view_of(weights),
                               {/*offset_align=*/64, /*size_align=*/64});
     explicit_same.add_section(fake_device_id, tail_tag, view_of(tail));
-    ASSERT_FALSE(explicit_same.finalize());
+    ASSERT_EQ(explicit_same.finalize(), std::error_code{});
 
     EXPECT_EQ(inherited_stream.str(), explicit_stream.str());
 }
@@ -386,7 +362,7 @@ TEST(HsmWriterTest, section_encoder_can_capture_a_copy_of_a_transient_payload) {
                            transient.size(),
                            std::make_shared<OwnedStringEncoder>(transient));
     }  // transient destroyed before finalize() - the encoder already captured its own copy
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -404,7 +380,7 @@ TEST(HsmWriterTest, fill_in_place_writes_generated_payload_into_the_destination)
                        hsm::model_tag,
                        content.size(),
                        std::make_shared<StringViewEncoder>(content));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -419,7 +395,7 @@ TEST(HsmWriterTest, sized_section_encoder_can_split_its_output_into_several_chun
     std::stringstream stream;
     auto writer = open_writer(stream);
     writer.add_section(hsm::any_device_id, hsm::model_tag, expected.size(), std::make_shared<ChunkedEncoder>());
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -454,7 +430,7 @@ TEST(HsmWriterTest, unsized_section_encoder_discovers_size_after_writing) {
     std::stringstream stream;
     auto writer = open_writer(stream);
     writer.add_section(hsm::any_device_id, hsm::model_tag, std::make_shared<ChunkedEncoder>());
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -469,7 +445,7 @@ TEST(HsmWriterTest, unsized_section_encoder_works_with_a_preallocated_buffer_too
     std::vector<std::byte> buffer(k_buffer_capacity);
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
     writer.add_section(hsm::any_device_id, hsm::model_tag, std::make_shared<StringViewEncoder>(content));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(buffer.data(), buffer.size());
     ASSERT_TRUE(container.has_value());
@@ -497,7 +473,7 @@ TEST(HsmWriterTest, add_sections_lets_a_handler_contribute_its_own_sections) {
     auto writer = open_writer(stream);
     PluginWriter plugin;
     writer.add_sections({&plugin});
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -524,7 +500,7 @@ TEST(HsmWriterTest, add_sections_skips_a_null_handler) {
     auto writer = open_writer(stream);
     PluginWriter plugin;
     EXPECT_NO_THROW(writer.add_sections({nullptr, &plugin, nullptr}));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -562,7 +538,7 @@ TEST(HsmWriterTest, section_encoder_avoids_materializing_a_view_for_a_transient_
     auto writer = open_writer(stream);
     PluginWriter plugin;
     writer.add_sections({&plugin});
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -596,7 +572,7 @@ TEST(HsmWriterTest, handler_based_add_section_reuses_one_handler_for_several_sec
     auto writer = open_writer(stream);
     ShardHandler handler({"shard-0", "shard-1"});
     writer.add_sections({&handler});
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -649,7 +625,7 @@ TEST(HsmWriterTest, handler_forwards_to_a_named_member_function_instead_of_inlin
     auto writer = open_writer(stream);
     OptionsHandler handler(CompiledOptions{7, 0.5f});
     writer.add_sections({&handler});
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -694,7 +670,7 @@ TEST(HsmWriterTest, section_encoder_composes_from_several_sub_encoders) {
                        hsm::model_tag,
                        header.size() + body.size() + footer.size(),
                        std::move(encoder));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -710,7 +686,7 @@ TEST(HsmWriterTest, written_header_satisfies_the_format_contract) {
     auto writer = open_writer(stream);
     const std::string model = "model";
     writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     hsm::Header header{};
     const auto bytes = stream.str();
@@ -729,7 +705,7 @@ TEST(HsmWriterTest, every_written_manifest_entry_has_valid_section_bounds) {
     const std::string model = "model-bytes";
     writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(id));
     writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());

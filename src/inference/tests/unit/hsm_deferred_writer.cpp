@@ -20,6 +20,7 @@ namespace ov::test {
 namespace hsm = ov::runtime::hsm;
 namespace {
 
+constexpr hsm::DeviceId fake_device_id = 7;
 constexpr size_t k_buffer_capacity = 4096;
 
 ov::util::MemoryView view_of(const std::string& s) {
@@ -227,13 +228,37 @@ TEST(HsmDeferredWriterTest, writes_into_a_preallocated_buffer) {
     std::vector<std::byte> buffer(k_buffer_capacity);
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
     writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(buffer.data(), buffer.size());
     ASSERT_TRUE(container.has_value());
     const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
     ASSERT_NE(entry, nullptr);
     EXPECT_EQ(payload_string(*container, *entry), "model-bytes");
+}
+
+TEST(HsmDeferredWriterTest, pads_an_alignment_gap_larger_than_the_internal_zero_fill_chunk) {
+    // write_zeros() fills padding gaps via a small internal buffer reused in a loop - this forces a gap
+    // bigger than that buffer, exercising more than one iteration of it.
+    const std::string a = "a";
+    const std::string b = "b";
+    const auto b_tag = hsm::SectionTag::make_device_tag(5, false);
+
+    std::vector<std::byte> buffer(k_buffer_capacity);
+    auto writer = open_buffer_writer(buffer.data(), buffer.size());
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(a), {/*offset_align=*/1024});
+    writer.add_section(fake_device_id, b_tag, view_of(b), {/*offset_align=*/1024});
+    ASSERT_EQ(writer.finalize(), std::error_code{});
+
+    const auto container = parse_container(buffer.data(), buffer.size());
+    ASSERT_TRUE(container.has_value());
+    const auto* a_entry = find_entry(*container, hsm::any_device_id, hsm::model);
+    const auto* b_entry = find_entry(*container, fake_device_id, b_tag.id());
+    ASSERT_NE(a_entry, nullptr);
+    ASSERT_NE(b_entry, nullptr);
+    EXPECT_EQ(b_entry->offset, a_entry->offset + 1024);
+    EXPECT_EQ(payload_string(*container, *a_entry), "a");
+    EXPECT_EQ(payload_string(*container, *b_entry), "b");
 }
 
 TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_chunk_without_overflowing_the_capacity_check) {
@@ -254,7 +279,7 @@ TEST(HsmDeferredWriterTest, sized_section_encoder_fits_a_buffer_sized_to_the_exa
                        hsm::model_tag,
                        section_size,
                        std::make_shared<ZeroBytesEncoder>(section_size));
-    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(writer.finalize(), std::error_code{});
 }
 
 TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_buffer_one_byte_short_of_fitting) {
@@ -275,6 +300,17 @@ TEST(HsmDeferredWriterTest, finalize_reports_write_failed_for_an_undersized_buff
     const std::string model = "model";
     writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
     EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
+}
+
+TEST(HsmDeferredWriterTest, finalize_s_returned_error_code_has_a_human_readable_message) {
+    std::vector<std::byte> too_small(sizeof(hsm::Header));
+    auto writer = open_buffer_writer(too_small.data(), too_small.size());
+    const std::string model = "model";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
+
+    const auto ec = writer.finalize();
+    EXPECT_EQ(ec, hsm::WriteErrc::write_failed);
+    EXPECT_FALSE(ec.message().empty());
 }
 
 TEST(HsmDeferredWriterTest, finalize_reports_write_failed_when_the_stream_is_already_bad) {
@@ -372,7 +408,7 @@ TEST(HsmDeferredWriterTest, finalize_retries_the_encoder_after_a_thrown_attempt_
     EXPECT_EQ(call_count, 1);
 
     should_throw = false;  // the transient issue is gone by the next attempt
-    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(writer.finalize(), std::error_code{});
     EXPECT_EQ(call_count, 2);
 }
 
@@ -389,7 +425,7 @@ TEST(HsmDeferredWriterTest, finalize_retries_correctly_after_a_stream_write_thro
 
     stream.clear();
     buf.fail_on_call = -1;  // the transient issue is gone by the next attempt
-    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(buf.str());
     ASSERT_TRUE(container.has_value());
@@ -411,7 +447,7 @@ TEST(HsmDeferredWriterTest, finalize_retries_correctly_after_the_header_write_it
 
     stream.clear();
     buf.fail_on_call = -1;  // the transient issue is gone by the next attempt
-    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(buf.str());
     ASSERT_TRUE(container.has_value());
@@ -460,7 +496,7 @@ TEST(HsmDeferredWriterTest, unsized_section_forces_the_header_to_be_patched_afte
     writer.add_section(hsm::any_device_id,
                        hsm::model_tag,
                        std::make_shared<OwnedStringEncoder>("discovered-at-write-time"));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -479,7 +515,7 @@ TEST(HsmDeferredWriterTest, patches_the_unsized_section_header_relative_to_a_non
     writer.add_section(hsm::any_device_id,
                        hsm::model_tag,
                        std::make_shared<OwnedStringEncoder>("discovered-at-write-time"));
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto whole = stream.str();
     ASSERT_EQ(whole.compare(0, prefix.size(), prefix), 0);  // prefix left untouched by the patch
@@ -495,14 +531,14 @@ TEST(HsmDeferredWriterTest, empty_inline_payload_is_written_without_undefined_be
     std::stringstream stream;
     auto writer = open_writer(stream);
     writer.add_section(hsm::any_device_id, hsm::model_id_tag, ov::util::MemoryView{});
-    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(writer.finalize(), std::error_code{});
 }
 
 TEST(HsmDeferredWriterTest, empty_pointer_mode_payload_is_written_without_undefined_behavior) {
     std::stringstream stream;
     auto writer = open_writer(stream);
     writer.add_section(hsm::any_device_id, hsm::model_tag, ov::util::MemoryView{});
-    ASSERT_FALSE(writer.finalize());
+    ASSERT_EQ(writer.finalize(), std::error_code{});
 
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
@@ -515,7 +551,7 @@ TEST(HsmDeferredWriterTest, empty_encoder_chunk_is_written_without_undefined_beh
     std::stringstream stream;
     auto writer = open_writer(stream);
     writer.add_section(hsm::any_device_id, hsm::model_tag, 0, std::make_shared<EmptyChunkEncoder>());
-    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(writer.finalize(), std::error_code{});
 }
 
 }  // namespace ov::test
