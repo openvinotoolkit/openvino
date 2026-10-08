@@ -45,28 +45,19 @@ VCLLoader::VCLLoader(const std::string& library_dir) : _logger("VCLLoader", Logg
 #undef vcl_symbol_statement
 }
 
-const std::shared_ptr<const VCLLoader> VCLLoader::getInstance(const std::string& library_dir) {
+const std::shared_ptr<const VCLLoader> VCLLoader::getInstance() {
     static std::mutex mtx;
     std::lock_guard<std::mutex> lock(mtx);
 
-    static std::string initialized_dir;
     static std::shared_ptr<const VCLLoader> instance = nullptr;
 
     if (!instance) {
+        const auto library_dir = ov::util::path_to_string(ov::util::get_ov_lib_path());
         if (library_dir.empty()) {
             OPENVINO_THROW("VCLLoader instance has not been loaded yet, and no valid path was provided to load it.");
         }
-        initialized_dir = library_dir;
         // Not make_shared: the loading constructor is private so that this is the only way to load.
         instance = std::shared_ptr<const VCLLoader>(new VCLLoader(library_dir));
-    } else {
-        if (!library_dir.empty() && library_dir != initialized_dir) {
-            OPENVINO_THROW("VCLLoader has already been initialized with path: '",
-                           initialized_dir,
-                           "'. Dynamic switching to a new compiler path: '",
-                           library_dir,
-                           "' in the same process is not supported.");
-        }
     }
 
     return instance;
