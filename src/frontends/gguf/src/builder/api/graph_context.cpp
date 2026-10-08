@@ -204,6 +204,18 @@ void GgufGraphContext::set_primary_output(const GgufValue& value) {
     outputs.insert(outputs.begin(), m_impl->value_name(value));
 }
 
+void GgufGraphContext::set_output(const GgufValue& value, const std::string& name) {
+    m_impl->check_open();
+    auto& emitter = m_impl->emitter;
+    OPENVINO_ASSERT(!name.empty() && !emitter.graph()->values->count(name) && !emitter.has_weight(name),
+                    "[GGUF] output name is already used: ",
+                    name);
+    emitter.add_op("GGML_OP_CONT", name, {m_impl->value_name(value)}, 1, {{"op_case", 1}});
+    // The copy may be the source tensor itself; keep the names it already exposes.
+    emitter.value(name).get_tensor().add_names({name});
+    emitter.graph()->model_output_names.push_back(name);
+}
+
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
     m_impl->check_open();
     OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),
@@ -244,6 +256,7 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
             OPENVINO_ASSERT(available.count(input), "[GGUF] node '", node.name, "' uses unknown value '", input, "'");
         }
         available.insert(node.output_name);
+        available.insert(node.extra_output_names.begin(), node.extra_output_names.end());
     }
     std::set<std::string> outputs;
     for (const auto& output : graph->model_output_names) {

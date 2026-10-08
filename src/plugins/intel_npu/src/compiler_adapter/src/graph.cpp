@@ -10,11 +10,9 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "openvino/util/file_util.hpp"
 
 namespace intel_npu {
 
@@ -154,8 +152,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
-    auto compiler = std::make_shared<VCLCompilerImpl>(VCLLoader::getInstance(ov_lib_path)->sharedFunctions());
+    // Built through the same factory the adapter uses, so the load and library pairing stay in one
+    // place. Profiling decode needs no compiler handle, so this does more work than necessary.
+    auto compiler = makeVCLCompiler();
     OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
@@ -242,17 +241,8 @@ void Graph::initialize_impl(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
-    if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
-        _blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) ||
-        config.get<PERF_COUNT>()) {
-        return false;
-    }
-
-    ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
-    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_graphDesc._handle, &properties);
-
-    if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
+    if (_blobIsPersistent || _blob == std::nullopt || config.get<PERF_COUNT>() || _zeGraphExt == nullptr ||
+        _zeGraphExt->isBlobDataImported(_graphDesc) || !_zeGraphExt->isInitStageRequired(_graphDesc)) {
         return false;
     }
 
@@ -295,18 +285,17 @@ std::optional<std::string_view> Graph::get_compatibility_descriptor() const {
 }
 
 std::optional<bool> Graph::is_profiling_blob() const {
-    if (_zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
-        _logger.debug("Cannot determine if the blob was compiled for profiling");
-        return std::nullopt;
+    std::optional<bool> profilingEnabled;
+
+    if (_zeGraphExt != nullptr) {
+        profilingEnabled = _zeGraphExt->isProfilingEnabled(_graphDesc);
     }
-    ze_graph_properties_3_t graphProperties = {};
-    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
 
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(static_cast<ze_graph_handle_t>(get_handle()),
-                                                                        &graphProperties);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
+    if (!profilingEnabled.has_value()) {
+        _logger.debug("Cannot determine if the blob was compiled for profiling");
+    }
 
-    return graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
+    return profilingEnabled;
 }
 
 std::optional<size_t> Graph::determine_batch_size() {

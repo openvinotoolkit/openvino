@@ -8,6 +8,8 @@
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -15,7 +17,13 @@ namespace ov::frontend::gguf::op {
 // GGML_OP_CLAMP: elementwise clamp to [min, max]. The decoder exposes the bounds as typed
 // float attributes ("clamp_min"/"clamp_max"), so the translator never reads ggml op_params.
 OutputVector translate_clamp(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
+    num_inputs_check(context, 1, 3);
+    if (context.get_input_size() == 3) {
+        auto bounded = std::make_shared<ov::op::v1::Maximum>(context.get_input(0), context.get_input(1));
+        return rename_outputs_with_suffix({std::make_shared<ov::op::v1::Minimum>(bounded, context.get_input(2))},
+                                          context.get_name());
+    }
+    FRONT_END_OP_CONVERSION_CHECK(context.get_input_size() == 1, "CLAMP requires both bounds");
 
     auto input = context.get_input(0);
     float min = context.get_attribute<float>("clamp_min");
