@@ -26,8 +26,10 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_stream_info_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_config_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_manager_tests.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_deferred_writer.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_format.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_reader.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_writer.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/infer_request_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/iplugin_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/isync_infer_request_test.cpp
