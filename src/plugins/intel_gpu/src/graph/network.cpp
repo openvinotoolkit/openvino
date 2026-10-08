@@ -588,10 +588,20 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     }
 
     auto& eng = get_engine();
+    if (is_remote && p_inst->is_dynamic()) {
+        const auto bound_it = _bound_user_output_memory.find(id);
+        if (bound_it == _bound_user_output_memory.end()) {
+            invalidate_ext_block_compute_nodes(id);
+        } else if (!eng.is_the_same_buffer(*bound_it->second, *mem_new) || bound_it->second->get_layout() != mem_new->get_layout()) {
+            release_user_output_memory(id);
+        }
+    }
     if (is_remote) {
         _output_remote_mem_ptrs[id] = mem_new;
+        _bound_user_output_memory[id] = mem_new;
     } else {
         _output_remote_mem_ptrs.erase(id);
+        _bound_user_output_memory.erase(id);
     }
 
     // Remote outputs need a conservative chain because a runtime-skippable
@@ -672,9 +682,8 @@ bool network::can_bind_user_output_memory(const primitive_id& output_id, const m
     const auto candidate_type = candidate.get_allocation_type();
     const auto candidate_ptr = reinterpret_cast<uintptr_t>(candidate.buffer_ptr());
     const primitive_inst* aliased_input = nullptr;
-    for (const auto& input_id : get_input_ids()) {
-        auto input = find_primitive(input_id);
-        auto input_memory = input->output_memory_ptr();
+    for (const auto& input : _inputs) {
+        const auto input_memory = input->output_memory_ptr();
         if (!input_memory || input_memory->buffer_ptr() == nullptr || input_memory->size() == 0)
             continue;
 
@@ -958,7 +967,7 @@ void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) 
         cursor = dep;
     }
     // cursor is now the compute node — clear its output so it re-acquires from ext_block
-    if (!cursor->has_inner_networks() && !cursor->can_be_optimized()) {
+    if (!cursor->is_input() && !cursor->has_inner_networks() && !cursor->can_be_optimized()) {
         cursor->clear_output_memory();
         GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
     }
@@ -974,6 +983,8 @@ void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu
         }
         it->second = block;
     }
+    // Writers may still hold another request's memory; with unchanged shapes nothing else reallocates them.
+    invalidate_ext_block_compute_nodes(id);
 }
 
 void network::unregister_output_memory_block(const primitive_id& id) {
@@ -982,6 +993,27 @@ void network::unregister_output_memory_block(const primitive_id& id) {
         _output_memory_blocks.erase(it);
         invalidate_ext_block_compute_nodes(id);
     }
+}
+
+void network::release_user_output_memory(const primitive_id& id) {
+    auto bound_it = _bound_user_output_memory.find(id);
+    if (bound_it == _bound_user_output_memory.end())
+        return;
+    const auto bound = std::move(bound_it->second);
+    _bound_user_output_memory.erase(bound_it);
+
+    auto chain_it = _remote_output_chains.find(id);
+    if (chain_it != _remote_output_chains.end()) {
+        for (auto* prim : chain_it->second) {
+            // Only dynamic primitives re-acquire a cleared output; inputs keep their own binding.
+            if (!prim->is_dynamic() || prim->is_input() || prim->has_inner_networks())
+                continue;
+            if (prim->output_memory_ptr() && get_engine().is_the_same_buffer(*prim->output_memory_ptr(), *bound))
+                prim->clear_output_memory();
+        }
+    }
+    // Also covers a producer that borrowed the bound memory in realloc_outputs().
+    invalidate_ext_block_compute_nodes(id);
 }
 
 ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primitive_id& id) const {
