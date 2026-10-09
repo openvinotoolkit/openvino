@@ -233,7 +233,7 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         const bool special_kv_state = std::any_of(info.m_primitives.begin(), info.m_primitives.end(),
             [](const cldnn::primitive* primitive) {
                 const auto* kv = dynamic_cast<const cldnn::kv_cache*>(primitive);
-                return kv && (kv->compressed || kv->indirect);
+                return kv != nullptr && (kv->compressed || kv->indirect);
             });
         if (special_kv_state)
             continue;
