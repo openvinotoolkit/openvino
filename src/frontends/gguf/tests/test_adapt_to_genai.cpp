@@ -10,14 +10,18 @@
 // fixes below specifically need the exact node shapes translate_get_rows itself builds.
 
 #include <cmath>
+#include <cstring>
 #include <functional>
 #include <memory>
+#include <sstream>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -36,13 +40,16 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/sink.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "utils.hpp"
 
 using namespace ov_gguf_test;
@@ -290,6 +297,49 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToItsOwnModel) {
     EXPECT_EQ(per_layer->output(0).get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
 }
 
+TEST(GGUFAdaptToGenAI, MediaPaddingAcceptsIntegralMetadataAndRejectsInvalidValues) {
+    const auto adapt = [](const ov::Any& padding) {
+        auto m = build_minimal_gguf_model(8, 2, false, true);
+        m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
+        auto metadata = std::make_shared<ov::frontend::gguf::GGUFTokenizerMetadata>();
+        metadata->config["tokens"] = std::vector<std::string>{"a", "b", "pad", "<|image|>", "c", "d", "e", "f"};
+        metadata->config["padding_token_id"] = padding;
+        m.model->get_rt_info()[ov::frontend::gguf::gguf_tokenizer_metadata_key()] = metadata;
+        AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+        pass.run_on_model(m.model);
+        return pass.get_per_layer_embedding_model();
+    };
+    for (const auto& type : {ov::element::i8,
+                             ov::element::u8,
+                             ov::element::i16,
+                             ov::element::u16,
+                             ov::element::i32,
+                             ov::element::u32,
+                             ov::element::i64,
+                             ov::element::u64}) {
+        SCOPED_TRACE(type);
+        const auto value = v0::Constant::create(type, {}, {2});
+        auto lookup = adapt(value->get_tensor_view());
+        ov::Tensor ids(ov::element::i64, {1, 1});
+        ids.data<int64_t>()[0] = 3;
+        ov::TensorVector output{ov::Tensor(ov::element::f32, {1, 1, 2, 1})};
+        ASSERT_TRUE(lookup->evaluate(output, {ids}));
+        EXPECT_EQ(output.front().data<float>()[0], 1004.f);
+        EXPECT_EQ(output.front().data<float>()[1], 1005.f);
+    }
+    for (const auto& value : {v0::Constant::create(ov::element::i64, {0}, {}),
+                              v0::Constant::create(ov::element::i64, {2}, {2, 2}),
+                              v0::Constant::create(ov::element::f32, {}, {2}),
+                              v0::Constant::create(ov::element::i64, {}, {-1}),
+                              v0::Constant::create(ov::element::u64, {}, {uint64_t(-1)}),
+                              v0::Constant::create(ov::element::i64, {}, {8})}) {
+        EXPECT_THROW(adapt(value->get_tensor_view()), ov::Exception);
+    }
+    for (const auto& value : {ov::Any{}, ov::Any{std::string{"2"}}, ov::Any{int64_t{2}}}) {
+        EXPECT_THROW(adapt(value), ov::Exception);
+    }
+}
+
 // An untagged token lookup cannot be moved, so the language model keeps input_ids for it.
 TEST(GGUFAdaptToGenAI, EmbeddingModePreservesUntaggedAuxiliaryTokenLookup) {
     auto m = build_minimal_gguf_model(4, 2, false, true);
@@ -324,6 +374,10 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
     auto m = build_minimal_gguf_model();
     auto mask = find_parameter(m.model, "self_kq_mask");
     m.model->add_results({std::make_shared<v0::Result>(mask)});
+    auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
+    m.model->add_parameters({swa});
+    m.model->add_results({std::make_shared<v0::Result>(swa)});
+    m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{2};
     ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
     ov::Core core;
     auto request = core.compile_model(m.model, "CPU").create_infer_request();
@@ -345,20 +399,22 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
         request.set_tensor("position_ids", positions);
         request.set_tensor("beam_idx", beams);
         request.infer();
-        const auto actual = request.get_output_tensor(0);
-        ASSERT_EQ(actual.get_shape(), (ov::Shape{2, 1, 3, past + 3}));
-        for (size_t b = 0; b < 2; ++b) {
-            // Padded query rows are ignored by generation.
-            expect_mask(
-                actual.data<const float>() + b * 3 * (past + 3),
-                3,
-                past + 3,
-                [&](size_t q, size_t k) {
-                    return k <= past + q && (b == 0 || k >= 2);
-                },
-                [&](size_t q) {
-                    return b == 1 && past + q < 2;
-                });
+        for (size_t layer = 0; layer < 2; ++layer) {
+            const auto actual = request.get_output_tensor(layer);
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{2, 1, 3, past + 3}));
+            for (size_t b = 0; b < 2; ++b) {
+                // Padded query rows are ignored by generation.
+                expect_mask(
+                    actual.data<const float>() + b * 3 * (past + 3),
+                    3,
+                    past + 3,
+                    [&](size_t q, size_t k) {
+                        return k <= past + q && (b == 0 || k >= 2) && (layer == 0 || k + 2 > past + q);
+                    },
+                    [&](size_t q) {
+                        return b == 1 && past + q < 2;
+                    });
+            }
         }
     }
 }
@@ -376,28 +432,39 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
     // Adaptation replaces the original first result with logits; the retained mask is now first.
     ov::Core core;
-    auto request = core.compile_model(m.model, "CPU").create_infer_request();
-    const std::vector<int64_t> types{0, 1, 1, 0, 1, 1, 0};
-    for (size_t past : {0, 3}) {
-        auto inputs = make_genai_inputs(types.size(), past);
-        inputs.erase("input_ids");
-        inputs.emplace("inputs_embeds", ov::Tensor(ov::element::f32, {1, types.size(), 2}));
-        ov::Tensor token_types(ov::element::i64, {1, types.size()});
-        std::copy(types.begin(), types.end(), token_types.data<int64_t>());
-        inputs.emplace("token_type_ids", token_types);
-        for (auto& entry : inputs)
-            request.set_tensor(entry.first, entry.second);
-        request.infer();
-        for (size_t layer = 0; layer < 2; ++layer) {
-            auto actual = request.get_output_tensor(layer);
-            ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
-            const bool bidirectional = layer == 1 || GetParam() == "gemma3";
-            SCOPED_TRACE("layer=" + std::to_string(layer) + " past=" + std::to_string(past));
-            expect_mask(actual.data<const float>(), types.size(), past + types.size(), [&](size_t q, size_t k) {
-                const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
-                                        ((q <= 2 && k - past <= 2) || (q >= 4 && k - past >= 4));
-                return (k <= past + q || (bidirectional && same_image)) && (layer == 0 || k + 3 > past + q);
-            });
+    for (const auto& node : m.model->get_ops())
+        node->get_rt_info().clear();
+    std::stringstream xml, weights;
+    ov::pass::Serialize(xml, weights).run_on_model(m.model);
+    const auto bytes = weights.str();
+    ov::Tensor constants(ov::element::u8, {bytes.size()});
+    if (!bytes.empty())
+        std::memcpy(constants.data(), bytes.data(), bytes.size());
+    auto restored = core.read_model(xml.str(), constants);
+    for (const auto& model : {m.model, restored}) {
+        auto request = core.compile_model(model, "CPU").create_infer_request();
+        const std::vector<int64_t> types{0, 1, 1, 1, 1, 0, 1, 1, 0};
+        for (size_t past : {0, 3}) {
+            auto inputs = make_genai_inputs(types.size(), past);
+            inputs.erase("input_ids");
+            inputs.emplace("inputs_embeds", ov::Tensor(ov::element::f32, {1, types.size(), 2}));
+            ov::Tensor token_types(ov::element::i64, {1, types.size()});
+            std::copy(types.begin(), types.end(), token_types.data<int64_t>());
+            inputs.emplace("token_type_ids", token_types);
+            for (auto& entry : inputs)
+                request.set_tensor(entry.first, entry.second);
+            request.infer();
+            for (size_t layer = 0; layer < 2; ++layer) {
+                auto actual = request.get_output_tensor(layer);
+                ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
+                const bool bidirectional = layer == 1 || GetParam() == "gemma3";
+                SCOPED_TRACE("layer=" + std::to_string(layer) + " past=" + std::to_string(past));
+                expect_mask(actual.data<const float>(), types.size(), past + types.size(), [&](size_t q, size_t k) {
+                    const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
+                                            ((q <= 4 && k - past <= 4) || (q >= 6 && k - past >= 6));
+                    return (k <= past + q && (layer == 0 || k + 3 > past + q)) || (bidirectional && same_image);
+                });
+            }
         }
     }
 }
@@ -655,7 +722,10 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
 // per token, without needing real RoPE weights or a llama.cpp oracle to compute an expected value.
 namespace {
 
-std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hidden, bool auxiliary_tokens = false) {
+std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab,
+                                                      int64_t hidden,
+                                                      bool auxiliary_tokens = false,
+                                                      ov::element::Type type = ov::element::f32) {
     auto inp_tokens = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_tokens");
     auto inp_pos = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_pos");
     auto self_kq_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask");
@@ -670,7 +740,7 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
             table_values[v * hidden + h] = static_cast<float>(v);
         }
     }
-    auto vocab_table = v0::Constant::create(ov::element::f32, {(size_t)vocab, (size_t)hidden}, table_values);
+    auto vocab_table = v0::Constant::create(type, {(size_t)vocab, (size_t)hidden}, table_values);
 
     auto squeeze_01 = v0::Constant::create(ov::element::i64, {2}, {0, 1});
     auto axis0 = v0::Constant::create(ov::element::i64, {1}, {0});
@@ -682,10 +752,7 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
     embd->set_friendly_name("embd");
     embd->get_rt_info()["gguf.token_embedding"] = true;
 
-    // Flatten to [1, tokens, hidden] regardless of which axis (0 pre-fix, 1 post-fix) carries the
-    // real token count -- Reshape never reorders memory, so this is correct either way (same trick
-    // FixInpOutIdsRowSelect itself uses).
-    auto embd_3d_shape = v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{1, -1, hidden});
+    auto squeeze_axis1 = v0::Constant::create(ov::element::i64, {1}, {1});
     ov::Output<ov::Node> combined = embd;
     if (auxiliary_tokens) {
         auto auxiliary = std::make_shared<v8::Gather>(vocab_table, indices, axis0);
@@ -695,15 +762,15 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
         lifted->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
         combined = std::make_shared<v1::Add>(embd, lifted);
     }
-    auto embd_3d = std::make_shared<v1::Reshape>(combined, embd_3d_shape, false);
+    auto embd_3d = std::make_shared<v0::Squeeze>(std::make_shared<v0::Convert>(combined, type), squeeze_axis1);
 
     std::vector<float> zero_w(hidden * hidden, 0.0f);
-    auto w_zero = v0::Constant::create(ov::element::f32, {(size_t)hidden, (size_t)hidden}, zero_w);
+    auto w_zero = v0::Constant::create(type, {(size_t)hidden, (size_t)hidden}, zero_w);
     std::vector<float> identity_w(hidden * hidden, 0.0f);
     for (int64_t i = 0; i < hidden; ++i) {
         identity_w[i * hidden + i] = 1.0f;
     }
-    auto w_identity = v0::Constant::create(ov::element::f32, {(size_t)hidden, (size_t)hidden}, identity_w);
+    auto w_identity = v0::Constant::create(type, {(size_t)hidden, (size_t)hidden}, identity_w);
 
     // Single-head Q/K/V projection: MatMul -> reshape to [1, tokens, 1, head_size] -> transpose to
     // [1, 1, tokens, head_size].
@@ -721,10 +788,10 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
     // Stateful KV cache: ReadValue -> Gather(beam_idx) -> Concat(-2, cur) -> Assign, exactly what
     // ov::frontend::gguf::pass::MakeStateful emits for a real model.
     auto make_kv_cache = [&](const ov::Output<ov::Node>& cur, const std::string& var_id) {
-        auto var = std::make_shared<util::Variable>(
-            util::VariableInfo{ov::PartialShape{-1, 1, -1, hidden}, ov::element::f32, var_id});
+        auto var =
+            std::make_shared<util::Variable>(util::VariableInfo{ov::PartialShape{-1, 1, -1, hidden}, type, var_id});
         auto init_shape = v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, 0, hidden});
-        auto init = std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::f32, {}, {0.0f}), init_shape);
+        auto init = std::make_shared<v3::Broadcast>(v0::Constant::create(type, {}, {0.0f}), init_shape);
         auto read = std::make_shared<v6::ReadValue>(init, var);
         auto past = std::make_shared<v8::Gather>(read, beam_idx, axis0, 0);
         auto concat = std::make_shared<v0::Concat>(ov::OutputVector{past, cur}, -2);
@@ -734,11 +801,11 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
     auto [k_concat, k_assign] = make_kv_cache(k, "attn_k_cache.0");
     auto [v_concat, v_assign] = make_kv_cache(v, "attn_v_cache.0");
 
-    auto scale = v0::Constant::create(ov::element::f32, {}, {1.0f});
+    auto scale = v0::Constant::create(type, {}, {1.0f});
     auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q,
                                                                  k_concat,
                                                                  v_concat,
-                                                                 self_kq_mask,
+                                                                 std::make_shared<v0::Convert>(self_kq_mask, type),
                                                                  scale,
                                                                  /*causal=*/false);
 
@@ -754,6 +821,142 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
         ov::SinkVector{k_assign, v_assign},
         ov::ParameterVector{inp_tokens, inp_pos, self_kq_mask, token_len_per_seq, beam_idx});
 }
+
+class GGUFAdaptToGenAISlidingWindow : public testing::TestWithParam<std::tuple<bool, ov::element::Type, bool>> {};
+
+TEST_P(GGUFAdaptToGenAISlidingWindow, PreservedByPagedAttention) {
+    const auto& [embeds, mask_type, sliced] = GetParam();
+    auto model = build_attention_gguf_model(16, 4, false, mask_type);
+    auto mask = find_parameter(model, "self_kq_mask");
+    auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
+    model->add_parameters({swa});
+    ov::Output<ov::Node> mask_source = swa;
+    if (sliced) {
+        mask_source = std::make_shared<v8::Slice>(swa,
+                                                  v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                  v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                  v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                  v0::Constant::create(ov::element::i64, {1}, {1}));
+    }
+    mask->output(0).replace(mask_source);
+    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{64};
+    AdaptToGenAI(embeds ? AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS : AdaptToGenAI::InputMode::IDS_TO_LOGITS)
+        .run_on_model(model);
+    ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model);
+    size_t count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            const auto window = ov::util::get_constant_from_source(pa->input_value(10));
+            ASSERT_NE(window, nullptr);
+            EXPECT_EQ(window->cast_vector<int32_t>(), std::vector<int32_t>{64});
+            ++count;
+        }
+    }
+    EXPECT_EQ(count, 1);
+    for (const auto& node : model->get_ops()) {
+        if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+            auto window_model =
+                std::make_shared<ov::Model>(ov::OutputVector{pa->input_value(10)}, ov::ParameterVector{});
+            ov::pass::ConstantFolding().run_on_model(window_model);
+            const auto window =
+                ov::as_type_ptr<v0::Constant>(window_model->get_results()[0]->get_input_node_shared_ptr(0));
+            ASSERT_NE(window, nullptr);
+            EXPECT_EQ(window->cast_vector<int32_t>(), std::vector<int32_t>{64});
+        }
+    }
+}
+
+TEST(GGUFAdaptToGenAI, ImageWindowMatchesSDPAAndPagedAttention) {
+    const size_t hidden = 4;
+    const std::vector<int32_t> types{0, 1, 1, 1, 1, 0, 1, 1, 0};
+    const auto length = types.size();
+    ov::Core core;
+    for (bool paged : {false, true}) {
+        SCOPED_TRACE(paged);
+        auto model = build_attention_gguf_model(16, hidden);
+        auto mask = find_parameter(model, "self_kq_mask");
+        auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
+        model->add_parameters({swa});
+        mask->output(0).replace(swa->output(0));
+        model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+        model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
+        AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model);
+        if (paged)
+            ov::pass::SDPAToPagedAttention(false, false, false).run_on_model(model);
+        auto compiled = core.compile_model(model,
+                                           "CPU",
+                                           ov::hint::inference_precision(ov::element::f32),
+                                           ov::hint::kv_cache_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            if (name == "inputs_embeds") {
+                ov::Tensor tensor(ov::element::f32, paged ? ov::Shape{length, hidden} : ov::Shape{1, length, hidden});
+                for (size_t i = 0; i < tensor.get_size(); ++i)
+                    tensor.data<float>()[i] = static_cast<float>(i / hidden);
+                request.set_tensor(input, tensor);
+            } else if (name == "token_type_ids" || name == "position_ids") {
+                ov::Tensor tensor(input.get_element_type(),
+                                  input.get_partial_shape().rank() == 1 ? ov::Shape{length} : ov::Shape{1, length});
+                for (size_t i = 0; i < length; ++i) {
+                    const auto value = name == "token_type_ids" ? types[i] : static_cast<int32_t>(i);
+                    if (tensor.get_element_type() == ov::element::i32)
+                        tensor.data<int32_t>()[i] = value;
+                    else
+                        tensor.data<int64_t>()[i] = value;
+                }
+                request.set_tensor(input, tensor);
+            } else if (name == "attention_mask") {
+                ov::Tensor tensor(ov::element::i64, {1, length});
+                std::fill_n(tensor.data<int64_t>(), length, 1);
+                request.set_tensor(input, tensor);
+            } else if (name.find("key_cache.") == 0 || name.find("value_cache.") == 0) {
+                auto shape = input.get_partial_shape();
+                shape[0] = 1;
+                request.set_tensor(input, ov::Tensor(input.get_element_type(), shape.get_shape()));
+            } else {
+                std::vector<int32_t> values;
+                if (name == "beam_idx" || name == "past_lens" || name == "block_indices")
+                    values = {0};
+                else if (name == "subsequence_begins")
+                    values = {0, static_cast<int32_t>(length)};
+                else if (name == "block_indices_begins")
+                    values = {0, 1};
+                else if (name == "max_context_len")
+                    values = {static_cast<int32_t>(length)};
+                else
+                    FAIL() << "Unexpected input: " << name;
+                const auto shape = input.get_partial_shape().rank() == 0 ? ov::Shape{} : ov::Shape{values.size()};
+                ov::Tensor tensor(ov::element::i32, shape);
+                std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+                request.set_tensor(input, tensor);
+            }
+        }
+        request.infer();
+        const auto output = request.get_output_tensor(0);
+        ASSERT_EQ(output.get_size(), length * hidden);
+        for (size_t q = 0; q < length; ++q) {
+            float sum = 0;
+            size_t count = 0;
+            for (size_t k = 0; k < length; ++k) {
+                const bool same_image = types[q] == 1 && types[k] == 1 && ((q <= 4 && k <= 4) || (q >= 6 && k >= 6));
+                if ((k <= q && k + 3 > q) || same_image) {
+                    sum += static_cast<float>(k);
+                    ++count;
+                }
+            }
+            for (size_t h = 0; h < hidden; ++h)
+                EXPECT_NEAR(output.data<const float>()[q * hidden + h], sum / count, 1e-5f);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(GGUFAdaptToGenAI,
+                         GGUFAdaptToGenAISlidingWindow,
+                         testing::Combine(testing::Bool(),
+                                          testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
+                                          testing::Bool()));
 
 constexpr float lm_head_soft_cap = 5.0f;
 
@@ -922,21 +1125,35 @@ INSTANTIATE_TEST_SUITE_P(Softcap, GGUFAdaptToGenAILmHead, ::testing::Bool());
 // The per-layer token lookup becomes a per_layer_inputs input, so the language model takes
 // embeddings only, and the unmodified PagedAttention conversion applies as for optimum-intel.
 TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
-    auto model = build_attention_gguf_model(8, 4, true);
+    auto model = build_attention_gguf_model(8, 1536, true);
     model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
     ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
     ASSERT_EQ(find_parameter(model, "input_ids"), nullptr);
     ASSERT_EQ(model->input("inputs_embeds").get_partial_shape().rank().get_length(), 3);
-    ASSERT_EQ(model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 2, 2}));
-    // Gemma4 variants with per-layer embeddings keep image attention causal.
+    ASSERT_EQ(model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 2, 768}));
+    // llama.cpp keeps E2B/E4B image attention causal.
     ASSERT_EQ(find_parameter(model, "token_type_ids"), nullptr);
     ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
     EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1}));
     // GenAI's continuous batching supplies per_layer_inputs as [tokens, 1, layers, width].
     EXPECT_NO_THROW(
-        model->reshape({{"inputs_embeds", {5, 4}}, {"per_layer_inputs", {5, 1, 2, 2}}, {"position_ids", {5}}}));
+        model->reshape({{"inputs_embeds", {5, 1536}}, {"per_layer_inputs", {5, 1, 2, 768}}, {"position_ids", {5}}}));
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
+
+class GGUFAdaptToGenAIGemma4VisionAttention : public ::testing::TestWithParam<int64_t> {};
+
+TEST_P(GGUFAdaptToGenAIGemma4VisionAttention, MatchesLlamaVariantSelection) {
+    const auto hidden = GetParam();
+    auto model = build_attention_gguf_model(8, hidden, true);
+    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
+    EXPECT_EQ(find_parameter(model, "token_type_ids") == nullptr, hidden == 1536 || hidden == 2560);
+}
+
+INSTANTIATE_TEST_SUITE_P(EmbeddingWidth,
+                         GGUFAdaptToGenAIGemma4VisionAttention,
+                         ::testing::Values(int64_t{32}, int64_t{1536}, int64_t{2560}));
 
 class GGUFAdaptToGenAIEmbeddingMode : public ::testing::TestWithParam<bool> {};
 

@@ -106,7 +106,8 @@ the DeepStack features after the primary ones along `D`.
 ## Runtime metadata
 
 Model rt_info `gguf_mmproj` keeps every source `clip.*` key and adds `<modality>.projector`,
-`<modality>.merge`, `vision.auxiliary_count`, `vision.window_size` (Muse Glimmer) and
+`<modality>.merge`, `vision.auxiliary_count`, the effective `vision.patch_size`,
+`vision.window_size` (Muse Glimmer) and
 `vision.minicpmv_version` / `vision.query_count` (resampler). Values are strings: numeric
 arrays are comma-separated, and string arrays are `length:value` entries flagged by a
 `<key>.encoding` companion. The metadata survives IR serialization and adaptation; supplied
@@ -128,7 +129,8 @@ audio instead takes consecutive 640-sample frames from a 16 kHz waveform, withou
 ## Using the encoders and a language model
 
 [`AdaptMmprojToGenAI`](../include/openvino/frontend/gguf/adapt_mmproj_to_genai.hpp) keeps one
-modality, drops the other branch's inputs and prefixes, and exposes `[1,T,D]` outputs named
+modality and drops the other branch's inputs and prefixes. Its default `Layout::EMBEDDINGS`
+exposes `[1,T,D]` outputs named
 `image_features` and `deepstack_features.N`, or `audio_features`. It rewrites the model in place,
 so run it on a separate clone for each modality of a combined file.
 
@@ -139,10 +141,85 @@ mode prepares the language model for media injection:
   takes `inputs_embeds [B,T,D]`; token-embedding scaling is applied once;
 - Gemma4 E2B/E4B use a separate `get_per_layer_embedding_model()` whose output feeds
   `per_layer_inputs [B,T,layers,width]`; it is not a second output of `get_embedding_model()`;
-- Gemma3 and Gemma4 without per-layer embeddings take `token_type_ids [B,T]`: image tokens attend
+- Gemma3 and Gemma4 outside the E2B/E4B embedding widths take `token_type_ids [B,T]`: image tokens attend
   bidirectionally within their image, in every Gemma3 layer and in Gemma4 sliding-window layers;
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
-  sections.
+  sections;
+- the per-layer lookup reads image, video and audio placeholders as the padding token, as HF and
+  llama.cpp do;
+- Gemma4 image attention remains causal at the E2B/E4B embedding widths (1536/2560), matching
+  llama.cpp; other variants allow bidirectional attention within an image in sliding-window layers.
+
+For vision, `AdaptMmprojToGenAI(Modality::VISION, Layout::VISION_ENCODERS)` rewrites the
+model to the optimum-intel export layout, allowing OpenVINO GenAI to reuse its existing
+encoders. `get_vision_models()` returns the adapted model under `vision_embeddings`, or
+the three Qwen components below; the supplied model becomes the Qwen merger. GGUF
+preprocessing uses llama.cpp geometry and token limits:
+
+| Projector | Models | Inputs |
+|---|---|---|
+| `gemma3` | `vision_embeddings` | `pixel_values [1,3,S,S]` |
+| `gemma4v`, `gemma4uv` | `vision_embeddings` | `pixel_values [1,P,patch*patch*3]` with patches in raster order, then padding; `image_position_ids [1,P,2]` as (x, y), -1 for padding |
+| `muse-glimmer` | `vision_embeddings` | `pixel_values [rows*cols,3*patch*patch]`, `image_grid_thw [1,3]`; window, merge and position indices are derived in the graph |
+| `qwen3vl_merger` | `vision_embeddings`, `vision_embeddings_pos`, `vision_embeddings_merger` | flattened patches `hidden_states`; position-table indices `input [4,N]`; `hidden_states`, `attention_mask [1,N,N]`, `rotary_pos_emb [N,head/2]` |
+
+The adapted vision graphs preserve llama.cpp computation: Gemma4 retains GELU_QUICK unless the
+GGUF specifies GELU. Muse Glimmer GGUF files collapse HF's two-frame patch kernel,
+so the layout takes one frame per patch.
+
+GenAI selects these settings from the GGUF metadata while keeping the existing exported-model
+processor defaults. GGUF video inputs keep all supplied frames unless the caller provides
+sampled frame indices. Numerical acceptance uses the pinned llama.cpp CPU reference; an
+optimum-intel comparison checks compatibility and does not replace that reference.
+
+GenAI uses an F16 KV cache for GGUF multimodal models to match llama.cpp's default cache
+precision; explicit cache precision properties take precedence.
+
+### Gemma4 image-window parity gap
+
+GenAI-adapted GGUF masks follow Optimum-intel's sliding-window behavior in both SDPA and
+PagedAttention: tokens within the same image attend bidirectionally to the entire image
+group, even when its beginning lies outside the sliding window. Text queries still use
+the normal window. This allows reuse of existing PA implementations without a behavioral
+switch in `rt_info`; serialization or transformations can discard that metadata.
+
+The pinned llama.cpp CPU reference (`03fa73cb27f5c251b9528489b18d303b1366aca4`) clips older
+image patches at the window boundary. For example, an image spanning positions 10–150,
+query position 100 and window 64 permits keys 10–150 here, versus 37–150 in llama.cpp.
+Gemma4 and Unified multimodal logits, generated tokens and subsequent text can therefore
+diverge when image groups cross that boundary. This is an accepted integration gap, not
+quantization loss; numerical parity is not established for affected requests. Text-only
+requests and same-image keys already inside the window are unaffected by this difference.
+Native GGUF graphs before GenAI adaptation retain their supplied-mask semantics.
+
+To close the gap while supporting both reference behaviors, add an explicit serializable
+image-window policy to the PA operation contract and implement it in the target plugins,
+then emit the corresponding SDPA mask in the frontend. Do not use runtime metadata as a
+semantic switch. Retain llama.cpp comparisons and failed artifacts for affected scenarios;
+report API compatibility and SDPA/PA agreement separately from llama.cpp parity.
+
+### Bidirectional image prefix-cache gap
+
+The Unified fixture also exposes a separate GenAI PA prefix-cache issue: after a
+single-image request, a two-image request can differ from SDPA, and restarting image
+chat can change the generated tokens. With the same model, media and F16 KV precision,
+disabling `SchedulerConfig.enable_prefix_caching` restores backend token agreement and
+chat/reset checks. Full-prompt prefill logits agree closely before cache reuse. This
+diagnostic does not restore llama.cpp parity or waive the failing default-cache checks.
+
+Until GenAI prefix reuse handles bidirectional image groups correctly, disable prefix
+caching for affected requests. A reusable prefix must include complete image groups and
+their media identity; cached attention states cannot be reused across changed image
+context. Validate this independently of the serializable PA image-window policy above.
+
+Use language checkpoints containing Q4_0 weights for quantized generation accuracy tests;
+inspect their tensor types because files named Q4_0 can also contain Q5_K/Q6_K weights.
+Q4_0 can still diverge on close greedy choices because the CPU engines use different
+quantized arithmetic. Keep the original llama.cpp comparison and its accuracy thresholds;
+an exact F16 expansion can help distinguish arithmetic differences from integration errors.
+Q4_K_M conversion currently has an expected accuracy loss relative to llama.cpp; it retains the existing
+conversion until the plugin-side issue is resolved. Q4_K_M differences therefore do not
+establish an mmproj integration regression.
 
 Register `GenAIExtension` before converting the language model, as described in
 [runtime.md](runtime.md#stateful-and-genai-conversion). In C++, with a `FrontEndManager manager`
@@ -155,7 +232,10 @@ and an already converted combined `mmproj` model:
 using namespace ov::frontend::gguf::pass;
 auto vision = mmproj->clone();
 auto audio = mmproj->clone();
-AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::VISION).run_on_model(vision);
+AdaptMmprojToGenAI vision_adapter(AdaptMmprojToGenAI::Modality::VISION,
+                                 AdaptMmprojToGenAI::Layout::VISION_ENCODERS);
+vision_adapter.run_on_model(vision);
+auto vision_models = vision_adapter.get_vision_models();
 AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::AUDIO).run_on_model(audio);
 auto frontend = manager.load_by_framework("gguf");
 auto genai = std::make_shared<ov::frontend::gguf::GenAIExtension>(

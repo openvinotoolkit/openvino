@@ -201,8 +201,8 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=()):
 
 def write_gemma4_model(path, opts):
     """Layers alternate sliding/full attention; E2B/E4B-style options add per-layer
-    embeddings (`per_layer`) and reuse earlier KV in the last `shared_kv` layers, which keep
-    their unused K/V tensors as real checkpoints do."""
+    embeddings (`per_layer`) and reuse earlier KV in the last `shared_kv` layers, which omit
+    their unused K/V tensors."""
     w = gguf.GGUFWriter(path, "gemma4")
     d, heads, layers, vocab, ff = 32, 4, opts.get("layers", 2), 32, 48
     per_layer, shared = opts.get("per_layer", 0), opts.get("shared_kv", 0)
@@ -247,9 +247,10 @@ def write_gemma4_model(path, opts):
         for name in ("attn_norm", "ffn_norm", "post_attention_norm", "post_ffw_norm"):
             tensor(p + name + ".weight", (d,), True)
         tensor(p + "attn_q.weight", (heads * head, d))
-        tensor(p + "attn_k.weight", (kv * head, d))
-        if swa:
-            tensor(p + "attn_v.weight", (kv * head, d))
+        if layer < layers - shared:
+            tensor(p + "attn_k.weight", (kv * head, d))
+            if swa:
+                tensor(p + "attn_v.weight", (kv * head, d))
         for name in ("q", "k"):
             tensor(p + f"attn_{name}_norm.weight", (head,), True)
         tensor(p + "attn_output.weight", (d, heads * head))

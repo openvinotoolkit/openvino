@@ -10,7 +10,7 @@ OpenVINO does not participate in reference generation.
 The 40 decoder fixtures and five embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
 expert projections, and F16 Gated-DeltaNet gate/beta projections that disable the frontend's
 projection merges as mixed quantization does in real checkpoints), Gemma4 mixed-head MQA/MoE variants and an E2B/E4B-style Gemma4 with
-per-layer embeddings and shared KV layers (`gemma4-ple`). Reference revisions are:
+per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-ple`). Reference revisions are:
 
 | Fixtures | Upstream llama.cpp CPU oracle |
 |---|---|

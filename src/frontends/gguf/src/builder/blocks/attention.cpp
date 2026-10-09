@@ -53,6 +53,8 @@ std::string attention(GraphEmitter& e,
     const RopeConfig rope_config_l = cfg.layer_rope_config(il);
     // Widen before multiplying the reshape dimensions.
     const int64_t q_width = static_cast<int64_t>(head_size_l) * cfg.n_head;
+    // Gemma4 shared-KV layers have no K/V of their own; newer GGUF files omit those weights.
+    const bool has_own_kv = (cfg.shared_kv_layers == 0) || (il < kv.n_own_kv);
 
     // Q/K/V projections: MUL_MAT(w, attn_norm), then conceptual reshape to heads.
     // Fused-QKV archs (phi-3, minicpm) carry a single attn_qkv weight; split it into
@@ -63,6 +65,8 @@ std::string attention(GraphEmitter& e,
         e.add_weight(p + "attn_v.weight");
     } else if (e.has_weight(p + "attn_qkv.weight")) {
         register_fused_qkv(e, cfg, il);
+    } else if (!has_own_kv) {
+        e.add_weight(p + "attn_q.weight");
     } else {
         e.add_weight(p + "attn_q.weight");
         e.add_weight(p + "attn_k.weight");
@@ -77,8 +81,11 @@ std::string attention(GraphEmitter& e,
         }
     }
     auto q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm});
-    auto k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm});
-    auto v = e.add_op("GGML_OP_MUL_MAT", p + "Vcur", {p + "attn_v.weight", attn_norm});
+    std::string k, v;
+    if (has_own_kv) {
+        k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm});
+        v = e.add_op("GGML_OP_MUL_MAT", p + "Vcur", {p + "attn_v.weight", attn_norm});
+    }
 
     // Q/K/V projection biases (qwen2 / qwen2.5: separate attn_{q,k,v}.bias; phi-3-style
     // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
@@ -86,14 +93,17 @@ std::string attention(GraphEmitter& e,
     // Qwen35 repacks a joint Q/gate projection; retain its separate bias policy.
     if (cfg.is_qwen35 ? cfg.has_qkv_bias : e.has_weight(p + "attn_q.bias")) {
         q = add_bias(e, q, p + "attn_q.bias", p + "Qcur_b");
-        k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
-        v = add_bias(e, v, p + "attn_v.bias", p + "Vcur_b");
+        if (has_own_kv) {
+            k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
+            v = add_bias(e, v, p + "attn_v.bias", p + "Vcur_b");
+        }
     }
 
     // Full-width q/k norm (OLMoE): normalize the whole projection before splitting heads.
     if (cfg.has_qk_norm && cfg.qk_norm_full) {
         q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
-        k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
+        if (has_own_kv)
+            k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
 
     // reshape Q/K/V to [1, n_tokens, n_head(_kv), head_size]
@@ -102,24 +112,29 @@ std::string attention(GraphEmitter& e,
                  {q},
                  6,
                  {{"reshape_target", std::vector<int64_t>{0, -1, cfg.n_head, head_size_l}}, {"special_zero", true}});
-    k = e.add_op("GGML_OP_RESHAPE",
-                 p + "Kcur_r",
-                 {k},
-                 6,
-                 {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
-    v = e.add_op("GGML_OP_RESHAPE",
-                 p + "Vcur_r",
-                 {v},
-                 6,
-                 {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
+    if (has_own_kv) {
+        k = e.add_op(
+            "GGML_OP_RESHAPE",
+            p + "Kcur_r",
+            {k},
+            6,
+            {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
+        v = e.add_op(
+            "GGML_OP_RESHAPE",
+            p + "Vcur_r",
+            {v},
+            6,
+            {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
+    }
 
     // per-head q_norm / k_norm (qwen3, hunyuan, gemma4)
     if (cfg.has_qk_norm && !cfg.qk_norm_full && !cfg.qk_norm_after_rope) {
         q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
-        k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
+        if (has_own_kv)
+            k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
     // gemma4: V gets a plain RMSNorm (no multiplicative weight, just normalize).
-    if (cfg.has_v_norm) {
+    if (cfg.has_v_norm && has_own_kv) {
         v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, 0, {{"eps", cfg.rms_eps}});
     }
 
@@ -138,12 +153,18 @@ std::string attention(GraphEmitter& e,
                                                    : std::vector<std::string>{k, "inp_pos"};
     if (use_rope) {
         q = e.add_op("GGML_OP_ROPE", p + "Qcur_rope", q_rope_in, cfg.rope_op_case, {{"rope_config", rope_config_l}});
-        k = e.add_op("GGML_OP_ROPE", p + "Kcur_rope", k_rope_in, cfg.rope_op_case, {{"rope_config", rope_config_l}});
+        if (has_own_kv)
+            k = e.add_op("GGML_OP_ROPE",
+                         p + "Kcur_rope",
+                         k_rope_in,
+                         cfg.rope_op_case,
+                         {{"rope_config", rope_config_l}});
     }
 
     if (cfg.has_qk_norm && !cfg.qk_norm_full && cfg.qk_norm_after_rope) {
         q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
-        k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
+        if (has_own_kv)
+            k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
 
     if (cfg.attention_temperature_scale != 0.0f) {
@@ -171,7 +192,6 @@ std::string attention(GraphEmitter& e,
     // Gemma4: layers with shared_kv_layers have no K/V of their own; they reuse the KV
     // from the last layer of the same SWA type that has its own KV cache. SWA layers
     // reuse the last own-KV SWA layer; global layers reuse the last own-KV global layer.
-    const bool has_own_kv = (cfg.shared_kv_layers == 0) || (il < kv.n_own_kv);
     int anchor_il = il;
     if (!has_own_kv) {
         anchor_il = is_swa_layer ? kv.anchor_swa : kv.anchor_global;

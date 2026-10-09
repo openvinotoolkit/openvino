@@ -11,7 +11,9 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -21,7 +23,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -189,6 +191,39 @@ int64_t max_kv_cache_head_size(const std::shared_ptr<ov::Model>& model) {
     return max_hs;
 }
 
+// HF Gemma4 and llama.cpp look up media positions as padding.
+ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Output<ov::Node>& ids) {
+    const auto& rt_info = model.get_rt_info();
+    const auto it = rt_info.find(gguf_tokenizer_metadata_key());
+    if (it == rt_info.end())
+        return ids;
+    const auto& config = it->second.as<std::shared_ptr<GGUFTokenizerMetadata>>()->config;
+    const auto tokens = config.find("tokens");
+    if (tokens == config.end() || !tokens->second.is<std::vector<std::string>>())
+        return ids;
+    int64_t pad = 0;
+    if (const auto p = config.find("padding_token_id"); p != config.end()) {
+        OPENVINO_ASSERT(p->second.is<ov::Tensor>(), "[GGUF] padding_token_id must be a tensor");
+        const auto& value = p->second.as<ov::Tensor>();
+        OPENVINO_ASSERT(value.get_size() == 1 && value.get_element_type().is_integral_number(),
+                        "[GGUF] padding_token_id must contain one integral value");
+        pad = ov::op::v0::Constant(value).cast_vector<int64_t>().front();
+        OPENVINO_ASSERT(pad >= 0 && static_cast<uint64_t>(pad) < tokens->second.as<std::vector<std::string>>().size(),
+                        "[GGUF] padding_token_id is outside the vocabulary");
+    }
+    ov::Output<ov::Node> media;
+    const auto& vocabulary = tokens->second.as<std::vector<std::string>>();
+    for (size_t id = 0; id < vocabulary.size(); ++id) {
+        if (vocabulary[id] != "<|image|>" && vocabulary[id] != "<|video|>" && vocabulary[id] != "<|audio|>")
+            continue;
+        auto match = make_shared<ov::op::v1::Equal>(ids, ov::op::v0::Constant::create(ov::element::i64, {}, {id}));
+        media = media.get_node() ? make_shared<ov::op::v1::LogicalOr>(media, match)->output(0) : match->output(0);
+    }
+    if (!media.get_node())
+        return ids;
+    return make_shared<ov::op::v1::Select>(media, ov::op::v0::Constant::create(ov::element::i64, {}, {pad}), ids);
+}
+
 }  // namespace
 
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -261,12 +296,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto embedding = find_boundary(embedding_name);
         const auto width = embedding->get_output_partial_shape(0)[3].get_length();
         // Clone each lookup graph before rewiring the language model. Constants retain shared buffers.
-        const auto extract = [&](const ov::Output<ov::Node>& lookup, const std::string& name) {
+        const auto extract = [&](const ov::Output<ov::Node>& lookup, const std::string& name, bool pad_media) {
             auto extracted = make_shared<ov::Model>(ov::OutputVector{lookup}, ov::ParameterVector{inp_tokens})->clone();
             extracted->get_rt_info() = model->get_rt_info();
             auto ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
             name_output(ids, "input_ids");
-            auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(ids, ov::element::i32),
+            auto lookup_ids = pad_media ? pad_media_placeholders(*model, ids) : ids->output(0);
+            auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(lookup_ids, ov::element::i32),
                                                    v0::Constant::create(ov::element::i64, {2}, {0, 1}));
             auto old_ids = extracted->get_parameters().front();
             old_ids->output(0).replace(ids4->output(0));
@@ -276,7 +312,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             extracted->validate_nodes_and_infer_types();
             return extracted;
         };
-        m_embedding_model = extract(make_shared<v0::Squeeze>(embedding, axis_1), "inputs_embeds");
+        m_embedding_model = extract(make_shared<v0::Squeeze>(embedding, axis_1), "inputs_embeds", false);
         auto per_layer = per_layer_name.empty() ? nullptr : find_boundary(per_layer_name);
         int64_t per_layer_width = 0;
         if (per_layer) {
@@ -292,7 +328,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                                  {4},
                                                  {int64_t{0}, int64_t{0}, per_layer_count, per_layer_width}),
                             true),
-                        "per_layer_inputs");
+                        "per_layer_inputs",
+                        true);
         }
         inputs_embeds = make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, width});
         name_output(inputs_embeds, "inputs_embeds");
@@ -326,8 +363,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<v0::Parameter> token_type_ids;
     const auto arch_it = model->get_rt_info().find("gguf_architecture");
     const auto arch = arch_it != model->get_rt_info().end() ? arch_it->second.as<std::string>() : std::string{};
-    // Gemma4 E2B/E4B, the variants with per-layer token embeddings, keep image attention causal.
-    if (inputs_embeds && (arch == "gemma3" || (arch == "gemma4" && !per_layer_inputs))) {
+    const auto hidden = inputs_embeds ? inputs_embeds->get_partial_shape()[2] : ov::Dimension{};
+    const bool gemma4_causal = hidden == ov::Dimension(1536) || hidden == ov::Dimension(2560);
+    if (inputs_embeds && (arch == "gemma3" || (arch == "gemma4" && !gemma4_causal))) {
         token_type_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
         name_output(token_type_ids, "token_type_ids");
     }
@@ -449,6 +487,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     };
     const auto causal = make_shared<v1::LessEqual>(k_row, q_pos_col);
     ov::Output<ov::Node> allowed = causal;
+    ov::Output<ov::Node> same_image;
+    ov::Output<ov::Node> causal_or_query_image = causal;
+    ov::Output<ov::Node> causal_or_key_image = causal;
+    ov::Output<ov::Node> causal_or_same_group = causal;
     if (token_type_ids) {
         // Only patches within the same current image can attend bidirectionally.
         auto zeros = make_shared<v3::Broadcast>(v0::Constant::create(ov::element::i64, {}, {0}),
@@ -459,9 +501,14 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto query_groups = make_shared<v8::Slice>(groups, past_len, kv_len, one_1, one_1);
         auto same_group = make_shared<v1::Equal>(as_query_col(query_groups), as_key_row(groups));
         auto one = v0::Constant::create(ov::element::i64, {}, {1});
-        auto images = make_shared<v1::LogicalAnd>(make_shared<v1::Equal>(as_query_col(token_type_ids), one),
-                                                  make_shared<v1::Equal>(as_key_row(key_types), one));
-        allowed = make_shared<v1::LogicalOr>(allowed, make_shared<v1::LogicalAnd>(same_group, images));
+        auto query_image = make_shared<v1::Equal>(as_query_col(token_type_ids), one);
+        auto key_image = make_shared<v1::Equal>(as_key_row(key_types), one);
+        auto images = make_shared<v1::LogicalAnd>(query_image, key_image);
+        same_image = make_shared<v1::LogicalAnd>(same_group, images);
+        allowed = make_shared<v1::LogicalOr>(allowed, same_image);
+        causal_or_query_image = make_shared<v1::LogicalOr>(causal, query_image);
+        causal_or_key_image = make_shared<v1::LogicalOr>(causal, key_image);
+        causal_or_same_group = make_shared<v1::LogicalOr>(causal, same_group);
     }
     auto valid_keys =
         make_shared<v1::NotEqual>(as_key_row(attention_mask), v0::Constant::create(ov::element::i64, {}, {0}));
@@ -474,27 +521,62 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         self_kq_mask->output(0).replace(global_mask->output(0));
     }
 
-    // Sliding-window mask: for prompts within the window this equals the full causal mask, but
-    // once the context (prompt + generated tokens) exceeds it, reusing the causal mask would
-    // leave every older key visible and produce wrong logits. When the model's metadata records
-    // an explicit window length (see gguf_swa_window_key), AND the causal mask with "key not
-    // more than window - 1 steps behind the query"; a token at position q may attend to keys in
-    // [q - window + 1, q]. Absent a recorded length (e.g. gpt-oss/gemma4, whose SWA is described
-    // by sinks / a per-layer pattern with no accompanying token count here), fall back to the
-    // full causal mask, matching the previous behavior.
+    std::shared_ptr<v1::Select> sliding_mask;
     if (auto self_kq_mask_swa = find_parameter(model, "self_kq_mask_swa")) {
         ov::Output<ov::Node> swa_mask_4d = mask_4d->output(0);
         const auto& rt_info = model->get_rt_info();
         const auto swa_it = rt_info.find(gguf_swa_window_key());
         if (swa_it != rt_info.end()) {
             const auto window = swa_it->second.as<int64_t>();
-            auto window_m1 = v0::Constant::create(ov::element::i32, ov::Shape{}, {static_cast<int32_t>(window - 1)});
-            auto window_start = make_shared<v1::Subtract>(q_pos_col, window_m1);      // [seq, 1]
-            auto within_window = make_shared<v1::GreaterEqual>(k_row, window_start);  // [seq, kv_len]
-            auto allowed_swa = make_shared<v1::LogicalAnd>(allowed, within_window);   // [seq, kv_len]
-            swa_mask_4d = to_mask_4d(allowed_swa);
+            auto offset = v0::Constant::create(ov::element::i32, ov::Shape{}, {-static_cast<int32_t>(window)});
+            auto query_positions = make_shared<v0::Unsqueeze>(q_pos_col, one_1);
+            ov::Output<ov::Node> window_key_positions = make_shared<v0::Unsqueeze>(k_row, one_1);
+            if (token_type_ids) {
+                // Same-image keys bypass the window, matching Optimum-intel and existing PA semantics.
+                window_key_positions = make_shared<v1::Select>(make_shared<v0::Unsqueeze>(same_image, one_1),
+                                                               query_positions,
+                                                               window_key_positions);
+            }
+            auto within_window =
+                make_shared<v1::Greater>(window_key_positions, make_shared<v1::Add>(query_positions, offset));
+            // Distribute causal OR image-group conditions into the exported-model PA mask pattern.
+            auto mask =
+                make_shared<v13::BitwiseAnd>(make_shared<v0::Unsqueeze>(causal_or_query_image, one_1), within_window);
+            mask = make_shared<v13::BitwiseAnd>(mask, make_shared<v0::Unsqueeze>(causal_or_key_image, one_1));
+            mask = make_shared<v13::BitwiseAnd>(make_shared<v0::Unsqueeze>(causal_or_same_group, one_1), mask);
+            mask = make_shared<v13::BitwiseAnd>(mask, make_shared<v0::Unsqueeze>(valid_keys, one_1));
+            auto shape = make_shared<v0::Concat>(ov::OutputVector{batch_len, one_1, query_len, kv_len}, 0);
+            auto broadcast = make_shared<v3::Broadcast>(mask, shape);
+            sliding_mask = make_shared<v1::Select>(broadcast, zero_f, neg_f);
+            swa_mask_4d = sliding_mask;
         }
         self_kq_mask_swa->output(0).replace(swa_mask_4d);
+    }
+    if (sliding_mask) {
+        // Move mask precision conversion into Select so the existing PA matcher can recognize it.
+        for (const auto& node : model->get_ops()) {
+            const auto convert = ov::as_type_ptr<v0::Convert>(node);
+            if (!convert)
+                continue;
+            auto source = convert->input_value(0).get_node_shared_ptr();
+            ov::NodeVector slices;
+            while (ov::is_type<v8::Slice>(source)) {
+                slices.push_back(source);
+                source = source->input_value(0).get_node_shared_ptr();
+            }
+            if (source != sliding_mask)
+                continue;
+            const auto type = convert->get_destination_type();
+            ov::Output<ov::Node> mask = make_shared<v1::Select>(sliding_mask->input_value(0),
+                                                                v0::Constant::create(type, {}, {0}),
+                                                                v0::Constant::create(type, {}, {NEG_INF}));
+            for (auto it = slices.rbegin(); it != slices.rend(); ++it) {
+                auto inputs = (*it)->input_values();
+                inputs[0] = mask;
+                mask = (*it)->clone_with_new_inputs(inputs);
+            }
+            ov::replace_output_update_name(convert->output(0), mask);
+        }
     }
 
     if (batchable_recurrent) {
