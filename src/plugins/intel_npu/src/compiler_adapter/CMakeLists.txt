@@ -10,6 +10,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/driver_compiler_adapter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dynamic_graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/graph.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ivcl_compiler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mem_usage.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/model_serializer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/parser.hpp
