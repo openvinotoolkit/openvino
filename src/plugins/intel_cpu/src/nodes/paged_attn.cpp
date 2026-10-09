@@ -106,6 +106,14 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     const auto& rt = op->get_rt_info();
     if (const auto it = rt.find("image_tokens_use_sliding_window"); it != rt.end())
         m_image_tokens_use_sliding_window = it->second.as<bool>();
+    const auto window = op->input_value(10).get_node_shared_ptr();
+    auto window_sources = window->input_values();
+    window_sources.push_back(window);
+    for (const auto& source : window_sources) {
+        const auto& window_rt = source.get_node()->get_rt_info();
+        if (const auto it = window_rt.find("image_tokens_use_sliding_window"); it != window_rt.end())
+            m_image_tokens_use_sliding_window = it->second.as<bool>();
+    }
     CPU_NODE_ASSERT(rt.count("k_head_size") != 0UL && rt.count("num_k_heads") != 0UL,
                     "Runtime info k_head_size and num_k_heads are required for PagedAttention node.");
     m_head_size = rt.at("k_head_size").as<size_t>();

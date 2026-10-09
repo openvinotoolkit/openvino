@@ -30,6 +30,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
@@ -747,12 +748,6 @@ TEST_P(PagedAttnTokenTypeTest, ImageTokensCanUseSlidingWindow) {
 
     const size_t seq_len = pattern.types.size();
     const size_t hidden_dim = head_num * head_size;
-    auto windowed_model = get_pa_model(inType, head_size, head_num, 1);
-    for (const auto& node : windowed_model->get_ordered_ops()) {
-        if (ov::is_type<op::PagedAttentionExtension>(node))
-            node->get_rt_info()["image_tokens_use_sliding_window"] = true;
-    }
-    const auto windowed = run_pa_with_token_types(windowed_model, inType, seq_len, head_size, head_num, pattern.types);
     const auto full_image = run_pa_with_token_types(get_pa_model(inType, head_size, head_num, 1),
                                                     inType,
                                                     seq_len,
@@ -765,20 +760,42 @@ TEST_P(PagedAttnTokenTypeTest, ImageTokensCanUseSlidingWindow) {
                                                 head_size,
                                                 head_num,
                                                 std::vector<int32_t>(seq_len, 0));
-    bool differs_from_full_image = false;
-    for (size_t pos = 0; pos < seq_len; ++pos) {
-        if (pattern.types[pos] != 1 || (pos + 1 < seq_len && pattern.types[pos + 1] == 1))
-            continue;
-        const ov::Tensor windowed_row(inType, {1, hidden_dim}, windowed.output.data<float>() + pos * hidden_dim);
-        const ov::Tensor causal_row(inType, {1, hidden_dim}, causal.output.data<float>() + pos * hidden_dim);
-        ov::test::utils::compare(causal_row, windowed_row, 1e-5);
-        for (size_t d = 0; d < hidden_dim; ++d) {
-            const size_t index = pos * hidden_dim + d;
-            differs_from_full_image |=
-                std::abs(windowed.output.data<float>()[index] - full_image.output.data<float>()[index]) > 1e-5f;
+    for (size_t policy_source = 0; policy_source < 4; ++policy_source) {
+        SCOPED_TRACE(policy_source);
+        auto windowed_model = get_pa_model(inType, head_size, head_num, 1);
+        for (const auto& node : windowed_model->get_ordered_ops()) {
+            if (!ov::is_type<op::PagedAttentionExtension>(node))
+                continue;
+            if (policy_source == 0) {
+                node->get_rt_info()["image_tokens_use_sliding_window"] = true;
+            } else if (policy_source == 1) {
+                node->get_input_node_ptr(10)->get_rt_info()["image_tokens_use_sliding_window"] = true;
+            } else {
+                auto offset = v0::Constant::create(ov::element::i32, {}, {-1});
+                offset->get_rt_info()["image_tokens_use_sliding_window"] = true;
+                node->input(10).replace_source_output(
+                    std::make_shared<v1::Multiply>(offset, v0::Constant::create(ov::element::i32, {}, {-1})));
+            }
         }
+        if (policy_source == 3)
+            ov::pass::ConstantFolding().run_on_model(windowed_model);
+        const auto windowed =
+            run_pa_with_token_types(windowed_model, inType, seq_len, head_size, head_num, pattern.types);
+        bool differs_from_full_image = false;
+        for (size_t pos = 0; pos < seq_len; ++pos) {
+            if (pattern.types[pos] != 1 || (pos + 1 < seq_len && pattern.types[pos + 1] == 1))
+                continue;
+            const ov::Tensor windowed_row(inType, {1, hidden_dim}, windowed.output.data<float>() + pos * hidden_dim);
+            const ov::Tensor causal_row(inType, {1, hidden_dim}, causal.output.data<float>() + pos * hidden_dim);
+            ov::test::utils::compare(causal_row, windowed_row, 1e-5);
+            for (size_t d = 0; d < hidden_dim; ++d) {
+                const size_t index = pos * hidden_dim + d;
+                differs_from_full_image |=
+                    std::abs(windowed.output.data<float>()[index] - full_image.output.data<float>()[index]) > 1e-5f;
+            }
+        }
+        EXPECT_TRUE(differs_from_full_image);
     }
-    EXPECT_TRUE(differs_from_full_image);
 }
 
 TEST_P(PagedAttnTokenTypeTest, ChunkedPrefillMatchesSingleShot) {

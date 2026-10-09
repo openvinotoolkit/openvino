@@ -96,7 +96,13 @@ Compare these boundaries in order, saving each buffer and its geometry:
    policy. Gemma4 GGUF local layers can clip image groups while an exported-model policy
    preserves the group. Test both policies rather than changing all model defaults. Track
    a policy flag through graph runtime info, plugin, executor params and its cache key;
-   verify every selected compiled CPU variant contains the change.
+   verify every selected compiled CPU variant contains the change. GGUF emits the existing
+   GPT-OSS/Gemma3 sliding-mask pattern and moves mask precision conversion into `Select`,
+   preserving any intervening `Slice`. The negative window offset carries the image policy;
+   the shared PA pass reuses it under `Multiply(offset, -1)`. CPU reads the window node or
+   its immediate inputs, and constant folding propagates the flag to the folded window.
+   This metadata transport is an internal workaround, not a portable PA attribute; GPU
+   does not consume the flag.
 5. **Decoder logits.** Compare full logits, top choices and their margin on identical
    history, then isolate cache/activation/weight arithmetic with exact expansions described under reference and precision.
    High encoder cosine alone does not establish decoder parity or rule out a close top-1 flip.

@@ -22,7 +22,6 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less_eq.hpp"
-#include "openvino/op/logical_and.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -258,18 +257,6 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gemma4_s
     return {mask, offset};
 }
 
-static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gguf_sliding_window_pattern() {
-    auto offset = wrap_type<v0::Constant>();
-    auto window_start = wrap_type<v1::Subtract>({any_input(), offset});
-    auto within_window = wrap_type<v1::GreaterEqual>({any_input(), window_start});
-    auto allowed = wrap_type<v1::LogicalAnd>({any_input(), within_window});
-    auto select = wrap_type<v1::Select>({allowed, any_input(), any_input()});
-    auto expanded = wrap_type<v0::Unsqueeze>({select, any_input()});
-    auto sliced = pattern::optional<v8::Slice>({expanded, any_input(), any_input(), any_input(), any_input()});
-    auto mask = pattern::optional<v0::Convert>(sliced);
-    return {mask, offset};
-}
-
 typedef std::
     tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
         node_tuple;
@@ -479,9 +466,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     std::shared_ptr<ov::Node> gemma4_mask, gemma4_offset;
     std::tie(gemma4_mask, gemma4_offset) = gemma4_sliding_window_pattern();
 
-    std::shared_ptr<ov::Node> gguf_mask, gguf_offset;
-    std::tie(gguf_mask, gguf_offset) = gguf_sliding_window_pattern();
-
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
         return output.get_partial_shape() == ov::PartialShape{} ||
@@ -507,7 +491,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                                           baichuan2_13b_alibi_mask,
                                                           gptoss_gemma3_mask,
                                                           gemma4_mask,
-                                                          gguf_mask,
                                                           any_input()});
 
     auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -745,12 +728,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = offset;
-        } else if (pattern_map.count(gguf_offset)) {
-            auto offset = pattern_map.at(gguf_offset).get_node_shared_ptr();
-            if (offset->get_element_type() != element::i32) {
-                offset = std::make_shared<v0::Convert>(offset, element::i32);
-            }
-            sliding_window = std::make_shared<v1::Add>(offset, v0::Constant::create(element::i32, Shape{}, {1}));
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
@@ -904,11 +881,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
-        if (pattern_map.count(gguf_offset)) {
-            const auto& rt = pattern_map.at(gguf_offset).get_node()->get_rt_info();
-            if (const auto it = rt.find("image_tokens_use_sliding_window"); it != rt.end())
-                paged_attention->get_rt_info()["image_tokens_use_sliding_window"] = it->second;
-        }
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
         paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
