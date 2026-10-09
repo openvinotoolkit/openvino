@@ -6,6 +6,7 @@
 #include "primitive_type_base.h"
 #include "json_object.h"
 #include "to_string_utils.h"
+#include "openvino/util/common_util.hpp"
 #include <string>
 #include <vector>
 
@@ -32,7 +33,7 @@ std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*no
         o = ov::Dimension::dynamic();
     }
     size_t n = experts_layout.get_shape()[1];
-    output_shape[out_n_dim] = ov::Dimension(n);
+    output_shape[out_n_dim] = ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(n));
 
     if (!input_layout.is_dynamic()) {
         size_t seq_len_dim = (desc->has_batch_dim) ? 1 : 0;
@@ -40,15 +41,15 @@ std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*no
         if (m == 1) {
             // first gemm (up/gate) in the generate phase
             if (!desc->has_batch_dim) {
-                output_shape = ov::PartialShape{ov::Dimension(num_experts_per_token), ov::Dimension(1), ov::Dimension(n)};
+                output_shape = ov::PartialShape{ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(num_experts_per_token)), ov::Dimension(1), ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(n))};
             } else {
-                output_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(num_experts_per_token), ov::Dimension(n)};
+                output_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(num_experts_per_token)), ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(n))};
             }
         } else {
             if (!desc->has_batch_dim) {
-                output_shape = ov::PartialShape{ov::Dimension(m), ov::Dimension(1), ov::Dimension(n)};
+                output_shape = ov::PartialShape{ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(m)), ov::Dimension(1), ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(n))};
             } else {
-                output_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(m), ov::Dimension(n)};
+                output_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(m)), ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(n))};
             }
         }
     }

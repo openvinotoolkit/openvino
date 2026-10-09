@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -523,7 +524,7 @@ void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size)
     m_shape = m_layout.get_shape();
 
     auto actual_layout = m_layout;
-    actual_layout.set_partial_shape({ov::Dimension(actual_size)});
+    actual_layout.set_partial_shape({ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(actual_size))});
     m_memory_object = engine->reinterpret_buffer(*memory, actual_layout);
 
     update_properties();

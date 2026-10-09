@@ -18,6 +18,7 @@
 #include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
+#include "openvino/util/common_util.hpp"
 // clang-format on
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -1480,7 +1481,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
-    const ov::Dimension n_values = ov::Dimension::create_from_size_t(v_head_size);
+    const ov::Dimension n_values = ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(v_head_size));
 
     bool d_full = (head_size == static_cast<size_t>(d_max));
     bool v_full = (head_size == static_cast<size_t>(tile_v));
@@ -1812,7 +1813,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
-    const ov::Dimension n_values = ov::Dimension::create_from_size_t(v_head_size);
+    const ov::Dimension n_values = ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(v_head_size));
     const auto head_num = micro_get_num_heads(params, 0);
     const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 

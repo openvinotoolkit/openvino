@@ -230,10 +230,4 @@ void Dimension::set_symbol(const std::shared_ptr<ov::Symbol>& s) {
     m_symbol = s;
 }
 
-ov::Dimension ov::Dimension::create_from_size_t(size_t dimension) {
-    OPENVINO_ASSERT(dimension <= static_cast<size_t>(std::numeric_limits<ov::Dimension::value_type>::max()),
-                    "[Core] Dimension value exceeds ov::Dimension::value_type range.");
-    return ov::Dimension(static_cast<ov::Dimension::value_type>(dimension));
-}
-
 AttributeAdapter<Dimension>::~AttributeAdapter() = default;
