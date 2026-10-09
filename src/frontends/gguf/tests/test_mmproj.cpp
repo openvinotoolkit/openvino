@@ -336,6 +336,30 @@ TEST_F(GGUFMMProj, VisionEncoderLayoutRejectsMissingVisionWithoutChangingModel) 
     EXPECT_EQ(model->output().get_any_name(), "audio.embeddings");
 }
 
+TEST_F(GGUFMMProj, VisionEncoderLayoutRejectsUnsupportedProjectorWithoutChangingModel) {
+    auto arrays = cnpy::npz_load(
+        (std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy" / "pixtral.npz").string());
+    ov_gguf_test::TemporaryGguf fixture(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(fixture.path));
+    const auto results = model->get_results();
+    const auto parameters = model->get_parameters();
+    const auto nodes = model->get_ordered_ops();
+    const auto input_names = model->input(0).get_names();
+    const auto output_names = model->output().get_names();
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    OV_EXPECT_THROW(adapter.run_on_model(model), ov::Exception, testing::HasSubstr("no GenAI vision layout"));
+    EXPECT_TRUE(adapter.get_vision_models().empty());
+    EXPECT_EQ(model->get_results(), results);
+    EXPECT_EQ(model->get_parameters(), parameters);
+    EXPECT_EQ(model->get_ordered_ops(), nodes);
+    EXPECT_EQ(model->input(0).get_names(), input_names);
+    EXPECT_EQ(model->output().get_names(), output_names);
+    EXPECT_NO_THROW(Adapter(Adapter::Modality::VISION).run_on_model(model));
+    EXPECT_EQ(model->output().get_any_name(), "image_features");
+}
+
 TEST_F(GGUFMMProj, UnsupportedSecondModalityIsNotSilentlyDiscarded) {
     encoder("vision", "gemma3");
     writer.kv_bool("clip.has_audio_encoder", true);

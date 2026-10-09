@@ -321,6 +321,15 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             selected = result;
     }
     OPENVINO_ASSERT(selected, "[GGUF] mmproj has no ", prefix, "embeddings output");
+    std::string projector;
+    if (m_layout == Layout::VISION_ENCODERS) {
+        projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
+        OPENVINO_ASSERT(projector == "gemma3" || projector == "gemma4v" || projector == "gemma4uv" ||
+                            projector == "muse-glimmer" || projector == "qwen3vl_merger",
+                        "[GGUF] no GenAI vision layout for mmproj projector '",
+                        projector,
+                        "'");
+    }
     auto live_before = std::make_shared<std::unordered_set<const ov::Node*>>();
     SnapshotLiveParameters(live_before).run_on_model(model);
     const auto results = model->get_results();
@@ -352,7 +361,6 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
     model->validate_nodes_and_infer_types();
     if (m_layout == Layout::VISION_ENCODERS) {
-        const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
         if (projector == "qwen3vl_merger") {
             m_vision_models = qwen_layout(model);
         } else {
@@ -363,11 +371,6 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                             metadata(model, "vision.patch_size"),
                             metadata(model, "vision.window_size"),
                             metadata(model, "vision.merge"));
-            } else {
-                OPENVINO_ASSERT(projector == "gemma3",
-                                "[GGUF] no GenAI vision layout for mmproj projector '",
-                                projector,
-                                "'");
             }
             m_vision_models = {{"vision_embeddings", model}};
         }
