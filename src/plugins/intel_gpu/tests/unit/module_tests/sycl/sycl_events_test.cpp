@@ -16,8 +16,10 @@
 #include "runtime/sycl/sycl_event.hpp"
 #include "runtime/sycl/sycl_user_event.hpp"
 
+#include <chrono>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace cldnn;
@@ -140,6 +142,44 @@ TEST(sycl_event, user_event_does_not_hide_incomplete_deps_in_group) {
 
     ASSERT_NO_THROW(grouped_ev->wait());
     ASSERT_TRUE(grouped_ev->is_set());
+}
+
+// The time of a user event is spent on the host, so like ocl_user_event it must be reported as a
+// "duration" interval, which the profiling report counts as CPU work, followed by "executing".
+// SYCL has no device clock sync for user events, so no start timestamp is synthesized.
+TEST(sycl_event, user_event_profiling_reports_duration_and_executing) {
+    auto ctx = create_sycl_test_context();
+    auto user_ev = ctx.sycl_test_stream->create_user_event(true);
+
+    const auto profiling_info = user_ev->get_profiling_info();
+
+    ASSERT_EQ(profiling_info.size(), 2);
+    EXPECT_EQ(profiling_info[0].stage, instrumentation::profiling_stage::duration);
+    EXPECT_EQ(profiling_info[1].stage, instrumentation::profiling_stage::executing);
+    EXPECT_EQ(profiling_info[0].value->value(), profiling_info[1].value->value());
+    EXPECT_FALSE(profiling_info[0].is_valid_start);
+    EXPECT_FALSE(profiling_info[1].is_valid_start);
+}
+
+// Nothing is measured until set(), so an incomplete user event reports no intervals, and that empty
+// result must not be cached: once set, the intervals cover the time from creation until set().
+TEST(sycl_event, user_event_profiling_is_captured_once_set) {
+    auto ctx = create_sycl_test_context();
+    auto user_ev = ctx.sycl_test_stream->create_user_event(false);
+
+    ASSERT_TRUE(user_ev->get_profiling_info().empty());
+
+    const auto delay = std::chrono::milliseconds(1);
+    std::this_thread::sleep_for(delay);
+    user_ev->set();
+
+    const auto profiling_info = user_ev->get_profiling_info();
+
+    ASSERT_EQ(profiling_info.size(), 2);
+    EXPECT_EQ(profiling_info[0].stage, instrumentation::profiling_stage::duration);
+    EXPECT_EQ(profiling_info[1].stage, instrumentation::profiling_stage::executing);
+    EXPECT_GE(profiling_info[0].value->value(), delay);
+    EXPECT_EQ(profiling_info[0].value->value(), profiling_info[1].value->value());
 }
 
 /*
