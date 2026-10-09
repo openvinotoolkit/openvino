@@ -6,8 +6,11 @@
 
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 #include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
@@ -17,6 +20,38 @@
 #include "serialization.hpp"
 
 namespace {
+
+std::string merge_compilation_mode_params(const std::string& defaults, const std::string& overrides) {
+    std::vector<std::string> params;
+    std::unordered_map<std::string, size_t> param_indices;
+
+    const auto add_params = [&params, &param_indices](const std::string& value, bool replace_existing) {
+        std::istringstream stream(value);
+        std::string param;
+        while (stream >> param) {
+            const auto separator = param.find('=');
+            const auto key = param.substr(0, separator);
+            const auto [it, inserted] = param_indices.emplace(key, params.size());
+            if (inserted) {
+                params.push_back(std::move(param));
+            } else if (replace_existing) {
+                params[it->second] = std::move(param);
+            }
+        }
+    };
+
+    add_params(defaults, false);
+    add_params(overrides, true);
+
+    std::ostringstream result;
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i != 0) {
+            result << ' ';
+        }
+        result << params[i];
+    }
+    return result.str();
+}
 
 template <typename T>
 auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
@@ -30,7 +65,11 @@ auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     for (const auto& [key, value] : rhs) {
         if (auto it = lhs.find(key); it != lhs.end()) {
-            it->second = value;
+            if (key == ::intel_npu::COMPILATION_MODE_PARAMS::key()) {
+                it->second = merge_compilation_mode_params(it->second.as<std::string>(), value.as<std::string>());
+            } else {
+                it->second = value;
+            }
         } else {
             lhs.emplace(key, value);
         }

@@ -156,6 +156,35 @@ TEST_F(Flux2CompiledModelTest, TransformerByNameSetsHigherPrecisionMVN) {
     EXPECT_EQ(call.props.count(kOnlinePipeline), 0u);
 }
 
+TEST_F(Flux2CompiledModelTest, TransformerAddsUserCompilationParamsToHigherPrecisionMVN) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {{kCompileParams, "performance-hint-override=latency"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.only_call().props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=MVN performance-hint-override=latency");
+}
+
+TEST_F(Flux2CompiledModelTest, TransformerUserCompilationParamsOverrideMatchingDefault) {
+        RecordingFactory recorder;
+        std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+
+        ASSERT_NO_THROW(compiled = create_compiled_model(
+                                                make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                                                {{kCompileParams,
+                                                    "compute-layers-with-higher-precision=Sqrt performance-hint-override=latency"}},
+                                                recorder));
+        ASSERT_NE(compiled, nullptr);
+
+        EXPECT_EQ(recorder.only_call().props.at(kCompileParams).as<std::string>(),
+                            "compute-layers-with-higher-precision=Sqrt performance-hint-override=latency");
+}
+
 TEST_F(Flux2CompiledModelTest, VaeEncoderByNameDisablesOnlinePipeline) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
