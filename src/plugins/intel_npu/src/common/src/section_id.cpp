@@ -35,6 +35,7 @@ std::string SectionID::to_string() const {
 }
 
 SectionID SectionID::from_string(const std::string_view id) {
+    OPENVINO_ASSERT(!id.empty(), "A section ID name cannot be empty");
     OPENVINO_ASSERT(utils::has_only_digits(id),
                     "Cannot convert to integer: the id ",
                     id,

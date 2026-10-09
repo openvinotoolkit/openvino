@@ -125,9 +125,14 @@ TEST_F(SectionTypeTest, ValidFromStringLowerCased) {
 TEST_F(SectionTypeTest, FromStringOnUnknownTypes) {
     ASSERT_EQ(SectionType::from_string("UNKNOWN"), SectionType(SectionTypeCode::UNKNOWN));
     ASSERT_EQ(SectionType::from_string("random_name"), SectionType(SectionTypeCode::UNKNOWN));
-    ASSERT_EQ(SectionType::from_string(""), SectionType(SectionTypeCode::UNKNOWN));
     ASSERT_EQ(SectionType::from_string(std::string(BATCH_SIZE_SECTION_NAME) + "_1"),
               SectionType(SectionTypeCode::UNKNOWN));
+}
+
+TEST_F(SectionTypeTest, FromInvalidString) {
+    OV_EXPECT_THROW(SectionType::from_string(""), ov::Exception, _);
+    OV_EXPECT_THROW(SectionType::from_string("0"), ov::Exception, _);
+    OV_EXPECT_THROW(SectionType::from_string("102978468432"), ov::Exception, _);
 }
 
 TEST_F(SectionTypeTest, IsSectionType) {

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/core/except.hpp"
 
 namespace {
@@ -74,6 +75,8 @@ std::string SectionType::to_string() const {
 }
 
 SectionType SectionType::from_string(const std::string_view type) {
+    OPENVINO_ASSERT(!type.empty(), "A section type name cannot be empty");
+
     std::string type_upper(type);
     string_to_upper(type_upper);
 
@@ -105,6 +108,7 @@ SectionType SectionType::from_string(const std::string_view type) {
         return SectionTypeCode::COMPILER_VERSION;
     }
 
+    OPENVINO_ASSERT(!utils::has_only_digits(type), "A section type name cannot be made exclusively out of digits");
     return SectionTypeCode::UNKNOWN;
 }
 

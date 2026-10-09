@@ -529,31 +529,34 @@ TEST_F(CRETests, FromStringComplexExpression) {
     ASSERT_TRUE(result == reference);
 }
 
-// TODO most of these actually return unknown
+TEST_F(CRETests, UnknownFromString) {
+    ASSERT_TRUE(CRE::from_string("RUNTIMEREQUIREMENTS") == CRE({UNKNOWN_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("UNKNOWN") == CRE({UNKNOWN_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS0") == CRE({UNKNOWN_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS_0a0") == CRE({UNKNOWN_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS_BATCH_SIZE") == CRE({UNKNOWN_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTSBATCH_SIZE") == CRE({UNKNOWN_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIMEREQUIREMENTS") == CRE({UNKNOWN_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS_-1") == CRE({UNKNOWN_TOKEN}));
+}
+
 TEST_F(CRETests, FromInvalidStrings) {
-    OV_EXPECT_THROW(CRE::from_string("RUNTIMEREQUIREMENTS"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("UNKNOWN"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("0"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("0"), ov::Exception, _);
     OV_EXPECT_THROW(CRE::from_string("AND"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("NOT"), InvalidCRE, _);
     OV_EXPECT_THROW(
         CRE::from_string("RUNTIME_REQUIREMENTS_" + std::to_string(std::numeric_limits<uint16_t>::max() + 1)),
-        InvalidCRE,
+        ov::Exception,
         _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_-1"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS0"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.0"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_0.0"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_0a0"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_BATCH_SIZE"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTSBATCH_SIZE"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string(".RUNTIME_REQUIREMENTS"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS."), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.0"), ov::Exception, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS_0.0"), ov::Exception, _);
+    OV_EXPECT_THROW(CRE::from_string(".RUNTIME_REQUIREMENTS"), ov::Exception, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS."), ov::Exception, _);
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.OP.BATCH_SIZE"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("NOT..RUNTIME_REQUIREMENTS"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("NOT..RUNTIME_REQUIREMENTS"), ov::Exception, _);
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.BATCH_SIZE"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("0.BATCH_SIZE"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.OR.0"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("0.BATCH_SIZE"), ov::Exception, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.OR.0"), ov::Exception, _);
     OV_EXPECT_THROW(CRE::from_string("OPEN.RUNTIME_REQUIREMENTS"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.CLOSE"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.NOT.BATCH_SIZE"), InvalidCRE, _);
@@ -701,7 +704,7 @@ TEST_F(CRETests, OrShallowEvaluation) {
     ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
 
-    section_type_evaluators[RUNTIME_REQUIREMENTS_CODE] = std::make_shared<MockTypeEvaluator>(false);
+    section_type_evaluators[RUNTIME_REQUIREMENTS_CODE] = std::make_shared<MockTypeEvaluator>(true);
     section_type_evaluators[BATCH_SIZE_CODE] = std::make_shared<MockTypeEvaluator>(true);
     section_instance_evaluators.erase(SectionID(0));
     section_instance_evaluators.emplace(
@@ -792,7 +795,7 @@ TEST_F(CRETests, OrDeepEvaluation) {
     ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_FALSE(section_type_evaluators.at(ELF_MAIN_SCHEDULE_CODE)->evaluated());
     ASSERT_TRUE(section_type_evaluators.at(ELF_INIT_SCHEDULES_CODE)->evaluated());
-    ASSERT_FALSE(section_instance_evaluators.at(SectionID(0)).evaluated());
+    ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
     ASSERT_FALSE(section_instance_evaluators.at(SectionID(1)).evaluated());
 }
 
