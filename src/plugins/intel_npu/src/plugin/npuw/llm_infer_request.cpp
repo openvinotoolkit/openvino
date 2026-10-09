@@ -907,14 +907,14 @@ void ov::npuw::LLMInferRequest::copy_lincache(
     ov::parallel_for(m_lincache_past_names.size(), [&](size_t out_idx) {
         const auto& input_name = m_lincache_past_names[out_idx];
         OPENVINO_ASSERT(to_ports.find(input_name) != to_ports.end(),
-                        "Incosistent input/output naming for linear cache: ",
+                        "Inconsistent input/output naming for linear cache: ",
                         input_name,
                         " not found in model inputs.");
         auto to_tensor = to_request->get_tensor(to_ports.at(input_name));
 
         const auto& output_name = std::regex_replace(input_name, std::regex("past"), "present");
         OPENVINO_ASSERT(from_ports.find(output_name) != from_ports.end(),
-                        "Incosistent input/output naming for linear cache: ",
+                        "Inconsistent input/output naming for linear cache: ",
                         output_name,
                         " not found in model outputs.");
         auto from_tensor = from_request->get_tensor(from_ports.at(output_name));
@@ -986,7 +986,7 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
 void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     for (const auto& input_name : m_kvcache_past_names) {
         OPENVINO_ASSERT(m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end(),
-                        "Incosistent input/output naming for KV cache: ",
+                        "Inconsistent input/output naming for KV cache: ",
                         input_name,
                         " not found in prefill model inputs.");
 

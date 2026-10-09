@@ -1181,12 +1181,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
     LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
+    const auto kv_cache_compression_config = m_cfg.get<::intel_npu::NPUW_LLM_KV_CACHE_COMPRESSION>();
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, m_kvcache_desc.v_tensors_transposed_gen)
+        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type,
+                                            m_kvcache_desc.v_tensors_transposed_gen,
+                                            kv_cache_compression_config)
             .run_on_model(generate_model_variants[i]);
     }
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
-    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, m_kvcache_desc.v_tensors_transposed_pre)
+    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type,
+                                        m_kvcache_desc.v_tensors_transposed_pre,
+                                        kv_cache_compression_config)
         .run_on_model(prefill_model);
 
     std::optional<std::string> user_compilation_mode_params = std::nullopt;
@@ -2002,6 +2007,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
                           BIND(npuw::llm::propagate_slice_up, NPUW_LLM_PROPAGATE_SLICE_UP, get),
+                          BIND(npuw::llm::kv_cache_compression, NPUW_LLM_KV_CACHE_COMPRESSION, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
