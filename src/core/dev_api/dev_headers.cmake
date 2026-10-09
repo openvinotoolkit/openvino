@@ -53,7 +53,6 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/aligned_buffer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/compute_hash.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/itensor.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/lazy_buffer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/shared_buffer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/string_aligned_buffer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/xml_util/constant_writer.hpp

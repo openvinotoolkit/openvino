@@ -1071,7 +1071,8 @@ void ov::npuw::validate_submodel_indices(const Subgraph::Gather& host_gather,
                                          std::size_t param_base,
                                          std::size_t closure_size,
                                          bool has_compiled_model,
-                                         std::size_t n_model_inputs) {
+                                         std::size_t n_model_inputs,
+                                         bool skip_param_base_bound_check) {
     if (!has_compiled_model) {
         // No compiled model was loaded: all routing indices must be the disabled sentinel (-1).
         auto require_disabled = [](int64_t idx, const char* field_name) {
@@ -1114,16 +1115,17 @@ void ov::npuw::validate_submodel_indices(const Subgraph::Gather& host_gather,
     check_input_idx(quant_unpack_gather.src_s_idx, "quant_unpack_gather.src_s_idx");
     check_input_idx(quant_unpack_gather.idx_idx, "quant_unpack_gather.idx_idx");
 
-    // param_base + closure_size must not overflow compiled_model->inputs() (used in unpack_closure and funcall
-    // prologue).
-    OPENVINO_ASSERT(param_base <= n_model_inputs && closure_size <= n_model_inputs - param_base,
-                    "NPUW routing: param_base (",
-                    param_base,
-                    ") + closure_size (",
-                    closure_size,
-                    ") exceeds n_model_inputs (",
-                    n_model_inputs,
-                    ")");
+    // Block-KV HFA has one function param per KV block, more than its tile model's inputs.
+    if (!skip_param_base_bound_check) {
+        OPENVINO_ASSERT(param_base <= n_model_inputs && closure_size <= n_model_inputs - param_base,
+                        "NPUW routing: param_base (",
+                        param_base,
+                        ") + closure_size (",
+                        closure_size,
+                        ") exceeds n_model_inputs (",
+                        n_model_inputs,
+                        ")");
+    }
 }
 
 void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModelDesc>& submodels) {
@@ -1154,13 +1156,15 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
         const std::size_t closure_size = closure_desc.closure.size();
         const bool has_compiled_model = static_cast<bool>(effective_compiled_model);
         const std::size_t n_model_inputs = has_compiled_model ? effective_compiled_model->inputs().size() : 0u;
+        const bool skip_param_base_bound_check = ov::npuw::attn::has_block_kv_hfa(subm.pipeline);
 
         validate_submodel_indices(subm.host_gather,
                                   subm.quant_unpack_gather,
                                   subm.param_base,
                                   closure_size,
                                   has_compiled_model,
-                                  n_model_inputs);
+                                  n_model_inputs,
+                                  skip_param_base_bound_check);
     }
 }
 
@@ -1263,12 +1267,14 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         if (is_fcall) {
             validate_routing_self_consistency(host_gather, quant_unpack_gather, param_base, closure_size);
         } else {
+            const bool skip_param_base_bound_check = ov::npuw::attn::has_block_kv_hfa(pipeline);
             ov::npuw::validate_submodel_indices(host_gather,
                                                 quant_unpack_gather,
                                                 param_base,
                                                 closure_size,
                                                 static_cast<bool>(compiled_model),
-                                                compiled_model ? compiled_model->inputs().size() : 0u);
+                                                compiled_model ? compiled_model->inputs().size() : 0u,
+                                                skip_param_base_bound_check);
         }
     };
 

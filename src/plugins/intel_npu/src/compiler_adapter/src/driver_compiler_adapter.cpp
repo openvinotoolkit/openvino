@@ -88,7 +88,8 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config) const {
+                                                       const Config& config,
+                                                       const AdapterDescriptor& adapterDesc) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -127,12 +128,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
     _logger.debug("compile start");
-    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    const bool bypassCache = !updatedConfig.get<CACHE_DIR>().empty() || updatedConfig.get<BYPASS_UMD_CACHING>();
-    // If blob encryption is requested, enable secure compilation in the driver
-    const bool secureCompile = updatedConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-                               updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
-    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, bypassCache, secureCompile);
+    auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR),
+                                                     buildFlags,
+                                                     adapterDesc.bypassCache,
+                                                     adapterDesc.secureCompile);
     _logger.debug("compile end");
 
     OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
@@ -144,12 +143,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   updatedConfig,
                                    get_compatibility_descriptor(graphDesc._handle));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const Config& config) const {
+                                                         const Config& config,
+                                                         const AdapterDescriptor& adapterDesc) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -225,9 +224,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
 
         _logger.debug("compile start");
-        // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-        const bool bypassCache = !updatedConfig.get<CACHE_DIR>().empty() || updatedConfig.get<BYPASS_UMD_CACHING>();
-        auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, bypassCache);
+        auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR,
+                                                         buildFlags,
+                                                         adapterDesc.bypassCache,
+                                                         adapterDesc.secureCompile);
         _logger.debug("compile end");
 
         OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
@@ -264,7 +264,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
                                              std::move(model),
-                                             updatedConfig,
                                              /* persistentBlob = */ false,
                                              get_compatibility_descriptor(mainGraphHandle._handle));
 }

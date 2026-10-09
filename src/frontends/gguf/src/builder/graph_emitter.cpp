@@ -14,15 +14,6 @@ namespace ov::frontend::gguf {
 
 namespace {
 
-// Split "<something>.weight" into "<something>"; return the name unchanged when it does not end
-// in ".weight" (biases and other plain tensors keep their full name as the base).
-std::string strip_weight_suffix(const std::string& name) {
-    static const std::string suffix = ".weight";
-    const bool ends_with_weight =
-        name.size() > suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
-    return ends_with_weight ? name.substr(0, name.size() - suffix.size()) : name;
-}
-
 WeightTensors find_weight_tensors(const std::unordered_map<std::string, ov::Tensor>& weights, const std::string& base) {
     WeightTensors tensors;
     if (auto it = weights.find(base + ".weight"); it != weights.end()) {
@@ -38,6 +29,13 @@ WeightTensors find_weight_tensors(const std::unordered_map<std::string, ov::Tens
 }
 
 }  // namespace
+
+std::string strip_weight_suffix(const std::string& name) {
+    static const std::string suffix = ".weight";
+    const bool ends_with_weight =
+        name.size() > suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
+    return ends_with_weight ? name.substr(0, name.size() - suffix.size()) : name;
+}
 
 GraphEmitter::GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
                            std::unordered_map<std::string, GgufTensorType>& qtypes,
@@ -79,12 +77,14 @@ std::string GraphEmitter::add_op(const std::string& op_type,
                                  const std::string& name,
                                  const std::vector<std::string>& inputs,
                                  int op_case,
-                                 std::map<std::string, ov::Any> attrs) {
+                                 std::map<std::string, ov::Any> attrs,
+                                 std::vector<std::string> extra_outputs) {
     GgufOp op;
     op.op_type = op_type;
     op.name = name;
     op.input_names = inputs;
     op.output_name = name;
+    op.extra_output_names = std::move(extra_outputs);
     op.op_case = op_case;
     op.attributes = std::move(attrs);
     m_graph->nodes.push_back(std::move(op));
@@ -137,31 +137,27 @@ void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTens
     add_op("GGML_OP_NONE", node_name, {}, 0, std::move(attrs));
 }
 
+WeightTensors GraphEmitter::weight_parts(const std::string& base) const {
+    return find_weight_tensors(m_weights, base);
+}
+
+GgufTensorType GraphEmitter::weight_qtype(const std::string& base) const {
+    return lookup_qtype(base, m_qtypes);
+}
+
 void GraphEmitter::add_weight(const std::string& ggml_name) {
     if (m_emitted_weights.count(ggml_name)) {
         return;
     }
     const std::string base = strip_weight_suffix(ggml_name);
-
-    auto tensors = find_weight_tensors(m_weights, base);
-    GgufTensorType qtype = GGUF_TYPE_F16;
-    if (auto it = m_qtypes.find(base + ".qtype"); it != m_qtypes.end()) {
-        qtype = it->second;
-    }
-
-    emit_weight_op(ggml_name, tensors, qtype);
+    emit_weight_op(ggml_name, weight_parts(base), weight_qtype(base));
 }
 
 void GraphEmitter::add_weight_from(const std::string& node_name, const std::string& src_base) {
     if (m_emitted_weights.count(node_name)) {
         return;
     }
-    auto tensors = find_weight_tensors(m_weights, src_base);
-    GgufTensorType qtype = GGUF_TYPE_F16;
-    if (auto it = m_qtypes.find(src_base + ".qtype"); it != m_qtypes.end()) {
-        qtype = it->second;
-    }
-    emit_weight_op(node_name, tensors, qtype);
+    emit_weight_op(node_name, weight_parts(src_base), weight_qtype(src_base));
 }
 
 void GraphEmitter::add_named_weight(const std::string& ggml_name) {
