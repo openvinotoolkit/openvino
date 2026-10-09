@@ -5,10 +5,7 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs pad3d(const NodeContext& node) {
     auto data = node.get_input("X");
     auto mode = node.get_attribute<std::string>("mode");
@@ -81,7 +78,4 @@ NamedOutputs pad3d(const NodeContext& node) {
             {std::make_shared<ov::opset6::Pad>(data, padding_begin, padding_end, pad_mode)},
             {"Out"});
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

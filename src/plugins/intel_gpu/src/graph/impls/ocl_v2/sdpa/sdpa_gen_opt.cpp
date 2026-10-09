@@ -129,6 +129,21 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
                 jit.make("OUTPUT_TRANSPOSE_3", extended_out_order[3]);
             }
         }
+
+        // Q/K/V batch may be broadcast (each is 1 or equal). An input whose batch differs from the
+        // output batch, or is dynamic, needs a modulo on its batch index in the kernel.
+        {
+            auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+            const auto q_batch = get_batch_size(params.get_input_layout(0), extended_input_q_transpose_order);
+            const auto k_batch = get_batch_size(params.get_input_layout(1), extended_input_k_transpose_order);
+            const auto v_batch = get_batch_size(params.get_input_layout(2), extended_input_v_transpose_order);
+            // -1 means dynamic
+            const auto out_batch = get_broadcast_batch(q_batch, k_batch, v_batch);
+
+            jit.make("BROADCAST_Q_BATCH", (out_batch == -1) || (q_batch != out_batch) ? 1 : 0);
+            jit.make("BROADCAST_K_BATCH", (out_batch == -1) || (k_batch != out_batch) ? 1 : 0);
+            jit.make("BROADCAST_V_BATCH", (out_batch == -1) || (v_batch != out_batch) ? 1 : 0);
+        }
     }
 
     OPENVINO_ASSERT(k_head_size > 0 && v_head_size > 0, "SDPA: invalid head sizes for JIT constants generation");

@@ -8,10 +8,7 @@
 
 #include "quant/weights.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il) {
     const std::string p = "blk." + std::to_string(il) + ".";
@@ -44,7 +41,4 @@ void register_qwen35_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il) {
     }
 }
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks

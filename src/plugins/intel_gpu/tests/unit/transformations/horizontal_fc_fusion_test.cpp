@@ -66,20 +66,9 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_no_bias_no_zp) {
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 7, 4096});
-        auto weight1 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1024, 4096});
-        weight1->set_friendly_name("weight2_1");
-        auto weight2 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{512, 4096});
-        weight2->set_friendly_name("weight2_2");
-        auto weight3 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{128, 4096});
-        weight3->set_friendly_name("weight2_3");
-        auto weights = ov::OutputVector{weight1, weight2, weight3};
-        auto weight_fused = std::make_shared<ov::op::v0::Concat>(weights, 0);
+        auto weight_fused = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1664, 4096});
         auto bias1 = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto scale1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
-        auto scale2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 32});
-        auto scale3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 32});
-        auto scales = ov::OutputVector{scale1, scale2, scale3};
-        auto scale_fused = std::make_shared<ov::op::v0::Concat>(scales, 0);
+        auto scale_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1664, 32});
         auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_fused, bias1, scale_fused);
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {fc_fused->get_output_partial_shape(0).size() - 1});
         std::vector<int64_t> orig_n_sizes = {1024, 512, 128};
@@ -254,24 +243,9 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_bias_no_zp) {
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 7, 4096});
-        auto weight1 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1024, 4096});
-        weight1->set_friendly_name("weight2_1");
-        auto weight2 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{512, 4096});
-        weight2->set_friendly_name("weight2_2");
-        auto weight3 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{128, 4096});
-        weight3->set_friendly_name("weight2_3");
-        auto weights = ov::OutputVector{weight1, weight2, weight3};
-        auto weight_fused = std::make_shared<ov::op::v0::Concat>(weights, 0);
-        auto bias1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1024});
-        auto bias2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 512});
-        auto bias3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 128});
-        auto biases = ov::OutputVector{bias1, bias2, bias3};
-        auto bias_fused = std::make_shared<ov::op::v0::Concat>(biases, 1);
-        auto scale1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
-        auto scale2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 32});
-        auto scale3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 32});
-        auto scales = ov::OutputVector{scale1, scale2, scale3};
-        auto scale_fused = std::make_shared<ov::op::v0::Concat>(scales, 0);
+        auto weight_fused = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1664, 4096});
+        auto bias_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1664});
+        auto scale_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1664, 32});
         auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_fused, bias_fused, scale_fused);
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {fc_fused->get_output_partial_shape(0).size() - 1});
         std::vector<int64_t> orig_n_sizes = {1024, 512, 128};
@@ -333,24 +307,9 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_eltwise_bias_zp) {
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 4096});
-        auto weight1 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1024, 4096});
-        weight1->set_friendly_name("weight2_1");
-        auto weight2 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{512, 4096});
-        weight2->set_friendly_name("weight2_2");
-        auto weight3 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{128, 4096});
-        weight3->set_friendly_name("weight2_3");
-        auto weights = ov::OutputVector{weight1, weight2, weight3};
-        auto weight_fused = std::make_shared<ov::op::v0::Concat>(weights, 0);
-        auto bias1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1024});
-        auto bias2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 512});
-        auto bias3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 128});
-        auto biases = ov::OutputVector{bias1, bias2, bias3};
-        auto bias_fused = std::make_shared<ov::op::v0::Concat>(biases, 1);
-        auto scale1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
-        auto scale2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 32});
-        auto scale3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 32});
-        auto scales = ov::OutputVector{scale1, scale2, scale3};
-        auto scale_fused = std::make_shared<ov::op::v0::Concat>(scales, 0);
+        auto weight_fused = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1664, 4096});
+        auto bias_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1664});
+        auto scale_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1664, 32});
         auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_fused, bias_fused, scale_fused);
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {fc_fused->get_output_partial_shape(0).size() - 1});
         std::vector<int64_t> orig_n_sizes = {1024, 512, 128};
@@ -422,24 +381,9 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_eltwise_bias_zp_scal
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 4096});
-        auto weight1 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1024, 4096});
-        weight1->set_friendly_name("weight2_1");
-        auto weight2 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{512, 4096});
-        weight2->set_friendly_name("weight2_2");
-        auto weight3 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{128, 4096});
-        weight3->set_friendly_name("weight2_3");
-        auto weights = ov::OutputVector{weight1, weight2, weight3};
-        auto weight_fused = std::make_shared<ov::op::v0::Concat>(weights, 0);
-        auto bias1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1024});
-        auto bias2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 512});
-        auto bias3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 128});
-        auto biases = ov::OutputVector{bias1, bias2, bias3};
-        auto bias_fused = std::make_shared<ov::op::v0::Concat>(biases, 1);
-        auto scale1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
-        auto scale2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 32});
-        auto scale3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 32});
-        auto scales = ov::OutputVector{scale1, scale2, scale3};
-        auto scale_fused = std::make_shared<ov::op::v0::Concat>(scales, 0);
+        auto weight_fused = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1664, 4096});
+        auto bias_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1664});
+        auto scale_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1664, 32});
         auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_fused, bias_fused, scale_fused);
         const std::vector<float> scale_factor = {8.f};
         auto mul_input = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, scale_factor);
@@ -496,21 +440,9 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_transpose_b_false) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 4096});
         // [K, N] weights
-        auto weight1 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{4096, 1024});
-        weight1->set_friendly_name("weight2_1");
-        auto weight2 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{4096, 512});
-        weight2->set_friendly_name("weight2_2");
-        auto weight3 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{4096, 128});
-        weight3->set_friendly_name("weight2_3");
-        auto weights = ov::OutputVector{weight1, weight2, weight3};
-        // concat along N axis (1) for [K, N] layout
-        auto weight_fused = std::make_shared<ov::op::v0::Concat>(weights, 1);
+        auto weight_fused = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{4096, 1664});
         auto bias1 = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto scale1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
-        auto scale2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 32});
-        auto scale3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 32});
-        auto scales = ov::OutputVector{scale1, scale2, scale3};
-        auto scale_fused = std::make_shared<ov::op::v0::Concat>(scales, 0);
+        auto scale_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1664, 32});
         auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_fused, bias1, scale_fused, ov::element::dynamic, false);
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {fc_fused->get_output_partial_shape(0).size() - 1});
         std::vector<int64_t> orig_n_sizes = {1024, 512, 128};
@@ -526,6 +458,115 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_transpose_b_false) {
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
+}
+
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_u3_weights_byte_packed) {
+    // u3 weights are byte-packed, so the fused weight must preserve the original packed data
+    const std::vector<int64_t> pattern = {7, -1};
+    auto make_weight = [](const ov::Shape& shape, const std::vector<uint8_t>& bytes) {
+        return std::make_shared<ov::op::v0::Constant>(ov::element::u3, shape, bytes.data());
+    };
+    auto make_scale = [](size_t output_channels) {
+        return std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{output_channels, 1});
+    };
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 8});
+        auto weight1 = make_weight(ov::Shape{2, 8}, {0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+        auto weight2 = make_weight(ov::Shape{3, 8}, {0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF});
+        auto weight3 = make_weight(ov::Shape{1, 8}, {0x01, 0x02, 0x03});
+        auto fc1 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                 weight1,
+                                                                                 std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                 make_scale(2));
+        auto fc2 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                 weight2,
+                                                                                 std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                 make_scale(3));
+        auto fc3 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                 weight3,
+                                                                                 std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                 make_scale(1));
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, pattern);
+        auto reshape1 = std::make_shared<ov::op::v1::Reshape>(fc1, reshape_pattern, true);
+        auto reshape2 = std::make_shared<ov::op::v1::Reshape>(fc2, reshape_pattern, true);
+        auto reshape3 = std::make_shared<ov::op::v1::Reshape>(fc3, reshape_pattern, true);
+        auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
+        auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
+        auto result3 = std::make_shared<ov::op::v0::Result>(reshape3);
+        model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
+        manager.register_pass<FullyConnectedHorizontalFusion>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 8});
+        auto fused_weight = make_weight(ov::Shape{6, 8},
+                                        {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+                                         0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x01, 0x02, 0x03});
+        auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                      fused_weight,
+                                                                                      std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                      make_scale(6));
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {2, 3, 1});
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(fc_fused, axis_const, split_const);
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, pattern);
+        auto reshape1 = std::make_shared<ov::op::v1::Reshape>(split->output(0), reshape_pattern, true);
+        auto reshape2 = std::make_shared<ov::op::v1::Reshape>(split->output(1), reshape_pattern, true);
+        auto reshape3 = std::make_shared<ov::op::v1::Reshape>(split->output(2), reshape_pattern, true);
+        auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
+        auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
+        auto result3 = std::make_shared<ov::op::v0::Result>(reshape3);
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_u3_misaligned_no_fusion) {
+    // With K=4 each u3 row occupies 12 bits, so Concat along N (or along the zp's first axis) is not byte aligned and
+    // Concat::evaluate fails. The fused constant can't be folded, hence the transformation must bail out and leave
+    // the FCs untouched. Two independent groups of 3 FCs cover different failure points:
+    //  1. u3 weights: the weights folding fails.
+    //  2. u4 weights with u3 zero points and bias Adds: the zero points folding fails after the biases are collected.
+    //     The bias Adds must not be bypassed, as the pass has to leave the model intact when it returns false.
+    auto make_model = []() {
+        ov::ResultVector results;
+        ov::ParameterVector params;
+        {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 4});
+            params.push_back(input);
+            for (size_t n : {2, 3, 1}) {
+                auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::u3, ov::Shape{n, 4});
+                auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{n, 1});
+                auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                        weight,
+                                                                                        std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                        scale);
+                results.push_back(std::make_shared<ov::op::v0::Result>(fc));
+            }
+        }
+        {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 4096});
+            params.push_back(input);
+            for (size_t n : {1024, 512, 128}) {
+                auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{n, 4096});
+                auto scale = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{n, 32});
+                auto zp = std::make_shared<ov::op::v0::Constant>(ov::element::u3, ov::Shape{1, 1, 4});
+                auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                        weight,
+                                                                                        std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                        scale,
+                                                                                        zp);
+                auto add_input = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, n});
+                auto add = std::make_shared<ov::op::v1::Add>(fc, add_input);
+                results.push_back(std::make_shared<ov::op::v0::Result>(add));
+            }
+        }
+        return std::make_shared<ov::Model>(results, params);
+    };
+    model = make_model();
+    model_ref = make_model();
+    manager.register_pass<FullyConnectedHorizontalFusion>();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 // Non-transposed scale/ZP are [groups, N], so they must be concatenated on the last axis.
@@ -550,15 +591,10 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_non_transposed_scale
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 7, 4096});
-        ov::OutputVector weights, scales, zps;
-        for (size_t i = 0; i < n_sizes.size(); ++i) {
-            weights.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{n_sizes[i], 4096}));
-            scales.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{32, n_sizes[i]}));
-            zps.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{32, n_sizes[i]}));
-        }
-        auto weight_fused = std::make_shared<ov::op::v0::Concat>(weights, 0);
-        auto scale_fused = std::make_shared<ov::op::v0::Concat>(scales, 1);
-        auto zp_fused = std::make_shared<ov::op::v0::Concat>(zps, 1);
+        // Fused params are folded to Constants; scale/ZP grow along the last (N) axis.
+        auto weight_fused = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1664, 4096});
+        auto scale_fused = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{32, 1664});
+        auto zp_fused = std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{32, 1664});
         auto bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
             input, weight_fused, bias, scale_fused, zp_fused, ov::element::dynamic, true, false, false);

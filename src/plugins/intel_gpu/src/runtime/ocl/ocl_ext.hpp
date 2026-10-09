@@ -438,7 +438,7 @@ using PFN_clEnqueueReleaseMediaSurfacesINTEL = CL_API_ENTRY cl_int(CL_API_CALL*)
 using PFN_clCreateFromMediaSurfaceINTEL =
     CL_API_ENTRY cl_mem(CL_API_CALL*)(cl_context /* context */, cl_mem_flags /* flags */, void* /* surface */, cl_uint /* plane */, cl_int* /* errcode_ret */);
 
-#ifdef WIN32
+#ifdef _WIN32
 using PFN_clCreateFromD3D11Buffer = CL_API_ENTRY cl_mem(CL_API_CALL*)(cl_context context, cl_mem_flags flags, void* resource, cl_int* errcode_ret);
 #endif
 
@@ -452,7 +452,7 @@ public:
     static PFN_clEnqueueReleaseMediaSurfacesINTEL pfn_release;
 
     static void Init(cl_platform_id platform) {
-#ifdef WIN32
+#ifdef _WIN32
         const char* fnameAcq = "clEnqueueAcquireD3D11ObjectsKHR";
         const char* fnameRel = "clEnqueueReleaseD3D11ObjectsKHR";
 #else
@@ -492,7 +492,7 @@ public:
     static PFN_clCreateFromMediaSurfaceINTEL pfn_clCreateFromMediaSurfaceINTEL;
 
     static void Init(cl_platform_id platform) {
-#ifdef WIN32
+#ifdef _WIN32
         const char* fname = "clCreateFromD3D11Texture2DKHR";
 #else
         const char* fname = "clCreateFromVA_APIMediaSurfaceINTEL";
@@ -509,7 +509,7 @@ public:
      */
     ImageVA(const Context& context,
             cl_mem_flags flags,
-#ifdef WIN32
+#ifdef _WIN32
             void* surface,
 #else
             uint32_t surface,
@@ -520,7 +520,7 @@ public:
 
     ImageVA(cl_context context,
             cl_mem_flags flags,
-#ifdef WIN32
+#ifdef _WIN32
             void* surface,
 #else
             uint32_t surface,
@@ -530,7 +530,7 @@ public:
         cl_int error;
         object_ = pfn_clCreateFromMediaSurfaceINTEL(context,
                                                     flags,
-#ifdef WIN32
+#ifdef _WIN32
                                                     surface,
 #else
                                                     reinterpret_cast<void*>(&surface),
@@ -588,7 +588,7 @@ public:
         return *this;
     }
 };
-#ifdef WIN32
+#ifdef _WIN32
 class BufferDX : public Buffer {
 public:
     static PFN_clCreateFromD3D11Buffer pfn_clCreateFromD3D11Buffer;
@@ -729,7 +729,7 @@ public:
                                                                                           cl_uint /* num_entries */,
                                                                                           cl_device_id* /* devices */,
                                                                                           cl_uint* /* num_devices */);
-#ifdef WIN32
+#ifdef _WIN32
         const char* fname = "clGetDeviceIDsFromD3D11KHR";
 #else
         const char* fname = "clGetDeviceIDsFromVA_APIMediaAdapterINTEL";
@@ -775,7 +775,7 @@ public:
             // set up acquire/release extensions
             SharedSurfLock::Init(object_);
             ImageVA::Init(object_);
-#ifdef WIN32
+#ifdef _WIN32
             BufferDX::Init(object_);
 #endif
         }

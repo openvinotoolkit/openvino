@@ -14,11 +14,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 
 ov::OutputVector qlinear_where(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 9);
@@ -47,8 +43,4 @@ ov::OutputVector qlinear_where(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("QLinearWhere", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_where, MICROSOFT_DOMAIN);
 
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

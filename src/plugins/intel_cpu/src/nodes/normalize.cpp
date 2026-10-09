@@ -1093,16 +1093,16 @@ public:
         jcp.h = (dims_size > 2) ? dims[2] : 1LU;
         jcp.w = (dims_size > 3) ? dims[3] : 1LU;
 
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             blk_size = 16;
             normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_core>>(jcp);
             normalize_kernel =
                 std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::avx512_core>>(jcp, *kernel_attrs.get());
-        } else if (mayiuse(cpu::x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             blk_size = 8;
             normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>>(jcp);
             normalize_kernel = std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::avx2>>(jcp, *kernel_attrs.get());
-        } else if (mayiuse(cpu::x64::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             blk_size = jcp.is_blk ? 8 : 4;
             normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>>(jcp);
             normalize_kernel =
@@ -1643,7 +1643,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
 #if defined(OPENVINO_ARCH_X86_64)
     }
-    if (mayiuse(cpu::x64::sse41)) {
+    if (ov::with_cpu_x86_sse42()) {
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
 #endif
     }

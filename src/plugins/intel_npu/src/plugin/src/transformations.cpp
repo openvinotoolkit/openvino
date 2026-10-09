@@ -4,6 +4,7 @@
 
 #include "transformations.hpp"
 
+#include <algorithm>
 #include <map>
 #include <sstream>
 
@@ -13,6 +14,37 @@
 #include "openvino/op/result.hpp"
 
 namespace intel_npu {
+
+bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>& model,
+                                         ov::intel_npu::CompilerType compilerType,
+                                         bool compilationModeSet,
+                                         bool dynamicShapeToStatic) {
+    if (compilerType != ov::intel_npu::CompilerType::PLUGIN || compilationModeSet || dynamicShapeToStatic) {
+        return false;
+    }
+
+    // HostCompile supports dynamic dimensions only; a single dynamic-rank input rules the model out.
+    const auto hasStaticRank = [](const auto& port) {
+        return port.get_partial_shape().rank().is_static();
+    };
+
+    // Any dynamic dimension other than batch, bounded or unbounded, makes the model a HostCompile model: HostCompile
+    // sizes dynamic buffers at run time from the bound tensor or the predicted output shape. A dynamic batch alone is
+    // not supported well by HostCompile yet, so such models are left to plugin batching.
+    const auto isDynamicPort = [](const auto& port) {
+        return batch_helpers::hasOtherDynamicDims(port.get_partial_shape());
+    };
+
+    // Only the inputs decide: shape inference does not reach the outputs of some models, which then look fully
+    // dynamic even though the model is a HostCompile one.
+    const auto& modelInputs = model->inputs();
+    if (!std::all_of(modelInputs.begin(), modelInputs.end(), hasStaticRank)) {
+        return false;
+    }
+
+    return std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicPort);
+}
+
 namespace batch_helpers {
 
 bool hasOtherDynamicDims(const ov::PartialShape& shape) {

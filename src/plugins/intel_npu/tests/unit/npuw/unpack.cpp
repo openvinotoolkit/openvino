@@ -186,6 +186,18 @@ INSTANTIATE_TEST_SUITE_P(UnpackTestsWithScaleAndZeroPointTest3, UnpackTestsWithS
                          TestCasesScaleAndZeroPoints3,
                          UnpackTestsWithScaleAndZeroPointTest3::getTestCaseName);
 
+const auto TestCasesI8Asymmetric = ::testing::Combine(
+        ::testing::ValuesIn({ov::Shape{2, 4}, ov::Shape{2, 8}, ov::Shape{3, 9}, ov::Shape{4, 16}}),
+        ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),
+        ::testing::ValuesIn({0lu, 2lu, 3lu}),
+        ::testing::ValuesIn({true, false}),
+        ::testing::ValuesIn({true, false}));
+
+INSTANTIATE_TEST_SUITE_P(I8AsymmetricUnpackTests,
+                         I8AsymmetricUnpackTests,
+                         TestCasesI8Asymmetric,
+                         I8AsymmetricUnpackTests::getTestCaseName);
+
 } // anonymous namespace
 
 #endif // __AVX2__

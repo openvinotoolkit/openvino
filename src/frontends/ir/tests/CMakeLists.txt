@@ -6,7 +6,18 @@ set(TARGET_NAME ov_ir_frontend_tests)
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test_basic.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test_mmap.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test_with_extensions.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/meta_data_tests.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/partial_shape_deserialization.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/pre_processing_deserialization.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/rt_info_custom.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/rt_info_deserialization.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/tensor_iterator_deserialization.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/threading_tests.cpp
         DEPENDENCIES
             openvino_ir_frontend
         LINK_LIBRARIES
@@ -18,6 +29,7 @@ ov_add_test_target(
         INCLUDES
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         ADD_CLANG_FORMAT
+        CHECK_SOURCES_LISTED
         LABELS
             OV UNIT IR_FE
 )

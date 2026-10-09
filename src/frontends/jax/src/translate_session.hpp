@@ -8,9 +8,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/jax/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
+namespace ov::frontend::jax {
 
 class TranslateSession {
 public:
@@ -50,6 +48,4 @@ private:
     std::map<std::string, uint64_t> m_op_statistics;
 };
 
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax
