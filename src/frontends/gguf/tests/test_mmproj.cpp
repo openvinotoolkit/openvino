@@ -18,7 +18,6 @@
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
-#include "openvino/frontend/gguf/genai_vision.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/openvino.hpp"
@@ -317,6 +316,16 @@ TEST_F(GGUFMMProj, MixedFileHasIndependentVisionAndAudioBranches) {
     }
 }
 
+TEST_F(GGUFMMProj, VisionEncoderLayoutRejectsAudioWithoutChangingModel) {
+    encoder("audio", "qwen2a");
+    auto model = convert();
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::AUDIO, Adapter::Layout::VISION_ENCODERS);
+    OV_EXPECT_THROW(adapter.run_on_model(model), ov::Exception, testing::HasSubstr("requires vision modality"));
+    EXPECT_TRUE(adapter.get_vision_models().empty());
+    EXPECT_EQ(model->output().get_any_name(), "audio.embeddings");
+}
+
 TEST_F(GGUFMMProj, UnsupportedSecondModalityIsNotSilentlyDiscarded) {
     encoder("vision", "gemma3");
     writer.kv_bool("clip.has_audio_encoder", true);
@@ -589,8 +598,14 @@ protected:
 };
 
 TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
-    const auto models = ov::frontend::gguf::genai_vision_models(model);
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    auto adapted = model->clone();
+    ASSERT_TRUE(adapter.run_on_model(adapted));
+    const auto& models = adapter.get_vision_models();
     const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
+    ASSERT_EQ(models.size(), projector == "qwen3vl_merger" ? 3u : 1u);
+    EXPECT_EQ(models.at(projector == "qwen3vl_merger" ? "vision_embeddings_merger" : "vision_embeddings"), adapted);
     const auto patch = size_t(metadata("vision.patch_size"));
     const bool steps = std::any_of(arrays.begin(), arrays.end(), [](const auto& entry) {
         return entry.first == "0.embeddings";

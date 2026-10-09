@@ -21,6 +21,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -294,6 +295,46 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToItsOwnModel) {
     ASSERT_EQ(per_layer->outputs().size(), 1);
     EXPECT_EQ(per_layer->output(0).get_any_name(), "per_layer_inputs");
     EXPECT_EQ(per_layer->output(0).get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
+}
+
+TEST(GGUFAdaptToGenAI, MediaPaddingAcceptsIntegralMetadataAndRejectsInvalidValues) {
+    const auto adapt = [](const ov::Tensor& padding) {
+        auto m = build_minimal_gguf_model(8, 2, false, true);
+        m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
+        auto metadata = std::make_shared<ov::frontend::gguf::GGUFTokenizerMetadata>();
+        metadata->config["tokens"] = std::vector<std::string>{"a", "b", "pad", "<|image|>", "c", "d", "e", "f"};
+        metadata->config["padding_token_id"] = padding;
+        m.model->get_rt_info()[ov::frontend::gguf::gguf_tokenizer_metadata_key()] = metadata;
+        AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+        pass.run_on_model(m.model);
+        return pass.get_per_layer_embedding_model();
+    };
+    for (const auto& type : {ov::element::i8,
+                             ov::element::u8,
+                             ov::element::i16,
+                             ov::element::u16,
+                             ov::element::i32,
+                             ov::element::u32,
+                             ov::element::i64,
+                             ov::element::u64}) {
+        SCOPED_TRACE(type);
+        const auto value = v0::Constant::create(type, {}, {2});
+        auto lookup = adapt(value->get_tensor_view());
+        ov::Tensor ids(ov::element::i64, {1, 1});
+        ids.data<int64_t>()[0] = 3;
+        ov::TensorVector output{ov::Tensor(ov::element::f32, {1, 1, 2, 1})};
+        ASSERT_TRUE(lookup->evaluate(output, {ids}));
+        EXPECT_EQ(output.front().data<float>()[0], 1004.f);
+        EXPECT_EQ(output.front().data<float>()[1], 1005.f);
+    }
+    for (const auto& value : {v0::Constant::create(ov::element::i64, {0}, {}),
+                              v0::Constant::create(ov::element::i64, {2}, {2, 2}),
+                              v0::Constant::create(ov::element::f32, {}, {2}),
+                              v0::Constant::create(ov::element::i64, {}, {-1}),
+                              v0::Constant::create(ov::element::u64, {}, {uint64_t(-1)}),
+                              v0::Constant::create(ov::element::i64, {}, {8})}) {
+        EXPECT_THROW(adapt(value->get_tensor_view()), ov::Exception);
+    }
 }
 
 // An untagged token lookup cannot be moved, so the language model keeps input_ids for it.

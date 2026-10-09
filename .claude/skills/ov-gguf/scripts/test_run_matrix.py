@@ -130,6 +130,17 @@ class MatrixTest(unittest.TestCase):
         self.run_batch(2)
         self.assertFalse((self.root / "escape.json").exists())
 
+    def test_output_setup_errors_return_two(self):
+        parent = self.root / "file"
+        parent.write_text("not a directory")
+        loop = self.root / "loop"
+        loop.symlink_to(loop)
+        for output in (parent / "results", loop):
+            self.output = output
+            result = self.run_batch(2)
+            self.assertIn("Validation setup error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
     def report_case(self, kind, content):
         path = self.root / ("tests.xml" if kind == "gtest" else "accuracy.json")
         code = f"from pathlib import Path; Path({str(path)!r}).write_text({content!r})"

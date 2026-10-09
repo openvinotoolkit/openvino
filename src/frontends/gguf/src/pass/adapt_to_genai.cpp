@@ -204,8 +204,11 @@ ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Ou
     int64_t pad = 0;
     if (const auto p = config.find("padding_token_id"); p != config.end() && p->second.is<ov::Tensor>()) {
         const auto& value = p->second.as<ov::Tensor>();
-        pad = value.get_element_type() == ov::element::i32 ? value.data<const int32_t>()[0]
-                                                           : value.data<const uint32_t>()[0];
+        OPENVINO_ASSERT(value.get_size() == 1 && value.get_element_type().is_integral_number(),
+                        "[GGUF] padding_token_id must contain one integral value");
+        pad = ov::op::v0::Constant(value).cast_vector<int64_t>().front();
+        OPENVINO_ASSERT(pad >= 0 && static_cast<uint64_t>(pad) < tokens->second.as<std::vector<std::string>>().size(),
+                        "[GGUF] padding_token_id is outside the vocabulary");
     }
     ov::Output<ov::Node> media;
     const auto& vocabulary = tokens->second.as<std::vector<std::string>>();

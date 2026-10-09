@@ -327,20 +327,20 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--retry-failed", action="store_true")
     args = parser.parse_args()
-    output = args.output.resolve()
-    output.mkdir(parents=True, exist_ok=True)
     def interrupt(*_):
         raise KeyboardInterrupt
 
     signal.signal(signal.SIGTERM, interrupt)
     try:
+        output = args.output.resolve()
+        output.mkdir(parents=True, exist_ok=True)
         with (output / ".lock").open("w") as lock:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 raise ValueError("Another runner owns this output directory") from None
             return run(json.loads(args.manifest.read_text()), output, args.retry_failed)
-    except (ValueError, OSError, subprocess.CalledProcessError, TypeError, AttributeError) as error:
+    except (ValueError, OSError, subprocess.CalledProcessError, TypeError, AttributeError, RuntimeError) as error:
         print(f"Validation setup error: {error}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
