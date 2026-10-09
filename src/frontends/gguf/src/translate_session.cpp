@@ -136,7 +136,29 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   operation_type,
                                   " is not implemented.");
     NodeContext node_context(decoder, tensor_map);
-    converted_outputs = it->second(node_context);
+    try {
+        converted_outputs = it->second(node_context);
+    } catch (const std::exception& e) {
+        // Name the failing node and its operands: translator checks only describe the local condition.
+        std::string inputs;
+        const auto input_names = decoder->get_input_names();
+        for (size_t i = 0; i < input_names.size(); ++i) {
+            inputs += i ? ", " : "";
+            const auto& name = input_names[i];
+            const auto it = tensor_map->find(name);
+            inputs += it == tensor_map->end() ? "'" + name + "' (not translated)" : it->second.get_partial_shape().to_string();
+        }
+        FRONT_END_OP_CONVERSION_CHECK(false,
+                                      operation_type,
+                                      " '",
+                                      decoder->get_op_name(),
+                                      "' (inputs: ",
+                                      inputs,
+                                      "; ggml output shape: ",
+                                      decoder->get_output_shape().to_string(),
+                                      "): ",
+                                      e.what());
+    }
 
     const auto& node_output_names = decoder->get_output_names();
     FRONT_END_OP_CONVERSION_CHECK(node_output_names.size() == converted_outputs.size(),

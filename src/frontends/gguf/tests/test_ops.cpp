@@ -31,6 +31,40 @@ using namespace ov_gguf_test;
 
 namespace {
 
+// A cgraph decoder retains capture-time shapes while its Parameters accept subsequent token counts.
+class CapturedInputDecoder : public SingleOpDecoder {
+public:
+    CapturedInputDecoder(const std::shared_ptr<GgufDecoder>& decoder,
+                         std::map<std::string, ov::PartialShape> captured_shapes,
+                         int64_t view_offset = 0)
+        : SingleOpDecoder(*std::dynamic_pointer_cast<SingleOpDecoder>(decoder)),
+          m_captured_shapes(std::move(captured_shapes)),
+          m_view_offset(view_offset) {}
+
+    ov::PartialShape get_input_shape(const std::string& name) const override {
+        const auto it = m_captured_shapes.find(name);
+        return it == m_captured_shapes.end() ? SingleOpDecoder::get_input_shape(name) : it->second;
+    }
+
+    int64_t get_input_view_element_offset(const std::string&) const override {
+        return m_view_offset;
+    }
+
+private:
+    std::map<std::string, ov::PartialShape> m_captured_shapes;
+    int64_t m_view_offset;
+};
+
+static std::shared_ptr<ov::Model> build_captured_op(
+    const SingleOpBuilder& builder,
+    const std::map<std::string, ov::PartialShape>& captured_shapes,
+    int64_t view_offset = 0) {
+    std::shared_ptr<GgufDecoder> decoder =
+        std::make_shared<CapturedInputDecoder>(builder.decoder(), captured_shapes, view_offset);
+    FrontEnd fe;
+    return fe.convert(fe.load(decoder));
+}
+
 // ── Elementwise binary ops (two equally-shaped f32 inputs) ──────────────────────
 // add / mul / sub / div share the exact same graph shape and driver, so they are
 // parameterized over (op type, reference lambda) rather than duplicated.
@@ -3814,4 +3848,212 @@ TEST(GGUFOps, ReferenceReshapeTracksSpatialDimensions) {
         {{"x", make_f32_tensor({1, 1, 3, 15}, values)}, {"reference", make_f32_tensor({1, 3, 3, 5}, values)}});
     EXPECT_EQ(result.get_shape(), (ov::Shape{1, 3, 3, 5}));
     expect_near(result, values);
+}
+
+TEST(GGUFOps, ViewRawStridesDenseCropAndDynamicReuse) {
+    // First exercise a dense byte-offset slice whose output uses a different row width.
+    auto dense = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("x", ov::element::f32, {1, 1, 3, 4})
+                     .output("out", ov::element::f32, {1, 1, 2, 3})
+                     .attr("view_input_strides", std::vector<int64_t>{4, 16, 48, 48})
+                     .attr("view_output_strides", std::vector<int64_t>{4, 12, 24, 24})
+                     .attr("view_offset_bytes", int64_t{8})
+                     .build();
+    auto dense_out =
+        run_on_cpu(dense, {{"x", make_f32_tensor({1, 1, 3, 4}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})}});
+    ASSERT_EQ(dense_out.get_shape(), (ov::Shape{1, 1, 2, 3}));
+    expect_near(dense_out, {2, 3, 4, 5, 6, 7}, 0.0f, 0.0f);
+
+    // Dense re-layout, rectangular crop, fixed capture-size crop, and stepped columns.
+    for (int variant : {0, 1, 2, 3}) {
+        SCOPED_TRACE(variant);
+        const bool fixed = variant == 2;
+        const int64_t captured_tokens = fixed ? 1 : 2;
+        const ov::PartialShape captured{1, 1, captured_tokens, 6};
+        const ov::PartialShape output = variant == 0 ? ov::PartialShape{1, 2, 3, 2}
+                                                    : ov::PartialShape{1, 1, captured_tokens, fixed ? 6 : 3};
+        const std::vector<int64_t> input_strides{4, 24, 24 * captured_tokens, 24 * captured_tokens};
+        const auto output_strides = variant == 0   ? std::vector<int64_t>{4, 8, 24, 48}
+                                    : variant == 3 ? std::vector<int64_t>{8, 24, 48, 48}
+                                                   : input_strides;
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_VIEW")
+                           .input("x", ov::element::f32, {1, 1, ov::Dimension(1, -1), 6})
+                           .output("out", ov::element::f32, output)
+                           .attr("view_input_strides", input_strides)
+                           .attr("view_output_strides", output_strides)
+                           .attr("view_offset_bytes", int64_t{variant == 1 ? 4 : 0})
+                           .attr("output_dynamic_axis", fixed ? -1 : variant == 0 ? 1 : 2);
+        auto model = build_captured_op(builder, {{"x", captured}});
+        ov::Core core;
+        auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (size_t tokens : {2u, 5u, 1u}) {
+            SCOPED_TRACE(tokens);
+            std::vector<float> values(tokens * 6);
+            for (size_t i = 0; i < values.size(); ++i)
+                values[i] = static_cast<float>(100 * tokens + i);
+            request.set_tensor("x", make_f32_tensor({1, 1, tokens, 6}, values));
+            request.infer();
+            const ov::Shape expected_shape = variant == 0 ? ov::Shape{1, tokens, 3, 2}
+                                            : fixed      ? ov::Shape{1, 1, 1, 6}
+                                                         : ov::Shape{1, 1, tokens, 3};
+            ASSERT_EQ(request.get_output_tensor().get_shape(), expected_shape);
+            std::vector<float> expected;
+            if (variant == 0) {
+                expected = values;
+            } else if (fixed) {
+                expected.assign(values.begin(), values.begin() + 6);
+            } else {
+                for (size_t t = 0; t < tokens; ++t)
+                    for (size_t d = 0; d < 3; ++d)
+                        expected.push_back(values[t * 6 + (variant == 1 ? d + 1 : 2 * d)]);
+            }
+            expect_near(request.get_output_tensor(), expected, 0.0f, 0.0f);
+        }
+    }
+}
+
+TEST(GGUFOps, ViewRawInvalidStridesAreRejected) {
+    for (const auto& strides : {std::vector<int64_t>{6, 16, 32, 32},
+                                std::vector<int64_t>{0, 16, 32, 32},
+                                std::vector<int64_t>{-4, 16, 32, 32}}) {
+        SCOPED_TRACE(::testing::PrintToString(strides));
+        try {
+            SingleOpBuilder()
+                .op("GGML_OP_VIEW")
+                .input("x", ov::element::f32, {1, 1, 2, 4})
+                .output("out", ov::element::f32, {1, 1, 2, 2})
+                .attr("view_input_strides", std::vector<int64_t>{4, 16, 32, 32})
+                .attr("view_output_strides", strides)
+                .attr("view_offset_bytes", int64_t{0})
+                .build();
+            FAIL() << "Invalid VIEW strides were accepted";
+        } catch (const std::exception& error) {
+            EXPECT_NE(std::string(error.what()).find("Unsupported VIEW layout"), std::string::npos) << error.what();
+        }
+        try {
+            SingleOpBuilder()
+                .op("GGML_OP_VIEW")
+                .input("x", ov::element::f32, {1, 1, 4, 4})
+                .output("out", ov::element::f32, {1, 1, 2, 3})
+                .attr("view_input_strides", std::vector<int64_t>{4, 16, 64, 64})
+                .attr("view_output_strides", std::vector<int64_t>{4, 16, 64, 64})
+                .attr("view_offset_bytes", int64_t{8})
+                .build();
+            FAIL() << "A row-crossing VIEW must not be silently flattened to contiguous elements 2..7";
+        } catch (const std::exception& error) {
+            EXPECT_NE(std::string(error.what()).find("Unsupported VIEW layout"), std::string::npos) << error.what();
+        }
+    }
+}
+
+// A non-dense view of a dense source (columns 2..5 of every [6]-wide token row, as a merged QKV
+// projection slice [head_size=2, n_head=2, tokens]) is regrouped into a stride grid and sliced.
+TEST(GGUFOps, ViewNonDenseSliceOfDenseSource) {
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_VIEW")
+                       .input("x", ov::element::f32, {1, 1, ov::Dimension(1, -1), 6})
+                       .output("out", ov::element::f32, {1, 2, 2, 2})
+                       .attr("view_input_strides", std::vector<int64_t>{4, 24, 48, 48})
+                       .attr("view_output_strides", std::vector<int64_t>{4, 8, 24, 48})
+                       .attr("view_offset_bytes", int64_t{8})
+                       .attr("output_dynamic_axis", 1);
+    auto model = build_captured_op(builder, {{"x", {1, 1, 2, 6}}});
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (size_t tokens : {2u, 5u, 1u}) {
+        SCOPED_TRACE(tokens);
+        std::vector<float> values(tokens * 6), expected;
+        for (size_t i = 0; i < values.size(); ++i)
+            values[i] = static_cast<float>(100 * tokens + i);
+        for (size_t t = 0; t < tokens; ++t)
+            for (size_t c = 2; c < 6; ++c)
+                expected.push_back(values[t * 6 + c]);
+        request.set_tensor("x", make_f32_tensor({1, 1, tokens, 6}, values));
+        request.infer();
+        ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, tokens, 2, 2}));
+        expect_near(request.get_output_tensor(), expected, 0.0f, 0.0f);
+    }
+}
+
+// A KV-cache read with runtime bounds: the live length and the first stream are operands, so one
+// compiled model serves every batch. Cache [streams=2, cells=3, features=4], heads 2 x head_size 2.
+TEST(GGUFOps, ViewKvCacheRuntimeBounds) {
+    const size_t streams = 2, cells = 3, width = 4, heads = 2, head_size = 2;
+    std::vector<float> cache(streams * cells * width);
+    for (size_t i = 0; i < cache.size(); ++i)
+        cache[i] = static_cast<float>(i);
+    for (bool transposed : {false, true}) {
+        SCOPED_TRACE(transposed);
+        // Transposed (`-fa off` V): each stream holds `cells` values per feature, cells innermost, and the
+        // view's OV order is [streams, head_size, heads, cells].
+        const std::vector<int64_t> order =
+            transposed ? std::vector<int64_t>{0, 3, 2, 1} : std::vector<int64_t>{0, 1, 2, 3};
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_VIEW")
+                         .input("cache", ov::element::f32, {1, streams, cells, width})
+                         .input("length", ov::element::i64, {1})
+                         .input("first", ov::element::i64, {1})
+                         .output("out", ov::element::f32, {1, -1, heads, head_size})
+                         .attr("kv_view",
+                               std::vector<int64_t>{2, 4, 2, 2, 1, 0, transposed ? 1 : 0, order[0], order[1], order[2],
+                                                    order[3], 3})
+                         .build();
+        ov::Core core;
+        auto request =
+            core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+        for (auto bounds : {std::pair<int64_t, int64_t>{2, 1}, {3, 0}, {1, 1}}) {
+            const int64_t length = bounds.first, first = bounds.second;
+            SCOPED_TRACE(length);
+            ov::Tensor length_tensor(ov::element::i64, {1});
+            ov::Tensor first_tensor(ov::element::i64, {1});
+            length_tensor.data<int64_t>()[0] = length;
+            first_tensor.data<int64_t>()[0] = first;
+            request.set_tensor("cache", make_f32_tensor({1, streams, cells, width}, cache));
+            request.set_tensor("length", length_tensor);
+            request.set_tensor("first", first_tensor);
+            request.infer();
+            const auto at = [&](size_t c, size_t h, size_t d) {
+                const size_t base = static_cast<size_t>(first) * cells * width;
+                return transposed ? cache[base + (h * head_size + d) * cells + c]
+                                  : cache[base + c * width + h * head_size + d];
+            };
+            std::vector<float> expected;
+            if (transposed) {
+                for (size_t d = 0; d < head_size; ++d)
+                    for (size_t h = 0; h < heads; ++h)
+                        for (size_t c = 0; c < static_cast<size_t>(length); ++c)
+                            expected.push_back(at(c, h, d));
+            } else {
+                for (size_t c = 0; c < static_cast<size_t>(length); ++c)
+                    for (size_t h = 0; h < heads; ++h)
+                        for (size_t d = 0; d < head_size; ++d)
+                            expected.push_back(at(c, h, d));
+            }
+            expect_near(request.get_output_tensor(0), expected, 0.0f, 0.0f);
+        }
+    }
+}
+
+// whisper's flat KV buffer: a static-length read starting at a whole row, laid out [1, heads, cells, dim].
+TEST(GGUFOps, ViewKvCacheFlatBufferRowBase) {
+    std::vector<float> buffer(4 * 4);
+    for (size_t i = 0; i < buffer.size(); ++i)
+        buffer[i] = static_cast<float>(i);
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("buffer", ov::element::f32, {1, 1, 1, 16})
+                     .output("out", ov::element::f32, {1, 2, 2, 2})
+                     .attr("kv_view", std::vector<int64_t>{1, 4, 2, 2, 1, 1, 0, 0, 2, 1, 3, 2})
+                     .build();
+    auto out = run_on_cpu(model, {{"buffer", make_f32_tensor({1, 1, 1, 16}, buffer)}});
+    std::vector<float> expected;
+    for (size_t h = 0; h < 2; ++h)
+        for (size_t c = 0; c < 2; ++c)
+            for (size_t d = 0; d < 2; ++d)
+                expected.push_back(buffer[(1 + c) * 4 + h * 2 + d]);
+    expect_near(out, expected, 0.0f, 0.0f);
 }
