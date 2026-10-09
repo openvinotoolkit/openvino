@@ -504,18 +504,7 @@ protected:
             m_padded_strides.clear();
             return;
         }
-        const auto owner_rank = std::min(owner_strides.size(), m_shape.size());
-        auto pad = m_shape.size() - owner_rank;
-        m_padded_strides.resize(m_shape.size());
-        if (!owner_strides.empty()) {
-            std::copy(owner_strides.end() - owner_rank, owner_strides.end(), m_padded_strides.begin() + pad);
-        } else {
-            m_padded_strides.back() = m_owner->get_element_type().size();
-            pad = m_shape.size() - 1;
-        }
-        for (size_t i = pad; i > 0; --i) {
-            m_padded_strides[i - 1] = m_shape[i] * m_padded_strides[i];
-        }
+        m_padded_strides = m_owner->get_strides_for_shape(m_shape);
     }
 
     std::shared_ptr<ITensor> m_owner;
@@ -603,7 +592,8 @@ public:
     }
 
     void copy_to(const std::shared_ptr<ov::ITensor>& dst) const override {
-        auto owner_remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
+        OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
+        const auto [owner_remote_tensor, offset] = get_owner_and_offset();
 
         if (std::dynamic_pointer_cast<RoiRemoteTensor>(dst)) {
             OPENVINO_ASSERT(get_shape() == dst->get_shape(),
@@ -614,17 +604,16 @@ public:
                             ")");
 
             auto dst_roi_remote_tensor = std::dynamic_pointer_cast<RoiRemoteTensor>(dst);
-            owner_remote_tensor->copy_to(dst_roi_remote_tensor->m_owner,
-                                         get_offset(),
-                                         dst_roi_remote_tensor->get_offset(),
-                                         m_shape);
+            const auto [dst_owner, dst_offset] = dst_roi_remote_tensor->get_owner_and_offset();
+            owner_remote_tensor->copy_to(dst_owner, offset, dst_offset, m_shape);
         } else {
-            owner_remote_tensor->copy_to(dst, get_offset(), 0, m_shape);
+            owner_remote_tensor->copy_to(dst, offset, 0, m_shape);
         }
     };
 
     void copy_from(const std::shared_ptr<const ov::ITensor>& src) override {
-        auto owner_remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
+        OPENVINO_ASSERT(src, "Source tensor was not initialized.");
+        const auto [owner_remote_tensor, offset] = get_owner_and_offset();
 
         OPENVINO_ASSERT(src->get_shape() == get_shape(),
                         "Cannot copy to RoiRemoteTensor. Shapes are not equal. (src: ",
@@ -635,12 +624,10 @@ public:
 
         if (std::dynamic_pointer_cast<const RoiRemoteTensor>(src)) {
             const auto src_roi_remote_tensor = std::dynamic_pointer_cast<const RoiRemoteTensor>(src);
-            owner_remote_tensor->copy_from(src_roi_remote_tensor->m_owner,
-                                           src_roi_remote_tensor->get_offset(),
-                                           get_offset(),
-                                           m_shape);
+            const auto [src_owner, src_offset] = src_roi_remote_tensor->get_owner_and_offset();
+            owner_remote_tensor->copy_from(src_owner, src_offset, offset, m_shape);
         } else {
-            owner_remote_tensor->copy_from(src, 0, get_offset(), m_shape);
+            owner_remote_tensor->copy_from(src, 0, offset, m_shape);
         }
     };
 
@@ -652,6 +639,17 @@ public:
     const std::string& get_device_name() const override {
         auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(m_owner);
         return remote_tensor->get_device_name();
+    }
+
+private:
+    std::pair<std::shared_ptr<IRemoteTensor>, size_t> get_owner_and_offset() const {
+        auto owner = m_owner;
+        auto offset = get_offset();
+        while (auto roi = std::dynamic_pointer_cast<RoiRemoteTensor>(owner)) {
+            offset += roi->get_offset();
+            owner = roi->m_owner;
+        }
+        return {std::dynamic_pointer_cast<IRemoteTensor>(owner), offset};
     }
 };
 

@@ -41,6 +41,30 @@ size_t ITensor::get_byte_size() const {
     return util::get_memory_size(get_element_type(), get_size());
 }
 
+Strides ITensor::get_strides_for_shape(const Shape& shape) const {
+    const auto& strides = get_strides();
+    OPENVINO_ASSERT(strides.size() == get_shape().size(), "Tensor strides rank must match shape rank.");
+    Strides result(shape.size());
+    const auto rank = std::min(shape.size(), strides.size());
+    for (size_t i = 0; i < rank; ++i) {
+        OPENVINO_ASSERT(shape[shape.size() - rank + i] <= get_shape()[strides.size() - rank + i],
+                        "ROI shape exceeds tensor shape.");
+    }
+    std::copy(strides.end() - rank, strides.end(), result.end() - rank);
+    auto pad = shape.size() - rank;
+    for (size_t i = 0; i < pad; ++i) {
+        OPENVINO_ASSERT(shape[i] <= 1, "Additional leading ROI dimensions must be singleton or empty dimensions.");
+    }
+    if (rank == 0 && !result.empty()) {
+        result.back() = get_element_type().size();
+        --pad;
+    }
+    for (size_t i = pad; i > 0; --i) {
+        result[i - 1] = shape[i] * result[i];
+    }
+    return result;
+}
+
 bool ITensor::is_continuous() const {
     if ((get_element_type().bitwidth() < 8) || get_size() == 0) {
         // OpenVINO doesn't support strides for lp types

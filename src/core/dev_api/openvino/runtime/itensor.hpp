@@ -50,6 +50,13 @@ public:
     virtual const ov::Strides& get_strides() const = 0;
 
     /**
+     * @brief Returns byte strides aligned to a ROI shape's trailing dimensions.
+     * @note Additional leading ROI dimensions must be singleton or empty dimensions.
+     * @param shape ROI shape
+     */
+    ov::Strides get_strides_for_shape(const ov::Shape& shape) const;
+
+    /**
      * @brief Provides an access to the underlying host memory
      * @return A host pointer to tensor memory
      * @{

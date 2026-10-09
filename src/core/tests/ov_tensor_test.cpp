@@ -961,6 +961,72 @@ TEST_F(OVTensorTest, copyLowPrecisionTensorWithoutStrides) {
     EXPECT_EQ(copied_data[1], data[1]);
 }
 
+TEST_F(OVTensorTest, alignRemoteCopyStridesToRoiShape) {
+    auto tensor = ov::make_tensor(ov::element::i32, {4});
+    EXPECT_EQ(tensor->get_strides_for_shape({1, 1, 2}), byteStrides({2, 2, 1}, ov::element::i32));
+    OV_EXPECT_THROW(tensor->get_strides_for_shape({2, 2}), ov::Exception, HasSubstr("leading ROI dimensions"));
+    OV_EXPECT_THROW(tensor->get_strides_for_shape({1, 5}), ov::Exception, HasSubstr("exceeds tensor shape"));
+    tensor->set_shape({1, 2, 2});
+    EXPECT_EQ(tensor->get_strides_for_shape({2, 2}), byteStrides({2, 1}, ov::element::i32));
+    tensor->set_shape({});
+    EXPECT_EQ(tensor->get_strides_for_shape({1, 1}), byteStrides({1, 1}, ov::element::i32));
+    EXPECT_TRUE(tensor->get_strides_for_shape({}).empty());
+}
+
+TEST_F(OVTensorTest, copyExpandedRemoteRoiThroughStridedBackend) {
+    const ov::element::Type type = ov::element::i32;
+    const ov::Shape owner_shape = {4};
+    const ov::Strides owner_strides = byteStrides({1}, type);
+    std::vector<int32_t> remote_data = {1, 2, 3, 4};
+    auto owner = std::make_shared<testing::NiceMock<MockRemoteTensor>>();
+    ON_CALL(*owner, get_element_type()).WillByDefault(testing::ReturnRef(type));
+    ON_CALL(*owner, get_shape()).WillByDefault(testing::ReturnRef(owner_shape));
+    ON_CALL(*owner, get_strides()).WillByDefault(testing::ReturnRef(owner_strides));
+    ON_CALL(*owner, copy_to(_, _, _, _))
+        .WillByDefault(
+            [&](const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& shape) {
+                const auto* src_data = reinterpret_cast<const uint8_t*>(remote_data.data()) + src_offset;
+                auto* dst_data = static_cast<uint8_t*>(dst->data_rw()) + dst_offset;
+                auto src_view = ov::make_tensor(type, shape, src_data, owner->get_strides_for_shape(shape));
+                auto dst_view = ov::make_tensor(type, shape, dst_data, dst->get_strides_for_shape(shape));
+                src_view->copy_to(dst_view);
+            });
+    ON_CALL(*owner, copy_from(_, _, _, _))
+        .WillByDefault([&](const std::shared_ptr<const ov::ITensor>& src,
+                           size_t src_offset,
+                           size_t dst_offset,
+                           const ov::Shape& shape) {
+            const auto* src_data = static_cast<const uint8_t*>(src->data()) + src_offset;
+            auto* dst_data = reinterpret_cast<uint8_t*>(remote_data.data()) + dst_offset;
+            auto src_view = ov::make_tensor(type, shape, src_data, src->get_strides_for_shape(shape));
+            auto dst_view = ov::make_tensor(type, shape, dst_data, owner->get_strides_for_shape(shape));
+            src_view->copy_to(dst_view);
+        });
+
+    auto roi = ov::make_tensor(owner, {1}, {3});
+    const ov::Shape expanded_shape = {1, 1, 2};
+    OV_ASSERT_NO_THROW(roi->set_shape(expanded_shape));
+    std::vector<int32_t> data = {42, -1, 43, -1};
+    auto host = ov::make_tensor(type, expanded_shape, data.data(), byteStrides({4, 4, 2}, type));
+    OV_ASSERT_NO_THROW(host->copy_to(roi));
+    EXPECT_THAT(remote_data, testing::ElementsAre(1, 42, 43, 4));
+    std::fill(data.begin(), data.end(), -1);
+    OV_ASSERT_NO_THROW(roi->copy_to(host));
+    EXPECT_THAT(data, testing::ElementsAre(42, -1, 43, -1));
+
+    auto nested_roi = ov::make_tensor(roi, {0, 0, 1}, {1, 1, 2});
+    auto dst = ov::make_tensor(type, {1, 1, 1});
+    OV_ASSERT_NO_THROW(nested_roi->copy_to(dst));
+    EXPECT_EQ(*dst->data<int32_t>(), 43);
+    *dst->data<int32_t>() = 99;
+    OV_ASSERT_NO_THROW(dst->copy_to(nested_roi));
+    EXPECT_THAT(remote_data, testing::ElementsAre(1, 42, 99, 4));
+    OV_EXPECT_THROW(roi->copy_to(nullptr), ov::Exception, HasSubstr("Destination tensor was not initialized"));
+    OV_EXPECT_THROW(std::dynamic_pointer_cast<ov::IRemoteTensor>(roi)->copy_from(nullptr),
+                    ov::Exception,
+                    HasSubstr("Source tensor was not initialized"));
+}
+
 TEST_F(OVTensorTest, setShapeInvalidExpandRoiRank) {
     ov::Tensor t{ov::element::i32, {16, 16}};
     std::iota(t.data<int32_t>(), t.data<int32_t>() + t.get_size(), 1);
