@@ -185,7 +185,9 @@ public:
     }
 
     void SetUp() override {
+        std::cout << "[CHECK][Manual LOG] RUNNING InferWithHostCompileMultithreadTests???" << std::endl;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::cout << "[CHECK][Manual LOG] InferWithHostCompileMultithreadTests??? is Setup" << std::endl;
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
         if (selectedModelName == "CustomNet") {
@@ -206,6 +208,7 @@ public:
     }
 
     static std::shared_ptr<ov::Model> createModelByName(const std::string& modelName) {
+        std::cout << "[CHECK][Manual LOG] InferWithHostCompileMultithreadTests's createModelByName" << std::endl;
         if (modelName == "CustomNet") {
             return createCustomNetModelMT();
         }
