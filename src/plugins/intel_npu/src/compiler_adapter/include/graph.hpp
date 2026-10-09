@@ -13,6 +13,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "vcl_profiling_decoder.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -26,12 +27,11 @@ public:
           std::optional<ov::Tensor> blob,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false,
-          std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
+          ov::SoPtr<VCLProfilingDecoder> profilingDecoder = {});
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
-    std::optional<ov::Tensor> get_profiling_network() const override;
-    std::shared_ptr<IProfilingDecoder> get_profiling_decoder() const override;
+    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 
     void set_argument_value(uint32_t id, const void* data) const override;
     void set_argument_value_with_strides(uint32_t id,
@@ -91,7 +91,7 @@ protected:
     std::optional<ov::Tensor> _blob;
     std::optional<std::string> _compatibilityDescriptor;
 
-    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
+    ov::SoPtr<VCLProfilingDecoder> _profilingDecoder;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported

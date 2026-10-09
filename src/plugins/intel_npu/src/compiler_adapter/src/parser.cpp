@@ -12,33 +12,29 @@
 #include "vcl_profiling_decoder.hpp"
 #include "weightless_graph.hpp"
 #include "weightless_utils.hpp"
-#include "zero_native_profiling_decoder.hpp"
 
 namespace intel_npu {
 
 namespace {
 
 /**
- * @brief Creates the profiling decoder matching the compiler that produced the blob being imported, or null when
- * PERF_COUNT is disabled.
- * @details update_compiler_type_if_perf_count() (see "blob_format_importers.cpp") resolves PREFER_PLUGIN to a
- * concrete compiler type before "parse" is ever called whenever PERF_COUNT is set, so "config" here already
- * carries the real answer. This keeps the import path free of the VCL compiler library unless profiling on a
- * plugin-compiled blob was actually requested.
+ * @brief Always tries to build a VCL decoder for the blob being imported, regardless of which compiler actually
+ * produced it; Pipeline falls back to the driver's own layer statistics if decoding through it ever fails.
+ * @details Gated on PERF_COUNT only, so import stays free of VCL entirely unless profiling was actually
+ * requested - not because building the decoder is costly: unlike creating a full compiler, it never calls
+ * vclCompilerCreate, so it's safe to attempt without the heavier cost the import path used to pay. Never reads
+ * COMPILER_TYPE: whether this decoder actually applies to the imported blob is settled lazily, the first time
+ * Pipeline tries to decode with it.
  */
-std::shared_ptr<IProfilingDecoder> make_profiling_decoder(const Config& config) {
+ov::SoPtr<VCLProfilingDecoder> make_profiling_decoder(const Config& config) {
     if (!config.get<PERF_COUNT>()) {
-        return nullptr;
+        return {};
     }
 
-    switch (config.get<COMPILER_TYPE>()) {
-    case ov::intel_npu::CompilerType::PLUGIN:
+    try {
         return makeVCLProfilingDecoder();
-    case ov::intel_npu::CompilerType::DRIVER:
-        return std::make_shared<NativeProfilingDecoder>();
-    default:
-        // Unreachable: PREFER_PLUGIN is resolved upstream whenever PERF_COUNT is set.
-        return nullptr;
+    } catch (const std::exception&) {
+        return {};
     }
 }
 

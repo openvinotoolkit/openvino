@@ -42,7 +42,7 @@ public:
                                  std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const bool blobIsPersistent = false,
                     const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
-                    std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
+                    ov::SoPtr<VCLProfilingDecoder> profilingDecoder = {});
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.

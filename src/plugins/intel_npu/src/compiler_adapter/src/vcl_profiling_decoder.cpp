@@ -4,13 +4,15 @@
 
 #include "vcl_profiling_decoder.hpp"
 
+#include <level_zero/ze_api.h>
+#include <ze_graph_ext.h>
+#include <ze_graph_profiling_ext.h>
+
 #include <cstring>
 #include <utility>
 
 #include "intel_npu/profiling.hpp"
 #include "vcl_error_utils.hpp"
-#include "ze_graph_profiling_ext.h"
-#include "zero_profiling.hpp"
 
 namespace intel_npu {
 
@@ -23,13 +25,6 @@ VCLProfilingDecoder::VCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable>
                         _functions->vclProfilingDestroy,
                     "VCLProfilingDecoder received a VCLFunctionTable missing a required profiling entry point. "
                     "Was it populated from a VCLLoader?");
-}
-
-std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const IGraph& graph,
-                                                           const zeroProfiling::ProfilingQuery& query) const {
-    const auto network = graph.get_profiling_network();
-    OPENVINO_ASSERT(network.has_value(), "VCL profiling decoder requires the compiled network blob");
-    return decode(query.getData<uint8_t>(), network.value());
 }
 
 std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uint8_t>& profData,
@@ -85,10 +80,18 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
-std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder() {
+// SoPtr<decoder, vcllib>
+ov::SoPtr<VCLProfilingDecoder> makeVCLProfilingDecoder() {
     auto vclLoader = VCLLoader::getInstance();
     OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-    return std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
+
+    auto decoder = std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
+
+    // Pairing the decoder with the library keeps the .so alive for as long as the decoder is.
+    auto vclLib = vclLoader->getLibrary();
+    OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
+
+    return ov::SoPtr<VCLProfilingDecoder>(decoder, vclLib);
 }
 
 }  // namespace intel_npu

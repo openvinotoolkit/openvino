@@ -22,15 +22,15 @@
 namespace intel_npu {
 
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             ov::SoPtr<IVCLCompiler> compiler)
+                                             ov::SoPtr<IVCLCompiler> compiler,
+                                             ov::SoPtr<VCLProfilingDecoder> profilingDecoder)
     : _zeroInitStruct(zeroInitStruct),
       _compiler(std::move(compiler)),
+      _profilingDecoder(std::move(profilingDecoder)),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
     OPENVINO_ASSERT(_compiler != nullptr, "PluginCompilerAdapter requires a non-null compiler");
-
-    _profilingDecoder = _compiler->createProfilingDecoder();
 
     if (_zeroInitStruct == nullptr) {
         return;

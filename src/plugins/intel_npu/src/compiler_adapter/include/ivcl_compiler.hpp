@@ -15,7 +15,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "zero_profiling_decoder.hpp"
 
 namespace intel_npu {
 
@@ -79,11 +78,6 @@ public:
      */
     virtual bool is_option_supported(const std::string& option,
                                      const std::optional<std::string>& optValue = std::nullopt) const = 0;
-
-    /**
-     * @brief Builds a decoder able to turn this compiler's raw profiling output into ov::ProfilingInfo.
-     */
-    virtual std::shared_ptr<IProfilingDecoder> createProfilingDecoder() const = 0;
 };
 
 }  // namespace intel_npu

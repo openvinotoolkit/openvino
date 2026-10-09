@@ -88,12 +88,6 @@ void Pipeline::configure_profiling() {
         }
     };
 
-    const auto create_profiling_decoder = [this]() {
-        _profiling_decoder = _graph->get_profiling_decoder();
-        OPENVINO_ASSERT(_profiling_decoder != nullptr,
-                        "Graph does not provide a profiling decoder, but model-level profiling is enabled");
-    };
-
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
@@ -126,13 +120,10 @@ void Pipeline::configure_profiling() {
                     _logger.warning(
                         "IPipeline - model was compiled with layer profiling enabled, PERF_COUNT is NOT set and "
                         "statistics will not be extracted");
-                } else {
-                    create_profiling_decoder();
                 }
                 enable_profiling();
             }
         } else if (perf_count_enabled) {  // unable to determine if it was compiled with profiling enabled
-            create_profiling_decoder();
             enable_profiling();
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
@@ -149,9 +140,20 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
         _logger.debug("get_profiling_info - completed with _npu_profiling->getNpuInferStatistics()");
         return _npu_profiling->getNpuInferStatistics();
     }
+
     /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    OPENVINO_ASSERT(_profiling_decoder != nullptr, "Profiling decoder is unavailable for model-level profiling");
-    return _profiling_decoder->decode(*_graph, *_profiling_query);
+    OPENVINO_ASSERT(_profiling_query != nullptr, "Profiling query is unavailable for model-level profiling");
+
+    // Always try the graph's own (compiler-specific) decode first; if it throws - e.g. no decoder is
+    // available, or the raw data doesn't match what the decoder expects - fall back to the driver's own
+    // layer statistics.
+    try {
+        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
+    } catch (const std::exception& ex) {
+        _logger.debug("get_profiling_info - graph-level decode unavailable (%s), falling back to L0 layer statistics",
+                      ex.what());
+        return _profiling_query->getLayerStatistics();
+    }
 }
 
 Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,

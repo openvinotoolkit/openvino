@@ -8,6 +8,7 @@
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "plugin_compiler_adapter.hpp"
+#include "vcl_profiling_decoder.hpp"
 
 namespace intel_npu {
 
@@ -45,7 +46,8 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
         return std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                       makePluginCompiler(device, optionSupportCache));
+                                                       makePluginCompiler(device, optionSupportCache),
+                                                       makeVCLProfilingDecoder());
     }
 
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
@@ -116,7 +118,8 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         try {
             auto pluginCompiler =
                 std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                        makePluginCompiler(device, optionSupportCache));
+                                                        makePluginCompiler(device, optionSupportCache),
+                                                        makeVCLProfilingDecoder());
             _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
             return {std::move(pluginCompiler), ov::intel_npu::CompilerType::PLUGIN};
         } catch (...) {

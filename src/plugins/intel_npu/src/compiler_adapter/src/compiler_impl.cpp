@@ -23,7 +23,6 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "vcl_error_utils.hpp"
-#include "vcl_profiling_decoder.hpp"
 #include "vcl_version_utils.hpp"
 #include "weightless_utils.hpp"
 #include "ze_graph_ext_wrappers.hpp"
@@ -588,10 +587,6 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     }
 
     return supported;
-}
-
-std::shared_ptr<IProfilingDecoder> VCLCompilerImpl::createProfilingDecoder() const {
-    return std::make_shared<VCLProfilingDecoder>(_functions);
 }
 
 namespace {

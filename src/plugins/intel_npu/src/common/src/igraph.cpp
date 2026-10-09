@@ -12,12 +12,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IGraph::export_blob(st
     OPENVINO_THROW("export_blob not implemented");
 }
 
-std::optional<ov::Tensor> IGraph::get_profiling_network() const {
-    return std::nullopt;
-}
-
-std::shared_ptr<IProfilingDecoder> IGraph::get_profiling_decoder() const {
-    return nullptr;
+std::vector<ov::ProfilingInfo> IGraph::process_profiling_output(const std::vector<uint8_t>&) const {
+    OPENVINO_THROW("process_profiling_output not implemented");
 }
 
 void IGraph::set_argument_value(uint32_t, const void*) const {

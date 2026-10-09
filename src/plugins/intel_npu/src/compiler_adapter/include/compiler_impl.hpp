@@ -111,8 +111,6 @@ public:
     bool is_option_supported(const std::string& option,
                              const std::optional<std::string>& optValue = std::nullopt) const override;
 
-    std::shared_ptr<IProfilingDecoder> createProfilingDecoder() const override;
-
 private:
     /**
      * @brief Compiles the given model according to the given configuration. During the model serialization step,

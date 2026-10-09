@@ -20,7 +20,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent,
-             std::shared_ptr<IProfilingDecoder> profilingDecoder)
+             ov::SoPtr<VCLProfilingDecoder> profilingDecoder)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -150,12 +150,10 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     return std::make_pair(size, std::nullopt);
 }
 
-std::optional<ov::Tensor> Graph::get_profiling_network() const {
-    return _blob;
-}
-
-std::shared_ptr<IProfilingDecoder> Graph::get_profiling_decoder() const {
-    return _profilingDecoder;
+std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
+    OPENVINO_ASSERT(_profilingDecoder != nullptr, "No VCL profiling decoder is available for this graph");
+    OPENVINO_ASSERT(_blob.has_value(), "VCL profiling decoder requires the compiled network blob");
+    return _profilingDecoder->decode(profData, _blob.value());
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {

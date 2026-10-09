@@ -5,6 +5,8 @@
 #include "vcl_profiling_decoder.hpp"
 
 #include <gtest/gtest.h>
+#include <level_zero/ze_api.h>
+#include <ze_graph_ext.h>
 #include <ze_graph_profiling_ext.h>
 
 #include <memory>
