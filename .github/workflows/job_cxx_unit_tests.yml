@@ -35,6 +35,11 @@ on:
         type: string
         required: false
         default: 'push'
+      gguf-matrix:
+        description: 'Use the installed validation runner for Linux x64 GGUF suites with generated fixtures'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -128,14 +133,23 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
 
+      - name: GGUF validation matrix
+        if: ${{ inputs.gguf-matrix && fromJSON(inputs.affected-components).GGUF_FE.test }}
+        run: |
+          source "${SETUPVARS}"
+          python3 "${INSTALL_TEST_DIR}/gguf_validation/make_ci_matrix.py" \
+            --install-dir "${INSTALL_DIR}" --output "${INSTALL_TEST_DIR}/gguf-matrix.json"
+          python3 "${INSTALL_TEST_DIR}/gguf_validation/run_matrix.py" \
+            "${INSTALL_TEST_DIR}/gguf-matrix.json" --output "${INSTALL_TEST_DIR}/gguf-matrix-results"
+
       - name: GGUF frontend tests
-        if: fromJSON(inputs.affected-components).GGUF_FE.test
+        if: ${{ !inputs.gguf-matrix && fromJSON(inputs.affected-components).GGUF_FE.test }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_gguf_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GGUFFrontend.xml
 
       - name: GGUF architecture library tests
-        if: fromJSON(inputs.affected-components).GGUF_FE.test
+        if: ${{ !inputs.gguf-matrix && fromJSON(inputs.affected-components).GGUF_FE.test }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_gguf_architecture_library_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GGUFArchitectureLibrary.xml
@@ -292,5 +306,8 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/gguf-matrix.json
+            ${{ env.INSTALL_TEST_DIR }}/gguf-matrix-results/
           if-no-files-found: 'warn'

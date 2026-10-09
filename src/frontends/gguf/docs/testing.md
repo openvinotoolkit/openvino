@@ -114,6 +114,10 @@ does not erase a failed comparison against quantized CPU arithmetic, and coheren
 does not establish encoder accuracy or broad answer quality.
 
 CI runs the two C++ binaries through [Smart CI's GGUF component gate](../../../../.github/workflows/job_cxx_unit_tests.yml).
+Ubuntu x64 jobs use [run_matrix.py](../tests/run_matrix.py), installed with the test artifact,
+to enforce report counts/skips and retain logs. See the [runner contract](validation-runner.md)
+for the same local command and artifact-only manifests. Its behavioral tests live in
+`tests/test_run_matrix.py` and run in Linux build CI.
 [Model-hub CI](../../../../.github/workflows/job_gguf_models_tests.yml) runs checkpoint lists;
 [llama.cpp compatibility CI](../../../../.github/workflows/job_gguf_llamacpp_validation.yml) records
 the backend revision, operator tests, state scenarios, and exclusions. These validate different contracts.

@@ -1,0 +1,4 @@
+{
+  "artifact_revision": "@CI_BUILD_NUMBER@",
+  "build_type": "@CMAKE_BUILD_TYPE@"
+}

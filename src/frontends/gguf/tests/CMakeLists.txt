@@ -160,6 +160,15 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
             PATTERN "*.npz"
             PATTERN "manifest.txt")
 
+configure_file(ci_build_info.json.in ci_build_info.json @ONLY)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/run_matrix.py"
+              "${CMAKE_CURRENT_SOURCE_DIR}/matrix_reports.py"
+              "${CMAKE_CURRENT_SOURCE_DIR}/make_ci_matrix.py"
+              "${CMAKE_CURRENT_BINARY_DIR}/ci_build_info.json"
+        DESTINATION tests/gguf_validation
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
 # tests/model_hub_tests/gguf/test_gguf_mmproj.py builds this oracle and reuses these helpers.
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/mmproj_oracle.cpp"
               "${CMAKE_CURRENT_SOURCE_DIR}/mmproj_fixtures.py"

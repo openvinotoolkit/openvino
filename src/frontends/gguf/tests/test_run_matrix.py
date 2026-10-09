@@ -150,6 +150,49 @@ class MatrixTest(unittest.TestCase):
         self.run_batch(2)
         self.assertFalse((self.root / "escape.json").exists())
 
+    def test_artifact_validation_requires_revision_and_inputs(self):
+        self.data["repositories"] = []
+        self.run_batch(2)
+        self.data["context"]["artifact_revision"] = "test-build"
+        self.run_batch(2)
+        self.data["inputs"] = [str(self.model)]
+        self.run_batch()
+        self.assertEqual(self.record()["provenance"]["repositories"], {})
+        first = self.record()
+        self.model.write_bytes(b"new artifact")
+        self.run_batch()
+        self.assertNotEqual(self.record()["log"], first["log"])
+
+    def test_ci_manifest_runs_installed_suites_without_checkout(self):
+        install = self.root / "install"
+        tests = install / "tests"
+        scripts = tests / "gguf_validation"
+        scripts.mkdir(parents=True)
+        for name in ("run_matrix.py", "matrix_reports.py", "make_ci_matrix.py"):
+            shutil.copyfile(RUNNER.with_name(name), scripts / name)
+        (scripts / "ci_build_info.json").write_text(json.dumps({"artifact_revision": "test-build"}))
+        for name, count in (("ov_gguf_frontend_tests", 511), ("ov_gguf_architecture_library_tests", 1)):
+            binary = tests / name
+            xml = "<testsuites>" + "<testcase/>" * count + "</testsuites>"
+            binary.write_text(f"#!{sys.executable}\nimport sys\nfrom pathlib import Path\n"
+                              f"Path(sys.argv[-1].split('xml:',1)[1]).write_text({xml!r})\n")
+            binary.chmod(0o755)
+        fixture = tests / "test_data/arch_fixtures/sample.gguf.hdr"
+        fixture.parent.mkdir(parents=True)
+        fixture.write_bytes(b"fixture")
+        library = install / "runtime/libopenvino.so"
+        library.parent.mkdir()
+        library.write_bytes(b"runtime")
+        subprocess.run([sys.executable, str(scripts / "make_ci_matrix.py"), "--install-dir", str(install),
+                        "--output", str(self.manifest)], check=True, capture_output=True)
+        self.data = json.loads(self.manifest.read_text())
+        self.runner = scripts / "run_matrix.py"
+        self.assertIn(str(fixture), self.data["inputs"])
+        self.assertIn(str(library), self.data["inputs"])
+        self.run_batch()
+        self.assertEqual(self.record("frontend")["artifacts"][0]["audit"]["tests"], 511)
+        self.assertEqual(self.record("architecture-library")["artifacts"][0]["audit"]["tests"], 1)
+
     def test_output_setup_errors_return_two(self):
         parent = self.root / "file"
         parent.write_text("not a directory")

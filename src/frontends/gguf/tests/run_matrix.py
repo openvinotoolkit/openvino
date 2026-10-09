@@ -72,8 +72,12 @@ def save(path, value):
 def validate(manifest):
     if manifest.get("version") != 1 or not isinstance(manifest.get("context"), dict) or not manifest["context"]:
         raise ValueError("Expected version 1 and a nonempty context object")
-    if not isinstance(manifest.get("repositories"), list) or not manifest["repositories"]:
-        raise ValueError("Expected at least one repository")
+    if not isinstance(manifest.get("repositories"), list):
+        raise ValueError("Expected a repositories array")
+    if not manifest["repositories"] and (
+            not isinstance(manifest["context"].get("artifact_revision"), str) or
+            not manifest["context"]["artifact_revision"].strip() or not manifest.get("inputs")):
+        raise ValueError("Without a checkout, require artifact_revision and artifact inputs")
     for repo in manifest["repositories"]:
         absolute_path(repo, directory=True)
     cases = manifest.get("cases")

@@ -3,13 +3,13 @@
 Use this optional helper for long GGUF validation batches. It launches existing test
 harnesses in manifest order; the report kind selects the checks applied afterward.
 There is no built-in test list: the manifest selects all commands, models and backends.
-The runner handles execution and checkpoints; [matrix_reports.py](../scripts/matrix_reports.py)
+The runner handles execution and checkpoints; [matrix_reports.py](../tests/matrix_reports.py)
 handles GTest and GGUF report validation.
 
 Run with Python 3.9+ on Linux:
 
 ```bash
-python3 /path/to/openvino/.claude/skills/ov-gguf/scripts/run_matrix.py \
+python3 /path/to/openvino/src/frontends/gguf/tests/run_matrix.py \
   /absolute/path/matrix.json --output /absolute/path/results
 ```
 
@@ -64,9 +64,11 @@ without a shell. Use a wrapper file as an input if shell setup is necessary.
 }
 ```
 
-`context` is required descriptive provenance. `repositories` must contain at
-least one checkout; include relevant submodules as separate entries if validating
-local changes inside them. `inputs` lists files whose contents affect every case;
+`context` is required descriptive provenance. `repositories` lists checkouts;
+include relevant submodules as separate entries if validating local changes inside them.
+For installed-artifact CI without a checkout, use an empty array, record a nonempty
+`context.artifact_revision`, and supply artifact files in top-level `inputs`.
+`inputs` lists files whose contents affect every case;
 per-case `inputs` restrict invalidation to affected cases. Include test wrappers,
 untracked source dependencies, fixtures/datasets, baselines,
 configuration, and all runtime binaries relevant to the claim. Files are hashed
@@ -171,3 +173,27 @@ metrics and unexpected skips; inspect its report before claiming scenario covera
 Completed results survive interruption. A timeout or interrupt terminates the
 case's process group. Failed logs contain raw diagnostics for the worker to
 classify; the runner does not infer root causes or alter acceptance criteria.
+
+## GitHub Actions
+
+Ubuntu 22 and 24 x64 C++ jobs run the same helper from the installed test artifact
+under `tests/gguf_validation/`. `make_ci_matrix.py` creates a manifest for the full
+frontend suite (511 selected, at most one optional real-embedding skip) and the
+architecture-library suite (one test, no skips). Update these counts when adding
+or removing test cases. Generated architecture fixtures are required for this coverage;
+their absence causes skips beyond the allowance and fails the matrix.
+
+CMake packages the runner, report helper, manifest generator and build revision.
+The manifest fingerprints installed shared libraries, test binaries and fixtures;
+it needs no source checkout or Git executable. CI uploads the manifest, per-case logs,
+checkpoints and report snapshots alongside the normal GTest XML. Other platforms keep
+their direct C++ commands. The Linux build job runs the helper's self-tests.
+
+For a local installed package with generated fixtures:
+
+```bash
+python3 src/frontends/gguf/tests/make_ci_matrix.py \
+  --install-dir /absolute/path/install --output /absolute/path/matrix.json
+python3 src/frontends/gguf/tests/run_matrix.py \
+  /absolute/path/matrix.json --output /absolute/path/results
+```
