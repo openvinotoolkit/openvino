@@ -139,7 +139,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      optional_a_zp,
                                                                      optional_precomputed_reduction,
                                                                      output_type,
-                                                                     m_fc->get_transpose_b());
+                                                                     m_fc->get_transpose_b(),
+                                                                     m_fc->get_transpose_b_scale(),
+                                                                     m_fc->get_transpose_b_zp());
 
         ov::replace_node(m_fc, new_fc);
 

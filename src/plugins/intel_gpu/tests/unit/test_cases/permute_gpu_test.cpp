@@ -7,6 +7,7 @@
 #include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/implementation_desc.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>

@@ -104,6 +104,7 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::UINT2);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
@@ -111,6 +112,7 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::UINT2);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableDifferentTypes();
@@ -168,6 +170,8 @@ bool PermuteKernelRef::Validate(const Params& p) const {
 
 JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
+    jit.AddConstant(MakeJitConstant("UINT2_INPUT", params.inputs[0].GetDType() == Datatype::UINT2));
+    jit.AddConstant(MakeJitConstant("UINT2_OUTPUT", params.outputs[0].GetDType() == Datatype::UINT2));
     std::vector<std::string> in_idx;
     std::vector<std::string> permute_out_idx;
 
