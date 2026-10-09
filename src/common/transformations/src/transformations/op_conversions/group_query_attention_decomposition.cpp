@@ -147,14 +147,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
     const bool shared_kv = node->is_shared_kv();
-    // A separate key/value input with a dynamic length may resolve to 0 at runtime (ORT shared KV,
-    // kv_sequence_length == 0), so its own length drives the cache arithmetic: the past keeps total - S_kv rows
-    // (total for shared KV, total - S_q otherwise) while the causal offset stays total - S_q. Packed QKV (Q/K/V
-    // split from one tensor) and static shapes always have S_kv == S_q and keep the S_q-based graph unchanged.
-    const auto& key_ps = node->get_input_partial_shape(static_cast<size_t>(GQAInputs::KEY));
-    const bool packed_qkv = node->input_value(0).get_node() == node->input_value(1).get_node();
-    const bool dynamic_kv_len = !shared_kv && !packed_qkv && key_ps.rank().is_static() &&
-                                key_ps.rank().get_length() == 4 && key_ps[2].is_dynamic();
+    // A separate key/value with a dynamic length may resolve to 0 at runtime (ORT shared KV), so its own length
+    // drives the cache arithmetic: the past keeps total - S_kv rows while the causal offset stays total - S_q.
+    const bool dynamic_kv_len = node->has_dynamic_kv_length();
     const auto kv_seqlen = dynamic_kv_len ? get_dimensions(register_new_node<v3::ShapeOf>(K), {2}) : nullptr;
     const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
     const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
