@@ -344,6 +344,16 @@ struct EltwiseEmitter {
 };
 
 template <>
+struct EltwiseEmitter<jit_divide_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_divide_emitter>(ctx.host,
+                                                           ctx.host_isa,
+                                                           ctx.opData.pythondiv,
+                                                           ctx.exec_prc);
+    }
+};
+
+template <>
 struct EltwiseEmitter<jit_dnnl_aux_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         auto algKind = static_cast<dnnl_alg_kind_t>(ctx.opData.onednnAlgorithm);

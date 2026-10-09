@@ -275,6 +275,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
 )
 
 set(CPU_FUNC_TESTS_X64_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/divide_pythondiv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/col2im.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/conversion.cpp

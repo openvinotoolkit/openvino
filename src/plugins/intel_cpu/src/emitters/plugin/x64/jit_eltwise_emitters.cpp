@@ -334,6 +334,12 @@ jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host,
       m_pythondiv(ov::as_type_ptr<ov::op::v1::Divide>(node)->is_pythondiv()) {}
 jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
+jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host,
+                                       x64::cpu_isa_t host_isa,
+                                       bool pythondiv,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc),
+      m_pythondiv(pythondiv) {}
 
 size_t jit_divide_emitter::get_inputs_num() const {
     return 2;

@@ -107,6 +107,10 @@ public:
                        ov::element::Type exec_prc = ov::element::f32);
     jit_divide_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                       bool pythondiv,
+                       ov::element::Type exec_prc = ov::element::f32);
+    jit_divide_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
+                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                        const std::shared_ptr<ov::Node>& n,
                        ov::element::Type exec_prc = ov::element::f32);
 
