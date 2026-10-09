@@ -1181,7 +1181,7 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     // stored as raw ushorts, so the SDPA kernels have to decode them instead of using the storage type.
     constexpr bool is_bf16 = std::is_same_v<T, ov::bfloat16>;
     const data_types dt = is_bf16 ? data_types::bf16 : data_types::f16;
-    const ov::element::Type et = is_bf16 ? ov::element::bf16 : ov::element::f16;
+    const ov::element::Type et = ov::element::from<T>();
     const ov::element::Type zp_et = zp_et_in.is_dynamic() ? et : zp_et_in;
     const bool zp_is_integral = zp_et == ov::element::i8 || zp_et == ov::element::u8;
     tests::random_generator rg;
