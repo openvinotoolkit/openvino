@@ -3,4 +3,5 @@
 optimum-intel==2.2.0
 transformers==4.57.6
 huggingface-hub>=0.30.0,<1.0
-pyarrow<26
+pyarrow==20.0.0; python_version < "3.12"
+pyarrow==25.0.1; python_version >= "3.12"
