@@ -224,7 +224,7 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
 
     auto p = build_2gemm_pattern(supported_weights_types, supported_activation_types);
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -332,7 +332,7 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls(
 
     auto p = build_3gemm_pattern(supported_weights_types, supported_activation_types);
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
