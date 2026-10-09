@@ -16,6 +16,10 @@ namespace auto_plugin {
 bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
     {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        if (!m_context->m_low_power_device.empty()) {
+            // Refresh the low-power-mode snapshot for this runtime fallback selection.
+            m_context->m_is_low_power_mode_active = m_plugin->get_low_power_mode().value_or(false);
+        }
         // a recursive function to select other devices
         std::function<bool(std::string)> get_execution_devices;
         get_execution_devices = [&](const std::string& device_name) {

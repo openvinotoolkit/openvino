@@ -511,7 +511,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
         auto_s_context->m_low_power_device = low_power_device;
-        // Single IPF query point for this compile_model() call.
+        // Snapshot for startup-time device selection.
         auto_s_context->m_is_low_power_mode_active = get_low_power_mode().value_or(false);
         LOG_INFO_TAG("low_power_device is set to %s", low_power_device.c_str());
     }

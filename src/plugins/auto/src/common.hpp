@@ -238,7 +238,7 @@ public:
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
     std::string                                    m_low_power_device;
-    // Cached once per compile_model() call to avoid repeated IPF telemetry queries.
+    // Low-power-mode snapshot
     bool                                            m_is_low_power_mode_active = false;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
