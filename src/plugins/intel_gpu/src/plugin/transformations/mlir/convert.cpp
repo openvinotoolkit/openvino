@@ -49,15 +49,16 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/ValueRange.h"
-#include "mlir/InitAllDialects.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LLVM.h"
-#include "mlir/Target/LLVMIR/ModuleTranslation.h"
-#include "mlir_evaluate.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/symbol.hpp"
 #include "subgraph_tracker.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+
+namespace ov::intel_gpu::mlir {
+std::shared_ptr<MLIRGpuProgram> create_gpu_program(::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id);
+}  // namespace ov::intel_gpu::mlir
 
 namespace {
 
@@ -222,7 +223,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 }
 
 // This pass converts a group of nodes into a single MLIROp
-NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
+NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, uint32_t device_id) {
     SmallVector<size_t> keptInputIndices;
     mlir::OwningOpRef<mlir::ModuleOp> module =
         ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices, subgraph->function_name);
@@ -269,10 +270,9 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, con
         }
         output_map.emplace_back(dm);
     }
-    return std::make_shared<ov::intel_gpu::op::MLIROp>(inputs,
-                                                       std::make_shared<MLIREvaluateGcGPU>(std::move(module), loweringContext),
-                                                       output_types,
-                                                       output_map);
+
+    auto program = ov::intel_gpu::mlir::create_gpu_program(std::move(module), device_id);
+    return std::make_shared<ov::intel_gpu::op::MLIROp>(inputs, std::move(program), output_types, output_map);
 };
 
 void replace_subgraph(const SubgraphPtr& subgraph, const NodePtr& node) {
@@ -458,18 +458,19 @@ public:
 
 class Partitioner : public ov::pass::ModelPass {
     MLIRContext* context;
-    std::shared_ptr<ov::EvaluationContext> loweringContext;
+    uint32_t device_id;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("Partitioner");
 
-    Partitioner(MLIRContext* context, std::shared_ptr<ov::EvaluationContext> loweringContext)
-        : context(context),
-          loweringContext(std::move(std::move(loweringContext))) {}
+    Partitioner(MLIRContext* context, uint32_t device_id) : context(context), device_id(device_id) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         SubgraphTracker tracker([this](const SubgraphPtr& subgraph) {
-            auto mlir_op = ngraph_to_mlir_op(context, subgraph, loweringContext);
+            // Compilation of the created op runs in the background, so the subgraphs of the model are
+            // compiled in parallel. It is joined at the end of the compilation phase, see
+            // CreateMLIROp().
+            auto mlir_op = ngraph_to_mlir_op(context, subgraph, device_id);
             replace_subgraph(subgraph, mlir_op);
             OPENVINO_MLIR_DEBUG_PRINT("Created MLIR op: " << mlir_op);
         });
@@ -488,10 +489,7 @@ namespace {
 using namespace mlir;
 using namespace ov::intel_gpu::mlir;
 
-void injectMLIR(const std::shared_ptr<ov::Model>& model,
-                MLIRContext* context,
-                const ov::intel_gpu::ExecutionConfig& config,
-                const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
+void injectMLIR(const std::shared_ptr<ov::Model>& model, MLIRContext* context, const ov::intel_gpu::ExecutionConfig& config, uint32_t device_id) {
     ov::pass::Manager manager;
     using namespace ov::op;
     manager.set_per_pass_validation(false);
@@ -527,14 +525,14 @@ void injectMLIR(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<UnsqueezePattern>();
     manager.register_pass<MatMulPattern>();
     manager.register_pass<PatternMatcher>(config.get_mlir_patterns());
-    manager.register_pass<Partitioner>(context, loweringContext);
+    manager.register_pass<Partitioner>(context, device_id);
     manager.run_passes(model);
     model->validate_nodes_and_infer_types();
 }
 
 MLIRContext* get_shared_mlir_context() {
     static auto context = [] {
-        auto ctx = std::make_unique<MLIRContext>(gc::getDialectRegistry());
+        auto ctx = std::make_unique<MLIRContext>(mlir::gc::getDialectRegistry());
         ctx->loadAllAvailableDialects();
         return ctx;
     }();
@@ -543,8 +541,6 @@ MLIRContext* get_shared_mlir_context() {
 
 }  // namespace
 
-void ov::intel_gpu::mlir::transformMLIR(const std::shared_ptr<ov::Model>& model,
-                                        const ov::intel_gpu::ExecutionConfig& config,
-                                        const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
-    injectMLIR(model, get_shared_mlir_context(), config, loweringContext);
+void ov::intel_gpu::mlir::transformMLIR(const std::shared_ptr<ov::Model>& model, const ov::intel_gpu::ExecutionConfig& config, uint32_t device_id) {
+    injectMLIR(model, get_shared_mlir_context(), config, device_id);
 }

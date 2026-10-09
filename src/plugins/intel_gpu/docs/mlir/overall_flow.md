@@ -19,10 +19,12 @@ and inserts an `ov::intel_gpu::op::MLIROp` operation representing the converted 
 
 An actual compilation and execution of the converted MLIR module happens in a separate project called
 `graph-compiler (GC)` - the project is "ingress-agnostic" and doesn't depend on OV specifically, it handles
-an arbitrary mlir-linalg-code as an input and produces a GPU-binary combined with a cpu-side launching code
-(using OpenCL runtime). The OpenVINO side is only responsible for matching a suitable subgraph in `ov::Model`,
-converting it to MLIR as is (all the optimizations are made on the graph-compiler side), and providing the
-runtime-info on inference (OpenCL queue/context handlers, buffers, etc).
+an arbitrary mlir-linalg-code as an input and produces a GPU-binary combined with a cpu-side launching code.
+The generated host code drives an abstract `gc::gpu::GpuRuntime` interface, which the plugin implements on top
+of `cldnn::stream`/`cldnn::engine`, so the kernels are scheduled into the command list of the OV stream. The
+OpenVINO side is only responsible for matching a suitable subgraph in `ov::Model`, converting it to MLIR as is
+(all the optimizations are made on the graph-compiler side), and providing the runtime-info on inference
+(buffers, dependencies, etc).
 
 `MLIROp` naturally follows the OV's compile/infer semantic: on model compilation the MLIR module is fully
 compiled to a binary (even if the module has dynamic shapes), on `infer()` it launches the compiled binary
@@ -30,34 +32,37 @@ compiled to a binary (even if the module has dynamic shapes), on `infer()` it la
 
 ## Communication with the graph-compiler
 
-`MLIROp` communicates with the graph-compiler using its public api (the actual communication is delegated to a
-separate `intel_gpu::mlir::MLIREvaluateGcGPU` class that is defined under `transformations/mlir` to avoid
-bringing mlir/gc includes to the main plugin). The simplified flow is following:
+The MLIR/GC dependent code lives under `transformations/mlir` to avoid bringing mlir/gc includes to the main
+plugin, and is reached through the MLIR-free `MLIRGpuProgram` in `transformations/mlir/interface/gpu_runtime.hpp`.
+The simplified flow is following:
 
 **A. Compilation:**
 
-During `transformMLIR` each partitioned subgraph is lowered to an MLIR linalg module and wrapped into an
-`MLIROp`. The op's execution engine, `MLIREvaluateGcGPU`, is constructed first, and its constructor hands the
-module to the Graph Compiler - `gc::gpu::OclModuleBuilder(module).build(device, context)` - which JIT-compiles
-it and returns a `gc::gpu::OclModule`: a binary holding both the generated GPU kernels and the host code that
-launches them.
+During `transformMLIR` each partitioned subgraph is lowered to an MLIR linalg module (using the shared
+`MLIRContext`) and wrapped into an `MLIROp` that owns a `GcGpuProgram`. Its constructor submits the module to
+`gc::gpu::GpuCompiler::compile()`, which **returns immediately** and compiles in the background, so the
+subgraphs of a model are compiled in parallel. The compiler serializes the module and keeps the results in an
+internal cache keyed by the source, the architecture and the compilation options.
 
-By the time the `MLIROp` is inserted into the `ov::Model`, the subgraph it replaces is already fully compiled
-into a device binary.
+The background compilation is joined at the end of the compilation phase, in `CreateMLIROp()`
+(`plugin/ops/mlir_op.cpp`), when the `ov::Model` is converted into a `cldnn::program`: from that point on
+`MLIROp` holds a ready `gc::gpu::Program` and the compilation errors are reported at `compile_model()` time
+rather than at the first inference.
 
 **B. Inference:**
 
 The op becomes a `cldnn::mlir_primitive` that owns nothing but the `MLIROp` itself - there is no GPU kernel to
-compile or cache for it. At inference `mlir_primitive_impl::execute_impl`:
+compile or cache for it. At inference `mlir_primitive_impl::execute_impl` calls `MLIRGpuProgram::execute()`,
+which:
 
-* extracts the native OpenCL handles (`cl_mem` / USM pointers, `cl_command_queue`, dependency `cl_event`s) out
-  of the cldnn runtime;
-* passes them through an `ov::EvaluationContext` into `MLIROp::evaluate()`;
-* turns the resulting `cl_event`s back into cldnn events.
+* stores one memref per input/output buffer via `Program::ArgsBuilder` (the USM pointer plus the shape and the
+  dense row-major strides of the leading dimensions expected by the module);
+* calls `gc::gpu::Program::main(args, runtime, deps, nDeps)`, passing the dependency events of the primitive;
+* aggregates the events returned by the program into the event of the primitive.
 
-The native handles are exposed by `get_native_handle()` accessors added to `cldnn::memory`, `cldnn::event` and
-`cldnn::stream`. Only the OCL runtime implements them, so the MLIR path is OCL-only for now
-(`mlir_primitive_impl` throws if a handle is unavailable).
+The compiled program is shared by all the streams of the model. Each `cldnn::network` owns one `GcGpuRuntime`
+bound to its stream, created through `MLIRGpuRuntime::create`. The plugin registers this factory through
+`register_mlir_gpu_runtime()`.
 
 ## Code organization
 
@@ -66,11 +71,10 @@ dedicated OBJECT library `openvino_intel_gpu_mlir_obj` that alone gets the MLIR/
 `GraphCompiler`; the object library is then linked into the plugin. This keeps `mlir/*.h` and `gc/*.h` out of
 every other translation unit.
 
-The only headers other plugin code may include are the ones from `transformations/mlir/interface/`
-(`convert.hpp`, `mlir_evaluate_base.hpp`, `properties.hpp`) - they are MLIR/GC free. The same applies to the
-`MLIROp` (`include/intel_gpu/op/mlir_op.hpp`) and `cldnn::mlir_primitive`
-(`include/intel_gpu/primitives/mlir_primitive.hpp`) declarations: no MLIR/GC types cross this boundary, so the
-whole `graph` library stays MLIR-free.
+The headers `convert.hpp` and `gpu_runtime.hpp` in `transformations/mlir/interface/` are MLIR/GC free.
+The same applies to the `MLIROp` (`include/intel_gpu/op/mlir_op.hpp`) and
+`cldnn::mlir_primitive` (`include/intel_gpu/primitives/mlir_primitive.hpp`) declarations: no MLIR/GC types
+cross this boundary, so the whole `graph` library stays MLIR-free.
 
 ## Feature enabling
 

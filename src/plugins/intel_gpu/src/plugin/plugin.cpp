@@ -49,6 +49,10 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
+#    include "transformations/mlir/interface/gpu_runtime.hpp"
+#endif
+
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
 #undef DEVICE_TYPE
@@ -247,6 +251,9 @@ std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() con
 }
 
 Plugin::Plugin() {
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
+    ov::intel_gpu::mlir::register_mlir_gpu_runtime();
+#endif
     set_device_name("GPU");
     register_primitives();
 

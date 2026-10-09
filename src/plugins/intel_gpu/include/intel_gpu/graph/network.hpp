@@ -26,6 +26,9 @@
 
 namespace ov::intel_gpu {
 class OutputMemoryBlock;
+namespace mlir {
+struct MLIRGpuRuntime;
+}  // namespace mlir
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
@@ -184,6 +187,13 @@ public:
     uint32_t get_id() const { return net_id; }
     stream& get_stream() const { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
+    ov::intel_gpu::mlir::MLIRGpuRuntime* gc_runtime() const {
+#ifdef ENABLE_MLIR_FOR_GPU
+        return _gc_runtime.get();
+#else
+        return nullptr;
+#endif
+    }
     bool is_internal() const { return _internal; }
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
@@ -300,6 +310,10 @@ private:
     mutable int64_t iteration = 0;
     friend class NetworkDebugHelper;
     friend class NodeDebugHelper;
+#endif
+
+#ifdef ENABLE_MLIR_FOR_GPU
+    std::unique_ptr<ov::intel_gpu::mlir::MLIRGpuRuntime> _gc_runtime;
 #endif
 };
 }  // namespace cldnn

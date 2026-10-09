@@ -1720,14 +1720,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Guarded by OV_GPU_MLIR_BACKEND_LINKED rather than ENABLE_MLIR_FOR_GPU: this file is also
         // compiled into ov_gpu_unit_tests, which does not link the MLIR objects providing transformMLIR().
 #ifdef OV_GPU_MLIR_BACKEND_LINKED
-        auto loweringContext = std::make_shared<ov::EvaluationContext>();
-        auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
-        if (it != m_context->get_property().end()) {
-            // We assume here that there's only one device per context and that an
-            // actual device will be extracted later by the 'mlir_op'.
-            loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
-        }
-        ov::intel_gpu::mlir::transformMLIR(func, config, loweringContext);
+        ov::intel_gpu::mlir::transformMLIR(func, config, device_info.device_id);
 #else
         OPENVINO_THROW("[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
                         "but this binary was built without Graph Compiler support. "
