@@ -104,7 +104,7 @@ TEST_P(PowerStaticRvvLmulTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_PowerStaticRvvLmul,
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_PowerStaticRvvLmul,
                          PowerStaticRvvLmulTest,
                          ::testing::Values(ov::Shape{1, 1, 1, 35}));
 
