@@ -994,6 +994,187 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQParMMGQ"), std::move(callback));
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// MoE expert MatMul: group-quantized weights, optionally Gather-selected
+//
+// This single pass handles BOTH shapes the same per-expert Wdict/Sdict closures
+// show up in, because prefill and generate share those closures (see NB below):
+//
+// (a) "device-routed" decode/generate: a runtime TopK selects K of E experts,
+//     a Gather(ids) picks their weights/scales before the dequant+matmul chain.
+// (b) "host-routed" dense prefill: NO Gather - every one of the E experts runs
+//     on every token (the activation is pre-tiled to [E,T,hidden] upstream);
+//     the per-token/per-expert routing weight is applied by a Multiply further
+//     downstream (outside this matched chain), not by a Gather here.
+//
+// FROM:
+//     ids(TopK, runtime, case (a) only) ---------------->
+//     Param(Wdict) -> (Gather) -> Convert(f16) -> Multiply -> Reshape -> MatMul
+//     Param(Sdict) -> (Gather) ----------------->
+//     ???(Act) ---------------------------------------------------------->
+//
+// WHERE (example, Gemma4 MoE):
+//     Wdict: [E=128,OC=704,NSPLIT=44,G=64] i4,  Sdict: [E=128,OC=704,NSPLIT=44,1] f16
+//     (a) Gather selects K=8 of E=128 experts, Act: [K=8,1,2816] (single token)
+//     (b) no Gather, Act: [E=128,T,2816] (T = prefill chunk length)
+//     MatMul: transpose_b=true in both cases
+//
+// Unlike the non-gathered DQMatMulGQi family, this MatMul already has
+// transpose_b=true and OC already precedes the to-be-merged (NSPLIT,G) axes
+// - so no Transpose/transpose_b flip is needed to make the matmul itself
+// legal. What *is* still sub-optimal (per NPU compiler perf feedback) is the
+// physical memory layout of the Wdict/Sdict closures: OC currently sits
+// *between* the two group axes (NSPLIT, G); moving the group axis (NSPLIT)
+// right after the expert axis is reported to compile/run better.
+//
+// TO (Phase 1, lightweight - this is what's implemented below):
+//     ids (case (a) only) ------------------------------------------------>
+//     Param(Wdict*) -> (Gather) -> Convert(f16) -> Multiply ->
+//                      Transpose(0,2,1,3) -> Reshape -> MatMul (unchanged)
+//     Param(Sdict*) -> (Gather) ----------------->
+//     ???(Act) --------------------------------------------------->
+// WHERE:
+//     Wdict* : [E,NSPLIT,OC,G]   (was [E,OC,NSPLIT,G])
+//     Sdict* : [E,NSPLIT,OC,1]   (was [E,OC,NSPLIT,1])
+//
+// The Wdict*/Sdict* permute is recorded via ctx.permute() and physically
+// applied once at compile time (see do_permute() in partitioning.cpp) - it
+// is NOT redone per decode/prefill step. The Transpose(0,2,1,3) inserted on
+// the activation path restores the [*,OC,NSPLIT,G] order the existing Reshape
+// already expects, so the Reshape constant and the MatMul's transpose_b stay
+// untouched - this pass only ever mutates the graph in place (always returns
+// false, same convention as e.g. DQMatMulGQi's mm_dq_full=false branch).
+//
+// NB (why (a) and (b) MUST be one pass, not two independent ones): prefill and
+// generate are separate NPUW "functions" (different static shapes), each with
+// their own Parameter nodes, but both Parameters' closures are LazyTensors
+// that trace back to the SAME original weight and get deduplicated by the
+// weights bank (Bank::registerLT, keyed by LazyTensor equality/hash) into a
+// single physical copy - *unless* their recorded transform chains differ. If
+// only one of (a)/(b) got this permute, the two functions' closures would no
+// longer compare equal, the bank would stop deduplicating them, and every
+// expert weight/scale tensor would be allocated TWICE (one already-permuted
+// copy for generate, one still-original copy for prefill). Matching both
+// shapes here guarantees the exact same ctx.permute() order is recorded for
+// both, keeping the closures identical and the single shared allocation.
+//
+// This pass is registered in the SECOND (NPUW_DQ-gated) GraphRewrite in
+// partitioning.cpp, alongside DQMatMulCWi/GQi/GQ2i/GQiP/GQ2iP - NOT in the
+// unconditional "regardless of DQ setting" block some other Gather-adjacent
+// passes (DQUnpackDictGatherGQi, HostGatherQuantSymm, DQParMMGQ, etc.) live in.
+// This matters because ctx.get().permute() only *records* the transform -
+// do_permute(ctx) (called once, right after this GraphRewrite, in
+// Partitioner::optimize()) is what physically reorders the funcall closure
+// bytes, and do_permute() is only ever invoked on THIS second ctx, never on
+// the first block's ctx. Registering this pass in the first block instead
+// would silently update the Parameter's logical shape (Context::permute()
+// does that synchronously) while never touching the underlying tensor bytes -
+// a shape-valid but numerically wrong result.
+// Mutual exclusivity with its new GraphRewrite siblings (DQMatMulCWi/GQi/GQ2i/
+// GQiP/GQ2iP, all also MatMul-rooted) is by weight shape alone, so registration
+// order among them does not matter: this pass requires a 4D [E,OC,NSPLIT,G]
+// expert-batched weight, while every sibling requires a 3D [NSPLIT,G,OC]-style
+// weight (or, for CWi, a coeff whose axis-1 is the size-1 one - ours has its
+// size-1 axis at index 3 instead). DQUnpackDictGatherGQi/HostGatherQuantSymm/
+// etc. can never match this subgraph either way - they require their Gather's
+// indices to literally be a Parameter (e.g. input_ids), while this pass's
+// `ids` is a runtime TopK output (any_input(), never a Parameter). DQParMMGQ
+// (first block) requires its MatMul's own output shape[0] == 1 - never true
+// for a multi-expert MoE matmul (E or K > 1) - so even though it now runs
+// chronologically *before* this pass (different block entirely), it still
+// can't mistake this subgraph for a fusable parallel matmul.
+//
+// Phase 2 (full decomposition, NOT implemented yet):
+// Same idea as DQMatMulGQi's mm_dq_full=true branch: instead of relying on a
+// single batched (over the expert/Gather axis and NSPLIT groups) MatMul,
+// Split the activation and the (permuted) weight by NSPLIT, run NSPLIT
+// independent small MatMuls (each already naturally batched over the
+// expert/Gather axis), Concat, Multiply by the (also NSPLIT-split) scale, and
+// ReduceSum over the NSPLIT axis to materialize the group accumulation
+// explicitly - mirroring DQMatMulGQi's mm_dq_full diagram, with an extra
+// expert batch axis carried through every op unchanged. Only worth adding if
+// profiling shows the NPU compiler doesn't handle the Phase 1 batched GQ
+// MatMul well.
+DQMatMulGQiGather::DQMatMulGQiGather(Context::Ref ctx) {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qids = opp::any_input();  // runtime expert indices (e.g. router TopK output), not a Parameter
+    // Gather is optional: present for case (a) (decode/generate, K of E experts routed on
+    // device), absent for case (b) (prefill, dense over ALL E experts) - see comment above.
+    auto qgthrw = opp::optional<ov::op::v8::Gather>({qweight, qids, opp::any_input()});
+    auto qgthrs = opp::optional<ov::op::v8::Gather>({qcoeff, qids, opp::any_input()});
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qgthrs});
+    auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+        auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        const auto& qweight_shape = matched_qweight->output(0).get_shape();
+        const auto& qcoeff_shape = matched_qcoeff->output(0).get_shape();
+        // qgthrw/qgthrs are optional (may bypass to qweight/qcoeff directly when there's no
+        // Gather, i.e. case (b)) - node_to_output may not have an entry for them in that case.
+        const auto& qgthrw_shape = uat::_(node_to_output).at_or_at(qgthrw, qweight).get_shape();
+        const auto& act_shape = node_to_output.at(qmmi).get_shape();
+
+        const auto qweight_type = matched_qweight->get_element_type();
+        const bool qweight_type_ok = qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
+                                     qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
+                                     qweight_type == ov::element::f8e8m0;
+
+        // MoE expert shape: Wdict [E,OC,NSPLIT,G], Sdict [E,OC,NSPLIT,1], the MatMul
+        // already runs transpose_b=true (weight kept as [*,OC,hidden]). Act's leading
+        // dim must match however many "expert rows" the weight presents here: K
+        // (Gather-ed experts, case (a)) or E (all experts, case (b)) - act_shape[1]
+        // (token count) is intentionally NOT constrained, it's 1 for decode and the
+        // prefill chunk length for prefill, and doesn't affect this closure re-layout.
+        if (qweight_type_ok && qweight_shape.size() == 4 && qcoeff_shape.size() == 4 &&
+            qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] &&
+            qcoeff_shape[2] == qweight_shape[2] && qcoeff_shape[3] == 1 && act_shape.size() == 3 &&
+            act_shape[0] == qgthrw_shape[0] && !matched_matmul->get_transpose_a() &&
+            matched_matmul->get_transpose_b()) {
+            // Re-layout Wdict/Sdict: [E,OC,NSPLIT,G] -> [E,NSPLIT,OC,G] (Sdict: last dim stays 1).
+            // This is a compile-time-only closure permute (see do_permute() in partitioning.cpp) -
+            // it does NOT run per decode/prefill step.
+            ctx.get().permute(matched_qweight, {0, 2, 1, 3});
+            ctx.get().permute(matched_qcoeff, {0, 2, 1, 3});
+
+            // Mark S closure to be lowered to f16, same convention as the sibling DQMatMul* passes
+            if (ov::element::f32 == matched_qcoeff->get_element_type()) {
+                ctx.get().to_f16(matched_qcoeff);
+            }
+
+            // Restore the [*,OC,NSPLIT,G] order the existing Reshape still expects by inserting
+            // a Transpose right after Multiply. Reshape's constant and the MatMul's transpose_b
+            // stay untouched - only the Wdict/Sdict closures' physical layout changes.
+            std::vector<std::size_t> new_transpose_order = {0, 2, 1, 3};
+            auto new_transpose_order_c =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, new_transpose_order);
+            auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qmuls, new_transpose_order_c);
+            matched_node_qreshp->input(0).replace_source_output(new_transpose);
+            matched_node_qreshp->validate_and_infer_types();
+
+            return false;  // root (MatMul) hasn't changed - in-place re-layout only
+        }
+        return false;  // did nothing here
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulGQiGather"), std::move(callback));
+}
+
 void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
     for (auto&& mul_to_mms : ctx.par_dq_mms) {
         auto& parallel_matmuls = mul_to_mms.second;
@@ -1418,6 +1599,19 @@ DQUnpackDictGatherGQi::DQUnpackDictGatherGQi(Context::Ref ctx) {
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+
+        // Context::unpack(w, s, type) below only knows how to unpack a 2D or 3D weight/coeff
+        // dict. A 4D dict (e.g. [E,OC,NSPLIT,G] MoE expert weights, handled instead by
+        // DQMatMulGQiGather) can still structurally match this pattern if its Gather's ids
+        // happen to be bound to a literal Parameter - bail out here instead of hitting
+        // Context::unpack()'s "Yet unsupported combination" assertion.
+        const auto& w_shape = matched_qweight->get_shape();
+        const auto& s_shape = matched_qcoeff->get_shape();
+        const bool shape_ok =
+            (w_shape.size() == 3 && s_shape.size() == 3) || (w_shape.size() == 2 && s_shape.size() == 2);
+        if (!shape_ok) {
+            return false;
+        }
 
         // Strip down the DQ subgraph, replace the original Q-ed closure tensor with unpacked fp16
         auto new_wi = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);

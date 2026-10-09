@@ -13,7 +13,8 @@
 #include "../util.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
-#include "online/utils/utils.hpp"  // getMetaDesc
+#include "online/utils/utils.hpp"        // getMetaDesc
+#include "openvino/core/graph_util.hpp"  // ov::save_model (debug dump)
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -2179,6 +2180,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
+
         if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && !part_ctx.use_host_gather_quant) {
             rewr.add_matcher<ov::npuw::patterns::opt::ConvertDQVocab>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
@@ -2471,6 +2473,17 @@ void Partitioner::optimize(const std::string& func_name) {
     rewr0.run_on_model(f._model);
 
     ov::pass::GraphRewrite rewr;
+    // MoE expert MatMul (Gather-selected or dense-prefill group-quantized weights) - lives
+    // here (not in the "regardless of DQ setting" block above) because it calls
+    // ctx.get().permute(), and do_permute(ctx) below is what physically applies recorded
+    // permutes to the funcall closures - the first block's ctx is never passed to
+    // do_permute() at all, only do_cvtf16(), so a permute recorded there would silently
+    // never be applied to the physical closure bytes. Shares this `rewr`/root (`MatMul`)
+    // with DQMatMulCWi/GQi/GQ2i/GQiP/GQ2iP but is mutually exclusive with all of them by
+    // weight shape (this pass requires a 4D [E,OC,NSPLIT,G] expert-batched weight, the
+    // others require 3D [NSPLIT,G,OC]/[NSPLIT,OC,G] or a CWi-style coeff with the group
+    // axis at a different index) - order among these doesn't matter.
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQiGather>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2i>(std::ref(ctx));

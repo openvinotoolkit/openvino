@@ -684,6 +684,58 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
 
 ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
+
+    if (shape.size() == 4) {
+        // So far only one 4D order is required here: used by the MoE expert-dict closure
+        // re-layout (DQMatMulGQiGather, see opt.cpp) to turn [E,OC,NSPLIT,G] into
+        // [E,NSPLIT,OC,G] (G == 1 for the scale/Sdict closure). Axis 0 (E, the expert/batch
+        // axis) stays untouched - this is equivalent to applying the 3D {1,0,2} transform
+        // (swap the first two axes, keep the last) independently to every axis-0 slice.
+        NPUW_ASSERT(axes.size() == 4 && axes[0] == 0 && axes[1] == 2 && axes[2] == 1 && axes[3] == 3 &&
+                    "Only the [0,2,1,3] 4D permute order is supported so far");
+
+        const auto etype = t.get_element_type();
+        const auto B = shape[0], R = shape[1], C = shape[2], G = shape[3];
+        ov::Shape tshape = {B, C, R, G};
+        ov::Tensor tnew(etype, tshape);
+        const auto slice_elems = R * C * G;
+
+        if (etype == ov::element::i4) {
+            NPUW_ASSERT(G % 2 == 0);
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            ov::parallel_for(B, [&](size_t b) {
+                const uint8_t* src_b = src + b * slice_elems / 2;
+                uint8_t* dst_b = dst + b * slice_elems / 2;
+                for (size_t r = 0; r < R; ++r) {
+                    for (size_t c = 0; c < C; ++c) {
+                        std::copy_n(&src_b[(r * C * G + c * G) / 2], G / 2, &dst_b[(c * R * G + r * G) / 2]);
+                    }
+                }
+            });
+        } else {
+            // All other supported types here (i8, f8e4m3, f8e5m2, f8e8m0, f16, f32) are plain
+            // byte-aligned elements - a single generic byte-block copy covers all of them.
+            NPUW_ASSERT(etype == ov::element::i8 || etype == ov::element::f8e4m3 || etype == ov::element::f8e5m2 ||
+                        etype == ov::element::f8e8m0 || etype == ov::element::f16 || etype == ov::element::f32);
+            const auto elem_size = etype.size();
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            ov::parallel_for(B, [&](size_t b) {
+                const uint8_t* src_b = src + b * slice_elems * elem_size;
+                uint8_t* dst_b = dst + b * slice_elems * elem_size;
+                for (size_t r = 0; r < R; ++r) {
+                    for (size_t c = 0; c < C; ++c) {
+                        std::copy_n(&src_b[(r * C * G + c * G) * elem_size],
+                                    G * elem_size,
+                                    &dst_b[(c * R * G + r * G) * elem_size]);
+                    }
+                }
+            });
+        }
+        return tnew;
+    }
+
     NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
 
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
