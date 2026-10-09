@@ -96,10 +96,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return new_constant;
         };
 
-        auto convert_const_to_u8 = [&](std::shared_ptr<ov::Node> node) {
+        auto convert_zp_const = [&](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             std::shared_ptr<ov::Node> result = nullptr;
-            // Convert ZP to u8
+            // Convert ZP to u8 (or i8 for a scalar i4 ZP)
             if (constant->get_element_type() == ov::element::u8) {
                 result = constant;
             } else if (constant->get_element_type() == ov::element::u4 || constant->get_element_type() == ov::element::u2) {
@@ -107,6 +107,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 // Only unsigned ZP types can be converted to u8.
             } else if (weight_u8 && sub_with_convert && !constant->get_element_type().is_signed()) {
                 result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
+            } else if (constant->get_element_type() == ov::element::i4 && ov::shape_size(constant->get_shape()) == 1) {
+                // oneDNN doesn't support sub-byte per-tensor (common) zero points, so a scalar i4 ZP is converted to i8.
+                result = std::make_shared<ov::op::v0::Convert>(node, ov::element::i8);
             } else {
                 result = constant;
             }
@@ -121,7 +124,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         const bool with_zero_point = pattern_map.count(subtract_m) > 0;
         if (with_zero_point) {
-            optional_zero_point = convert_const_to_u8(reshape_const(pattern_map.at(sub_const_m).get_node_shared_ptr()));
+            optional_zero_point = convert_zp_const(reshape_const(pattern_map.at(sub_const_m).get_node_shared_ptr()));
         }
 
         std::shared_ptr<ov::Node> fc_input_b = weight_ptr;
@@ -136,7 +139,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const bool transpose_b_zp = !has_transpose;
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
-        if (ov::is_type<ov::op::v0::Convert>(optional_zero_point)) {
+        if (with_zero_point && ov::is_type<ov::op::v0::Convert>(optional_zero_point)) {
             result_nodes.push_back(optional_zero_point);
         }
 
