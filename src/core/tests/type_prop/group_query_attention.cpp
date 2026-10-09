@@ -477,6 +477,24 @@ TEST(type_prop, group_query_attention_dynamic_kv_length_separate_kv) {
     EXPECT_FALSE(op->is_shared_kv());
 }
 
+TEST(type_prop, group_query_attention_dynamic_kv_len_static_past_grows_by_key) {
+    using ov::op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    // Static query and past, dynamic key: no in-place write, present grows by the key's own length.
+    args[1] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    args[2] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, Dimension(5, -1), 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, Dimension(5, -1), 8}));
+
+    // Empty past: present is just the key's length.
+    args[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, -1, 8}));
+}
+
 TEST(type_prop, group_query_attention_dynamic_kv_length_packed_qkv) {
     using ov::op::v0::Constant;
     using ov::op::v0::Parameter;
