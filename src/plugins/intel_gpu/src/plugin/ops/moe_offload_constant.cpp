@@ -43,7 +43,7 @@ bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
 }
 
 uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio) {
-    OPENVINO_ASSERT(offload_ratio < 100, "OFFLOAD_RATIO=100 is not supported");
+    OPENVINO_ASSERT(offload_ratio <= 100, "OFFLOAD_RATIO must be in the range [0, 100]");
 
     uint64_t resident_bytes = 0;
     bool has_moe = false;
@@ -62,6 +62,7 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
 
             bool has_moe_consumer = false;
             bool all_consumers_routed = true;
+            size_t max_top_k = 0;
             for (const auto& input : constant->get_output_target_inputs(0)) {
                 if (!ov::is_type<ov::op::internal::MOECompressed>(input.get_node())) {
                     all_consumers_routed = false;
@@ -71,6 +72,7 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
                 has_moe_consumer = true;
                 const auto input_index = input.get_index();
                 all_consumers_routed = all_consumers_routed && input_index >= ROUTED_INPUT_START && input_index <= ROUTED_INPUT_END;
+                max_top_k = std::max(max_top_k, input.get_node()->as<ov::op::internal::MOECompressed>().get_config().top_k);
             }
             if (!has_moe_consumer)
                 continue;
@@ -80,7 +82,9 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
                 const auto& shape = constant->get_shape();
                 if (shape.empty() || shape[0] == 0)
                     continue;
-                const size_t resident_experts = std::max<size_t>(1, shape[0] * (100 - offload_ratio) / 100);
+                const size_t resident_experts = offload_ratio == 100
+                                                    ? std::min(shape[0], max_top_k)
+                                                    : std::max<size_t>(1, shape[0] * (100 - offload_ratio) / 100);
                 const uint64_t bytes_per_expert = constant_resident_bytes / shape[0] + (constant_resident_bytes % shape[0] != 0);
                 constant_resident_bytes = bytes_per_expert * resident_experts;
             }
@@ -123,14 +127,26 @@ PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
 
     const size_t otd_ratio = config.get_offload_ratio();
     // Only routed expert weights are partially uploaded; shared experts stay fully resident.
-    // ratio=0 (all resident) or ratio=100 (all on disk, invalid) → no partial upload.
-    const bool partial_moe_const_upload = otd_ratio > 0 && otd_ratio < 100 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
+    // ratio=0 keeps all experts resident; positive ratios enable partial upload.
+    const bool partial_moe_const_upload = otd_ratio > 0 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;
     }
 
-    // otd_ratio is the % on disk; GPU-resident experts = total * (100 - ratio) / 100
-    const size_t resident_expert_num = std::max<size_t>(1, const_shape[0] * (100 - otd_ratio) / 100);
+    // At ratio=100, retain enough slots for one token's top-k experts.
+    size_t resident_expert_num = 0;
+    if (otd_ratio == 100) {
+        for (const auto& input : op->get_output_target_inputs(0)) {
+            if (ov::is_type<ov::op::internal::MOECompressed>(input.get_node())) {
+                resident_expert_num = std::max(resident_expert_num,
+                                               input.get_node()->as<ov::op::internal::MOECompressed>().get_config().top_k);
+            }
+        }
+        resident_expert_num = std::min(const_shape[0], resident_expert_num);
+    } else {
+        // otd_ratio is the % on disk; GPU-resident experts = total * (100 - ratio) / 100
+        resident_expert_num = std::max<size_t>(1, const_shape[0] * (100 - otd_ratio) / 100);
+    }
 
     desc.enabled = true;
     desc.upload_shape = const_shape;

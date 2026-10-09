@@ -116,6 +116,8 @@ TEST(moe_offload_constant, offload_ratio_reduces_resident_weight_estimate) {
     ov::Model model(ov::ResultVector{result}, g.parameters);
 
     EXPECT_LT(get_model_resident_constant_bytes(model, 75), get_model_resident_constant_bytes(model, 0));
+    EXPECT_GT(get_model_resident_constant_bytes(model, 100), get_model_resident_constant_bytes(model, 75));
+    EXPECT_LT(get_model_resident_constant_bytes(model, 100), get_model_resident_constant_bytes(model, 0));
 }
 
 TEST(moe_offload_constant, non_moe_model_is_not_subject_to_resident_constant_check) {
