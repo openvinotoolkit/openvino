@@ -887,7 +887,7 @@ TEST(GGUFAdaptToGenAI, ImageWindowMatchesSDPAAndPagedAttention) {
         auto compiled = core.compile_model(model,
                                            "CPU",
                                            ov::hint::inference_precision(ov::element::f32),
-                                           ov::hint::kv_cache_precision(ov::element::f16));
+                                           ov::hint::kv_cache_precision(ov::element::f32));
         auto request = compiled.create_infer_request();
         for (const auto& input : compiled.inputs()) {
             const auto name = input.get_any_name();
