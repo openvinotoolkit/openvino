@@ -4,6 +4,11 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "program_helpers.h"
 #include "pass_manager.h"
+#include "registry/registry.hpp"
+
+#if OV_GPU_WITH_CM
+#include "impls/cm/fully_connected_woq_u2.hpp"
+#endif
 
 #include "pooling_inst.h"
 #include "proposal_inst.h"
@@ -88,6 +93,27 @@ void prepare_primitive_fusing::run(program& p) {
     fuse_simple_primitives(p);
     fuse_constant_transposes(p);
     optimize_fused_ops(p);
+    fixup_u2_decompression_layout(p);
+}
+
+void prepare_primitive_fusing::fixup_u2_decompression_layout(program& p) {
+#if OV_GPU_WITH_CM
+    for (const auto& node : p.get_processing_order()) {
+        if (!node->is_type<fully_connected>())
+            continue;
+
+        auto& fc_node = node->as<fully_connected>();
+        auto fc_prim = fc_node.get_primitive();
+        if (!fc_prim->compressed_weights || fc_node.get_input_layout(1).data_type != data_types::u2)
+            continue;
+
+        const bool cm_eligible = ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager(shape_types::any).validate_impl(fc_node);
+        GPU_DEBUG_TRACE << fc_node.id() << " : fixup_u2_decompression_layout re-check = "
+                         << (cm_eligible ? "still pass (left bfyx)" : "now fails (reorder for oneDNN)") << std::endl;
+        if (!cm_eligible)
+            reorder_fc_decompression_params_if_needed(fc_node, p);
+    }
+#endif
 }
 
 static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node) {
@@ -609,6 +635,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return true;
             }
             auto in_dt = node.get_input_layout(0).data_type;
+#if OV_GPU_WITH_CM
+            // u2 FCs the CM kernels can run take post-ops in static shapes too: the kernels apply a bias /
+            // fused add / fused SwiGLU themselves (FullyConnectedWoqU2ImplementationManager::validate_impl
+            // decides after fusion; other fused patterns fall back to the OCL reference FC).
+            if (node.get_input_layout(1).data_type == data_types::u2 &&
+                ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(node))
+                return true;
+#endif
             return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
 
         };
@@ -1192,6 +1226,22 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[0] = can_fuse_parents[0] && are_compatible(out_pshape, parent1_pshape);
                 can_fuse_parents[1] = can_fuse_parents[1] && are_compatible(out_pshape, parent2_pshape);
             }
+
+#if OV_GPU_WITH_CM
+            // A static u2 FC takes post-ops only for the CM kernels (fc_supports_fusings). Do not fuse one they
+            // cannot apply (operand not shaped like the output, e.g. per-column with M > 1): the FC would fall
+            // back to the OCL reference FC, while unfused it stays on CM with the eltwise as a separate kernel.
+            for (size_t i = 0; i < parents.size(); i++) {
+                auto& fc = *parents[i].first;
+                if (!can_fuse_parents[i] || !fc.is_type<fully_connected>() || fc.get_input_layout(1).data_type != data_types::u2 ||
+                    !fc.get_input_layout(1).is_static())
+                    continue;
+                const auto N = static_cast<int64_t>(fc.get_input_layout(1).get_shape()[0]);
+                const auto& peer = *parents[parents.size() - 1 - i].first;
+                if (!ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), node.get_output_layout(), N).empty())
+                    can_fuse_parents[i] = false;
+            }
+#endif
 
             // We should have at least one node to fuse
             if (!can_fuse_parents[0] && !can_fuse_parents[1])

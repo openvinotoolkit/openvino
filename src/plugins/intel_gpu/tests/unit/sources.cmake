@@ -196,6 +196,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/experimental_detectron_topk_rois_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/extract_image_patches_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/eye.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_cm_woq_u2_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gated_mlp_gpu_test.cpp

@@ -16,9 +16,11 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <algorithm>
 #include <array>
+#include <iostream>
 #include <string>
 #include <memory>
 #include <tuple>
@@ -545,10 +547,12 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     return true;
 }
 
-static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
+// Reorder-to-fbyx/byfx logic for per-group decompression scale/zero points. Declared in namespace cldnn
+// (pass_manager.h) so prepare_primitive_fusing::fixup_u2_decompression_layout can also call it for the
+// post-fusion u2/CM re-check.
+void cldnn::reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p) {
     auto fc_prim = fc_node.get_primitive();
-    if (!fc_prim->compressed_weights)
-        return;
+    auto weights_shape = fc_node.get_input_layout(1).get_partial_shape();
 
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
@@ -568,6 +572,14 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
             return false;
         }
 
+        if (weight_rank == 2 && dep_rank == 2) {
+            const auto output_features_idx = fc_prim->weights_transposed ? 0 : 1;
+            const auto output_features = weights_shape[output_features_idx];
+            if (dep_pshape[1] == output_features && dep_pshape[0] != output_features) {
+                return false;
+            }
+        }
+
         auto groups_idx = dep_rank == 1 ? 0 : weight_rank - 1;
         auto groups_count = dep_pshape[groups_idx].get_length();
         return groups_count > 1;
@@ -575,7 +587,6 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     // possible cases
     // legacy [K, N, 1, 1] => crop padded dims
     // new shape [1, K, N] => preserve
-    auto weights_shape = fc_node.get_input_layout(1).get_partial_shape();
     auto weight_rank = weights_shape.size();
     if (weight_rank >= 3 && weights_shape[0] != 1) {
         // legacy case
@@ -602,6 +613,51 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         }
     }
 }
+
+static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
+    auto fc_prim = fc_node.get_primitive();
+    if (!fc_prim->compressed_weights)
+        return;
+
+    // Unconditional (not scoped to the data_types::u2 branch below) to prove what dtype input(1)
+    // actually reports AT THIS PASS, for every compressed FC node -- settles whether the u2 check
+    // below is being skipped because weights aren't u2 yet at this point in the pipeline.
+    GPU_DEBUG_TRACE << fc_node.id() << " : optimize_weights_decompression_parameters entry, weights(input1) dtype="
+                     << fc_node.get_input_layout(1).data_type << std::endl;
+
+    // Full as-loaded format/shape/dtype dump for weights, scale and zero point -- unconditional (any
+    // compressed FC, any dtype), before any reorder decision, so the three tensors CM cares about can
+    // be inspected directly instead of inferred from later rejection-reason traces.
+    {
+        const auto& w_l = fc_node.get_input_layout(1);
+        GPU_DEBUG_TRACE << fc_node.id() << " : weights  dtype=" << w_l.data_type << " format=" << w_l.format
+                         << " shape=" << w_l.get_partial_shape() << " padded=" << (w_l.data_padding ? 1 : 0) << std::endl;
+
+        if (fc_prim->decompression_scale.is_valid()) {
+            const auto scale_idx = !fc_node.bias_term() ? 2 : 3;
+            const auto& s_l = fc_node.get_input_layout(scale_idx);
+            GPU_DEBUG_TRACE << fc_node.id() << " : scale    dtype=" << s_l.data_type << " format=" << s_l.format
+                             << " shape=" << s_l.get_partial_shape() << " padded=" << (s_l.data_padding ? 1 : 0) << std::endl;
+
+            if (fc_prim->decompression_zero_point.is_valid()) {
+                const auto zp_idx = scale_idx + 1;
+                const auto& z_l = fc_node.get_input_layout(zp_idx);
+                GPU_DEBUG_TRACE << fc_node.id() << " : zp       dtype=" << z_l.data_type << " format=" << z_l.format
+                                 << " shape=" << z_l.get_partial_shape() << " padded=" << (z_l.data_padding ? 1 : 0) << std::endl;
+            }
+        }
+    }
+
+    // u2 weights: this pass runs before prepare_primitive_fusing, so has_fused_primitives() can't be
+    // trusted yet -- defer the whole reorder-or-skip decision to fixup_u2_decompression_layout, which
+    // runs at the end of prepare_primitive_fusing::run(), once fusion is finalized. Every other
+    // compressed dtype (u4/i4/u8/i8/...) is unaffected by CM and keeps the behavior below.
+    if (fc_node.get_input_layout(1).data_type == data_types::u2)
+        return;
+
+    reorder_fc_decompression_params_if_needed(fc_node, p);
+}
+
 
 // Reorder per-group scales/zp to byfx so physical layout is [E, G, N, 1] (N innermost for SIMD reads).
 // Mirrors optimize_weights_decompression_parameters for FullyConnected.
