@@ -62,7 +62,7 @@ public:
                   const std::string& model_precision = "FP32",
                   unsigned int priority = 0,
                   const DeviceSelectionPolicy& selection_policy = {},
-                  const std::string& low_power_device = {});
+                  const std::optional<DeviceInformation>& low_power_device = {});
     MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
         const std::unordered_map<std::string, float>& device_utilizations,
         const std::list<DeviceInformation>& valid_devices,

@@ -38,7 +38,7 @@ public:
                  const std::string&,
                  unsigned int,
                  (const DeviceSelectionPolicy&),
-                 const std::string&),
+                 (const std::optional<DeviceInformation>&)),
                 (override));
     MOCK_METHOD((std::list<DeviceInformation>),
                 sort_device_by_perf_curve,

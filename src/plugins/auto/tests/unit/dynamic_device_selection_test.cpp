@@ -64,7 +64,7 @@ public:
                                                 const std::string&,
                                                 unsigned int,
                                                 const ov::auto_plugin::DeviceSelectionPolicy&,
-                                                const std::string&) {
+                                                const std::optional<DeviceInformation>&) {
                 const auto& expected = device_names[m_select_device_count++ % device_names.size()];
                 for (const auto& device : meta_devices) {
                     if (device.device_name == expected) {
@@ -252,7 +252,7 @@ TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_afte
     ov::auto_plugin::DeviceSelectionPolicy empty_policy;
     DeviceInformation result;
     OV_ASSERT_NO_THROW(
-        result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, ""));
+        result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, {}));
     EXPECT_EQ(result.device_name, ov::test::utils::DEVICE_CPU);
     plugin->unregister_priority(2, result.unique_name);
 }
@@ -313,7 +313,7 @@ TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_afte
     ov::auto_plugin::DeviceSelectionPolicy empty_policy;
     DeviceInformation result;
     OV_ASSERT_NO_THROW(
-        result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, ""));
+        result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, {}));
     EXPECT_EQ(result.device_name, ov::test::utils::DEVICE_CPU);
     plugin->unregister_priority(2, result.unique_name);
 }
@@ -338,7 +338,7 @@ TEST_F(AutoDynamicDeviceSelectionTest, concurrent_requests_are_queued_and_dispat
                            const std::string&,
                            unsigned int,
                            const ov::auto_plugin::DeviceSelectionPolicy&,
-                           const std::string&) {
+                           const std::optional<DeviceInformation>&) {
             // call #0 happens during compile_model(); block only the first per inference
             // reselection (call #1) so the second start_async() below is guaranteed to observe
             // the execution gate as busy and go through the queueing path.

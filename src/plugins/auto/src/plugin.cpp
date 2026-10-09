@@ -511,8 +511,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     }
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
-        auto_s_context->m_low_power_device = low_power_device;
-        LOG_INFO_TAG("low_power_device is set to %s", low_power_device.c_str());
+        try {
+            auto resolved_low_power_device = parse_meta_devices(low_power_device, full_property);
+            if (!resolved_low_power_device.empty())
+                auto_s_context->m_low_power_device = resolved_low_power_device.front();
+        } catch (const ov::Exception& ex) {
+            LOG_WARNING_TAG("low_power_device '%s' is not available and will be ignored: %s",
+                            low_power_device.c_str(),
+                            ex.what());
+        }
+        if (auto_s_context->m_low_power_device)
+            LOG_INFO_TAG("low_power_device is set to %s", low_power_device.c_str());
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
@@ -522,7 +531,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
         model_path.empty() && !is_cumulative && !is_stateful_model && !auto_s_context->m_bind_buffer &&
         (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
          !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
-         !auto_s_context->m_low_power_device.empty());
+         auto_s_context->m_low_power_device.has_value());
     if (auto_s_context->m_dynamic_device_selection) {
         LOG_INFO_TAG("[dynamic] per inference device selection enabled by the resource aware selection properties");
         // the CPU accelerator assumes a fixed target device for the whole model lifetime
@@ -530,7 +539,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     } else if (is_stateful_model &&
                (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
                 !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
-                !auto_s_context->m_low_power_device.empty())) {
+                auto_s_context->m_low_power_device.has_value())) {
         LOG_WARNING_TAG("resource aware device selection properties are ignored for stateful models");
     }
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
@@ -759,7 +768,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                                         const std::string& model_precision,
                                         unsigned int priority,
                                         const DeviceSelectionPolicy& selection_policy,
-                                        const std::string& low_power_device) {
+                                        const std::optional<DeviceInformation>& low_power_device) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
     const auto& utilization_thresholds = selection_policy.utilization_thresholds;
@@ -794,7 +803,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
     }
 
-    DeviceInformation* ptr_select_device = nullptr;
+    const DeviceInformation* ptr_select_device = nullptr;
     std::list<DeviceInformation> perf_curve_sorted_devices;
     // Resolve a device's effective utilization threshold: prefer an exact device-name match
     // (e.g. "GPU.0"), then fall back to the base device name (e.g. "GPU").
@@ -814,21 +823,15 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
         return std::nullopt;
     };
-    // Finds the configured low-power device by exact or base device name.
-    auto find_low_power_device = [&]() -> DeviceInformation* {
-        if (low_power_device.empty()) {
+    // Finds the configured low-power device
+    auto find_low_power_device = [&]() -> const DeviceInformation* {
+        if (!low_power_device.has_value() || !get_low_power_mode().value_or(false)) {
             return nullptr;
         }
         auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
-            if (device.device_name == low_power_device) {
-                return true;
-            }
-            return ov::DeviceIDParser(device.device_name).get_device_name() == low_power_device;
+            return device.unique_name == low_power_device->unique_name;
         });
-        if (it == valid_devices.end() || !get_low_power_mode().value_or(false)) {
-            return nullptr;
-        }
-        return &(*it);
+        return it != valid_devices.end() ? &(*it) : &low_power_device.value();
     };
     if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
