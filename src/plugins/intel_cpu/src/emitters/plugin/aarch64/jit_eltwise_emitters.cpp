@@ -2023,6 +2023,11 @@ jit_bitwise_and_emitter::jit_bitwise_and_emitter(dnnl::impl::cpu::aarch64::jit_g
                                                  const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
+jit_bitwise_and_emitter::jit_bitwise_and_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+
 size_t jit_bitwise_and_emitter::get_inputs_count() const {
     return 2;
 }
@@ -2062,6 +2067,11 @@ jit_bitwise_not_emitter::jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_g
                                                  const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
+jit_bitwise_not_emitter::jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+
 size_t jit_bitwise_not_emitter::get_inputs_count() const {
     return 1;
 }
@@ -2099,6 +2109,11 @@ jit_bitwise_or_emitter::jit_bitwise_or_emitter(dnnl::impl::cpu::aarch64::jit_gen
                                                dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
+
+jit_bitwise_or_emitter::jit_bitwise_or_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                               const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
 
 size_t jit_bitwise_or_emitter::get_inputs_count() const {
     return 2;
@@ -2138,6 +2153,11 @@ jit_bitwise_xor_emitter::jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_g
                                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                  const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
+
+jit_bitwise_xor_emitter::jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
 
 size_t jit_bitwise_xor_emitter::get_inputs_count() const {
     return 2;

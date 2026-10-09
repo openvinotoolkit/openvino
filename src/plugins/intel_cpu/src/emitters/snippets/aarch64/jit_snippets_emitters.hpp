@@ -69,6 +69,7 @@ private:
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
+    size_t byte_size = 0LU;
     int32_t value;
 };
 
