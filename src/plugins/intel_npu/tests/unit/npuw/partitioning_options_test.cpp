@@ -23,8 +23,8 @@
 #include "partitioning/partitioning.hpp"
 #include "pyramid_attention.hpp"
 
-using ov::test::npuw::ModelBuilder;
 using ov::test::npuw::LLMConfig;
+using ov::test::npuw::ModelBuilder;
 
 namespace {
 
@@ -391,9 +391,10 @@ TEST(PartitioningOptionsTest, FuncallForAllPromotesUnaryGroupsToFunctions) {
     auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "NONE"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}});
     auto partitioning = ov::npuw::getPartitioning(build_unary_chain_model(), cfg);
 
-    EXPECT_TRUE(std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
-        return sg._forced_to_fcall || !sg._funcall.empty() || !sg._repeated_id.empty();
-    }));
+    EXPECT_TRUE(
+        std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return sg._forced_to_fcall || !sg._funcall.empty() || !sg._repeated_id.empty();
+        }));
 }
 
 TEST(PartitioningOptionsTest, FoldCreatesFunctionCallsForRepeatedBlocks) {
@@ -401,9 +402,10 @@ TEST(PartitioningOptionsTest, FoldCreatesFunctionCallsForRepeatedBlocks) {
     auto partitioning = ov::npuw::getPartitioning(build_repeated_model(10), cfg);
 
     EXPECT_FALSE(partitioning.functions.empty());
-    EXPECT_TRUE(std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
-        return !sg._funcall.empty();
-    }));
+    EXPECT_TRUE(
+        std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return !sg._funcall.empty();
+        }));
 }
 
 TEST(PartitioningOptionsTest, CwaiCreatesFunctionCallsForRepeatedBlocks) {
@@ -411,9 +413,10 @@ TEST(PartitioningOptionsTest, CwaiCreatesFunctionCallsForRepeatedBlocks) {
     auto partitioning = ov::npuw::getPartitioning(build_repeated_model(10), cfg);
 
     EXPECT_FALSE(partitioning.functions.empty());
-    EXPECT_TRUE(std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
-        return !sg._funcall.empty();
-    }));
+    EXPECT_TRUE(
+        std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return !sg._funcall.empty();
+        }));
 }
 
 TEST(PartitioningOptionsTest, FoldOnlyProcessesTaggedRepeatedFamiliesWithoutCwai) {
@@ -426,9 +429,10 @@ TEST(PartitioningOptionsTest, FoldOnlyProcessesTaggedRepeatedFamiliesWithoutCwai
     auto partitioning = ov::npuw::getPartitioning(build_static_attention_llm_model(), cfg);
 
     EXPECT_FALSE(partitioning.functions.empty());
-    EXPECT_TRUE(std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
-        return !sg._funcall.empty();
-    }));
+    EXPECT_TRUE(
+        std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return !sg._funcall.empty();
+        }));
 }
 
 TEST(PartitioningOptionsTest, FoldOnlyAndCwaiProcessTaggedAndUntaggedRepeatedFamilies) {
@@ -446,9 +450,10 @@ TEST(PartitioningOptionsTest, FoldOnlyAndCwaiProcessTaggedAndUntaggedRepeatedFam
     auto mixed_cfg_obj = make_cfg(mixed_cfg);
     auto mixed_partitioning = ov::npuw::getPartitioning(build_static_attention_mixed_llm_model(), mixed_cfg_obj);
 
-    EXPECT_TRUE(std::any_of(mixed_partitioning.functions.begin(), mixed_partitioning.functions.end(), [](const auto& func) {
-        return func.second.gettag() == "attn";
-    }));
+    EXPECT_TRUE(
+        std::any_of(mixed_partitioning.functions.begin(), mixed_partitioning.functions.end(), [](const auto& func) {
+            return func.second.gettag() == "attn";
+        }));
 
     const auto has_cwai_function = [](const ov::npuw::Partitioning& partitioning) {
         return std::any_of(partitioning.functions.begin(), partitioning.functions.end(), [](const auto& func) {
@@ -456,9 +461,11 @@ TEST(PartitioningOptionsTest, FoldOnlyAndCwaiProcessTaggedAndUntaggedRepeatedFam
         });
     };
     const auto has_cwai_funcall = [](const ov::npuw::Partitioning& partitioning) {
-        return std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
-            return sg._funcall.find("__") != std::string::npos;
-        });
+        return std::any_of(partitioning.subgraphs.begin(),
+                           partitioning.subgraphs.end(),
+                           [](const ov::npuw::Subgraph& sg) {
+                               return sg._funcall.find("__") != std::string::npos;
+                           });
     };
 
     EXPECT_FALSE(has_cwai_function(fold_only_partitioning));
@@ -503,11 +510,10 @@ TEST(PartitioningOptionsTest, FoldOnlyWithIsolatedTagsProducesExpectedSubgraphCo
 
     EXPECT_EQ(partitioning.subgraphs.size(), 3u * N);
 
-    std::size_t folded = std::count_if(partitioning.subgraphs.begin(),
-                                       partitioning.subgraphs.end(),
-                                       [](const ov::npuw::Subgraph& sg) {
-                                           return !sg._funcall.empty();
-                                       });
+    std::size_t folded =
+        std::count_if(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return !sg._funcall.empty();
+        });
     EXPECT_EQ(folded, N);
 }
 
@@ -524,11 +530,10 @@ TEST(PartitioningOptionsTest, OnlyAttnIsolatedFamiliesIgnoreKeepBlockSizeThresho
 
     EXPECT_EQ(partitioning.subgraphs.size(), 2u * N);
 
-    std::size_t folded = std::count_if(partitioning.subgraphs.begin(),
-                                       partitioning.subgraphs.end(),
-                                       [](const ov::npuw::Subgraph& sg) {
-                                           return !sg._funcall.empty();
-                                       });
+    std::size_t folded =
+        std::count_if(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return !sg._funcall.empty();
+        });
     EXPECT_EQ(folded, N);
 }
 
@@ -633,11 +638,10 @@ TEST(PartitioningOptionsTest, FuseUnfoldedMergesNonFoldOnlyRepeatedBlocks) {
 
     EXPECT_EQ(partitioning.subgraphs.size(), 2u * N);
 
-    std::size_t folded = std::count_if(partitioning.subgraphs.begin(),
-                                       partitioning.subgraphs.end(),
-                                       [](const ov::npuw::Subgraph& sg) {
-                                           return !sg._funcall.empty();
-                                       });
+    std::size_t folded =
+        std::count_if(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return !sg._funcall.empty();
+        });
     EXPECT_EQ(folded, N);
 }
 

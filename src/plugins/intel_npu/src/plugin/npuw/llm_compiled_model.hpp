@@ -34,7 +34,10 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
-    static constexpr const char* output_embeds = "npuw_output_embed";
+    struct layer_names {
+        static constexpr const char* output_embeds = "npuw_output_embed";
+        static constexpr const char* logits = "logits";
+    };
 
     static constexpr uint32_t whisper_batch_dim = 0u;
     static constexpr uint32_t whisper_seq_len_dim = 2u;
@@ -112,6 +115,9 @@ protected:
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
 
+    std::map<std::string, std::size_t> prefill_other_outs_seqdims_by_name() const;
+    void rebuild_prefill_other_outs_to_seqdims(const std::map<std::string, std::size_t>& by_name);
+
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
@@ -127,6 +133,7 @@ protected:
     bool m_is_block_kv_cache = false;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
+    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_to_seqdims;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
 
