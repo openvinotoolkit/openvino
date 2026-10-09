@@ -695,4 +695,28 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     return supported;
 }
 
+namespace {
+// The cache key under which the compiler-in-plugin's option-support answers are stored.
+constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
+    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
+}  // namespace
+
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::optional<IDevice::DeviceProperties>& deviceProperties,
+                                        const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
+    auto vclLoader = VCLLoader::getInstance();
+    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+
+    auto compiler =
+        std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
+                                          deviceProperties,
+                                          ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
+
+    // Pairing the compiler with the library keeps the .so alive for as long as the compiler is. The
+    // compiler itself never learns that a library is involved.
+    auto vclLib = vclLoader->getLibrary();
+    OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
+
+    return ov::SoPtr<IVCLCompiler>(compiler, vclLib);
+}
+
 }  // namespace intel_npu
