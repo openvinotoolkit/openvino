@@ -56,7 +56,7 @@ find ./build -name "libdnnl*" -o -name "dnnl*" 2>/dev/null | head -5
 ```
 
 - **If successful:** Proceed to "Quick Start - Main Steps"
-- **If failed:** Rebuild using the [build guide](../../../../docs/dev/build.md) and verify bundled oneDNN artifacts are generated
+- **If failed:** Rebuild using the canonical `build-openvino` workflow and verify bundled oneDNN artifacts are generated
 
 ---
 
@@ -64,7 +64,7 @@ find ./build -name "libdnnl*" -o -name "dnnl*" 2>/dev/null | head -5
 
 ## Installation (Prerequisites Check failed)
 
-oneDNN is typically bundled as a third-party dependency in OpenVINO GPU builds. Follow the [build guide](../../../../docs/dev/build.md) in Debug mode with tests enabled rather than relying on an ad-hoc oneDNN-specific CMake flag.
+oneDNN is typically bundled as a third-party dependency in OpenVINO GPU builds. Use the `build-openvino` skill in Debug mode with tests enabled rather than relying on an ad-hoc oneDNN-specific CMake flag.
 
 ---
 
@@ -171,7 +171,7 @@ Then invoke `run-gpu-tests` skill to verify the oneDNN integration:
 - **Memory format mismatch**: Ensure proper mapping between `cldnn` layouts and `dnnl::memory::format_tag`
 - **Accuracy regression**: Check data type handling, especially for fp16/bf16 operations
 - **oneDNN path not selected**: Verify the implementation factory registration and selection priority
-- **Build errors**: Verify the build completed using the [build guide](../../../../docs/dev/build.md) and that bundled dnnl/oneDNN artifacts were generated in the build tree
+- **Build errors**: Verify the canonical `build-openvino` workflow completed successfully and that bundled dnnl/oneDNN artifacts were generated in the build tree
 - **Runtime errors**: Check oneDNN verbose output with `ONEDNN_VERBOSE=1` environment variable
 
 ---
@@ -179,7 +179,7 @@ Then invoke `run-gpu-tests` skill to verify the oneDNN integration:
 # References
 
 - Related skills: `gpu-kernel-enabling`, `gpu-kernel-device-timing`, `run-gpu-tests`, `write-gpu-tests`, `gpu-op-file-structure`
-- Build instructions: [build guide](../../../../docs/dev/build.md)
+- Canonical build workflow: `build-openvino`
 - oneDNN API reference: https://oneapi-src.github.io/oneDNN/
 - Existing oneDNN implementations: `src/plugins/intel_gpu/src/graph/impls/onednn/`
 - oneDNN GPU support: https://oneapi-src.github.io/oneDNN/dev_guide_understanding_memory_formats.html

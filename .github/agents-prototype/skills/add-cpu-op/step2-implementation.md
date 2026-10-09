@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Completed [analysis guide](step1-analysis.md) — op name, strategy, precisions, layouts,
+- Completed **cpu_op_analysis** skill — op name, strategy, precisions, layouts,
   and shape inference approach are determined.
 - Core op class exists in `src/core/include/openvino/op/`.
 - Reference implementation exists in `src/core/reference/include/openvino/reference/`
@@ -139,4 +139,4 @@ Before proceeding to the next step, verify:
 
 - All source files created/updated per the file structure above.
 - Build compiles without errors.
-- Proceed to [optimization guide](step3-optimization.md).
+- Proceed to **cpu_op_optimization** skill.

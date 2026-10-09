@@ -79,7 +79,7 @@ Before writing any code:
    - Runtime info / friendly names preserved
    - Explicit no-fuse conditions (negative guards)
 
-4. **Choose the pass type** using [the analysis guide](step1-analysis.md).
+4. **Choose the pass type** using `openvino_transformation_analysis` skill.
 
 ### Step 3: Design the Fusion Pattern
 
@@ -102,7 +102,7 @@ Write down:
 
 ### Step 4: Implement Header and Source
 
-Follow [the implementation guide](step2-implementation.md).
+Follow **`openvino_transformation_implementation`** skill exactly.
 
 Checklist after writing:
 - [ ] `OPENVINO_RTTI("ClassName", "0")` present
@@ -132,8 +132,8 @@ Location: `src/common/transformations/tests/<domain>/`
 Required test file: `test_<pass_name>.cpp`
 
 Read the closest existing transformation test as your template. Good references:
-- `src/common/transformations/tests/common_optimizations/convert_u4_weights_zero_point_to_scalar.cpp`
-- `src/common/transformations/tests/common_optimizations/matmul_multiply_fusion.cpp`
+- `src/common/transformations/tests/common_optimizations/fuse_u4_weights_zero_point.cpp`
+- `src/common/transformations/tests/common_optimizations/matmul_multiply_fusion_tests.cpp`
 
 Each test file must include at minimum:
 - **One positive test** (`TransformationTestsF`) that verifies the pattern fires and produces the expected replacement graph.
@@ -142,7 +142,7 @@ Each test file must include at minimum:
 
 **Functional / layer tests (when externally observable):**
 If the fusion changes user-visible behavior or a performance-sensitive execution path,
-add/extend functional tests under `tests/layer_tests/` or `src/tests/functional/`.
+add/extend functional tests under `tests/layer_tests/` or `tests/functional/`.
 Keep tests minimal and deterministic.
 
 ### Step 7: Build, Verify and Generate Patch
@@ -225,6 +225,6 @@ The patch is available in `agent-results/transformation/` for collection by the 
 
 - Transformation API docs: https://docs.openvino.ai/2025/documentation/openvino-extensibility/transformation-api.html
 - Existing fusion examples:
-  - `src/common/transformations/src/transformations/common_optimizations/convert_u4_weights_zero_point_to_scalar.cpp`
+  - `src/common/transformations/src/transformations/common_optimizations/fuse_u4_weights_zero_point.cpp`
   - `src/common/transformations/src/transformations/common_optimizations/matmul_multiply_fusion.cpp`
-- Test utilities: [`common_test_utils/graph_comparator.hpp`](../../../../src/tests/test_utils/common_test_utils/include/common_test_utils/graph_comparator.hpp) and [`common_test_utils/ov_test_utils.hpp`](../../../../src/tests/test_utils/common_test_utils/include/common_test_utils/ov_test_utils.hpp).
+- Test utilities: `src/common/transformations/tests/utils/compare_graphs.hpp`

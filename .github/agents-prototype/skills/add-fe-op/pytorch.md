@@ -148,7 +148,7 @@ Real implementations to read before adapting your code:
 - `src/frontends/pytorch/src/op/layer_norm.cpp` — shared helpers (`normalize_axis`, `make_optional_bias`)
 - `src/frontends/pytorch/src/op/linear.cpp` — attribute translation, bias handling
 
-After creating the file, declare the translator in [`src/frontends/pytorch/src/op_table.hpp`](../../../../src/frontends/pytorch/src/op_table.hpp).
+After creating the file, declare the translator in `src/frontends/pytorch/src/op/op.hpp`.
 
 ### 5b. 1:1 mapping (no custom translator needed)
 
@@ -333,5 +333,5 @@ cmake --build build --target clang_format_fix_all -j$(nproc)
 - [PyTorch Operator Documentation](https://pytorch.org/docs/stable/torch.html)
 - [PyTorch ATen native_functions.yaml](https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/native_functions.yaml)
 - [torch.export Reference](https://pytorch.org/docs/stable/export.html)
-- [OpenVINO Available Operations](https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/available-opsets.html)
+- [OpenVINO Available Operations](https://docs.openvino.ai/latest/openvino_docs_ops_opset.html)
 - [OpenVINO PyTorch Frontend README](../../../../src/frontends/pytorch/README.md)

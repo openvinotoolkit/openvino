@@ -158,4 +158,4 @@ target_isa:        <list of ISA levels to target>
 transformations:   <list of relevant CPU transformations or "none">
 ```
 
-Proceed to [implementation guide](step2-implementation.md).
+Proceed to **cpu_op_implementation** skill.

@@ -19,7 +19,7 @@ Follow this workflow in order. Each step links to a dedicated skill with detaile
 
 1. **Step 0:** Analyze the Op spec and create an implementation plan (`plan-op-implementation` with `parse-op-spec`)
 2. **Step 1:** Collect target GPU hardware specs via clinfo (`collect-gpu-hardware-spec`)
-3. **Step 2:** Build the OpenVINO tree with GPU enabled ([build guide](../../../../docs/dev/build.md))
+3. **Step 2:** Build the OpenVINO tree with GPU enabled (`build-openvino`)
 4. **Step 3:** Determine file locations and naming conventions (`gpu-op-file-structure`)
 5. **Step 4:** Implement C++ primitives, create ref kernel, write and run tests (`gpu-kernel-enabling` → `write-gpu-tests` → `run-gpu-tests`)
 6. **Step 4.5:** *(Conditional)* Integrate oneDNN primitive if available (`gpu-integrate-onednn-primitive`)
@@ -72,7 +72,7 @@ Follow the Development Workflow below. Each step routes to a dedicated sub-skill
 flowchart TD
   Z[New Op Request] --> A["Step 0: plan-op-implementation\n(with parse-op-spec)"]
   A --> B[Step 1: collect-gpu-hardware-spec]
-  B --> C[Step 2: Build OpenVINO]
+  B --> C[Step 2: build-openvino]
   C --> D[Step 3: gpu-op-file-structure]
   D --> E["Step 4: gpu-kernel-enabling\n→ write-gpu-tests → run-gpu-tests"]
   E --> E1[Ref Baseline: gpu-kernel-device-timing]
@@ -105,7 +105,7 @@ Before any specs are collected or code is written, analyze the OpenVINO operatio
 Before writing any code, collect GPU hardware specs via `clinfo`. This determines SIMD size, sub-group preferences, SLM capacity, and tuning parameters.
 
 ## Step 2: Build the GPU Plugin
-**Reference:** [build guide](../../../../docs/dev/build.md)
+**Skill:** `build-openvino`
 
 Build the OpenVINO tree with Intel GPU enabled. In the GPU kernel workflow, use Debug builds for development and functional verification, Release builds for profiling and optimization, and Python/Wheel builds only when packaging or Python integration is required.
 
@@ -143,7 +143,7 @@ Use this branch when you are updating an existing GPU operation for a newer Open
 | `parse-op-spec` | Fetch and parse Op specification into structured summary | Called by `plan-op-implementation` in Step 0 |
 | `plan-op-implementation` | Analyze Op spec and formulate primitive/kernel/test plan | Always first, before writing code |
 | `collect-gpu-hardware-spec` | Collect GPU specs via clinfo | After planning, before optimizing |
-| [build guide](../../../../docs/dev/build.md) | Build OpenVINO with the required GPU-oriented configuration | Before development/testing |
+| `build-openvino` | Build OpenVINO with the required GPU-oriented configuration | Before development/testing |
 | `gpu-op-file-structure` | Files to implement for new operation | When creating new op files |
 | `gpu-kernel-enabling` | Implement C++ primitives & create ref OpenCL kernel | Initial kernel enabling phase |
 | `write-gpu-tests` | Create SLT and unit test code for GPU ops | During enabling, migration, oneDNN integration |

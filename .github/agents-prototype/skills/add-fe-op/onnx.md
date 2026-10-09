@@ -168,8 +168,8 @@ auto complex_mark = std::make_shared<ComplexTypeMark>(input, input_et);
 
 For ops that require post-translation graph rewrites (e.g., resolving Mark operations or merging multi-op patterns):
 
-1. Use the [shared frontend passes](../../../../src/frontends/common_translators/src/) as examples; place reusable passes there.
-2. Register in `FrontEnd::normalize()` in [`frontend.cpp`](../../../../src/frontends/onnx/frontend/src/frontend.cpp).
+1. Create a `MatcherPass` in `src/frontends/onnx/frontend/src/transforms/` (or `src/frontends/common_translators/` for shared transforms).
+2. Register in `FrontEnd::normalize()` in `frontend.cpp`.
 
 ### 5h. Update `CMakeLists.txt`
 
@@ -300,6 +300,6 @@ cmake --build build --target clang_format_fix_all -j$(nproc)
 
 - [ONNX Operator Specifications](https://onnx.ai/onnx/operators/)
 - [ONNX Operator Changelog](https://github.com/onnx/onnx/blob/main/docs/Changelog.md)
-- [OpenVINO Available Operations](https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/available-opsets.html)
+- [OpenVINO Available Operations](https://docs.openvino.ai/latest/openvino_docs_ops_opset.html)
 - [OpenVINO ONNX Frontend README](../../../../src/frontends/onnx/README.md)
 - [OpenVINO ONNX Supported Ops](../../../../src/frontends/onnx/docs/supported_ops.md)

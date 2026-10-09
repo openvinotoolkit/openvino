@@ -59,7 +59,7 @@ test -f ./build/bin/intel64/Release/ov_gpu_unit_tests && echo "OK" || echo "MISS
 ```
 
 - **If successful:** Proceed to "Quick Start - Main Steps"
-- **If failed:** Run `collect-gpu-hardware-spec`, then follow the [build guide](../../../../docs/dev/build.md) with a Release configuration and tests enabled
+- **If failed:** Run `collect-gpu-hardware-spec`, then run `build-openvino` with a Release configuration and tests enabled
 
 ---
 
@@ -68,7 +68,7 @@ test -f ./build/bin/intel64/Release/ov_gpu_unit_tests && echo "OK" || echo "MISS
 ## Installation (Prerequisites Check failed)
 
 1. Run `collect-gpu-hardware-spec` skill to collect hardware specs
-2. Follow the [build guide](../../../../docs/dev/build.md) with a Release configuration and tests enabled
+2. Run `build-openvino` with a Release configuration and tests enabled
 3. Run `gpu-kernel-device-timing` skill to identify bottlenecks
 
 ---
@@ -250,5 +250,5 @@ After creating the optimized kernel:
 # References
 
 - Related skills: `collect-gpu-hardware-spec`, `gpu-kernel-device-timing`, `run-gpu-tests`, `gpu-kernel-enabling`, `gpu-op-file-structure`
-- OpenCL kernel and profiling guidance: [kernel development](step3-kernel-development.md) and [profiling](step3-profiling.md).
+- Intel GPU optimization guide: https://www.intel.com/content/www/us/en/developer/articles/guide/opencl-developers-guide.html
 - Sub-group functions: https://registry.khronos.org/OpenCL/extensions/intel/cl_intel_subgroups.html

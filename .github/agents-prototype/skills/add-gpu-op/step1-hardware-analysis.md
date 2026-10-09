@@ -128,6 +128,6 @@ From the `clinfo` output, record these values. Tuning decisions (SIMD size, LWS,
 
 # References
 
-- Related skills: `gpu-kernel-enabling`, `gpu-kernel-optimize`, [build guide](../../../../docs/dev/build.md)
+- Related skills: `gpu-kernel-enabling`, `gpu-kernel-optimize`, `build-openvino`
 - Intel OpenCL documentation: https://www.intel.com/content/www/us/en/developer/tools/opencl/overview.html
-- **Next Step:** Build OpenVINO using the [build guide](../../../../docs/dev/build.md), then return to the [GPU workflow](orchestrator.md).
+- **Next Step:** Proceed to `build-openvino` (Step 2 of `intel-gpu-kernel` workflow)
