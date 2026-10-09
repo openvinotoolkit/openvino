@@ -168,11 +168,13 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     ov_ze_usm_handle usm_handle{ctx.handle(), reinterpret_cast<uint8_t*>(ptr) + byte_offset};
     const bool is_borrowed = true;
     ze_usm_resource usm_res(usm_handle, is_borrowed);
-    return std::make_shared<ze::gpu_usm>(this,
-                             new_layout,
-                             usm_res,
-                             memory.get_allocation_type(),
-                             memory.get_mem_tracker());
+    auto sub_buffer = std::make_shared<ze::gpu_usm>(this,
+                                                    new_layout,
+                                                    usm_res,
+                                                    memory.get_allocation_type(),
+                                                    memory.get_mem_tracker());
+    sub_buffer->set_parent_resource(new_buf.get_owning_resource());
+    return sub_buffer;
 }
 
 memory_ptr ze_engine::create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {

@@ -46,6 +46,10 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     shared_mem_params get_internal_params(runtime_types rt_type) const override;
     void* buffer_ptr() const override;
     ze_usm_resource get_resource() const { return _buffer; }
+    // Resource that owns the underlying allocation: the parent's resource for sub-buffers, otherwise own resource.
+    ze_usm_resource get_owning_resource() const { return _parent_buffer.is_empty() ? _buffer : _parent_buffer; }
+    // Sub-buffers borrow the parent's pointer, so keep the owning resource alive for the sub-buffer lifetime.
+    void set_parent_resource(ze_usm_resource parent) { _parent_buffer = std::move(parent); }
 
     event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
     event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
@@ -61,6 +65,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
 protected:
     mutable ze_usm_resource _buffer;
     ze_usm_resource _host_buffer;
+    ze_usm_resource _parent_buffer;
 };
 
 struct gpu_image2d : public lockable_gpu_mem, public memory {
