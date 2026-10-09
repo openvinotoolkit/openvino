@@ -18,6 +18,7 @@
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/flush_fp32_subnormals_to_zero.hpp>
+#include <transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 
@@ -177,6 +178,16 @@ void regmodule_offline_transformations(py::module m) {
             const auto model = Common::utils::convert_to_model(ie_api_model);
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::StatefulToStateless>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
+
+    m_offline_transformations.def(
+        "mark_compressed_float_constants",
+        [](py::object& ie_api_model) {
+            const auto model = Common::utils::convert_to_model(ie_api_model);
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
             manager.run_passes(model);
         },
         py::arg("model"));

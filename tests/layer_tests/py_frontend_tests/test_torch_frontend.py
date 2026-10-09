@@ -3441,3 +3441,29 @@ def test_plain_weights_cast_is_not_marked():
 
     assert not _decompression_marked_converts(ov_model), \
         "A cast with no dequantization underneath must not be marked as decompression"
+
+
+def test_canonicalize_float_precision_marks_decompression(tmp_path):
+    """The Convert added for a large bf16 weight must carry the real decompression
+    attribute (kept across IR serialization), not a plain rt_info value."""
+    import numpy as np
+    import openvino as ov
+    from openvino.frontend.pytorch.torchdynamo.vllm.compile_hooks import canonicalize_float_precision
+
+    parameter = ov.opset10.parameter([1, 1024], np.float32, name="X")
+    weights = ov.opset10.constant(np.random.rand(1024, 1024).astype(np.float32), dtype=ov.Type.bf16)
+    matmul = ov.opset10.matmul(ov.opset10.convert(parameter, "bf16"), weights, False, True)
+    model = ov.Model([ov.opset10.result(matmul)], [parameter])
+
+    assert canonicalize_float_precision(model) > 0
+    converts = [op for op in model.get_ordered_ops()
+                if op.get_type_name() == "Convert" and op.input_value(0).get_node().get_type_name() == "Constant"]
+    assert len(converts) == 1
+    assert "decompression_0" in converts[0].get_rt_info()
+
+    xml_path, bin_path = str(tmp_path / "model.xml"), str(tmp_path / "model.bin")
+    ov.serialize(model, xml_path, bin_path)
+    reloaded = ov.Core().read_model(xml_path)
+    assert [op for op in reloaded.get_ordered_ops()
+            if op.get_type_name() == "Convert" and "decompression_0" in op.get_rt_info()], \
+        "The decompression mark must survive an IR round trip"

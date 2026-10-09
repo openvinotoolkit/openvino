@@ -472,17 +472,6 @@ def _destination_type(convert):
     return {"bf16": Type.bf16, "f16": Type.f16, "f32": Type.f32}.get(dst, dst)
 
 
-def _mark_decompression(convert):
-    """Mark a Const->Convert(f32) the way MarkCompressedFloatConstants does.
-
-    The PyTorch frontend runs that pass during normalize(), before this hook,
-    so the Converts added here have to be marked explicitly.
-    """
-    rt_info = convert.get_rt_info()
-    rt_info["decompression_0"] = True
-    rt_info["DisableConstantFolding_0"] = True
-
-
 def canonicalize_float_precision(om):
     """Rewrite a bf16/f16 graph into OV's canonical LLM form.
 
@@ -501,6 +490,7 @@ def canonicalize_float_precision(om):
     """
     from openvino import Type
     from openvino import opset1 as _o1
+    from openvino._offline_transformations import mark_compressed_float_constants
 
     narrow = (Type.bf16, Type.f16)
     result_types = [r.get_input_element_type(0) for r in om.get_results()]
@@ -524,7 +514,6 @@ def canonicalize_float_precision(om):
                 repl = _o1.constant(_constant_as_f32(node))
             else:
                 repl = _o1.convert(node.output(0), "f32")
-                _mark_decompression(repl)
             for consumer in consumers:
                 consumer.replace_source_output(repl.output(0))
             changed += 1
@@ -556,7 +545,7 @@ def canonicalize_float_precision(om):
     # Converts that used to bridge a narrow island and an f32 one are now
     # identities; drop them so they don't sit between ops the fusions match.
     for node in list(om.get_ordered_ops()):
-        if node.get_type_name() != "Convert" or "decompression_0" in node.get_rt_info():
+        if node.get_type_name() != "Convert":
             continue
         src = node.input_value(0)
         if src.get_element_type() != _destination_type(node):
@@ -568,6 +557,8 @@ def canonicalize_float_precision(om):
             target.replace_source_output(src)
 
     om.validate_nodes_and_infer_types()
+    # normalize() ran this pass before the Converts above existed.
+    mark_compressed_float_constants(om)
     remaining = sorted({n.get_type_name() for n in om.get_ordered_ops() if _has_narrow_output(n, narrow)})
     if remaining:
         logger.debug("narrow-float outputs left after canonicalization: %s", remaining)

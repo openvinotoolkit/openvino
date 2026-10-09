@@ -13,6 +13,7 @@ from openvino._offline_transformations import (
     compress_model_transformation,
     convert_sequence_to_tensor_iterator_transformation,
     apply_fused_names_cleanup,
+    mark_compressed_float_constants,
 )
 
 from openvino import Model, PartialShape, Core, serialize, save_model
@@ -429,3 +430,27 @@ def test_flush_fp32_subnormals_to_zero():
     new_weights = add_node.input_value(1).get_node()
     assert np.all(new_weights.data[4:8] != subnorm_val)
     assert np.all(new_weights.data[4:8] == 0.0)
+
+
+def get_bf16_decompression_model():
+    parameter = ov.opset10.parameter([1, 8], np.float32, name="X")
+    weights = ov.opset10.constant(np.random.rand(8, 8).astype(np.float32), dtype=ov.Type.bf16)
+    convert = ov.opset10.convert(weights, "f32")
+    matmul = ov.opset10.matmul(parameter, convert, False, True)
+    return Model([ov.opset10.result(matmul)], [parameter]), convert
+
+
+def get_convert(model):
+    return next(op for op in model.get_ordered_ops() if op.get_type_name() == "Convert")
+
+
+def test_mark_compressed_float_constants_survives_ir_round_trip(tmp_path):
+    model, _ = get_bf16_decompression_model()
+    mark_compressed_float_constants(model)
+    assert "decompression_0" in get_convert(model).get_rt_info()
+
+    xml_path, bin_path = str(tmp_path / "model.xml"), str(tmp_path / "model.bin")
+    serialize(model, xml_path, bin_path)
+    # A plain rt_info value under the same key is not written to the IR.
+    assert "decompression" in open(xml_path).read()
+    assert "decompression_0" in get_convert(Core().read_model(xml_path)).get_rt_info()
