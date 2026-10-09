@@ -144,6 +144,13 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         const size_t k_axis = transpose_b ? 1 : 0;
         auto weight_dtype = fc_nodes[0]->get_input_element_type(weight_idx);
         auto k_size = fc_nodes[0]->get_input_shape(weight_idx)[k_axis];
+        const bool transpose_b_scale = fc_nodes[0]->get_transpose_b_scale();
+        const bool transpose_b_zp = fc_nodes[0]->get_transpose_b_zp();
+        // Scale/ZP are [N, groups] when transposed, [groups, N] otherwise.
+        auto get_param_n_axis = [](const std::shared_ptr<ov::Node>& node, bool transposed) -> int64_t {
+            const auto rank = static_cast<int64_t>(node->get_output_partial_shape(0).size());
+            return transposed ? 0 : std::max<int64_t>(0, rank - 1);
+        };
         std::vector<int64_t> orig_n_sizes;
         // merge weights, scale, zp
         for (auto fc : fc_nodes) {
@@ -153,7 +160,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             if (weight_dtype != fc->get_input_element_type(weight_idx)) {
                 return false;
             }
-            if (transpose_b != fc->get_transpose_b()) {
+            if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() ||
+                transpose_b_zp != fc->get_transpose_b_zp()) {
                 return false;
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
@@ -171,7 +179,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             scales_as_output_vector.push_back(scale_nodes[i]->output(0));
         }
 
-        auto fused_scale = std::make_shared<ov::op::v0::Concat>(scales_as_output_vector, 0);
+        auto fused_scale = std::make_shared<ov::op::v0::Concat>(scales_as_output_vector, get_param_n_axis(scale_nodes[0], transpose_b_scale));
         fused_scale->set_friendly_name(scale_nodes[0]->get_friendly_name() + "_fused_scale");
         ov::copy_runtime_info(scale_nodes, fused_scale);
         // check if the FCs do not have bias inputs, but all of the fc has a bias add user, set them as bias inputs
@@ -287,8 +295,9 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 for (size_t i = 0; i < zp_nodes.size(); ++i) {
                     zp_nodes_as_output_vector.push_back(zp_nodes[i]->output(0));
                 }
-                fused_zps = std::make_shared<ov::op::v0::Concat>(zp_nodes_as_output_vector, 0);
+                fused_zps = std::make_shared<ov::op::v0::Concat>(zp_nodes_as_output_vector, get_param_n_axis(zp_nodes[0], transpose_b_zp));
                 fused_zps->set_friendly_name(zp_nodes[0]->get_friendly_name() + "_fused_zps");
+                ov::copy_runtime_info(zp_nodes, fused_zps);
             }
         }
         // Create new fc with merged weights, bias, scale, zp

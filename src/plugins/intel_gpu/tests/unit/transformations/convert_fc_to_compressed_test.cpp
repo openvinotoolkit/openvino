@@ -170,6 +170,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed5) {
 }
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed6) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 16 });
         auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{ 4, 4, 32 }, { 1 });
@@ -198,13 +199,14 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed6) {
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 4, 32 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1, 1 }, { 1 });
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
-            input1, transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, 0, 0);
+            input1, transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, false, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed7) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 16 });
         auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{ 4, 4, 32 }, { 1 });
@@ -233,13 +235,14 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed7) {
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 4, 32 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 4, 32 }, { 1 });
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
-            input1, transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, 0, 0);
+            input1, transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, false, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed8) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 16 });
         auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{ 4, 4, 32 }, { 1 });
@@ -268,7 +271,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed8) {
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 4, 32 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 4, 32 }, { 1 });
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
-            input1, transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, 0, 0);
+            input1, transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, false, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
     }
@@ -355,6 +358,7 @@ bool TestSubgraph::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed9) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     {
         auto weights_const = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{ 4, 4, 32 }, { 1 });
         auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f16);
@@ -420,7 +424,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed9) {
         }
         auto subgraph_op = std::make_shared<TestSubgraph>(args, submodel);
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
-            subgraph_op->output(1), transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, 0, 0);
+            subgraph_op->output(1), transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, false, false);
 
         model_ref =
             std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(subgraph_op->output(0)), fc_compressed}, subgraph_parameters);
@@ -509,6 +513,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed12) {
 }
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed13) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
         auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{4, 4, 32});
@@ -536,13 +541,14 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed13) {
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 32}, {1});
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
-            input1, transpose_weights, no_bias, scale_const, ov::element::dynamic, true, 0, 0);
+            input1, transpose_weights, no_bias, scale_const, ov::element::dynamic, true, false, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1, weights_param});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed14) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
         auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{4, 4, 32});
@@ -570,13 +576,14 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed14) {
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 32}, {1});
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
-            input1, transpose_weights, no_bias, scale_const, ov::element::dynamic, true, 0, 0);
+            input1, transpose_weights, no_bias, scale_const, ov::element::dynamic, true, false, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1, weights_param});
     }
 }
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed15) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
         auto weights_param = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, ov::Shape{4, 4, 32});
@@ -610,7 +617,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed15) {
         auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f16);
 
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
-            input1, transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, 0, 0);
+            input1, transpose_weights, no_bias, scale_const, zp_const, ov::element::dynamic, true, false, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1, weights_param});
     }

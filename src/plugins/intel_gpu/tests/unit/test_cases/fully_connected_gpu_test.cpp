@@ -5744,7 +5744,7 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
-    this->test_compressed_int8_transpose_scale_zp(false);
+    this->test_compressed_int8_transpose_scale_zp(true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
