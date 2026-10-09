@@ -311,9 +311,6 @@ Models qwen_layout(const std::shared_ptr<ov::Model>& model) {
 }  // namespace
 
 bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    m_vision_models.clear();
-    if (m_layout == Layout::VISION_ENCODERS)
-        OPENVINO_ASSERT(m_modality == Modality::VISION, "[GGUF] VISION_ENCODERS layout requires vision modality");
     const std::string prefix = m_modality == Modality::VISION ? "vision." : "audio.";
     std::shared_ptr<ov::op::v0::Result> selected;
     for (const auto& result : model->get_results()) {
@@ -351,26 +348,30 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             name_output(p, name.substr(prefix.size()));
     }
     model->validate_nodes_and_infer_types();
-    if (m_layout == Layout::VISION_ENCODERS) {
-        const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
-        if (projector == "qwen3vl_merger") {
-            m_vision_models = qwen_layout(model);
+    return true;
+}
+
+bool AdaptVisionEncodersToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    m_vision_models.clear();
+    AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::VISION).run_on_model(model);
+    const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
+    if (projector == "qwen3vl_merger") {
+        m_vision_models = qwen_layout(model);
+    } else {
+        if (projector == "gemma4v" || projector == "gemma4uv") {
+            gemma4_layout(model, metadata(model, "vision.patch_size"));
+        } else if (projector == "muse-glimmer") {
+            muse_layout(model,
+                        metadata(model, "vision.patch_size"),
+                        metadata(model, "vision.window_size"),
+                        metadata(model, "vision.merge"));
         } else {
-            if (projector == "gemma4v" || projector == "gemma4uv") {
-                gemma4_layout(model, metadata(model, "vision.patch_size"));
-            } else if (projector == "muse-glimmer") {
-                muse_layout(model,
-                            metadata(model, "vision.patch_size"),
-                            metadata(model, "vision.window_size"),
-                            metadata(model, "vision.merge"));
-            } else {
-                OPENVINO_ASSERT(projector == "gemma3",
-                                "[GGUF] no GenAI vision layout for mmproj projector '",
-                                projector,
-                                "'");
-            }
-            m_vision_models = {{"vision_embeddings", model}};
+            OPENVINO_ASSERT(projector == "gemma3",
+                            "[GGUF] no GenAI vision layout for mmproj projector '",
+                            projector,
+                            "'");
         }
+        m_vision_models = {{"vision_embeddings", model}};
     }
     return true;
 }

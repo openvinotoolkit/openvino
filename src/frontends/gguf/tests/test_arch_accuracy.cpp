@@ -31,6 +31,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "quant/gguf.hpp"
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
@@ -89,6 +90,17 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        if (std::string(family) == "gemma4-ple") {
+            const auto loaded = ov::frontend::gguf::get_gguf_data(temporary.path);
+            const auto& weights = std::get<1>(loaded);
+            EXPECT_EQ(weights.count("blk.0.attn_k.weight"), 1);
+            EXPECT_EQ(weights.count("blk.0.attn_v.weight"), 1);
+            EXPECT_EQ(weights.count("blk.1.attn_k.weight"), 1);
+            for (const auto* name :
+                 {"blk.2.attn_k.weight", "blk.2.attn_v.weight", "blk.3.attn_k.weight", "blk.3.attn_v.weight"}) {
+                EXPECT_EQ(weights.count(name), 0) << name;
+            }
+        }
         ov::frontend::gguf::FrontEnd frontend;
         frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         auto model = frontend.convert(frontend.load(temporary.path));

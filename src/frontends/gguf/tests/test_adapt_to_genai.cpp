@@ -298,7 +298,7 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToItsOwnModel) {
 }
 
 TEST(GGUFAdaptToGenAI, MediaPaddingAcceptsIntegralMetadataAndRejectsInvalidValues) {
-    const auto adapt = [](const ov::Tensor& padding) {
+    const auto adapt = [](const ov::Any& padding) {
         auto m = build_minimal_gguf_model(8, 2, false, true);
         m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
         auto metadata = std::make_shared<ov::frontend::gguf::GGUFTokenizerMetadata>();
@@ -334,6 +334,9 @@ TEST(GGUFAdaptToGenAI, MediaPaddingAcceptsIntegralMetadataAndRejectsInvalidValue
                               v0::Constant::create(ov::element::u64, {}, {uint64_t(-1)}),
                               v0::Constant::create(ov::element::i64, {}, {8})}) {
         EXPECT_THROW(adapt(value->get_tensor_view()), ov::Exception);
+    }
+    for (const auto& value : {ov::Any{}, ov::Any{std::string{"2"}}, ov::Any{int64_t{2}}}) {
+        EXPECT_THROW(adapt(value), ov::Exception);
     }
 }
 
