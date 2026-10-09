@@ -316,10 +316,21 @@ TEST_F(GGUFMMProj, MixedFileHasIndependentVisionAndAudioBranches) {
     }
 }
 
+TEST_F(GGUFMMProj, VisionEncoderLayoutRejectsAudioWithoutChangingModel) {
+    encoder("audio", "qwen2a");
+    auto model = convert();
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::AUDIO, Adapter::Layout::VISION_ENCODERS);
+    OV_EXPECT_THROW(adapter.run_on_model(model), ov::Exception, testing::HasSubstr("requires vision modality"));
+    EXPECT_TRUE(adapter.get_vision_models().empty());
+    EXPECT_EQ(model->output().get_any_name(), "audio.embeddings");
+}
+
 TEST_F(GGUFMMProj, VisionEncoderLayoutRejectsMissingVisionWithoutChangingModel) {
     encoder("audio", "qwen2a");
     auto model = convert();
-    ov::frontend::gguf::pass::AdaptVisionEncodersToGenAI adapter;
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
     OV_EXPECT_THROW(adapter.run_on_model(model), ov::Exception, testing::HasSubstr("no vision.embeddings output"));
     EXPECT_TRUE(adapter.get_vision_models().empty());
     EXPECT_EQ(model->output().get_any_name(), "audio.embeddings");
@@ -597,7 +608,8 @@ protected:
 };
 
 TEST_P(GGUFMMProjGenAIVisionLayout, MatchesSourceGraph) {
-    ov::frontend::gguf::pass::AdaptVisionEncodersToGenAI adapter;
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
     auto adapted = model->clone();
     ASSERT_TRUE(adapter.run_on_model(adapted));
     const auto& models = adapter.get_vision_models();

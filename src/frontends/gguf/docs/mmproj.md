@@ -129,7 +129,8 @@ audio instead takes consecutive 640-sample frames from a 16 kHz waveform, withou
 ## Using the encoders and a language model
 
 [`AdaptMmprojToGenAI`](../include/openvino/frontend/gguf/adapt_mmproj_to_genai.hpp) keeps one
-modality and drops the other branch's inputs and prefixes. It exposes `[1,T,D]` outputs named
+modality and drops the other branch's inputs and prefixes. Its default `Layout::EMBEDDINGS`
+exposes `[1,T,D]` outputs named
 `image_features` and `deepstack_features.N`, or `audio_features`. It rewrites the model in place,
 so run it on a separate clone for each modality of a combined file.
 
@@ -149,7 +150,7 @@ mode prepares the language model for media injection:
 - Gemma4 image attention remains causal at the E2B/E4B embedding widths (1536/2560), matching
   llama.cpp; other variants allow bidirectional attention within an image in sliding-window layers.
 
-For vision, `AdaptVisionEncodersToGenAI` selects the vision branch and rewrites the
+For vision, `AdaptMmprojToGenAI(Modality::VISION, Layout::VISION_ENCODERS)` rewrites the
 model to the optimum-intel export layout, allowing OpenVINO GenAI to reuse its existing
 encoders. `get_vision_models()` returns the adapted model under `vision_embeddings`, or
 the three Qwen components below; the supplied model becomes the Qwen merger. GGUF
@@ -231,7 +232,8 @@ and an already converted combined `mmproj` model:
 using namespace ov::frontend::gguf::pass;
 auto vision = mmproj->clone();
 auto audio = mmproj->clone();
-AdaptVisionEncodersToGenAI vision_adapter;
+AdaptMmprojToGenAI vision_adapter(AdaptMmprojToGenAI::Modality::VISION,
+                                 AdaptMmprojToGenAI::Layout::VISION_ENCODERS);
 vision_adapter.run_on_model(vision);
 auto vision_models = vision_adapter.get_vision_models();
 AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::AUDIO).run_on_model(audio);
