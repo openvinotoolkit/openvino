@@ -134,6 +134,10 @@ public:
     // Shared KV (ONNX kv_sequence_length == 0): key/value are statically empty and past_key/past_value already
     // hold the complete KV, so nothing is appended and present_key/present_value equal the past.
     bool is_shared_kv() const;
+    // Separate key/value with a dynamic sequence length that may differ from the query's at runtime (0 for ORT
+    // shared KV), so the cache arithmetic must use the key's own length. False for packed QKV (Q/K/V split from
+    // one tensor, so S_kv == S_q), static shapes and static shared KV.
+    bool has_dynamic_kv_length() const;
     // Logit soft-capping (Gemma-style): when > 0, scaled scores become softcap * tanh(score / softcap)
     // before the attention bias/mask and softmax. 0 disables it (the ONNX frontend maps ORT's "<= 0 disables" to 0).
     float get_softcap() const {

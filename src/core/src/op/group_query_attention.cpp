@@ -349,6 +349,13 @@ bool GroupQueryAttention::is_shared_kv() const {
            key_ps[2].get_length() == 0;
 }
 
+bool GroupQueryAttention::has_dynamic_kv_length() const {
+    const auto key_idx = static_cast<size_t>(GroupQueryAttentionInputs::KEY);
+    const auto& key_ps = get_input_partial_shape(key_idx);
+    const bool packed_qkv = input_value(0).get_node() == input_value(key_idx).get_node();
+    return !packed_qkv && key_ps.rank().is_static() && key_ps.rank().get_length() == 4 && key_ps[2].is_dynamic();
+}
+
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GroupQueryAttention_visit_attributes);
     visitor.on_attribute("causal", m_causal);
