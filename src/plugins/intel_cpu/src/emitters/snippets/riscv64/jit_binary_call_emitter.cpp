@@ -38,6 +38,7 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     std::vector<size_t> reserved_regs = used_gpr_idxs;
     for (size_t i = 0; i < num_binary_args; ++i) {
         reserved_regs.push_back(jit_generator_t::abi_param_regs[i].getIdx());
+        m_live_regs.emplace(snippets::RegType::gpr, jit_generator_t::abi_param_regs[i].getIdx());
     }
 
     const auto found_reg = std::find_if(aux_gpr_idxs.rbegin(), aux_gpr_idxs.rend(), [&reserved_regs](size_t idx) {
