@@ -2,22 +2,24 @@
   "schema_version": "1.0",
   "signature": "ImportError: pyarrow requires NumPy 2.0 or newer, found <version>|Dependencies",
   "signature_hash": "d61249d5ea96108d",
-  "title": "PyTorch model hub HF Transformers tests fail to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+  "title": "PyTorch model hub HF Transformers tests fail: pyarrow requires NumPy 2.0+, found 1.26.4",
   "category": "Dependencies",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-10-09T09:08:53Z",
-  "last_seen": "2026-10-09T09:35:28Z",
+  "last_seen": "2026-10-09T10:14:59Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/37901253022",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37905994851",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37900510909",
     "https://github.com/openvinotoolkit/openvino/actions/runs/37901253160"
   ],
   "affected_commits": [
+    "89f0e3a6695b6761f1dea033624fcd7b8243c44f",
     "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f",
-    "344d28c8dfd6d4d80f4b68a6b42c9cedf826894c",
-    "89f0e3a6695b6761f1dea033624fcd7b8243c44f"
+    "344d28c8dfd6d4d80f4b68a6b42c9cedf826894c"
   ],
   "recent_timestamps": [
+    "2026-10-09T10:14:59Z",
     "2026-10-09T09:35:28Z",
     "2026-10-09T09:22:01Z",
     "2026-10-09T09:08:53Z"

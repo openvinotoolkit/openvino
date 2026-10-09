@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-09-10-14-59-142-37901253022",
+  "timestamp": "2026-10-09T10:14:59Z",
+  "run_id": "37901253022",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37901253022",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "89f0e3a6695b6761f1dea033624fcd7b8243c44f",
+  "pr_number": "38550",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38550",
+  "author": "andrew-k-park",
+  "category": "Dependencies",
+  "title": "PyTorch model hub HF Transformers tests fail: pyarrow requires NumPy 2.0+, found 1.26.4",
+  "signature": "ImportError: pyarrow requires NumPy 2.0 or newer, found <version>|Dependencies",
+  "signature_hash": "d61249d5ea96108d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_hf_transformers.py precommit tests fail (multiple models) with ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4 when load_model imports `datasets`."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Downstream aggregate status check fails because the PyTorch Models tests job failed."
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_hf_transformers.py:51, in load_model\n    from datasets import Audio, load_dataset\n  File \".../datasets/arrow_dataset.py\", line 60, in <module>\n    import pyarrow as pa\n  File \".../pyarrow/lib.pyx\", line 42, in init pyarrow.lib\nImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4",
+    "FAILED install/tests/model_hub_tests/pytorch/test_hf_transformers.py::TestTransformersModel::test_convert_model_precommit[CPU-allenai/led-base-16384-led] - multiprocessing.context.ProcessError:\nFAILED ...test_convert_model_precommit[CPU-bert-base-uncased-bert]\nFAILED ...test_convert_model_precommit[CPU-google/flan-t5-base-t5]\nFAILED ...test_convert_model_precommit[CPU-google/tapas-large-finetuned-wtq-tapas]\nFAILED ...test_convert_model_precommit[CPU-openai/clip-vit-large-patch14-clip]\nFAILED ...test_convert_model_precommit_export[CPU-bert-base-uncased-bert]\nFAILED ...test_convert_model_precommit_export[CPU-openai/clip-vit-large-patch14-clip]"
+  ],
+  "root_cause": "The 'PyTorch Models Tests Not Timm or Torchvision' step runs test_hf_transformers.py in a shared venv where an earlier requirements install left numpy pinned at 1.26.4, but load_model() imports `datasets`, which transitively imports `pyarrow`. The pyarrow build installed in this venv is compiled against the NumPy 2.x ABI and refuses to initialize against NumPy 1.26.4 at import time, raising ImportError inside the child process spawned by multiprocessing_run (surfaced to pytest as multiprocessing.context.ProcessError). This is the same cross-file numpy/pyarrow version-skew problem already tracked in this knowledge base (signature d61249d5ea96108d) affecting multiple model-hub test suites (GatedDeltaNet, HF Transformers) across both x86_64 and ARM64 runners; it is not caused by the GPU AvgDown3D transformation change in this push.",
+  "reproduction_steps": "1. python3.11 -m venv venv && source venv/bin/activate\n2. pip install -r tests/requirements_pytorch (or the job's earlier env overlay that leaves numpy==1.26.4 installed)\n3. pip install -r install/tests/model_hub_tests/pytorch/envs/<overlay>.txt (any overlay pulling in datasets/pyarrow without re-pinning numpy)\n4. python -c \"from datasets import load_dataset\"  # raises ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4\n5. Equivalently: pytest install/tests/model_hub_tests/pytorch/test_hf_transformers.py -k test_convert_model_precommit",
+  "recommended_actions": [
+    "Pin pyarrow to a version compatible with numpy 1.26.x (e.g. pyarrow<18) in tests/requirements_pytorch and every tests/model_hub_tests/pytorch/envs/*.txt overlay that transitively installs datasets/pyarrow, OR bump the numpy pin to >=2.0 across these files if compatible with the rest of the matrix.",
+    "Add a 'pip check' / explicit import smoke test for datasets+pyarrow immediately after each requirements install step in the PyTorch Models tests job, to fail fast with a clear dependency message instead of a per-test ProcessError.",
+    "Audit all tests/model_hub_tests/pytorch/envs/*.txt files for consistent numpy/pyarrow pinning now that this is the 4th recorded occurrence across two different test suites and OS/arch combinations."
+  ],
+  "prevention_strategies": "Centralize numpy/pyarrow version pins in a shared constraints file applied to every tests/model_hub_tests/pytorch/envs/*.txt overlay so later installs cannot silently leave an ABI-incompatible pyarrow/numpy combination in the shared venv; add automated pip check/import-smoke gating right after dependency installation in CI so this surfaces as a single clear infra failure instead of many per-model test failures.",
+  "historical_context": "This is the 4th occurrence of signature d61249d5ea96108d within the same day: run 37901253160 (same commit 89f0e3a6695b6761f1dea033624fcd7b8243c44f, GatedDeltaNet test, ARM64), run 37900510909 (commit 344d28c8dfd6d4d80f4b68a6b42c9cedf826894c, HF Transformers), and run 37905994851 (commit 972aa05b9b625d08b4a8f8533cefa0a550e7aa1f, GatedDeltaNet test, ARM64). All four runs show the identical pyarrow/NumPy ABI ImportError; none of the recommended fixes from prior investigations appear to have been applied yet, confirming this is a persistent, unresolved Dependencies issue rather than a one-off flake."
+}
