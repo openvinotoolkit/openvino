@@ -6,7 +6,7 @@ import typing
 """
 openvino._offline_transformations is a private module contains different offline passes.
 """
-__all__: list[str] = ['apply_fused_names_cleanup', 'apply_low_latency_transformation', 'apply_make_stateful_transformation', 'apply_moc_legacy_transformations', 'apply_moc_transformations', 'apply_pruning_transformation', 'compress_model_transformation', 'compress_quantize_weights_transformation', 'convert_sequence_to_tensor_iterator_transformation', 'mark_compressed_float_constants', 'paged_attention_transformation', 'stateful_to_stateless_transformation']
+__all__: list[str] = ['apply_fused_names_cleanup', 'apply_low_latency_transformation', 'apply_make_stateful_transformation', 'apply_moc_legacy_transformations', 'apply_moc_transformations', 'apply_pruning_transformation', 'compress_model_transformation', 'compress_quantize_weights_transformation', 'convert_sequence_to_tensor_iterator_transformation', 'paged_attention_transformation', 'stateful_to_stateless_transformation']
 def apply_fused_names_cleanup(model: typing.Any) -> None:
     ...
 def apply_low_latency_transformation(model: typing.Any, use_const_initializer: bool = True) -> None:
@@ -28,8 +28,6 @@ def compress_model_transformation(model: typing.Any) -> None:
 def compress_quantize_weights_transformation(model: typing.Any) -> None:
     ...
 def convert_sequence_to_tensor_iterator_transformation(model: typing.Any) -> None:
-    ...
-def mark_compressed_float_constants(model: typing.Any) -> None:
     ...
 def paged_attention_transformation(model: typing.Any, use_block_indices_inputs: bool = False, use_score_outputs: bool = False, allow_score_aggregation: bool = False, allow_cache_rotation: bool = False, allow_xattention: bool = False, allow_adaptive_rkv: bool = False, allow_qq_bias: bool = False) -> None:
     ...

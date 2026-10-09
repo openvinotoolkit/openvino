@@ -3443,27 +3443,61 @@ def test_plain_weights_cast_is_not_marked():
         "A cast with no dequantization underneath must not be marked as decompression"
 
 
-def test_canonicalize_float_precision_marks_decompression(tmp_path):
-    """The Convert added for a large bf16 weight must carry the real decompression
-    attribute (kept across IR serialization), not a plain rt_info value."""
-    import numpy as np
-    import openvino as ov
-    from openvino.frontend.pytorch.torchdynamo.vllm.compile_hooks import canonicalize_float_precision
+class _Bf16Linear(torch.nn.Module):
+    """A bf16 linear layer: a large weight and a small bias."""
 
-    parameter = ov.opset10.parameter([1, 1024], np.float32, name="X")
-    weights = ov.opset10.constant(np.random.rand(1024, 1024).astype(np.float32), dtype=ov.Type.bf16)
-    matmul = ov.opset10.matmul(ov.opset10.convert(parameter, "bf16"), weights, False, True)
-    model = ov.Model([ov.opset10.result(matmul)], [parameter])
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
 
-    assert canonicalize_float_precision(model) > 0
-    converts = [op for op in model.get_ordered_ops()
-                if op.get_type_name() == "Convert" and op.input_value(0).get_node().get_type_name() == "Constant"]
-    assert len(converts) == 1
-    assert "decompression_0" in converts[0].get_rt_info()
+    def forward(self, x):
+        return self.linear(x)
 
+
+def _convert_fx(rt_info):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    with torch.no_grad():
+        ep = torch.export.export(_Bf16Linear().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
+    # Keep the decoder referenced until convert() is done: the frontend calls back into it.
+    decoder = TorchFXPythonDecoder(ep.module(), rt_info=rt_info)
+    fe = FrontEndManager().load_by_framework("pytorch")
+    return fe.convert(fe.load(decoder))
+
+
+def _ops_of_type(ov_model, op_type):
+    return [op for op in ov_model.get_ordered_ops() if op.get_type_name() == op_type]
+
+
+def test_canonicalize_float_precision_is_opt_in():
+    ov_model = _convert_fx({})
+    assert [op.get_output_element_type(0) for op in _ops_of_type(ov_model, "MatMul")] == [Type.bf16]
+
+
+def test_canonicalize_float_precision(tmp_path):
+    """bf16 activations become f32, the large weight stays bf16 behind a Convert
+    carrying the real decompression attribute, and the model's I/O keeps bf16."""
+    from openvino import OVAny, Core, serialize
+
+    ov_model = _convert_fx({"canonical_float_precision": OVAny(True)})
+    assert "canonical_float_precision" not in ov_model.get_rt_info()
+    assert [op.get_output_element_type(0) for op in _ops_of_type(ov_model, "MatMul")] == [Type.f32]
+    assert ov_model.inputs[0].get_element_type() == Type.bf16
+    assert ov_model.outputs[0].get_element_type() == Type.bf16
+
+    weight_converts = [op for op in _ops_of_type(ov_model, "Convert")
+                       if op.input_value(0).get_node().get_type_name() == "Constant"]
+    assert len(weight_converts) == 1
+    assert weight_converts[0].input_value(0).get_element_type() == Type.bf16
+    assert weight_converts[0].input_value(0).get_shape() == [64, 64]
+    # The 64-element bias is folded to f32 instead.
+    assert any(op.get_element_type() == Type.f32 and op.get_shape() == [64]
+               for op in _ops_of_type(ov_model, "Constant"))
+
+    # The mark must be the real attribute: a plain rt_info value under the
+    # same key would be dropped from the IR.
     xml_path, bin_path = str(tmp_path / "model.xml"), str(tmp_path / "model.bin")
-    ov.serialize(model, xml_path, bin_path)
-    reloaded = ov.Core().read_model(xml_path)
-    assert [op for op in reloaded.get_ordered_ops()
-            if op.get_type_name() == "Convert" and "decompression_0" in op.get_rt_info()], \
+    serialize(ov_model, xml_path, bin_path)
+    reloaded = Core().read_model(xml_path)
+    assert [op for op in _ops_of_type(reloaded, "Convert") if "decompression_0" in op.get_rt_info()], \
         "The decompression mark must survive an IR round trip"
