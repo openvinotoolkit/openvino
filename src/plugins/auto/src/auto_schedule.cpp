@@ -16,9 +16,9 @@ namespace auto_plugin {
 bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
     {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        bool is_low_power_mode_active = false;
         if (!m_context->m_low_power_device.empty()) {
-            // Refresh the low-power-mode snapshot for this runtime fallback selection.
-            m_context->m_is_low_power_mode_active = m_plugin->get_low_power_mode().value_or(false);
+            is_low_power_mode_active = m_plugin->get_low_power_mode().value_or(false);
         }
         // a recursive function to select other devices
         std::function<bool(std::string)> get_execution_devices;
@@ -60,7 +60,14 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
                                         m_context->m_low_power_device,
-                                        m_context->m_is_low_power_mode_active);
+                                        is_low_power_mode_active);
+            bool is_pinned_low_power_device =
+                is_low_power_mode_active &&
+                device_name_matches(m_compile_context[FALLBACKDEVICE].m_device_info.device_name,
+                                     m_context->m_low_power_device);
+            if (is_pinned_low_power_device) {
+                m_compile_context[FALLBACKDEVICE].m_meta_devices = {m_compile_context[FALLBACKDEVICE].m_device_info};
+            }
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -75,6 +82,11 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                 m_compile_context[ACTUALDEVICE].m_is_already = false;
                 LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
                 return true;
+            } else if (is_pinned_low_power_device) {
+                LOG_ERROR_TAG("Compiling model on user-specified low power device:%s failed during runtime "
+                              "fallback, AUTO will not fall back to another candidate device",
+                              m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
+                return false;
             } else {
                 // load failed or generate works failed, so reselect other devices
                 return get_execution_devices(m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
