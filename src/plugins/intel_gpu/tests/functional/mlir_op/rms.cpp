@@ -50,7 +50,31 @@ protected:
     }
 };
 
+class RMSFeatureAxisFallbackTest : public ov::test::MlirSubgraphStaticTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        abs_threshold = 0.01;
+
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 24, 8, 16});
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-5, ov::element::f16, 1);
+        auto result = std::make_shared<ov::op::v0::Result>(rms);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "RMSFeatureAxisFallback");
+    }
+
+    void check_mlir_execution() override {
+        if (!ov::test::is_mlir_enabled()) {
+            return;
+        }
+        EXPECT_FALSE(ov::test::has_mlir_op(compiledModel)) << "Feature-axis RMS must use the native GPU implementation";
+    }
+};
+
 TEST_P(RMSTest, Inference) {
+    run();
+}
+
+TEST_F(RMSFeatureAxisFallbackTest, Inference) {
     run();
 }
 
