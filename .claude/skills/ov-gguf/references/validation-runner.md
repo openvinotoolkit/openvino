@@ -3,7 +3,7 @@
 Run with Python 3.9+ on Linux:
 
 ```bash
-python3 /path/to/openvino/.claude/skills/ov-validation-matrix/scripts/run_matrix.py \
+python3 /path/to/openvino/.claude/skills/ov-gguf/scripts/run_matrix.py \
   /absolute/path/matrix.json --output /absolute/path/results
 ```
 
@@ -134,8 +134,9 @@ that installed binaries were built from the recorded sources, discover omitted
 dependencies, or track remote service changes. The worker must verify those
 conditions. Use a fresh output directory when provenance is uncertain.
 
-`passed` means the process exited zero. The harness must fail on unmet metrics
-and unexpected skips; inspect its report before claiming scenario coverage.
+Without report contracts, `passed` means only that the process exited zero. With
+contracts, every report audit must also pass. The harness must fail on other unmet
+metrics and unexpected skips; inspect its report before claiming scenario coverage.
 Completed results survive interruption. A timeout or interrupt terminates the
 case's process group. Failed logs contain raw diagnostics for the worker to
 classify; the runner does not infer root causes or alter acceptance criteria.

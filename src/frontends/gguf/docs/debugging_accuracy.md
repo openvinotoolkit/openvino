@@ -14,7 +14,7 @@ and state/IO adaptation. Backend environment variables do not configure native f
 See [testing](testing.md) for commands, acceptance criteria, and how to recognize skipped coverage.
 For GenAI/mmproj, use [multimodal integration bisection](#multimodal-integration-bisection).
 Before interpreting an ineffective rebuild, verify the source objects and loaded libraries;
-see [build and runtime identity](../../../../.claude/skills/ov-validation-matrix/references/build-runtime.md).
+see [build and runtime identity](../../../../.claude/skills/ov-gguf/references/build-runtime.md).
 
 ## Reference and precision
 

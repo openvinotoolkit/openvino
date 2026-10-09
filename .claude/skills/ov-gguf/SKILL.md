@@ -9,7 +9,8 @@ description: >
   ProjectorExtension; when conversion fails with "Translation for operation type GGML_OP_* is not
   implemented" or an op translator/op_case in src/op/ needs work; when making a converted model
   stateful or GenAI/PagedAttention-ready; or when a GGUF model converts but gives garbage, drifting
-  tokens, a llama.cpp mismatch or a decode-only shape failure. Not for general llama.cpp usage or
+  tokens, a llama.cpp mismatch or a decode-only shape failure; or when running or resuming GGUF
+  frontend, backend and GenAI validation batches. Not for general llama.cpp usage or
   unrelated build/CI failures.
 ---
 
@@ -28,6 +29,7 @@ converters; builders and validation differ. Registration or conversion alone nev
 | GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) |
 | Unsupported weight type | [quantization.md](../../../src/frontends/gguf/docs/quantization.md); the fix belongs in `src/quant/`, not a builder |
 | Build, run tests, regenerate fixtures | [testing.md](../../../src/frontends/gguf/docs/testing.md) |
+| Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use its runner for stable inputs, coverage contracts and retained failures |
 
 ## Easy to miss
 
@@ -58,8 +60,9 @@ converters; builders and validation differ. Registration or conversion alone nev
 - **Long runs.** Redirect output to a file, keep the launched PID and stop only that process. Large Q2
   MoE checkpoints expand at CPU compilation; check memory before starting one.
 - **Ineffective rebuilds.** Verify graph attributes, plugin/executor parameters and the linked,
-  loaded CPU variants before repeating a sweep. Use [build and runtime identity](../ov-validation-matrix/references/build-runtime.md)
+  loaded CPU variants before repeating a sweep. Use [build and runtime identity](references/build-runtime.md)
   for overlays or multiple worktrees; version strings and `ldd` alone do not prove execution identity.
-- **Validation batches.** Use [ov-validation-matrix](../ov-validation-matrix/SKILL.md) for stable
-  inputs, report contracts and retained failure artifacts. Extend shared-path regression checks
-  to tokenizer, mask and PA changes with representative SDPA/PA/media/chat cases.
+- **Validation batches.** Extend shared-path regression checks to tokenizer, mask and PA changes
+  with representative SDPA/PA/media/chat cases. The [validation guide](references/validation.md)
+  separates numerical parity, model quality and Optimum compatibility; a known arithmetic
+  difference remains a failed parity check unless the user changes the acceptance contract.
