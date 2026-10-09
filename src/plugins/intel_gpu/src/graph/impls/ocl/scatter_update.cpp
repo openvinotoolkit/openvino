@@ -79,6 +79,21 @@ public:
         update_shapes(*_kernel_data.params, impl_param);
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
+
+    void set_arguments_impl(scatter_update_inst& instance) override {
+        // When the data input and the output are the same buffer (e.g. a stateless KV cache bound as both), the first
+        // kernel, which copies the whole input to the output before the update, has nothing to do. Skip it, as
+        // stateless_kv does for its in-place case.
+        if (_kernel_data.params && _kernel_data.kernels.size() == 2) {
+            const bool inplace = instance.is_inplace();
+            auto& params = static_cast<kernel_params_t&>(*_kernel_data.params);
+            if (params.is_inplace != inplace) {
+                params.is_inplace = inplace;
+                (_kernel_data.update_dispatch_data_func)(params, _kernel_data);
+            }
+        }
+        parent::set_arguments_impl(instance);
+    }
 };
 
 
