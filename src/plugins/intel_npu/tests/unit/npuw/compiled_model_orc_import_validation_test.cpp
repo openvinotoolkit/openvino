@@ -270,6 +270,26 @@ TEST(CompiledModelOrcImportValidationTest, RejectsParamSubscribersPortOutOfRange
     expect_validation_throw_contains(compiled, "m_param_subscribers[0] input port index 1");
 }
 
+TEST(CompiledModelOrcImportValidationTest, RejectsParamSubscribersPortOutOfRangeAfterReplacement) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_compiled_submodels.emplace_back();
+    compiled->m_compiled_submodels[1].replaced_by = 0u;
+    compiled->m_param_subscribers = {{0u, {{1u, 5u}}}};
+
+    expect_validation_throw_contains(compiled, "m_param_subscribers[0] input port index 5");
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsParamSubscribersPortWithinRangeAfterReplacement) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_compiled_submodels.emplace_back();
+    compiled->m_compiled_submodels[1].replaced_by = 0u;
+    compiled->m_param_subscribers = {{0u, {{1u, 0u}}}};
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
+}
+
 TEST(CompiledModelOrcImportValidationTest, AcceptsValidPrevOutputRouting) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     add_fake_submodel(compiled);
@@ -309,6 +329,17 @@ TEST(CompiledModelOrcImportValidationTest, RejectsPrevOutputProducerPortOutOfRan
     compiled->m_submodels_input_to_prev_output = {{{0u, 0u}, {0u, 3u}}};
 
     expect_validation_throw_contains(compiled, "m_submodels_input_to_prev_output[0] output port index 3");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsPrevOutputProducerPortOutOfRangeAfterReplacement) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    add_fake_submodel(compiled);
+    compiled->m_compiled_submodels.emplace_back();
+    compiled->m_compiled_submodels[2].replaced_by = 0u;
+    compiled->m_submodels_input_to_prev_output = {{{1u, 0u}, {2u, 5u}}};
+
+    expect_validation_throw_contains(compiled, "m_submodels_input_to_prev_output[0] output port index 5");
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkPrevOutputConsumer) {
