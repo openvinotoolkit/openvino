@@ -6,6 +6,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import signal
 import subprocess
 import sys
@@ -46,7 +47,7 @@ class MatrixTest(unittest.TestCase):
 
     def command(self):
         self.manifest.write_text(json.dumps(self.data))
-        return [sys.executable, str(RUNNER), str(self.manifest), "--output", str(self.output)]
+        return [sys.executable, str(getattr(self, "runner", RUNNER)), str(self.manifest), "--output", str(self.output)]
 
     def run_batch(self, expected=0, *extra):
         result = subprocess.run(self.command() + list(extra), capture_output=True, text=True, timeout=20)
@@ -88,6 +89,25 @@ class MatrixTest(unittest.TestCase):
         self.run_batch()
         self.assertNotEqual(self.record()["log"], first["log"])
         self.assertEqual(self.record("other")["log"], other["log"])
+
+    def test_report_helper_changes_invalidate_reuse_and_running_results(self):
+        scripts = self.root / "scripts"
+        scripts.mkdir()
+        self.runner = scripts / RUNNER.name
+        helper = scripts / "matrix_reports.py"
+        shutil.copyfile(RUNNER, self.runner)
+        shutil.copyfile(RUNNER.with_name(helper.name), helper)
+        self.run_batch()
+        first = self.record()
+        self.run_batch()
+        self.assertEqual(self.record()["log"], first["log"])
+        helper.write_text(helper.read_text() + "\n")
+        self.run_batch()
+        self.assertNotEqual(self.record()["log"], first["log"])
+        code = f"from pathlib import Path; p=Path({str(helper)!r}); p.write_text(p.read_text()+'\\n')"
+        self.data["cases"] = [self.case("mutate-helper", code)]
+        self.run_batch(2)
+        self.assertEqual(self.record("mutate-helper")["status"], "stale")
 
     def test_timeout_kills_descendants(self):
         marker = self.root / "leaked-child"

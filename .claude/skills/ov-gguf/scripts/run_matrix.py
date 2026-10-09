@@ -17,7 +17,9 @@ import signal
 import subprocess
 import sys
 import time
-import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import ParseError
+
+import matrix_reports
 
 
 # Input identity and checkpoint helpers
@@ -62,92 +64,6 @@ def save(path, value):
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(value, indent=2) + "\n")
     temporary.replace(path)
-
-
-# GTest unit and integration reports
-
-
-def validate_gtest_contract(name, report):
-    count = report.get("expected_tests")
-    skips = report.get("max_skips", 0)
-    if type(count) is not int or count <= 0 or type(skips) is not int or skips < 0:
-        raise ValueError(f"{name}: gtest requires positive expected_tests and nonnegative max_skips")
-
-
-def audit_gtest_report(contract, path):
-    tests = list(ET.parse(path).getroot().iter("testcase"))
-    skipped = sum(test.find("skipped") is not None or test.get("status") == "notrun" for test in tests)
-    failures = sum(test.find("failure") is not None or test.find("error") is not None for test in tests)
-    if len(tests) != contract["expected_tests"] or skipped > contract.get("max_skips", 0) or failures:
-        raise ValueError(f"gtest: tests={len(tests)}, skips={skipped}, failures={failures}")
-    return {"tests": len(tests), "skips": skipped, "failures": failures}
-
-
-# GGUF GenAI accuracy and API reports
-
-
-def validate_gguf_mmproj_contract(name, report):
-    fraction = report.get("min_choice_fraction")
-    if (isinstance(fraction, bool) or not isinstance(fraction, (int, float)) or
-            not math.isfinite(fraction) or not 0 <= fraction <= 1):
-        raise ValueError(f"{name}: gguf_mmproj requires min_choice_fraction in [0, 1]")
-    if type(report.get("first_token_matches")) is not bool:
-        raise ValueError(f"{name}: gguf_mmproj requires explicit first_token_matches")
-    for key in ("required_modalities", "required_api_checks"):
-        values = report.get(key, [])
-        if (not isinstance(values, list) or not all(isinstance(v, str) and v for v in values) or
-                len(set(values)) != len(values) or (key == "required_modalities" and not values)):
-            raise ValueError(f"{name}: invalid {key}")
-    if not isinstance(report.get("equals", {}), dict):
-        raise ValueError(f"{name}: equals must be an object of required top-level report values")
-
-
-def audit_gguf_mmproj_report(contract, path):
-    report = json.loads(path.read_text())
-    if report.get("completed") is not True:
-        raise ValueError("GGUF report did not complete")
-    for key, value in contract.get("equals", {}).items():
-        if key not in report or report[key] != value:
-            raise ValueError(f"GGUF report {key} differs from the contract")
-    cases = report.get("cases")
-    if not isinstance(cases, list) or not cases:
-        raise ValueError("GGUF report has no modality cases")
-    modalities = [case["modality"] for case in cases]
-    if len(set(modalities)) != len(modalities) or set(contract["required_modalities"]) - set(modalities):
-        raise ValueError(f"GGUF modalities missing or duplicated: {modalities}")
-    fractions = []
-    for case in cases:
-        tokens, choices = case["tokens"], case["reference_choices_on_same_history"]
-        if (not isinstance(tokens, list) or not isinstance(choices, list) or not tokens or
-                len(tokens) != len(choices) or any(type(t) is not int for t in tokens + choices)):
-            raise ValueError(f"GGUF {case['modality']}: missing or unequal token histories")
-        first = tokens[0] == choices[0]
-        fraction = sum(a == b for a, b in zip(tokens, choices)) / len(tokens)
-        reported_fraction = case.get("matching_choice_fraction")
-        if (case.get("first_token_matches") is not first or isinstance(reported_fraction, bool) or
-                not isinstance(reported_fraction, (int, float)) or not math.isfinite(reported_fraction) or
-                not math.isclose(reported_fraction, fraction, rel_tol=0, abs_tol=1e-12)):
-            raise ValueError(f"GGUF {case['modality']}: reported scores disagree with token histories")
-        if (contract["first_token_matches"] and not first) or fraction < contract["min_choice_fraction"]:
-            raise ValueError(f"GGUF {case['modality']}: first_token={first}, choice_fraction={fraction}")
-        fractions.append(fraction)
-    checks = report.get("api_checks", {})
-    if not isinstance(checks, dict) or set(contract.get("required_api_checks", [])) - set(checks):
-        raise ValueError("GGUF API checks missing")
-    if any(check.get("passed") is not True for check in checks.values()):
-        raise ValueError("GGUF API checks failed")
-    if report.get("passed") is not True:
-        raise ValueError("GGUF report did not pass")
-    return {"modalities": modalities, "minimum_choice_fraction": min(fractions), "api_checks": list(checks)}
-
-
-# Report dispatch
-
-
-def audit_report(contract, path):
-    if contract["kind"] == "gtest":
-        return audit_gtest_report(contract, path)
-    return audit_gguf_mmproj_report(contract, path)
 
 
 # Manifest validation
@@ -195,9 +111,9 @@ def validate(manifest):
             report_paths.add(resolved)
             kind = report.get("kind")
             if kind == "gtest":
-                validate_gtest_contract(name, report)
+                matrix_reports.validate_gtest_contract(name, report)
             elif kind == "gguf_mmproj":
-                validate_gguf_mmproj_contract(name, report)
+                matrix_reports.validate_gguf_mmproj_contract(name, report)
             else:
                 raise ValueError(f"{name}: unsupported report kind: {kind!r}")
     for item in [manifest, *cases]:
@@ -254,6 +170,11 @@ def execute(case, log):
                 status = "interrupted"
     result = {"status": status, "returncode": code, "started_at": started,
               "duration_seconds": round(time.time() - started, 3), "log": str(log)}
+    collect_reports(case, log, before, result)
+    return result
+
+
+def collect_reports(case, log, before, result):
     artifacts, errors = [], []
     for index, contract in enumerate(case.get("reports", [])):
         path = Path(contract["path"])
@@ -264,23 +185,37 @@ def execute(case, log):
             shutil.copyfile(path, snapshot)
             artifact = {"path": str(snapshot), "sha256": file_digest(snapshot), "source": str(path)}
             artifacts.append(artifact)
-            artifact["audit"] = audit_report(contract, snapshot)
-        except (ValueError, OSError, KeyError, TypeError, AttributeError, ET.ParseError) as error:
+            artifact["audit"] = matrix_reports.audit_report(contract, snapshot)
+        except (ValueError, OSError, KeyError, TypeError, AttributeError, ParseError) as error:
             errors.append(str(error))
     if case.get("reports"):
         result.update({"artifacts": artifacts, "report_errors": errors})
-    if errors and status == "passed":
+    if errors and result["status"] == "passed":
         result["status"] = "failed"
-    return result
 
 
 # Resume and batch execution
 
 
+def can_reuse(record, fingerprint, retry_failed):
+    if record.get("fingerprint") != fingerprint:
+        return False
+    if record.get("status") not in {"passed", "failed", "timeout", "error"}:
+        return False
+    if retry_failed and record["status"] != "passed":
+        return False
+    if not Path(record.get("log", "")).is_file():
+        return False
+    return all(Path(a["path"]).is_file() and file_digest(a["path"]) == a["sha256"]
+               for a in record.get("artifacts", []))
+
+
 def run(manifest, output, retry_failed):
     validate(manifest)
     repos = {path: repository_state(path) for path in manifest["repositories"]}
+    runner_paths = [str(Path(__file__).resolve()), str(Path(matrix_reports.__file__).resolve())]
     paths = set(manifest.get("inputs", []))
+    paths.update(runner_paths)
     for case in manifest["cases"]:
         paths.update(case.get("inputs", []))
     stamps = {path: stamp(path) for path in paths}
@@ -295,7 +230,8 @@ def run(manifest, output, retry_failed):
     provenance = {
         "context": manifest["context"], "repositories": repos,
         "inputs": {path: hashes[path] for path in manifest.get("inputs", [])},
-        "environment_hash": digest(dict(os.environ)), "runner_hash": file_digest(__file__),
+        "environment_hash": digest(dict(os.environ)),
+        "runner_hash": digest({path: hashes[path] for path in runner_paths}),
     }
     records = {}
     fingerprints = {}
@@ -305,13 +241,7 @@ def run(manifest, output, retry_failed):
                                      "inputs": {path: hashes[path] for path in case.get("inputs", [])}})
         path = output / f"{name}.json"
         old = json.loads(path.read_text()) if path.exists() else {}
-        reusable = (old.get("fingerprint") == fingerprints[name] and
-                    old.get("status") in {"passed", "failed", "timeout", "error"} and
-                    Path(old.get("log", "")).is_file() and
-                    all(Path(a["path"]).is_file() and file_digest(a["path"]) == a["sha256"]
-                        for a in old.get("artifacts", [])) and
-                    not (retry_failed and old.get("status") != "passed"))
-        records[name] = old if reusable else {"status": "pending"}
+        records[name] = old if can_reuse(old, fingerprints[name], retry_failed) else {"status": "pending"}
 
     if (output / "summary.json").exists():
         shutil.copyfile(output / "summary.json", output / f"summary-{time.time_ns()}.json")
@@ -366,6 +296,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--retry-failed", action="store_true")
     args = parser.parse_args()
+
     def interrupt(*_):
         raise KeyboardInterrupt
 

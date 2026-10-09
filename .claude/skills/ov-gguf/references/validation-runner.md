@@ -2,6 +2,9 @@
 
 Use this optional helper for long GGUF validation batches. It launches existing test
 harnesses in manifest order; the report kind selects the checks applied afterward.
+There is no built-in test list: the manifest selects all commands, models and backends.
+The runner handles execution and checkpoints; [matrix_reports.py](../scripts/matrix_reports.py)
+handles GTest and GGUF report validation.
 
 Run with Python 3.9+ on Linux:
 
@@ -91,6 +94,7 @@ and acceptance criteria. The runner has no separate pytest or performance-report
 Run the test executable with `--gtest_output=xml:<report-path>` and configure a `gtest`
 report. `validate_gtest_contract()` checks the manifest settings;
 `audit_gtest_report()` checks the fresh XML for expected counts, skips and failures.
+Both functions are in `matrix_reports.py`.
 
 ### GGUF GenAI accuracy and API tests
 
@@ -144,7 +148,7 @@ meaning of process exit zero.
 
 ## Reuse and limitations
 
-The runner fingerprints its implementation, the manifest context, repository
+The runner fingerprints both Python modules, the manifest context, repository
 HEADs and tracked diffs, file contents, and execution environment. It records
 the actual command and provenance in each checkpoint. A changed case command,
 metadata, timeout, or inputs invalidates that case; shared changes invalidate all
