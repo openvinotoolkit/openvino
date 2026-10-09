@@ -150,8 +150,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         const bool transpose_b_scale = fc_nodes[0]->get_transpose_b_scale();
         const bool transpose_b_zp = fc_nodes[0]->get_transpose_b_zp();
         // Scale/ZP are [N, groups] when transposed, [groups, N] otherwise.
-        auto get_param_n_axis = [](const std::shared_ptr<ov::Node>& node, bool transposed) -> int64_t {
-            const auto rank = static_cast<int64_t>(node->get_output_partial_shape(0).size());
+        auto get_param_n_axis = [](const ov::Output<ov::Node>& output, bool transposed) -> int64_t {
+            const auto rank = static_cast<int64_t>(output.get_partial_shape().size());
             return transposed ? 0 : std::max<int64_t>(0, rank - 1);
         };
         std::vector<int64_t> orig_n_sizes;
