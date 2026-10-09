@@ -3,6 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <algorithm>
 #include <chrono>
 
 #include "auto_schedule.hpp"
@@ -339,10 +340,15 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (!m_context->m_compile_for_all) {
         return;
     }
-    const std::string cache_dir =
-        m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name())
-            ? m_compile_context[ACTUALDEVICE].m_device_info.config[ov::cache_dir.name()].as<std::string>()
-            : m_context->m_ov_core->get_property("", ov::cache_dir);
+    // Snapshot device info under the mutex to avoid concurrent access.
+    DeviceInformation actual_device_info;
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_mutex);
+        actual_device_info = m_compile_context[ACTUALDEVICE].m_device_info;
+    }
+    const std::string cache_dir = actual_device_info.config.count(ov::cache_dir.name())
+                                       ? actual_device_info.config[ov::cache_dir.name()].as<std::string>()
+                                       : m_context->m_ov_core->get_property("", ov::cache_dir);
     if (cache_dir.empty()) {
         LOG_INFO_TAG("Skip cache pre-compilation when cache dir is not set");
         return;
@@ -354,31 +360,70 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (!model && model_path.empty()) {
         return;
     }
-    const std::string& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
-    if (!m_precompile_executor) {
-        m_precompile_executor =
-            m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
-                "AutoDeviceCachePreCompilation",
-                static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                0 /*default threads per stream, workaround for ticket 62376*/});
-    }
-
-    for (const auto& device : m_context->m_device_priorities) {
+    const std::string& actual_device = actual_device_info.device_name;
+    std::vector<DeviceInformation> devices_to_precompile;
+    for (const auto& device : m_context->m_device_priorities_initial) {
         // Skip the actual device and CPU (already handled by CPU_HELP).
         if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
             continue;
         }
-        m_precompile_executor->run([this, core = m_context->m_ov_core, device, model, model_path] {
+        devices_to_precompile.push_back(device);
+    }
+    if (devices_to_precompile.empty()) {
+        return;
+    }
+    if (!m_precompile_executor) {
+        // Bound the stream count by the number of devices to precompile to avoid oversubscription,
+        // and clamp to at least 1 since hardware_concurrency() may return 0.
+        const int num_streams = std::max(1,
+                                          std::min(static_cast<int>(devices_to_precompile.size()),
+                                                   static_cast<int>(std::thread::hardware_concurrency())));
+        m_precompile_executor =
+            m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
+                "AutoDeviceCachePreCompilation",
+                num_streams,
+                0 /*default threads per stream, workaround for ticket 62376*/});
+    }
+
+    for (const auto& device : devices_to_precompile) {
+        // Clone before scheduling; skip this device if cloning fails.
+        std::shared_ptr<ov::Model> model_snapshot;
+        if (model) {
+            try {
+                model_snapshot = model->clone();
+            } catch (const std::exception& e) {
+                LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: %s",
+                              device.device_name.c_str(),
+                              e.what());
+                continue;
+            } catch (...) {
+                LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: unknown exception",
+                              device.device_name.c_str());
+                continue;
+            }
+        }
+        m_precompile_executor->run([this, core = m_context->m_ov_core, device, model_snapshot, model_path] {
+            // Wait for ACTUALDEVICE to settle, then skip this device if it was selected as the actual device.
+            if (m_compile_context[ACTUALDEVICE].m_future.valid()) {
+                m_compile_context[ACTUALDEVICE].m_future.wait();
+            }
+            {
+                std::lock_guard<std::mutex> lock(m_context->m_mutex);
+                if (device.device_name == m_compile_context[ACTUALDEVICE].m_device_info.device_name) {
+                    LOG_INFO_TAG("skip cache pre-compilation for device: %s, already compiled as the actual device",
+                                 device.device_name.c_str());
+                    return;
+                }
+            }
             const auto compile_begin = std::chrono::steady_clock::now();
             try {
                 // Follow the same model-source priority as the blob existence check: model first, then path.
-                SoCompiledModel precompile_model = model
-                    ? core->compile_model(model->clone(), device.device_name, device.config)
+                SoCompiledModel precompile_model = model_snapshot
+                    ? core->compile_model(model_snapshot, device.device_name, device.config)
                     : core->compile_model(model_path, device.device_name, device.config);
                 // The cache blob is generated during compilation; release the compiled model right away
                 // so we do not keep holding device resources.
-                precompile_model._ptr.reset();
-                precompile_model._so.reset();
+                precompile_model = {};
                 const auto compile_end = std::chrono::steady_clock::now();
                 const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
                 LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms",
