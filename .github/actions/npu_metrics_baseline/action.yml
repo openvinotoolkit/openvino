@@ -138,14 +138,14 @@ runs:
     # Only master pushes refresh the baseline; PRs and merge queue runs just read it.
     # This replaces the restored file, so it must stay after the comparison above.
     - name: Stage NPU compiler metrics baseline
-      if: inputs.mode == 'compare' && ((github.event_name == 'push' && github.ref_name == 'master') || github.event_name == 'pull_request') # TEMP: seed cache from the PR run
+      if: inputs.mode == 'compare' && github.event_name == 'push' && github.ref_name == 'master'
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force "${{ inputs.metrics-dir }}\npu_baseline" | Out-Null
         Copy-Item "${{ inputs.metrics-dir }}\TEST-npu_compiler_${{ inputs.platform }}.json" "${{ inputs.metrics-dir }}\npu_baseline\" -ErrorAction Stop
 
     - name: Save NPU compiler metrics baseline
-      if: inputs.mode == 'compare' && ((github.event_name == 'push' && github.ref_name == 'master') || github.event_name == 'pull_request') # TEMP: seed cache from the PR run
+      if: inputs.mode == 'compare' && github.event_name == 'push' && github.ref_name == 'master'
       uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ${{ inputs.metrics-dir }}\npu_baseline
