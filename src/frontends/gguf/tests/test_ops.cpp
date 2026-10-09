@@ -4945,3 +4945,111 @@ INSTANTIATE_TEST_SUITE_P(
                       std::make_tuple(true, 0.8f, true),
                       std::make_tuple(false, 0.8f, true),
                       std::make_tuple(false, 0.0f, true)));
+
+// Ops ported from the llama.cpp OpenVINO backend: described by ggml op parameters only.
+TEST(GGUFOps, MeanAndSumReduce) {
+    const auto x = make_f32_tensor({1, 1, 2, 3}, {1, 2, 3, 4, 5, 6});
+    auto mean = SingleOpBuilder().op("GGML_OP_MEAN").input("x", ov::element::f32, {1, 1, 2, 3}).output("out", ov::element::f32, {1, 1, 2, 1}).build();
+    expect_near(run_on_cpu(mean, {{"x", x}}), {2, 5});
+    auto sum = SingleOpBuilder().op("GGML_OP_SUM").input("x", ov::element::f32, {1, 1, 2, 3}).output("out", ov::element::f32, {1, 1, 1, 1}).build();
+    expect_near(run_on_cpu(sum, {{"x", x}}), {21});
+}
+
+TEST(GGUFOps, DupCopiesItsOperand) {
+    auto model = SingleOpBuilder().op("GGML_OP_DUP").input("x", ov::element::f32, {1, 1, 1, 3}).output("out", ov::element::f32, {1, 1, 1, 3}).build();
+    expect_near(run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 3}, {1, -2, 3})}}), {1, -2, 3});
+}
+
+TEST(GGUFOps, UnaryHardsigmoidExpm1StepRound) {
+    const std::vector<float> v{-4.0f, -0.5f, 0.0f, 0.5f, 2.5f};
+    const auto run = [&](const char* op) {
+        auto model = SingleOpBuilder().op(op).input("x", ov::element::f32, {1, 1, 1, 5}).output("out", ov::element::f32, {1, 1, 1, 5}).build();
+        return run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 5}, v)}});
+    };
+    std::vector<float> hs, em, st, rd;
+    for (float x : v) {
+        hs.push_back(std::min(1.0f, std::max(0.0f, x / 6.0f + 0.5f)));
+        em.push_back(std::expm1(x));
+        st.push_back(x > 0.0f ? 1.0f : 0.0f);
+        rd.push_back(std::round(x));
+    }
+    expect_near(run("GGML_UNARY_OP_HARDSIGMOID"), hs);
+    expect_near(run("GGML_UNARY_OP_EXPM1"), em);
+    expect_near(run("GGML_UNARY_OP_STEP"), st);
+    expect_near(run("GGML_UNARY_OP_ROUND"), rd);
+}
+
+TEST(GGUFOps, ConvDepthwiseAndTransposed) {
+    // Depthwise 2x2 kernel per channel, stride 1, no padding: one output per channel.
+    auto dw = SingleOpBuilder()
+                  .op("GGML_OP_CONV_2D_DW")
+                  .input("w", ov::element::f32, {2, 1, 2, 2})
+                  .input("x", ov::element::f32, {1, 2, 2, 2})
+                  .output("out", ov::element::f32, {1, 2, 1, 1})
+                  .attr<std::vector<int64_t>>("conv_params", {1, 1, 0, 0, 1, 1})
+                  .build();
+    expect_near(run_on_cpu(dw, {{"w", make_f32_tensor({2, 1, 2, 2}, {1, 1, 1, 1, 1, 0, 0, 1})},
+                                {"x", make_f32_tensor({1, 2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8})}}),
+                {10, 13});
+    // 1D transposed conv, Cin = Cout = 1, K = 2, stride 2: each input sample emits the kernel scaled.
+    auto t1 = SingleOpBuilder()
+                  .op("GGML_OP_CONV_TRANSPOSE_1D")
+                  .input("w", ov::element::f32, {1, 1, 1, 2})
+                  .input("x", ov::element::f32, {1, 1, 1, 2})
+                  .output("out", ov::element::f32, {1, 1, 1, 4})
+                  .attr<std::vector<int64_t>>("conv_params", {2, 0, 1})
+                  .build();
+    expect_near(run_on_cpu(t1, {{"w", make_f32_tensor({1, 1, 1, 2}, {1, 10})}, {"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}),
+                {1, 10, 2, 20});
+    // 2D transposed conv, 1x1 kernel, stride 2: inputs land on the even grid, zeros elsewhere.
+    auto t2 = SingleOpBuilder()
+                  .op("GGML_OP_CONV_TRANSPOSE_2D")
+                  .input("w", ov::element::f32, {1, 1, 1, 1})
+                  .input("x", ov::element::f32, {1, 1, 1, 2})
+                  .output("out", ov::element::f32, {1, 1, 1, 3})
+                  .attr<std::vector<int64_t>>("conv_params", {2})
+                  .build();
+    expect_near(run_on_cpu(t2, {{"w", make_f32_tensor({1, 1, 1, 1}, {3})}, {"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}),
+                {3, 0, 6});
+}
+
+TEST(GGUFOps, Conv3dSumsTheKernelWindow) {
+    // c = n = oc = 1, a 2x2x2 all-ones kernel over a 2x2x2 input: the single output is the input sum.
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_3D")
+                     .input("w", ov::element::f32, {1, 2, 2, 2})
+                     .input("x", ov::element::f32, {1, 2, 2, 2})
+                     .output("out", ov::element::f32, {1, 1, 1, 1})
+                     .attr<std::vector<int64_t>>("conv_params", {1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1})
+                     .build();
+    expect_near(run_on_cpu(model, {{"w", make_f32_tensor({1, 2, 2, 2}, std::vector<float>(8, 1.0f))},
+                                   {"x", make_f32_tensor({1, 2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8})}}),
+                {36});
+}
+
+TEST(GGUFOps, Im2col3dSinglePatch) {
+    // A 2x2x2 kernel over a 2x2x2 single-channel volume yields one patch holding every element.
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_IM2COL_3D")
+                     .input("w", ov::element::f32, {1, 2, 2, 2})
+                     .input("x", ov::element::f32, {1, 2, 2, 2})
+                     .output("out", ov::element::f32, {1, 1, 1, 8})
+                     .attr<std::vector<int32_t>>("im2col_params", {1, 1, 1, 0, 0, 0, 1, 1, 1, 1})
+                     .build();
+    const std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    // The kernel only supplies its shape, so its Parameter is not part of the converted model.
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 2, 2}, x)}});
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, 1, 8}));
+    expect_near(out, x);
+}
+
+TEST(GGUFOps, UpscaleToFixedSizes) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_UPSCALE")
+                     .input("x", ov::element::f32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 1, 2, 4})
+                     .attr<int>("interpolation_mode", 0)
+                     .attr<std::vector<int64_t>>("upscale_sizes", {2, 4})
+                     .build();
+    expect_near(run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}), {1, 1, 2, 2, 1, 1, 2, 2});
+}
