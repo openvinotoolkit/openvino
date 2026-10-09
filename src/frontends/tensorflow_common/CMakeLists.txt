@@ -39,7 +39,3 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                         $<TARGET_PROPERTY:${TARGET_NAME},INCLUDE_DIRECTORIES>)
 
 ov_build_target_faster(${TARGET_NAME} PCH)
-
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
-endif()

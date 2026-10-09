@@ -150,6 +150,7 @@ static const std::vector<std::string> models{
     std::string("depthwise_conv2d_convolution/depthwise_conv2d_convolution.pdmodel"),
     std::string("depthwise_conv2d_transpose_convolution/depthwise_conv2d_transpose_convolution.pdmodel"),
     std::string("dropout/dropout.pdmodel"),
+    std::string("dropout_float64/dropout_float64.pdmodel"),
     std::string("dropout_upscale_in_train/dropout_upscale_in_train.pdmodel"),
     std::string("elementwise_add1/elementwise_add1.pdmodel"),
     std::string("elementwise_div1/elementwise_div1.pdmodel"),
