@@ -561,6 +561,59 @@ TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
     OV_ASSERT_NO_THROW(inferReq.infer());
 }
 
+using ProfilingBlobInferOnly = InferRequestRunTests;
+
+TEST_P(ProfilingBlobInferOnly, PerfCountOnInferProfilingCompilesUnprofiledBlob) {
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
+    }
+
+    configuration[ov::intel_npu::profiling_type.name()] = ov::intel_npu::ProfilingType::INFER;
+    configuration[ov::enable_profiling.name()] = true;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration[ov::intel_npu::profiling_type.name()] = ov::intel_npu::ProfilingType::MODEL;
+    ov::CompiledModel imported_model;
+    OV_ASSERT_NO_THROW(imported_model = core->import_model(export_stream, target_device, configuration));
+
+    ov::InferRequest inferReq;
+    OV_ASSERT_NO_THROW(inferReq = imported_model.create_infer_request());
+    ASSERT_ANY_THROW(inferReq.infer());
+
+    ov::InferRequest inferProfilingReq;
+    OV_ASSERT_NO_THROW(inferProfilingReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inferProfilingReq.infer());
+    EXPECT_FALSE(inferProfilingReq.get_profiling_info().empty());
+}
+
+TEST_P(ProfilingBlobInferOnly, CacheDirDoesNotReuseBlobAcrossProfilingTypes) {
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
+    }
+
+    m_cache_dir = generateCacheDirName(GetTestName());
+    core->set_property({ov::cache_dir(m_cache_dir)});
+
+    // warm cache with layer profiling blob
+    configuration[ov::enable_profiling.name()] = true;
+    configuration[ov::intel_npu::profiling_type.name()] = ov::intel_npu::ProfilingType::MODEL;
+    ov::CompiledModel model_profiled;
+    OV_ASSERT_NO_THROW(model_profiled = core->compile_model(ov_model, target_device, configuration));
+    EXPECT_FALSE(model_profiled.get_property(ov::loaded_from_cache));
+
+    // same PERF_COUNT, only PROFILING_TYPE differs: must be a cache miss
+    configuration[ov::intel_npu::profiling_type.name()] = ov::intel_npu::ProfilingType::INFER;
+    ov::CompiledModel infer_profiled;
+    OV_ASSERT_NO_THROW(infer_profiled = core->compile_model(ov_model, target_device, configuration));
+    EXPECT_FALSE(infer_profiled.get_property(ov::loaded_from_cache));
+}
+
 TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::CompiledModel compiled_model;
@@ -3384,6 +3437,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ProfilingBlob,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(profilingConfigs)),
+                         InferRequestRunTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> inferProfilingOnlyConfig{
+    {ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::INFER)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         ProfilingBlobInferOnly,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(inferProfilingOnlyConfig)),
                          InferRequestRunTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,

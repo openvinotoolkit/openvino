@@ -27,9 +27,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace jax {
+namespace ov::frontend::jax {
 namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
@@ -105,6 +103,4 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"tanh", op::translate_1to1_match_1_input<v0::Tanh>}};
 };
 
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax

@@ -57,7 +57,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
   # check SELECTIVE_BUILD_STAT in CC 'COLLECT' AND 'ON' modes
 
@@ -67,7 +67,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-x64-build-32c128gb
+    runs-on: aks-win-32-cores-128gb-build
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -299,7 +299,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-x64-build-16c32gb
+    runs-on: aks-win-16-cores-32gb-build
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"

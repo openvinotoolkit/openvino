@@ -45,6 +45,7 @@ ov::npuw::compiled::HostFlashAttention* get_compiled_hfa(v1::subgraphs::Context&
 const ov::npuw::compiled::HostFlashAttention* get_compiled_hfa(const v1::subgraphs::Context& context);
 
 bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline);
+bool has_block_kv_hfa(const v1::subgraphs::CompiledPipeline& pipeline);
 
 void serialize_compiled_state(v1::subgraphs::Context& context,
                               ov::npuw::s11n::Stream& stream,

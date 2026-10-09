@@ -11,6 +11,9 @@ shell commands. At the moment there are three of them, all dedicated to diagnosi
 * [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) — **CI Doctor
   (Post-Commit)**, an automatic investigator for post-commit (push) failures that only collects and
   reports (it never re-runs or re-queues pipelines).
+* [`ci-doctor-remediation.md`](../../../../.github/workflows/ci-doctor-remediation.md) — **CI Doctor
+  (Weekly Remediation)**, a scheduled maintenance job that consumes the two doctors' knowledge base
+  (read-only) and opens up to 3 draft remediation pull requests plus a Markdown report artifact.
 
 This document explains what they are, how they are built and invoked, the algorithm each one follows,
 and the reusable jobs from [`.github/workflows/shared`](../../../../.github/workflows/shared/agentic-workflows)
@@ -239,6 +242,47 @@ and output validation. Its pattern schema drops the `rerun_search_string` field 
 integration) and tracks `affected_commits` instead of `affected_prs`. The run always ends by calling
 exactly one of `notify_teams` (with `source: "post_commit"`), `noop`, or `missing_data`.
 
+## CI Doctor — Weekly Remediation (automatic)
+
+**What it is** A weekly maintenance workflow that *consumes* the knowledge base the two automatic
+doctors build, rather than diagnosing a new failure. It reviews the recurring failures recorded over the
+past week, proposes a concrete per-issue remediation, opens draft pull requests for the code-fixable
+ones, and uploads a Markdown report covering every identified issue. It is strictly **read-only** with
+respect to the knowledge base and never re-runs or re-queues any pipeline.
+
+**How it is triggered** On a weekly `schedule` (fuzzy `weekly on monday`) and on demand via
+`workflow_dispatch` (with an optional `days` look-back input, default `7`). There is no `workflow_run`
+trigger and no actor allow-list — it is a scheduled maintenance job.
+
+**What it does / benefits**
+
+* **Weekly synthesis**: instead of one failure at a time, it looks at the whole week of accumulated
+  patterns across both doctors, groups them by `signature_hash`, and ranks them by reproduction `count`,
+  recency, and breadth.
+* **Actionable remediation**: for each issue it decides on a concrete fix and classifies it as
+  code-fixable or not.
+* **Automated fixes**: for the highest-impact code-fixable issues it opens **up to 3 draft pull
+  requests** (one issue per PR), each with `akashchi` as reviewer and assignee and the
+  `agentic-workflows` + `automated-fix` labels, applied automatically by the workflow. Because
+  remediation frequently touches `.github/` CI infrastructure, `create-pull-request` is configured with
+  `protected-files: allowed`.
+* **Durable record**: every identified issue — code-fixable or not — is written to a Markdown report
+  uploaded as a run artifact via the `upload_artifact` safe output.
+
+**Algorithm** The body defines a four-phase protocol: (1) triage and group the pre-downloaded patterns;
+(2) decide a per-issue remediation and classify code-fixable vs not; (3) create at most 3 pull requests
+for the top code-fixable issues (minimal, root-cause changes; PR body carries the problem, investigation
+run URLs, pattern signature/count, and the fix); (4) write and upload the Markdown report. The recent
+knowledge base is pre-downloaded before the agent starts by the imported
+[`collect-ci-doctor-history.md`](../../../../.github/workflows/shared/agentic-workflows/collect-ci-doctor-history.md)
+step (script
+[`collect_ci_doctor_history.py`](../../../../.github/scripts/agentic-workflows/collect_ci_doctor_history.py)),
+which reads the `memory/ci-doctor-mq` and `memory/ci-doctor-post-commit` branches read-only and writes a
+ranked `summary.txt` plus the filtered `patterns/`/`investigations/` under
+`/tmp/gh-aw/agent/ci-doctor-remediation/`. The run always ends by calling `upload_artifact` (optionally
+with up to 3 × `create_pull_request`), or `noop`/`missing_data`. A `report-failure-as-issue` guard flags
+the `missing_safe_outputs` no-op so a silent run is surfaced rather than passing green.
+
 ## Shared reusable jobs and prompt fragments
 
 Everything the doctors have in common is factored into
@@ -281,6 +325,7 @@ inputs, permissions, or step wiring, edit the shared `.md` and recompile.
 | --- | --- | --- | --- |
 | [`download-failure-logs.md`](../../../../.github/workflows/shared/agentic-workflows/download-failure-logs.md) | Pre-agent step | all | Pre-download failed logs and pre-locate error hints before the agent starts. |
 | [`collect-pr-info.md`](../../../../.github/workflows/shared/agentic-workflows/collect-pr-info.md) | Pre-agent step | CI Doctor, MQ | Resolve the pull request under investigation and pre-collect its metadata (`pr-info.json` / `pr-info.txt`). |
+| [`collect-ci-doctor-history.md`](../../../../.github/workflows/shared/agentic-workflows/collect-ci-doctor-history.md) | Pre-agent step | Weekly Remediation | Pre-download the recent CI Doctor investigations and patterns from both memory branches (read-only) into `/tmp/gh-aw/agent/ci-doctor-remediation/` with a ranked `summary.txt`. |
 | [`notify-teams.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams.md) | Safe-output job | MQ, Post-Commit | Send the investigation summary to Microsoft Teams; upload the statistics artifact. A `source` input selects the `[MQ]` / `[PC]` badge and the artifact name. |
 | [`notify-teams-recurring.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams-recurring.md) | Safe-output job | MQ | Send a recurring-failure escalation alert to Teams. |
 | [`remediate-transient-failure.md`](../../../../.github/workflows/shared/agentic-workflows/remediate-transient-failure.md) | Safe-output job | MQ | Remediate a transient failure: the job resolves the PR's live merge-queue status and either re-runs the failed jobs (still queued) or re-adds the dropped PR (dropped). |

@@ -88,7 +88,8 @@ TEST_F(FillCausalSlidingWindowMaskTest, UnsaturatedPastBuildsExpectedMask) {
     uu::fill_causal_sliding_window_mask(mask,
                                         /*num_stored_tokens=*/2u,
                                         /*num_new_tokens=*/2u,
-                                        /*window_size=*/3u);
+                                        /*window_size=*/3u,
+                                        /*past_is_circular=*/true);
 
     // row=2: q=2, past abs=[0,1] visible; only diagonal local key is visible.
     EXPECT_FLOAT_EQ(mask_at(mask, 2u, 0u), 0.f);
@@ -112,7 +113,8 @@ TEST_F(FillCausalSlidingWindowMaskTest, SaturatedPastUsesCircularSlotMapping) {
     uu::fill_causal_sliding_window_mask(mask,
                                         /*num_stored_tokens=*/6u,
                                         /*num_new_tokens=*/2u,
-                                        /*window_size=*/3u);
+                                        /*window_size=*/3u,
+                                        /*past_is_circular=*/true);
 
     // past_width=4, r=2 => slot->abs=[4,5,2,3]; row=0(q=6): 4/5 visible, 2/3 masked.
     EXPECT_FLOAT_EQ(mask_at(mask, 0u, 0u), 0.f);
@@ -129,6 +131,37 @@ TEST_F(FillCausalSlidingWindowMaskTest, SaturatedPastUsesCircularSlotMapping) {
     EXPECT_FLOAT_EQ(mask_at(mask, 1u, 5u), 0.f);
 }
 
+TEST_F(FillCausalSlidingWindowMaskTest, SaturatedPastUsesLeftAlignedSlotMapping) {
+    // Same inputs as the circular-layout test above, but past_is_circular=false: once
+    // saturated, a non-wrapping buffer maps slots to one contiguous range instead of a
+    // two-segment ring, producing a different mask from identical inputs.
+    auto mask = make_mask_tensor(/*rows=*/2u, /*cols=*/6u, /*init_value=*/777.f);
+    const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+
+    uu::fill_causal_sliding_window_mask(mask,
+                                        /*num_stored_tokens=*/6u,
+                                        /*num_new_tokens=*/2u,
+                                        /*window_size=*/3u,
+                                        /*past_is_circular=*/false);
+
+    // past_width=4, chronologically-packed layout => slot->abs=[2,3,4,5] (contiguous, no wrap).
+    // row=0(abs=6): visible abs range [4,6] -> past slots 2,3 (abs 4,5) visible, slots 0,1 masked.
+    EXPECT_FLOAT_EQ(mask_at(mask, 0u, 0u), kMasked);
+    EXPECT_FLOAT_EQ(mask_at(mask, 0u, 1u), kMasked);
+    EXPECT_FLOAT_EQ(mask_at(mask, 0u, 2u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 0u, 3u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 0u, 4u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 0u, 5u), kMasked);
+
+    // row=1(abs=7): visible abs range [5,7] -> only past slot 3 (abs 5) visible.
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 0u), kMasked);
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 1u), kMasked);
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 2u), kMasked);
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 3u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 4u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 5u), 0.f);
+}
+
 TEST_F(FillCausalSlidingWindowMaskTest, ZeroPastWidthFallsBackToCurrentChunkSlidingWindowCausalMask) {
     // rows == cols => past_width == 0, so mask must be built from current chunk only.
     auto mask = make_mask_tensor(/*rows=*/4u, /*cols=*/4u, /*init_value=*/777.f);
@@ -137,7 +170,8 @@ TEST_F(FillCausalSlidingWindowMaskTest, ZeroPastWidthFallsBackToCurrentChunkSlid
     uu::fill_causal_sliding_window_mask(mask,
                                         /*num_stored_tokens=*/0u,
                                         /*num_new_tokens=*/4u,
-                                        /*window_size=*/2u);
+                                        /*window_size=*/2u,
+                                        /*past_is_circular=*/true);
 
     // Expected visible local columns per row for window=2:
     // row0 -> [0]
@@ -170,7 +204,8 @@ TEST_F(FillCausalSlidingWindowMaskTest, UnsaturatedPastBuildsExpectedMaskF16) {
     uu::fill_causal_sliding_window_mask(mask,
                                         /*num_stored_tokens=*/2u,
                                         /*num_new_tokens=*/2u,
-                                        /*window_size=*/3u);
+                                        /*window_size=*/3u,
+                                        /*past_is_circular=*/true);
 
     EXPECT_FLOAT_EQ(mask_at(mask, 2u, 0u), 0.f);
     EXPECT_FLOAT_EQ(mask_at(mask, 2u, 1u), 0.f);
@@ -193,7 +228,8 @@ TEST_F(FillCausalSlidingWindowMaskTest, RowPadRowsDoNotAffectRealRowVisibility) 
     uu::fill_causal_sliding_window_mask(mask,
                                         /*num_stored_tokens=*/3u,
                                         /*num_new_tokens=*/2u,
-                                        /*window_size=*/3u);
+                                        /*window_size=*/3u,
+                                        /*past_is_circular=*/true);
 
     // row=2 is the real row 0: abs=3, visible past slots [1,2], present local_c=2 (col 6).
     EXPECT_FLOAT_EQ(mask_at(mask, 2u, 0u), kMasked);
@@ -222,7 +258,8 @@ TEST_F(FillCausalSlidingWindowMaskTest, SaturatedPastWithExactWrapUsesSingleSegm
     uu::fill_causal_sliding_window_mask(mask,
                                         /*num_stored_tokens=*/8u,
                                         /*num_new_tokens=*/2u,
-                                        /*window_size=*/3u);
+                                        /*window_size=*/3u,
+                                        /*past_is_circular=*/true);
 
     // row=0(abs=8): visible past slots [2,3] -> cols 2,3; present local_c=0 -> col 4.
     EXPECT_FLOAT_EQ(mask_at(mask, 0u, 0u), kMasked);
@@ -306,7 +343,8 @@ TEST_F(FillSlidingWindowAttentionMaskTest, MaskPortMissingIsNoOp) {
                                                            in_ports,
                                                            /*num_stored_tokens=*/3u,
                                                            /*num_new_tokens=*/3u,
-                                                           /*window_size=*/4u));
+                                                           /*window_size=*/4u,
+                                                           /*past_is_circular=*/true));
 }
 
 TEST_F(FillSlidingWindowAttentionMaskTest, TokenTypeIdsPortMissingSkipsOverlay) {
@@ -327,7 +365,8 @@ TEST_F(FillSlidingWindowAttentionMaskTest, TokenTypeIdsPortMissingSkipsOverlay) 
                                            in_ports,
                                            /*num_stored_tokens=*/3u,
                                            /*num_new_tokens=*/3u,
-                                           /*window_size=*/4u);
+                                           /*window_size=*/4u,
+                                           /*past_is_circular=*/true);
 
     EXPECT_FLOAT_EQ(mask_at(mask, 0u, 0u), 0.f);
     EXPECT_FLOAT_EQ(mask_at(mask, 0u, 4u), 0.f);
@@ -359,7 +398,8 @@ TEST_F(FillSlidingWindowAttentionMaskTest, CombinesCausalMaskAndVisionOverlay) {
                                            in_ports,
                                            /*num_stored_tokens=*/3u,
                                            /*num_new_tokens=*/3u,
-                                           /*window_size=*/4u);
+                                           /*window_size=*/4u,
+                                           /*past_is_circular=*/true);
 
     // row 0: vision overlay forces col 5 to attend on top of the causal mask.
     EXPECT_FLOAT_EQ(mask_at(mask, 0u, 0u), 0.f);
@@ -396,7 +436,8 @@ TEST_F(FillSlidingWindowAttentionMaskTest, TokenTypeIdsSizeMismatchThrows) {
                                                         in_ports,
                                                         /*num_stored_tokens=*/3u,
                                                         /*num_new_tokens=*/3u,
-                                                        /*window_size=*/4u),
+                                                        /*window_size=*/4u,
+                                                        /*past_is_circular=*/true),
                  ov::Exception);
 }
 

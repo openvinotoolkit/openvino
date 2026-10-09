@@ -9,10 +9,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace pass {
+namespace ov::frontend::tensorflow::pass {
 
 bool SavedModelUnusedRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ParameterVector params_to_remove;
@@ -69,7 +66,4 @@ bool SavedModelUnusedRemover::run_on_model(const std::shared_ptr<ov::Model>& m) 
     return true;
 }
 
-}  // namespace pass
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::pass

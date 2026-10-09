@@ -5,17 +5,11 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs tanh_shrink(const NodeContext& node) {
     const auto x = node.get_input("X");
     const auto tanh = std::make_shared<default_opset::Tanh>(x);
     return node.default_single_output_mapping({std::make_shared<default_opset::Subtract>(x, tanh)}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

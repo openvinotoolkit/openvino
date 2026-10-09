@@ -45,8 +45,6 @@ name: "Pull Request Labeler"
 name: macOS ARM64 (Python 3.11)
 ==> ./dependency_review.yml <==
 name: 'Dependency Review'
-==> ./fedora_29.yml <==
-name: Fedora 29 (RHEL 8.4), Python 3.10
 ==> ./code_snippets.yml <==
 name: Code snippets
 ==> ./linux_riscv.yml <==

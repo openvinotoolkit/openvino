@@ -19,10 +19,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // ggml_top_k(a, k): the indices of the k largest values along ne[0] (the OV last axis).
 // The caller supplies k; legacy decoders encode it in the output's last dimension.
@@ -79,7 +76,4 @@ OutputVector translate_top_k(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(indices)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

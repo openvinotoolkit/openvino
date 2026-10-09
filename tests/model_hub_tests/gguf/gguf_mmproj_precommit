@@ -1,0 +1,16 @@
+# Small multimodal projector files (mmproj-*.gguf) checked against llama.cpp's CPU encoder,
+# which test_gguf_mmproj.py builds at the pinned revision in llama_cpp_oracle.py.
+#
+# Format: projector,repo_id,filename[,mark,reason]
+#   projector - the file's encoder projector types, "+"-joined when it has vision and audio
+#               (see src/frontends/gguf/docs/mmproj.md)
+#   repo_id   - Hugging Face Hub repo hosting the file
+#   filename  - the projector file in that repo
+#   mark      - optional: "skip", "xfail", or "nmse=<limit>" to replace the device's limit
+#   reason    - required if mark is set
+idefics3,ggml-org/SmolVLM-256M-Instruct-GGUF,mmproj-SmolVLM-256M-Instruct-Q8_0.gguf
+qwen3vl_merger,unsloth/Qwen3.5-0.8B-GGUF,mmproj-F16.gguf
+internvl,ggml-org/InternVL3-1B-Instruct-GGUF,mmproj-InternVL3-1B-Instruct-Q8_0.gguf
+pixtral,ggml-org/pixtral-12b-GGUF,mmproj-pixtral-12b-Q8_0.gguf
+qwen2vl_merger,ggml-org/Qwen2-VL-2B-Instruct-GGUF,mmproj-Qwen2-VL-2B-Instruct-Q8_0.gguf,nmse=2e-4,llama.cpp's patch embedding is 5e-4 off float64 (OpenVINO 4e-6) and 32 layers amplify it to 9e-5
+voxtral,ggml-org/Voxtral-Mini-3B-2507-GGUF,mmproj-Voxtral-Mini-3B-2507-Q8_0.gguf

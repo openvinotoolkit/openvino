@@ -7,9 +7,7 @@
 #include "place.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder)
     : m_model_decoder(model_decoder),
@@ -229,6 +227,4 @@ void InputModel::flush_places() {
     m_requested_places = {};
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch
