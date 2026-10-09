@@ -54,6 +54,7 @@ public:
     }
 
     void SetUp() override {
+        std::cout << "[Manual LOG]Setting up test: " << getTestCaseName(testing::TestParamInfo<InferWithHostCompileMTParams>(this->GetParam(), 0)) << std::endl;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
@@ -258,7 +259,9 @@ protected:
 };
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
+    std::cout << "[Manual LOG]Setting up test: (1)MT_PerThreadCompileCreateInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::cout << "[Manual LOG]Setting up test: (2)MT_PerThreadCompileCreateInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -300,7 +303,10 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateRequestAndInfer) {
+    std::cout << "[Manual LOG]Setting up test: (1)MT_SingleCompileParallelCreateRequestAndInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::cout << "[Manual LOG]Setting up test: (2)MT_SingleCompileParallelCreateRequestAndInfer "  << std::endl;
+
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -345,7 +351,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAndInfer) {
+    std::cout << "[Manual LOG]Setting up test: (1)MT_ConcurrentInferThenSetPriorityAndInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::cout << "[Manual LOG]Setting up test: (2)MT_ConcurrentInferThenSetPriorityAndInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -436,7 +444,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequestsMultiInfer) {
+    std::cout << "[Manual LOG]Setting up test: (1)MT_MultiCompiledModelsMultiRequestsMultiInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::cout << "[Manual LOG]Setting up test: (2)MT_MultiCompiledModelsMultiRequestsMultiInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -530,7 +540,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOutputTensorInfer) {
+    std::cout << "[Manual LOG]Setting up test: (1)MT_SingleCompileParallelZeroInputOutputTensorInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::cout << "[Manual LOG]Setting up test: (2)MT_SingleCompileParallelZeroInputOutputTensorInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -602,7 +614,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputTensorInfer) {
+    std::cout << "[Manual LOG]Setting up test: (1)MT_PerThreadCompileZeroInputOutputTensorInfer "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::cout << "[Manual LOG]Setting up test: (2)MT_PerThreadCompileZeroInputOutputTensorInfer "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
@@ -677,7 +691,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
 }
 
 TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
+    std::cout << "[Manual LOG]Setting up test: (1)MT_CompileAndInferOverlap "  << std::endl;
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::cout << "[Manual LOG]Setting up test: (2)MT_CompileAndInferOverlap "  << std::endl;
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
