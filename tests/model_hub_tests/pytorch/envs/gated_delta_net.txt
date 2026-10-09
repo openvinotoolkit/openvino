@@ -3,3 +3,4 @@
 optimum-intel==2.2.0
 transformers==4.57.6
 huggingface-hub>=0.30.0,<1.0
+pyarrow<26
