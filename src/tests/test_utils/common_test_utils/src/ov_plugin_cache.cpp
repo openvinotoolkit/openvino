@@ -38,7 +38,7 @@ void register_template_plugin([[maybe_unused]] ov::Core& ov_core) noexcept {
     }
     ov_core.register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
 #else
-    std::cout << "[CHECK][Manual LOG] ENABLE_TEMPLATE_REGISTRATION compilation flag is defined, skipping plugin registration again" << std::endl;
+    std::cout << "[CHECK][Manual LOG] ENABLE_TEMPLATE_REGISTRATION compilation flag is defined" << std::endl;
 #endif
 }
 
