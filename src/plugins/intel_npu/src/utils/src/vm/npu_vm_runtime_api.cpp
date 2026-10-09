@@ -68,7 +68,7 @@ void NPUVMRuntimeApi::initialize(std::string_view libName) {
     } else {
         std::cout << "USE_FIX_PATH is not set." << std::endl;
     }
-
+    std::cout << "[3][NPU VM RUNTIME API] g_libName is: " << g_libName << std::endl;
     if (g_instanceCreated) {
         if (g_libName != resolvedName) {
             OPENVINO_THROW("NPUVMRuntimeApi is already initialized with '",
@@ -81,6 +81,7 @@ void NPUVMRuntimeApi::initialize(std::string_view libName) {
         return;
     }
     g_libName = resolvedName;
+    std::cout << "[4][NPU VM RUNTIME API] g_libName is: " << g_libName << std::endl;
 }
 
 const std::shared_ptr<NPUVMRuntimeApi>& NPUVMRuntimeApi::getInstance() {
@@ -97,7 +98,8 @@ const std::shared_ptr<NPUVMRuntimeApi>& NPUVMRuntimeApi::getInstance() {
         } else {
             std::cout << "USE_FIX_PATH is not set." << std::endl;
             // Default construction method.
-            runtimeApi = std::make_shared<NPUVMRuntimeApi>();
+            runtimeApi = std::make_shared<NPUVMRuntimeApi>(g_libName);
+            std::cout << "fix compile issue." << std::endl;
         }
         g_instanceCreated = true;
         return runtimeApi;
