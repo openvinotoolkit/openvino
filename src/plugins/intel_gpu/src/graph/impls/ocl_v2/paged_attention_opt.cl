@@ -85,6 +85,9 @@ KERNEL(pa_sdpa_opt)(
     const __global QQ_BIAS_DATA_T* qq_bias,
     const __global QQ_BIAS_BEGINS_DATA_T* qq_bias_begins,
 #endif
+#if MULTI_TOKENS_PROCESSING && HAS_TOKEN_TYPE_IDS
+    const __global int* token_type_ids,
+#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -165,8 +168,22 @@ KERNEL(pa_sdpa_opt)(
     const int subsequence_idx = gws_subseq_mapping[seq_idx];
     const int subsequence_begin = subsequence_begins[subsequence_idx];
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
-    const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+    // causal_seq_len ends at the query itself and anchors the sliding window and ALiBi; seq_len is the
+    // visible length, which also covers the later new tokens a bidirectional query attends to
+    const uint causal_seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
     const uint past_len = past_lens[subsequence_idx];
+    #if HAS_TOKEN_TYPE_IDS
+        // A token of type 1 attends bidirectionally within its contiguous run of type-1 tokens
+        // (an image, a speculative block), so it sees the new tokens up to the end of that run.
+        uint token_type_run_end = seq_idx + 1;
+        if (token_type_ids[seq_idx] == 1) {
+            while (token_type_run_end < subsequence_end && token_type_ids[token_type_run_end] == 1)
+                token_type_run_end++;
+        }
+        const uint seq_len = past_len + (token_type_run_end - subsequence_begin);
+    #else
+        const uint seq_len = causal_seq_len;
+    #endif
     #if HAS_QQ_BIAS
         const uint qq_bias_num = qq_bias_begins[subsequence_idx + 1] - qq_bias_begins[subsequence_idx];
         const uint qq_bias_spec_num = (uint)native_sqrt((float)qq_bias_num);
@@ -175,6 +192,7 @@ KERNEL(pa_sdpa_opt)(
 #else
     const uint subsequence_idx = seq_idx;
     const uint seq_len = past_lens[seq_idx] + 1;
+    const uint causal_seq_len = seq_len;
 #endif
 
     const uint partition_idx = get_group_id(2);
@@ -434,14 +452,14 @@ KERNEL(pa_sdpa_opt)(
             const uint token_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
 
 #ifdef HAS_ALIBI
-            const int alibi_val = (1 - seq_len) + token_idx;
+            const int alibi_val = (1 - causal_seq_len) + token_idx;
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
                 GET_VECTOR_ELEMENT(qk_acc, q_idx) += alibi_slopes[head_num_idx + q_idx] * alibi_val;
             }
 #endif
 
 #if SLIDING_WINDOW_SIZE != 0
-            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE)))
+            if (token_idx >= seq_len || (causal_seq_len > SLIDING_WINDOW_SIZE && token_idx < (causal_seq_len - SLIDING_WINDOW_SIZE)))
 #else
             if (token_idx >= seq_len)
 #endif
@@ -1000,6 +1018,9 @@ KERNEL(pa_sdpa_finalization_stage)(
 #if MULTI_TOKENS_PROCESSING
     const __global INPUT6_TYPE* subsequence_begins,
 #endif
+#if MULTI_TOKENS_PROCESSING && HAS_TOKEN_TYPE_IDS
+    const __global int* token_type_ids,
+#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -1023,7 +1044,18 @@ KERNEL(pa_sdpa_finalization_stage)(
 #if MULTI_TOKENS_PROCESSING
     const int subsequence_idx = gws_subseq_mapping[seq_idx];
     const int subsequence_begin = subsequence_begins[subsequence_idx];
-    const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+    #if HAS_TOKEN_TYPE_IDS
+        // same visible length as in pa_sdpa_opt: a type-1 query sees its whole run of type-1 tokens
+        const int subsequence_end = subsequence_begins[subsequence_idx + 1];
+        uint token_type_run_end = seq_idx + 1;
+        if (token_type_ids[seq_idx] == 1) {
+            while (token_type_run_end < subsequence_end && token_type_ids[token_type_run_end] == 1)
+                token_type_run_end++;
+        }
+        const uint seq_len = past_lens[subsequence_idx] + (token_type_run_end - subsequence_begin);
+    #else
+        const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+    #endif
 #else
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
