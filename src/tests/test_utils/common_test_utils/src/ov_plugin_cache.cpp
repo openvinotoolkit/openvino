@@ -29,6 +29,7 @@ void register_plugin(ov::Core& ov_core) noexcept {
 
 void register_template_plugin([[maybe_unused]] ov::Core& ov_core) noexcept {
 #if !defined(ENABLE_TEMPLATE_REGISTRATION)
+    std::cout << "[CHECK][Manual LOG] ENABLE_TEMPLATE_REGISTRATION  compilation flag is not defined," << std::endl;
     auto plugin_path =
         ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                            std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX);
@@ -36,6 +37,8 @@ void register_template_plugin([[maybe_unused]] ov::Core& ov_core) noexcept {
         OPENVINO_THROW("Plugin: " + plugin_path + " does not exists!");
     }
     ov_core.register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
+#else
+    std::cout << "[CHECK][Manual LOG] ENABLE_TEMPLATE_REGISTRATION compilation flag is defined, skipping plugin registration again" << std::endl;
 #endif
 }
 

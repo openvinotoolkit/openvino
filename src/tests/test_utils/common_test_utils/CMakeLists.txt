@@ -78,6 +78,9 @@ endfunction()
 set(TARGET_NAME commonTestUtils)
 set(NEW_TARGET_NAME common_test_utils)
 
+message(STATUS "[CHECK2]Building ${TARGET_NAME}, ENABLE_TEMPLATE_REGISTRATION is ${ENABLE_TEMPLATE_REGISTRATION}")
+
+
 add_common_utils(${TARGET_NAME})
 add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
 

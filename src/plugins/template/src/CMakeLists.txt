@@ -26,6 +26,7 @@ set(HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/variable_state.hpp
 )
 
+message(STATUS "[CHECK]Building ${TARGET_NAME} plugin, ENABLE_TEMPLATE_REGISTRATION is ${ENABLE_TEMPLATE_REGISTRATION}")
 if (NOT ENABLE_TEMPLATE_REGISTRATION)
     # Skip install and registration of template component
     set(skip_plugin SKIP_INSTALL SKIP_REGISTRATION)
