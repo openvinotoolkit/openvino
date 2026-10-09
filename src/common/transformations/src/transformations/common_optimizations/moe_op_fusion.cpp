@@ -68,7 +68,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     auto bgm_gate_6_m = pattern::wrap_type<GatherMatmulCompressed>(
         {unsqueeze_m, gate_w_m, topk_indices_m, pattern::any_input(), gate_scale_m, gate_zp_m});
     // Or-pattern
-    auto bgm_gate_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_gate_4_m, bgm_gate_6_m});
+    auto bgm_gate_m = bgm_gate_4_m | bgm_gate_6_m;
 
     // Gate activation: Swish (SwiGLU) or Gelu (GeGLU) with TANH or ERF approximation.
     auto swish_m = pattern::wrap_type<v4::Swish, v7::Gelu>({bgm_gate_m});
@@ -79,7 +79,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     auto up_zp_m = pattern::any_input();
     auto bgm_up_6_m = pattern::wrap_type<GatherMatmulCompressed>(
         {unsqueeze_m, up_w_m, topk_indices_m, pattern::any_input(), up_scale_m, up_zp_m});
-    auto bgm_up_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_up_4_m, bgm_up_6_m});
+    auto bgm_up_m = bgm_up_4_m | bgm_up_6_m;
 
     auto swiglu_m = pattern::wrap_type<v1::Multiply>({swish_m, bgm_up_m});
 
@@ -89,7 +89,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     auto down_zp_m = pattern::any_input();
     auto bgm_down_6_m = pattern::wrap_type<GatherMatmulCompressed>(
         {swiglu_m, down_w_m, topk_indices_m, pattern::any_input(), down_scale_m, down_zp_m});
-    auto bgm_down_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_down_4_m, bgm_down_6_m});
+    auto bgm_down_m = bgm_down_4_m | bgm_down_6_m;
 
     auto routing_m = pattern::any_input();
     auto routing_slice_m = pattern::optional<v8::Slice>(
@@ -102,7 +102,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     auto end_reshape_shape_m = pattern::any_input();
     auto end_reshape_m = pattern::wrap_type<v1::Reshape>({reduce_sum_m, end_reshape_shape_m});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
