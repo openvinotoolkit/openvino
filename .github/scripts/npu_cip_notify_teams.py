@@ -17,6 +17,7 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 
@@ -78,6 +79,8 @@ def main() -> None:
     if entities:
         payload["msteams"] = {"entities": entities}
 
+    if urllib.parse.urlsplit(webhook_url).scheme != "https":
+        sys.exit("TEAMS_WEBHOOK_URL must use the https scheme.")
     request = urllib.request.Request(
         webhook_url,
         data=json.dumps(payload).encode("utf-8"),
@@ -85,7 +88,7 @@ def main() -> None:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request) as response:
+        with urllib.request.urlopen(request) as response:  # nosec B310 - scheme restricted to https above
             print(f"Teams webhook responded with HTTP {response.status}")
     except urllib.error.HTTPError as error:
         sys.exit(f"Teams webhook failed with HTTP {error.code}: {error.read().decode('utf-8', 'replace')}")
