@@ -188,8 +188,8 @@ event::ptr state_conversion_executor::execute(state_conversion_key key, memory::
     add_scalar(src->size() / data_type_traits::size_of(key.first));
     add_scalar(dst_count);
     add_scalar(input.source_offset);
-    add_scalar(input.padded);
-    add_scalar(input.transpose);
+    add_scalar(static_cast<uint64_t>(input.padded));
+    add_scalar(static_cast<uint64_t>(input.transpose));
     for (auto dimension : input.dimensions)
         add_scalar(dimension);
     for (auto stride : input.strides)
