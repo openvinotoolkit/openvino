@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/properties.hpp"
-
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 #include "internal_properties.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "utils/properties_test.hpp"
 
@@ -80,6 +80,29 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkGetROPropertiesDoesNotThrow) {
     for (const auto& property : properties) {
         OV_ASSERT_NO_THROW((void)compiledModel.get_property(property));
     }
+}
+
+// Demonstrates the ITT model-identification PoC: a frontend (or a user, as done here) stamps a
+// human-readable model id into rt_info before compiling; CPU uses the same id both for the
+// ov::model_name property below and for its "SyncInferenceCPU::infer::<id>" ITT task name, so a
+// collector such as VTune can identify which model produced a given trace without reading code.
+TEST_F(OVClassConfigTestCPU, smoke_CpuModelNamePropertyReflectsModelSourceId) {
+    const std::string model_source_id = "org/my-model-id";
+    model->get_rt_info()[std::string(ov::util::model_source_id_rt_info_key)] = model_source_id;
+
+    ov::Core ie;
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
+
+    EXPECT_EQ(compiledModel.get_property(ov::model_name), model_source_id);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuModelNamePropertyFallsBackToFriendlyNameWithoutModelSourceId) {
+    ASSERT_FALSE(model->has_rt_info(std::string(ov::util::model_source_id_rt_info_key)));
+
+    ov::Core ie;
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
+
+    EXPECT_EQ(compiledModel.get_property(ov::model_name), model->get_friendly_name());
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSetROPropertiesThrow) {
