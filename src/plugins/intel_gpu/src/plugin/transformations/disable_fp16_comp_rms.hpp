@@ -40,4 +40,17 @@ public:
     DisableFP16CompForGemma3RMSPattern();
 };
 
+/**
+ * @brief Disables fp16 compression for a Convolution followed by a decomposed RMS normalization.
+ *
+ * The Convolution output may exceed the fp16 range before normalization. Keeping the complete
+ * Convolution -> Power -> ReduceMean -> Add -> Sqrt -> Divide -> Multiply chain in fp32 prevents
+ * Inf values from turning into NaN during normalization.
+ */
+class DisableFP16CompForDecomposedRMSPattern : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("DisableFP16CompForDecomposedRMSPattern");
+    DisableFP16CompForDecomposedRMSPattern();
+};
+
 }   // namespace ov::intel_gpu

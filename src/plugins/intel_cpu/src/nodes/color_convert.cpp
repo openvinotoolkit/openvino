@@ -37,7 +37,6 @@
 
 #    include <array>
 #    include <common/c_types_map.hpp>
-#    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <cpu/x64/jit_generator.hpp>
 
 #    include "kernels/x64/jit_kernel.hpp"
@@ -530,15 +529,15 @@ const jit_uni_converter& jit_converter_create() {
     auto createKernel = []() {
         std::unique_ptr<jit_uni_converter> kernel;
 
-        if (mayiuse(cpu_isa_t::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             auto converter = new JitConverter<T[16]>;
             kernel.reset(converter);
             converter->init();
-        } else if (mayiuse(cpu_isa_t::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             auto converter = new JitConverter<T[8]>;
             kernel.reset(converter);
             converter->init();
-        } else if (mayiuse(cpu_isa_t::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             auto converter = new JitConverter<T[4]>;
             kernel.reset(converter);
             converter->init();
@@ -866,15 +865,15 @@ const jit_uni_converter& jit_converter_create() {
     auto createKernel = []() {
         std::unique_ptr<jit_uni_converter> kernel;
 
-        if (mayiuse(cpu_isa_t::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             auto converter = new JitConverter<T[16]>;
             kernel.reset(converter);
             converter->init();
-        } else if (mayiuse(cpu_isa_t::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             auto converter = new JitConverter<T[8]>;
             kernel.reset(converter);
             converter->init();
-        } else if (mayiuse(cpu_isa_t::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             auto converter = new JitConverter<T[4]>;
             kernel.reset(converter);
             converter->init();

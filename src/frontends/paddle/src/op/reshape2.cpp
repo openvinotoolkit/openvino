@@ -6,10 +6,7 @@
 #include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs reshape2(const NodeContext& node) {
     auto data = node.get_input("X");
     if (!node.has_input("Shape") && !node.has_input("ShapeTensor")) {
@@ -41,7 +38,4 @@ NamedOutputs reshape2(const NodeContext& node) {
     }
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

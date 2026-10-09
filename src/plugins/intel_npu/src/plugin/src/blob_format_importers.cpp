@@ -49,7 +49,7 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 /**
  * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
  */
-void update_compiler_type_if_perf_count(FilteredConfig& config,
+void update_compiler_type_if_perf_count(Config& config,
                                         const ov::SoPtr<IEngineBackend>& backend,
                                         const std::string_view device_name) {
     if (config.has<PERF_COUNT>() && config.get<PERF_COUNT>() &&
@@ -178,7 +178,7 @@ class RawBlobImporter : public IBlobFormatImporter {
 public:
     explicit RawBlobImporter(BlobSource& compiler_main_schedule,
                              const std::shared_ptr<const ov::Model>& original_model,
-                             const FilteredConfig& config)
+                             const Config& config)
         : IBlobFormatImporter(original_model,
                               config,
                               Logger(RAW_BLOB_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
@@ -269,7 +269,7 @@ class BlobFormatV1Importer : public IBlobFormatImporter {
 public:
     explicit BlobFormatV1Importer(BlobSource& npu_formatted_blob,
                                   const std::shared_ptr<const ov::Model>& original_model,
-                                  const FilteredConfig& config)
+                                  const Config& config)
         : IBlobFormatImporter(original_model,
                               config,
                               Logger(BLOB_V1_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
@@ -403,7 +403,7 @@ private:
 namespace intel_npu {
 
 IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
-                                         const FilteredConfig& config,
+                                         const Config& config,
                                          const Logger& logger)
     : m_config(config),
       m_logger(logger),
@@ -477,7 +477,7 @@ std::shared_ptr<ov::Model> IBlobFormatImporter::create_dummy_model() const {
                                 layouts.has_value() ? std::make_optional<>(layouts->second) : std::nullopt);
 }
 
-FilteredConfig IBlobFormatImporter::get_config() const {
+Config IBlobFormatImporter::get_config() const {
     return m_config;
 }
 
@@ -486,7 +486,7 @@ namespace blob_format_importer_factory {
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
-                                            const FilteredConfig& config) {
+                                            const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create");
     const size_t input_size = npu_formatted_blob.get_remaining_size();
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);

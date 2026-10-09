@@ -20,11 +20,15 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 using ov::element::f32;
 using ov::element::i32;
@@ -37,9 +41,12 @@ constexpr int64_t D = -1;
 
 DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
                                std::unordered_map<std::string, ov::Tensor>& weights,
-                               std::unordered_map<std::string, GgufTensorType>& qtypes)
-    : m_cfg(config, weights),
-      m_emit(weights, qtypes, m_cfg.arch),
+                               std::unordered_map<std::string, GgufTensorType>& qtypes,
+                               std::optional<RopeMode> rope,
+                               const DecoderOptions& options,
+                               const std::unordered_map<std::string, CreatorFunction>* translators)
+    : m_cfg(config, weights, rope, options),
+      m_emit(weights, qtypes, m_cfg.arch, translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
     auto& graph = *m_emit.graph();
     graph.has_rope = true;
@@ -53,7 +60,8 @@ void DecoderBuilder::build_inputs() {
     // index inputs.
     m_emit.add_input("inp_tokens", i32, ps({1, 1, 1, D}));
     m_emit.add_input("inp_pos", i32, ps({1, 1, 1, D}));
-    m_emit.add_input("inp_out_ids", i32, ps({1, 1, 1, D}));
+    if (!m_cfg.embedding_model)
+        m_emit.add_input("inp_out_ids", i32, ps({1, 1, 1, D}));
     m_emit.add_input("self_kq_mask", f32, ps({1, 1, D, D}));
     // gpt-oss alternates sliding-window / full attention; the windowed mask is a separate
     // input. Only added when the model uses SWA.
@@ -67,8 +75,8 @@ void DecoderBuilder::build_inputs() {
     // Gather on the past, is emitted.
 
     // KV-cache update index (consumed by SET_ROWS; unused in the stateful Concat branch).
-    m_emit.add_input("inp_kv_idx", i32, ps({1, 1, 1, D}));
-    m_emit.set_tensor_meta("inp_kv_idx", ps({1, 1, 1, T}), i32);
+    if (!m_cfg.embedding_model)
+        m_emit.add_input("inp_kv_idx", i32, ps({1, 1, 1, D}));
 
     // token_len_per_seq: number of new tokens per sequence; used by TranslateSession's mask
     // slicing (add_sliced_mask) to build KQ_mask_sliced. An extra (Parameter) input.
@@ -81,26 +89,23 @@ void DecoderBuilder::build_inputs() {
 std::string DecoderBuilder::build_embeddings() {
     // GET_ROWS(token_embd.weight, inp_tokens) -> "embd"
     m_emit.add_weight("token_embd.weight");
-    m_emit.set_tensor_meta("inp_tokens", ps({1, 1, 1, T}), i32);
-    std::string cur = m_emit.add_op("GGML_OP_GET_ROWS",
-                                    "embd",
-                                    {"token_embd.weight", "inp_tokens"},
-                                    ps({1, 1, T, m_cfg.n_embd}),
-                                    f32);
-    // MiniCPM scales the embeddings by a constant.
+    std::string cur = m_emit.add_op("GGML_OP_GET_ROWS", "embd", {"token_embd.weight", "inp_tokens"});
+    // The tagged node ends the lookup that AdaptToGenAI moves into the embedding model.
+    const auto mark_token_embedding = [&](const std::string& name) {
+        m_emit.value(name).get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
+    };
+    if (!m_cfg.embedding_scale_tokens_only)
+        mark_token_embedding(cur);
+    // Gemma and MiniCPM scale the embeddings by a constant.
     if (m_cfg.embedding_scale != 1.0f) {
         cur = blocks::scale(m_emit, cur, m_cfg.embedding_scale, "embd_scaled");
     }
+    if (m_cfg.embedding_scale_tokens_only)
+        mark_token_embedding(cur);
     // muse-glimmer normalizes the token embeddings with a WEIGHTLESS RMSNorm before layer 0
     // (build_norm with a null weight -> plain ggml_rms_norm, no multiplicative term).
     if (m_cfg.scaleless_embd_norm) {
-        cur = m_emit.add_op("GGML_OP_RMS_NORM",
-                            "embd_normed",
-                            {cur},
-                            m_emit.shape_of_tensor(cur),
-                            f32,
-                            0,
-                            {{"eps", m_cfg.rms_eps}});
+        cur = m_emit.add_op("GGML_OP_RMS_NORM", "embd_normed", {cur}, 0, {{"eps", m_cfg.rms_eps}});
     }
     return cur;
 }
@@ -132,34 +137,31 @@ void DecoderBuilder::build_per_layer_embeddings(const std::string& embd) {
     // CONT node: translate_cont's PERMUTE case is a pass-through, since translate_permute already
     // emitted a real Transpose, so ggml's ggml_cont would convert to nothing here.
     auto reshape_to_layer_major = [&](const std::string& flat, const std::string& name) {
-        const auto& flat_shape = m_emit.shape_of_tensor(flat);
-        const int64_t t = flat_shape[2].is_static() ? flat_shape[2].get_length() : 1;
-        auto split = m_emit.add_op("GGML_OP_RESHAPE", name + "_split", {flat}, ps({1, t, n_layer, pe}), f32, 1);
-        return m_emit.add_op("GGML_OP_PERMUTE", name, {split}, ps({1, n_layer, t, pe}), f32, 1);
+        auto split =
+            m_emit.add_op("GGML_OP_RESHAPE",
+                          name + "_split",
+                          {flat},
+                          6,
+                          {{"reshape_target", std::vector<int64_t>{0, -1, n_layer, pe}}, {"special_zero", true}});
+        return m_emit.add_op("GGML_OP_PERMUTE", name, {split}, 1);
     };
 
     m_emit.add_weight("per_layer_token_embd.weight");
     m_emit.add_weight("per_layer_model_proj.weight");
     m_emit.add_weight("per_layer_proj_norm.weight");
-    const int pe_total = pe * n_layer;
 
     // Token embedding lookup: [1,1,T, pe_total] -> reshape to [1, n_layer, T, pe]
-    auto pe_flat = m_emit.add_op("GGML_OP_GET_ROWS",
-                                 "pe_tok_flat",
-                                 {"per_layer_token_embd.weight", "inp_tokens"},
-                                 ps({1, 1, T, pe_total}),
-                                 f32);
+    auto pe_flat = m_emit.add_op("GGML_OP_GET_ROWS", "pe_tok_flat", {"per_layer_token_embd.weight", "inp_tokens"});
     const float pe_scale = std::sqrt(static_cast<float>(pe));
     pe_flat = blocks::scale(m_emit, pe_flat, pe_scale, "pe_tok_flat_scaled");
+    // Moved to the embedding model as per_layer_inputs in AdaptToGenAI's embedding mode.
+    m_emit.value(pe_flat).get_node_shared_ptr()->get_rt_info()["gguf.per_layer_token_embedding"] =
+        static_cast<int64_t>(n_layer);
     auto pe_tok = reshape_to_layer_major(pe_flat, "pe_tok");
 
     // Model projection: MUL_MAT(per_layer_model_proj, embd) -> [1,1,T, pe_total]
     // per_layer_model_proj is [n_embd, pe_total] -> output [pe_total] per token
-    auto proj_flat = m_emit.add_op("GGML_OP_MUL_MAT",
-                                   "pe_proj_flat",
-                                   {"per_layer_model_proj.weight", embd},
-                                   ps({1, 1, T, pe_total}),
-                                   f32);
+    auto proj_flat = m_emit.add_op("GGML_OP_MUL_MAT", "pe_proj_flat", {"per_layer_model_proj.weight", embd});
     const float proj_scale = 1.0f / std::sqrt(static_cast<float>(m_cfg.n_embd));
     proj_flat = blocks::scale(m_emit, proj_flat, proj_scale, "pe_proj_flat_scaled");
 
@@ -167,30 +169,13 @@ void DecoderBuilder::build_per_layer_embeddings(const std::string& embd) {
     auto proj_4d = reshape_to_layer_major(proj_flat, "pe_proj_4d");
 
     // RMS_NORM + per_layer_proj_norm weight (applied over last dim = pe)
-    auto proj_norm = m_emit.add_op("GGML_OP_RMS_NORM",
-                                   "pe_proj_rms",
-                                   {proj_4d},
-                                   ps({1, n_layer, T, pe}),
-                                   f32,
-                                   0,
-                                   {{"eps", m_cfg.rms_eps}});
-    m_emit.set_tensor_meta("per_layer_proj_norm.weight", ps({1, 1, 1, pe}), f32);
-    auto proj_normed = m_emit.add_op("GGML_OP_MUL",
-                                     "pe_proj_normed",
-                                     {proj_norm, "per_layer_proj_norm.weight"},
-                                     ps({1, n_layer, T, pe}),
-                                     f32);
+    auto proj_norm = m_emit.add_op("GGML_OP_RMS_NORM", "pe_proj_rms", {proj_4d}, 0, {{"eps", m_cfg.rms_eps}});
+    auto proj_normed = m_emit.add_op("GGML_OP_MUL", "pe_proj_normed", {proj_norm, "per_layer_proj_norm.weight"});
 
     // Sum token embd + projection, scale by 1/sqrt(2)
-    auto pe_sum = m_emit.add_op("GGML_OP_ADD", "pe_sum", {proj_normed, pe_tok}, ps({1, n_layer, T, pe}), f32);
+    auto pe_sum = m_emit.add_op("GGML_OP_ADD", "pe_sum", {proj_normed, pe_tok});
     const float inv_sqrt2 = 1.0f / std::sqrt(2.0f);
-    m_emit.add_op("GGML_OP_SCALE",
-                  "per_layer_embd",
-                  {pe_sum},
-                  ps({1, n_layer, T, pe}),
-                  f32,
-                  0,
-                  {{"scale", inv_sqrt2}, {"bias", 0.0f}});
+    m_emit.add_op("GGML_OP_SCALE", "per_layer_embd", {pe_sum}, 0, {{"scale", inv_sqrt2}, {"bias", 0.0f}});
 }
 
 std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string& cur, const std::string& inpSA) {
@@ -199,7 +184,6 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     // per-layer slice, projects back to n_embd, post-norms, then adds residual.
     // per_layer_token_embd (global) is pre-projected before the loop.
     const std::string p = "blk." + std::to_string(il) + ".";
-    const int pe = m_cfg.n_embd_per_layer;
 
     // Slice out this layer's [1,1,T,pe] chunk (dim 1 at index il). The second input is passed
     // purely as a shape reference: per_layer_embd is stored layer-major, so the slice's token axis
@@ -216,8 +200,6 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     m_emit.add_op("GGML_OP_VIEW",
                   pl_slice,
                   {"per_layer_embd", pl_shape_ref},
-                  ps({1, 1, T, pe}),
-                  f32,
                   104,  // layer-index slice using the "layer_idx" attribute
                   {{"layer_idx", int64_t(il)}});
 
@@ -225,28 +207,26 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     // gemma4.cpp:347-349: also filter pl_slice so the MUL doesn't broadcast it back to the full
     // sequence length.
     std::string pl_slice_used = pl_slice;
-    if (il == m_cfg.n_layer - 1) {
+    if (selects_output_rows(il)) {
         pl_slice_used = p + "per_layer_slice_sel";
-        m_emit.add_op("GGML_OP_GET_ROWS", pl_slice_used, {pl_slice, "inp_out_ids"}, ps({1, 1, T, pe}), f32);
+        m_emit.add_op("GGML_OP_GET_ROWS", pl_slice_used, {pl_slice, "inp_out_ids"});
     }
 
     // gate: cur -> inp_gate.weight -> GELU -> [1,1,T,pe]
     m_emit.add_weight(p + "inp_gate.weight");
-    auto gated =
-        m_emit.add_op("GGML_OP_MUL_MAT", p + "inp_gate_mm", {p + "inp_gate.weight", cur}, ps({1, 1, T, pe}), f32);
-    gated = m_emit.add_op("GGML_UNARY_OP_GELU", p + "inp_gate_gelu", {gated}, ps({1, 1, T, pe}), f32);
+    auto gated = m_emit.add_op("GGML_OP_MUL_MAT", p + "inp_gate_mm", {p + "inp_gate.weight", cur});
+    gated = m_emit.add_op("GGML_UNARY_OP_GELU", p + "inp_gate_gelu", {gated});
 
     // elementwise multiply by per-layer slice
-    auto mul_pe = m_emit.add_op("GGML_OP_MUL", p + "pe_mul", {gated, pl_slice_used}, ps({1, 1, T, pe}), f32);
+    auto mul_pe = m_emit.add_op("GGML_OP_MUL", p + "pe_mul", {gated, pl_slice_used});
 
     // project back to n_embd
     m_emit.add_weight(p + "proj.weight");
-    auto pe_proj =
-        m_emit.add_op("GGML_OP_MUL_MAT", p + "pe_proj", {p + "proj.weight", mul_pe}, ps({1, 1, T, m_cfg.n_embd}), f32);
+    auto pe_proj = m_emit.add_op("GGML_OP_MUL_MAT", p + "pe_proj", {p + "proj.weight", mul_pe});
 
     // post-norm + residual add
     pe_proj = blocks::rms_norm(m_emit, pe_proj, p + "post_norm.weight", p + "pe_post_norm", m_cfg.rms_eps);
-    return m_emit.add_op("GGML_OP_ADD", p + "pe_out", {cur, pe_proj}, ps({1, 1, T, m_cfg.n_embd}), f32);
+    return m_emit.add_op("GGML_OP_ADD", p + "pe_out", {cur, pe_proj});
 }
 
 std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
@@ -256,46 +236,37 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 
     // eps for the post-attention / post-FFN norms; 0 in the config means "reuse rms_eps"
     // (muse-glimmer's post-norms use a tighter 1e-8 than its pre-norms).
+    const auto norm = m_cfg.layer_norm ? blocks::layer_norm : blocks::rms_norm;
     const float post_eps = m_cfg.post_norm_eps > 0.0f ? m_cfg.post_norm_eps : m_cfg.rms_eps;
 
-    // attn_norm (key varies by arch: "attn_norm.weight" for most, "post_attention_norm.weight"
-    // for exaone4)
     const std::string attn_norm =
-        blocks::rms_norm(m_emit, cur, p + m_cfg.attn_norm_key, p + "attn_norm", m_cfg.rms_eps);
+        m_cfg.post_norm_only ? cur : norm(m_emit, cur, p + m_cfg.attn_norm_key, p + "attn_norm", m_cfg.rms_eps);
 
     if (m_cfg.is_qwen35 && m_cfg.is_recurrent_layer(il)) {
         // Hybrid stack: 3 of every 4 layers replace attention with a Gated DeltaNet block.
         // It produces the same thing the attention path does -- the sublayer output before
         // the residual -- so the shared FFN tail below is reused verbatim.
-        const std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm, T);
+        const std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
         std::string sa = inpSA;
         std::string ao = gdn_out;
-        if (il == m_cfg.n_layer - 1) {
-            ao = m_emit.add_op("GGML_OP_GET_ROWS",
-                               p + "attn_out_g",
-                               {gdn_out, "inp_out_ids"},
-                               ps({1, 1, T, m_cfg.n_embd}),
-                               f32);
-            sa = m_emit.add_op("GGML_OP_GET_ROWS",
-                               p + "inpSA_g",
-                               {inpSA, "inp_out_ids"},
-                               ps({1, 1, T, m_cfg.n_embd}),
-                               f32);
+        if (selects_output_rows(il)) {
+            ao = m_emit.add_op("GGML_OP_GET_ROWS", p + "attn_out_g", {gdn_out, "inp_out_ids"});
+            sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"});
         }
-        auto ffn_inp_r = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa}, ps({1, 1, T, m_cfg.n_embd}), f32);
+        auto ffn_inp_r = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa});
         auto ffn_norm_r = blocks::rms_norm(m_emit, ffn_inp_r, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
         // Mirror the non-recurrent FFN dispatch below: Qwen3-Next is MoE for every trunk layer
         // (llama.cpp routes both the GDN and full-attention layers through build_moe_ffn), so a
         // real model has no per-layer dense FFN tensors here and dense_ffn's weight_tensor lookup
         // would assert.
-        const bool is_moe_layer_r = m_cfg.is_moe && (il >= m_cfg.n_dense_lead);
-        auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
-                      : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
-                                       : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r, T);
-        return m_emit.add_op("GGML_OP_ADD", p + "l_out", {down_r, ffn_inp_r}, ps({1, 1, T, m_cfg.n_embd}), f32);
+        const bool is_moe_layer_r = m_cfg.layer_is_moe(il);
+        auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r)
+                      : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm_r)
+                                       : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r);
+        return m_emit.add_op("GGML_OP_ADD", p + "l_out", {down_r, ffn_inp_r});
     }
 
-    std::string attn_out = blocks::attention(m_emit, m_cfg, m_kv, il, attn_norm, T);
+    std::string attn_out = blocks::attention(m_emit, m_cfg, m_kv, il, attn_norm);
 
     // MiniCPM scales the attention sublayer output before the residual add.
     if (m_cfg.residual_scale != 1.0f) {
@@ -303,40 +274,39 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     }
     std::string sa = inpSA;
     std::string ao = attn_out;
-    if (il == m_cfg.n_layer - 1) {
-        ao = m_emit.add_op("GGML_OP_GET_ROWS",
-                           p + "attn_out_g",
-                           {attn_out, "inp_out_ids"},
-                           ps({1, 1, T, m_cfg.n_embd}),
-                           f32);
-        sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"}, ps({1, 1, T, m_cfg.n_embd}), f32);
+    if (selects_output_rows(il)) {
+        ao = m_emit.add_op("GGML_OP_GET_ROWS", p + "attn_out_g", {attn_out, "inp_out_ids"});
+        sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"});
     }
     // Gemma2: post-attention RMSNorm applied to the sublayer output before residual add.
     // Applied after GET_ROWS so the selected-token path matches gemma2.cpp's order.
     if (m_cfg.has_attn_post_norm) {
-        ao = blocks::rms_norm(m_emit, ao, p + "post_attention_norm.weight", p + "attn_post_norm", post_eps);
+        ao = blocks::rms_norm(m_emit, ao, p + m_cfg.attn_post_norm_key, p + "attn_post_norm", post_eps);
     }
 
-    auto ffn_inp = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa}, ps({1, 1, T, m_cfg.n_embd}), f32);
+    auto ffn_inp = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa});
 
     // Pre-FFN/MoE norm. Key varies by arch (ffn_norm_key is resolved in DecoderConfig).
-    auto ffn_norm = blocks::rms_norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
+    auto ffn_norm =
+        m_cfg.post_norm_only ? ffn_inp : norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
 
     // Hybrid MoE: lead layers (il < n_dense_lead) are always dense regardless of is_moe.
-    const bool is_moe_layer = m_cfg.is_moe && (il >= m_cfg.n_dense_lead);
-    std::string down = is_moe_layer     ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm, T)
-                       : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm, T)
-                                        : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm, T);
+    const bool is_moe_layer = m_cfg.layer_is_moe(il);
+    std::string down = is_moe_layer && m_emit.has_weight(p + "pre_ffw_norm_2.weight")
+                           ? blocks::gemma4_moe_ffn(m_emit, m_cfg, p, ffn_inp, ffn_norm)
+                       : is_moe_layer   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm)
+                       : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm)
+                                        : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm);
     // MiniCPM scales the FFN sublayer output before the residual add.
     if (m_cfg.residual_scale != 1.0f) {
         down = blocks::scale(m_emit, down, m_cfg.residual_scale, p + "ffn_out_scaled");
     }
     // Gemma2: post-FFN RMSNorm applied to the FFN output before residual add.
     if (m_cfg.has_ffn_post_norm) {
-        down = blocks::rms_norm(m_emit, down, p + "post_ffw_norm.weight", p + "ffn_post_norm", post_eps);
+        down = blocks::rms_norm(m_emit, down, p + m_cfg.ffn_post_norm_key, p + "ffn_post_norm", post_eps);
     }
 
-    cur = m_emit.add_op("GGML_OP_ADD", p + "l_out", {down, ffn_inp}, ps({1, 1, T, m_cfg.n_embd}), f32);
+    cur = m_emit.add_op("GGML_OP_ADD", p + "l_out", {down, ffn_inp});
 
     if (m_cfg.n_embd_per_layer > 0) {
         cur = inject_per_layer_embedding(il, cur, inpSA);
@@ -345,23 +315,41 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     // Gemma4: per-layer output scale (layer_output_scale.weight is a scalar [1]).
     if (m_emit.has_weight(p + "layer_output_scale.weight")) {
         m_emit.add_named_weight(p + "layer_output_scale.weight");
-        cur = m_emit.add_op("GGML_OP_MUL",
-                            p + "scaled_out",
-                            {cur, p + "layer_output_scale.weight"},
-                            m_emit.shape_of_tensor(cur),
-                            f32);
+        cur = m_emit.add_op("GGML_OP_MUL", p + "scaled_out", {cur, p + "layer_output_scale.weight"});
     }
     return cur;
 }
 
 std::string DecoderBuilder::build_head(const std::string& in) {
     // final norm + lm_head
-    std::string cur = blocks::rms_norm(m_emit, in, "output_norm.weight", "result_norm", m_cfg.rms_eps);
+    const auto norm = m_cfg.layer_norm ? blocks::layer_norm : blocks::rms_norm;
+    std::string cur = norm(m_emit, in, "output_norm.weight", "result_norm", m_cfg.rms_eps);
+    if (m_cfg.embedding_model) {
+        using namespace ov::op;
+        auto embeddings = m_emit.value(cur);
+        ov::Output<ov::Node> output = embeddings;
+        auto token_axis = v0::Constant::create(i64, {1}, {2});
+        if (m_cfg.pooling_type == 1) {
+            output = std::make_shared<v1::ReduceMean>(embeddings, token_axis, true);
+        } else if (m_cfg.pooling_type == 2 || m_cfg.pooling_type == 3) {
+            ov::Output<ov::Node> index = v0::Constant::create(i64, {1}, {0});
+            if (m_cfg.pooling_type == 3) {
+                auto shape = std::make_shared<v3::ShapeOf>(embeddings);
+                auto axis = v0::Constant::create(i64, {}, {0});
+                auto count = std::make_shared<v8::Gather>(shape, token_axis, axis);
+                index = std::make_shared<v1::Subtract>(count, v0::Constant::create(i64, {1}, {1}));
+            }
+            output = std::make_shared<v8::Gather>(embeddings, index, token_axis);
+        }
+        output = std::make_shared<v0::Squeeze>(output, v0::Constant::create(i64, {2}, {0, 1}));
+        output.set_names({"embeddings"});
+        (*m_emit.graph()->values)["embeddings"] = output;
+        return "embeddings";
+    }
 
     const std::string lm_head_w = m_emit.has_weight("output.weight") ? "output.weight" : "token_embd.weight";
     m_emit.add_weight(lm_head_w);
-    const int n_vocab = static_cast<int>(m_emit.weight_tensor(lm_head_w).get_shape()[0]);  // rows = vocab
-    auto logits = m_emit.add_op("GGML_OP_MUL_MAT", "result_output", {lm_head_w, cur}, ps({1, 1, T, n_vocab}), f32);
+    auto logits = m_emit.add_op("GGML_OP_MUL_MAT", "result_output", {lm_head_w, cur});
     // MiniCPM scales the logits (1/(n_embd/dim_model_base)).
     if (m_cfg.logit_scale != 1.0f) {
         logits = blocks::scale(m_emit, logits, m_cfg.logit_scale, "result_output_scaled");
@@ -369,8 +357,7 @@ std::string DecoderBuilder::build_head(const std::string& in) {
     // Gemma2/Gemma3 final logit soft-cap: tanh(logits / cap) * cap.
     if (m_cfg.final_logit_soft_cap != 0.0f) {
         logits = blocks::scale(m_emit, logits, 1.0f / m_cfg.final_logit_soft_cap, "logits_softcap_scaled");
-        logits =
-            m_emit.add_op("GGML_UNARY_OP_TANH", "logits_softcap_tanh", {logits}, m_emit.shape_of_tensor(logits), f32);
+        logits = m_emit.add_op("GGML_UNARY_OP_TANH", "logits_softcap_tanh", {logits});
         logits = blocks::scale(m_emit, logits, m_cfg.final_logit_soft_cap, "result_output_softcapped");
     }
     return logits;
@@ -407,6 +394,4 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
     return graph;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

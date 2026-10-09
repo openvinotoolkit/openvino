@@ -133,7 +133,7 @@ void tensor_iterator(uint64_t num_iterations,
                           shapes_to_concat,
                           shape,
                           concat_desc->m_axis,
-                          out[concat_desc->m_output_index].get_element_type().size());
+                          out[concat_desc->m_output_index].get_element_type().bitwidth());
     }
 }
 }  // namespace reference

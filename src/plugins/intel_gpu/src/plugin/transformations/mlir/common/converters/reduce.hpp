@@ -89,7 +89,8 @@ struct ConvertReduce {
             }
             auto divisor = ::mlir::arith::ConstantOp::create(builder, loc, ::mlir::DenseElementsAttr::get(result_type, divisor_attr));
             auto empty = ::mlir::tensor::EmptyOp::create(builder, loc, result_type, ValueRange{});
-            result = ::mlir::linalg::DivOp::create(builder, loc, ValueRange{result, divisor}, ValueRange{empty}).getResult(0);
+            result = ::mlir::linalg::ElementwiseOp::create(builder, loc, ValueRange{result, divisor}, ValueRange{empty}, ::mlir::linalg::ElementwiseKind::div)
+                         .getResult(0);
         }
 
         // If keep_dims is true, broadcast along the reduced dimensions

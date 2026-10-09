@@ -270,6 +270,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Sigmoid) ||
             (activation_type == utils::ActivationTypes::SoftSign) ||
             (activation_type == utils::ActivationTypes::Sqrt) ||
+            (activation_type == utils::ActivationTypes::Swish) ||
             (activation_type == utils::ActivationTypes::Tanh) ||
             (activation_type == utils::ActivationTypes::ErfInv))
             return "jit";
@@ -353,11 +354,9 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Sqrt,                  {{}}},
         {RoundHalfToEven,       {{}}},
         {RoundHalfAwayFromZero, {{}}},
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {IsFinite,              {{}}},
         {IsInf,                 {{false, false}, {false, true}, {true, false}, {true, true}}},
         {IsNaN,                 {{}}},
-#endif
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {Mish,                  {{}}},
 #endif

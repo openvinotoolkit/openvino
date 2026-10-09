@@ -13,10 +13,7 @@
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_TRI zeroes out elements outside a triangular region of a square matrix. The region is
 // selected by the decoder-provided "tri_type" attribute (ggml_tri_type, mapped to a plain int):
@@ -66,16 +63,11 @@ OutputVector translate_tri(const NodeContext& context) {
         }
     }
     // Build the mask in the node's own type, or an f16 input gets promoted to f32 by the Multiply.
-    auto keep_mask = ov::op::v0::Constant::create(context.get_attribute<ov::element::Type>("output_type"),
-                                                  ov::Shape{1, 1, n, n},
-                                                  mask);
+    auto keep_mask = ov::op::v0::Constant::create(x.get_element_type(), ov::Shape{1, 1, n, n}, mask);
 
     auto res = std::make_shared<ov::op::v1::Multiply>(x, keep_mask);
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

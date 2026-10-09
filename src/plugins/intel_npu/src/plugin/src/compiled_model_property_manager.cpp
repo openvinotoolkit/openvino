@@ -55,7 +55,7 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
 
 namespace intel_npu {
 
-CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig& config,
+CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
                                                            const ov::AnyMap& properties,
                                                            const std::shared_ptr<IDevice>& device,
                                                            const std::shared_ptr<IGraph>& graph,
@@ -93,6 +93,8 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
 
     for (const auto& property : properties) {
         const auto propertyIt = _properties.find(property.first);
+        // This should never happen due to the previous check, fixing potential issue with missing property
+        OPENVINO_ASSERT(propertyIt != _properties.end(), "Unsupported configuration key: ", property.first);
         propertyIt->second.set(property.second);
     }
 }
@@ -121,7 +123,7 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
     }
 }
 
-FilteredConfig CompiledModelPropertyManager::getConfig() const {
+Config CompiledModelPropertyManager::getConfig() const {
     std::lock_guard<std::mutex> lock(_mutex);
     return _config;
 }
@@ -264,15 +266,16 @@ void CompiledModelPropertyManager::registerProperties() {
             return ov::EncryptionCallbacks{nullptr, nullptr};
         },
         [this](const ov::Any& value) {
-            _config.updateAny(ov::cache_encryption_callbacks.name(), value);
+            _config.update(ov::cache_encryption_callbacks.name(), value);
         }
     );
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::RO,
         [](const ov::AnyMap&) {
             return true;
         },
-        [this](const ov::AnyMap&) {
-            return _config.get<MODEL_PTR>().lock();
+        [this](const ov::AnyMap&) -> ov::Any {
+            std::shared_ptr<const ov::Model> model = _config.get<MODEL_PTR>().lock();
+            return ov::Any(std::move(model));
         },
         readOnlySetter
     );
@@ -302,8 +305,8 @@ void CompiledModelPropertyManager::registerProperties() {
         [](const ov::AnyMap&) {
             return true;
         },
-        [](const ov::AnyMap&) {
-            return ov::Any(std::vector<std::string>{"NPU"});
+        [this](const ov::AnyMap&) {
+            return _device != nullptr ? decltype(ov::execution_devices)::value_type{"NPU.0"} : decltype(ov::execution_devices)::value_type{};
         },
         readOnlySetter
     );
