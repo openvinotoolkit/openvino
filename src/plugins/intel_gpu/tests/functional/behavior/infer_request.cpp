@@ -403,6 +403,49 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthWithinCapacity) {
     expect_extra_output_buffer(copy_growth, zero_copy_growth, f32_bytes(max_shape));
 }
 
+// wait() shrinks a dynamic RemoteTensor output's shape; a later growth must still fit its full allocation.
+TEST(TensorTest, smoke_dynamicOutputRemoteTensorGrowthAfterShrinkWithinCapacity) {
+    {
+        auto core = ov::Core();
+        if (!gpu_supports_usm_host_output_sharing(core)) {
+            GTEST_SKIP() << "USM-host remote tensors require an iGPU with USM support";
+        }
+    }
+
+    constexpr size_t kRowScale = 65536;
+    const ov::Shape max_shape{8 * kRowScale, 4};
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, max_shape);
+    request.set_output_tensor(usm_allocation);
+
+    auto run = [&](size_t rows) {
+        const ov::Shape shape{rows * kRowScale, 4};
+        ov::Tensor input_tensor(ov::element::f32, shape);
+        fill_relu_test_input(input_tensor);
+        request.set_input_tensor(input_tensor);
+        request.infer();
+
+        EXPECT_EQ(request.get_output_tensor().get_shape(), shape);
+        EXPECT_TRUE(matches_relu_of_test_input(ov::Tensor(ov::element::f32, shape, usm_allocation.get()))) << "rows=" << rows;
+    };
+
+    // Warm up at the max shape so input and intermediate buffers already have their final size.
+    run(8);
+    const int64_t before = gpu_mem_in_use(core);
+    // The 8-row run follows a shrink to 2 rows; a fallback buffer is freed again on the next rebind, so check each run.
+    int64_t max_growth = 0;
+    for (const size_t rows : {size_t{2}, size_t{8}, size_t{4}}) {
+        run(rows);
+        max_growth = std::max(max_growth, gpu_mem_in_use(core) - before);
+    }
+    expect_no_extra_output_buffer(max_growth, 0, f32_bytes(max_shape));
+}
+
 // Runtime output exceeding the caller buffer fails safely (throws) without corrupting caller memory.
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthBeyondCapacityIsSafe) {
     auto core = ov::Core();
