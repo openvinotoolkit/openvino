@@ -4,7 +4,6 @@
 
 #include "color_convert.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -19,7 +18,6 @@
 #include <openvino/op/rgb_to_nv12.hpp>
 #include <string>
 #include <tuple>
-#include <type_traits>
 #include <vector>
 
 #include "cpu_parallel.hpp"
@@ -41,6 +39,7 @@
 #    include <array>
 #    include <common/c_types_map.hpp>
 #    include <cpu/x64/jit_generator.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
 
 #    include "kernels/x64/jit_kernel.hpp"
 #endif
@@ -1850,10 +1849,7 @@ void ColorConvert::createPrimitive() {
         const auto& cfg = desc->getConfig();
         const auto precision = cfg.inConfs[0].getMemDesc()->getPrecision();
 
-        // For RGB/BGR→NV12 the input is always a single RGB/BGR tensor, so we cannot
-        // use input-port count to distinguish single vs. two-plane output.  Use the
-        // output-port count instead.
-        bool isSinglePlane;
+        bool isSinglePlane = false;
         if (algorithm == Algorithm::ColorConvertRGBtoNV12 || algorithm == Algorithm::ColorConvertBGRtoNV12) {
             isSinglePlane = cfg.outConfs.size() == 1;
         } else {
