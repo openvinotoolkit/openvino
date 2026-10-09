@@ -1728,7 +1728,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     if (is_weightless) {
         std::string encrypted_str;
         read(stream, encrypted_str);
-        std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
+        std::istringstream decrypted_stream(enc_callbacks.decrypt(encrypted_str));
         CompiledContext ctx(false, nullptr, nullptr);
         compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
@@ -1842,7 +1842,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     if (ctx.encrypted) {
         std::string encrypted_string;
         read(stream, encrypted_string);
-        std::istringstream decrypted_stream(std::move(ctx.decrypt(encrypted_string)));
+        std::istringstream decrypted_stream(ctx.decrypt(encrypted_string));
         compiled = read_model_meta(decrypted_stream);
     } else {
         compiled = read_model_meta(stream);
