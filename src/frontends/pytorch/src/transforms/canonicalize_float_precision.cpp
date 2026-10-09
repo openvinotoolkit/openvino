@@ -9,6 +9,8 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace frontend {
@@ -32,6 +34,15 @@ bool is_side_channel(const std::shared_ptr<v0::Parameter>& param) {
 }  // namespace
 
 bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    // A body keeps the types it was converted with, so retyping the outer graph would feed f32 into bf16
+    // bodies and fail validation. Leave such models as they are.
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
+            OPENVINO_DEBUG("CanonicalizeFloatPrecision skipped: the model has subgraph ops");
+            return false;
+        }
+    }
+
     std::vector<element::Type> result_types;
     for (const auto& result : model->get_results()) {
         result_types.push_back(result->get_input_element_type(0));
@@ -50,6 +61,10 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
             }
             std::vector<Input<Node>> consumers;
             for (const auto& input : constant->output(0).get_target_inputs()) {
+                // A Result keeps reading the Constant, so the output keeps its type and tensor names.
+                if (ov::is_type<v0::Result>(input.get_node())) {
+                    continue;
+                }
                 const auto consumer = ov::as_type<v0::Convert>(input.get_node());
                 if (!consumer || consumer->get_destination_type() != element::f32) {
                     consumers.push_back(input);
@@ -73,9 +88,18 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
             if (!is_narrow(param->get_element_type()) || is_side_channel(param)) {
                 continue;
             }
-            const auto consumers = param->output(0).get_target_inputs();
+            std::vector<Input<Node>> consumers;
+            for (const auto& input : param->output(0).get_target_inputs()) {
+                // A Result keeps reading the Parameter, so the output keeps its type and tensor names.
+                if (!ov::is_type<v0::Result>(input.get_node())) {
+                    consumers.push_back(input);
+                }
+            }
+            if (consumers.empty()) {
+                continue;
+            }
             const auto convert = std::make_shared<v0::Convert>(param, element::f32);
-            for (auto consumer : consumers) {
+            for (auto& consumer : consumers) {
                 consumer.replace_source_output(convert);
             }
             changed = true;

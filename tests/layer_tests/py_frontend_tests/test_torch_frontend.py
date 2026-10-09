@@ -3501,3 +3501,33 @@ def test_canonicalize_float_precision(tmp_path):
     reloaded = Core().read_model(xml_path)
     assert [op for op in _ops_of_type(reloaded, "Convert") if "decompression_0" in op.get_rt_info()], \
         "The decompression mark must survive an IR round trip"
+
+
+class _Bf16Passthrough(torch.nn.Module):
+    """Returns its input and a large buffer unchanged next to a computed output."""
+
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("w", torch.randn(128, 64, dtype=torch.bfloat16))
+
+    def forward(self, x):
+        return x, self.w, x @ self.w.t()
+
+
+def test_canonicalize_float_precision_keeps_passthrough_outputs():
+    """A Result fed straight by a Parameter or Constant keeps its type and tensor names."""
+    from openvino import OVAny
+
+    def convert_with(rt_info):
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+        with torch.no_grad():
+            ep = torch.export.export(_Bf16Passthrough().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
+        decoder = TorchFXPythonDecoder(ep.module(), rt_info=rt_info)
+        fe = FrontEndManager().load_by_framework("pytorch")
+        return fe.convert(fe.load(decoder))
+
+    expected = convert_with({})
+    canonical = convert_with({"canonical_float_precision": OVAny(True)})
+    assert [sorted(o.get_names()) for o in canonical.outputs] == [sorted(o.get_names()) for o in expected.outputs]
+    assert [o.get_element_type() for o in canonical.outputs] == [Type.bf16] * 3
