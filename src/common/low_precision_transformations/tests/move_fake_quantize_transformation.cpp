@@ -560,4 +560,46 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                                             ::testing::ValuesIn({false})),
                          MoveFakeQuantizeTransformation::getTestCaseName);
 }  // namespace NegativeTestValues
+
+namespace axisBeyondDequantizationRank {
+// Concat on the last axis (3) whose dequantization constant is only rank-2. The split decision in
+// moveDequantizationBefore normalizes the axis against the Concat rank (4) and then indexes the
+// dequantization constant's own shape with it, so it must bounds-check that shape first. Covers
+// both the subtract and the multiply branch of that decision.
+const std::vector<ov::element::Type> precisions = {ov::element::f32};
+
+const std::vector<std::vector<ov::PartialShape>> shapes = {{{1, 1, 9, 9}, {1, 1, 9, 9}}};
+const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
+    {LayerTransformation::createParamsU8I8(),
+     false,
+     3,  // concat axis (last) exceeds the rank-2 dequantization constant
+     {
+         2,
+         {},
+         {},
+         {},
+         "",
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {ov::element::u8},
+         {{element::f32}, {{0.01f}, element::f32, {1, 1}}, {{0.01f}, element::f32, {1, 1}}},
+     },
+     {
+         2,
+         {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
+         {ov::element::u8},
+         {{element::f32}, {{0.01f}, element::f32, {1, 1}}, {{0.01f}, element::f32, {1, 1}}},
+         "",
+         {},
+         {},
+         {},
+     }},
+};
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MoveFakeQuantizeTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(testValues),
+                                            ::testing::ValuesIn({false})),
+                         MoveFakeQuantizeTransformation::getTestCaseName);
+}  // namespace axisBeyondDequantizationRank
 }  // namespace
