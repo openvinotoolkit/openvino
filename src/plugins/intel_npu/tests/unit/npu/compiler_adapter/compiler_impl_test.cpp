@@ -230,9 +230,7 @@ TEST_F(VCLCompilerImplTest, ConstructionAcceptsALibraryBelowTheFloorAndDefersThe
 //
 
 TEST_F(VCLCompilerImplTest, DestructionDestroysTheCompilerExactlyOnce) {
-    {
-        auto compiler = makeCompiler();
-    }
+    { auto compiler = makeCompiler(); }
     EXPECT_EQ(fake.compilerDestroyCount, 1);
 }
 

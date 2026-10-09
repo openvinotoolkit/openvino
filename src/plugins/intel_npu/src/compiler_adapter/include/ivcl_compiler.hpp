@@ -84,7 +84,6 @@ public:
      * @brief Builds a decoder able to turn this compiler's raw profiling output into ov::ProfilingInfo.
      */
     virtual std::shared_ptr<IProfilingDecoder> createProfilingDecoder() const = 0;
-
 };
 
 }  // namespace intel_npu

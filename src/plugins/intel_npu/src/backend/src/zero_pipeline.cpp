@@ -91,7 +91,7 @@ void Pipeline::configure_profiling() {
     const auto create_profiling_decoder = [this]() {
         _profiling_decoder = _graph->get_profiling_decoder();
         OPENVINO_ASSERT(_profiling_decoder != nullptr,
-                       "Graph does not provide a profiling decoder, but model-level profiling is enabled");
+                        "Graph does not provide a profiling decoder, but model-level profiling is enabled");
     };
 
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
