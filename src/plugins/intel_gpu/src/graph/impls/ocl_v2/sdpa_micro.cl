@@ -16,7 +16,16 @@
 
 #include "include/batch_headers/generic_vector_ops.cl"
 #include "include/batch_headers/sdpa_utils.cl"
+#include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/tile_ops.cl"
+
+#if INPUT0_IS_BF16
+#define KV_SLM_T ushort
+#define tile_copy_S_to_kv(t, t_new) tile_copy_to_bf16x2(t, t_new)
+#else
+#define KV_SLM_T half
+#define tile_copy_S_to_kv(t, t_new) tile_copy_to_half2(t, t_new)
+#endif
 
 /* The quantization parameter may be unique for each token/element */
 #define QUANTIZE_2D 2
@@ -80,11 +89,23 @@ DECLARE_2D_TILE_COPY_REBLOCK(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 1, 1, ugemm_vs_sg_tile_n)
+#if INPUT0_IS_BF16
+DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
+        ugemm_vs_sg_tile_m, 1, 1, ugemm_vs_sg_tile_n)
+#endif
 #else
 DECLARE_2D_TILE_COPY_REBLOCK(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 8, 1, ugemm_vs_sg_tile_n / 8)
+#if INPUT0_IS_BF16
+DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
+        ugemm_vs_sg_tile_m, 8, 1, ugemm_vs_sg_tile_n / 8)
+#endif
 #endif
 
 DECLARE_2D_TILE_VREDUCE(s_tile_type, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
@@ -101,6 +122,20 @@ DECLARE_2D_TILE_HREDUCE(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_scale_tile_type, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_n, 1, 1, 1)
+
+#if FOLD_VAL_SCALES_INTO_OUTPUT
+/* Per-channel value scales/zero points apply to the A tile's rows (head size), unlike the softmax
+ * denominator, which applies to its columns (queries) -- hence vbroadcast rather than hbroadcast.
+ * Round the tile up to one element per lane; the extra rows are never touched. */
+#define v_scale_tile_m MAX(ugemm_vs_sg_tile_m, SUBGROUP_SIZE)
+
+DECLARE_2D_TILE(v_scale_tile_type, float, SUBGROUP_SIZE, v_scale_tile_m, 1, 1, 1)
+
+DECLARE_2D_TILE_VREDUCE(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1, v_scale_tile_type, SUBGROUP_SIZE,
+        v_scale_tile_m, 1, 1, 1)
+#endif
 
 #if ugemm_kq_wg_tile_n == ugemm_vs_wg_tile_n \
         && (ugemm_kq_sg_tile_n % ugemm_vs_sg_tile_n) == 0
@@ -123,6 +158,15 @@ DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
             ptr, c, r, cmax, rmax, ld, sg_id, n_sg, sg_size, caching)
 #else
 #define cooperative_prefetch_2d_k cooperative_prefetch_2d_maybe_rem
+#endif
+
+#if TRANSPOSE_V
+#define cooperative_prefetch_2d_v( \
+    ptr, r, c, rmax, cmax, ld, sg_id, n_sg, sg_size, caching) \
+    cooperative_prefetch_2d_maybe_rem( \
+        ptr, c, r, cmax, rmax, ld, sg_id, n_sg, sg_size, caching)
+#else
+#define cooperative_prefetch_2d_v cooperative_prefetch_2d_maybe_rem
 #endif
 
 #if REMAINDER_Q
@@ -178,9 +222,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #ifdef KV_COMPRESSED
         , const global KEY_ATTR_SCALES_DATA_T *K_scales
+#if KEY_ZERO_POINTS
         , const global KEY_ATTR_ZP_DATA_T *K_zp
+#endif
         , const global VAL_ATTR_SCALES_DATA_T *V_scales
+#if VAL_ZERO_POINTS
         , const global VAL_ATTR_ZP_DATA_T *V_zp
+#endif
 #endif
         ) {
 #if IS_PAGED_ATTENTION
@@ -215,6 +263,29 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     uint b0_kv = b0 / KV_GROUP_SIZE;
 #endif
+#if !IS_PAGED_ATTENTION
+    // Q/K/V batch may be broadcast (the output batch is their numpy broadcast): wrap the batch index by their own batch size.
+    // The flags are compile-time, so the modulo is dropped when no broadcast is needed.
+#if BROADCAST_Q_BATCH
+    const uint b1_q = b1 % QRY_D0;
+#else
+    const uint b1_q = b1;
+#endif
+#if BROADCAST_K_BATCH
+    const uint b1_k = b1 % KEY_D0;
+#else
+    const uint b1_k = b1;
+#endif
+#if BROADCAST_V_BATCH
+    const uint b1_v = b1 % VAL_D0;
+#else
+    const uint b1_v = b1;
+#endif
+#else
+    const uint b1_q = b1;
+    const uint b1_k = b1;
+    const uint b1_v = b1;
+#endif
 
 #if IS_PAGED_ATTENTION
     uint wg_j0 = subsequence_query_block_idx;
@@ -228,6 +299,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #if !IS_GQA_SINGLE_TOKEN
             causal_k = min(k, past_len + (int)wg_j0 + ugemm_kq_wg_tile_n);
         #endif
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        const int causal_offset = max(0, k - q);
+        causal_k = min(k, causal_offset + (int)wg_j0 + ugemm_kq_wg_tile_n);
     #else
         causal_k = min(k, (int)wg_j0 + ugemm_kq_wg_tile_n);
     #endif
@@ -310,7 +384,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint ldvc = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
         #if IS_KV_COMPRESSED_PA
             #if IS_INT4_KV_CACHE
-                // INT4 K BY_CHANNEL: scale stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE bytes / 2 in f16 elements
+                // INT4 BY_CHANNEL: scale stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE bytes / 2 in f16 elements
                 uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
                 // INT4 V per-token: scale stride = ADJUSTED_V_HEAD_SIZE bytes / 2 in f16 elements
                 uint ldvq = ADJUSTED_V_HEAD_SIZE / 2;
@@ -324,19 +398,29 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #endif
     #endif
 #else
-    uint ldk = TRANSPOSE_K ? KEY_S3 : KEY_S2;
+    /* Layout pitches are physical KEY/VAL elements (bytes for packed INT4), while the
+       micro-kernel leading dimensions use logical elements (nibbles for i4/u4). */
+    uint ldk = (TRANSPOSE_K ? KEY_S3 : KEY_S2) * KEY_ELEMENTS_PER_BYTE;
     uint ldq = QRY_S2;
-    uint ldv = VAL_S2;
+    uint ldv = TRANSPOSE_V ? VAL_S3 * VAL_ELEMENTS_PER_BYTE : VAL_S2 * VAL_ELEMENTS_PER_BYTE;
     uint lda = DST_S2;
 #endif
 
 #if KEY_SCALES || KEY_ZERO_POINTS
-    uint ldkq = DIV_UP(d, KEY_GROUP_SIZE);
     uint num_key_groups = d / KEY_GROUP_SIZE;
+    #if IS_KEY_BY_CHANNEL
+    uint ldkq = 1;
+    #else
+    uint ldkq = num_key_groups;
+    #endif
 #endif
 #if VAL_SCALES || VAL_ZERO_POINTS
-    uint ldvq = DIV_UP(d, VAL_GROUP_SIZE);
     uint num_val_groups = d / VAL_GROUP_SIZE;
+    #if IS_VALUE_BY_CHANNEL
+    uint ldvq = 1;
+    #else
+    uint ldvq = num_val_groups;
+    #endif
 #endif
 
     /* Subgroup IDs for each GEMM */
@@ -357,13 +441,20 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     local char slm[Q_slm_size + S_slm_size + S_sum_slm_size + S_max_slm_size
             + ugemm_slm_size];
 
-    local half *Q_slm = (local half *)&slm[0];
-    local half *S_slm = (local half *)&slm[Q_slm_size];
+    local KV_SLM_T *Q_slm = (local KV_SLM_T *)&slm[0];
+    local KV_SLM_T *S_slm = (local KV_SLM_T *)&slm[Q_slm_size];
     local float *S_sum_slm = (local float *)&slm[Q_slm_size + S_slm_size];
     local float *S_max_slm
             = (local float *)&slm[Q_slm_size + S_slm_size + S_sum_slm_size];
     local uint *ugemm_slm = (local uint *)&slm[Q_slm_size + S_slm_size
             + S_sum_slm_size + S_max_slm_size];
+
+#ifdef PA_INTEGRITY_CHECK
+    /* Flat fp32 snapshot of the softmax'd S tile, populated per-WG right
+       before the packed store to S_slm and consumed by the VS integrity
+       check. Layout: [k_row, q_col] row-major, ldb = ugemm_kq_wg_tile_n. */
+    local float S_check_slm[ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_n];
+#endif
 
     const bool need_sum_barrier = (ugemm_vs_barrier_count == 0);
 
@@ -396,9 +487,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #endif
 #else
-    K += (KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET) / KEY_ELEMENTS_PER_BYTE;
-    Q += (QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET);
-    V += (VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET) / VAL_ELEMENTS_PER_BYTE;
+    /* KEY_OFF/VAL_OFF and offsets address the physical byte-backed layouts. */
+    K += KEY_OFF(b1_k, b0_kv, 0, 0) + INPUT1_OFFSET;
+    Q += (QRY_OFF(b1_q, b0, 0, 0) + INPUT0_OFFSET);
+    V += VAL_OFF(b1_v, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #if WITH_ATTN_MASK
     uint ldmsk = MSK_S2;
@@ -407,22 +499,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if KEY_SCALES
-    K_scales += KEY_COMP_OFF(b1, b0_kv, 0, 0);
+    K_scales += KEY_COMP_OFF(b1_k, b0_kv, 0, 0);
 #endif
 #if KEY_SCALES == QUANTIZE_COMMON
     float k_scale = convert_float(*K_scales);
 #endif
 #if KEY_ZERO_POINTS
-    K_zp += KEY_COMP_OFF(b1, b0_kv, 0, 0) / KEY_ZP_ELEMENTS_PER_BYTE;
+    K_zp += KEY_COMP_OFF(b1_k, b0_kv, 0, 0) / KEY_ZP_ELEMENTS_PER_BYTE;
 #endif
 #if VAL_SCALES
-    V_scales += VAL_COMP_OFF(b1, b0_kv, 0, 0);
+    V_scales += VAL_COMP_OFF(b1_v, b0_kv, 0, 0);
 #endif
 #if VAL_SCALES == QUANTIZE_COMMON
     float v_scale = convert_float(*V_scales);
 #endif
 #if VAL_ZERO_POINTS
-    V_zp += VAL_COMP_OFF(b1, b0_kv, 0, 0) / VAL_ZP_ELEMENTS_PER_BYTE;
+    V_zp += VAL_COMP_OFF(b1_v, b0_kv, 0, 0) / VAL_ZP_ELEMENTS_PER_BYTE;
 #endif
 
     __builtin_assume_aligned(K, K_ALIGN);
@@ -432,11 +524,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
 #if SLIDING_WINDOW_SIZE && !(IS_PAGED_ATTENTION && !IS_PREFILL)
     if (window_k0_begin > 0) {
-        V += (size_t)ldv * window_k0_begin / VAL_ELEMENTS_PER_BYTE;
-    #if VAL_SCALES == QUANTIZE_2D
+        V += (size_t)(TRANSPOSE_V ? window_k0_begin : ldv * window_k0_begin) / VAL_ELEMENTS_PER_BYTE;
+    #if VAL_SCALES == QUANTIZE_2D && !IS_VALUE_BY_CHANNEL
         V_scales += (size_t)ldvq * window_k0_begin;
     #endif
-    #if VAL_ZERO_POINTS == QUANTIZE_2D
+    #if VAL_ZERO_POINTS == QUANTIZE_2D && !IS_VALUE_BY_CHANNEL
         V_zp += (size_t)ldvq * window_k0_begin / VAL_ZP_ELEMENTS_PER_BYTE;
     #endif
     }
@@ -453,6 +545,32 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             wg_j0 + q0_copy);
 #else
     tile_load_packed_half(&Q_tile, Q, d, q, ldq, 0, wg_j0 + q0_copy);
+#endif
+
+#if FOLD_KEY_SCALES_INTO_Q
+    /* Fold the per-channel key scales into Q instead of dequantizing K in the KQ micro-kernel:
+     *   sum_d K_int8[m,d] * kscale[d] * Q[n,d] == sum_d K_int8[m,d] * (kscale[d] * Q[n,d])
+     * See sdpa_gen_micro.cpp for why. Q_tile packs pairs of halves along d into uints, spread over
+     * the subgroup: tile row i0 (channels 2*i0 and 2*i0+1) lives in lane (i0 % SUBGROUP_SIZE) at
+     * slot (i0 / SUBGROUP_SIZE). K_scales is already offset to this head. Channels past d are
+     * padding; K is zero there, so leaving them unscaled keeps their contribution zero. */
+    {
+        const int q_fold_lane = get_sub_group_local_id();
+#pragma unroll
+        for (int q_fold_t = 0; q_fold_t < (D_MAX / 2) / SUBGROUP_SIZE; q_fold_t++) {
+            const int q_fold_i0 = q_fold_t * SUBGROUP_SIZE + q_fold_lane;
+            const int q_fold_d0 = 2 * q_fold_i0;
+            if (q_fold_d0 >= d)
+                continue;
+            const half2 q_fold_s = (half2)(K_scales[q_fold_d0 / KEY_GROUP_SIZE],
+                    (q_fold_d0 + 1 < d) ? K_scales[(q_fold_d0 + 1) / KEY_GROUP_SIZE] : (half)0.0h);
+#pragma unroll
+            for (int q_fold_j = 0; q_fold_j < q_tile_sg_n; q_fold_j++) {
+                Q_tile.x[q_fold_j][q_fold_t]
+                        = as_uint(as_half2(Q_tile.x[q_fold_j][q_fold_t]) * q_fold_s);
+            }
+        }
+    }
 #endif
 
 #if WITH_SCALE
@@ -502,25 +620,35 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if PREFETCH_K0
-    /* Prefetch first K tile. */
-#if TRANSPOSE_K
-    const uint stride_k0 = ldk;
-#else
-    const uint stride_k0 = 1;
-#endif
     cooperative_prefetch_2d_k(
-            /* ptr */ K + window_k_begin * stride_k0,
+            /* ptr */ K + (size_t)window_k_begin * (TRANSPOSE_K ? 1 : ldk),
             /* r */ d,
             /* c */ causal_k - window_k_begin,
-            /* rmax */ ugemm_kq_wg_tile_m,
-            /* cmax */ PREFETCH_D_MAX,
+            /* rmax */ PREFETCH_D_MAX,
+            /* cmax */ ugemm_kq_wg_tile_m,
             /* ld */ ldk,
             /* sg_id */ sg_ij,
             /* n_sg */ sg_per_wg,
             /* sg_size */ SUBGROUP_SIZE,
             /* cache */ LSC_LDCC_L1C_L3C);
 
-#if KEY_SCALES == QUANTIZE_2D
+/* Under FOLD_KEY_SCALES_INTO_Q the k-loop never reads the key scales or zero points: the scales were
+   consumed once, above, when folding them into the Q tile, and the zero points are dropped. */
+#if (KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
+  #if IS_KEY_BY_CHANNEL
+    /* Broadcast: prefetch only the single row of scale groups */
+    cooperative_prefetch_2d_maybe_rem(
+            /* ptr */ K_scales,
+            /* r */ 1,
+            /* c */ num_key_groups,
+            /* rmax */ 1,
+            /* cmax */ D_MAX / KEY_GROUP_SIZE,
+            /* ld */ ldkq,
+            /* sg_id */ sg_ij,
+            /* n_sg */ sg_per_wg,
+            /* sg_size */ SUBGROUP_SIZE,
+            /* cache */ LSC_LDCC_L1C_L3C);
+  #else
     cooperative_prefetch_2d_maybe_rem(
             /* ptr */ K_scales + window_k_begin,
             /* r */ causal_k - window_k_begin,
@@ -532,8 +660,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             /* n_sg */ sg_per_wg,
             /* sg_size */ SUBGROUP_SIZE,
             /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
-#if KEY_ZERO_POINTS == QUANTIZE_2D
+#if (KEY_ZERO_POINTS == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
+  #if IS_KEY_BY_CHANNEL
+    cooperative_prefetch_2d_maybe_rem(
+            /* ptr */ K_zp,
+            /* r */ 1,
+            /* c */ num_key_groups,
+            /* rmax */ 1,
+            /* cmax */ D_MAX / KEY_GROUP_SIZE,
+            /* ld */ ldkq,
+            /* sg_id */ sg_ij,
+            /* n_sg */ sg_per_wg,
+            /* sg_size */ SUBGROUP_SIZE,
+            /* cache */ LSC_LDCC_L1C_L3C);
+  #else
     cooperative_prefetch_2d_maybe_rem(
             /* ptr */ K_zp + window_k_begin,
             /* r */ causal_k - window_k_begin,
@@ -545,6 +687,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             /* n_sg */ sg_per_wg,
             /* sg_size */ SUBGROUP_SIZE,
             /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
 #endif
 
@@ -668,23 +811,267 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             break;
         }
     #endif
+#ifdef PA_INTEGRITY_CHECK   // CODE FOR DEBUGGING
+        /* --------------------------------------------------------------
+         * Micro-GEMM integrity check for one S element.
+         *
+         * Runs for a single work item (WG(0,0,0), subgroup 0, first K
+         * iter). Reads S[i=0, j=0] of this subgroup's sub-tile via
+         * xlane_tile_access (all lanes participate), then recomputes the
+         * reference dot product from raw K/Q and prints the comparison.
+         *
+         *   S[0,0] = sum_{dd=0..d-1} K[dd, k_row] * Q[dd, q_col]
+         *     k_row = k0 + sg_i0_kq (== k0 for sg_ij==0)
+         *     q_col = wg_j0 + sg_j0_kq (== wg_j0 for sg_ij==0)
+         *
+         * For the paged-generation path, past-K lives in the paged block
+         * cache (K + block_indices[...]) and new-K lives in Kc (stride
+         * ldkc). Skipped on the IS_GQA_SINGLE_TOKEN sub-path (different
+         * Q packing).
+         * -------------------------------------------------------------- */
+    #if !IS_GQA_SINGLE_TOKEN
+        /* We can only build a meaningful reference for KV cache layouts we
+         * know how to decode here:
+         *   - Uncompressed fp16 paged K (IS_KV_COMPRESSED_PA not defined), or
+         *   - u4 BY_CHANNEL paged K (IS_INT4_KV_CACHE && IS_KEY_BY_CHANNEL).
+         * For any other compressed layout (e.g. i8 BY_TOKEN / BY_CHANNEL),
+         * reading the raw bytes as fp16 yields NaN/garbage, so we skip the
+         * check instead of printing a misleading MISMATCH.
+         */
+    #if !defined(IS_KV_COMPRESSED_PA) \
+            || (IS_INT4_KV_CACHE && IS_KEY_BY_CHANNEL)
+        /* Per-row KQ integrity walk for sg 0's sub-tile at q_col = wg_j0.
+         * The KQ C-tile's i0-axis is q col (n) and j-axis is k row (m),
+         * matching tile_vreduce_max / tile_predicated_assignment_t.
+         * xlane_tile_access requires whole-subgroup participation; only
+         * lane 0 prints the result. */
+        if (get_group_id(0) == 0 && get_group_id(1) == 0
+                && get_group_id(2) == 0 && sg_ij == 0
+                && k0 == window_k0_begin) {
+            if (get_sub_group_local_id() == 0) {
+                printf("[SDPA DBG layout] sg_tile_m=%d sg_tile_n=%d "
+                       "SUBGROUP_SIZE=%d c_block0=%d c_block1=%d "
+                       "c_nblock0=%d c_nblock1=%d sg_per_wg_m=%d sg_per_wg_n=%d\n",
+                       ugemm_kq_sg_tile_m, ugemm_kq_sg_tile_n, SUBGROUP_SIZE,
+                       ugemm_kq_c_type_block0, ugemm_kq_c_type_block1,
+                       ugemm_kq_c_type_nblock0, ugemm_kq_c_type_nblock1,
+                       ugemm_kq_sg_per_wg_m, ugemm_kq_sg_per_wg_n);
+                /* Dump lane 0's raw C-tile storage. With c_block0=16,
+                 * c_block1=8, c_nblock0=1, c_nblock1=2 the per-lane storage
+                 * is t.x[nbr*nbc=2][block0*block1/sg=8]. Lane 0 owns i0=0
+                 * (q_col=0). Slots along t.x[b][s] map to j=b*bc+s (k_row). */
+                for (int b = 0; b < ugemm_kq_c_type_nblock0 * ugemm_kq_c_type_nblock1; b++) {
+                    printf("[SDPA DBG raw] lane0 b=%d :"
+                           " %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n",
+                           b,
+                           (float)S_tile.x[b][0], (float)S_tile.x[b][1],
+                           (float)S_tile.x[b][2], (float)S_tile.x[b][3],
+                           (float)S_tile.x[b][4], (float)S_tile.x[b][5],
+                           (float)S_tile.x[b][6], (float)S_tile.x[b][7]);
+                }
+            }
+            const int q_col = (int)wg_j0;                 /* sg_j0_kq==0 */
+            int ok_count = 0;
+            int fail_count = 0;
+            float first_fail_ref = 0.0f;
+            float first_fail_got = 0.0f;
+            int first_fail_row = -1;
+            for (int i_row = 0; i_row < ugemm_kq_sg_tile_m; i_row++) {
+                const float s_i0_from_tile = xlane_tile_access(S_tile,
+                        /* i (q col) */ 0, /* j (k row) */ i_row,
+                        SUBGROUP_SIZE,
+                        ugemm_kq_c_type_block0, ugemm_kq_c_type_block1,
+                        ugemm_kq_c_type_nblock0);
+                const int k_row = k0 + i_row;             /* sg_i0_kq==0 */
+                if (k_row >= causal_k) continue;
+                if (get_sub_group_local_id() != 0) continue;
+                float ref = 0.0f;
+                for (int dd = 0; dd < d; dd++) {
+                    float k_v;
+                    if (k_row < past_len) {
+                        /* Past-K from paged cache. */
+                        const int bidx = k_row / PAGED_ATTENTION_BLOCK_SIZE;
+                        const int within = k_row % PAGED_ATTENTION_BLOCK_SIZE;
+                        const int block_id =
+                                block_indices[base_block_index + bidx];
+                        const size_t block_off = (size_t)KV_HEADS_NUM
+                                * ADJUSTED_K_HEAD_SIZE
+                                * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE
+                                * (size_t)block_id;
+    #if IS_INT4_KV_CACHE && IS_KEY_BY_CHANNEL
+                        /* u4 BY_CHANNEL layout: for each dim column
+                         * (row stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE
+                         *  bytes) the first PAGED_ATTENTION_BLOCK_SIZE/2 bytes
+                         * hold packed u4 tokens (low nibble = even token, high
+                         * nibble = odd token), followed by fp16 scale and fp16
+                         * zp. Decompressed value = (u4 - zp) * scale. */
+                        const global uchar *Kblk_u8
+                                = (const global uchar *)(K + block_off);
+                        const int col_off_bytes = dd
+                                * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+                        const uchar packed
+                                = Kblk_u8[col_off_bytes + (within >> 1)];
+                        const int u4_val = ((within & 1) == 0)
+                                ? (packed & 0x0F)
+                                : ((packed >> 4) & 0x0F);
+                        const global half *sz = (const global half *)(Kblk_u8
+                                + col_off_bytes
+                                + (PAGED_ATTENTION_BLOCK_SIZE >> 1));
+                        const float k_scale_v = convert_float(sz[0]);
+                        const float k_zp_v = convert_float(sz[1]);
+                        k_v = ((float)u4_val - k_zp_v) * k_scale_v;
+    #else
+                        /* Uncompressed fp16 paged cache: per-block layout is
+                         * [head_dim rows x PAGED_ATTENTION_BLOCK_SIZE cols]
+                         * with row stride ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE. */
+                        const global half *Kblk
+                                = (const global half *)(K + block_off);
+                        k_v = convert_float(Kblk[dd
+                                * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE
+                                + within]);
+    #endif
+                    } else {
+                        /* New-K region: contiguous Kc (always fp16),
+                         * stride ldkc. */
+                        const int new_idx = k_row - past_len;
+                        k_v = convert_float(
+                                ((const global half *)Kc)[new_idx * ldkc
+                                        + dd]);
+                    }
+                    /* Q was already offset by subsequence_begin*ldq
+                     * + b0*HEAD_SIZE + INPUT0_PAD; q_col is relative. */
+                    const float q_v = convert_float(
+                            ((const global half *)Q)[q_col * ldq + dd]);
+                    ref += k_v * q_v;
+                }
+                const float diff = s_i0_from_tile - ref;
+                const float abs_diff = diff < 0 ? -diff : diff;
+                const float abs_ref = ref < 0 ? -ref : ref;
+                const float rel = abs_ref > 1e-6f ? abs_diff / abs_ref
+                                                  : abs_diff;
+                const bool row_ok = rel < 1e-2f;
+                if (row_ok) {
+                    ok_count++;
+                } else {
+                    if (first_fail_row < 0) {
+                        first_fail_row = k_row;
+                        first_fail_ref = ref;
+                        first_fail_got = s_i0_from_tile;
+                    }
+                    fail_count++;
+                }
+                printf("[SDPA DBG chk paged row] wg_j0=%u k0=%d k_row=%d "
+                       "q_col=%d ugemm=%.6f reference=%.6f abs=%.6f rel=%.6f "
+                       "%s\n",
+                       wg_j0, k0, k_row, q_col, s_i0_from_tile, ref,
+                       abs_diff, rel, row_ok ? "OK" : "MISMATCH");
+            }
+            if (get_sub_group_local_id() == 0) {
+                printf("[SDPA DBG chk paged summary] sg_tile_m=%d "
+                       "wg_m_kq=%d ok=%d fail=%d first_fail_row=%d "
+                       "first_fail got=%.6f ref=%.6f\n",
+                       ugemm_kq_sg_tile_m, ugemm_kq_sg_per_wg_m,
+                       ok_count, fail_count, first_fail_row,
+                       first_fail_got, first_fail_ref);
+            }
+        }
+    #endif
+    #endif
+#endif /* PA_INTEGRITY_CHECK */
 #else
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, causal_k, ugemm_kq_wg_tile_n, d, k0,
                         0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-        #if KEY_SCALES == QUANTIZE_2D
+        /* When FOLD_KEY_SCALES_INTO_Q, the micro-kernel is generated without A scaling or offsetting
+         * (the scales were already folded into Q above, and the zero point cancels in the softmax),
+         * so neither quantization argument must be passed. */
+        #if (KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         K_scales
         #endif
-        #if KEY_ZERO_POINTS
+        #if KEY_ZERO_POINTS && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         K_zp
         #endif
-        #if (KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS
+        #if ((KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS) && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         ldkq
         #endif
                 );
+
+#if IS_PAGED_ATTENTION && IS_PREFILL
+#ifdef PA_INTEGRITY_CHECK   // CODE FOR DEBUGGING
+        /* Per-row KQ integrity walk for sg 0's sub-tile at q_col = wg_j0. */
+        if (get_group_id(0) == 0 && get_group_id(1) == 0
+                && get_group_id(2) == 0 && sg_ij == 0
+                && k0 == window_k0_begin) {
+            if (get_sub_group_local_id() == 0) {
+                printf("[SDPA DBG layout prefill] sg_tile_m=%d sg_tile_n=%d "
+                       "SUBGROUP_SIZE=%d c_block0=%d c_block1=%d "
+                       "c_nblock0=%d c_nblock1=%d sg_per_wg_m=%d sg_per_wg_n=%d "
+                       "q=%d k=%d causal_k=%d\n",
+                       ugemm_kq_sg_tile_m, ugemm_kq_sg_tile_n, SUBGROUP_SIZE,
+                       ugemm_kq_c_type_block0, ugemm_kq_c_type_block1,
+                       ugemm_kq_c_type_nblock0, ugemm_kq_c_type_nblock1,
+                       ugemm_kq_sg_per_wg_m, ugemm_kq_sg_per_wg_n,
+                       q, k, causal_k);
+            }
+            const int q_col = (int)wg_j0;
+            int ok_count = 0;
+            int fail_count = 0;
+            float first_fail_ref = 0.0f;
+            float first_fail_got = 0.0f;
+            int first_fail_row = -1;
+            for (int i_row = 0; i_row < ugemm_kq_sg_tile_m; i_row++) {
+                const float s_i0_from_tile = xlane_tile_access(S_tile,
+                        /* i (q col) */ 0, /* j (k row) */ i_row,
+                        SUBGROUP_SIZE,
+                        ugemm_kq_c_type_block0, ugemm_kq_c_type_block1,
+                        ugemm_kq_c_type_nblock0);
+                const int k_row = k0 + i_row;
+                if (k_row >= causal_k) continue;
+                if (get_sub_group_local_id() != 0) continue;
+                float ref = 0.0f;
+                for (int dd = 0; dd < d; dd++) {
+                    const float k_v = convert_float(
+                            ((const global half *)K)[k_row * ldk + dd]);
+                    const float q_v = convert_float(
+                            ((const global half *)Q)[q_col * ldq + dd]);
+                    ref += k_v * q_v;
+                }
+                const float diff = s_i0_from_tile - ref;
+                const float abs_diff = diff < 0 ? -diff : diff;
+                const float abs_ref = ref < 0 ? -ref : ref;
+                const float rel = abs_ref > 1e-6f ? abs_diff / abs_ref
+                                                  : abs_diff;
+                const bool row_ok = rel < 1e-2f;
+                if (row_ok) {
+                    ok_count++;
+                } else {
+                    if (first_fail_row < 0) {
+                        first_fail_row = k_row;
+                        first_fail_ref = ref;
+                        first_fail_got = s_i0_from_tile;
+                    }
+                    fail_count++;
+                }
+                printf("[SDPA DBG chk prefill row] wg_j0=%u k0=%d k_row=%d "
+                       "q_col=%d ugemm=%.6f reference=%.6f abs=%.6f rel=%.6f "
+                       "%s\n",
+                       wg_j0, k0, k_row, q_col, s_i0_from_tile, ref,
+                       abs_diff, rel, row_ok ? "OK" : "MISMATCH");
+            }
+            if (get_sub_group_local_id() == 0) {
+                printf("[SDPA DBG chk prefill summary] sg_tile_m=%d "
+                       "wg_m_kq=%d ok=%d fail=%d first_fail_row=%d "
+                       "first_fail got=%.6f ref=%.6f\n",
+                       ugemm_kq_sg_tile_m, ugemm_kq_sg_per_wg_m,
+                       ok_count, fail_count, first_fail_row,
+                       first_fail_got, first_fail_ref);
+            }
+        }
+#endif  /* PA_INTEGRITY_CHECK */
+#endif  /* IS_PAGED_ATTENTION && IS_PREFILL */
 #endif
 
 #if KEY_SCALES == QUANTIZE_COMMON
@@ -698,7 +1085,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
+#if INPUT0_IS_BF16
+        // Mask buffer holds bf16 values but the kernel reads it as half*;
+        // reinterpret the 16-bit values as bf16 bits when converting to float.
+        tile_copy_bf16bits_to_float(mask_tile, mask_tile_float);
+#else
         tile_copy(mask_tile, mask_tile_float);
+#endif
 #ifdef LOG_2_E_MUL_SCALE
 #define unscale(x) ((x)*iscale)
         tile_elementwise(mask_tile_float, unscale);
@@ -734,6 +1127,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             col_offset += k - q;
             causal_q_begin += k - q;
         #endif
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        col_offset += k - q;
+        causal_q_begin += k - q;
     #endif
 
     #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
@@ -860,8 +1256,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     const int window_v_pf_begin = 0;
 #endif
-        cooperative_prefetch_2d_maybe_rem(
-                /* ptr */ V + (size_t)ldv * window_v_pf_begin / VAL_ELEMENTS_PER_BYTE,
+        cooperative_prefetch_2d_v(
+            /* ptr */ V + (size_t)(TRANSPOSE_V ? window_v_pf_begin : ldv * window_v_pf_begin) / VAL_ELEMENTS_PER_BYTE,
                 /* r */ d,
                 /* c */ causal_k - k0 - window_v_pf_begin,
                 /* rmax */ PREFETCH_D_MAX,
@@ -872,7 +1268,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 /* sg_size */ SUBGROUP_SIZE,
                 /* cache */ LSC_LDCC_L1C_L3C);
 
-#if VAL_SCALES == QUANTIZE_2D
+/* Per-channel value scales/zero points are a single [num_val_groups, 1] column, not one entry per
+   token, so the per-token geometry below would fetch k_chunk columns that do not exist. They are not
+   read in the k-loop at all -- see FOLD_VAL_SCALES_INTO_OUTPUT. */
+#if (VAL_SCALES == QUANTIZE_2D) && !IS_VALUE_BY_CHANNEL
         /* Prefetch V scales. */
         cooperative_prefetch_2d_maybe_rem(
                 /* ptr */ V_scales + (size_t)ldvq * window_v_pf_begin,
@@ -886,7 +1285,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 /* sg_size */ SUBGROUP_SIZE,
                 /* cache */ LSC_LDCC_L1C_L3C);
 #endif
-#if VAL_ZERO_POINTS == QUANTIZE_2D
+#if (VAL_ZERO_POINTS == QUANTIZE_2D) && !IS_VALUE_BY_CHANNEL
         /* Prefetch V zero points. */
         cooperative_prefetch_2d_maybe_rem(
                 /* ptr */ V_zp + (size_t)ldvq * window_v_pf_begin / VAL_ZP_ELEMENTS_PER_BYTE,
@@ -944,9 +1343,34 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
 #endif
 
-        /* Convert to half, VNNI format */
+        /* Convert to KV compute type (half or bf16), VNNI format */
         s_tile_type_half2 S_tile_half2;
-        tile_copy_to_half2(S_tile, S_tile_half2);
+#ifdef PA_INTEGRITY_CHECK  // CODE FOR DEBUGGING
+        /* Snapshot softmax'd S to S_check_slm before packing to VNNI.
+           Each sub-group writes its own (k_row, q_col) slab; the barrier
+           following tile_store_t_sys_src2 also publishes these writes. */
+        for (int jj_ck = 0;
+             jj_ck < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1;
+             jj_ck++) {
+            const int k_row_local = (int)sg_i0_kq + jj_ck;
+            if (k_row_local >= ugemm_kq_wg_tile_m) break;
+            for (int ii0_ck = 0;
+                 ii0_ck < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0;
+                 ii0_ck += SUBGROUP_SIZE) {
+                const int ii_ck = ii0_ck + (int)get_sub_group_local_id();
+                const float sval = tile_access(S_tile, ii0_ck, jj_ck,
+                        SUBGROUP_SIZE,
+                        ugemm_kq_c_type_block0, ugemm_kq_c_type_block1,
+                        ugemm_kq_c_type_nblock0);
+                const int q_col_local = (int)sg_j0_kq + ii_ck;
+                if (q_col_local < ugemm_kq_wg_tile_n) {
+                    S_check_slm[k_row_local * ugemm_kq_wg_tile_n
+                            + q_col_local] = sval;
+                }
+            }
+        }
+#endif
+        tile_copy_S_to_kv(S_tile, S_tile_half2);
 
         /* Store to SLM, in packed format */
         tile_store_t_sys_src2(S_tile_half2, (local uint *)S_slm,
@@ -995,24 +1419,31 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if PREFETCH_K
         /* Prefetch next K tile. */
         if (!last) {
-#if TRANSPOSE_K
-            const uint stride_k = ldk;
-#else
-            const uint stride_k = 1;
-#endif
-
             cooperative_prefetch_2d_k(
-                    /* ptr */ K + (k0 + ugemm_kq_wg_tile_m) * stride_k,
-                    /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
-                    /* c */ d,
-                    /* rmax */ ugemm_kq_wg_tile_m,
-                    /* cmax */ D_MAX,
+                    /* ptr */ K + (size_t)(k0 + ugemm_kq_wg_tile_m) * (TRANSPOSE_K ? 1 : ldk),
+                    /* r */ d,
+                    /* c */ causal_k - k0 - ugemm_kq_wg_tile_m,
+                    /* rmax */ PREFETCH_D_MAX,
+                    /* cmax */ ugemm_kq_wg_tile_m,
                     /* ld*/ ldk,
                     /* sg_id */ sg_ij,
                     /* n_sg */ sg_per_wg,
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache*/ LSC_LDCC_L1C_L3C);
-#if KEY_SCALES == QUANTIZE_2D
+#if (KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
+  #if IS_KEY_BY_CHANNEL
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K_scales,
+                    /* r */ 1,
+                    /* c */ num_key_groups,
+                    /* rmax */ 1,
+                    /* cmax */ D_MAX / KEY_GROUP_SIZE,
+                    /* ld */ ldkq,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1C_L3C);
+  #else
             cooperative_prefetch_2d_maybe_rem(
                     /* ptr */ K_scales + (k0 + ugemm_kq_wg_tile_m),
                     /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
@@ -1024,8 +1455,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* n_sg */ sg_per_wg,
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
-#if KEY_ZERO_POINTS == QUANTIZE_2D
+#if (KEY_ZERO_POINTS == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
+  #if IS_KEY_BY_CHANNEL
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K_zp,
+                    /* r */ 1,
+                    /* c */ num_key_groups,
+                    /* rmax */ 1,
+                    /* cmax */ D_MAX / KEY_GROUP_SIZE,
+                    /* ld */ ldkq,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1C_L3C);
+  #else
             cooperative_prefetch_2d_maybe_rem(
                     /* ptr */ K_zp + (k0 + ugemm_kq_wg_tile_m),
                     /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
@@ -1037,6 +1482,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* n_sg */ sg_per_wg,
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
         }
 #endif
@@ -1074,7 +1520,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 }
             #endif
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
-            local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
+            local KV_SLM_T *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             uint v_block_num = (k0 + kb0) / PAGED_ATTENTION_BLOCK_SIZE;
             global VAL_DATA_T *Vb0 = V + KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + v_block_num];
             int kb_chunk = min(k_chunk - kb0, PAGED_ATTENTION_BLOCK_SIZE);
@@ -1099,13 +1545,73 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 #endif
                     );
 
+#ifdef PA_INTEGRITY_CHECK   // CODE FOR DEBUGGING
+    /* Integrity check for ugemm_vs. Runs only on WG(0,0,0), sg 0, first
+       outer K iteration, first V block. Recomputes A_tile1[d=0, n=0] as
+       sum_k V[0, k_local] * S_check_slm[k_local, 0] and compares against
+       the microkernel result. Supports fp16 uncompressed and u4 per-token
+       V; other layouts skip the check. */
+    #if !defined(IS_KV_COMPRESSED_PA) || IS_INT4_KV_CACHE
+            if (get_group_id(0) == 0 && get_group_id(1) == 0
+                    && get_group_id(2) == 0 && sg_ij == 0
+                    && k0 == window_k0_begin && kb0 == 0) {
+                const int d_check = 0;
+                const int n_check = 0;
+                const float a_ugemm = xlane_tile_access(A_tile1,
+                        /* i (d row) */ d_check,
+                        /* j (n col) */ n_check,
+                        SUBGROUP_SIZE,
+                        ugemm_vs_c_type_block0, ugemm_vs_c_type_block1,
+                        ugemm_vs_c_type_nblock0);
+                if (get_sub_group_local_id() == 0) {
+                    float ref = 0.f;
+                    for (int kk = 0; kk < kb_chunk; kk++) {
+                        float v_val;
+        #if IS_INT4_KV_CACHE
+                        const global uchar *V_u8
+                                = (const global uchar *)Vb0;
+                        const int row_off_bytes
+                                = kk * ADJUSTED_V_HEAD_SIZE;
+                        const uchar packed
+                                = V_u8[row_off_bytes + (d_check >> 1)];
+                        const int u4_val = (d_check & 1)
+                                ? ((packed >> 4) & 0x0F)
+                                : (packed & 0x0F);
+                        const global half *vsz = (const global half *)(V_u8
+                                + row_off_bytes + (HEAD_SIZE >> 1));
+                        v_val = ((float)u4_val - convert_float(vsz[1]))
+                                * convert_float(vsz[0]);
+        #else
+                        const global half *V_h = (const global half *)Vb0;
+                        v_val = convert_float(V_h[kk * ldv + d_check]);
+        #endif
+                        const float s_val = S_check_slm[
+                                kk * ugemm_kq_wg_tile_n + n_check];
+                        ref += v_val * s_val;
+                    }
+                    const float diff = a_ugemm - ref;
+                    const float abs_diff = diff < 0 ? -diff : diff;
+                    const float abs_ref = ref < 0 ? -ref : ref;
+                    const float rel = abs_ref > 1e-6f
+                            ? abs_diff / abs_ref : abs_diff;
+                    printf("[SDPA DBG chk paged vs] k0=%d kb0=%d "
+                           "kb_chunk=%d d=%d n=%d ugemm=%.6f "
+                           "reference=%.6f abs=%.6f rel=%.6f %s\n",
+                           k0, kb0, kb_chunk, d_check, n_check,
+                           a_ugemm, ref, abs_diff, rel,
+                           rel < 1e-2f ? "OK" : "MISMATCH");
+                }
+            }
+    #endif
+#endif
+
             tile_binary(A_tile, A_tile1, binary_add);
         }
     #if !IS_GQA_SINGLE_TOKEN
         for (; kb0 < k_chunk; kb0 += k_chunk) {
             global QRY_DATA_T *Vb0 = Vc + ldvc * (k0 + kb0 - past_lens[gws_mapping]);
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
-            local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
+            local KV_SLM_T *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             int kb_chunk = k_chunk - kb0;
 
             a_tile_type A_tile1 = ugemm_vcs(
@@ -1118,31 +1624,38 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
     #endif
 #else
+        /* When FOLD_VAL_SCALES_INTO_OUTPUT, the micro-kernel is generated without A scaling or
+           offsetting, so it takes no quantization arguments; they are applied in the epilogue. */
         a_tile_type A_tile1 = ugemm_vs(
                 V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
                 k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm
-#if VAL_SCALES == QUANTIZE_2D
+#if (VAL_SCALES == QUANTIZE_2D) && !FOLD_VAL_SCALES_INTO_OUTPUT
                 ,
                 V_scales
 #endif
-#if VAL_ZERO_POINTS
+#if VAL_ZERO_POINTS && !FOLD_VAL_SCALES_INTO_OUTPUT
                 ,
                 V_zp
 #endif
-#if (VAL_SCALES == QUANTIZE_2D) || VAL_ZERO_POINTS
+#if ((VAL_SCALES == QUANTIZE_2D) || VAL_ZERO_POINTS) \
+        && !FOLD_VAL_SCALES_INTO_OUTPUT
                 ,
                 ldvq
 #endif
         );
 
-        V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
+        V += (TRANSPOSE_V ? ugemm_kq_wg_tile_m : ldv * ugemm_kq_wg_tile_m) / VAL_ELEMENTS_PER_BYTE;
 #endif
 
 #if VAL_SCALES == QUANTIZE_2D
+  #if !IS_VALUE_BY_CHANNEL
         V_scales += ldvq * ugemm_kq_wg_tile_m;
+  #endif
 #endif
 #if VAL_ZERO_POINTS == QUANTIZE_2D
+  #if !IS_VALUE_BY_CHANNEL
         V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
+  #endif
 #endif
 #if IS_PAGED_ATTENTION && !IS_PREFILL
         // already done
@@ -1175,9 +1688,43 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     tile_elementwise(A_scale_tile, native_vrecip);
     tile_hbroadcast_mul(&A_tile, A_scale_tile);
 
-    /* Convert to half precision and store */
+#if FOLD_VAL_SCALES_INTO_OUTPUT
+    /* Apply the per-channel value scales/zero points that were kept out of the VS micro-kernel:
+     *   out[dd,n] = vscale[dd] * (sum_t V_int[dd,t] * S[t,n] / l[n] - vzp[dd])
+     * The division by the column sum l[n] just happened, so A_tile holds the bracketed accumulator.
+     * See sdpa_gen_micro.cpp for why this is exact. Tile rows past the head size are never stored;
+     * clamp their index so the loads stay inside the scale/zero point buffers. */
+    {
+        const int v_fold_row = sg_i_vs * ugemm_vs_sg_tile_m
+                + get_sub_group_local_id();
+        v_scale_tile_type V_scale_tile;
+#if VAL_ZERO_POINTS == QUANTIZE_2D
+        v_scale_tile_type V_zp_tile;
+#endif
+#pragma unroll
+        for (int i0 = 0; i0 < ugemm_vs_sg_tile_m; i0 += SUBGROUP_SIZE) {
+            const int v_fold_g = min(v_fold_row + i0, d - 1) / VAL_GROUP_SIZE;
+            tile_access(V_scale_tile, i0, 0, SUBGROUP_SIZE, v_scale_tile_m, 1, 1)
+                    = convert_float(V_scales[v_fold_g]);
+#if VAL_ZERO_POINTS == QUANTIZE_2D
+            tile_access(V_zp_tile, i0, 0, SUBGROUP_SIZE, v_scale_tile_m, 1, 1)
+                    = convert_float(V_zp[v_fold_g]);
+#endif
+        }
+#if VAL_ZERO_POINTS == QUANTIZE_2D
+        tile_vbroadcast_sub(&A_tile, V_zp_tile);
+#endif
+        tile_vbroadcast_mul(&A_tile, V_scale_tile);
+    }
+#endif
+
+    /* Convert and store */
     a_tile_type_half A_tile_half;
+#if INPUT0_IS_BF16
+    tile_copy_reblock_to_bf16bits(A_tile, &A_tile_half);
+#else
     tile_copy_reblock(A_tile, &A_tile_half);
+#endif
 
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;

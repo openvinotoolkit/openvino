@@ -3,14 +3,17 @@
 //
 
 #include "softmax_kernel_fb.h"
+#include "common_tools.h"
 #include <algorithm>
 
 namespace kernel_selector {
 ParamsKey SoftmaxKernel_fb::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::fb);
@@ -33,7 +36,8 @@ SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softma
     dispatchData.normIndex = 1;
 
     // We have two units of data per work item in current implementation.
-    auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
+    // Local arrays use INPUT0_COMPUTE_TYPE (float for bf16), so size per element accordingly.
+    auto local_mem_per_wi = 2 * BytesPerElement(GetComputeDatatype(params.inputs[0].GetDType()));
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = static_cast<std::size_t>(
         std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi));
@@ -66,7 +70,7 @@ bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params) const {
 
     const auto& softmax_params = static_cast<const kernel_selector::softmax_params&>(params);
 
-    auto local_mem_per_wi = 2 * BytesPerElement(softmax_params.inputs[0].GetDType());
+    auto local_mem_per_wi = 2 * BytesPerElement(GetComputeDatatype(softmax_params.inputs[0].GetDType()));
     auto max_lws = static_cast<std::size_t>(
         std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi));
 

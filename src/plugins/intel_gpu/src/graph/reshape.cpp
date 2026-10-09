@@ -20,8 +20,9 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reshape)
 
 padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_shape, reshape::reshape_mode mode, const ov::ITensorAccessor& ta) {
-    if (mode == reshape::reshape_mode::base)
+    if (mode == reshape::reshape_mode::base) {
         return padding();
+    }
 
     auto in_pad = in_layout.data_padding;
     if (!in_pad.is_dynamic()) {
@@ -92,8 +93,9 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
                 // If we have a non-squeezable case (pad along removed axis), then out padding is reset
                 // and kernel must be executed
                 auto rm_axis = *rm_iter;
-                if (pad_lower[rm_axis] != 0 || pad_upper[rm_axis] != 0 || pad_mask[rm_axis] != 0 )
+                if (pad_lower[rm_axis] != 0 || pad_upper[rm_axis] != 0 || pad_mask[rm_axis] != 0 ) {
                     return padding();
+                }
             }
         }
     }
@@ -136,8 +138,9 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
         }
         shape_count *= sizes[i];
     }
-    if (need_recalc)
+    if (need_recalc) {
         sizes[need_recalc] = static_cast<int64_t>(input_layout.count()) / shape_count;
+    }
 
     return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
 }
@@ -238,12 +241,14 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         std::unordered_map<size_t, size_t> countMap1, countMap2;
 
         for (auto num : vec1) {
-            if (num != 1)
+            if (num != 1) {
                 countMap1[num]++;
+            }
         }
         for (auto num : vec2) {
-            if (num != 1)
+            if (num != 1) {
                 countMap2[num]++;
+            }
         }
 
         return countMap1 == countMap2;
@@ -252,14 +257,16 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto candidate_layout = layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), out_pad};
     if ((!node.is_dynamic()) && areVectorsCompatible(impl_param.get_output_layout().get_shape(), output_shapes[0].get_shape())) {
         if (impl_param.get_output_layout().format != output_format && !candidate_layout.compatible(input_layout)) {
-            if (!impl_param.get_output_layout(false).compatible(candidate_layout))
+            if (!impl_param.get_output_layout(false).compatible(candidate_layout)) {
                 output_format = impl_param.get_output_layout().format;
+            }
         }
     }
 
     auto new_out_pad = out_pad;
-    if (new_out_pad == padding())
+    if (new_out_pad == padding()) {
         new_out_pad = impl_param.get_output_layout(0).data_padding;
+    }
 
     return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), new_out_pad} };
 }
@@ -297,13 +304,14 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
                                     "output layout data type",
                                     output_layout.data_type,
                                     "");
-    if (output_layout.is_static() && input_layout.is_static())
+    if (output_layout.is_static() && input_layout.is_static()) {
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output layout count",
                               output_layout.count(),
                               "input layout count",
                               input_layout.count(),
                               "Output layout of reshape primitive changes size of input buffer");
+    }
 
     // if reshape operated in-place, postpone creation of the output until network run,
     // then create new memory object as the reinterpreted output of the previous primitive
@@ -315,8 +323,9 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
             update_output_memory();
         }
     } else {
-        if (!_exec_deps.empty() && input_memory_ptr())
+        if (!_exec_deps.empty() && input_memory_ptr()) {
             update_output_memory();
+        }
     }
 }
 
@@ -325,16 +334,19 @@ void reshape_inst::on_execute() {
 }
 
 void reshape_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
+    }
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()) &&
-        output_memory().get_layout() == _impl_params->get_output_layout())
+        output_memory().get_layout() == _impl_params->get_output_layout()) {
         return;
+    }
 
     build_deps();  // reshape need deps
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
         return;
+    }
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.

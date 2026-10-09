@@ -56,8 +56,9 @@ struct random_uniform : public primitive_base<random_uniform> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const random_uniform>(rhs);
 

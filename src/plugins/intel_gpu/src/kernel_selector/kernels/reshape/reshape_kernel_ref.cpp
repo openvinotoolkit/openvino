@@ -10,6 +10,7 @@ namespace kernel_selector {
 ParamsKey ReshapeKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -17,6 +18,7 @@ ParamsKey ReshapeKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
@@ -48,10 +50,12 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params) const {
     size_t gws2 = 1;
     const auto& in_dims = in.GetDims();
 
-    if (!in_dims.empty())
+    if (!in_dims.empty()) {
         gws0 = in_dims[0].v;
-    if (in_dims.size() >= 2)
+    }
+    if (in_dims.size() >= 2) {
         gws1 = in_dims[1].v;
+    }
     for (size_t i = 2; i < in_dims.size(); ++i) {
         gws2 *= in_dims[i].v;
     }
@@ -69,8 +73,9 @@ KernelsPriority ReshapeKernelRef::GetKernelsPriority(const Params& /*params*/) c
 }
 
 bool ReshapeKernelRef::Validate(const Params& p) const {
-    if (!KernelBaseOpenCL::Validate(p))
+    if (!KernelBaseOpenCL::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& rp = static_cast<const reshape_params&>(p);
 

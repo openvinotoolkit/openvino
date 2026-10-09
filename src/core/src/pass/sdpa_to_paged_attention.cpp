@@ -15,12 +15,14 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_ssm.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/paged_attention/attention_mask_shape_replacer.hpp"
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
+#include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
@@ -150,9 +152,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();  // This pass is required to ensure that all GatedDeltaNet
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
+    auto ssm_fusion = manager.register_pass<SelectiveSSMFusion>();
     manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
     manager.register_pass<EliminateConvPaddingMaskGating>();
     manager.register_pass<AttentionMaskShapeReplacer>(input_ids_node);
+    auto paged_ssm_fusion = manager.register_pass<PagedSelectiveSSMFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PagedCausalConv1DFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PagedGatedDeltaNetFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
@@ -164,6 +168,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
     manager.register_pass<PositionIDsReplacerLFM2>(position_ids);
     manager.run_passes(model);
+
+    OPENVINO_ASSERT(ssm_fusion->get_fused_count() == paged_ssm_fusion->get_fused_count(),
+                    "SelectiveSSMFusion fused ",
+                    ssm_fusion->get_fused_count(),
+                    " SelectiveSSM node(s), but PagedSelectiveSSMFusion converted ",
+                    paged_ssm_fusion->get_fused_count(),
+                    ". Stateful SSM nodes cannot be left in the graph.");
 
     {
         // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,

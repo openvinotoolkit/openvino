@@ -4,6 +4,7 @@
 
 #include "fully_connected_inst.h"
 #include "gather_matmul_inst.h"
+#include "grouped_matmul_inst.h"
 #include "moe_3gemm_fused_inst.h"
 #include "moe_gemm_inst.h"
 #include "impls/ocl_v2/moe/moe_3gemm_base.hpp"
@@ -20,6 +21,7 @@
 #include <array>
 #include <string>
 #include <memory>
+#include <tuple>
 #include <vector>
 
 using namespace cldnn;
@@ -102,6 +104,10 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                                   std::function<float(size_t)>& get_data) {
         using float_mem_lock = mem_lock<float, mem_lock_type::write>;
         using float16_mem_lock = mem_lock<ov::float16, mem_lock_type::write>;
+        using bfloat16_mem_lock = mem_lock<ov::bfloat16, mem_lock_type::write>;
+        using locked_memory = std::tuple<std::shared_ptr<float_mem_lock>,
+                                         std::shared_ptr<float16_mem_lock>,
+                                         std::shared_ptr<bfloat16_mem_lock>>;
         switch (memory->get_layout().data_type) {
             case data_types::f32: {
                 std::shared_ptr<float_mem_lock> data_lock_ptr = std::make_shared<float_mem_lock>(memory, stream);
@@ -112,7 +118,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                 get_data = [data] (size_t idx) {
                     return data[idx];
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(data_lock_ptr, nullptr);
+                return locked_memory(data_lock_ptr, nullptr, nullptr);
             }
             case data_types::f16: {
                 std::shared_ptr<float16_mem_lock> data_lock_ptr = std::make_shared<float16_mem_lock>(memory, stream);
@@ -123,7 +129,18 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                 get_data = [data] (size_t idx) {
                     return static_cast<float>(data[idx]);
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(nullptr, data_lock_ptr);
+                return locked_memory(nullptr, data_lock_ptr, nullptr);
+            }
+            case data_types::bf16: {
+                std::shared_ptr<bfloat16_mem_lock> data_lock_ptr = std::make_shared<bfloat16_mem_lock>(memory, stream);
+                ov::bfloat16* data = data_lock_ptr->data();
+                set_data = [data] (size_t idx, float value) {
+                    data[idx] = ov::bfloat16(value);
+                };
+                get_data = [data] (size_t idx) {
+                    return static_cast<float>(data[idx]);
+                };
+                return locked_memory(nullptr, nullptr, data_lock_ptr);
             }
             default:
                 throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
@@ -419,10 +436,11 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
 
     const auto& usr = reorder_node.get_users().front();
     auto &dep = reorder_node.get_dependency(0);
+    const bool is_reorder_node_non_fp = !one_of(reorder_node.get_output_layout().data_type, {data_types::f32, data_types::f16, data_types::bf16});
     if (!usr->is_type<convolution>() || usr->get_input_layout(1).data_type != data_types::i8 ||
         !dep.is_input() ||
         dep.get_output_layout().data_type != data_types::u8 ||
-        (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
+        is_reorder_node_non_fp ||
         dep.get_output_layout().format != reorder_node.get_output_layout().format ||
         dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor())
         return;
@@ -621,6 +639,18 @@ static void optimize_gather_matmul_decompression_parameters(gather_matmul_node& 
         reorder_decompression_param_to_byfx(node, gather_matmul::WEIGHT_ZP, p);
 }
 
+// onednn grouped matmul reads group-wise scales/zp as [G, K/gs, N] (N innermost), while the graph provides
+// [G, N, K/gs]. The reorder to byfx is constant-folded at compile time.
+static void optimize_grouped_matmul_decompression_parameters(grouped_matmul_node& node, program& p) {
+    auto prim = node.get_primitive();
+    if (!prim->compressed_weights)
+        return;
+    size_t idx = grouped_matmul::GroupedMatmulInputIdx::OFFSETS + 1;
+    reorder_decompression_param_to_byfx(node, idx++, p);
+    if (prim->decompression_zero_point.is_valid())
+        reorder_decompression_param_to_byfx(node, idx, p);
+}
+
 static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, program& p) {
     auto prim = node.get_primitive();
     // Production has bias; tests may not.
@@ -681,6 +711,8 @@ void prepare_quantization::run(program& p) {
             optimize_weights_decompression_parameters(node->as<fully_connected>(), p);
         } else if (node->is_type<gather_matmul>()) {
             optimize_gather_matmul_decompression_parameters(node->as<gather_matmul>(), p);
+        } else if (node->is_type<grouped_matmul>()) {
+            optimize_grouped_matmul_decompression_parameters(node->as<grouped_matmul>(), p);
         } else if (node->is_type<moe_gemm>()) {
             optimize_moe_gemm_decompression_parameters(node->as<moe_gemm>(), p);
         } else if (node->is_type<moe_3gemm_fused_compressed>()) {

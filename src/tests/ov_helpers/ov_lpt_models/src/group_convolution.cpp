@@ -289,7 +289,6 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::get(
     const ov::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const ov::element::Type precisionAfterOperation,
     const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
-    const ov::element::Type precisionAfterDequantization,
     const bool addReshape) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
     OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);

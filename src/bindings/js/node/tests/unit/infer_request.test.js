@@ -117,6 +117,15 @@ describe("ov.InferRequest tests", () => {
       );
     });
 
+    it("Test inferAsync rejects on incompatible tensor shape", async () => {
+      const incompatibleTensor = new ov.Tensor(ov.element.f32, [1, 3, 32, 31]);
+
+      await assert.rejects(
+        async () => await inferRequest.inferAsync([incompatibleTensor]),
+        /are incompatible/,
+      );
+    });
+
     it("Test inferAsync([data]) throws", async () => {
       await assert.rejects(
         async () => await inferRequest.inferAsync(["string"]),
@@ -130,6 +139,36 @@ describe("ov.InferRequest tests", () => {
         /Cannot create a tensor from the passed Napi::Value./,
       );
     });
+  });
+
+  it("inferAsync() assigns object inputs by name", async () => {
+    const { addModel } = testModels;
+    const core = new ov.Core();
+    const modelXml = (await fs.readFile(addModel.xml, "utf8")).replace(
+      'type="Add"',
+      'type="Subtract"',
+    );
+    const model = core.readModelSync(Buffer.from(modelXml));
+    const compiled = core.compileModelSync(model, "CPU");
+    const inputNames = compiled.inputs.map((input) => input.anyName);
+    const tensors = new Map(
+      inputNames.map((name, index) => [
+        name,
+        new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(index === 0 ? 11 : 3)),
+      ]),
+    );
+    const infer = async (inputs) => {
+      const result = await compiled.createInferRequest().inferAsync(inputs);
+      return Object.values(result)[0].data[0];
+    };
+    const namedInputs = (names) =>
+      Object.fromEntries(names.map((name) => [name, tensors.get(name)]));
+    const positionalInputs = (names) => names.map((name) => tensors.get(name));
+
+    assert.strictEqual(await infer(namedInputs(inputNames)), 8);
+    assert.strictEqual(await infer(namedInputs(inputNames.toReversed())), 8);
+    assert.strictEqual(await infer(positionalInputs(inputNames)), 8);
+    assert.strictEqual(await infer(positionalInputs(inputNames.toReversed())), -8);
   });
 
   describe("BigInt InferRequest support", () => {

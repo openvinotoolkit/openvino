@@ -7,6 +7,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 
+#include <cmath>
 #include <map>
 #include <set>
 #include <string>
@@ -196,6 +197,10 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<std::string, uint64_t>>()) {
         return py::cast(any.as<std::map<std::string, uint64_t>>());
     }
+    // Check for ov::intel_auto::PerfCurveTable (std::map<std::string, std::map<unsigned, float>>)
+    else if (any.is<ov::intel_auto::PerfCurveTable>()) {
+        return py::cast(any.as<ov::intel_auto::PerfCurveTable>());
+    }
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
         return py::cast(any.as<std::map<ov::element::Type, float>>());
@@ -362,6 +367,9 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                 thresholds[key] = static_cast<unsigned>(value);
             }
             properties_to_cpp[property.first] = thresholds;
+        } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
+                   py::isinstance<py::dict>(property.second)) {
+            properties_to_cpp[property.first] = property.second.cast<ov::intel_auto::PerfCurveTable>();
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }

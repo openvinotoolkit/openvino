@@ -3,11 +3,13 @@
 //
 
 #include "convolution_kernel_base.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
+
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <algorithm>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 bool ConvolutionKernelBase::Validate(const Params& p) const {
@@ -18,8 +20,9 @@ bool ConvolutionKernelBase::Validate(const Params& p) const {
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
     for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -31,8 +34,7 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
     const auto& padding = params.padding_begin;
     const auto& input = params.inputs[0];
 
-    int64_t input_offset_with_padding =
-        (int64_t)input.GetFirstElementOffset() - padding.x * input.X().pitch - input.Y().pitch * padding.y;
+    int64_t input_offset_with_padding = (int64_t)input.GetFirstElementOffset() - padding.x * input.X().pitch - input.Y().pitch * padding.y;
     input_offset_with_padding = std::max(input_offset_with_padding, (int64_t)0);
 
     mem_consts.AddConstants({
@@ -71,10 +73,12 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
     if (params.deformable_mode) {
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MODE", params.deformable_mode)});
-        if (params.deformable_mask_enabled)
+        if (params.deformable_mask_enabled) {
             mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
-        if (params.bilinear_interpolation_pad)
+        }
+        if (params.bilinear_interpolation_pad) {
             mem_consts.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
+        }
     }
 
     if (!params.is_shape_agnostic) {
@@ -90,13 +94,13 @@ JitConstants ConvolutionKernelBase::GetJitConstantsWithLoopUnroll(const convolut
     JitConstants mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
-                                        params.filterSize.y,
-                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
-                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
-                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
-                                        (uint32_t)dispatchData.gemmStyle.subBlockDimM,
-                                        (uint32_t)dispatchData.gemmStyle.subBlockDimK,
-                                        (uint32_t)dispatchData.gemmStyle.subBlockDimN};
+                                           params.filterSize.y,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimM,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimK,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimN};
 
     auto loopCount = *std::max_element(unrollLoopParams.begin(), unrollLoopParams.end());
 
@@ -107,14 +111,17 @@ JitConstants ConvolutionKernelBase::GetJitConstantsWithLoopUnroll(const convolut
 }
 
 bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::DispatchData& dispatchData) {
-    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3) {
         return false;
+    }
 
     for (size_t i = 0; i < dispatchData.gws.size(); i++) {
-        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0) {
             return false;
-        if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0)
+        }
+        if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0) {
             return false;
+        }
     }
 
     return true;
@@ -129,9 +136,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     const auto& out = params.outputs[0];
     if (out_layout == DataLayout::bfyx || out_layout == DataLayout::byxf) {
         dispatchData.gws = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        dims_by_gws = {{Tensor::DataChannelName::X}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     } else if (out_layout == DataLayout::bfzyx) {
         dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
@@ -139,9 +144,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     } else {
         dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
-        dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
-                       {Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y}};
+        dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}, {Tensor::DataChannelName::X}, {Tensor::DataChannelName::Y}};
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
@@ -176,9 +179,7 @@ void ConvolutionKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
-                                                        const std::string exeMode,
-                                                        int autoTuneIndex) const {
+KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params, const std::string exeMode, int autoTuneIndex) const {
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
@@ -187,12 +188,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
 
     auto preferredWeightsLayout = GetPreferredWeightsLayout(newParams);
-    bool succeed = UpdateWeightsParams(newParams,
-                                       preferredWeightsLayout,
-                                       kd.weightsReorderParams,
-                                       GetSupportedKey(),
-                                       newParams.groups,
-                                       newParams.transposed);
+    bool succeed = UpdateWeightsParams(newParams, preferredWeightsLayout, kd.weightsReorderParams, GetSupportedKey(), newParams.groups, newParams.transposed);
 
     bool bSupportedWeightsLayout = newParams.weights.GetLayout() == preferredWeightsLayout;
     const bool bWeightsOK = bSupportedWeightsLayout || newParams.allowStaticInputReordering;
@@ -203,13 +199,15 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     if (NeedPaddedInput()) {
         if (newParams.has_dynamic_inputs()) {
-            if (!CheckConvolutionExplicitPaddings(newParams))
+            if (!CheckConvolutionExplicitPaddings(newParams)) {
                 return {};
+            }
         } else {
             kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
-            if (kd.reorderInput && !newParams.allowInputReordering)
+            if (kd.reorderInput && !newParams.allowInputReordering) {
                 return {};
+            }
         }
     }
 
@@ -237,26 +235,32 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      exeMode,
                      true,
                      !newParams.bias.empty(),
-                     1, 0, 1,
+                     1,
+                     0,
+                     1,
                      newParams.is_shape_agnostic);
 
     if (newParams.deformable_mode) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-        if (newParams.deformable_mask_enabled)
+        if (newParams.deformable_mask_enabled) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        }
     }
 
-    if (!newParams.weights_zero_points.empty())
+    if (!newParams.weights_zero_points.empty()) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
-    if (!newParams.activations_zero_points.empty())
+    }
+    if (!newParams.activations_zero_points.empty()) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
-    if (!newParams.compensation.empty())
+    }
+    if (!newParams.compensation.empty()) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
+    }
 
     uint32_t fused_deps_total = 0;
     for (auto& fused_dep : newParams.fused_ops) {
         for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total});
             fused_deps_total++;
         }
     }
@@ -268,15 +272,12 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc) {
     assert(!params.inputs.empty());
 
-    bool properPadding = reqDesc.X().pad.before <= params.inputs[0].X().pad.before &&
-                         reqDesc.Y().pad.before <= params.inputs[0].Y().pad.before &&
+    bool properPadding = reqDesc.X().pad.before <= params.inputs[0].X().pad.before && reqDesc.Y().pad.before <= params.inputs[0].Y().pad.before &&
                          reqDesc.Feature().pad.before <= params.inputs[0].Feature().pad.before &&
                          reqDesc.Batch().pad.before <= params.inputs[0].Batch().pad.before;
 
-    properPadding &= reqDesc.X().pad.after <= params.inputs[0].X().pad.after &&
-                     reqDesc.Y().pad.after <= params.inputs[0].Y().pad.after &&
-                     reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after &&
-                     reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
+    properPadding &= reqDesc.X().pad.after <= params.inputs[0].X().pad.after && reqDesc.Y().pad.after <= params.inputs[0].Y().pad.after &&
+                     reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after && reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
 
     properPadding &= ((params.padding_begin.x == 0 && params.padding_begin.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
 
@@ -288,7 +289,7 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     auto ndims = cp.inputs[0].GetDims().size();
 
     DataTensor t = cp.inputs[0];
-    std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} };
+    std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}};
 
     pad[0].before = cp.padding_begin.x;
     pad[1].before = cp.padding_begin.y;
@@ -316,16 +317,16 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
 }
 
 bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params) {
-    if (!conv_params.has_explicit_paddings)
+    if (!conv_params.has_explicit_paddings) {
         return false;
+    }
 
     bool proper_padding = true;
     proper_padding &= conv_params.padding_begin.x == conv_params.inputs[0].X().pad.before &&
                       conv_params.padding_begin.y == conv_params.inputs[0].Y().pad.before &&
                       conv_params.padding_begin.z == conv_params.inputs[0].Z().pad.before;
 
-    proper_padding &= conv_params.padding_end.x == conv_params.inputs[0].X().pad.after &&
-                      conv_params.padding_end.y == conv_params.inputs[0].Y().pad.after &&
+    proper_padding &= conv_params.padding_end.x == conv_params.inputs[0].X().pad.after && conv_params.padding_end.y == conv_params.inputs[0].Y().pad.after &&
                       conv_params.padding_end.z == conv_params.inputs[0].Z().pad.after;
 
     return proper_padding;
@@ -334,8 +335,9 @@ bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params) {
 bool ConvolutionCheckInput(const Params& p) {
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
-    if (params.has_dynamic_inputs())
+    if (params.has_dynamic_inputs()) {
         return CheckConvolutionExplicitPaddings(params);
+    }
 
     const auto req_input = GetConvolutionBFYXPaddedTensor(params);
     const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
@@ -364,8 +366,7 @@ std::string ConvolutionKernelBase::GetAutoTuneOptions(int autoTuneIndex) const {
     return EXE_MODE_DEFAULT;
 }
 
-KernelsData ConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params,
-                                                              const int autoTuneIndex) const {
+KernelsData ConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params, const int autoTuneIndex) const {
     return GetCommonKernelsData(params, GetAutoTuneOptions(autoTuneIndex), autoTuneIndex);
 }
 
@@ -386,18 +387,16 @@ KernelsData ConvolutionKernelBase::GetKernelsDataForAutoTune(const Params& param
     return res;
 }
 
-JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolution_params& /*params*/,
-                                                                   const DispatchData& /*kd*/) const {
+JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolution_params& /*params*/, const DispatchData& /*kd*/) const {
     return {};
 }
-
 
 Datatype ConvolutionKernelBase::GetPackedType(Datatype dt, size_t pack_size) const {
     if (dt == Datatype::UINT8) {
         return pack_size == 4 ? Datatype::UINT32 : pack_size == 2 ? Datatype::UINT16 : dt;
     }
     if (dt == Datatype::INT8) {
-        return pack_size == 4 ?  Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
+        return pack_size == 4 ? Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
     }
     return dt;
 }
@@ -414,19 +413,19 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
     bool quantized_weights = false;
     bool quantized_inputs = false;
 
-    if (params.inputs[0].GetDType() == Datatype::UINT8 ||
-        params.inputs[0].GetDType() == Datatype::INT8)
+    if (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8) {
         quantized_inputs = true;
+    }
 
-    if (params.weights.GetDType() == WeightsType::UINT8 ||
-        params.weights.GetDType() == WeightsType::INT8)
+    if (params.weights.GetDType() == WeightsType::UINT8 || params.weights.GetDType() == WeightsType::INT8) {
         quantized_weights = true;
+    }
 
-    if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights)
+    if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights) {
         return Datatype::F32;
+    }
 
-    if (params.outputs[0].GetDType() == Datatype::UINT8 ||
-        params.outputs[0].GetDType() == Datatype::INT8) {
+    if (params.outputs[0].GetDType() == Datatype::UINT8 || params.outputs[0].GetDType() == Datatype::INT8) {
         if (params.inputs[0].GetDType() == Datatype::F32) {
             return Datatype::F32;
         }
@@ -439,27 +438,30 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
 }
 
 Datatype ConvolutionKernelBase::GetAccumulatorType(const convolution_params& params) const {
-    if (params.quantization != QuantizationType::NONE)
+    if (params.quantization != QuantizationType::NONE) {
         return Datatype::INT32;
+    }
 
     bool quantized_weights = false;
     bool quantized_inputs = false;
 
-    if (params.inputs[0].GetDType() == Datatype::UINT8 ||
-        params.inputs[0].GetDType() == Datatype::INT8)
+    if (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8) {
         quantized_inputs = true;
+    }
 
-    if (params.weights.GetDType() == WeightsType::UINT8 ||
-        params.weights.GetDType() == WeightsType::INT8)
+    if (params.weights.GetDType() == WeightsType::UINT8 || params.weights.GetDType() == WeightsType::INT8) {
         quantized_weights = true;
+    }
 
     // This case should be always false, because quantization type is not NONE
-    if (quantized_inputs && quantized_weights)
+    if (quantized_inputs && quantized_weights) {
         return Datatype::INT32;
+    }
 
     // If we either weights or input is quantized, then we use fp32 accumulator to avoid fp16 overflow
-    if (quantized_inputs || quantized_weights)
+    if (quantized_inputs || quantized_weights) {
         return Datatype::F32;
+    }
 
     return params.inputs[0].GetDType();
 }

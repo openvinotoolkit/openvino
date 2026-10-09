@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
 #include <vector>
 #include "single_op_tests/gru_sequence.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -13,6 +14,13 @@ using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
 
 namespace {
+        class GRUSequenceNoClipGPUTest : public GRUSequenceTest {};
+
+        TEST_P(GRUSequenceNoClipGPUTest, InferenceKeepsSequencePrimitive) {
+        run();
+        ov::test::CheckNumberOfNodesWithType(compiledModel, "GRU_Seq", 1);
+    }
+
     std::vector<SequenceTestsMode> mode{SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
                                         SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
                                         SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
@@ -47,9 +55,19 @@ namespace {
         {{1, 1, 1}, {{1, 1, 1}}},
         {{1}, {{1}}},
     };
+    const std::vector<InputShape> input_shapes_b1_nontrivial = {
+        {{1, -1, 4}, {{1, 5, 4}}},
+        {{1, 1, 3}, {{1, 1, 3}}},
+        {{1}, {{1}}},
+    };
     const std::vector<InputShape> input_shapes_bidirect_b1 = {
         {{1, -1, 1}, {{1, 5, 1}}},
         {{1, 2, 1}, {{1, 2, 1}}},
+        {{1}, {{1}}},
+    };
+    const std::vector<InputShape> input_shapes_bidirect_b1_nontrivial = {
+        {{1, -1, 4}, {{1, 5, 4}}},
+        {{1, 2, 3}, {{1, 2, 3}}},
         {{1}, {{1}}},
     };
     std::vector<size_t> seq_lengths_zero_clip{2};
@@ -130,7 +148,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClip_B1, GRUSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode_onednn),
-                                    ::testing::Values(input_shapes_b1),
+                                    ::testing::Values(input_shapes_b1, input_shapes_b1_nontrivial),
                                     // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
                                     ::testing::ValuesIn(activations_onednn),
                                     ::testing::ValuesIn(clip),
@@ -144,7 +162,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClipBidirect_B1, GRUSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode_onednn),
-                                    ::testing::Values(input_shapes_bidirect_b1),
+                                    ::testing::Values(input_shapes_bidirect_b1, input_shapes_bidirect_b1_nontrivial),
                                     // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
                                     ::testing::ValuesIn(activations_onednn),
                                     ::testing::ValuesIn(clip),
@@ -152,6 +170,23 @@ namespace {
                                     ::testing::ValuesIn(direction_bi),
                                     ::testing::Values(InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                            GRUSequenceTest::getTestCaseName);
+
+        INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceNoClip, GRUSequenceNoClipGPUTest,
+                            ::testing::Combine(
+                                    ::testing::Values(SequenceTestsMode::PURE_SEQ),
+                                    ::testing::Values(ov::test::static_shapes_to_test_representation(
+                                            input_shapes_zero_clip_static.front())),
+                                    ::testing::Values(std::vector<std::string>{"sigmoid", "tanh"}),
+                                    ::testing::Values(std::numeric_limits<float>::infinity(),
+                                                      -1.f,
+                                                      -std::numeric_limits<float>::infinity(),
+                                                      std::numeric_limits<float>::quiet_NaN()),
+                                    ::testing::Values(true),
+                                    ::testing::Values(ov::op::RecurrentSequenceDirection::FORWARD),
+                                    ::testing::Values(InputLayerType::CONSTANT),
+                                    ::testing::Values(ov::element::f32),
                                     ::testing::Values(ov::test::utils::DEVICE_GPU)),
                             GRUSequenceTest::getTestCaseName);
 

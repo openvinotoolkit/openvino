@@ -42,6 +42,7 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
         params.epsilon = primitive->epsilon;
         params.ov_input_rank = static_cast<int32_t>(impl_param.get_input_layout().get_partial_shape().size());
         params.elementwise_affine = primitive->elementwise_affine;
+        params.axis = primitive->axis;
         return params;
     }
 
@@ -70,6 +71,7 @@ attach_rms_impl::attach_rms_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i32
     };
 

@@ -507,7 +507,7 @@ int main(int argc, char* argv[]) {
             configs["PERF_COUNT"] = "YES";
         }
         if (FLAGS_raw_blob) {
-            if (FLAGS_d == "NPU") {
+            if (FLAGS_d.find("NPU") != std::string::npos) {
                 // set only if was not previously parsed from config
                 if (configs.find("NPU_EXPORT_RAW_BLOB") == configs.end()) {
                     configs["NPU_EXPORT_RAW_BLOB"] = "YES";

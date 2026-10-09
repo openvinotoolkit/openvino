@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -13,27 +15,20 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 
-// Detect silu(x) / x, which simplifies to sigmoid(x). ggml emits this in qwen2moe's shared-expert
-// gate; computing it as a literal divide is a 0/0 NaN at x == 0. Rather than probe ggml op_params
-// for a SILU tag (which would pull ggml.h into the frontend), we match the numerator's graph shape:
-// our silu translator emits Multiply(x, Sigmoid(x)), so numerator == silu(denominator) exactly when
-// the Multiply's two inputs are the denominator and Sigmoid(denominator). A structural match here is
-// semantically silu(x)/x regardless of how ggml labeled the source op.
+// Fold silu(x) / x to sigmoid(x), including at x == 0.
 bool is_silu_div_pattern(const ov::Output<ov::Node>& numerator, const ov::Output<ov::Node>& denominator) {
+    if (auto swish = ov::as_type_ptr<ov::op::v4::Swish>(numerator.get_node_shared_ptr())) {
+        return swish->get_input_size() == 1 && swish->input_value(0) == denominator;
+    }
     auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(numerator.get_node_shared_ptr());
     if (!mul) {
         return false;
@@ -89,7 +84,10 @@ ov::Output<ov::Node> repeat_input_to_match(const NodeContext& context,
             }
 
             FRONT_END_OP_CONVERSION_CHECK(input_dim > 0 && target_dim > 0 && target_dim % input_dim == 0,
-                                          "DIV input shape ", input_shape, " cannot repeat to match ", target_shape);
+                                          "DIV input shape ",
+                                          input_shape,
+                                          " cannot repeat to match ",
+                                          target_shape);
 
             repeats[axis] = target_dim / input_dim;
             needs_repeat = needs_repeat || repeats[axis] != 1;
@@ -117,14 +115,14 @@ OutputVector translate_div(const NodeContext& context) {
     auto input_0 = context.get_input(0);
     auto input_1 = context.get_input(1);
 
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    const auto output_type = input_0.get_element_type();
 
     if (is_silu_div_pattern(input_0, input_1)) {
         ov::Output<ov::Node> res = std::make_shared<ov::op::v0::Sigmoid>(input_1);
         if (res.get_element_type() != output_type) {
             res = std::make_shared<ov::op::v0::Convert>(res, output_type);
         }
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     input_1 = repeat_input_to_match(context, input_1, input_0, 1);
@@ -139,18 +137,13 @@ OutputVector translate_div(const NodeContext& context) {
 
     ov::Output<ov::Node> res = std::make_shared<ov::op::v1::Divide>(input_0, input_1);
     // Keep the divide in FP32: the GPU plugin would otherwise compress it back to FP16 and overflow
-    // on small gate values (e.g. silu(x) / x in qwen2moe).
-    ov::mark_as_precision_sensitive(res.get_node_shared_ptr()->input(0));
-    ov::mark_as_precision_sensitive(res.get_node_shared_ptr()->input(1));
+    // on small gate values (e.g. silu(x) / x in qwen2moe). Precision-sensitive inputs would instead
+    // mark the whole producing subgraph as a shape computation and keep it in FP32.
+    ov::disable_conversion(res.get_node_shared_ptr(), ov::element::f16);
     if (res.get_element_type() != output_type) {
-        auto output_convert = std::make_shared<ov::op::v0::Convert>(res, output_type);
-        ov::mark_as_precision_sensitive(output_convert->input(0));
-        res = output_convert;
+        res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

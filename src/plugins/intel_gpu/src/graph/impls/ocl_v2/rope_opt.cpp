@@ -20,6 +20,7 @@ size_t get_vec_size(const RuntimeParams& params) {
     size_t vec_size = 1;
     switch (input.data_type) {
     case ov::element::f16:
+    case ov::element::bf16:
         vec_size = 16;
         break;
     case ov::element::f32:
@@ -35,8 +36,9 @@ size_t get_vec_size(const RuntimeParams& params) {
 
     // Some models use f32 precision for input1 (cos) and input2 (sin) for better accuracy.
     // If input0 is not f32, we set vec_size as 1 for simple type conversion.
-    if (input1.data_type == ov::element::f32 && input.data_type != input1.data_type)
+    if (input1.data_type == ov::element::f32 && input.data_type != input1.data_type) {
         vec_size = 1;
+    }
 
     if (desc->config.is_qwen) {
         auto count = desc->config.head_cnt * std::max(desc->config.rotary_ndims / 2ul, desc->config.head_size - desc->config.rotary_ndims);
@@ -107,11 +109,14 @@ protected:
             }
         }
         jit.make("VEC_SIZE", get_vec_size(params));
-        if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
+        if (in_l.data_type == ov::element::bf16) {
+            jit.add(make_type_jit_constants("ACCUMULATOR", ov::element::f32));
+        } else if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
             jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(1).data_type));
         } else {
             jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(0).data_type));
         }
+
         return jit;
     }
 
@@ -192,8 +197,9 @@ protected:
                         size_t lws = 1;
                         while (((val + 1) <= max_workgroup_size) && (gws >= (val + 1))) {
                             val += 1;
-                            if (gws % val == 0)
+                            if (gws % val == 0) {
                                 lws = val;
+                            }
                         }
                         return lws;
                     };

@@ -18,10 +18,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 // Reading variable from shard file
 template <typename T>
@@ -94,7 +91,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
     std::shared_ptr<Node> const_node;
     if (ov_type == element::dynamic) {
         const_node = std::make_shared<UnsupportedConstant>();
-    } else if (var_index.get() == nullptr) {
+    } else if (!var_index || var_index->empty()) {
         auto ov_shape = node.get_attribute<ov::PartialShape>("shape").get_shape();
         const_node =
             std::make_shared<frontend::tensorflow::Variable>(node.get_name(), ov_shape, ov_type, node.get_decoder());
@@ -218,7 +215,4 @@ OutputVector translate_mergev2checkpoint_op(const NodeContext& node) {
     return {const_node};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

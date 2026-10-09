@@ -57,7 +57,6 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("importModel", &CoreWrap::import_model_async),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
-                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
                         InstanceMethod("getProperty", &CoreWrap::get_property),
@@ -203,10 +202,7 @@ void compile_model_thread(TsfnCompileModelContext* context) {
     };
 
     const auto status = context->tsfn.BlockingCall(context, callback);
-    if (status != napi_ok) {
-        std::cerr << "Error: ThreadSafeFunction::BlockingCall failed in compile_model_thread function\n";
-    }
-    context->tsfn.Release();
+    release_tsfn_after_blocking_call(context->tsfn, status);
 }
 
 Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
@@ -352,10 +348,7 @@ void import_model_thread(ImportModelContext* context, std::mutex& mutex) {
     };
 
     const auto status = context->tsfn.BlockingCall(context, callback);
-    if (status != napi_ok) {
-        std::cerr << "Error: ThreadSafeFunction::BlockingCall failed in import_model_thread function\n";
-    }
-    context->tsfn.Release();
+    release_tsfn_after_blocking_call(context->tsfn, status);
 }
 
 Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {

@@ -37,6 +37,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/convert_color_i420.cpp
     ${CMAKE_CURRENT_LIST_DIR}/convert_color_nv12.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/convert_color_to_nv12.cpp
     ${CMAKE_CURRENT_LIST_DIR}/convert_promote_types.cpp
     ${CMAKE_CURRENT_LIST_DIR}/convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/convolution_backprop_data.cpp

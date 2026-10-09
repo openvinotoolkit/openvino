@@ -6,18 +6,14 @@
 #include <memory>
 #include <vector>
 
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_FILL sets every element of a tensor to a constant. The scalar is provided by the decoder
 // as the "fill_value" attribute (ggml stores it as a float in op_params[0]). The output has the same
@@ -30,16 +26,11 @@ OutputVector translate_fill(const NodeContext& context) {
     float fill_value = context.get_attribute<float>("fill_value");
 
     // ggml FILL keeps the tensor's own type (f32 or f16), so do not hardcode f32 here.
-    auto val = ov::op::v0::Constant::create(context.get_attribute<ov::element::Type>("output_type"),
-                                            ov::Shape{},
-                                            {fill_value});
+    auto val = ov::op::v0::Constant::create(x.get_element_type(), ov::Shape{}, {fill_value});
     auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(x, ov::element::i64);
     auto res = std::make_shared<ov::op::v3::Broadcast>(val, target_shape);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

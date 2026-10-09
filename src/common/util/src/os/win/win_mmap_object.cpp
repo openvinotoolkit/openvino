@@ -8,6 +8,7 @@
 #include <future>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <stdexcept>
 #include <thread>
@@ -283,30 +284,37 @@ public:
     }
 };
 
-class MapHolder : public ov::MappedMemory {
+class MapHolder final : public ov::MappedMemory {
 public:
     MapHolder() = default;
     ~MapHolder() override;
 
-    void set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder = false);
+    void set(const std::filesystem::path& path,
+             size_t offset,
+             size_t size,
+             bool no_placeholder = false,
+             MmapMode mode = MmapMode::READ);
     void set_from_handle(FileHandle handle, size_t offset, size_t size);
     bool try_remap_slot(uintptr_t fault_addr);
 
     // ov::MappedMemory interface
-    char* data() noexcept override {
-        return static_cast<char*>(m_data);
+    const std::byte* data() const noexcept override final {
+        return m_data;
     }
-    size_t size() const noexcept override {
+    std::byte* data() noexcept override final {
+        return m_data;
+    }
+    size_t size() const noexcept override final {
         return m_size;
     }
 
-    uint64_t get_id() const noexcept override {
+    std::optional<uint64_t> get_id() const noexcept override {
         return m_id;
     }
 
     void hint_evict(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch(size_t offset, size_t size) override;
+    void hint_prefetch(size_t offset, size_t size) noexcept override;
 
     void hint_prefetch_async(size_t offset, size_t size) override;
 
@@ -334,7 +342,7 @@ private:
     void set_id(HANDLE h, size_t offset, size_t size);
 
     /** @brief Core setup shared by set() and set_from_handle(). */
-    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder);
+    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode);
 
     /** @brief Try to establish the placeholder mapping.
      *  Returns true on success; caller falls back to legacy path on false.
@@ -342,7 +350,7 @@ private:
     bool try_placeholder_setup(size_t aligned_offset, size_t head_pad, size_t total_va_size, size_t file_size);
 
     /** @brief Legacy single-call MapViewOfFile path (no partial-release support). */
-    void legacy_setup(size_t aligned_offset, size_t head_pad, size_t size);
+    void legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode);
 
     /**
      * @brief Computes the clamped, gran-aligned VA range to evict.
@@ -371,9 +379,9 @@ private:
                                 size_t file_tail_offset,
                                 size_t tail_data_size);
 
-    void* m_data{};   //!< pointer exposed to callers
-    size_t m_size{};  //!< user-visible byte count
-    uint64_t m_id{std::numeric_limits<uint64_t>::max()};
+    std::byte* m_data{};  //!< pointer exposed to callers
+    size_t m_size{};      //!< user-visible byte count
+    std::optional<uint64_t> m_id;
 
     HandleHolder m_handle{};       //!< section object from CreateFileMappingW
     HandleHolder m_file_handle{};  //!< file HANDLE kept open to block DeleteFile (set-by-path only)
@@ -610,24 +618,25 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
     m_view_base = base;
     m_total_va_size = total_va_size;
     m_file_mapped_size = actual_map_size;
-    m_data = base + head_pad;
+    m_data = reinterpret_cast<std::byte*>(base + head_pad);
     return true;
 }
 
-void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size) {
+void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode) {
+    const DWORD access = (mode == MmapMode::READ_WRITE) ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
     if (auto view = ::MapViewOfFile(m_handle.get(),
-                                    FILE_MAP_READ,
+                                    access,
                                     static_cast<DWORD>(aligned_offset >> 32),
                                     static_cast<DWORD>(aligned_offset & 0xFFFFFFFF),
                                     head_pad + size)) {
         m_view_base = static_cast<char*>(view);
-        m_data = m_view_base + head_pad;
+        m_data = reinterpret_cast<std::byte*>(m_view_base + head_pad);
     } else {
         throw std::runtime_error{"MapViewOfFile failed: " + std::to_string(::GetLastError())};
     }
 }
 
-void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder) {
+void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode) {
     LARGE_INTEGER file_size_li{};
     if (!::GetFileSizeEx(file_handle, &file_size_li)) {
         throw std::runtime_error{"GetFileSizeEx failed: " + std::to_string(::GetLastError())};
@@ -646,39 +655,47 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
     const size_t total_va_size = util::align_size_up(r_length, gran);
 
     set_id(file_handle, offset, size);
+    if (mode == MmapMode::READ_WRITE) {
+        // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
+        m_id = std::nullopt;
+    }
 
     if (m_size == 0) {
         return;
     }
 
-    // Create a read-only file-mapping object for the whole file.
-    m_handle = HandleHolder{::CreateFileMappingW(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr)};
+    const DWORD protect = (mode == MmapMode::READ_WRITE) ? PAGE_READWRITE : PAGE_READONLY;
+    m_handle = HandleHolder{::CreateFileMappingW(file_handle, nullptr, protect, 0, 0, nullptr)};
     if (!m_handle.valid()) {
         throw std::runtime_error{"CreateFileMappingW failed: " + std::to_string(::GetLastError())};
     }
 
     // When no_placeholder is set, skip the placeholder/VEH path to guarantee a single uniform AllocationBase
     // (required for NPU zero-copy blob import). Otherwise prefer placeholder for RSS reduction.
-    if (no_placeholder || !try_placeholder_setup(m_aligned_offset, head_pad, total_va_size, file_size)) {
-        legacy_setup(m_aligned_offset, head_pad, m_size);
+    // RW mappings are ignored by the current VEH registration: the handler only remaps read faults.
+    if (no_placeholder || mode == MmapMode::READ_WRITE ||
+        !try_placeholder_setup(m_aligned_offset, head_pad, total_va_size, file_size)) {
+        legacy_setup(m_aligned_offset, head_pad, m_size, mode);
     }
 }
 
-void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder) {
-    auto fh = ::CreateFileW(path.c_str(),
-                            GENERIC_READ,
-                            FILE_SHARE_READ | FILE_SHARE_DELETE,
-                            nullptr,
-                            OPEN_EXISTING,
-                            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
-                            nullptr);
+void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder, MmapMode mode) {
+    const bool writable = mode == MmapMode::READ_WRITE;
+    auto fh = ::CreateFileW(
+        path.c_str(),
+        writable ? (GENERIC_READ | GENERIC_WRITE) : GENERIC_READ,
+        writable ? (FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE) : (FILE_SHARE_READ | FILE_SHARE_DELETE),
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        nullptr);
     if (fh == INVALID_HANDLE_VALUE) {
         throw std::runtime_error{"Cannot open file: " + ov::util::path_to_string(path) +
                                  " error: " + std::to_string(::GetLastError())};
     }
 
     HandleHolder fh_holder{fh};
-    setup(fh, offset, size, no_placeholder);
+    setup(fh, offset, size, no_placeholder, mode);
     // Keep the file handle alive so the section object can always resolve page faults
     // back to the original file data, even if the caller deletes or renames the file.
     // FILE_SHARE_DELETE allows std::filesystem::remove() to succeed while the mapping is alive.
@@ -702,7 +719,7 @@ void MapHolder::set_from_handle(FileHandle handle, size_t offset, size_t size) {
         throw std::runtime_error{"DuplicateHandle failed: " + std::to_string(::GetLastError())};
     }
     HandleHolder owned{dup};
-    setup(owned.get(), offset, size, false);
+    setup(owned.get(), offset, size, false, MmapMode::READ);
     // owned goes out of scope here: file handle closed.
     // m_handle (section object) keeps the file data accessible independently.
 }
@@ -810,7 +827,7 @@ void MapHolder::wait_for_pending_prefetch() noexcept {
     m_pending_prefetch.clear();
 }
 
-void MapHolder::hint_prefetch(size_t offset, size_t size) {
+void MapHolder::hint_prefetch(size_t offset, size_t size) noexcept {
     // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
     if (const auto region = clamp_align_region(m_data, m_size, offset, size); region.m_length > 4 * util::one_mib) {
         const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
@@ -847,7 +864,7 @@ std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t siz
     const auto gran = util::get_system_alloc_granularity();
 
     // Convert user [offset, size) to a VA range relative to m_view_base.
-    const size_t head_pad = static_cast<size_t>(static_cast<char*>(m_data) - m_view_base);
+    const size_t head_pad = static_cast<size_t>(reinterpret_cast<char*>(m_data) - m_view_base);
     const size_t va_begin_raw = head_pad + clamped_offset;
     if (va_begin_raw >= m_total_va_size)
         return {};
@@ -947,9 +964,10 @@ void MapHolder::hint_evict(size_t offset, size_t size) noexcept {
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
                                                    size_t offset,
                                                    size_t size,
-                                                   bool no_placeholder) {
+                                                   bool no_placeholder,
+                                                   MmapMode mode) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path, offset, size, no_placeholder);
+    holder->set(path, offset, size, no_placeholder, mode);
     return holder;
 }
 

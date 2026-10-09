@@ -6,63 +6,98 @@
 
 #include "node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace op {
 
 #define GGUF_OP_CONVERTER(op) OutputVector op(const NodeContext& context)
 
-GGUF_OP_CONVERTER(translate_add_id);
-GGUF_OP_CONVERTER(translate_argsort);
-GGUF_OP_CONVERTER(translate_clamp);
+GGUF_OP_CONVERTER(translate_add);
+
+// Structural / memory ops.
 GGUF_OP_CONVERTER(translate_concat);
 GGUF_OP_CONVERTER(translate_cont);
-GGUF_OP_CONVERTER(translate_cumsum);
-GGUF_OP_CONVERTER(translate_diag);
-GGUF_OP_CONVERTER(translate_div);
-GGUF_OP_CONVERTER(translate_fill);
-GGUF_OP_CONVERTER(translate_gated_delta_net);
+GGUF_OP_CONVERTER(translate_cpy);
 GGUF_OP_CONVERTER(translate_get_rows);
-GGUF_OP_CONVERTER(translate_im2col);
-GGUF_OP_CONVERTER(translate_l2_norm);
-GGUF_OP_CONVERTER(translate_norm);
-GGUF_OP_CONVERTER(translate_pad);
-GGUF_OP_CONVERTER(translate_repeat);
-GGUF_OP_CONVERTER(translate_ssm_conv);
-GGUF_OP_CONVERTER(translate_mulmat);
-GGUF_OP_CONVERTER(translate_mul_mat_id);
+GGUF_OP_CONVERTER(translate_get_rel_pos);
+GGUF_OP_CONVERTER(translate_win_part);
+GGUF_OP_CONVERTER(translate_win_unpart);
 GGUF_OP_CONVERTER(translate_permute);
+GGUF_OP_CONVERTER(translate_repeat);
 GGUF_OP_CONVERTER(translate_reshape);
+GGUF_OP_CONVERTER(translate_set);
+GGUF_OP_CONVERTER(translate_set_rows);
+GGUF_OP_CONVERTER(translate_transpose);
+GGUF_OP_CONVERTER(translate_view);
+
+// Normalization.
+GGUF_OP_CONVERTER(translate_norm);
 GGUF_OP_CONVERTER(translate_rms_norm);
+GGUF_OP_CONVERTER(translate_l2_norm);
+
+// Matmul / attention.
+GGUF_OP_CONVERTER(translate_mulmat);
+GGUF_OP_CONVERTER(translate_flash_attn_ext);
+GGUF_OP_CONVERTER(translate_soft_max);
 GGUF_OP_CONVERTER(translate_rope);
 GGUF_OP_CONVERTER(translate_scale);
-GGUF_OP_CONVERTER(translate_set);
-GGUF_OP_CONVERTER(translate_sqr);
-GGUF_OP_CONVERTER(translate_sqrt);
+
+// Gated linear units.
+GGUF_OP_CONVERTER(translate_glu_geglu);
+GGUF_OP_CONVERTER(translate_glu_geglu_quick);
+GGUF_OP_CONVERTER(translate_glu_swiglu);
+GGUF_OP_CONVERTER(translate_glu_swiglu_clamp);
+GGUF_OP_CONVERTER(translate_glu_swiglu_oai);
+
+// MoE (mixture-of-experts) routing ops.
+GGUF_OP_CONVERTER(translate_mul_mat_id);
+GGUF_OP_CONVERTER(translate_add_id);
+GGUF_OP_CONVERTER(translate_argsort);
 GGUF_OP_CONVERTER(translate_top_k);
-GGUF_OP_CONVERTER(translate_tri);
 GGUF_OP_CONVERTER(translate_sum_rows);
+
+// Elementwise clamp and division.
+GGUF_OP_CONVERTER(translate_clamp);
+GGUF_OP_CONVERTER(translate_div);
+
+// Unary activations.
 GGUF_OP_CONVERTER(translate_unary_silu);
 GGUF_OP_CONVERTER(translate_unary_gelu);
 GGUF_OP_CONVERTER(translate_unary_gelu_quick);
+GGUF_OP_CONVERTER(translate_unary_relu);
+GGUF_OP_CONVERTER(translate_unary_tanh);
+GGUF_OP_CONVERTER(translate_unary_sigmoid);
 GGUF_OP_CONVERTER(translate_unary_elu);
-GGUF_OP_CONVERTER(translate_soft_max);
-GGUF_OP_CONVERTER(translate_transpose);
-GGUF_OP_CONVERTER(translate_view);
-GGUF_OP_CONVERTER(translate_glu_swiglu);
-GGUF_OP_CONVERTER(translate_glu_swiglu_oai);
-GGUF_OP_CONVERTER(translate_glu_geglu);
-GGUF_OP_CONVERTER(translate_set_rows);
-GGUF_OP_CONVERTER(translate_cpy);
-GGUF_OP_CONVERTER(translate_flash_attn_ext);
+
+// Unary element-wise math.
+GGUF_OP_CONVERTER(translate_sqr);
+GGUF_OP_CONVERTER(translate_sqrt);
+GGUF_OP_CONVERTER(translate_log);
+GGUF_OP_CONVERTER(translate_sin);
+GGUF_OP_CONVERTER(translate_cos);
+GGUF_OP_CONVERTER(translate_cumsum);
+
+// Matrix-shaped helpers.
+GGUF_OP_CONVERTER(translate_diag);
+GGUF_OP_CONVERTER(translate_tri);
+GGUF_OP_CONVERTER(translate_fill);
+
+// Convolution-family / sequence ops.
+GGUF_OP_CONVERTER(translate_im2col);
+GGUF_OP_CONVERTER(translate_pool_2d);
+GGUF_OP_CONVERTER(translate_conv_2d);
+GGUF_OP_CONVERTER(translate_upscale);
+GGUF_OP_CONVERTER(translate_pad);
+GGUF_OP_CONVERTER(translate_roll);
+GGUF_OP_CONVERTER(translate_solve_tri);
+GGUF_OP_CONVERTER(translate_ssm_conv);
+GGUF_OP_CONVERTER(translate_ssm_scan);
+GGUF_OP_CONVERTER(translate_gated_delta_net);
+
 GGUF_OP_CONVERTER(translate_weight);
 
 }  // namespace op
 
 std::unordered_map<std::string, CreatorFunction> get_supported_ops();
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

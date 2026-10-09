@@ -7,9 +7,10 @@
 #include <map>
 #include <string>
 
-#include "intel_npu/common/filtered_config.hpp"
+#include "blob_source.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/config/config.hpp"
 #include "metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -34,7 +35,7 @@ public:
      * @param logger A logger that should already use the name of the subclass.
      */
     IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
-                        const FilteredConfig& config,
+                        const Config& config,
                         const Logger& logger);
 
     /**
@@ -66,12 +67,12 @@ public:
      */
     std::shared_ptr<ov::Model> create_dummy_model() const;
 
-    FilteredConfig get_config() const;
+    Config get_config() const;
 
     virtual ~IBlobFormatImporter() = default;
 
 protected:
-    FilteredConfig m_config;
+    Config m_config;
     Logger m_logger;
 
 private:
@@ -130,26 +131,10 @@ namespace blob_format_importer_factory {
  * level, weights path, decryption callbacks.
  * @return An importer object of the type that corresponds to the format of the blob.
  */
-std::unique_ptr<IBlobFormatImporter> create(std::istream& npu_formatted_blob,
+std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
-                                            const FilteredConfig& config);
-
-/**
- * @brief Identifies the blob format used for the given blob and creates the corresponding importer for it.
- *
- * @param npu_formatted_blob The target blob.
- * @param is_raw_blob Flag indicating whether or not the whole blob is just a compiler main schedule.
- * @param original_model A potential source of weights for the weights separation feature if necessary. Can be
- * `nullptr`.
- * @param config Will be held by the newly created importer and used for multiple purposes, such as: extracting the log
- * level, weights path, decryption callbacks.
- * @return An importer object of the type that corresponds to the format of the blob.
- */
-std::unique_ptr<IBlobFormatImporter> create(const ov::Tensor& npu_formatted_blob,
-                                            const bool is_raw_blob,
-                                            const std::shared_ptr<const ov::Model>& original_model,
-                                            const FilteredConfig& config);
+                                            const Config& config);
 
 }  // namespace blob_format_importer_factory
 

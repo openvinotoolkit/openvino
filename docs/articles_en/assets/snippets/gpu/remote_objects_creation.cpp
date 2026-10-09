@@ -7,7 +7,7 @@
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #include <openvino/util/memory.hpp>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #elif defined(ENABLE_LIBVA)
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
@@ -22,7 +22,7 @@ cl::Image2D allocate_image(size_t size);
 ov::intel_gpu::SharedBufferHandle get_shared_handle();
 
 
-#ifdef WIN32
+#ifdef _WIN32
 ID3D11Device* get_d3d_device();
 #elif defined(ENABLE_LIBVA)
 VADisplay get_va_display();
@@ -67,6 +67,17 @@ int main() {
     }
     ov::util::aligned_free(cpu_pointer); 
     //! [wrap_cpu_pointer]
+}
+
+{
+    //! [wrap_file]
+    // The plugin memory-maps the file and keeps the mapping alive for the tensor lifetime,
+    // so the file must not be modified until the returned tensor is destroyed.
+    ov::intel_gpu::FileDescriptor file_descriptor{"input.bin",
+                                                  /*offset_in_bytes=*/0,
+                                                  ov::intel_gpu::AccessMode::READ};
+    auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, file_descriptor);
+    //! [wrap_file]
 }
 
 {
@@ -155,7 +166,7 @@ int main() {
     //! [context_from_cl_queue]
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 {
     //! [context_from_d3d_device]
     ID3D11Device* device = get_d3d_device();

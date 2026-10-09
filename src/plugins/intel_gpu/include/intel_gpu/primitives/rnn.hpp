@@ -113,8 +113,9 @@ struct RNNParams : public primitive_base<PType> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!primitive::compare_common_params(rhs))
+        if (!primitive::compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const PType>(rhs);
         bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();

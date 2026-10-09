@@ -47,6 +47,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto scale = node.get_attribute_value<float>("scale", 0.0f);
     const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
+    const auto causal = node.get_attribute_value<int64_t>("causal", 1);
     // Quantized KV cache attributes (com.microsoft spec). Default to the unquantized (float KV) behavior.
     const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
     const auto parse_quant_type = [&](const std::string& quant_type_name) {
@@ -80,33 +81,34 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         "supported.");
 
     // Reject spec attributes whose semantics are not implemented by the OpenVINO decomposition.
+    FRONT_END_OP_CONVERSION_CHECK(causal == 0 || causal == 1,
+                                  "GroupQueryAttention: causal must be 0 or 1, got ",
+                                  causal,
+                                  ".");
+    // causal == 0 selects bidirectional attention (no query-relative masking, only the buffer tail beyond
+    // total_sequence_length is masked); ONNX Runtime does not allow combining that with a sliding window.
+    FRONT_END_OP_CONVERSION_CHECK(causal == 1 || local_window_size == -1,
+                                  "GroupQueryAttention: local_window_size requires causal=1, got causal=0 and "
+                                  "local_window_size=",
+                                  local_window_size,
+                                  ".");
     // local_window_size == -1 disables the window; a value >= 1 selects a sliding window. A window of
     // size 0 is an empty attention (every query masks all keys) and is not a valid ONNX Runtime config.
     FRONT_END_OP_CONVERSION_CHECK(local_window_size == -1 || local_window_size >= 1,
                                   "GroupQueryAttention: local_window_size must be -1 (disabled) or >= 1, got ",
                                   local_window_size,
                                   ".");
-    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX
-    // Runtime precondition. The staging regime (prompt longer than the buffer) and batch > 1 are not
-    // handled by this decomposition; the decode / fitting-prefill path is.
+    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX Runtime
+    // precondition. batch > 1 is not handled by this decomposition (see the batch_size == 1 check below).
+    // Multi-token steps (ORT's "staging" regime) are supported: the decomposition selects the staging vs.
+    // in-place cache-write branch from the runtime past/total length, mirroring ORT's PlanWindowedKvCache,
+    // so a static multi-token shape is not rejected here.
     if (sliding_window_cache != 0) {
         FRONT_END_OP_CONVERSION_CHECK(local_window_size >= 1,
                                       "GroupQueryAttention: sliding_window_cache=1 requires local_window_size >= 1.");
         FRONT_END_OP_CONVERSION_CHECK(
             common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
             "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
-        // Only single-token decode (sequence_length == 1) is supported for the windowed cache: it always
-        // stays within the window and matches ONNX Runtime exactly. Any multi-token step is the staging
-        // regime (ORT runs it against a temporary larger buffer), which this decomposition does not model
-        // and would otherwise either crash or silently diverge. Reject a static sequence_length > 1.
-        const auto& q_ps = onnx_op_inputs[0].get_partial_shape();
-        if (q_ps.rank().is_static() && q_ps.rank().get_length() == 3 && q_ps[1].is_static()) {
-            FRONT_END_OP_CONVERSION_CHECK(q_ps[1].get_length() == 1,
-                                          "GroupQueryAttention: sliding_window_cache=1 is only supported for "
-                                          "single-token decode (sequence_length == 1), got sequence_length = ",
-                                          q_ps[1].get_length(),
-                                          " (multi-token staging regime is not supported).");
-        }
         // The windowed cache-end arithmetic uses gap = capacity - local_window_size + 1, which must be >= 1;
         // with capacity < local_window_size it would divide by zero (or a negative gap) at inference. The ONNX
         // Runtime precondition is the same: a cache capacity of at least local_window_size. Enforce it here
@@ -183,6 +185,18 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(K), "GroupQueryAttention: Expecting K not null.");
         FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(V), "GroupQueryAttention: Expecting V not null.");
 
+        // "Shared KV" (kv_sequence_length == 0): ORT treats this as the past buffer already holding the
+        // complete KV, with nothing new appended and K/V skipping RoPE (helper.h). The reshape below sizes
+        // K/V using Q's sequence dim (current_seqlen_size_node), so a genuinely empty K/V cannot even be
+        // reshaped to it; reject cleanly here instead of failing inside the Reshape with an unrelated
+        // element-count-mismatch error.
+        const auto& k_ps = K.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(
+            !(k_ps.rank().is_static() && k_ps.rank().get_length() == 3 && k_ps[1].is_static() &&
+              k_ps[1].get_length() == 0),
+            "GroupQueryAttention: kv_sequence_length == 0 (shared KV / past buffer already complete) is not "
+            "supported.");
+
         auto num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads});
         auto head_size_node = std::make_shared<v1::Divide>(hidden_size_node, num_heads_node);
         auto q_shape = std::make_shared<v0::Concat>(
@@ -220,6 +234,9 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         }
     }
 
+    // smooth_softmax's ONNX schema default is -1, not 0, yet ORT's own CPU/CUDA kernels enable it only when
+    // the value is exactly 1. Comparing == 1 (not != 0) keeps a graph that never set the attribute from
+    // silently getting the smooth-softmax sink path.
     return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
                                                            num_heads,
                                                            kv_num_heads,
@@ -231,7 +248,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            v_quant_type,
                                                            local_window_size,
                                                            sliding_window_cache != 0,
-                                                           smooth_softmax != 0)
+                                                           smooth_softmax == 1,
+                                                           causal != 0)
         ->outputs();
 }
 

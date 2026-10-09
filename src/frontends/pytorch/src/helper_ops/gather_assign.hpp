@@ -9,9 +9,7 @@
 #include "openvino/op/op.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 class GatherAssign : public InternalReverseOperation {
 public:
@@ -35,6 +33,4 @@ public:
         return std::make_shared<GatherAssign>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
     }
 };
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

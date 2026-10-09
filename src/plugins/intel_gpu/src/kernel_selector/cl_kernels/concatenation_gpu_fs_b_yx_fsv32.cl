@@ -41,20 +41,20 @@ KERNEL (concatenation_gpu_fs_b_yx_fsv32)(__global INPUT0_TYPE* input,
     input_offset += b * INPUT0_SIZE_X_WITH_PADDING * INPUT0_SIZE_Y_WITH_PADDING * FSV;
     input_offset += fs * INPUT0_SIZE_X_WITH_PADDING * INPUT0_SIZE_Y_WITH_PADDING * FSV * INPUT0_BATCH_NUM;
 
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, 2) in = DT_INPUT_BLOCK_READ2(input, input_offset);
+    MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, 2) in = DECODE_INPUT0_COMPUTE_VECTOR_TYPE(DT_INPUT_BLOCK_READ2(input, input_offset), 2);
 
     in = ACTIVATION(in, ACTIVATION_PARAMS);
 #if ALIGNED
     const uint dst_index = OUTPUT_GET_INDEX(b, output_offset_in_concat_axis + fs * FSV, y, x);
-    DT_OUTPUT_BLOCK_WRITE2(output, dst_index, in);
+    DT_OUTPUT_BLOCK_WRITE2(output, dst_index, TO_OUTPUT_VECTOR_TYPE(in, 2));
 #else
     const uint dst_feature = fs * FSV + output_offset_in_concat_axis + sglid;
     if (dst_feature + SUB_GROUP_SIZE < OUTPUT_FEATURE_NUM) {
-        output[OUTPUT_GET_INDEX(b, dst_feature, y, x)] = in.s0;
-        output[OUTPUT_GET_INDEX(b, dst_feature + SUB_GROUP_SIZE, y, x)] = in.s1;
+        output[OUTPUT_GET_INDEX(b, dst_feature, y, x)] = TO_OUTPUT_TYPE(in.s0);
+        output[OUTPUT_GET_INDEX(b, dst_feature + SUB_GROUP_SIZE, y, x)] = TO_OUTPUT_TYPE(in.s1);
     } else {
         if (dst_feature < OUTPUT_FEATURE_NUM) {
-            output[OUTPUT_GET_INDEX(b, dst_feature, y, x)] = in.s0;
+            output[OUTPUT_GET_INDEX(b, dst_feature, y, x)] = TO_OUTPUT_TYPE(in.s0);
         }
     }
 #endif

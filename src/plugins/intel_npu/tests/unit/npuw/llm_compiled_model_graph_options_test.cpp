@@ -241,8 +241,24 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillOptionAndCapabilitySur
     ASSERT_NE(compiled, nullptr);
 
     EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
-    // The capability read must never throw. This change carries the protocol
-    // only, so it reports false even for an otherwise eligible model.
+    // The capability read must never throw. With the contiguous delta prefill
+    // path in place, an eligible chunked model advertises support.
+    ov::Any supported;
+    ASSERT_NO_THROW(supported = compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED"));
+    EXPECT_TRUE(supported.as<bool>());
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillUnsupportedForStaticPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Whole (STATIC) prefill has no continuation path, so the option is accepted
+    // but the capability reports false.
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
     ov::Any supported;
     ASSERT_NO_THROW(supported = compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED"));
     EXPECT_FALSE(supported.as<bool>());

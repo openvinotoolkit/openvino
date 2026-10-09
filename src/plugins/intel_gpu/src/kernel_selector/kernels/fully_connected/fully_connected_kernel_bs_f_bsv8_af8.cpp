@@ -56,8 +56,9 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (!IsSIMDSizeSupported(p.engineInfo, 8))
+    if (!IsSIMDSizeSupported(p.engineInfo, 8)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& params = static_cast<const fully_connected_params&>(p);
 

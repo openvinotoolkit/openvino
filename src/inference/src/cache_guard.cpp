@@ -13,19 +13,21 @@ CacheGuardEntry::CacheGuardEntry(CacheGuard& cacheGuard,
     : m_cacheGuard(cacheGuard),
       m_hash(hash),
       m_mutex(std::move(m)),
+      m_lock(*m_mutex, std::defer_lock),
       m_refCount(refCount) {
-    // Don't lock mutex right here for exception-safe considerations
     m_refCount++;
 }
 
 CacheGuardEntry::~CacheGuardEntry() {
     m_refCount--;
-    m_mutex->unlock();
+    if (m_lock.owns_lock()) {
+        m_lock.unlock();
+    }
     m_cacheGuard.check_for_remove(m_hash);
 }
 
 void CacheGuardEntry::perform_lock() {
-    m_mutex->lock();
+    m_lock.lock();
 }
 
 //////////////////////////////////////////////////////

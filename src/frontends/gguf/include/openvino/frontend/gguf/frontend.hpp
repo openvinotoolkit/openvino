@@ -34,27 +34,32 @@ public:
     /// - `ov::frontend::ConversionExtension` — registers a custom op translator for the
     ///   ggml op name given by `get_op_type()`.  The converter receives an
     ///   `ov::frontend::gguf::NodeContext` and returns an `ov::OutputVector`.
-    /// - `ov::frontend::TelemetryExtension` — receives error / event callbacks.
-    /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is
-    ///   recursively registered.
-    /// - `ov::BaseOpExtension` — op-level extension; all attached extensions are
-    ///   recursively registered.
+    /// - `ov::frontend::DecoderTransformationExtension` — registers a normalization pass, run
+    ///   AHEAD of the frontend's built-in lowerings. A caller that wants an OpenVINO KV cache
+    ///   registers `ov::frontend::gguf::pass::GGUFMakeStateful` (or its own variant) here; without one
+    ///   the frontend converts to a stateless graph.
+    /// - `ov::frontend::gguf::ArchitectureExtension` — registers decoder or custom-family builders
+    ///   before load(), without rebuilding the frontend. See docs/extensions.md.
+    /// - `ov::frontend::gguf::ProjectorExtension` — registers one mmproj branch before load().
+    /// - `ov::frontend::gguf::GenAIExtension` — creates stateful decoder caches during normalization
+    ///   and adapts the normalized model to GenAI IO before convert() returns.
+    /// - `ov::frontend::TelemetryExtension` — stored; callbacks are not currently invoked.
+    /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is recursively registered.
+    /// - `ov::BaseOpExtension` — recursively registers attached op-level extensions.
+    ///
+    /// Conversion and transformation extensions must be registered before convert().
+    /// Registrations affect only this frontend instance.
     ///
     /// \param extension Extension to register.
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
-    /// \brief Check if FrontEnd can recognize model from given parts.
-    /// \note Always returns false: this frontend is hidden from FrontEndManager and is never
-    ///       auto-selected. It is used only via direct linkage, by constructing FrontEnd and
-    ///       calling convert() on an InputModel built from a GgufDecoder.
-    /// \param variants Unused.
-    /// \return Always false.
+    /// \brief Recognize a GgufDecoder or a .gguf file with GGUF magic.
+    /// \param variants First element is a shared_ptr<GgufDecoder> or a file path.
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
-    /// \brief Load the input model from a GgufDecoder.
-    /// \param variants A single GgufDecoder (a .gguf file path is not accepted; the caller supplies
-    ///        the decoder). variants[0] must hold a std::shared_ptr<GgufDecoder>.
+    /// \brief Load a GgufDecoder, or parse a .gguf file and select its builder for convert().
+    /// \param variants First element is a shared_ptr<GgufDecoder> or a file path.
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 

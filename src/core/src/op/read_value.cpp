@@ -125,10 +125,12 @@ bool ReadValue::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v6_ReadValue_visit_attributes);
     visitor.on_attribute("variable_id", m_variable);
 
-    auto variable_info = m_variable->get_info();
-    visitor.on_attribute("variable_type", variable_info.data_type);
-    visitor.on_attribute("variable_shape", variable_info.data_shape);
-    m_variable->update(variable_info);
+    if (m_variable) {
+        auto variable_info = m_variable->get_info();
+        visitor.on_attribute("variable_type", variable_info.data_type);
+        visitor.on_attribute("variable_shape", variable_info.data_shape);
+        m_variable->update(variable_info);
+    }
     return true;
 }
 

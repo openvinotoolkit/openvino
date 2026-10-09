@@ -14,8 +14,9 @@ void reorder_transfer::run(program& p) {
     while (itr != p.get_processing_order().end()) {
         const auto& node = *itr++;
 
-        if (!node->is_type<reorder>())
+        if (!node->is_type<reorder>()) {
             continue;
+        }
 
         auto& reorder_node = node->as<reorder>();
 
@@ -24,8 +25,9 @@ void reorder_transfer::run(program& p) {
                                                  reorder_node.get_users().size() == 1 &&
                                                  reorder_node.get_dependencies().size() == 1 &&
                                                  reorder_node.is_type_conversion_only();
-        if (!is_simple_type_conversion_reorder)
+        if (!is_simple_type_conversion_reorder) {
             continue;
+        }
 
         auto transfer_through_node = [](cldnn::program_node* node) -> bool { // Conditions can be extended to other ops
             return node->is_type<permute>() &&

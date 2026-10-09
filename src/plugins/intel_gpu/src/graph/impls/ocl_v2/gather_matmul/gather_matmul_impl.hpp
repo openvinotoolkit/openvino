@@ -79,8 +79,9 @@ struct GatherMatmulImpl : public ImplementationManager {
             // ZP is a placeholder unless desc.has_zp. prepare_quantization may reorder scale/zp to byfx.
             static const std::vector<format> supported_quant_fmts = {format::bfyx, format::byfx};
             std::vector<size_t> quant_param_indices = {gather_matmul::BGMInputIdx::WEIGHT_SCALE};
-            if (desc.has_zp)
+            if (desc.has_zp) {
                 quant_param_indices.push_back(gather_matmul::BGMInputIdx::WEIGHT_ZP);
+            }
             for (size_t idx : quant_param_indices) {
                 const auto& layout = node.get_input_layout(idx);
                 if (!one_of(layout.format, supported_quant_fmts) || !one_of(layout.data_type, supported_quant_param_types)) {

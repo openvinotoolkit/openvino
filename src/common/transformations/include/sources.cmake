@@ -88,6 +88,7 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_gated_delta_net.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_moe_experts.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fused_names_cleanup.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gelu_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/glu_fusion.hpp
@@ -324,6 +325,7 @@ set(SMART_RESHAPE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/proposal_scales_stridedslice.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_sinking.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_to_1D.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/restore_traced_batch.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/shape_of_const_folding.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/smart_reshape.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/strided_slice_squeeze.hpp

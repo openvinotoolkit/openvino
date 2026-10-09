@@ -24,10 +24,20 @@ std::vector<layout> space_to_depth_inst::calc_output_layouts(space_to_depth_node
     auto input_layout = impl_param.get_input_layout(0);
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (impl_param.has_fused_primitives())
+    if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
+    }
 
     auto output_format = input_layout.format;
+
+    if (desc->grouped) {
+        auto output_shape = input_layout.get<ShapeType>();
+        output_shape[1] = desc->output_channels;
+        output_shape[2] = (output_shape[2] + desc->factor_t - 1) / desc->factor_t;
+        output_shape[3] = output_shape[3] / desc->factor_s;
+        output_shape[4] = output_shape[4] / desc->factor_s;
+        return {layout{output_shape, output_type, output_format}};
+    }
 
     ov::op::v0::SpaceToDepth op;
     op.set_block_size(desc->block_size);
@@ -58,30 +68,48 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node, 
         output_type = impl_param.get_output_element_type();
     }
 
-    if (depth_mode != SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST && depth_mode != SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)
+    if (desc->grouped) {
+        const size_t factor_volume = desc->factor_t * desc->factor_s * desc->factor_s;
+        if (format::spatial_num(input_layout.format) != 3 || input_layout.feature() * factor_volume % desc->output_channels != 0 ||
+            input_layout.spatial(1) % desc->factor_s != 0 || input_layout.spatial(0) % desc->factor_s != 0) {
+            CLDNN_ERROR_MESSAGE(desc->id, "GroupedSpaceToDepth requires a valid divisible 5D input");
+        }
+
+        const size_t z = (input_layout.spatial(2) + desc->factor_t - 1) / desc->factor_t;
+        const size_t y = input_layout.spatial(1) / desc->factor_s;
+        const size_t x = input_layout.spatial(0) / desc->factor_s;
+        auto out_size = tensor(TensorValue(input_layout.batch()), TensorValue(desc->output_channels), TensorValue(x), TensorValue(y), TensorValue(z));
+        return layout{output_type, input_format, out_size};
+    }
+
+    if (depth_mode != SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST && depth_mode != SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) {
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid mode for spaceToDepth: must be \"blocks_first\" or \"depth_first\" only");
+    }
 
-    if (block_size == 0)
+    if (block_size == 0) {
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid spaceToDepth block_size value (should be >= 1). Actual block size is" +
                                 std::to_string(block_size));
+    }
 
-    if (input_layout.spatial(0) % block_size != 0 || input_layout.spatial(1) % block_size != 0)
+    if (input_layout.spatial(0) % block_size != 0 || input_layout.spatial(1) % block_size != 0) {
         CLDNN_ERROR_MESSAGE(
             desc->id,
             "Sizes of spatials x, y must be divisible by block size. Actual spatial sizes are " +
                 std::to_string(input_layout.spatial(0)) + ", " + std::to_string(input_layout.spatial(1)) +
                     " (x, y). Actual block size is " + std::to_string(block_size));
+    }
 
 
     if (input_layout.format.dimension() == 5) {
-        if (input_layout.spatial(2) % block_size != 0)
+        if (input_layout.spatial(2) % block_size != 0) {
         CLDNN_ERROR_MESSAGE(
             desc->id,
             "Sizes of spatials z must be divisible by block size. Actual spatial sizes are " +
                 std::to_string(input_layout.spatial(2)) +
                     " (z). Block size is " + std::to_string(block_size));
+        }
 
         const size_t feature = input_layout.feature() * block_size * block_size * block_size;
         const size_t z = input_layout.spatial(2) / block_size;
@@ -107,14 +135,24 @@ std::string space_to_depth_inst::to_string(space_to_depth_node const& node) {
 
     std::stringstream primitive_description;
 
-    std::string depth_mode = (desc->mode == SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) ?
-                             "blocks_first" :
-                             "depth_first";
+    std::string depth_mode;
+    if (desc->grouped) {
+        depth_mode = "grouped_depth_first";
+    } else if (desc->mode == SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) {
+        depth_mode = "blocks_first";
+    } else {
+        depth_mode = "depth_first";
+    }
 
     json_composite space_to_depth_info;
     space_to_depth_info.add("input id", input.id());
     space_to_depth_info.add("mode", std::move(depth_mode));
     space_to_depth_info.add("block size", desc->block_size);
+    if (desc->grouped) {
+        space_to_depth_info.add("factor_t", desc->factor_t);
+        space_to_depth_info.add("factor_s", desc->factor_s);
+        space_to_depth_info.add("output_channels", desc->output_channels);
+    }
 
     node_info->add("space_to_depth info", space_to_depth_info);
     node_info->dump(primitive_description);

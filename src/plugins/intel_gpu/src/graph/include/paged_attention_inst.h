@@ -26,8 +26,9 @@ public:
                                          PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
 
-        if (typed_desc()->has_score_aggregation)
+        if (typed_desc()->has_score_aggregation) {
             input_ports.insert(PagedAttentionInputIdx::SCORE_AGGREGATION);
+        }
 
         if (typed_desc()->has_adaptive_rkv) {
             input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE);

@@ -36,8 +36,9 @@ namespace {
 inline bool is_prefill_stage(const RuntimeParams& params) {
     const auto& input_shape = params.input_layouts[0].get_partial_shape();
     const auto n_tokens = input_shape[1];
-    if (n_tokens.is_dynamic())
+    if (n_tokens.is_dynamic()) {
         return false;
+    }
     return n_tokens.get_length() > 1;
 }
 
@@ -49,8 +50,9 @@ inline bool use_batched_prefill(const GatherMatmulRuntimeParams* rtp) {
 
 inline bool has_fused_swiglu(const kernel_impl_params& params) {
     for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>())
+        if (fd.is_type<swiglu>()) {
             return true;
+        }
     }
     return false;
 }

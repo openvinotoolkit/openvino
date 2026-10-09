@@ -43,6 +43,16 @@
 
 'category: snippets':
 - 'src/common/snippets/**/*'
+- 'src/plugins/intel_cpu/src/emitters/snippets/**/*'
+- 'src/plugins/intel_cpu/src/emitters/tpp/**/*'
+- 'src/plugins/intel_cpu/src/transformations/snippets/**/*'
+- 'src/plugins/intel_cpu/src/transformations/tpp/**/*'
+- 'src/plugins/intel_cpu/src/nodes/**/subgraph.*'
+- 'src/plugins/intel_cpu/tests/unit/snippets_transformations/**/*'
+- 'src/plugins/intel_cpu/tests/functional/shared_tests_instances/snippets/**/*'
+- 'src/tests/functional/plugin/shared/src/snippets/**/*'
+- 'src/tests/functional/plugin/shared/include/snippets/**/*'
+- 'src/tests/ov_helpers/ov_snippets_models/**/*'
 
 'category: dependency_changes':
 - '**/requirement*.txt'
@@ -70,6 +80,11 @@
 - 'src/core/include/openvino/core/extension.hpp'
 - 'src/frontends/common/include/openvino/frontend/extension.hpp'
 - 'src/frontends/common/include/openvino/frontend/extension/**/*'
+
+'category: GGUF FE':
+- 'src/frontends/gguf/**/*'
+- 'tests/model_hub_tests/gguf/**/*'
+- 'tests/requirements_gguf'
 
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
@@ -154,7 +169,8 @@
 - 'tests/requirements_tensorflow'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/pytorch/**/*',
-        '!tests/model_hub_tests/jax/**/*']
+        '!tests/model_hub_tests/jax/**/*',
+        '!tests/model_hub_tests/gguf/**/*']
 
 'category: TFL FE':
 - 'src/frontends/tensorflow_lite/**/*'
@@ -170,7 +186,8 @@
 - 'tests/requirements_pytorch'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*',
-        '!tests/model_hub_tests/jax/**/*']
+        '!tests/model_hub_tests/jax/**/*',
+        '!tests/model_hub_tests/gguf/**/*']
 
 'category: JAX FE':
 - 'src/frontends/jax/**/*'
@@ -178,7 +195,8 @@
 - 'tests/layer_tests/jax_tests/**/*'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*',
-        '!tests/model_hub_tests/pytorch/**/*']
+        '!tests/model_hub_tests/pytorch/**/*',
+        '!tests/model_hub_tests/gguf/**/*']
 
 'category: tools':
 - any: ['tools/**',

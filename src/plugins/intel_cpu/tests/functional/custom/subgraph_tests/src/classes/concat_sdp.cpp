@@ -230,7 +230,8 @@ void ConcatSDPTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
     kv_shape[1] = static_cast<size_t>(m_headNumKV);
     auto past_shape = targetInputStaticShapes[1];
     past_shape[1] = static_cast<size_t>(m_headNumKV);
-    past_shape[2] = (idx == 0) ? 0 : m_accum_L_q;
+    const bool starts_conversation = idx == 0 || m_resetBefore.count(static_cast<size_t>(idx)) != 0;
+    past_shape[2] = starts_conversation ? 0 : m_accum_L_q;
     m_accum_L_q = past_shape[2] + q_shape[2];
 
     inputs.insert({params[0], fill_gaussian(params[0], q_shape, idx + 1)});
@@ -253,6 +254,12 @@ ConcatSDPTest::run_test(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
     m_accum_L_q = 0;
     std::vector<std::vector<ov::Tensor>> all;
     for (const auto& shapes : targetStaticShapes) {
+        const auto iter = static_cast<size_t>(m_iter);
+        if (iter != 0 && m_resetBefore.count(iter) != 0) {
+            for (auto&& state : req.query_state()) {
+                state.reset();
+            }
+        }
         generate_inputs(shapes);
         for (const auto& port : compiledModel.inputs()) {
             const auto& name = port.get_node()->get_friendly_name();
@@ -308,6 +315,29 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
             }
         }
     }
+}
+
+std::string ConcatSDPResetStateTest::getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj) {
+    return "Reset_" + ConcatSDPTest::getTestCaseName(obj);
+}
+
+void ConcatSDPResetStateTest::SetUp() {
+    ConcatSDPTest::SetUp();
+    // A declared past length of 0 marks the first prompt of a new conversation, so the
+    // states are reset right before that iteration.
+    const auto& inputShapes = std::get<1>(this->GetParam());
+    const auto& pastShapes = inputShapes[1].second;
+    for (size_t i = 1; i < pastShapes.size(); ++i) {
+        if (pastShapes[i][2] == 0) {
+            m_resetBefore.insert(i);
+        }
+    }
+}
+
+TEST_P(ConcatSDPResetStateTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ASSERT_FALSE(m_resetBefore.empty()) << "test shapes must contain at least one reset point";
+    run();
 }
 
 }  // namespace test

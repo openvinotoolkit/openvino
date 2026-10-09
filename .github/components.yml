@@ -36,6 +36,7 @@ CPU:
     - TF_FE
     - ONNX_FE
     - JAX_FE
+    - GGUF_FE
     - snippets
   build:
     - AUTO
@@ -106,6 +107,12 @@ PROXY:
     - inference
     - GPU
   build: []
+
+GGUF_FE:
+  revalidate:
+    - CPU # the per-op tests compile and infer their converted graphs on the CPU plugin
+  build:
+    - CPU
 
 IR_FE:
   revalidate:

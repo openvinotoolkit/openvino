@@ -35,7 +35,7 @@ JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params
 
     // Fused post_ops
     if (!params.fused_ops.empty()) {
-        kernel_selector::Datatype input_dt = params.outputs[0].GetDType();
+        kernel_selector::Datatype input_dt = params.inputs[0].GetDType();
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order = {"out_b", "out_f", "out_y + i", "out_x + offset"};

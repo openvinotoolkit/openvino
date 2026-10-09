@@ -23,8 +23,8 @@
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/util/pp.hpp"
 
-#ifdef __linux__
-# include <dlfcn.h>
+#if defined(__linux__) || defined(__APPLE__)
+#    include <dlfcn.h>
 #endif
 
 #if defined(__unix__) && !defined(__ANDROID__)
@@ -73,8 +73,9 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     // Constant GPU uploads use the engine before cldnn::program ctor syncs config to the engine.
     m_engine.set_enable_large_allocations(m_config.get_enable_large_allocations());
 
-    if (m_task_executor == nullptr)
+    if (m_task_executor == nullptr) {
         m_task_executor = cldnn::program::make_task_executor(m_config);
+    }
 
     if (m_compilation_context == nullptr) {
         m_compilation_context = cldnn::program::make_compilation_context(m_config);
@@ -88,7 +89,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
         (LPCSTR)CustomLayer::LoadFromFile,
         &nModule);
     GetModuleFileName(nModule, mpath, sizeof(mpath));
-#elif __linux__
+#elif defined(__linux__) || defined(__APPLE__)
     Dl_info dl_info;
     dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
     const char* mpath = dl_info.dli_fname;
@@ -186,8 +187,9 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
         // 2. We also check parameters of each operation, which means we have more
         //    reliable results of QueryNetwork call.
         prepare_build();
-        if (!data_types_are_supported(op.get()))
+        if (!data_types_are_supported(op.get())) {
             return false;
+        }
 
         CreateSingleLayerPrimitive(op);
         cleanup_build();
@@ -291,6 +293,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
 
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
+    prim->is_shape_of_subgraph_root = op.get_rt_info().count("gpu_shape_of_subgraph_root") != 0;
 
     if (this->m_config.get_enable_weightless()) {
         if (auto* data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
@@ -319,8 +322,9 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     if (id != prim_id) {
         primitive_ids[prim_id] = prim_id;
 
-        if (!multi_output_case)
+        if (!multi_output_case) {
             prim->origin_op_type_name = prim->type_string();
+        }
     }
 
     if (this->m_config.get_enable_profiling() && should_profile) {

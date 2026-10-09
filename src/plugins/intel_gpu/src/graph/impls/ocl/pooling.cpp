@@ -117,8 +117,9 @@ public:
         auto& pp = params;
 
         pp.poolType = cldnn_2_pool_type(primitive->mode);
-        pp.remainderAction = primitive->rounding_type == ov::op::RoundingType::CEIL ? kernel_selector::pool_remainder::CEIL
-                                                                                    : kernel_selector::pool_remainder::FLOOR;
+        const bool ceil_mode = primitive->rounding_type == ov::op::RoundingType::CEIL ||
+                               primitive->rounding_type == ov::op::RoundingType::CEIL_TORCH;
+        pp.remainderAction = ceil_mode ? kernel_selector::pool_remainder::CEIL : kernel_selector::pool_remainder::FLOOR;
 
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
         // adjusted to that, to work properly this calculation must take pad_end into account.
@@ -128,10 +129,11 @@ public:
                                  static_cast<size_t>(pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1] + input_layout.spatial(i));
         }
 
-        if (primitive->mode == pooling_mode::average && dynamic_mode)
+        if (primitive->mode == pooling_mode::average && dynamic_mode) {
             pp.divMode = kernel_selector::kernel_divider_mode::DYNAMIC_WITH_PADDING;
-        else
+        } else {
             pp.divMode = cldnn_2_kernel_divider_mode(primitive->mode);
+        }
 
         uint32_t kernel_z = kernel.size() >= 3 ? static_cast<uint32_t>(kernel[kernel.size() - 3]) : 1;
         uint32_t kernel_y = kernel.size() >= 2 ? static_cast<uint32_t>(kernel[kernel.size() - 2]) : 1;

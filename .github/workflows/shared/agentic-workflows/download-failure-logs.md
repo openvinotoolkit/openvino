@@ -5,8 +5,8 @@ description: |
   start from a compact summary instead of re-downloading logs itself.
 
   The step auto-detects its mode from the environment (no parameters required):
-    - run mode  (RUN_ID set):    analyse a single workflow run (CI Doctor — Merge Queue).
-    - pr mode   (PR_NUMBER set):  analyse every failed run on a pull request head commit.
+    - run mode  (RUN_ID set):    analyse a single workflow run (run-ID doctors: Merge Queue, Post-Commit).
+    - pr mode   (PR_NUMBER set):  analyse every failed run on a pull request head commit (on-demand /ci-doctor).
 
   Output layout (identical in both modes):
     - /tmp/gh-aw/agent/ci-doctor/logs/job-<job-id>.log
@@ -16,7 +16,7 @@ description: |
   logs/failed-runs.json and logs/run-<run-id>-failed-jobs.json.
 steps:
   - name: Set up Python
-    uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+    uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
     with:
       python-version: '3.13'
   - name: Install PyGithub

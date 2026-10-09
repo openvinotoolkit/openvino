@@ -30,8 +30,9 @@ layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_
         output_type = impl_param.get_output_element_type();
     }
 
-    if (axis < 0 || axis >= input_number_of_dims)
+    if (axis < 0 || axis >= input_number_of_dims) {
         CLDNN_ERROR_MESSAGE(desc->id, "Incorrect axis value for ScatterElementsUpdate: Axis must be positive and less than the input tensor dimension.");
+    }
 
     return layout{output_shape, output_type, input_format};
 }
@@ -62,17 +63,20 @@ void scatter_elements_update_inst::on_execute() {
 }
 
 void scatter_elements_update_inst::update_output_memory() {
-    if (!can_be_optimized() || _impl_params->is_dynamic())
+    if (!can_be_optimized() || _impl_params->is_dynamic()) {
         return;
+    }
 
     if (!_outputs.empty() && static_cast<bool>(_outputs[0])
-        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())) {
         return;
+    }
 
     build_deps();
 
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
         return;
+    }
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.

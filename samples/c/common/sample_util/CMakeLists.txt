@@ -4,7 +4,10 @@
 
 set(TARGET_NAME "ie_samples_util_c")
 
-file(GLOB_RECURSE SOURCES "*.c" "*.h")
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples_util/path_util.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/path_util.c
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${SOURCES})

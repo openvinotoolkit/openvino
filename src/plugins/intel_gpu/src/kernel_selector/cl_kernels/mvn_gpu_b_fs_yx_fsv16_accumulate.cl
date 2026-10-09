@@ -52,6 +52,11 @@
 
 #define ACCUMULATE_SUM(a, b, idx)       ((a) + (b))
 #define ACCUMULATE_SUM_SQ(a, b, idx)    ((a) + ((b) * (b)))
+// Variants for raw input0 reads: decode the stored value to the compute type before
+// accumulating. DECODE_INPUT0_COMPUTE_TYPE is identity for f32/f16/i8/u8 and the bf16
+// bit-pattern decode for bf16, so these are numerically identical to ACCUMULATE_SUM/SQ
+// for every non-bf16 dtype.
+#define ACCUMULATE_SUM_DECODED(a, b, idx) ((a) + DECODE_INPUT0_COMPUTE_TYPE(b))
 
 #define DECLARE_PACKED_ACCUMULATE_EARGS(Name, AccT, InputT, SliceSize, SlicePitch, Items, Workers, AccOp, ExtraArgsDecl, ExtraArgs)     \
 inline MAKE_VECTOR_TYPE(AccT, SliceSize) FUNC(Name)(const __global InputT* input,                                                       \

@@ -59,16 +59,9 @@ int main() {
 
     {
         //! [wrap_dmabuf_fd]
-        int32_t fd_heap = 0;  // create the DMA-BUF System Heap file descriptor
+        int dma_buf_fd = 0;
         ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::SHARED_BUF;
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap, memory_type);
-        //! [wrap_dmabuf_fd]
-    }
-
-    {
-        //! [wrap_dmabuf_fd]
-        ov::intel_npu::FileDescriptor file_descriptor{"file_path.bin", 0};  // create the FileDescriptor
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, file_descriptor);
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, dma_buf_fd, memory_type);
         //! [wrap_dmabuf_fd]
     }
 

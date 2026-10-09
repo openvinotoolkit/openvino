@@ -44,8 +44,9 @@ class memory_restricter {
         void insert(const Key& key) {
             if (ordered_keys_set1) {
                 auto it = std::lower_bound(ordered_keys_set1->begin(), ordered_keys_set1->end(), key);
-                if (it != ordered_keys_set1->end() && *it == key)
+                if (it != ordered_keys_set1->end() && *it == key) {
                     return;
+                }
             }
             auto it2 = std::lower_bound(ordered_keys_set2.begin(), ordered_keys_set2.end(), key);
             if (it2 == ordered_keys_set2.end() || *it2 != key) {
@@ -119,8 +120,9 @@ using memory_set = std::unordered_set<memory_user, memory_set_hasher>;
 
 struct memory_user_comparer {
     bool operator()(const memory_user& l_mu, const memory_user& r_mu) const {
-        if (l_mu._network_id != r_mu._network_id)
+        if (l_mu._network_id != r_mu._network_id) {
             return l_mu._network_id < r_mu._network_id;
+        }
         return l_mu._unique_id < r_mu._unique_id;
     }
 };
@@ -136,14 +138,18 @@ struct memory_record {
 
 struct padded_pool_comparer {
     bool operator()(const layout& ll, const layout& rl) const {
-        if (ll.format != rl.format)
+        if (ll.format != rl.format) {
             return ll.format < rl.format;
-        if (ll.data_type != rl.data_type)
+        }
+        if (ll.data_type != rl.data_type) {
             return ll.data_type < rl.data_type;
-        if (ll.spatial(0) != rl.spatial(0))
+        }
+        if (ll.spatial(0) != rl.spatial(0)) {
             return ll.spatial(0) < rl.spatial(0);
-        if (ll.spatial(1) != rl.spatial(1))
+        }
+        if (ll.spatial(1) != rl.spatial(1)) {
             return ll.spatial(1) < rl.spatial(1);
+        }
         return ll.data_padding < rl.data_padding;
     }
 };

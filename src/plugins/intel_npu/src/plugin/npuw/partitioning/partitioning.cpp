@@ -4,10 +4,12 @@
 
 #include "partitioning.hpp"
 
+#include <limits>
 #include <memory>
 #include <set>
 
 #include "../logging.hpp"
+#include "../npuw_transformations/detect_causal_mask.hpp"
 #include "../util.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
@@ -1420,7 +1422,7 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
                 LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
                                     << ": It is safe to keep this bank in function");
                 func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
-            } else {
+            } else if (ov::op::util::is_constant(node)) {
                 LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
                                     << ": This const op will be cut-off from the function");
             }
@@ -1533,11 +1535,6 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         }
         return false;
     };
-    // Helper to check if a constant is MoE Gather indices (marked by GatherTo2DGather pass)
-    auto is_moe_gather_const = [](const CTPtr& const_node) -> bool {
-        const auto& rt_info = const_node->get_rt_info();
-        return rt_info.count("npuw_moe_gather_indices") > 0;
-    };
 
     auto check_and_mark = [&](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
         std::unordered_set<CTPtr> instances;
@@ -1551,9 +1548,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_BLOCK();
 
         bool is_tiny = ov::npuw::partitioning::traits::is_tiny_shape(proto_shape);
-        bool is_moe_gather = is_moe_gather_const(proto_node);
-        if (!is_tiny && !is_moe_gather) {
-            LOG_DEBUG("[CUT ] Not tiny shape and not MoE Gather indices - will be cut-off from the function");
+        if (!is_tiny) {
+            LOG_DEBUG("[CUT ] Not tiny shape - will be cut-off from the function");
             return;
         }
 
@@ -1572,11 +1568,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             return;
         }
 
-        if (is_moe_gather) {
-            LOG_DEBUG("[KEEP] MoE Gather indices constant - identical across all repeats");
-        } else {
-            LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
-        }
+        LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
         for (auto&& const_node : instances) {
             func_group.consts_to_keep.insert(const_node);
         }
@@ -2097,10 +2089,52 @@ void Partitioner::attention(const std::string& func_name) {
     // Try HFA (Host Flash Attention)
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
-        f._host_flash_attention =
-            ov::npuw::function::HostFlashAttention::from(f._model,
-                                                         cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>(),
-                                                         cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
+
+        // Consistency check: HostFlashAttention::from() inspects a single representative
+        // instance (f._model) of this repeated "attn" function to decide whether the
+        // compiled tile model can structurally drop the mask input. That decision is only
+        // valid if all funcall instances sharing this function have the same mask kind --
+        // otherwise it's a correctness bug (e.g. a Causal representative stripping a mask
+        // a SlidingWindow instance still needs), not just a missed optimization. This is a
+        // defensive backstop, not the primary separation mechanism: distinct mask kinds
+        // normally yield structurally distinct subgraphs, so partitioning already tends to
+        // keep them in separate functions. If a mix is still found here, disable
+        // mask-skipping for the whole function (safe: only forgoes an optimization).
+        //
+        // NPUW_SDPA_MASK_RT_KEY encodes mask kind + (for sliding window) window size in
+        // one int64_t, so raw-value comparison also catches differing window sizes.
+        std::optional<int64_t> common_mask_value;
+        bool mask_kind_consistent = true;
+        for (const auto& mdl : all_functions.at(func_name).mdls) {
+            const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(mdl);
+            if (!pattern_nodes.add_node) {
+                continue;
+            }
+
+            int64_t mask_value = std::numeric_limits<int64_t>::min();
+            const auto& rt_info = pattern_nodes.add_node->get_rt_info();
+            if (auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY); it != rt_info.end()) {
+                mask_value = it->second.as<int64_t>();
+            }
+            if (!common_mask_value) {
+                common_mask_value = mask_value;
+            } else if (*common_mask_value != mask_value) {
+                LOG_WARN("NPUW: mixed mask types (e.g. sliding-window + global/causal attention, or different "
+                         "sliding window sizes) detected across funcall instances sharing the same repeated 'attn' "
+                         "function '"
+                         << func_name
+                         << "'. The mask-skipping optimization's compile-time decision is based on a single "
+                            "representative instance, which would be unsafe here -- disabling mask skipping for "
+                            "this function.");
+                mask_kind_consistent = false;
+                break;
+            }
+        }
+
+        f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(
+            f._model,
+            cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>(),
+            mask_kind_consistent && cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;
@@ -2146,6 +2180,7 @@ void Partitioner::optimize(const std::string& func_name) {
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
         if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && !part_ctx.use_host_gather_quant) {
+            rewr.add_matcher<ov::npuw::patterns::opt::ConvertDQVocab>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
@@ -2277,6 +2312,27 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Convert parameters to f16 where required
         do_cvtf16(ctx);
+
+        // Add lazy Sub128 parameters while retaining the original sources when they are still shared.
+        for (const auto& shifted_and_source : ctx.closures_to_subtract_128) {
+            const auto& shifted_param = shifted_and_source.first;
+            const auto& source_param = shifted_and_source.second;
+            const auto source_idx = f._model->get_parameter_index(source_param);
+            NPUW_ASSERT(source_idx >= static_cast<int64_t>(f._param_offset));
+
+            new_params.push_back(shifted_param);
+            const auto source_closure_idx = source_idx - f._param_offset;
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                funcall._lazy_closure.push_back(funcall._lazy_closure[source_closure_idx].subtract_128());
+                funcall._closure.emplace_back();
+                funcall._is_lazy_unpack.push_back(false);
+            });
+
+            if (source_param->output(0).get_target_inputs().empty() && to_remove_idx.insert(source_idx).second) {
+                to_remove.push_back(source_param);
+            }
+        }
 
         // Host-side gather, pt 1. Add new parameters first
         if (ctx.params_to_gather) {

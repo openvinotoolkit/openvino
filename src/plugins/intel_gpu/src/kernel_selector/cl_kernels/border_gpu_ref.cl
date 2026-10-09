@@ -196,5 +196,5 @@ KERNEL(border_gpu_ref)(
 #endif
 
     const int out_pos = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_w, out_z, out_y, out_x);
-    output[out_pos] = in_val;
+    output[out_pos] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(in_val));
 }

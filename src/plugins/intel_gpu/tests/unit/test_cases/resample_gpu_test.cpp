@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/resample.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -346,6 +347,9 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         case data_types::f16:
             fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
+        case data_types::bf16:
+            fill_random_typed<ov::bfloat16>(mem, -127, 127, 2);
+            break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
             break;
@@ -456,6 +460,8 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
                 compare_nearest_typed<float>(input, output, 0);
             } else if (dt == data_types::f16) {
                 compare_nearest_typed<ov::float16>(input, output, 0);
+            } else if (dt == data_types::bf16) {
+                compare_nearest_typed<ov::bfloat16>(input, output, 0);
             } else if (dt == data_types::i8) {
                 compare_nearest_typed<int8_t>(input, output, 0);
             } else if (dt == data_types::u8) {
@@ -492,8 +498,9 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         std::string kernel = "";
         if (!is_caching_test) {
             for (auto& info : net->get_primitives_info()) {
-                if (info.original_id == "resample")
+                if (info.original_id == "resample") {
                     kernel = info.kernel_id;
+                }
             }
         }
     }
@@ -530,6 +537,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_resample,
 
                             .smoke_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .smoke_params(data_types::bf16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                         ));
@@ -589,6 +597,9 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
             break;
         case data_types::f16:
             fill_random_typed<ov::float16>(mem, -127, 127, 2);
+            break;
+        case data_types::bf16:
+            fill_random_typed<ov::bfloat16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -681,6 +692,8 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
                 compare_outputs<float>(output, output_opt);
             } else if (params.input_type == data_types::f16) {
                 compare_outputs<ov::float16>(output, output_opt);
+            } else if (params.input_type == data_types::bf16) {
+                compare_outputs<ov::bfloat16>(output, output_opt);
             } else if (params.input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.input_type == data_types::u8) {
@@ -724,6 +737,7 @@ INSTANTIATE_TEST_SUITE_P(caffe_smoke_caffe_fsv16,
                             caffe_resample_random_test_param_generator()
                             .smoke_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .smoke_params(data_types::bf16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                         ));
 
 INSTANTIATE_TEST_SUITE_P(caffe_smoke_caffe_fsv32,
@@ -731,6 +745,7 @@ INSTANTIATE_TEST_SUITE_P(caffe_smoke_caffe_fsv32,
                         testing::ValuesIn(
                             caffe_resample_random_test_param_generator()
                             .smoke_params(data_types::f16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
+                            .smoke_params(data_types::bf16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
                         ));
 
 TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
@@ -2021,6 +2036,9 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         case data_types::f16:
             fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
+        case data_types::bf16:
+            fill_random_typed<ov::bfloat16>(mem, -127, 127, 2);
+            break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
             break;
@@ -2055,7 +2073,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
                             auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                             auto opt_out_val = opt_ptr[opt_out_offset];
                             ASSERT_EQ(ref_out_offset, opt_out_offset);
-                            if (std::is_same<T, ov::float16>::value) {
+                            if (std::is_same<T, ov::float16>::value || std::is_same<T, ov::bfloat16>::value) {
                                 ASSERT_NEAR(static_cast<float>(opt_out_val), static_cast<float>(ref_out_val), 1.e-1f);
                             } else {
                                 ASSERT_EQ(opt_out_val, ref_out_val);
@@ -2123,6 +2141,8 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
                 compare_outputs<float>(output, output_opt);
             } else if (params.input_type == data_types::f16) {
                 compare_outputs<ov::float16>(output, output_opt);
+            } else if (params.input_type == data_types::bf16) {
+                compare_outputs<ov::bfloat16>(output, output_opt);
             } else if (params.input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.input_type == data_types::u8) {
@@ -2272,6 +2292,8 @@ struct resample_onnx_random_test : resample_opt_random_test {
                 compare<float>(output, output_opt);
             } else if (params.input_type == data_types::f16) {
                 compare<ov::float16>(output, output_opt);
+            } else if (params.input_type == data_types::bf16) {
+                compare<ov::bfloat16>(output, output_opt);
             } else if (params.input_type == data_types::i8) {
                 compare<int8_t>(output, output_opt);
             } else if (params.input_type == data_types::u8) {
@@ -2308,16 +2330,24 @@ INSTANTIATE_TEST_SUITE_P(resample_onnx_smoke_not_aligned,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
                                 { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::bf16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
+                                { data_types::bf16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::bf16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
                                 { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
+                                { data_types::bf16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
                                 { data_types::f16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::bf16, {1, 24, 13, 13},  {1, 24, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
 
                                 { data_types::f16, {1,  9, 13, 13, 5}, { 1, 9, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::bf16, {1,  9, 13, 13, 5}, { 1, 9, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
                                 { data_types::f32, {1,  9, 13, 13, 5}, { 1, 9, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
                                 { data_types::f16, {16, 9,  7,  7, 5}, {16, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
+                                { data_types::bf16, {16, 9,  7,  7, 5}, {16, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
                                 { data_types::f32, {16, 9,  7,  7, 5}, {16, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
                                 { data_types::f16, {32, 9,  7,  7, 5}, {32, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+                                { data_types::bf16, {32, 9,  7,  7, 5}, {32, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
                                 { data_types::f32, {32, 9,  7,  7, 5}, {32, 9, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
 
                                 { data_types::i8, {1,  9, 13, 13, 5}, {1,  9, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
@@ -2349,6 +2379,12 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest,
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
+
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
                             }
                         ));
 
@@ -2357,8 +2393,11 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_padding,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 1, 1}, {0, 0, 1, 1}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 1, 1}, {0, 0, 1, 1}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 0, 0}, {0, 0, 1, 1}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 0, 0}, {0, 0, 1, 1}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {0, 0, 1, 1}, {0, 0, 0, 0}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {0, 0, 1, 1}, {0, 0, 0, 0}},
                             }
                         ));
 
@@ -2367,11 +2406,17 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_simple,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::bf16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {2, 32, 14, 14},  {2, 32, 28, 28},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32, {}, {}},
+                                { data_types::bf16, {2, 32, 14, 14},  {2, 32, 28, 28},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32, {}, {}},
                             }
                         ));
 
@@ -2393,6 +2438,11 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_5d_nearest,
                                 { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
                                 { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
                                 { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+
+                                { data_types::bf16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::bf16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
+                                { data_types::bf16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
+                                { data_types::bf16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
                             }
                         ));
 
@@ -2401,10 +2451,13 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_5d_onnx,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
                                  { data_types::f16, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                 { data_types::bf16, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
                                  { data_types::f32, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
                                  { data_types::f16, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
+                                 { data_types::bf16, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
                                  { data_types::f32, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
                                  { data_types::f16, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+                                 { data_types::bf16, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
                                  { data_types::f32, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
 
                                  { data_types::i8, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
@@ -2454,8 +2507,11 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_padding,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {0, 0, 1, 1, 1}, {0, 0, 1, 1, 1}},
+                                { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {0, 0, 1, 1, 1}, {0, 0, 1, 1, 1}},
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 0, 0, 0}, {0, 0, 1, 1, 1}},
+                                { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 0, 0, 0}, {0, 0, 1, 1, 1}},
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 1, 1, 1}, {0, 0, 0, 0, 0}},
+                                { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 1, 1, 1}, {0, 0, 0, 0, 0}},
                             }
                         ));
 
@@ -2464,10 +2520,15 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_simple,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
+                                { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
                                 { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::bf16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
                             }
                         ));
 
@@ -2654,6 +2715,9 @@ struct resample_cubic_random_test : testing::TestWithParam<resample_cubic_random
         case data_types::f16:
             fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
+        case data_types::bf16:
+            fill_random_typed<ov::bfloat16>(mem, -127, 127, 2);
+            break;
         default:
             break;
         }
@@ -2741,11 +2805,13 @@ struct resample_cubic_random_test : testing::TestWithParam<resample_cubic_random
         // Compare results
         // Bicubic overshoot from [-127,127] inputs can reach ~179 (FP16 ULP=0.125 in [128,256)).
         // 16 fma accumulations in different order between ref/opt can diverge by 2-3 ULPs.
-        float tolerance = (params.input_type == data_types::f16) ? 5.e-1f : 1.e-4f;
+        float tolerance = (params.input_type == data_types::f16 || params.input_type == data_types::bf16) ? 5.e-1f : 1.e-4f;
         if (params.input_type == data_types::f32) {
             compare_outputs<float>(output_ref, output_opt, tolerance);
         } else if (params.input_type == data_types::f16) {
             compare_outputs<ov::float16>(output_ref, output_opt, tolerance);
+        } else if (params.input_type == data_types::bf16) {
+            compare_outputs<ov::bfloat16>(output_ref, output_opt, tolerance);
         }
     }
 };
@@ -2776,6 +2842,11 @@ INSTANTIATE_TEST_SUITE_P(resample_cubic_bfyx_smoke,
                                 { data_types::f16, {2, 3, 4, 4},    {2, 3, 8, 8} },
                                 { data_types::f16, {1, 16, 7, 7},   {1, 16, 14, 14} },
                                 { data_types::f16, {1, 3, 13, 13},  {1, 3, 26, 26} },
+                                // bf16 cases
+                                { data_types::bf16, {1, 1, 5, 5},    {1, 1, 10, 10} },
+                                { data_types::bf16, {2, 3, 4, 4},    {2, 3, 8, 8} },
+                                { data_types::bf16, {1, 16, 7, 7},   {1, 16, 14, 14} },
+                                { data_types::bf16, {1, 3, 13, 13},  {1, 3, 26, 26} },
                             }
                         ));
 
@@ -2789,8 +2860,9 @@ TEST(resample_gpu, pillow_identity_resample_no_crash) {
 
     // Fill with sequential values
     std::vector<float> input_data(b * f * y * x);
-    for (size_t i = 0; i < input_data.size(); ++i)
+    for (size_t i = 0; i < input_data.size(); ++i) {
         input_data[i] = static_cast<float>(i + 1);
+    }
     set_values(input_mem, input_data);
 
     // Test both BILINEAR_PILLOW and BICUBIC_PILLOW with identity spatial size
@@ -2832,6 +2904,245 @@ TEST(resample_gpu, pillow_identity_resample_no_crash) {
     }
 }
 
+// Simple 2x upscale test exercising the pil_ref kernel with half-precision inputs.
+// Runs for both BILINEAR_PILLOW and BICUBIC_PILLOW and verifies the half-precision
+// output matches an f32 reference produced by the same kernel.
+template <typename T>
+void test_pillow_half_precision(data_types dt) {
+    auto& engine = get_test_engine();
+
+    const int32_t b = 1, f = 2, y = 4, x = 4;
+    const int32_t out_y = 8, out_x = 8;
+
+    std::vector<float> input_data(b * f * y * x);
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        input_data[i] = static_cast<float>(i % 16) - 7.0f;
+    }
+
+    std::vector<resample::InterpolateOp::InterpolateMode> modes = {
+        resample::InterpolateOp::InterpolateMode::BILINEAR_PILLOW,
+        resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW,
+    };
+
+    auto run = [&](data_types type, resample::InterpolateOp::InterpolateMode mode) {
+        auto input_mem = engine.allocate_memory({ type, format::bfyx, { b, f, x, y } });
+        if (type == data_types::f32) {
+            set_values(input_mem, input_data);
+        } else {
+            std::vector<T> typed(input_data.begin(), input_data.end());
+            set_values(input_mem, typed);
+        }
+
+        topology topology;
+        topology.add(input_layout("input", input_mem->get_layout()));
+        topology.add(resample("resample", input_info("input"),
+                              std::vector<int64_t>{out_y, out_x},  // sizes
+                              std::vector<float>{},                 // scales: unused
+                              std::vector<int64_t>{2, 3},           // axes: Y, X
+                              {},                                   // pads_begin
+                              {},                                   // pads_end
+                              0,                                    // antialias
+                              -0.75f,                               // cube_coeff
+                              mode,
+                              resample::InterpolateOp::ShapeCalcMode::SIZES));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        cldnn::network net(engine, topology, config);
+        net.set_input_data("input", input_mem);
+        return net.execute().at("resample").get_memory();
+    };
+
+    for (auto mode : modes) {
+        auto ref_mem = run(data_types::f32, mode);
+        auto out_mem = run(dt, mode);
+
+        cldnn::mem_lock<float, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+
+        ASSERT_EQ(ref_ptr.size(), out_ptr.size());
+        for (size_t i = 0; i < ref_ptr.size(); ++i) {
+            ASSERT_NEAR(static_cast<float>(out_ptr[i]), ref_ptr[i], 1.0f)
+                << "Mismatch at index " << i << " for mode " << static_cast<int>(mode);
+        }
+    }
+}
+
+TEST(resample_gpu, pillow_f16) {
+    test_pillow_half_precision<ov::float16>(data_types::f16);
+}
+
+TEST(resample_gpu, pillow_bf16) {
+    test_pillow_half_precision<ov::bfloat16>(data_types::bf16);
+}
+
 TEST(resample_gpu, basic_in2x3x2x2_nearest_cached) {
     test_basic_in2x3x2x2_nearest<float>(true);
+}
+
+// resample_opt handles LINEAR_ONNX for 4D inputs.
+TEST(resample_gpu, opt_linear_onnx_4d_f16) {
+    auto& engine = get_test_engine();
+
+    tensor input_size{1, 8, 13, 13};
+    tensor output_size{1, 8, 26, 26};
+    auto in_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    std::vector<ov::float16> in_vals(input_size.count());
+    for (size_t i = 0; i < in_vals.size(); ++i) {
+        in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 17) - 0.8f);
+    }
+    set_values<ov::float16>(in_mem, in_vals);
+
+    auto make_net = [&](const std::string& kernel) {
+        topology topo(input_layout("in", in_mem->get_layout()),
+                      resample("resample", input_info("in"), output_size, 8,
+                                resample::InterpolateOp::InterpolateMode::LINEAR_ONNX));
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "resample" }));
+        ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, kernel };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample", impl } }));
+        network net(engine, topo, config);
+        net.set_input_data("in", in_mem);
+        return net.execute().at("resample").get_memory();
+    };
+
+    auto out_ref = make_net("resample_ref");
+    auto out_opt = make_net("resample_opt");
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(out_ref, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(out_opt, get_test_stream());
+    for (size_t i = 0; i < ref_ptr.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_ptr[i], opt_ptr[i], 1e-2f))
+            << "Mismatch at " << i << ": ref " << ref_ptr[i] << " opt " << opt_ptr[i];
+    }
+}
+
+namespace {
+// Runs a single-node resample network without any forced implementation and returns the
+// selected kernel id (e.g. "resample_opt__f16") for the "resample" node. This exercises the
+// real kernel-selector path, so the assertions below fail if resample_opt is ever chosen for
+// an input it rejects (or never chosen for one it should handle).
+//
+// The input is created directly in b_fs_yx_fsv16 (a format both resample_opt and resample_onnx
+// support, unlike bfyx which only resample_ref handles) so that the selector actually has to
+// choose between resample_opt and resample_onnx. No force_implementations is used.
+std::string select_resample_kernel(const tensor& input_size,
+                                   const tensor& output_size,
+                                   std::vector<size_t> pads_begin,
+                                   std::vector<size_t> pads_end) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout(data_types::f16, format::b_fs_yx_fsv16, input_size);
+    auto in_mem = engine.allocate_memory(in_layout);
+    std::vector<ov::float16> in_vals(input_size.count());
+    for (size_t i = 0; i < in_vals.size(); ++i) {
+        in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 17) - 0.8f);
+    }
+    set_values<ov::float16>(in_mem, in_vals);
+
+    auto resample_prim = resample("resample", input_info("in"), output_size, 8,
+                                  resample::InterpolateOp::InterpolateMode::LINEAR_ONNX);
+    resample_prim.pads_begin = std::move(pads_begin);
+    resample_prim.pads_end = std::move(pads_end);
+
+    topology topo(input_layout("in", in_layout), resample_prim);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "resample" }));
+    network net(engine, topo, config);
+    net.set_input_data("in", in_mem);
+    net.execute();
+
+    for (const auto& info : net.get_primitives_info()) {
+        if (info.original_id == "resample") {
+            return info.kernel_id;
+        }
+    }
+    return {};
+}
+}  // namespace
+
+// Selector-level coverage (no forced implementation): an unpadded 4-D LINEAR_ONNX resample
+// with unchanged batch/feature must select the higher-priority resample_opt kernel
+// (FORCE_PRIORITY_3), not fall back to resample_onnx (FORCE_PRIORITY_4) or resample_ref.
+TEST(resample_gpu, opt_linear_onnx_4d_selector) {
+    const std::string kernel_id = select_resample_kernel({ 1, 8, 13, 13 }, { 1, 8, 26, 26 }, {}, {});
+    EXPECT_EQ(kernel_id.rfind("resample_opt", 0), 0)
+        << "Expected resample_opt to be selected for an unpadded 4-D LINEAR_ONNX resample, got: " << kernel_id;
+}
+
+// Selector-level coverage (no forced implementation): a 4-D LINEAR_ONNX resample with
+// non-zero spatial padding must NOT select resample_opt (it does not implement OOB-to-zero
+// for padded coordinates), and must fall back to resample_onnx which does handle padding.
+TEST(resample_gpu, onnx_linear_onnx_4d_padding_selector) {
+    const std::string kernel_id = select_resample_kernel({ 1, 8, 13, 13 }, { 1, 8, 26, 26 },
+                                                         { 0, 0, 1, 1 }, { 0, 0, 1, 1 });
+    // Starts with "resample_onnx" implies resample_opt (which rejects padding) was not selected.
+    EXPECT_EQ(kernel_id.rfind("resample_onnx", 0), 0)
+        << "Expected resample_onnx to be selected for a padded 4-D LINEAR_ONNX resample, got: " << kernel_id;
+}
+
+// Regression: the resample_opt kernel previously defined FUSED_OPS twice in NEAREST mode
+// (a branch-local block plus the shared one), which failed the CL build with
+// CL_BUILD_PROGRAM_FAILURE as soon as an eltwise op fused into the node. This forces
+// resample_opt for a NEAREST node that carries a fused eltwise.
+TEST(resample_gpu, opt_nearest_fused_eltwise_builds) {
+    auto& engine = get_test_engine();
+
+    tensor input_size{1, 8, 13, 13};
+    tensor output_size{1, 8, 26, 26};
+    auto in_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    std::vector<ov::float16> in_vals(input_size.count());
+    for (size_t i = 0; i < in_vals.size(); ++i) {
+        in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 13) - 0.6f);
+    }
+    set_values<ov::float16>(in_mem, in_vals);
+    // the scale has the resample output shape so the eltwise product broadcasts over it
+    auto scale = engine.allocate_memory({ data_types::f16, format::bfyx, output_size });
+    set_values<ov::float16>(scale, std::vector<ov::float16>(output_size.count(), ov::float16(0.5f)));
+
+    // eltwise wired after the resample; the pass manager fuses it into the resample node.
+    topology topo(input_layout("in", in_mem->get_layout()),
+                  data("scale", scale),
+                  resample("resample", input_info("in"), output_size, 8,
+                            resample::InterpolateOp::InterpolateMode::NEAREST),
+                  eltwise("scaled", input_info("resample"), input_info("scale"), eltwise_mode::prod),
+                  reorder("output", input_info("scaled"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "output" }));
+    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "resample_opt" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample", impl } }));
+    network net(engine, topo, config);
+    net.set_input_data("in", in_mem);
+
+    // Before the FUSED_OPS structure fix this throws (CL build failure); it must now build and run.
+    const auto primitives_info = net.get_primitives_info();
+    const auto resample_info = std::find_if(primitives_info.begin(), primitives_info.end(), [](const primitive_info& info) {
+        return info.original_id == "resample";
+    });
+    ASSERT_NE(resample_info, primitives_info.end());
+    ASSERT_NE(std::find(resample_info->c_fused_ids.begin(), resample_info->c_fused_ids.end(), "scaled"),
+              resample_info->c_fused_ids.end());
+    auto out_opt = net.execute().at("output").get_memory();
+
+    // The nearest-2x sample picks one of the input values; the eltwise multiplies it by 0.5.
+    // We check that invariant instead of comparing against a free-selection reference, whose
+    // resample kernel may use a different coordinate convention for NEAREST.
+    std::unordered_set<float> in_set(in_vals.begin(), in_vals.end());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(out_opt, get_test_stream());
+    for (size_t i = 0; i < opt_ptr.size(); ++i) {
+        float v = float(opt_ptr[i]);
+        ASSERT_TRUE(std::isfinite(v)) << "Non-finite output at " << i;
+        // v must equal 0.5 * input[j] for some input j.
+        bool found = false;
+        for (float src : in_set) {
+            if (std::abs(v - 0.5f * src) < 1e-2f) {
+                found = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(found) << "Output " << v << " at " << i << " is not 0.5 * any input value.";
+    }
 }

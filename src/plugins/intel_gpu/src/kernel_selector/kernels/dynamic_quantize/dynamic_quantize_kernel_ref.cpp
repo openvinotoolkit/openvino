@@ -49,8 +49,9 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
         for (size_t i = 0; i < scales_output_order.size(); i++) {
             ss << default_dim_order[scales_output_order[i]];
 
-            if (i + 1 != scales_output_order.size())
+            if (i + 1 != scales_output_order.size()) {
                 ss << ", ";
+            }
         }
 
         jit.AddConstant(MakeJitConstant("SCALES_OUTPUT_ORDER", ss.str()));
@@ -101,8 +102,9 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
                             params.outputs[0].Batch().v, ",", params.outputs[0].Feature().v, ",", params.outputs[0].Y().v, ",", params.outputs[0].X().v, ")");
 
     // Grouped quantization is supported only over y axis
-    if (params.group_sizes[2] > 1 && params.group_sizes[2] != UINT64_MAX)
+    if (params.group_sizes[2] > 1 && params.group_sizes[2] != UINT64_MAX) {
         y_size = params.outputs[0].Y().v / params.group_sizes[2];
+    }
 
     dispatchData.gws = {batch_size * feature_size, y_size, x_size};
     dispatchData.lws = {1, 1, 1};
@@ -124,8 +126,9 @@ void DynamicQuantizeKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 KernelsData DynamicQuantizeKernelRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::DYNAMIC_QUANTIZE);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const dynamic_quantize_params& prim_params = static_cast<const dynamic_quantize_params&>(params);
     auto dispatchData = SetDefault(prim_params);
@@ -161,8 +164,9 @@ KernelsPriority DynamicQuantizeKernelRef::GetKernelsPriority(const Params& /*par
 }
 
 bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
-    if (!KernelBaseOpenCL::Validate(params))
+    if (!KernelBaseOpenCL::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
     if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F4E2M1, Datatype::F8E4M3, Datatype::F8E5M2})) {

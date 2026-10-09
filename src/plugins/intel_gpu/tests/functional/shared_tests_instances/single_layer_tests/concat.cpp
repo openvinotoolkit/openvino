@@ -20,6 +20,7 @@ std::vector<std::vector<ov::Shape>> inShapes = {
 };
 std::vector<ov::element::Type> netPrecisions = {ov::element::f32,
                                                 ov::element::f16,
+                                                ov::element::bf16,
                                                 ov::element::i64};
 
 

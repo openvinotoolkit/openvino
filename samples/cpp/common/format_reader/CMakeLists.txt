@@ -4,9 +4,26 @@
 
 set (TARGET_NAME "format_reader")
 
-file (GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file (GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
-file (GLOB LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
+set(MAIN_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/MnistUbyte.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/bmp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/format_reader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/npy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/opencv_wrapper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/yuv_nv12.cpp
+)
+set(LIBRARY_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/MnistUbyte.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/bmp.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/npy.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/opencv_wrapper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/register.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/yuv_nv12.h
+)
+set(LIBRARY_PUBLIC_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/format_reader.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/format_reader_ptr.h
+)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

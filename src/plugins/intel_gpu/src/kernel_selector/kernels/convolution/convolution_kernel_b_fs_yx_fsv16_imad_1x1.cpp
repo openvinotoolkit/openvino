@@ -24,11 +24,13 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Convolution_kernel_b_fs_yx_fsv16_imad
     constexpr size_t max_block_elements = 32;
     for (size_t bs = 1; bs <= 2 * simd; ++bs) {
         for (size_t bf = 1; bf <= 4; ++bf) {
-            if (bs * bf > max_block_elements)
+            if (bs * bf > max_block_elements) {
                 continue;
+            }
             for (size_t split = 1; split <= 8; ++split) {
-                if (bf > split)
+                if (bf > split) {
                     continue;
+                }
                 for (auto exe : ConvolutionKernelBase::autoTuneOptions) {
                     all_tune_params.push_back(AutoTuneParams{ bs, bf, split, exe });
                 }
@@ -170,8 +172,9 @@ KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(co
     }
 
     // Better to use kernel with 4 input features in a loop
-    if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f)
+    if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f) {
         priority = FORCE_PRIORITY_4;
+    }
 
     return priority;
 }
@@ -190,25 +193,30 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) c
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    if (conv_params.groups != 1)
+    if (conv_params.groups != 1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
+            (conv_params.compensation.empty())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if ((conv_params.activations_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
+            (conv_params.compensation.empty())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
-        if (conv_params.weights_zero_points.empty())
+        if (conv_params.weights_zero_points.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else {
         if (!conv_params.activations_zero_points.empty() ||
             !conv_params.weights_zero_points.empty() ||
-            !conv_params.compensation.empty())
+            !conv_params.compensation.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;
@@ -217,10 +225,12 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) c
 WeightsLayout Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetPreferredWeightsLayout(const convolution_params& params) const {
     // TODO Auto tune index is needed in GetPreferredWeightsLayout to select correct weights layout
     auto tparams = GetAutoTuneParams(params, -1);
-    if (tparams.out_block_features == 2)
+    if (tparams.out_block_features == 2) {
         return WeightsLayout::os_is_zyx_osv32_isv16;
-    if (tparams.out_block_features == 4)
+    }
+    if (tparams.out_block_features == 4) {
         return WeightsLayout::os_is_zyx_osv64_isv16;
+    }
 
     return WeightsLayout::os_is_yx_osv16_isv16;
 }
@@ -238,8 +248,9 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
 
     size_t total_spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
     // Try two features per work-item
-    if (params.outputs[0].Feature().v % 32 == 0 || params.outputs[0].Feature().v > 32 * 2)
+    if (params.outputs[0].Feature().v % 32 == 0 || params.outputs[0].Feature().v > 32 * 2) {
         block_features = 2;
+    }
 
     // Non strict inequality here leads to some regressions, ie: [1, 64, 19, 19] (*) [384, 64, 1, 1]
     bool can_split = params.weights.IFM().v > 4 * fsv;
@@ -266,11 +277,13 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
                 bool c_block_write = (overhang == 0 && !output_pad) || params.outputs[0].X().v % block == 0;
 
                 // Kernel work-around for spills/inefficient loop order
-                if (can_split && !c_occupancy && block > 14 && block_features > 1)
+                if (can_split && !c_occupancy && block > 14 && block_features > 1) {
                     break;
+                }
 
-                if (preserve_occupancy && !c_occupancy)
+                if (preserve_occupancy && !c_occupancy) {
                     break;
+                }
 
                 if (overhang <= min_overhang && (!block_write_found || c_block_write)) {
                     best_block = block;
@@ -291,8 +304,9 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
             std::vector<size_t> check_split = { 4 };
             size_t ifm_blocks = CeilDiv(params.weights.IFM().v, fsv);
             for (auto split : check_split) {
-                if (split > ifm_blocks)
+                if (split > ifm_blocks) {
                     break;
+                }
 
                 auto tmp_tune = AutoTuneParams{ block_spatial, block_features, split, exe_mode };
 
@@ -306,8 +320,9 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
                 }
 
                 // Increasing split will only increase memory and work-group size, don't check bigger split
-                if (!c_slm || !c_lws || c_occupancy)
+                if (!c_slm || !c_lws || c_occupancy) {
                     break;
+                }
             }
         }
     }
@@ -327,8 +342,9 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
 
                 if (c_mul) {
                     block_spatial = block;
-                    if (c_occupancy)
+                    if (c_occupancy) {
                         break;
+                    }
                 }
             }
         }
@@ -378,8 +394,9 @@ KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetTunedKernelsDataByInde
                                                                                   int autoTuneIndex) const {
     auto conv_params = static_cast<const convolution_params&>(params);
     auto tune_params = GetAutoTuneParams(conv_params, autoTuneIndex);
-    if (!ValidateAutoTuneParams(conv_params, tune_params))
+    if (!ValidateAutoTuneParams(conv_params, tune_params)) {
         return {};
+    }
     return GetCommonKernelsData(params, tune_params.exe_mode, autoTuneIndex);
 }
 
@@ -393,8 +410,9 @@ KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsDataForAutoTune
 
     for (size_t i = 0; i < all_tune_params.size(); i++) {
         auto tune_params = GetAutoTuneParams(conv_params, static_cast<int>(i));
-        if (!ValidateAutoTuneParams(conv_params, tune_params))
+        if (!ValidateAutoTuneParams(conv_params, tune_params)) {
             continue;
+        }
         KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);

@@ -23,11 +23,13 @@
 #if BLOCK_SIZE == 1
 #define BLOCK_READ(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
-#define BLOCK_TYPE INPUT0_TYPE
+#define BLOCK_IN_TYPE INPUT0_TYPE
+#define BLOCK_OUT_TYPE OUTPUT_TYPE
 #else
 #define BLOCK_READ(ptr, offset) CAT(DT_INPUT_BLOCK_READ, BLOCK_SIZE)(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) CAT(DT_OUTPUT_BLOCK_WRITE, BLOCK_SIZE)(ptr, offset, val)
-#define BLOCK_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, BLOCK_SIZE)
+#define BLOCK_IN_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, BLOCK_SIZE)
+#define BLOCK_OUT_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE)
 #endif
 
 #define SUB_GROUP_SIZE 16
@@ -64,16 +66,16 @@ KERNEL(softmax_items_class_optimized)(
 #if FULL_ITERATIONS_NUM >= SUB_GROUP_SIZE && IS_SUBGROUP_BLOCK_IO_ENABLED
     for (; cls < FULL_ITERATIONS_NUM - (FULL_ITERATIONS_NUM % BLOCK_SIZE); cls += BLOCK_SIZE)
     {
-        BLOCK_TYPE vec = BLOCK_READ(input, input_idx);
+        BLOCK_IN_TYPE vec = BLOCK_READ(input, input_idx);
 #if BLOCK_SIZE > 1
         for (int i = 0; i < BLOCK_SIZE; i++)
         {
-            ACCUMULATOR_TYPE in = vec[i];
+            ACCUMULATOR_TYPE in = DECODE_INPUT0_COMPUTE_TYPE(vec[i]);
             max_value = max(max_value, in);
             data[cls + i] = in;
         }
 #else
-        ACCUMULATOR_TYPE in = vec;
+        ACCUMULATOR_TYPE in = DECODE_INPUT0_COMPUTE_TYPE(vec);
         max_value = max(max_value, in);
         data[cls] = in;
 #endif
@@ -83,7 +85,7 @@ KERNEL(softmax_items_class_optimized)(
     input_idx += simd_lane * INPUT0_CLASS_PITCH;
     for (; cls < FULL_ITERATIONS_NUM; cls++)
     {
-        ACCUMULATOR_TYPE in = input[input_idx];
+        ACCUMULATOR_TYPE in = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]);
         max_value = max(max_value, in);
         data[cls] = in;
         input_idx += WORKITEMS_PER_CLASSES*INPUT0_CLASS_PITCH;
@@ -91,7 +93,7 @@ KERNEL(softmax_items_class_optimized)(
 
     if(simd_lane < LEFTOVERS)
     {
-        ACCUMULATOR_TYPE in = input[input_idx];
+        ACCUMULATOR_TYPE in = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]);
         max_value = max(max_value, in);
         data[DATA_PER_WORKITEM-1] = in;
     }
@@ -131,7 +133,7 @@ KERNEL(softmax_items_class_optimized)(
 #if FULL_ITERATIONS_NUM >= SUB_GROUP_SIZE && IS_SUBGROUP_BLOCK_IO_ENABLED
     for (; cls < FULL_ITERATIONS_NUM - (FULL_ITERATIONS_NUM % BLOCK_SIZE); cls += BLOCK_SIZE)
     {
-        BLOCK_TYPE vec;
+        BLOCK_OUT_TYPE vec;
 #if BLOCK_SIZE > 1
         for (int i = 0; i < BLOCK_SIZE; i++)
         {
@@ -140,7 +142,7 @@ KERNEL(softmax_items_class_optimized)(
             FUSED_OPS;
             vec[i] = FUSED_OPS_RESULT;
 #else
-            vec[i] = ACTIVATION(res, ACTIVATION_PARAMS);
+            vec[i] = TO_OUTPUT_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
         }
 #else
@@ -149,7 +151,7 @@ KERNEL(softmax_items_class_optimized)(
         FUSED_OPS;
         vec = FUSED_OPS_RESULT;
 #else
-        vec = ACTIVATION(res, ACTIVATION_PARAMS);
+        vec = TO_OUTPUT_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
 #endif
         BLOCK_WRITE(output, output_idx, vec);
@@ -164,7 +166,7 @@ KERNEL(softmax_items_class_optimized)(
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
 #else
-        output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
+        output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
         output_idx += WORKITEMS_PER_CLASSES * OUTPUT_CLASS_PITCH;
     }
@@ -175,7 +177,7 @@ KERNEL(softmax_items_class_optimized)(
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
 #else
-        output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
+        output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
     }
 }
@@ -184,5 +186,6 @@ KERNEL(softmax_items_class_optimized)(
 #undef DATA_PER_WORKITEM
 #undef BLOCK_READ
 #undef BLOCK_WRITE
-#undef BLOCK_TYPE
+#undef BLOCK_IN_TYPE
+#undef BLOCK_OUT_TYPE
 #undef SUB_GROUP_SIZE

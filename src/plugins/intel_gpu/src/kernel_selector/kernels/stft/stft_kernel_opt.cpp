@@ -69,14 +69,16 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
 }
 
 bool STFTKernelOpt::Validate(const Params& p) const {
-    if (!STFTKernelBase::Validate(p))
+    if (!STFTKernelBase::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& params = static_cast<const STFT_params&>(p);
     const auto windowSize = params.inputs[1].LogicalSize();
 
-    if (params.is_shape_agnostic && windowSize > STATIC_MAX_X_I_BUFFER)
+    if (params.is_shape_agnostic && windowSize > STATIC_MAX_X_I_BUFFER) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

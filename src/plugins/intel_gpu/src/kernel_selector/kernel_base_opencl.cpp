@@ -76,8 +76,9 @@ std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
     kernelID += "_" + params.uniqueID + "_" + std::to_string(partID) + "_" + std::to_string(params.stage_id);
 
     // Add "__sa" suffix for shape agnostic kernels
-    if (params.is_shape_agnostic)
+    if (params.is_shape_agnostic) {
         kernelID += "__sa";
+    }
 
     return kernelID;
 }
@@ -132,8 +133,9 @@ Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
                                           bool is_dynamic) const {
     Arguments args;
 
-    if (is_dynamic)
+    if (is_dynamic) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
 
     for (uint32_t i = 0; i < num_of_input; i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
@@ -173,18 +175,22 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
         kernel_string->undefs = jit.second;
         if (engine_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
             kernel_string->options = exe_mode + " -cl-mad-enable";
-            if (engine_info.bOptHintsSupport)
+            if (engine_info.bOptHintsSupport) {
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
-            if (engine_info.enable_large_allocations)
+            }
+            if (engine_info.enable_large_allocations) {
                 kernel_string->options += " -cl-intel-greater-than-4GB-buffer-required";
-            if (engine_info.supports_register_file_size_option)
+            }
+            if (engine_info.supports_register_file_size_option) {
                 kernel_string->options += " -ze-exp-register-file-size 128";
+            }
         }
 
-        if (engine_info.supports_work_group_collective_functions)
+        if (engine_info.supports_work_group_collective_functions) {
             kernel_string->options += " -cl-std=CL3.0";
-        else
+        } else {
             kernel_string->options += " -cl-std=CL2.0";
+        }
 
         kernel_string->entry_point = entry_point;
         kernel_string->batch_compilation = true;
@@ -216,8 +222,9 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         uint32_t number_of_inputs_for_fused_prims,
                                         int number_of_outputs,
                                         bool is_dynamic) const {
-    if (!is_dynamic && !kernel.skip_execution)
+    if (!is_dynamic && !kernel.skip_execution) {
         KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info);
+    }
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;

@@ -5,7 +5,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class aten_elu(torch.nn.Module):
@@ -35,7 +35,7 @@ class TestElu(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("alpha", [None, 0.5, 2.])
     @pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.float64])
-    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
+    @pytest.mark.parametrize("inplace", [True, False])
     def test_elu(self, alpha, dtype, inplace, ie_device, precision, ir_version):
         kwargs = {}
         if dtype == torch.float16:

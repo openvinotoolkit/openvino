@@ -12,10 +12,7 @@
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -70,7 +67,4 @@ OutputVector translate_argmin(const NodeContext& context) {
     return create_argmax_argmin_op(context, TopKMode::MIN);
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

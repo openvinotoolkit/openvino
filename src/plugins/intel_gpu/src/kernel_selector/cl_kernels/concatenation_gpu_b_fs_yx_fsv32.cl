@@ -35,7 +35,7 @@ KERNEL(concatenation_gpu_b_fs_yx_fsv32)(
 
     const uint input_offset = INPUT0_GET_INDEX(b, fs * FSV, y, x);
 
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, 2) in = DT_INPUT_BLOCK_READ2(input, input_offset);
+    MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, 2) in = DECODE_INPUT0_COMPUTE_VECTOR_TYPE(DT_INPUT_BLOCK_READ2(input, input_offset), 2);
 
     in = ACTIVATION(in, ACTIVATION_PARAMS);
 
@@ -44,14 +44,14 @@ KERNEL(concatenation_gpu_b_fs_yx_fsv32)(
 
     // Full feature block: use block write for maximum throughput
     if (fs * FSV + FSV <= INPUT0_FEATURE_NUM) {
-        DT_OUTPUT_BLOCK_WRITE2(output, dst_index, in);
+        DT_OUTPUT_BLOCK_WRITE2(output, dst_index, TO_OUTPUT_VECTOR_TYPE(in, 2));
     } else {
         // Last partial feature block: write only valid features
         if (sglid + fs * FSV < INPUT0_FEATURE_NUM) {
-            output[dst_index + sglid] = in.s0;
+            output[dst_index + sglid] = TO_OUTPUT_TYPE(in.s0);
         }
         if (sglid + SUB_GROUP_SIZE + fs * FSV < INPUT0_FEATURE_NUM) {
-            output[dst_index + SUB_GROUP_SIZE + sglid] = in.s1;
+            output[dst_index + SUB_GROUP_SIZE + sglid] = TO_OUTPUT_TYPE(in.s1);
         }
     }
 #else
@@ -59,10 +59,10 @@ KERNEL(concatenation_gpu_b_fs_yx_fsv32)(
     const uint dst_feature = fs * FSV + output_offset_in_concat_axis + sglid;
 
     if (sglid + SUB_GROUP_SIZE + fs * FSV < INPUT0_FEATURE_NUM) {
-        output[OUTPUT_GET_INDEX(b, dst_feature, y, x)] = in.s0;
-        output[OUTPUT_GET_INDEX(b, dst_feature + SUB_GROUP_SIZE, y, x)] = in.s1;
+        output[OUTPUT_GET_INDEX(b, dst_feature, y, x)] = TO_OUTPUT_TYPE(in.s0);
+        output[OUTPUT_GET_INDEX(b, dst_feature + SUB_GROUP_SIZE, y, x)] = TO_OUTPUT_TYPE(in.s1);
     } else if (sglid + fs * FSV < INPUT0_FEATURE_NUM) {
-        output[OUTPUT_GET_INDEX(b, dst_feature, y, x)] = in.s0;
+        output[OUTPUT_GET_INDEX(b, dst_feature, y, x)] = TO_OUTPUT_TYPE(in.s0);
     }
 #endif
 }

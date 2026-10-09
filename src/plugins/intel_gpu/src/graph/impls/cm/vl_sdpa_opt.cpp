@@ -68,8 +68,9 @@ protected:
 
         // transpose shape into BHLS(4D), or HLS(3D)
         auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
-            if (order.empty())
+            if (order.empty()) {
                 return pshape;
+            }
 
             auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
             for (size_t i = 0; i < order.size(); i++) {
@@ -141,8 +142,9 @@ protected:
 
             // transpose shape into BHLS(4D), or HLS(3D)
             auto transpose_pshape = [](const ov::Shape& pshape, const std::vector<int64_t>& order) {
-                if (order.empty())
+                if (order.empty()) {
                     return pshape;
+                }
 
                 auto transposed_pshape = ov::Shape(pshape.size());
                 for (size_t i = 0; i < order.size(); i++) {

@@ -286,7 +286,8 @@ void set_values_per_batch_and_feature(cldnn::memory::ptr mem, std::vector<T> arg
 }
 
 template<typename T, typename std::enable_if<std::is_floating_point<T>::value ||
-                                             std::is_same<T, ov::float16>::value>::type* = nullptr>
+                                             std::is_same<T, ov::float16>::value ||
+                                             std::is_same<T, ov::bfloat16>::value>::type* = nullptr>
 void set_random_values(cldnn::memory::ptr mem, bool sign = false, unsigned significand_bit = 8, unsigned scale = 1)
 {
     cldnn::mem_lock<T, cldnn::mem_lock_type::write> ptr(mem, get_test_stream());
@@ -408,7 +409,8 @@ std::string vec2str(const std::vector<vecElementType>& vec) {
     return "()";
 }
 
-inline float cosineSimilarity(cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read>& vec1, cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read>& memLockVec2) {
+template <typename T>
+inline float cosineSimilarity(cldnn::mem_lock<T, cldnn::mem_lock_type::read>& vec1, cldnn::mem_lock<T, cldnn::mem_lock_type::read>& memLockVec2) {
     if (vec1.size() != memLockVec2.size()) {
         return -1.0f;
     }

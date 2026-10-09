@@ -71,7 +71,7 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
             VSTORE(out_data, 0, output + output_idx);
           #else
             const uint output_idx = OUTPUT_GET_TILED_INDEX(REORDERED_OUTPUT_TILED_ORDER);
-            VSTORE(ACTIVATION(TO_OUTPUTVTYPE(read_data), ACTIVATION_PARAMS), 0, output + output_idx);
+            VSTORE(TO_OUTPUT_VECTOR_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_VECTOR_TYPE(read_data, TILE_SIZE), ACTIVATION_PARAMS), TILE_SIZE), 0, output + output_idx);
           #endif
         }
     }
@@ -93,7 +93,7 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
                 FUSED_OPS;
                 output[output_idx + lw] = FUSED_OPS_RESULT;
               #else
-                output[output_idx + lw] = TO_OUTPUT_TYPE(read_data[lw]);
+                output[output_idx + lw] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw]), ACTIVATION_PARAMS));
               #endif
             }
         }
@@ -117,7 +117,7 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
                 FUSED_OPS;
                 transpose_buf[dst][lh] = FUSED_OPS_RESULT;
           #else
-                transpose_buf[dst][lh] = ACTIVATION(read_data[lw], ACTIVATION_PARAMS);
+                transpose_buf[dst][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw]), ACTIVATION_PARAMS));
           #endif
             }
         }
@@ -171,7 +171,7 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
                 FUSED_OPS;
                 transpose_buf[dst][lh] = FUSED_OPS_RESULT;
         #else
-                transpose_buf[dst][lh] = ACTIVATION(read_data[lw], ACTIVATION_PARAMS);
+                transpose_buf[dst][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw]), ACTIVATION_PARAMS));
         #endif
             }
         }

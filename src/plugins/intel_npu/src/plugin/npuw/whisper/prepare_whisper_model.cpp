@@ -497,10 +497,9 @@ std::string transform_key_value_name(std::string input_string,
                                      std::string key_or_value) {
     std::regex pattern("[0-9]+");
     std::smatch match;
-    std::regex_search(input_string, match, pattern);
-
-    if (match.empty())
+    if (!std::regex_search(input_string, match, pattern)) {
         OPENVINO_THROW("Input string does not match the expected pattern");
+    }
 
     auto number = std::string(match[0]);
     return prefix + "." + number + enc_or_dec + key_or_value;

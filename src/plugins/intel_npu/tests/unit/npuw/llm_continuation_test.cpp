@@ -63,23 +63,40 @@ TEST(NPUWContinuation, KeepRuleClampsToWatermark) {
 TEST(NPUWContinuation, KeepRuleClampsToCapacity) {
     ContinuationCoordinator c;
     c.enable(1024u, 4096u);
-    c.commit_prefill(4000u);
+    c.commit_prefill(3999u);
+    c.publish_generate(4000u);
     // K_max = 4096 - 1024 = 3072, rounded stays 3072.
     EXPECT_EQ(c.propose(4000), 3072u);
 }
 
 TEST(NPUWContinuation, KeepRuleRoundsDownToChunk) {
-    auto c = make_after_prefill(1500u);
+    auto c = make_after_prefill(1500u, 1u);
     EXPECT_EQ(c.propose(1500), 1024u);
 }
 
 TEST(NPUWContinuation, SubChunkHistoryGrantsZeroAndArmsReset) {
-    auto c = make_after_prefill(1000u);
+    auto c = make_after_prefill(1000u, 1u);
     EXPECT_EQ(c.propose(1000), 0u);
     // A zero keep is a full reset, not a continuation with an empty prefix.
     EXPECT_EQ(c.stage(), Stage::PENDING);
     EXPECT_EQ(c.pending(), 0u);
     EXPECT_EQ(c.query(), 0);
+}
+
+TEST(NPUWContinuation, PromptOnlyTurnGrantsZeroAndArmsReset) {
+    // Without a generate step the live prefix is split between the prefill past
+    // inputs and the present outputs, where no continuation source exists.
+    auto c = make_after_prefill(3000u);
+    EXPECT_EQ(c.propose(3000), 0u);
+    EXPECT_EQ(c.stage(), Stage::PENDING);
+    EXPECT_EQ(c.pending(), 0u);
+}
+
+TEST(NPUWContinuation, ContinuationReopensAfterGenerateStep) {
+    auto c = make_after_prefill(3000u);
+    c.commit_prefill(3000u);
+    c.publish_generate(3001u);
+    EXPECT_EQ(c.propose(3001), 2048u);
 }
 
 TEST(NPUWContinuation, GrowthIsRejected) {
@@ -96,7 +113,7 @@ TEST(NPUWContinuation, NegativeProposalIsRejected) {
 }
 
 TEST(NPUWContinuation, SecondProposalWhilePendingIsRejected) {
-    auto c = make_after_prefill(3072u);
+    auto c = make_after_prefill(3072u, 1u);
     EXPECT_EQ(c.propose(3072), 3072u);
     EXPECT_THROW(c.propose(2048), ov::Exception);
 }
@@ -115,13 +132,13 @@ TEST(NPUWContinuation, QueryReturnsLiveTokensWhileIdle) {
 }
 
 TEST(NPUWContinuation, QueryReturnsGrantWhilePending) {
-    auto c = make_after_prefill(3000u);
+    auto c = make_after_prefill(3000u, 1u);
     c.propose(3000);
     EXPECT_EQ(c.query(), 2048);
 }
 
 TEST(NPUWContinuation, PublishingLiveCountDoesNotReArmCommand) {
-    auto c = make_after_prefill(2048u);
+    auto c = make_after_prefill(2048u, 1u);
     c.propose(2048);
     c.commit_prefill(2500u);
     // After the commit there is no pending command, only the published count.
@@ -132,60 +149,8 @@ TEST(NPUWContinuation, PublishingLiveCountDoesNotReArmCommand) {
 
 // The transaction state machine.
 
-TEST(NPUWContinuation, PreflightAbortConsumesCommandAndKeepsCounters) {
-    auto c = make_after_prefill(3000u, 20u);
-    c.propose(3000);
-    c.abort_preflight();
-    EXPECT_EQ(c.stage(), Stage::IDLE);
-    EXPECT_EQ(c.query(), 3020);
-    EXPECT_FALSE(c.pending().has_value());
-}
-
-TEST(NPUWContinuation, PreflightAbortRequiresAPendingKeep) {
-    // Only a pending keep may be aborted. A pending reset stays pending until the
-    // full prompt arrives, and aborting a poisoned request must not clear the
-    // poisoning that only reset() owns.
-    auto idle = make_after_prefill(3000u);
-    EXPECT_THROW(idle.abort_preflight(), ov::Exception);
-
-    auto reset_pending = make_after_prefill(3000u);
-    reset_pending.request_reset();
-    EXPECT_THROW(reset_pending.abort_preflight(), ov::Exception);
-    EXPECT_EQ(reset_pending.stage(), Stage::PENDING);
-    EXPECT_EQ(reset_pending.pending(), 0u);
-
-    auto poisoned = make_after_prefill(3000u);
-    poisoned.propose(3000);
-    poisoned.poison();
-    EXPECT_THROW(poisoned.abort_preflight(), ov::Exception);
-    EXPECT_EQ(poisoned.stage(), Stage::POISONED);
-}
-
-TEST(NPUWContinuation, FailureDuringInferencePoisonsTheRequest) {
-    auto c = make_after_prefill(3000u);
-    c.propose(3000);
-    c.poison();
-    EXPECT_EQ(c.stage(), Stage::POISONED);
-    EXPECT_EQ(c.query(), 0);
-    // Poisoned requests reject inference until reset() is called.
-    EXPECT_THROW(c.pending(), ov::Exception);
-}
-
-TEST(NPUWContinuation, ResetRecoversAPoisonedRequest) {
-    auto c = make_after_prefill(3000u);
-    c.propose(3000);
-    c.poison();
-    c.request_reset();
-    EXPECT_EQ(c.stage(), Stage::PENDING);
-    EXPECT_EQ(c.pending(), 0u);
-    // Idempotent while already pending.
-    c.request_reset();
-    EXPECT_EQ(c.stage(), Stage::PENDING);
-    EXPECT_EQ(c.pending(), 0u);
-}
-
 TEST(NPUWContinuation, ResetDiscardsAPendingKeep) {
-    auto c = make_after_prefill(3000u);
+    auto c = make_after_prefill(3000u, 1u);
     c.propose(3000);
     c.request_reset();
     EXPECT_EQ(c.pending(), 0u);
@@ -201,23 +166,24 @@ TEST(NPUWContinuation, CommitAfterResetPrefillReturnsToIdle) {
     EXPECT_EQ(c.watermark(), 500u);
 }
 
-TEST(NPUWContinuation, CommitAndPublishRejectInvalidStates) {
-    // A commit must never clear the poisoning that only reset() owns.
-    auto poisoned = make_after_prefill(3000u);
-    poisoned.propose(3000);
-    poisoned.poison();
-    EXPECT_THROW(poisoned.commit_prefill(3000u), ov::Exception);
-    EXPECT_THROW(poisoned.publish_generate(3000u), ov::Exception);
-    EXPECT_EQ(poisoned.stage(), Stage::POISONED);
-
+TEST(NPUWContinuation, PublishWithArmedCommandIsRejected) {
     // Generate only runs when no command is pending, so a publish with an armed
     // command is a sequencing error. A commit from PENDING is the ordinary
-    // transaction commit and stays legal.
-    auto armed = make_after_prefill(3000u);
+    // command completion and stays legal.
+    auto armed = make_after_prefill(3000u, 1u);
     armed.propose(3000);
     EXPECT_THROW(armed.publish_generate(3100u), ov::Exception);
     EXPECT_EQ(armed.stage(), Stage::PENDING);
     EXPECT_EQ(armed.pending(), 2048u);
+}
+
+TEST(NPUWContinuation, ResetIsIdempotentWhilePending) {
+    auto c = make_after_prefill(3000u, 1u);
+    c.propose(3000);
+    c.request_reset();
+    c.request_reset();
+    EXPECT_EQ(c.stage(), Stage::PENDING);
+    EXPECT_EQ(c.pending(), 0u);
 }
 
 // Watermark accounting.

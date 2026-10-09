@@ -4,7 +4,7 @@
 // Dequantization correctness tests with REAL ggml as the oracle.
 //
 // The reference data was produced offline by linking real ggml from llama.cpp
-// (see tests/gen_ggml_reference.c): ggml quantizes smooth, asymmetric synthetic
+// (captured from real ggml): ggml quantizes smooth, asymmetric synthetic
 // data into real GGUF-format blocks (_qbytes) and dequantizes those exact bytes
 // (_deq).  The committed .npy files mean the tests need no ggml / llama.cpp at
 // build or run time.
@@ -15,14 +15,15 @@
 // Tolerance: ggml stores K-quant scales as f16 and the dequant subgraph runs in f16,
 // so allow ~3e-3 (matching llama.cpp's MAX_QUANTIZATION_TOTAL_ERROR-class thresholds).
 
-#include <gtest/gtest.h>
-
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <tuple>
 #include <vector>
 
+#include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -76,6 +77,8 @@ const char* type_name(uint32_t type) {
         return "Q6_K";
     case GGUF_TYPE_Q2_0:
         return "Q2_0";
+    case GGUF_TYPE_Q1_0:
+        return "Q1_0";
     default:
         return "";
     }
@@ -99,6 +102,16 @@ float max_abs_diff(const std::vector<float>& a, const std::vector<float>& b) {
     return m;
 }
 
+float mean_squared_error(const std::vector<float>& a, const std::vector<float>& b) {
+    EXPECT_EQ(a.size(), b.size());
+    double sum = 0.0;
+    for (size_t i = 0; i < a.size() && i < b.size(); ++i) {
+        const double diff = static_cast<double>(a[i]) - b[i];
+        sum += diff * diff;
+    }
+    return static_cast<float>(sum / a.size());
+}
+
 // One case: stem (test_data file prefix) + ggml quant enum + tolerance. rows/cols match the
 // generator. Q5_K/Q6_K go through the channel-wise Q8_0_C requantization (matching the
 // llama.cpp ggml-openvino CPU/GPU backend), so they diverge from ggml's faithful to_float by
@@ -113,10 +126,9 @@ constexpr uint64_t kRows = 4;
 constexpr uint64_t kCols = 256;
 constexpr float kTolFaithful = 3e-3f;   // f16-scale dequant noise
 constexpr float kTolRequant = 1.5e-2f;  // channel-wise Q8_0_C requant round-off
-// Q4_K uses an INTEGER (u8) zero-point so the CPU plugin fuses the dequant into the MatMul
-// (matching the original ggml-openvino backend). The integer zp rounds min to a multiple of
-// scale, so the dequant diverges from ggml's faithful to_float by up to ~0.045 per weight.
-constexpr float kTolIntZp = 5e-2f;
+// Q4_K is faithfully decoded and then requantized in its native 32-value groups to OpenVINO u4.
+// Keep its worst error below the former rounded-zero-point path's 5e-2 tolerance.
+constexpr float kTolU4Requant = 4e-2f;
 // Q2_0: (code - 1) * d on both sides and the zero-point of 1 is exact, so hold it to bit-equality.
 constexpr float kTolExact = 0.0f;
 
@@ -135,6 +147,30 @@ TEST_P(DequantVsGGML, MatchesGgmlToFloat) {
 
     EXPECT_LE(max_abs_diff(ours, ref), c.tol)
         << c.stem << ": frontend dequant diverges from ggml to_float beyond tolerance";
+}
+
+// Guard both aggregate quality and the worst outlier against the real ggml CPU oracle. The
+// previous SSE-only candidate selection lowered MSE but raised max error above 5e-2.
+TEST(DequantVsGGML, Q4KRequantizationImprovesWithoutOutliers) {
+    const auto qbytes = load_npy<uint8_t>("q4_k_qbytes");
+    const auto ref = load_npy<float>("q4_k_deq");
+    const auto ours = frontend_dequant(GGUF_TYPE_Q4_K, qbytes, kRows, kCols);
+
+    ASSERT_EQ(ours.size(), ref.size());
+    EXPECT_LE(mean_squared_error(ours, ref), 2.8e-4f);
+    EXPECT_LE(max_abs_diff(ours, ref), kTolU4Requant);
+}
+
+TEST(DequantVsGGML, Q4KRejectsNonFiniteScaleMetadata) {
+    const auto valid = load_npy<uint8_t>("q4_k_qbytes");
+    constexpr uint16_t inf_f16 = 0x7c00;
+    constexpr uint16_t nan_f16 = 0x7e00;
+
+    for (const auto& [offset, bits] : {std::pair<size_t, uint16_t>{0, inf_f16}, {2, nan_f16}}) {
+        auto malformed = valid;
+        std::memcpy(malformed.data() + offset, &bits, sizeof(bits));
+        EXPECT_ANY_THROW(frontend_dequant(GGUF_TYPE_Q4_K, malformed, kRows, kCols));
+    }
 }
 
 // The faithful per-row K-quant dequant used as the Q8_0_C requant source must match ggml's
@@ -160,16 +196,18 @@ TEST_P(FaithfulDequantVsGGML, MatchesGgmlToFloat) {
     for (size_t r = 0; r < kRows; ++r) {
         c.dq(qbytes.data() + r * bytes_per_row, kCols, ours.data() + r * kCols);
     }
-    EXPECT_LE(max_abs_diff(ours, ref), 3e-3f)
-        << c.stem << ": faithful per-row dequant diverges from ggml to_float";
+    EXPECT_LE(max_abs_diff(ours, ref), 3e-3f) << c.stem << ": faithful per-row dequant diverges from ggml to_float";
 }
 
-INSTANTIATE_TEST_SUITE_P(FaithfulKQuant,
-                         FaithfulDequantVsGGML,
-                         ::testing::Values(FaithfulCase{"q4_k", GGUF_TYPE_Q4_K, ov::frontend::gguf::dequant_row_q4_k_f32_for_test},
-                                           FaithfulCase{"q5_k", GGUF_TYPE_Q5_K, ov::frontend::gguf::dequant_row_q5_k_f32_for_test},
-                                           FaithfulCase{"q6_k", GGUF_TYPE_Q6_K, ov::frontend::gguf::dequant_row_q6_k_f32_for_test}),
-                         [](const ::testing::TestParamInfo<FaithfulCase>& i) { return std::string(i.param.stem); });
+INSTANTIATE_TEST_SUITE_P(
+    FaithfulKQuant,
+    FaithfulDequantVsGGML,
+    ::testing::Values(FaithfulCase{"q4_k", GGUF_TYPE_Q4_K, ov::frontend::gguf::dequant_row_q4_k_f32_for_test},
+                      FaithfulCase{"q5_k", GGUF_TYPE_Q5_K, ov::frontend::gguf::dequant_row_q5_k_f32_for_test},
+                      FaithfulCase{"q6_k", GGUF_TYPE_Q6_K, ov::frontend::gguf::dequant_row_q6_k_f32_for_test}),
+    [](const ::testing::TestParamInfo<FaithfulCase>& i) {
+        return std::string(i.param.stem);
+    });
 
 INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                          DequantVsGGML,
@@ -180,10 +218,100 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            DeqCase{"q8_0", GGUF_TYPE_Q8_0, kTolFaithful},
                                            DeqCase{"q2_k", GGUF_TYPE_Q2_K, kTolFaithful},
                                            DeqCase{"q3_k", GGUF_TYPE_Q3_K, kTolFaithful},
-                                           DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolIntZp},
+                                           DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolU4Requant},
                                            DeqCase{"q5_k", GGUF_TYPE_Q5_K, kTolRequant},
                                            DeqCase{"q6_k", GGUF_TYPE_Q6_K, kTolRequant},
-                                           DeqCase{"q2_0", GGUF_TYPE_Q2_0, kTolExact}),
+                                           // Q2_0 is bit-exact: both sides compute (code - 1) * d
+                                           // from the same f16 scale, and the u8 zero-point of 1 is
+                                           // represented exactly, so no dequant noise is introduced.
+                                           DeqCase{"q2_0", GGUF_TYPE_Q2_0, kTolExact},
+                                           // Q1_0 is bit-exact: both sides compute bit ? +d : -d from
+                                           // the same f16 scale, with no zero-point rounding at all.
+                                           DeqCase{"q1_0", GGUF_TYPE_Q1_0, kTolExact}),
                          [](const ::testing::TestParamInfo<DeqCase>& i) {
                              return std::string(i.param.stem);
                          });
+
+// Gemma4 global attention can reuse one quantized tensor for both K and V.
+// Constructing its first decompression graph must not reshape the shared scales.
+TEST(GGUFDequant, SharedExtractedWeightsKeepGroupLayout) {
+    constexpr size_t rows = 4, cols = 256, groups = cols / 32;
+    for (const auto type : {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_K}) {
+        const bool asymmetric = type == GGUF_TYPE_Q4_K;
+        const std::string stem = asymmetric ? "q4_k" : "q4_0";
+        SCOPED_TRACE(stem);
+        const auto bytes = load_npy<uint8_t>(stem + "_qbytes");
+        const auto reference = load_npy<float>(stem + "_deq");
+        GgufTensor source{};
+        source.type = type;
+        source.ndim = 2;
+        source.dim[0] = cols;
+        source.dim[1] = rows;
+        source.num_weights = rows * cols;
+        source.bsize = bytes.size();
+        source.weights_data = bytes.data();
+        WeightTensors tensors;
+        tensors.weight =
+            ov::Tensor(asymmetric ? ov::element::u32 : ov::element::i4, {rows, asymmetric ? cols / 8 : cols});
+        tensors.scales = ov::Tensor(ov::element::f16, {rows, groups});
+        if (asymmetric) {
+            tensors.zero_point = ov::Tensor(ov::element::f16, {rows, groups});
+            gguf_fill_asym(source, tensors.weight, tensors.scales, tensors.zero_point);
+        } else {
+            gguf_fill_sym(source, tensors.weight, tensors.scales);
+        }
+        const auto first = make_weight_node(tensors, type, "key");
+        EXPECT_EQ(tensors.scales.get_shape(), (ov::Shape{rows, groups}));
+        if (asymmetric) {
+            EXPECT_EQ(tensors.zero_point.get_shape(), (ov::Shape{rows, groups}));
+        }
+        const auto second = make_weight_node(tensors, type, "value");
+        const auto a = eval_as_f32(first);
+        const auto b = eval_as_f32(second);
+        ASSERT_EQ(a.size(), reference.size());
+        ASSERT_EQ(b.size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i) {
+            EXPECT_EQ(a[i], b[i]);
+            EXPECT_NEAR(a[i], reference[i], 3e-3f);
+        }
+    }
+}
+
+// Matmul weights take an integer zero-point, so Q4_1 is requantized to u4 and Q5_K to u8.
+// The public byte-level entry point decodes Q4_1 and sends Q5_K through Q8_0_C instead, so
+// fill as the loader does. Each 32-value group lands on a grid spanning [min(lo,0), max(hi,0)]:
+// every value is within half a step of it, up to f16 scale rounding.
+TEST(GGUFDequant, IntegerZeroPointRequantizationTracksGgml) {
+    constexpr size_t rows = kRows, cols = kCols, groups = cols / 32;
+    for (const auto& [type, stem, levels] :
+         {std::tuple{GGUF_TYPE_Q4_1, "q4_1", 15.f}, std::tuple{GGUF_TYPE_Q5_K, "q5_k", 255.f}}) {
+        SCOPED_TRACE(stem);
+        const auto bytes = load_npy<uint8_t>(std::string(stem) + "_qbytes");
+        const auto reference = load_npy<float>(std::string(stem) + "_deq");
+        GgufTensor source{};
+        source.type = type;
+        source.ndim = 2;
+        source.dim[0] = cols;
+        source.dim[1] = rows;
+        source.num_weights = rows * cols;
+        source.bsize = bytes.size();
+        source.weights_data = bytes.data();
+        const auto qtype = static_cast<GgufTensorType>(type);
+        ASSERT_EQ(gguf_zero_point_type("blk.0.ffn_up.weight", qtype), ov::element::u8);
+        const bool packed = type == GGUF_TYPE_Q4_1;
+        WeightTensors tensors;
+        tensors.weight = ov::Tensor(packed ? ov::element::u32 : ov::element::u8, {rows, packed ? cols / 8 : cols});
+        tensors.scales = ov::Tensor(ov::element::f16, {rows, groups});
+        tensors.zero_point = ov::Tensor(ov::element::u8, {rows, groups});
+        gguf_fill_asym(source, tensors.weight, tensors.scales, tensors.zero_point);
+        const auto values = eval_as_f32(make_weight_node(tensors, qtype, "blk.0.ffn_up.weight"));
+        ASSERT_EQ(values.size(), reference.size());
+        for (size_t group = 0; group < rows * groups; ++group) {
+            const auto begin = reference.begin() + group * 32;
+            const auto [lo, hi] = std::minmax_element(begin, begin + 32);
+            const float range = std::max(*hi, 0.f) - std::min(*lo, 0.f);
+            for (size_t k = group * 32; k < group * 32 + 32; ++k)
+                ASSERT_LE(std::fabs(values[k] - reference[k]), range * (0.5f / levels + 1e-3f)) << "group " << group;
+        }
+    }
+}

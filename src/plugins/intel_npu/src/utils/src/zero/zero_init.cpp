@@ -19,13 +19,15 @@ namespace {
 constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
 #endif
 
+constexpr ze_api_version_t TARGET_ZE_API_VERSION = ZE_API_VERSION_1_18;
 constexpr uint32_t TARGET_ZE_DRIVER_NPU_EXT_VERSION = ZE_DRIVER_NPU_EXT_VERSION_1_0;
-constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_18;
+constexpr uint32_t TARGET_ZE_GRAPH_NPU_EXT_VERSION = ZE_GRAPH_EXT_VERSION_1_19;
 constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
 constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
 constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
+constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION = ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0;
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
@@ -142,8 +144,12 @@ void ZeroInitStructsHolder::initNpuDriver() {
     if (loader_version.major > 1 || (loader_version.major == 1 && loader_version.minor > 18) ||
         (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
         uint32_t drivers_count = 0;
+        ze_init_driver_app_version_ext_desc_t desc_app_version_ext = {};
+        desc_app_version_ext.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_APP_VERSION_EXT_DESC;
+        desc_app_version_ext.apiVersionHint = TARGET_ZE_API_VERSION;
         ze_init_driver_type_desc_t desc = {};
         desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
+        desc.pNext = &desc_app_version_ext;
         desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_NPU;
         auto result = zeInitDrivers(&drivers_count, nullptr, &desc);
         if (result != ZE_RESULT_SUCCESS) {
@@ -175,19 +181,19 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     // Check L0 API version
     THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetApiVersion", zeDriverGetApiVersion(_driver_handle, &_ze_drv_api_version));
 
-    if (ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MAJOR_VERSION(_ze_drv_api_version)) {
+    if (ZE_MAJOR_VERSION(TARGET_ZE_API_VERSION) != ZE_MAJOR_VERSION(_ze_drv_api_version)) {
         OPENVINO_THROW("Incompatibility between NPU plugin and driver! ",
                        "Plugin L0 API major version = ",
-                       ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT),
+                       ZE_MAJOR_VERSION(TARGET_ZE_API_VERSION),
                        ", ",
                        "Driver L0 API major version = ",
                        ZE_MAJOR_VERSION(_ze_drv_api_version));
     }
-    if (ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MINOR_VERSION(_ze_drv_api_version)) {
-        _log.warning("Some features might not be available! "
-                     "Plugin L0 API minor version = %d, Driver L0 API minor version = %d",
-                     ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT),
-                     ZE_MINOR_VERSION(_ze_drv_api_version));
+    if (ZE_MINOR_VERSION(TARGET_ZE_API_VERSION) != ZE_MINOR_VERSION(_ze_drv_api_version)) {
+        _log.info("Some features might not be available! "
+                  "Plugin L0 API minor version = %d, Driver L0 API minor version = %d",
+                  ZE_MINOR_VERSION(TARGET_ZE_API_VERSION),
+                  ZE_MINOR_VERSION(_ze_drv_api_version));
     }
 
     uint32_t count = 0;
@@ -410,6 +416,21 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
         _external_memory_standard_allocation_supported = true;
     }
 
+    uint32_t command_queue_set_priority_ext_version = 0;
+    std::tie(command_queue_set_priority_ext_version, std::ignore) =
+        queryDriverExtensionVersion(ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME,
+                                    TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION,
+                                    extProps,
+                                    count);
+
+    _log.debug("Command queue set priority extension version %d.%d",
+               ZE_MAJOR_VERSION(command_queue_set_priority_ext_version),
+               ZE_MINOR_VERSION(command_queue_set_priority_ext_version));
+
+    if (command_queue_set_priority_ext_version > 0) {
+        _command_queue_set_priority_supported = true;
+    }
+
     _command_queue_group_ordinal =
         zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 }
@@ -538,7 +559,14 @@ void ZeroInitStructsHolder::destroyContextLocked() {
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     std::lock_guard<std::mutex> lock(_mutex);
-    destroyContextLocked();
+    try {
+        destroyContextLocked();
+    } catch (const std::exception& e) {
+        _log.error("ZeroInitStructsHolder::~ZeroInitStructsHolder - exception during context destruction: %s",
+                   e.what());
+    } catch (...) {
+        _log.error("ZeroInitStructsHolder::~ZeroInitStructsHolder - unknown exception during context destruction");
+    }
 }
 
 }  // namespace intel_npu

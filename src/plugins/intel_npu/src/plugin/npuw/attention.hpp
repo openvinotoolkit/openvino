@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "logging.hpp"  // NPUW_ASSERT
@@ -36,10 +37,18 @@ struct Attention {
     ov::Shape _mask_shape;
 
     // Per-variant KV block parameter indices.
-    // Ordered by Concat input order: [block_0_idx, ..., block_{M-1}_idx] in this variant's model.
-    // Empty in the non-block (contiguous KV) case.
-    std::vector<size_t> past_key_block_variant_param_indices;
-    std::vector<size_t> past_value_block_variant_param_indices;
+    // Ordered by Concat input order: [block_0_idx, ..., block_{M-1}_idx] in this variant's model
+    // (i.e. LOCAL indices — see global_to_local_param_idx below). Empty in the non-block
+    // (contiguous KV) case.
+    std::vector<size_t> past_key_block_local_param_indices;
+    std::vector<size_t> past_value_block_local_param_indices;
+
+    // Block mode only: global (original/full model) parameter index → this variant's LOCAL
+    // parameter index, for every parameter retained by this variant (mask, KV blocks, and
+    // everything else). Surplus KV block Parameters are removed per variant, which shifts
+    // every subsequent Parameter's index, so a direct lookup is required. Empty in
+    // contiguous mode (variants never drop parameters there).
+    std::unordered_map<size_t, size_t> global_to_local_param_idx;
 
     std::size_t query_len() const {
         // Put the mask's innermost dimension dynamic

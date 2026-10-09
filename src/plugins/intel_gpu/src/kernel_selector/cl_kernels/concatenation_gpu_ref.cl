@@ -32,7 +32,7 @@ KERNEL(concatenation_gpu_ref)(
         uint input_offset = GET_INDEX(INPUT0, INPUT_DIMS_ORDER);
         uint output_offset = GET_INDEX(OUTPUT, OUTPUT_DIMS_ORDER);
 
-        INPUT0_TYPE result = input[input_offset];
+        INPUT0_COMPUTE_TYPE result = DECODE_INPUT0_COMPUTE_TYPE(input[input_offset]);
 
 #if HAS_FUSED_OPS
         FUSED_OPS;

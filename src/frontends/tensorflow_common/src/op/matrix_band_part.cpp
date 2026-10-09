@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -19,10 +20,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_matrix_band_part_op(const NodeContext& node) {
     default_op_checks(node, 3, {"MatrixBandPart"});
@@ -84,7 +82,4 @@ OutputVector translate_matrix_band_part_op(const NodeContext& node) {
     return {result};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

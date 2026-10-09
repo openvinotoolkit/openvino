@@ -15,8 +15,9 @@ namespace ocl {
 namespace {
 kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
     auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
-    if (cldnn_axis >= static_cast<int64_t>(rank))
+    if (cldnn_axis >= static_cast<int64_t>(rank)) {
         OPENVINO_THROW("Concatenation axis exceeds number of dimensions");
+    }
 
     // Difference in dimension ordering between OV and GPU plugin,
     // reverse spatial dimensions after batch and feature.
@@ -102,6 +103,7 @@ attach_concatenation_impl::attach_concatenation_impl() {
         data_types::i8,
         data_types::u8,
         data_types::f16,
+        data_types::bf16,
         data_types::f32,
         data_types::i32,
         data_types::i64,
@@ -128,6 +130,7 @@ attach_concatenation_impl::attach_concatenation_impl() {
         data_types::i8,
         data_types::u8,
         data_types::f16,
+        data_types::bf16,
         data_types::f32,
         data_types::i32,
         data_types::i64
@@ -160,6 +163,7 @@ attach_concatenation_impl::attach_concatenation_impl() {
 
     keys.emplace(data_types::f32, format::b_fs_yx_fsv16);
     keys.emplace(data_types::f16, format::b_fs_yx_fsv16);
+    keys.emplace(data_types::bf16, format::b_fs_yx_fsv16);
     keys.emplace(data_types::u8, format::b_fs_yx_fsv16);
     keys.emplace(data_types::i8, format::b_fs_yx_fsv16);
 
@@ -168,8 +172,10 @@ attach_concatenation_impl::attach_concatenation_impl() {
 
     keys.emplace(data_types::i8, format::b_fs_yx_fsv32);
     keys.emplace(data_types::u8, format::b_fs_yx_fsv32);
+    keys.emplace(data_types::bf16, format::b_fs_yx_fsv32);
 
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
+    keys.emplace(data_types::bf16, format::fs_b_yx_fsv32);
 
     implementation_map<concatenation>::add(impl_types::ocl,
                                            typed_primitive_impl_ocl<concatenation>::create<concatenation_impl>,
