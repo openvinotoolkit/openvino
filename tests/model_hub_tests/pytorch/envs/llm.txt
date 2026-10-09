@@ -40,3 +40,7 @@ optimum==2.1.0; python_version < "3.12"
 
 # compressed-tensors (required for compressed-tensors quantized models, e.g. cyankiwi/Qwen3.5-4B-AWQ-4bit)
 compressed-tensors==0.17.1
+
+# pyarrow 26.0.0 release breaks PyTorch Models Tests due to NumPy incompatibility
+pyarrow==21.0.0; python_version < "3.12"
+pyarrow==25.0.1; python_version >= "3.12"
