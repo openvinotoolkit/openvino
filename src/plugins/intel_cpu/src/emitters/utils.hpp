@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -21,5 +23,7 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func);
     OPENVINO_ASSERT((cond), jit_emitter_pretty_name(OV_CPU_FUNCTION_NAME), ": ", __VA_ARGS__)
 
 ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n);
+
+std::pair<int32_t, int32_t> get_clamp_min_max(double alpha, double beta, const ov::element::Type& exec_prc);
 
 }  // namespace ov::intel_cpu

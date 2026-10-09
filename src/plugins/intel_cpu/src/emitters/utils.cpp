@@ -5,9 +5,13 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <common/utils.hpp>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -70,6 +74,29 @@ ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov:
                     "Binary Eltwise op has unequal input precisions");
 
     return input_precisions[0];
+}
+
+std::pair<int32_t, int32_t> get_clamp_min_max(double alpha, double beta, const ov::element::Type& exec_prc) {
+    int32_t minimum = 0;
+    int32_t maximum = 0;
+    switch (exec_prc) {
+    case ov::element::i32:
+        minimum =
+            static_cast<int32_t>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
+        if (beta >= static_cast<double>(std::numeric_limits<int32_t>::max())) {
+            maximum = std::numeric_limits<int32_t>::max();
+        } else {
+            maximum = static_cast<int32_t>(beta);
+        }
+        break;
+    case ov::element::f32:
+        minimum = dnnl::impl::float2int(static_cast<float>(alpha));
+        maximum = dnnl::impl::float2int(static_cast<float>(beta));
+        break;
+    default:
+        OPENVINO_THROW("Unsupported precision for Clamp min/max computation: ", exec_prc.to_string());
+    }
+    return {minimum, maximum};
 }
 
 }  // namespace ov::intel_cpu

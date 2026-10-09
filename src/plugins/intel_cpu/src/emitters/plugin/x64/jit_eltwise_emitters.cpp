@@ -15,9 +15,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <limits>
 #include <memory>
 #include <set>
+#include <tuple>
 #include <vector>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
@@ -3177,23 +3177,7 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
 }
 
 void jit_clamp_emitter::prepare_min_max(double alpha, double beta) {
-    switch (exec_prc_) {
-    case element::i32:
-        minimum =
-            static_cast<int32_t>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
-        if (beta >= static_cast<double>(std::numeric_limits<int32_t>::max())) {
-            maximum = std::numeric_limits<int32_t>::max();
-        } else {
-            maximum = static_cast<int32_t>(beta);
-        }
-        break;
-    case element::f32:
-        minimum = x64::float2int(static_cast<float>(alpha));
-        maximum = x64::float2int(static_cast<float>(beta));
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
-    }
+    std::tie(minimum, maximum) = get_clamp_min_max(alpha, beta, exec_prc_);
 }
 
 size_t jit_clamp_emitter::get_inputs_num() const {
