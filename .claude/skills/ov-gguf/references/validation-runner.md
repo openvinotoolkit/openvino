@@ -1,5 +1,8 @@
 # Batch runner contract
 
+Use this optional helper for long GGUF validation batches. It launches existing test
+harnesses in manifest order; the report kind selects the checks applied afterward.
+
 Run with Python 3.9+ on Linux:
 
 ```bash
@@ -8,8 +11,8 @@ python3 /path/to/openvino/.claude/skills/ov-gguf/scripts/run_matrix.py \
 ```
 
 Add `--retry-failed` for a deliberate retry of completed failures. Only one runner
-may use an output directory at a time. Exit codes: 0 means all cases returned
-zero, 1 means a case failed/timed out/could not start, 2 means invalid setup or
+may use an output directory at a time. Exit codes: 0 means all commands and configured
+report checks passed, 1 means a case failed/timed out/could not start, 2 means invalid setup or
 changed inputs, and 130 means interrupted. Logs stay on disk; console output is
 one summary per completed case. `summary.json` can be read while the batch runs.
 `summary.json.cases` maps case IDs to records; it is not an array. Inspect its
@@ -72,7 +75,31 @@ positive timeout, and nonempty `metadata` recording the acceptance contract.
 hashed for invalidation but not copied into artifacts; do not put secrets into
 the manifest. Environment changes conservatively invalidate reuse.
 
-## Optional report contracts
+## Test types
+
+Each case supplies its executable, arguments, environment and timeout. There are three
+paths; tests are not regrouped or reordered by type.
+
+### Command-only checks
+
+For builds, Python tests, loading checks or other self-checking harnesses, omit `reports`.
+The command's exit status determines success; the harness must enforce its own coverage
+and acceptance criteria. The runner has no separate pytest or performance-report parser.
+
+### GTest unit and integration tests
+
+Run the test executable with `--gtest_output=xml:<report-path>` and configure a `gtest`
+report. `validate_gtest_contract()` checks the manifest settings;
+`audit_gtest_report()` checks the fresh XML for expected counts, skips and failures.
+
+### GGUF GenAI accuracy and API tests
+
+Run GenAI's `validate_gguf_mmproj.py` with `--report <report-path>` and configure a
+`gguf_mmproj` report. `validate_gguf_mmproj_contract()` checks the settings;
+`audit_gguf_mmproj_report()` verifies modalities, replay choices, API checks and provenance
+fields. Choose the reference and numerical thresholds explicitly.
+
+## Report contracts
 
 `reports` are case outputs, not stable `inputs`. Each report needs a unique absolute
 path across the matrix, and the command must write it. Missing or unchanged reports

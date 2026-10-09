@@ -87,11 +87,14 @@ Agree coverage early, iterate on a small reproducer, then run shared-path
 regressions and the final matrix with stable sources and runtime. Expand or
 repeat only for changed inputs, a new failure or missing required coverage.
 
-Read the [runner contract](validation-runner.md) to prepare a manifest for
+For long or repeated batches, read the [runner contract](validation-runner.md) to prepare a manifest for
 [run_matrix.py](../scripts/run_matrix.py). It executes serially, checkpoints each
 case and preserves logs and report snapshots. Use executable report contracts
 for gtest counts/skips and required GenAI modalities/API metrics: process exit
 zero and prose in metadata cannot establish coverage.
+Run a single test directly when checkpoints and resume are unnecessary. The runner's
+command/resume machinery is general; its GGUF report checks support this skill's
+cross-repository accuracy and media validation.
 
 Keep manifests, logs and downloaded fixtures outside the checkout, for example
 `~/.cache/ov-validation/<task>/`. Fingerprint build sources/configuration for build
