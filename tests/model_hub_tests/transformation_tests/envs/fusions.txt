@@ -1,0 +1,7 @@
+# Fusion transformations (MoE, GatedDeltaNet, RoPE).
+# Tests: test_moe_transformation.py, test_gated_delta_net_transformation.py, test_transformations.py
+# Not on transformers 5.x: MoE export loses the fused 3D-weight pattern, optimum-intel caps
+# qwen3-next export at 4.57.6, and several RoPE models (chatglm, dbrx, internlm2, aquila2) fail.
+transformers==4.57.6
+huggingface-hub>=0.30.0,<1.0
+optimum-intel==2.2.0

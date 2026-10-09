@@ -1,0 +1,4 @@
+# GPU-only addition to fusions.txt for test_transformations.py (job_gpu_rope_tests.yml).
+# diffusers is needed only by the Flux test, which is skipped on CPU; it is kept out of the CPU flow
+# because its presence broke optimum-intel's auto-pipeline import there (CVS-182458).
+diffusers==0.34.0

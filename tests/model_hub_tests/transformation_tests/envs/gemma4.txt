@@ -1,0 +1,5 @@
+# Tests: test_pa_gemma4_transformation.py
+# gemma4 architecture is only recognized starting with a much newer transformers
+# release than the common transformation-test stack (common.txt, transformers<4.52).
+transformers==5.5.4
+optimum-intel==2.1.0

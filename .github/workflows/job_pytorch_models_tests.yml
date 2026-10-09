@@ -44,6 +44,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      TRANSFORMATION_TESTS_VENV: ${{ github.workspace }}/transformation_tests_venv
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
@@ -183,14 +184,46 @@ jobs:
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
-      - name: Install deps for transformation tests
+      # Transformation tests run in their own venv, isolated from packages of the model tests above.
+      # Each envs/*.txt covers one transformation family; installs are ordered by ascending
+      # transformers version so that every install only upgrades what the previous one left behind.
+      - name: Create venv for transformation tests
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
-          # Remove LLM-specific packages that conflict with optimum-intel deps
-          python3 -m pip uninstall -y gptqmodel triton kernels torchao 2>/dev/null || true
+          python3 -m venv ${TRANSFORMATION_TESTS_VENV}
+          echo "${TRANSFORMATION_TESTS_VENV}/bin" >> $GITHUB_PATH
+          echo "VIRTUAL_ENV=${TRANSFORMATION_TESTS_VENV}" >> $GITHUB_ENV
+
+      - name: Install OpenVINO Python wheels into transformation tests venv
+        if: ${{ inputs.model_scope == 'precommit' }}
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
+          wheels-to-install: 'openvino openvino_tokenizers'
+
+      - name: Install deps for TorchFX GPTQ test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          # compile_gptq.txt pins an older torch than requirements_pytorch, so it goes on top of it
+          python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch
+          python3 -m pip install \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/compile_gptq.txt
+
+      - name: TorchFX GPTQ Pattern Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
+        env:
+          TEST_DEVICE: CPU
+
+      - name: Install PagedAttention test deps
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/optimum_intel.txt
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/paged_attention.txt
 
       - name: PagedAttention Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -200,30 +233,17 @@ jobs:
         env:
           TEST_DEVICE: CPU
 
-      - name: StatefulToStateless Test
+      - name: Install fusion test deps (MoE, GatedDeltaNet, RoPE)
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_stateful_to_stateless_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_stateful_to_stateless_tests.html --self-contained-html -v --tb=short
-        env:
-          TEST_DEVICE: CPU
-
-      - name: TorchFX GPTQ Pattern Test
-        if: ${{ inputs.model_scope == 'precommit' }}
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          # compile_gptq.txt downgrades torch to 2.3.1; remove packages incompatible with it
-          python3 -m pip uninstall -y triton torchao autoawq 2>/dev/null || true
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/compile_gptq.txt
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
-        env:
-          TEST_DEVICE: CPU
+          python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/fusions.txt
 
       - name: MoE Fusion Test
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/moe.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_moe_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_moe_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU
@@ -232,7 +252,6 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/gated_delta_net.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gated_delta_net_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gated_delta_net_tests.html --self-contained-html -vvv -s --tb=short
         env:
           TEST_DEVICE: CPU
@@ -241,10 +260,30 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
+        env:
+          TEST_DEVICE: CPU
+
+      - name: Install PagedAttention transformers 5 test deps
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/paged_attention_v5.txt
+
+      - name: StatefulToStateless Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_stateful_to_stateless_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_stateful_to_stateless_tests.html --self-contained-html -v --tb=short
+        env:
+          TEST_DEVICE: CPU
+
+      - name: PagedAttention Gemma4 Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_gemma4_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_gemma4_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
 

@@ -283,7 +283,6 @@ set(OPSET_CONVERSIONS_HEADERS
 )
 
 set(PAGED_ATTENTION_HEADERS
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/attention_mask_shape_replacer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.hpp
