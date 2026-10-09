@@ -26,6 +26,7 @@
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_reg_spill_emitters.hpp"
+#include "emitters/snippets/aarch64/utils.hpp"
 #include "emitters/snippets/common/emitter_factory.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "jit_snippets_emitters.hpp"
@@ -117,8 +118,6 @@
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/common/op/load_convert.hpp"
 #include "transformations/snippets/common/op/store_convert.hpp"
-#include "utils/general_utils.h"
-
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "emitters/tpp/aarch64/jit_brgemm_emitter.hpp"
 #    include "transformations/tpp/common/op/brgemm.hpp"
@@ -402,12 +401,11 @@ std::vector<snippets::Reg> CPUTargetMachine::get_abi_arg_regs() const {
 }
 
 std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
-    using Xbyak_aarch64::Operand;
     const auto num_gp_regs = 32;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
         // Note: more details on the usage of reserved registers in aarch64/jit_kernel_emitter.cpp
-        if (none_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
+        if (!utils::is_reserved_gpr(i)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }

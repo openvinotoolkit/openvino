@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <iterator>
 #include <set>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -197,40 +196,37 @@ void EmitABIRegSpills::postamble() {
 
 namespace utils {
 
+bool is_reserved_gpr(size_t idx) {
+    using Xbyak_aarch64::Operand;
+    return ov::intel_cpu::any_of(idx,
+                                 Operand::X18,
+                                 Operand::X23,
+                                 Operand::X24,
+                                 Operand::X28,
+                                 Operand::X29,
+                                 Operand::SP);
+}
+
 std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count) {
-    // X0 and X1 - runtime parameter registers in the kernel
-    // X18 - platform register should not be used
-    // SP - stack pointer should be preserved
-    static const std::unordered_set<size_t> blacklist_gpr_idxs = {
-        0,   // abi_param1 (X0)
-        1,   // abi_param2 (X1)
-        18,  // Platform register (X18)
-        31,  // Stack pointer (SP)
-    };
-
-    OPENVINO_ASSERT(count <= 32 - blacklist_gpr_idxs.size(),
-                    "Cannot allocate more than ",
-                    32 - blacklist_gpr_idxs.size(),
-                    " auxiliary registers");
-
-    // Convert used_gpr_idxs to unordered_set for O(1) lookups
-    const std::unordered_set<size_t> used_set(used_gpr_idxs.begin(), used_gpr_idxs.end());
-
     std::vector<Xbyak_aarch64::XReg> aux_regs;
     aux_regs.reserve(count);
 
     // Iterate from X30 down to X0 (allocate from the end)
-    for (size_t idx = 30; idx != SIZE_MAX; --idx) {
-        if (used_set.count(idx) || blacklist_gpr_idxs.count(idx)) {
+    for (size_t idx = 30; idx != SIZE_MAX && aux_regs.size() < count; --idx) {
+        if (std::find(used_gpr_idxs.begin(), used_gpr_idxs.end(), idx) != used_gpr_idxs.end() ||
+            idx == static_cast<size_t>(abi_param1.getIdx()) || idx == static_cast<size_t>(abi_param2.getIdx()) ||
+            is_reserved_gpr(idx)) {
             continue;
         }
         aux_regs.emplace_back(idx);
-        if (aux_regs.size() == count) {
-            break;
-        }
     }
 
-    OPENVINO_ASSERT(aux_regs.size() == count, "Expected ", count, " auxiliary registers, but got ", aux_regs.size());
+    OPENVINO_ASSERT(aux_regs.size() == count,
+                    "Cannot allocate ",
+                    count,
+                    " auxiliary registers, only ",
+                    aux_regs.size(),
+                    " are available");
     return aux_regs;
 }
 
