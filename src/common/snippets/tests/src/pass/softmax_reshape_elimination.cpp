@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <openvino/op/shape_of.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <snippets/pass/softmax_reshape_elimination.hpp>
-
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -83,4 +83,28 @@ TEST_F(TransformationTestsF, SoftmaxV8ReshapeElimination_DynamicBatch) {
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(data, 3);
         model_ref = std::make_shared<Model>(OutputVector{softmax_v1}, ParameterVector{data});
     }
+}
+
+TEST_F(TransformationTestsF, SoftmaxReshapeElimination_UnknownReductionDimension) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, 4});
+    const auto pattern = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+    const auto reshape0 = std::make_shared<op::v1::Reshape>(data, pattern, false);
+    const auto softmax = std::make_shared<op::v8::Softmax>(reshape0, -1);
+    const auto restore = std::make_shared<op::v3::ShapeOf>(data);
+    const auto reshape1 = std::make_shared<op::v1::Reshape>(softmax, restore, false);
+    model = std::make_shared<Model>(OutputVector{reshape1}, ParameterVector{data, pattern});
+    EXPECT_FALSE(snippets::pass::SoftmaxReshapeElimination::eliminate(reshape0, softmax, reshape1));
+}
+
+TEST_F(TransformationTestsF, SoftmaxReshapeElimination_CompatibleRuntimeShape) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, 4});
+    const auto prefix = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+    const auto last_dim = op::v0::Constant::create(element::i64, Shape{1}, {4});
+    const auto pattern = op::v0::Constant::create(element::i64, Shape{2}, {-1, 4});
+    const auto reshape0 = std::make_shared<op::v1::Reshape>(data, pattern, false);
+    const auto softmax = std::make_shared<op::v8::Softmax>(reshape0, -1);
+    const auto restore = std::make_shared<op::v0::Concat>(OutputVector{prefix, last_dim}, 0);
+    const auto reshape1 = std::make_shared<op::v1::Reshape>(softmax, restore, false);
+    model = std::make_shared<Model>(OutputVector{reshape1}, ParameterVector{data, prefix});
+    EXPECT_FALSE(snippets::pass::SoftmaxReshapeElimination::eliminate(reshape0, softmax, reshape1));
 }
