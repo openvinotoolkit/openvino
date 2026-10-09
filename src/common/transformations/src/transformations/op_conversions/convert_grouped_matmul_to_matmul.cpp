@@ -71,8 +71,9 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
     using namespace ov::pass::pattern;
 
     // 2Dx3D: A:[T,K] B:[G,N,K] offsets:[G]
+    // A fixed MatMul per group is emitted, so the group count G (B.shape[0]) must be static.
     auto matrix_a_2d = any_input(rank_equals(2));
-    auto matrix_b_3d = any_input(rank_equals(3));
+    auto matrix_b_3d = any_input(rank_equals(3) && has_static_dim(0));
     auto offsets = any_input(rank_equals(1));
     auto gmm_2d_3d = wrap_type<v17::GroupedMatMul>({matrix_a_2d, matrix_b_3d, offsets});
 
@@ -84,12 +85,7 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
         const auto mat_a = gmm->input_value(0);
         const auto mat_b = gmm->input_value(1);
 
-        // A fixed MatMul per group is emitted, so the group count G must be static.
-        const auto& b_partial_shape = mat_b.get_partial_shape();
-        if (b_partial_shape[0].is_dynamic()) {
-            return false;
-        }
-        const auto num_groups = b_partial_shape[0].get_length();
+        const auto num_groups = mat_b.get_partial_shape()[0].get_length();
 
         using ov::element::i32;
 
