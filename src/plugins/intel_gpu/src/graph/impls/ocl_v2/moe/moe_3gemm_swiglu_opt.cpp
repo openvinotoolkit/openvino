@@ -1046,7 +1046,7 @@ public:
         }
 
         // No batched GEMV kernel for this weight type: both decode and prefill go through OneDNN grouped GEMM
-        if (!is_batched_gemv_supported(weight_dt)) {
+        if (!is_batched_gemv_supported(weight_dt) || config.get_moe_use_grouped_gemm_decode()) {
             use_micro_gemm_prefill = false;
             use_grouped_gemm_prefill = true;
             use_grouped_gemm_decode = true;
