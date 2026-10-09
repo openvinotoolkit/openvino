@@ -11,6 +11,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
@@ -28,11 +29,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 namespace {
 // MatMulNBits repacks B/scales/zero_point initializers into new low-bit Constants. Preserve the
 // original ONNX initializer's friendly name and tensor names on the repacked Constant so weight
@@ -403,6 +400,23 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
                 ov::Shape casted_zp_shape =
                     ov::Shape{static_cast<size_t>(outer_dim), static_cast<size_t>(num_elements_aligned), 1};
+                if (!b_is_reordered) {
+                    // Standard layout: the Constant below copies required_zp_bytes from the source pointer;
+                    // reject an undersized initializer to avoid reading past it (a larger source is fine).
+                    // The reordered layout is already size-validated above.
+                    const auto required_zp_bytes = ov::util::get_memory_size_safe(zp_element_type, casted_zp_shape);
+                    CHECK_VALID_NODE(node,
+                                     required_zp_bytes.has_value(),
+                                     "MatMulNBits limitation: cannot compute packed uint8 zero_points size for shape ",
+                                     casted_zp_shape);
+                    CHECK_VALID_NODE(node,
+                                     zero_points_const->get_byte_size() >= *required_zp_bytes,
+                                     "MatMulNBits limitation: packed uint8 zero_points is too small for shape "
+                                     "[N][CeilDiv(n_blocks_per_col * bits, 8)], need at least ",
+                                     *required_zp_bytes,
+                                     " bytes, got: ",
+                                     zero_points_const->get_byte_size());
+                }
                 auto casted_zp_org =
                     std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
                 // Preserve the original zero_point name on the repacked Constant (as done for B) so
@@ -522,8 +536,4 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("MatMulNBits", OPSET_SINCE(1), com_microsoft::opset_1::matmulnbits, MICROSOFT_DOMAIN);
 
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

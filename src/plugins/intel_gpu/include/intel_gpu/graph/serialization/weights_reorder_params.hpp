@@ -17,14 +17,14 @@ namespace cldnn {
               _transposed(transposed),
               _grouped(grouped) {}
 
-        size_t hash() const {
+        virtual size_t hash() const {
             size_t seed = hash_combine(_in_layout.hash(), _out_layout.hash());
             seed = hash_combine(seed, _transposed);
             seed = hash_combine(seed, _grouped);
             return seed;
         }
 
-        bool operator==(const WeightsReorderParams& rhs) const {
+        virtual bool operator==(const WeightsReorderParams& rhs) const {
             if (typeid(*this) != typeid(rhs)) {
                 return false;
             }
@@ -80,6 +80,24 @@ namespace cldnn {
 
             std::shared_ptr<dnnl::memory::desc> _in_desc = std::make_shared<dnnl::memory::desc>();
             std::shared_ptr<dnnl::memory::desc> _out_desc = std::make_shared<dnnl::memory::desc>();
+
+            size_t hash() const override {
+                size_t seed = cldnn::WeightsReorderParams::hash();
+                const auto in_desc_blob = _in_desc->get_blob();
+                const auto out_desc_blob = _out_desc->get_blob();
+                seed = hash_range(seed, in_desc_blob.begin(), in_desc_blob.end());
+                return hash_range(seed, out_desc_blob.begin(), out_desc_blob.end());
+            }
+
+            bool operator==(const WeightsReorderParams& rhs) const override {
+                if (!cldnn::WeightsReorderParams::operator==(rhs)) {
+                    return false;
+                }
+
+                const auto& rhs_onednn = static_cast<const WeightsReorderParamsOneDNN&>(rhs);
+                return _in_desc->get_blob() == rhs_onednn._in_desc->get_blob() &&
+                       _out_desc->get_blob() == rhs_onednn._out_desc->get_blob();
+            }
 
             void save(cldnn::BinaryOutputBuffer& ob) const override {
                 cldnn::WeightsReorderParams::save(ob);

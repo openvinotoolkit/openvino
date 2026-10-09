@@ -14,10 +14,7 @@
 #include "openvino/op/tile.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_REPEAT tiles src[0] to fill the destination shape; every destination dimension is an
 // integer multiple of the corresponding source dimension.
@@ -93,7 +90,4 @@ OutputVector translate_repeat(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

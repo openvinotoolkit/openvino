@@ -4,18 +4,18 @@
 
 set(TARGET_NAME "openvino_onnx_common")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+add_library(${TARGET_NAME} STATIC
 
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
+    # Sources
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx_model_validator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/parser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cpp
 
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
-
-# Create static library
-
-add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+    # Headers
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_common/onnx_model_validator.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_common/parser.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_common/utils.hpp
+)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

@@ -6,10 +6,7 @@
 
 #include "op_utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 
 //
 NamedOutputs elementwise_add(const NodeContext& node_context) {
@@ -88,7 +85,4 @@ NamedOutputs elementwise_mod(const NodeContext& node_context) {
     return elementwise_ops<default_opset::FloorMod>(node_context);
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

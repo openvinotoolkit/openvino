@@ -12,13 +12,26 @@
 namespace intel_npu {
 
 void MemRefType::setArg(const void* arg) {
+    if (_basePtr != arg || _data != arg) {
+        markDirty(PTR_DIRTY);
+    }
     _basePtr = _data = arg;
+}
+
+void MemRefType::setOffset(int64_t offset) {
+    if (_offset != offset) {
+        markDirty(PTR_DIRTY);
+    }
+    _offset = offset;
 }
 
 void MemRefType::setSize(const ov::Shape& shape) {
     // Note: check difference between shape from compiler and shape from IR.
     if (_dimsCount == 0) {
-        _dimsCount = static_cast<uint32_t>(shape.size());
+        if (!_sizes.empty() || !_strides.empty() || _dimsCount != static_cast<int64_t>(shape.size())) {
+            markDirty(SHAPE_DIRTY);
+        }
+        _dimsCount = static_cast<int64_t>(shape.size());
         _sizes.resize(shape.size());
         _strides.resize(shape.size());
     } else if (_dimsCount != static_cast<int64_t>(shape.size())) {
@@ -28,13 +41,17 @@ void MemRefType::setSize(const ov::Shape& shape) {
                        shape.size());
     }
 
-    for (int64_t i = 0; i < _dimsCount; ++i) {
-        _sizes[i] = static_cast<int64_t>(shape[i]);
+    for (int64_t dimIndex = 0; dimIndex < _dimsCount; ++dimIndex) {
+        const auto size = static_cast<int64_t>(shape[dimIndex]);
+        if (_sizes[dimIndex] != size) {
+            markDirty(SHAPE_DIRTY);
+        }
+        _sizes[dimIndex] = size;
     }
 }
 
 void MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
-    if (_dimsCount == 0) {
+    if (_dimsCount == 0 && !strides.empty()) {
         OPENVINO_THROW("Dimension count is zero, shall call setSize before setStrides");
     } else if (_dimsCount != static_cast<int64_t>(strides.size())) {
         OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
@@ -43,43 +60,49 @@ void MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
                        strides.size());
     }
 
-    for (int64_t i = 0; i < _dimsCount; ++i) {
-        _strides[i] = static_cast<int64_t>(strides[i] / elementSize);
+    for (int64_t dimIndex = 0; dimIndex < _dimsCount; ++dimIndex) {
+        const auto stride = static_cast<int64_t>(strides[dimIndex] / elementSize);
+        if (_strides[dimIndex] != stride) {
+            markDirty(STRIDE_DIRTY);
+        }
+        _strides[dimIndex] = stride;
     }
 }
 
 void MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
-    _basePtr = _data = arg;
-    _offset = offset;
-    if (_dimsCount == 0) {
-        _dimsCount = static_cast<uint32_t>(tensor->get_shape().size());
-        _sizes.resize(_dimsCount);
-        _strides.resize(_dimsCount);
-    } else if (_dimsCount != static_cast<int64_t>(tensor->get_shape().size())) {
-        OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
-                       _dimsCount,
-                       ", new dimension count: ",
-                       tensor->get_shape().size());
-    }
-
-    auto& shape = tensor->get_shape();
-    for (int64_t j = 0; j < _dimsCount; j++) {
-        _sizes[j] = static_cast<int64_t>(shape[j]);
-    }
-    auto& strides = tensor->get_strides();
+    setArg(arg);
+    setOffset(offset);
+    setSize(tensor->get_shape());
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    for (int64_t j = 0; j < _dimsCount; j++) {
-        _strides[j] = static_cast<int64_t>(strides[j] / elementSize);
-    }
+    setStrides(tensor->get_strides(), static_cast<int32_t>(elementSize));
 }
 
 void MemRefType::updateStride() {
     // Note: NCHW layout style
     uint64_t stride = 1;
-    for (int64_t i = _dimsCount - 1; i >= 0; --i) {
-        _strides[i] = stride;
-        stride *= _sizes[i];
+    for (int64_t dimIndex = _dimsCount - 1; dimIndex >= 0; --dimIndex) {
+        if (_strides[dimIndex] != static_cast<int64_t>(stride)) {
+            markDirty(STRIDE_DIRTY);
+        }
+        _strides[dimIndex] = stride;
+        stride *= _sizes[dimIndex];
     }
+}
+
+bool MemRefType::isDirty() const {
+    return _dirtyFlag != 0;
+}
+
+uint32_t MemRefType::getDirtyFlag() const {
+    return _dirtyFlag;
+}
+
+void MemRefType::markDirty(uint32_t dirtyFlag) {
+    _dirtyFlag |= dirtyFlag;
+}
+
+void MemRefType::clearDirty() {
+    _dirtyFlag = 0;
 }
 
 // The comparision only checks shape and strides now

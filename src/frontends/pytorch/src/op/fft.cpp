@@ -23,10 +23,7 @@
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -240,7 +237,4 @@ OutputVector translate_fft_irfftn(const NodeContext& context) {
     return translate_fft_base<v9::IRDFT>(context, -1, true, false, true, true);
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

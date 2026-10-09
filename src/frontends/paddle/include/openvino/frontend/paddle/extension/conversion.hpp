@@ -9,9 +9,7 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
+namespace ov::frontend::paddle {
 
 class ConversionExtension : public ConversionExtensionBase {
 public:
@@ -33,6 +31,4 @@ private:
     ov::frontend::CreatorFunctionNamed m_converter;
 };
 
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle
