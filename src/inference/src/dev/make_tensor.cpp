@@ -417,8 +417,7 @@ public:
         : m_owner{owner},
           m_shape{make_roi_shape(owner->get_shape(), begin, end)},
           m_capacity{m_shape},
-          m_offset{
-              std::inner_product(begin.begin(), begin.end(), m_owner->get_strides().begin(), static_cast<size_t>(0))} {
+          m_begin{begin} {
         OPENVINO_ASSERT(m_owner->get_element_type().bitwidth() >= 8,
                         "ROI Tensor for types with bitwidths less than 8 bit is not implemented. Tensor type: ",
                         m_owner->get_element_type());
@@ -447,39 +446,69 @@ public:
             " for ROI tensor! The expanding rank dimension(s) of ROI must be ones, but it is not at index: ",
             std::distance(new_shape.cbegin(), new_dim.base()) - 1);
 
+        const auto& owner_strides = m_owner->get_strides();
+        calculate_offset(new_shape, owner_strides);
         m_shape = std::move(new_shape);
-        update_padded_strides(m_owner->get_strides());
+        update_padded_strides(owner_strides);
     }
 
     size_t get_offset() const {
-        return m_offset;
+        return calculate_offset(m_shape, m_owner->get_strides());
     }
 
     const Strides& get_strides() const {
         const auto& owner_strides = m_owner->get_strides();
-        if (m_shape.size() <= owner_strides.size()) {
+        calculate_offset(m_shape, owner_strides);
+        if (m_shape.size() == owner_strides.size()) {
             return owner_strides;
         }
 
         std::lock_guard<std::mutex> lock{m_strides_mutex};
         if (m_padded_strides.size() != m_shape.size() || m_owner_strides_rank != owner_strides.size() ||
-            !std::equal(owner_strides.rbegin(), owner_strides.rend(), m_padded_strides.rbegin())) {
+            !std::equal(owner_strides.rbegin(),
+                        owner_strides.rbegin() + std::min(owner_strides.size(), m_shape.size()),
+                        m_padded_strides.rbegin())) {
             update_padded_strides(owner_strides);
         }
         return m_padded_strides;
     }
 
 protected:
+    size_t calculate_offset(const Shape& shape, const Strides& owner_strides) const {
+        const auto& owner_shape = m_owner->get_shape();
+        OPENVINO_ASSERT(owner_strides.size() == owner_shape.size(), "Owner tensor strides rank must match shape rank.");
+
+        size_t offset = 0;
+        // Align coordinates from the trailing dimensions, as in set_shape().
+        for (size_t i = 0; i < std::max(shape.size(), owner_shape.size()); ++i) {
+            const auto begin = i < m_begin.size() ? m_begin[m_begin.size() - 1 - i] : 0;
+            const auto dim = i < shape.size() ? shape[shape.size() - 1 - i] : 1;
+            const auto owner_dim = i < owner_shape.size() ? owner_shape[owner_shape.size() - 1 - i] : 1;
+            OPENVINO_ASSERT(begin <= owner_dim && dim <= owner_dim - begin,
+                            "ROI tensor with shape ",
+                            shape,
+                            " and begin coordinates ",
+                            m_begin,
+                            " is outside owner shape ",
+                            owner_shape);
+            if (i < owner_strides.size()) {
+                offset += begin * owner_strides[owner_strides.size() - 1 - i];
+            }
+        }
+        return offset;
+    }
+
     void update_padded_strides(const Strides& owner_strides) const {
         m_owner_strides_rank = owner_strides.size();
-        if (m_shape.size() <= owner_strides.size()) {
+        if (m_shape.size() == owner_strides.size() || m_shape.empty()) {
             m_padded_strides.clear();
             return;
         }
-        auto pad = m_shape.size() - owner_strides.size();
+        const auto owner_rank = std::min(owner_strides.size(), m_shape.size());
+        auto pad = m_shape.size() - owner_rank;
         m_padded_strides.resize(m_shape.size());
         if (!owner_strides.empty()) {
-            std::copy(owner_strides.begin(), owner_strides.end(), m_padded_strides.begin() + pad);
+            std::copy(owner_strides.end() - owner_rank, owner_strides.end(), m_padded_strides.begin() + pad);
         } else {
             m_padded_strides.back() = m_owner->get_element_type().size();
             pad = m_shape.size() - 1;
@@ -492,7 +521,7 @@ protected:
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
     const Shape m_capacity;
-    const size_t m_offset;
+    const Coordinate m_begin;
     mutable Strides m_padded_strides;
     mutable size_t m_owner_strides_rank = 0;
     mutable std::mutex m_strides_mutex;
@@ -524,27 +553,27 @@ public:
     }
 
     void* data() override {
-        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+        return static_cast<uint8_t*>(m_owner->data()) + get_offset();
     }
 
     void* data(const element::Type& element_type) override {
-        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+        return static_cast<uint8_t*>(m_owner->data()) + get_offset();
     }
 
     const void* data() const override {
-        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+        return static_cast<uint8_t*>(m_owner->data()) + get_offset();
     }
 
     const void* data(const element::Type& element_type) const override {
-        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+        return static_cast<uint8_t*>(m_owner->data()) + get_offset();
     }
 
     void* data_rw() override {
-        return static_cast<uint8_t*>(m_owner->data_rw()) + m_offset;
+        return static_cast<uint8_t*>(m_owner->data_rw()) + get_offset();
     }
 
     void* data_rw(const element::Type& element_type) override {
-        return static_cast<uint8_t*>(m_owner->data_rw(element_type)) + m_offset;
+        return static_cast<uint8_t*>(m_owner->data_rw(element_type)) + get_offset();
     }
 };
 
@@ -586,11 +615,11 @@ public:
 
             auto dst_roi_remote_tensor = std::dynamic_pointer_cast<RoiRemoteTensor>(dst);
             owner_remote_tensor->copy_to(dst_roi_remote_tensor->m_owner,
-                                         m_offset,
-                                         dst_roi_remote_tensor->m_offset,
+                                         get_offset(),
+                                         dst_roi_remote_tensor->get_offset(),
                                          m_shape);
         } else {
-            owner_remote_tensor->copy_to(dst, m_offset, 0, m_shape);
+            owner_remote_tensor->copy_to(dst, get_offset(), 0, m_shape);
         }
     };
 
@@ -607,11 +636,11 @@ public:
         if (std::dynamic_pointer_cast<const RoiRemoteTensor>(src)) {
             const auto src_roi_remote_tensor = std::dynamic_pointer_cast<const RoiRemoteTensor>(src);
             owner_remote_tensor->copy_from(src_roi_remote_tensor->m_owner,
-                                           src_roi_remote_tensor->m_offset,
-                                           m_offset,
+                                           src_roi_remote_tensor->get_offset(),
+                                           get_offset(),
                                            m_shape);
         } else {
-            owner_remote_tensor->copy_from(src, 0, m_offset, m_shape);
+            owner_remote_tensor->copy_from(src, 0, get_offset(), m_shape);
         }
     };
 
