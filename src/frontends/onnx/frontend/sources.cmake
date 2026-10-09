@@ -132,6 +132,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/max.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/max_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/max_roi_pool.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/max_unpool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/mean.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/mean_variance_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/min.cpp
