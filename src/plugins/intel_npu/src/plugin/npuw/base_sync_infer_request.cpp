@@ -5,6 +5,7 @@
 
 #include "base_sync_infer_request.hpp"
 
+#include <iomanip>
 #include <sstream>
 
 #include "attn/attn_subgraph.hpp"
@@ -17,21 +18,33 @@
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
+#include "perf_tags.hpp"
 #include "util.hpp"
 
 ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_model(compiled_model),
-      m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
+      m_num_submodels(m_npuw_model->m_compiled_submodels.size()),
+      m_perf_on(ov::npuw::profiling_enabled()) {
     m_subrequests.resize(m_num_submodels, {});
     m_completion_cbs.resize(m_num_submodels, {});
 
     // Initialize profiling
-    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.report_on_die = m_perf_on;
     m_profile.area = m_npuw_model->m_name + "/performance";
+    m_profile.profile_scope = ov::npuw::perf::Scope::Execution;
 
-    m_footprint.report_on_die = ov::npuw::profiling_enabled();
+    // Memory statistics are construction/lazy-allocation counters, not per-run work -
+    // a run boundary must not wipe them.
+    m_footprint.report_on_die = m_perf_on;
     m_footprint.area = m_npuw_model->m_name + "/memory";
+    m_footprint.profile_scope = ov::npuw::perf::Scope::Lifetime;
+
+    m_perf_submodel_tags.resize(m_num_submodels);
+    m_perf_device_tags.resize(m_num_submodels);
+    m_perf_submodel.resize(m_num_submodels);
+    m_perf_device.resize(m_num_submodels);
+    m_perf_attribution.resize(m_num_submodels);
 
     // Cache device check and strided ports for hot-path lookups in set_tensor
     m_is_npu_global_mem = (m_npuw_model->global_mem_device() == "NPU");
@@ -218,13 +231,62 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
     return info;
 }
 
-std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
-    // So far accumulate over devices involved
-    return m_npuw_model->submodel_device(real(idx));
+const std::string& ov::npuw::IBaseInferRequest::perf_submodel_tag(std::size_t idx) {
+    // Per-submodel statistics: all calls of the same function body are
+    // accumulated under its real (prototype) id
+    const auto real_idx = real(idx);
+    auto& tag = m_perf_submodel_tags.at(real_idx);
+    if (tag.empty()) {
+        const bool is_funcall = m_npuw_model->m_compiled_submodels[real_idx].replaced_by.has_value();
+        tag = ov::npuw::perf::tags::submodel(m_npuw_model->submodel_device(real_idx), real_idx, is_funcall);
+    }
+    return tag;
+}
+
+const std::string& ov::npuw::IBaseInferRequest::perf_device_tag(std::size_t idx) {
+    // Accumulated over all submodels running on this device
+    const auto real_idx = real(idx);
+    auto& tag = m_perf_device_tags.at(real_idx);
+    if (tag.empty()) {
+        tag = ov::npuw::perf::tags::device(m_npuw_model->submodel_device(real_idx));
+    }
+    return tag;
+}
+
+ov::npuw::perf::metric_ptr ov::npuw::IBaseInferRequest::perf_handle(const std::string& tag) {
+    return m_profile.handle(tag);
+}
+
+ov::npuw::perf::metric_ptr ov::npuw::IBaseInferRequest::perf_submodel_handle(std::size_t idx) {
+    const auto real_idx = real(idx);
+    auto* h = m_perf_submodel.get(real_idx);
+    if (h == nullptr) {
+        h = m_profile.handle(perf_submodel_tag(idx));
+        m_perf_submodel.set(real_idx, h);
+    }
+    return h;
+}
+
+ov::npuw::perf::metric_ptr ov::npuw::IBaseInferRequest::perf_device_handle(std::size_t idx) {
+    const auto real_idx = real(idx);
+    auto* h = m_perf_device.get(real_idx);
+    if (h == nullptr) {
+        h = m_profile.handle(perf_device_tag(idx));
+        m_perf_device.set(real_idx, h);
+    }
+    return h;
+}
+
+void ov::npuw::IBaseInferRequest::set_perf_attribution(std::size_t real_idx, ov::npuw::perf::metric_ptr m) {
+    m_perf_attribution.set(real_idx, m);
 }
 
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
+    if (ov::npuw::perf::compiled_in && m_perf_on) {
+        // A level that stops being selected must not leak attribution into this run
+        m_perf_attribution.clear();
+    }
     prepare_for_infer();
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
         m_now_idx = idx;
@@ -232,9 +294,21 @@ void ov::npuw::IBaseInferRequest::infer() {
             continue;
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
-        m_profile[profile_tag(idx)].record([&]() {
+        if (ov::npuw::perf::compiled_in && m_perf_on) {
+            // One measurement, up to three targets: the device total, this submodel,
+            // and whatever a runtime behavior attributed this subgraph to.
+            ov::npuw::perf::sample s(perf_device_handle(idx));
             run_subrequest_for_success(idx);
-        });
+            const float elapsed = s.commit();
+            if (auto* submodel = perf_submodel_handle(idx)) {
+                submodel->add(elapsed);
+            }
+            if (auto* attributed = m_perf_attribution.get(real(idx))) {
+                attributed->add(elapsed);
+            }
+        } else {
+            run_subrequest_for_success(idx);
+        }
         complete_subrequest(idx);
     }
 

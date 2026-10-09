@@ -22,6 +22,9 @@ bool debug_groups();
 
 bool profiling_enabled();
 
+// When enabled, profiling reports also list every individual record (per-run timing)
+bool profiling_details();
+
 class __logging_indent__ {
     static thread_local int this_indent;
 

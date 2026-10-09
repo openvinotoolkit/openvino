@@ -22,6 +22,8 @@ MoEProfile::MoEProfile() {
     batch.area = "MoE Expert Batch";          // EXPERT_BATCH mode profiling
     iterative.report_on_die = ov::npuw::profiling_enabled();
     batch.report_on_die = ov::npuw::profiling_enabled();
+    iterative.profile_scope = ov::npuw::perf::Scope::Execution;
+    batch.profile_scope = ov::npuw::perf::Scope::Execution;
 }
 
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts) {
