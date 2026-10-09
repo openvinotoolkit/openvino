@@ -448,7 +448,7 @@ public:
             std::distance(new_shape.cbegin(), new_dim.base()) - 1);
 
         m_shape = std::move(new_shape);
-        update_padded_strides();
+        update_padded_strides(m_owner->get_strides());
     }
 
     size_t get_offset() const {
@@ -457,28 +457,35 @@ public:
 
     const Strides& get_strides() const {
         const auto& owner_strides = m_owner->get_strides();
-        return m_padded_strides.size() == m_shape.size() ? m_padded_strides : owner_strides;
+        if (m_shape.size() <= owner_strides.size()) {
+            return owner_strides;
+        }
+
+        std::lock_guard<std::mutex> lock{m_strides_mutex};
+        if (m_padded_strides.size() != m_shape.size() || m_owner_strides_rank != owner_strides.size() ||
+            !std::equal(owner_strides.rbegin(), owner_strides.rend(), m_padded_strides.rbegin())) {
+            update_padded_strides(owner_strides);
+        }
+        return m_padded_strides;
     }
 
 protected:
-    void update_padded_strides() {
-        const auto& owner_strides = m_owner->get_strides();
+    void update_padded_strides(const Strides& owner_strides) const {
+        m_owner_strides_rank = owner_strides.size();
         if (m_shape.size() <= owner_strides.size()) {
             m_padded_strides.clear();
             return;
         }
-        const auto pad = m_shape.size() - owner_strides.size();
-        m_padded_strides.assign(m_shape.size(), 0);
+        auto pad = m_shape.size() - owner_strides.size();
+        m_padded_strides.resize(m_shape.size());
         if (!owner_strides.empty()) {
             std::copy(owner_strides.begin(), owner_strides.end(), m_padded_strides.begin() + pad);
-            for (size_t i = pad; i > 0; --i) {
-                m_padded_strides[i - 1] = m_shape[i] * m_padded_strides[i];
-            }
-        } else if (!m_padded_strides.empty()) {
+        } else {
             m_padded_strides.back() = m_owner->get_element_type().size();
-            for (size_t i = m_padded_strides.size() - 1; i > 0; --i) {
-                m_padded_strides[i - 1] = m_shape[i] * m_padded_strides[i];
-            }
+            pad = m_shape.size() - 1;
+        }
+        for (size_t i = pad; i > 0; --i) {
+            m_padded_strides[i - 1] = m_shape[i] * m_padded_strides[i];
         }
     }
 
@@ -486,7 +493,9 @@ protected:
     Shape m_shape;
     const Shape m_capacity;
     const size_t m_offset;
-    Strides m_padded_strides;
+    mutable Strides m_padded_strides;
+    mutable size_t m_owner_strides_rank = 0;
+    mutable std::mutex m_strides_mutex;
 };
 
 /**
