@@ -114,9 +114,6 @@ jobs:
         with:
           mode: restore
           artifact-name: test-results-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
-          # TEMP: look at this PR's runs for the artifact fallback
-          baseline-branch: dawrasau-NPU-results
-          baseline-event: pull_request
           platform: ${{ matrix.npu-platform }}
           model-scope: ${{ inputs.model-scope }}
           metrics-dir: ${{ env.INSTALL_TEST_DIR }}
