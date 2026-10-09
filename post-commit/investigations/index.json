@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 27,
+  "total": 28,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -288,6 +288,17 @@
       "category": "Dependencies",
       "signature_hash": "d61249d5ea96108d",
       "commit_sha": "89f0e3a6695b6761f1dea033624fcd7b8243c44f"
+    },
+    {
+      "investigation_id": "2026-10-09-10-27-00-000-37905994856",
+      "run_id": "37905994856",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37905994856",
+      "workflow_name": "PyTorch Models tests",
+      "timestamp": "2026-10-09T10:27:00Z",
+      "title": "PyTorch model hub HF Transformers tests fail: pyarrow requires NumPy 2.0+, found 1.26.4",
+      "category": "Dependencies",
+      "signature_hash": "d61249d5ea96108d",
+      "commit_sha": "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f"
     }
   ]
 }

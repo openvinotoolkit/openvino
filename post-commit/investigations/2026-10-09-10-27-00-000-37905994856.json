@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-09-10-27-00-000-37905994856",
+  "timestamp": "2026-10-09T10:27:00Z",
+  "run_id": "37905994856",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37905994856",
+  "workflow_name": "PyTorch Models tests",
+  "commit_sha": "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Dependencies",
+  "title": "PyTorch model hub HF Transformers tests fail: pyarrow requires NumPy 2.0+, found 1.26.4",
+  "signature": "ImportError: pyarrow requires NumPy 2.0 or newer, found <version>|Dependencies",
+  "signature_hash": "d61249d5ea96108d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_hf_transformers.py tests fail at model-load time importing datasets -> pyarrow, which rejects the installed NumPy 1.26.4"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status job reports failure because an upstream job (PyTorch Models tests) failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_hf_transformers.py:51: from datasets import Audio, load_dataset\nFile \"/venv/lib/python3.11/site-packages/datasets/arrow_dataset.py\", line 60, in <module>\n  import pyarrow as pa\nFile \"/venv/lib/python3.11/site-packages/pyarrow/__init__.py\", line 59, in <module>\n  from pyarrow.lib import (BuildInfo, CppBuildInfo, RuntimeInfo, set_timezone_db_path,\nFile \"pyarrow/lib.pyx\", line 42, in init pyarrow.lib\nImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4",
+    "FAILED install/tests/model_hub_tests/pytorch/test_hf_transformers.py::TestTransformersModel::test_convert_model_precommit[CPU-allenai/led-base-16384-led] - multiprocessing.context.ProcessError:",
+    "Collecting pyarrow>=15.0.0 (from datasets==3.0.1->-r /__w/openvino/openvino/install/tests/model_hub_tests/pytorch/envs/hf_transformers.txt (line 5))\nDownloading .../pyarrow-26.0.0-cp311-cp311-manylinux_2_28_x86_64.whl"
+  ],
+  "root_cause": "tests/requirements_pytorch pins numpy==1.26.4 for python_version < 3.12, and that numpy is installed first. Later, envs/hf_transformers.txt installs datasets==3.0.1, which pulls in an unpinned pyarrow>=15.0.0 (currently resolving to pyarrow-26.0.0). Modern pyarrow wheels (26.x) require NumPy >= 2.0 at import time and raise ImportError if an older NumPy is present, so any hf_transformers test that imports `datasets` (e.g., test_hf_transformers.py's load_model) fails during model loading on Python 3.11 runners where numpy 1.26.4 is pinned. This is the same failure signature recorded 4 times already since 2026-10-09T09:08, across both the 'Linux (Ubuntu 22.04, Python 3.11)' PyTorch Models tests job and the ARM64 GatedDeltaNet transformation job, confirming the fix has not yet landed.",
+  "reproduction_steps": "1. python3.11 -m venv venv && source venv/bin/activate\n2. pip install -r tests/requirements_pytorch\n3. pip install -r tests/model_hub_tests/pytorch/envs/hf_transformers.txt\n4. python -c \"from datasets import load_dataset\"  # raises ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4",
+  "recommended_actions": [
+    "Pin pyarrow explicitly in tests/model_hub_tests/pytorch/envs/hf_transformers.txt to a version compatible with NumPy 1.x (e.g., pyarrow<18 or pyarrow==17.0.0) for python_version < 3.12, since tests/requirements_pytorch intentionally pins numpy==1.26.4 on those runners.",
+    "Alternatively, cap datasets to a version whose pyarrow dependency range still supports NumPy 1.x (e.g., datasets<3.0 or datasets==3.0.1 with 'pyarrow<18' added as a direct constraint).",
+    "Add a CI smoke check that imports `datasets`/`pyarrow` right after environment setup to fail fast with a clear message instead of failing deep inside parametrized model tests.",
+    "Re-run the PyTorch Models tests job after the pin is added to confirm resolution."
+  ],
+  "prevention_strategies": "Pin transitive dependencies that have strict runtime version checks (like pyarrow's NumPy floor) directly in the relevant envs/*.txt file whenever the base numpy pin diverges from what the latest transitive release expects. Consider adding a periodic dependency-drift check that resolves envs/*.txt requirement files and flags incompatible NumPy/pyarrow combinations before they land on master.",
+  "historical_context": "Identical failure signature already recorded 4 times (2026-10-09T09:08:53Z, 09:22:01Z, 09:35:28Z, and in run 37901253022 at 10:14:59Z) across the 'Linux (Ubuntu 22.04, Python 3.11)' and 'Linux ARM64 (Ubuntu 22.04, Python 3.11)' workflows, all within the last ~1.5 hours, impacting multiple commits (89f0e3a6, 344d28c8, 972aa05b). The root cause (unpinned pyarrow pulled in via datasets==3.0.1 conflicting with the deliberately pinned numpy==1.26.4) has not yet been fixed."
+}
