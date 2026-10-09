@@ -8,6 +8,8 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/select.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
@@ -647,6 +649,137 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
         float res = std::log(std::exp(input_ptr[i]) + 1);
         ASSERT_FLOAT_EQ(res, output_ptr[i]);
     }
+}
+
+template <data_types DataType, typename ValueType>
+void test_swoosh_activation(float offset, float bias, float tolerance) {
+    auto& engine = get_test_engine();
+    const std::vector<float> input_values = {-100.0f, -20.0f, -1.0f, 0.0f, 1.0f, 4.0f, 12.0f, 100.0f};
+    std::vector<ValueType> typed_input(input_values.begin(), input_values.end());
+
+    auto input = engine.allocate_memory({DataType, format::bfyx, {1, 1, static_cast<tensor::value_type>(input_values.size()), 1}});
+    set_values<ValueType>(input, typed_input);
+
+    topology topology(input_layout("input", input->get_layout()),
+                      activation("swoosh", input_info("input"), activation_func::swoosh, {offset, bias}));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto output_memory = network.execute().at("swoosh").get_memory();
+    cldnn::mem_lock<ValueType, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        const float input_value = static_cast<float>(typed_input[i]);
+        const float shifted = input_value - offset;
+        const float softplus = std::max(shifted, 0.0f) + std::log1p(std::exp(-std::abs(shifted)));
+        const float expected = softplus - 0.08f * input_value - bias;
+        ASSERT_NEAR(expected, static_cast<float>(output_ptr[i]), tolerance);
+    }
+}
+
+TEST(activation_f32_fw_gpu, swoosh_l_and_r) {
+    test_swoosh_activation<data_types::f32, float>(4.0f, 0.035f, 1e-5f);
+    test_swoosh_activation<data_types::f32, float>(1.0f, 0.313261687f, 1e-5f);
+}
+
+TEST(activation_f16_fw_gpu, swoosh_l_and_r) {
+    test_swoosh_activation<data_types::f16, ov::float16>(4.0f, 0.035f, 4e-2f);
+    test_swoosh_activation<data_types::f16, ov::float16>(1.0f, 0.313261687f, 4e-2f);
+}
+
+static void test_swoosh_pattern_fusion(float offset, float bias) {
+    auto& engine = get_test_engine();
+    const std::vector<float> input_values = {-20.0f, -1.0f, 0.0f, 1.0f, 4.0f, 12.0f, 100.0f};
+    auto input = engine.allocate_memory(
+        {data_types::f32, format::bfyx, {1, 1, static_cast<tensor::value_type>(input_values.size()), 1}});
+    set_values(input, input_values);
+
+    auto scalar_layout = layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx};
+    auto offset_memory = engine.allocate_memory(scalar_layout);
+    auto infinity_memory = engine.allocate_memory(scalar_layout);
+    auto slope_memory = engine.allocate_memory(scalar_layout);
+    auto bias_memory = engine.allocate_memory(scalar_layout);
+    set_values(offset_memory, {-offset});
+    set_values(infinity_memory, {std::numeric_limits<float>::infinity()});
+    set_values(slope_memory, {0.08f});
+    set_values(bias_memory, {-bias});
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("offset", offset_memory),
+        data("infinity", infinity_memory),
+        data("slope", slope_memory),
+        data("bias", bias_memory),
+        eltwise("shifted", input_info("input"), input_info("offset"), eltwise_mode::sum),
+        activation("softplus", input_info("shifted"), activation_func::softplus),
+        eltwise("equal", {input_info("softplus"), input_info("infinity")}, eltwise_mode::eq, data_types::i8),
+        cldnn::select("selected", input_info("equal"), input_info("shifted"), input_info("softplus")),
+        eltwise("scaled", input_info("input"), input_info("slope"), eltwise_mode::prod),
+        eltwise("subtract", input_info("selected"), input_info("scaled"), eltwise_mode::sub),
+        eltwise("result", input_info("subtract"), input_info("bias"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto output_memory = network.execute().at("result").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        const float shifted = input_values[i] - offset;
+        const float softplus = std::max(shifted, 0.0f) + std::log1p(std::exp(-std::abs(shifted)));
+        const float expected = softplus - 0.08f * input_values[i] - bias;
+        ASSERT_NEAR(expected, output_ptr[i], 1e-5f);
+    }
+
+    const auto primitive_ids = network.get_all_primitive_ids();
+    for (const char* removed_id : {"shifted", "softplus", "equal", "selected", "scaled", "subtract"}) {
+        ASSERT_EQ(std::find(primitive_ids.begin(), primitive_ids.end(), removed_id), primitive_ids.end());
+    }
+    const auto expected_activation = "activation_func : " + std::to_string(static_cast<int>(activation_func::swoosh));
+    ASSERT_NE(network.get_primitive_info("result").find(expected_activation), std::string::npos);
+}
+
+static void test_swoosh_converted_subtract_pattern_fusion() {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 4, 1}});
+    set_values(input, {-20.0f, 0.0f, 4.0f, 100.0f});
+
+    auto scalar_layout = layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx};
+    auto make_scalar = [&](float value) {
+        auto memory = engine.allocate_memory(scalar_layout);
+        set_values(memory, {value});
+        return memory;
+    };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("offset", make_scalar(-4.0f)),
+        data("infinity", make_scalar(std::numeric_limits<float>::infinity())),
+        data("slope", make_scalar(0.08f)),
+        data("negative", make_scalar(-1.0f)),
+        data("bias", make_scalar(-0.035f)),
+        eltwise("shifted", input_info("input"), input_info("offset"), eltwise_mode::sum),
+        activation("softplus", input_info("shifted"), activation_func::softplus),
+        eltwise("equal", {input_info("softplus"), input_info("infinity")}, eltwise_mode::eq, data_types::i8),
+        cldnn::select("selected", input_info("equal"), input_info("shifted"), input_info("softplus")),
+        eltwise("scaled", input_info("input"), input_info("slope"), eltwise_mode::prod),
+        eltwise("negated", input_info("scaled"), input_info("negative"), eltwise_mode::prod),
+        eltwise("subtract", input_info("selected"), input_info("negated"), eltwise_mode::sum),
+        eltwise("result", input_info("subtract"), input_info("bias"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    const auto primitive_ids = network.get_all_primitive_ids();
+    for (const char* removed_id : {"shifted", "softplus", "equal", "selected", "scaled", "negated", "subtract"}) {
+        ASSERT_EQ(std::find(primitive_ids.begin(), primitive_ids.end(), removed_id), primitive_ids.end()) << removed_id;
+    }
+}
+
+TEST(activation_f32_fw_gpu, swoosh_pattern_fusion) {
+    test_swoosh_pattern_fusion(4.0f, 0.035f);
+    test_swoosh_pattern_fusion(1.0f, 0.313261687f);
+    test_swoosh_converted_subtract_pattern_fusion();
 }
 
 TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
