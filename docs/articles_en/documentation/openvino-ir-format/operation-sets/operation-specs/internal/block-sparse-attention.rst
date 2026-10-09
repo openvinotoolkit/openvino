@@ -40,13 +40,21 @@ Blocks consist of ``compress_ratio`` consecutive key tokens: block ``b`` holds t
 ``b * compress_ratio .. b * compress_ratio + compress_ratio - 1``. A query token at the position
 ``p`` attends to:
 
-* all tokens of the first ``block_count`` blocks listed in its row of ``block_indices``;
+* all tokens of the first ``block_count`` blocks listed in its row of ``block_indices`` for the
+  selection head of the attention head;
 * the tokens of the incomplete block that contains it, ``floor((p + 1) / compress_ratio) * compress_ratio .. p``:
   at most ``compress_ratio - 1`` tokens, including the query itself. This part is empty when
   ``p + 1`` is a multiple of ``compress_ratio``, because the block of the query is then complete
   and attended only if it is listed in ``block_indices``.
 
-All query heads of a token share the same selection. There is no other causal mask: the causality
+**Selection heads.** ``block_indices`` and ``block_count`` hold ``Hs`` selections per query token.
+The ``H`` attention query heads are split into ``Hs`` consecutive groups of ``H / Hs`` heads, and
+query head ``h`` uses the selection ``h // (H / Hs)``. With ``Hs = 1`` all query heads of a token
+share one selection, the case of QSA and DSA; with ``Hs = Hkv`` every key-value head and its group
+of query heads has its own selection, as in Native Sparse Attention (NSA); with ``Hs = H`` every
+query head has its own selection. The incomplete block of the query is attended by every head.
+
+There is no other causal mask: the causality
 comes from the selection. This document covers the *ScaledDotProductAttention* case: the key and
 value tensors hold all tokens of the sequences contiguously, as with a stateful KV cache, rather
 than in a paged cache.
@@ -60,28 +68,31 @@ than in a paged cache.
     def BlockSparseAttention(query, key, value, block_indices, block_count, scale=None, *, compress_ratio):
         N, H, L, E = query.shape
         Hkv, S = key.shape[1], key.shape[2]
+        Hs = block_indices.shape[1]                             # selection heads
         r = compress_ratio
         if scale is None:
             scale = 1.0 / sqrt(E)
 
-        mask = numpy.zeros((N, L, S), dtype=bool)
+        mask = numpy.zeros((N, Hs, L, S), dtype=bool)
         for n in range(N):
-            for l in range(L):
-                p = S - L + l                                   # position of the query token
-                blocks = block_indices[n, l, :int(block_count[n, l])]   # the rest of the row is ignored
-                selected = (blocks[:, None] * r + numpy.arange(r)[None, :]).reshape(-1)
-                tail = numpy.arange((p + 1) // r * r, p + 1)    # incomplete block, < r tokens
-                mask[n, l, selected] = True
-                mask[n, l, tail] = True
+            for g in range(Hs):
+                for l in range(L):
+                    p = S - L + l                               # position of the query token
+                    blocks = block_indices[n, g, l, :int(block_count[n, g, l])]  # the rest is ignored
+                    selected = (blocks[:, None] * r + numpy.arange(r)[None, :]).reshape(-1)
+                    tail = numpy.arange((p + 1) // r * r, p + 1)    # incomplete block, < r tokens
+                    mask[n, g, l, selected] = True
+                    mask[n, g, l, tail] = True
+        mask = numpy.repeat(mask, H // Hs, axis=1)              # selection g -> query heads of group g
 
         key = numpy.repeat(key, H // Hkv, axis=1)
         value = numpy.repeat(value, H // Hkv, axis=1)
         attn = (query @ numpy.swapaxes(key, -1, -2)) * scale        # [N, H, L, S]
-        attn = numpy.where(mask[:, None, :, :], attn, -inf)
+        attn = numpy.where(mask, attn, -inf)
         attn = Softmax(attn, axis=-1)
         output = attn @ value                                       # [N, H, L, Ev]
-        # a query token without selected positions produces zeros
-        return numpy.where(mask.any(axis=-1)[:, None, :, None], output, 0.0)
+        # a query head without selected positions produces zeros
+        return numpy.where(mask.any(axis=-1)[..., None], output, 0.0)
 
 Properties that follow from the definition:
 
@@ -100,8 +111,11 @@ Properties that follow from the definition:
 * With the rows produced by *SparseAttentionIndexer*, the result is identical to causal
   *ScaledDotProductAttention* as long as every complete block is selected, that is for the first
   ``token_budget + compress_ratio - 1`` positions.
-* A query token attends to nothing only if ``p + 1`` is a multiple of ``compress_ratio`` and its
-  ``block_count`` is ``0``. *SparseAttentionIndexer* never produces such a row.
+* A query head attends to nothing only if ``p + 1`` is a multiple of ``compress_ratio`` and the
+  ``block_count`` of its selection is ``0``. *SparseAttentionIndexer* never produces such a row.
+* With ``Hs = 1`` every query head of a token attends to the same key and value rows, so an
+  implementation can read every selected block once for all heads, as for multi-query attention.
+  With ``Hs = Hkv`` the rows are shared within every group of query heads of one key-value head.
 * The operation can be expressed with other operations by expanding ``block_indices`` and the
   incomplete block into a boolean mask and passing it to *ScaledDotProductAttention* as
   ``attention_mask``, as llama.cpp does. That costs time and memory proportional to ``S`` for every
@@ -144,13 +158,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * **3**: ``value`` - 4D tensor of type *T* and shape ``[N, Hkv, S, Ev]``: the attention value heads
   of all tokens, including the past ones. **Required.**
 
-* **4**: ``block_indices`` - 3D tensor of type *T_IND* and shape ``[N, L, KB]``: for every query
-  token at the position ``p``, the indices of the key blocks it attends to in its first
-  ``block_count`` entries. These entries are in ``[0, (p + 1) // compress_ratio)`` and unique within
-  a row; otherwise the behavior is undefined. The remaining entries are ignored; *SparseAttentionIndexer*
-  sets them to ``-1``. **Required.**
+* **4**: ``block_indices`` - 4D tensor of type *T_IND* and shape ``[N, Hs, L, KB]``: for every
+  selection head and every query token at the position ``p``, the indices of the key blocks it
+  attends to in its first ``block_count`` entries. These entries are in
+  ``[0, (p + 1) // compress_ratio)`` and unique within a row; otherwise the behavior is undefined.
+  The remaining entries are ignored; *SparseAttentionIndexer* sets them to ``-1``. **Required.**
 
-* **5**: ``block_count`` - 2D tensor of type *T_IND* and shape ``[N, L]``: the number of valid
+* **5**: ``block_count`` - 3D tensor of type *T_IND* and shape ``[N, Hs, L]``: the number of valid
   entries in every row of ``block_indices``, ``0 <= block_count <= KB``. Normally the
   ``block_count`` output of *SparseAttentionIndexer*. **Required.**
 
@@ -179,6 +193,9 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * ``H`` - number of attention query heads. ``H`` must be divisible by ``Hkv``.
 
 * ``Hkv`` - number of attention key and value heads.
+
+* ``Hs`` - number of selection heads, given by dimension 1 of ``block_indices`` and ``block_count``.
+  ``Hs`` must divide ``H``. ``1`` for QSA and DSA.
 
 * ``L`` - number of query tokens, ``L <= S``.
 
@@ -222,11 +239,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
             </port>
             <port id="3" precision="I32"> <!-- block_indices from SparseAttentionIndexer -->
                 <dim>1</dim>    <!-- N -->
+                <dim>1</dim>    <!-- Hs -->
                 <dim>-1</dim>   <!-- L -->
                 <dim>512</dim>  <!-- KB -->
             </port>
             <port id="4" precision="I32"> <!-- block_count from SparseAttentionIndexer -->
                 <dim>1</dim>    <!-- N -->
+                <dim>1</dim>    <!-- Hs -->
                 <dim>-1</dim>   <!-- L -->
             </port>
         </input>
@@ -268,11 +287,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
             </port>
             <port id="3" precision="I32"> <!-- block_indices from SparseAttentionIndexer -->
                 <dim>2</dim>     <!-- N -->
+                <dim>1</dim>     <!-- Hs -->
                 <dim>1</dim>     <!-- L -->
                 <dim>512</dim>   <!-- KB -->
             </port>
             <port id="4" precision="I32"> <!-- block_count from SparseAttentionIndexer: 512 -->
                 <dim>2</dim>     <!-- N -->
+                <dim>1</dim>     <!-- Hs -->
                 <dim>1</dim>     <!-- L -->
             </port>
             <port id="5" precision="FP32"/> <!-- scale -->

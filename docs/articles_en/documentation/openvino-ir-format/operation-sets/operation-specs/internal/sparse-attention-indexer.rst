@@ -56,52 +56,71 @@ represented by one index key (``index_key_blocks``). For every query token,
 The operation is weight-free: the index projection, normalizations and rotary embeddings are
 computed by other operations and passed in through ``index_query`` and ``index_key_blocks``.
 
+**Selection heads.** By default a query token gets one selection, shared by all attention heads that
+consume it (``num_selection_heads = 1``); this is the case of QSA and DSA, where the scores of all
+``Hi`` index query heads are summed into one score per block. With ``num_selection_heads = Hs > 1``
+the ``Hi`` index query heads are split into ``Hs`` consecutive groups of ``Hi / Hs`` heads; the scores
+are summed within each group only, and every group selects its own blocks. The outputs then hold
+``Hs`` selections per query token, and *BlockSparseAttention* applies selection ``g`` to the group
+``g`` of ``H / Hs`` consecutive attention query heads. For example, ``Hs = Hkv`` gives one selection
+per key-value head shared by its group of query heads, the granularity of Native Sparse Attention
+(NSA); ``Hs = H`` gives one selection per attention query head. ``Hs`` is the number of selections
+per token and is independent of ``Hi``, the number of index query heads that score: with ``Hs = 1``
+any number of index heads is reduced to one selection.
+
 *SparseAttentionIndexer* provides functionality according to the following pseudo-code using ``numpy``:
 
 .. code-block:: py
    :force:
 
     def SparseAttentionIndexer(index_query, index_key_blocks, key_length, index_weights=None, *,
-                               compress_ratio, token_budget):
+                               compress_ratio, token_budget, num_selection_heads=1):
         N, Hi, L, Di = index_query.shape
         S = key_length
         r = compress_ratio
+        Hs = num_selection_heads
+        G = Hi // Hs                                            # index query heads per selection head
         block_topk = token_budget // r
         if index_weights is None:
             index_weights = numpy.ones((N, L, Hi))
 
-        block_indices = numpy.full((N, L, block_topk), -1)
-        block_count = numpy.zeros((N, L))
+        block_indices = numpy.full((N, Hs, L, block_topk), -1)
+        block_count = numpy.zeros((N, Hs, L))
         for n in range(N):
-            for l in range(L):
-                p = S - L + l                                   # position of the query token
-                num_visible_blocks = (p + 1) // r               # complete blocks at or before p
-                if num_visible_blocks == 0:
-                    continue
-                q = index_query[n, :, l, :].astype(numpy.float32)                     # [Hi, Di]
-                k = index_key_blocks[n, :num_visible_blocks, :].astype(numpy.float32) # [B, Di]
-                w = index_weights[n, l, :].astype(numpy.float32)                      # [Hi]
-                scores = (w[:, None] * numpy.maximum(q @ k.T, 0.0)).sum(axis=0)      # [B]
-                num_selected_blocks = min(block_topk, num_visible_blocks)
-                # stable top-k: descending score, equal scores -> smaller block index first
-                blocks = numpy.argsort(-scores, kind="stable")[:num_selected_blocks]
-                block_indices[n, l, :num_selected_blocks] = blocks
-                block_count[n, l] = num_selected_blocks
+            for g in range(Hs):
+                heads = slice(g * G, (g + 1) * G)               # the index query heads of selection head g
+                for l in range(L):
+                    p = S - L + l                               # position of the query token
+                    num_visible_blocks = (p + 1) // r           # complete blocks at or before p
+                    if num_visible_blocks == 0:
+                        continue
+                    q = index_query[n, heads, l, :].astype(numpy.float32)                 # [G, Di]
+                    k = index_key_blocks[n, :num_visible_blocks, :].astype(numpy.float32) # [B, Di]
+                    w = index_weights[n, l, heads].astype(numpy.float32)                  # [G]
+                    scores = (w[:, None] * numpy.maximum(q @ k.T, 0.0)).sum(axis=0)      # [B]
+                    num_selected_blocks = min(block_topk, num_visible_blocks)
+                    # stable top-k: descending score, equal scores -> smaller block index first
+                    blocks = numpy.argsort(-scores, kind="stable")[:num_selected_blocks]
+                    block_indices[n, g, l, :num_selected_blocks] = blocks
+                    block_count[n, g, l] = num_selected_blocks
         return block_indices, block_count
 
 Properties that follow from the definition:
 
 * The ``L`` query tokens are the last ``L`` of the ``S`` key tokens: query ``l`` has the position
   ``S - L + l``. ``L == S`` is a prefill without past; ``L == 1`` is a decode step.
-* A row holds ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` valid block indices
-  for the query position ``p``, followed by ``-1`` padding. Rows of the first
-  ``compress_ratio - 1`` positions have no valid entries.
+* A row of ``block_indices`` is the selection of one selection head for one query token. It holds
+  ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` valid block indices for the
+  query position ``p``, followed by ``-1`` padding. Rows of the first ``compress_ratio - 1``
+  positions have no valid entries.
 * ``block_count`` holds the number of valid entries of every row of ``block_indices`` and is passed
   to the ``block_count`` input of *BlockSparseAttention*. The valid
   entries are the first ``block_count`` ones, so a consumer can use it as a loop bound instead of
   scanning for ``-1``, like the trailing count column of the vLLM selection buffer. In a batch
   aligned to the right the count depends only on the query position, so it is the same for every
-  sequence of the batch.
+  sequence of the batch and every selection head.
+* The selection heads differ only in which blocks they select, not in how many: all of them score
+  the same visible blocks with their own group of index query heads.
 * Every valid block index is in ``[0, (p + 1) // compress_ratio)``: all tokens of a selected block
   are at or before ``p``, so the selection is causal. The indices in a row are unique.
 * If ``(p + 1) // compress_ratio <= token_budget / compress_ratio``, all complete blocks are
@@ -153,8 +172,9 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
    * every block is a single token, so a query at the position ``p`` scores all tokens
      ``0 .. p``, including itself, and selects ``min(token_budget, p + 1)`` of them. There is no
      incomplete block;
-   * ``token_budget`` is ``index_topk`` (``2048``), ``Hi`` is ``index_n_heads`` (``64``) and
-     ``Di`` is ``index_head_dim`` (``128``);
+   * ``token_budget`` is ``index_topk`` (``2048``), ``Hi`` is ``index_n_heads`` (``64``),
+     ``Di`` is ``index_head_dim`` (``128``) and ``num_selection_heads`` is ``1``: the weighted
+     scores of all index heads are summed into one selection per token;
    * ``index_key_blocks`` is the per-token index key ``k_norm(wk(x))`` with the partial RoPE of
      the indexer, that is the DSA indexer key cache. Mean-pooling over one token is the identity;
    * ``index_query`` is ``wq_b(q_resid)`` with the same partial RoPE;
@@ -186,6 +206,17 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
   * **Type**: ``int``
   * **Required**: *yes*
 
+* *num_selection_heads*
+
+  * **Description**: the number of selections per query token, ``Hs``. The ``Hi`` index query heads
+    are split into ``Hs`` consecutive groups, the scores are summed within each group, and every
+    group selects its own blocks. ``1`` for QSA (Qwen3.8-Flash-Next) and DSA.
+  * **Range of values**: a positive integer that divides ``Hi`` and the number of attention query
+    heads ``H`` of the consuming *BlockSparseAttention*
+  * **Type**: ``int``
+  * **Default value**: ``1``
+  * **Required**: *no*
+
 * *index_element_type*
 
   * **Description**: the element type of the ``block_indices`` and ``block_count`` outputs.
@@ -214,14 +245,14 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
 
 **Outputs**
 
-* **1**: ``block_indices`` - 3D tensor of type *index_element_type* and shape
-  ``[N, L, token_budget / compress_ratio]``: the indices of the key blocks selected for every query
-  token, padded with ``-1``.
+* **1**: ``block_indices`` - 4D tensor of type *index_element_type* and shape
+  ``[N, Hs, L, token_budget / compress_ratio]``: the indices of the key blocks selected by every
+  selection head for every query token, padded with ``-1``.
 
-* **2**: ``block_count`` - 2D tensor of type *index_element_type* and shape ``[N, L]``: the number
-  of blocks selected for every query token, that is the number of valid entries in the
-  corresponding row of ``block_indices``, ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)``
-  for the query position ``p``.
+* **2**: ``block_count`` - 3D tensor of type *index_element_type* and shape ``[N, Hs, L]``: the
+  number of blocks selected by every selection head for every query token, that is the number of
+  valid entries in the corresponding row of ``block_indices``,
+  ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` for the query position ``p``.
 
 
 **Types**
@@ -242,6 +273,8 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
 * ``S`` - number of key tokens, given by ``key_length``.
 
 * ``Hi`` - number of index query heads. The indexer has one shared key head.
+
+* ``Hs`` - number of selection heads, *num_selection_heads*. ``Hs`` divides ``Hi``.
 
 * ``Di`` - head size of the index query and key.
 
@@ -274,11 +307,13 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
         <output>
             <port id="3" precision="I32"> <!-- block_indices -->
                 <dim>1</dim>   <!-- N -->
+                <dim>1</dim>   <!-- Hs = num_selection_heads -->
                 <dim>-1</dim>  <!-- L -->
                 <dim>512</dim> <!-- token_budget / compress_ratio -->
             </port>
             <port id="4" precision="I32"> <!-- block_count -->
                 <dim>1</dim>   <!-- N -->
+                <dim>1</dim>   <!-- Hs = num_selection_heads -->
                 <dim>-1</dim>  <!-- L -->
             </port>
         </output>
@@ -309,11 +344,13 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
             <!-- each row: the 512 best of the 2500 visible blocks, no padding -->
             <port id="3" precision="I32"> <!-- block_indices -->
                 <dim>2</dim>    <!-- N -->
+                <dim>1</dim>    <!-- Hs = num_selection_heads -->
                 <dim>1</dim>    <!-- L -->
                 <dim>512</dim>  <!-- token_budget / compress_ratio -->
             </port>
             <port id="4" precision="I32"> <!-- block_count: 512 for both sequences -->
                 <dim>2</dim>    <!-- N -->
+                <dim>1</dim>    <!-- Hs = num_selection_heads -->
                 <dim>1</dim>    <!-- L -->
             </port>
         </output>
@@ -348,11 +385,13 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
         <output>
             <port id="4" precision="I32"> <!-- block_indices: token indices -->
                 <dim>1</dim>     <!-- N -->
+                <dim>1</dim>     <!-- Hs = num_selection_heads -->
                 <dim>1</dim>     <!-- L -->
                 <dim>2048</dim>  <!-- token_budget / compress_ratio = index_topk -->
             </port>
             <port id="5" precision="I32"> <!-- block_count: 2048 -->
                 <dim>1</dim>     <!-- N -->
+                <dim>1</dim>     <!-- Hs = num_selection_heads -->
                 <dim>1</dim>     <!-- L -->
             </port>
         </output>
