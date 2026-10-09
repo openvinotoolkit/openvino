@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
@@ -81,6 +83,35 @@ inline const char* hfa_tile_output_id_to_string(HFATileOutputId id) {
     }
 }
 
+// Extra inputs of the REGULAR tile model that carry the dequantization parameters of an int8-compressed
+// past KV cache (scale and optional zero-point of the key and of the value tile). They are not part of
+// HFATileInputId: the final tile never has them, and they are appended after the regular inputs, so they
+// are always looked up by name and never by position.
+enum class HFATileQuantInputId : uint8_t {
+    K_SCALE_TILE = 0,
+    K_ZP_TILE = 1,
+    V_SCALE_TILE = 2,
+    V_ZP_TILE = 3,
+
+    // Sentinel value for enum range
+    COUNT
+};
+
+inline const char* hfa_tile_quant_input_id_to_string(HFATileQuantInputId id) {
+    switch (id) {
+    case HFATileQuantInputId::K_SCALE_TILE:
+        return "K_SCALE_TILE";
+    case HFATileQuantInputId::K_ZP_TILE:
+        return "K_ZP_TILE";
+    case HFATileQuantInputId::V_SCALE_TILE:
+        return "V_SCALE_TILE";
+    case HFATileQuantInputId::V_ZP_TILE:
+        return "V_ZP_TILE";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 namespace function {
 
 // HostFlashAttention structure definition
@@ -130,6 +161,15 @@ struct HostFlashAttention {
     std::vector<std::size_t> _past_key_block_indices;    // [block_0_idx, block_1_idx, ..., block_N_idx]
     std::vector<std::size_t> _past_value_block_indices;  // [block_0_idx, block_1_idx, ..., block_N_idx]
 
+    // int8-compressed past KV cache: the block parameters above then hold the quantized data and the
+    // parameters below hold the dequantization parameters of the same blocks, in the same order.
+    // Empty when the past KV cache is not compressed. A zero-point is optional (symmetric quantization
+    // has none); scale and zero-point sequence dimensions are the same as those of the data.
+    std::vector<std::size_t> _past_key_scale_indices;
+    std::vector<std::size_t> _past_key_zp_indices;
+    std::vector<std::size_t> _past_value_scale_indices;
+    std::vector<std::size_t> _past_value_zp_indices;
+
     // Tile model parameter index mapping
     // Maps tile parameter IDs (PAST_ACC, K_TILE, Q, etc.) to actual input indices
     // Tile model I/O: Inputs[past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
@@ -142,6 +182,9 @@ struct HostFlashAttention {
     // Only applicable to regular tile model (final tile has single output at index 0)
     // This is created after tile model generation in from() method
     std::map<HFATileOutputId, std::size_t> _tile_output_index_map;
+
+    // Input indices of the dequantization inputs of the REGULAR tile model (empty without int8 KV)
+    std::map<HFATileQuantInputId, std::size_t> _regular_tile_quant_index_map;
 
     // Validation helpers
     bool is_valid() const {
@@ -186,6 +229,12 @@ struct HostFlashAttentionInfo {
         std::size_t present_key = 0u;
         std::size_t present_value = 0u;
         std::size_t attention_mask = 0u;
+        // Dequantization parameters of the past blocks of an int8-compressed KV cache (one entry per past
+        // block, same order as past_key_blocks / past_value_blocks); empty if the KV cache is not compressed.
+        std::vector<std::size_t> past_key_scale_blocks;
+        std::vector<std::size_t> past_key_zp_blocks;
+        std::vector<std::size_t> past_value_scale_blocks;
+        std::vector<std::size_t> past_value_zp_blocks;
     } _sdpa_indices;
 
     // Pre-cached tile input indices
@@ -197,7 +246,23 @@ struct HostFlashAttentionInfo {
         std::size_t acc = 0u;
         std::size_t max = 0u;
         std::size_t d = 0u;
+        // Dequantization inputs of the REGULAR tile model, kNoInput when the tile does not have them
+        std::size_t k_scale = std::numeric_limits<std::size_t>::max();
+        std::size_t k_zp = std::numeric_limits<std::size_t>::max();
+        std::size_t v_scale = std::numeric_limits<std::size_t>::max();
+        std::size_t v_zp = std::numeric_limits<std::size_t>::max();
     } _tile_input_indices;
+
+    static constexpr std::size_t kNoInput = std::numeric_limits<std::size_t>::max();
+
+    // Number of dequantization inputs appended to the regular tile model. The regular and the final tile
+    // models share their leading inputs, these come after them.
+    std::size_t quant_input_count() const {
+        return static_cast<std::size_t>(_tile_input_indices.k_scale != kNoInput) +
+               static_cast<std::size_t>(_tile_input_indices.k_zp != kNoInput) +
+               static_cast<std::size_t>(_tile_input_indices.v_scale != kNoInput) +
+               static_cast<std::size_t>(_tile_input_indices.v_zp != kNoInput);
+    }
 
     // Pre-cached tile output indices
     struct {

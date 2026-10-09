@@ -344,11 +344,12 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         state.hfa_requests.pipeline_requests[HFARequestSet::FINAL_TILE] = state.base_pipeline_request;
     }
 
-    // The regular and the final tile models share the same leading input layout by construction
-    // (see build_tile_param_mapping) - the final tile model may only have extra trailing inputs.
-    OPENVINO_ASSERT(hfa->_compiled_final_tile_model->inputs().size() >= hfa->_compiled_tile_model->inputs().size(),
+    // The dequantization inputs of an int8-compressed KV cache are appended to the regular tile model only. They
+    // are fed per tile in process_tile and have no counterpart in the final tile model.
+    const size_t num_inputs =
+        hfa->_compiled_tile_model->inputs().size() - hfa->_sdpa_attention_info.quant_input_count();
+    OPENVINO_ASSERT(hfa->_compiled_final_tile_model->inputs().size() >= num_inputs,
                     "HFA: final tile model must expose at least the regular tile model's inputs");
-    const size_t num_inputs = hfa->_compiled_tile_model->inputs().size();
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
         const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
         const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
@@ -948,6 +949,19 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         "HFA: final tile size must equal the query size (PREFILL-only)");
 
                         const auto& hfa_inputs = io.inputs;
+                        // The SDPA parameter indices refer to the parameters of the attention function, which is
+                        // what io.inputs holds. Name the parameter when an index is out of range.
+                        auto hfa_input = [&](std::size_t idx, const char* what) -> const ov::SoPtr<ov::ITensor>& {
+                            OPENVINO_ASSERT(idx < hfa_inputs.size(),
+                                            "HFA: the ",
+                                            what,
+                                            " parameter has index ",
+                                            idx,
+                                            ", but the attention function has only ",
+                                            hfa_inputs.size(),
+                                            " inputs");
+                            return hfa_inputs[idx];
+                        };
                         const auto& sdpa_info = hfa_desc->_sdpa_attention_info;
                         const auto& sdpa_in = sdpa_info._sdpa_indices;
 
@@ -959,13 +973,30 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         std::vector<ov::SoPtr<ov::ITensor>> past_key_blocks;
                         std::vector<ov::SoPtr<ov::ITensor>> past_value_blocks;
                         for (size_t i = 0; i < sdpa_in.past_key_blocks.size(); ++i) {
-                            past_key_blocks.push_back(hfa_inputs.at(sdpa_in.past_key_blocks[i]));
-                            past_value_blocks.push_back(hfa_inputs.at(sdpa_in.past_value_blocks[i]));
+                            past_key_blocks.push_back(hfa_input(sdpa_in.past_key_blocks[i], "past key"));
+                            past_value_blocks.push_back(hfa_input(sdpa_in.past_value_blocks[i], "past value"));
                         }
-                        auto query_tensor = hfa_inputs.at(sdpa_in.query);
-                        auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
-                        auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
-                        auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
+                        // Dequantization parameters of an int8-compressed past KV cache, one tensor per past block
+                        // (all empty for an uncompressed cache). They are tiled like the data they belong to.
+                        auto collect_blocks = [&](const std::vector<std::size_t>& indices, const char* what) {
+                            std::vector<ov::SoPtr<ov::ITensor>> blocks;
+                            for (const auto idx : indices) {
+                                blocks.push_back(hfa_input(idx, what));
+                            }
+                            return blocks;
+                        };
+                        const auto past_key_scale_blocks =
+                            collect_blocks(sdpa_in.past_key_scale_blocks, "past key scale");
+                        const auto past_key_zp_blocks =
+                            collect_blocks(sdpa_in.past_key_zp_blocks, "past key zero-point");
+                        const auto past_value_scale_blocks =
+                            collect_blocks(sdpa_in.past_value_scale_blocks, "past value scale");
+                        const auto past_value_zp_blocks =
+                            collect_blocks(sdpa_in.past_value_zp_blocks, "past value zero-point");
+                        auto query_tensor = hfa_input(sdpa_in.query, "query");
+                        auto present_key_tensor = hfa_input(sdpa_in.present_key, "present key");
+                        auto attention_mask_tensor = hfa_input(sdpa_in.attention_mask, "attention mask");
+                        auto present_value_tensor = hfa_input(sdpa_in.present_value, "present value");
                         const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
                         OPENVINO_ASSERT(K_SEQ_DIM < present_key_tensor->get_shape().size(),
                                         "HFA: K sequence dimension is out of range for the present key tensor");
@@ -1054,6 +1085,43 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         constexpr uint32_t MASK_KV_SEQ_DIM = 3;
                         size_t next_available_mask_buffer_idx = 0;
 
+                        // Scale / zero-point tensors of one past block (empty tensors where there are none)
+                        struct QuantSources {
+                            ov::SoPtr<ov::ITensor> k_scale, k_zp, v_scale, v_zp;
+                        };
+                        constexpr auto NO_INPUT = ov::npuw::compiled::HostFlashAttentionInfo::kNoInput;
+
+                        // Feeds one scale / zero-point tile to a tile request (zero-copy, view or copy, like K and V)
+                        auto feed_quant_tile = [&](auto& request,
+                                                   auto& model,
+                                                   const ov::SoPtr<ov::ITensor>& source,
+                                                   std::size_t input_idx,
+                                                   uint32_t seq_dim,
+                                                   int64_t kv_offset,
+                                                   int64_t tile_length,
+                                                   const char* name) {
+                            if (input_idx == NO_INPUT) {
+                                return;
+                            }
+                            OPENVINO_ASSERT(source, "HFA: missing ", name, " tensor for an int8 past block");
+                            auto buffer = request->get_tensor(model->inputs()[input_idx]);
+                            if (can_reuse_tensor_zero_copy(source, buffer, seq_dim, kv_offset, tile_length)) {
+                                request->set_tensor(model->inputs()[input_idx], source);
+                            } else if (hfa_desc->_can_use_tensor_view) {
+                                OPENVINO_ASSERT(buffer->get_element_type() == source->get_element_type(),
+                                                "HFA ",
+                                                name,
+                                                " tile dtype mismatch: source=",
+                                                source->get_element_type(),
+                                                " tile_buffer=",
+                                                buffer->get_element_type());
+                                request->set_tensor(model->inputs()[input_idx],
+                                                    ov::npuw::util::view(source, seq_dim, kv_offset, tile_length));
+                            } else {
+                                extract_and_copy_tile(source, buffer, seq_dim, kv_offset, tile_length, name);
+                            }
+                        };
+
                         auto process_tile = [&](auto& request,
                                                 auto& model,
                                                 const ov::SoPtr<ov::ITensor>& k_source,
@@ -1063,7 +1131,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                 int64_t tile_length,
                                                 bool async = false,
                                                 bool process_with_mask = true,
-                                                bool is_final_tile = false) {
+                                                bool is_final_tile = false,
+                                                const QuantSources* quant = nullptr) {
                             auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
                             auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
                             ov::SoPtr<ov::ITensor> mask_tile_buffer;
@@ -1107,6 +1176,43 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                     ov::npuw::util::view(v_source, V_SEQ_DIM, kv_offset, tile_length));
                             } else {
                                 extract_and_copy_tile(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length, "V");
+                            }
+
+                            // Scale / zero-point tiles of an int8 past block, cut at the same positions as the data
+                            // (their sequence dimension is the one of the data).
+                            if (quant) {
+                                feed_quant_tile(request,
+                                                model,
+                                                quant->k_scale,
+                                                tile_in.k_scale,
+                                                K_SEQ_DIM,
+                                                kv_offset,
+                                                tile_length,
+                                                "K scale");
+                                feed_quant_tile(request,
+                                                model,
+                                                quant->k_zp,
+                                                tile_in.k_zp,
+                                                K_SEQ_DIM,
+                                                kv_offset,
+                                                tile_length,
+                                                "K zero-point");
+                                feed_quant_tile(request,
+                                                model,
+                                                quant->v_scale,
+                                                tile_in.v_scale,
+                                                V_SEQ_DIM,
+                                                kv_offset,
+                                                tile_length,
+                                                "V scale");
+                                feed_quant_tile(request,
+                                                model,
+                                                quant->v_zp,
+                                                tile_in.v_zp,
+                                                V_SEQ_DIM,
+                                                kv_offset,
+                                                tile_length,
+                                                "V zero-point");
                             }
 
                             if (process_with_mask && attention_mask_tensor) {
@@ -1168,7 +1274,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         int64_t remaining_full_tiles = past_full_tiles;  // tiles driven from past blocks
 
                         // For the fused hfa, the regular tile model has no mask input (6 inputs)
-                        const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
+                        // (the dequantization inputs of an int8 KV cache come after the mask and are not counted)
+                        const bool uses_mask =
+                            hfa_desc->_compiled_tile_model->inputs().size() - sdpa_info.quant_input_count() >
+                            tile_in.mask;
 
                         // Regular tiles read the leading mask region, while the final tile reads
                         // the trailing region. Validate both ranges before creating tensor views.
@@ -1199,6 +1308,14 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         "HFA: KV block length must be a multiple of the past tile size");
                             const int64_t tiles_in_block = block_len / past_tile_size;
 
+                            auto block_tensor = [&](const std::vector<ov::SoPtr<ov::ITensor>>& blocks) {
+                                return blocks.empty() ? ov::SoPtr<ov::ITensor>{} : blocks.at(block_idx);
+                            };
+                            const QuantSources quant_sources{block_tensor(past_key_scale_blocks),
+                                                             block_tensor(past_key_zp_blocks),
+                                                             block_tensor(past_value_scale_blocks),
+                                                             block_tensor(past_value_zp_blocks)};
+
                             for (int64_t t = 0; t < tiles_in_block && remaining_full_tiles > 0; ++t) {
                                 process_tile(regular_tile_request,
                                              hfa_desc->_compiled_tile_model,
@@ -1207,8 +1324,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                              t * past_tile_size,
                                              mask_tile_offset,
                                              past_tile_size,
-                                             false,       // async
-                                             uses_mask);  // process_with_mask
+                                             false,      // async
+                                             uses_mask,  // process_with_mask
+                                             false,      // is_final_tile
+                                             &quant_sources);
                                 mask_tile_offset += past_tile_size;
                                 remaining_full_tiles--;
                             }
