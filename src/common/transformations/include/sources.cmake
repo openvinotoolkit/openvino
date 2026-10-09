@@ -4,6 +4,7 @@ set(TRANSFORMATIONS_VISIBILITY_HEADERS
 
 set(DECOMPOSITIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/decompositions/low_precision_dequantize.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/decompositions/paged_attention_decomposition.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/decompositions/rms_norm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/decompositions/rope.hpp
 )
