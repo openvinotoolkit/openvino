@@ -524,7 +524,6 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_softc
         // Append the per-head sink as one extra logit column, softmax over it, then drop it.
         const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
         const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
-        const auto minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
         const auto three = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
         const auto logits_shape = register_new_node<v3::ShapeOf>(logits);
         const auto sink_shape =

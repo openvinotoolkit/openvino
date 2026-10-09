@@ -352,7 +352,8 @@ bool GroupQueryAttention::is_shared_kv() const {
 bool GroupQueryAttention::has_dynamic_kv_length() const {
     const auto key_idx = static_cast<size_t>(GroupQueryAttentionInputs::KEY);
     const auto& key_ps = get_input_partial_shape(key_idx);
-    const bool packed_qkv = input_value(0).get_node() == input_value(key_idx).get_node();
+    const bool packed_qkv = input_value(static_cast<size_t>(GroupQueryAttentionInputs::QUERY)).get_node() ==
+                            input_value(key_idx).get_node();
     return !packed_qkv && key_ps.rank().is_static() && key_ps.rank().get_length() == 4 && key_ps[2].is_dynamic();
 }
 
