@@ -63,6 +63,10 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
     return false;
 }
 
+bool ov::npuw::util::is_power_of_two(std::uint64_t value) {
+    return value > 0 && (value & (value - 1)) == 0;
+}
+
 ov::npuw::util::DynamicQuantStorageTypes ov::npuw::util::resolve_dynamic_quant_storage_types(
     DynamicQuantDecomposeMode decompose_mode,
     bool is_symmetric,
