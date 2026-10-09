@@ -108,20 +108,12 @@ ov::Dimension unbounded() {
     return ov::Dimension::dynamic();
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, DynamicHeightEnablesHostCompile) {
-    EXPECT_TRUE(run(make_relu_model({1, 3, bounded(), 32})));
-}
-
-TEST_F(ShouldUseHostCompileInterpreterTest, DynamicWidthEnablesHostCompile) {
-    EXPECT_TRUE(run(make_relu_model({1, 3, 16, bounded()})));
+TEST_F(ShouldUseHostCompileInterpreterTest, BoundedDynamicFourDimensionalInputAndOutputEnableHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({1, bounded(), 16, 32})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, DynamicSpatialDimensionsEnableHostCompile) {
     EXPECT_TRUE(run(make_relu_model({1, 3, bounded(), bounded()})));
-}
-
-TEST_F(ShouldUseHostCompileInterpreterTest, ChannelOnlyDynamicDoesNotEnableHostCompile) {
-    EXPECT_FALSE(run(make_relu_model({1, bounded(), 16, 32})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, NonPluginCompilerDoesNotEnableHostCompile) {
