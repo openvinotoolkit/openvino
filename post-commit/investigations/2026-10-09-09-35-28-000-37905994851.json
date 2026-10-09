@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-09-09-35-28-000-37905994851",
+  "timestamp": "2026-10-09T09:35:28Z",
+  "run_id": "37905994851",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37905994851",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f",
+  "pr_number": "38629",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38629",
+  "author": "VijayabaskarR-06",
+  "category": "Dependencies",
+  "title": "GatedDeltaNet transformation test fails to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+  "signature": "ImportError: pyarrow requires NumPy 2.0 or newer, found <version>|Dependencies",
+  "signature_hash": "d61249d5ea96108d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "Step 'GatedDeltaNet Fusion Test' failed: pytest collection error importing optimum.intel -> datasets -> pyarrow with ImportError."
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/transformation_tests/test_gated_delta_net_transformation.py:7: in <module>\n    from optimum.intel import OVModelForCausalLM\n...\n/venv/lib/python3.11/site-packages/optimum/intel/openvino/quantization.py:82: in <module>\n    from datasets import Dataset\n/venv/lib/python3.11/site-packages/datasets/arrow_dataset.py:60: in <module>\n    import pyarrow as pa\npyarrow/lib.pyx:42: in init pyarrow.lib\nE   ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4",
+    "=============================== 1 error in 4.04s ==============================="
+  ],
+  "root_cause": "tests/model_hub_tests/pytorch/envs/gated_delta_net.txt installs optimum-intel==2.2.0 and transformers==4.57.6, which pull in optimum's `datasets`/`pyarrow` transitive chain. The installed pyarrow release now hard-requires NumPy>=2.0 at import time, but this Python 3.11 ARM64 job's base requirements (tests/requirements_pytorch) pin numpy==1.26.4. pip's resolver does not detect/enforce this cross-file conflict (it even prints 'pip's dependency resolver does not currently take into account all the packages that are installed'), so the older NumPy remains installed and pyarrow's native extension raises ImportError as soon as `optimum.intel` -> `datasets` is imported, aborting test collection for test_gated_delta_net_transformation.py entirely (0 items collected, 1 error).",
+  "reproduction_steps": "1. Use Python 3.11 (ARM64 or x86_64).\n2. pip install -r tests/requirements_pytorch -r tests/model_hub_tests/pytorch/envs/gated_delta_net.txt\n3. python -c \"from optimum.intel import OVModelForCausalLM\"  # raises ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4\n4. Equivalently: python -m pytest install/tests/model_hub_tests/transformation_tests/test_gated_delta_net_transformation.py",
+  "recommended_actions": [
+    "Pin a pyarrow version compatible with NumPy 1.26.x (e.g. pyarrow<18) explicitly in tests/model_hub_tests/pytorch/envs/gated_delta_net.txt and any other envs/*.txt file that transitively installs datasets/pyarrow for python_version < '3.12'.",
+    "Alternatively bump tests/requirements_pytorch's numpy pin to >=2.0 for the python_version range used by these jobs, if compatible with the rest of the PyTorch/OpenVINO test matrix.",
+    "Add a `pip check` (or explicit smoke import of datasets/pyarrow) step right after installing any model-hub env overlay file, to fail fast with a clear message instead of a bare pytest collection error."
+  ],
+  "prevention_strategies": "Keep pyarrow pinned explicitly alongside numpy across all tests/model_hub_tests/pytorch/envs/*.txt override files so new optimum-intel/transformers/datasets bumps cannot silently drag in an incompatible pyarrow; add CI validation (pip check or explicit import smoke test) immediately after installing per-test env overlays, before pytest collection starts.",
+  "historical_context": "Identical signature (d61249d5ea96108d) already recorded twice before this run: run 37901253160 (commit 89f0e3a6695b6761f1dea033624fcd7b8243c44f, same GatedDeltaNet test) and run 37900510909 (commit 344d28c8dfd6d4d80f4b68a6b42c9cedf826894c, HF Transformers tests). This is now the 3rd occurrence of the same NumPy/pyarrow dependency conflict, confirming it is a persistent, unresolved Dependencies issue rather than an isolated flake. The merged PR in this run (#38629, NPUW pyramid-attention port fix) is unrelated to this failure; it is a pre-existing environment/dependency problem surfaced on every run that installs this env overlay."
+}
