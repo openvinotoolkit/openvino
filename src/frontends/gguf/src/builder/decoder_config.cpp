@@ -229,9 +229,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
 
     // Interleaved M-RoPE (qwen35 / qwen3vl) is its own mode, so it must be decided here rather
     // than in the per-arch block above -- this assignment runs later and would overwrite it.
-    rope_op_case = is_qwen35                   ? ROPE_OP_CASE_IMROPE
-                   : arch_uses_neox_rope(arch) ? ROPE_OP_CASE_NEOX
-                                               : ROPE_OP_CASE_NORMAL;
+    rope_mode = is_qwen35 ? "imrope" : arch_uses_neox_rope(arch) ? "neox" : "normal";
 
     rope_config.n_dims = cfg_i("rope_dimension_count");
     rope_config.n_ctx_orig = cfg_i("rope_n_ctx_orig");
@@ -287,9 +285,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
         has_swa = true;
     }
     if (rope) {
-        rope_op_case = *rope == RopeMode::Interleaved ? ROPE_OP_CASE_IMROPE
-                       : *rope == RopeMode::Neox      ? ROPE_OP_CASE_NEOX
-                                                      : ROPE_OP_CASE_NORMAL;
+        rope_mode = *rope == RopeMode::Interleaved ? "imrope" : *rope == RopeMode::Neox ? "neox" : "normal";
     }
     // Per-op sin/cos is required whenever SWA and global layers differ in any rope
     // parameter that feeds the shared sin/cos table: n_dims (gemma4) OR freq_base (gemma3,
@@ -305,7 +301,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // are rotated (qwen35: head_size 256, rope.dimension_count 64). Build sin/cos per ROPE op
     // rather than from the shared table, whose layout assumes the single-section full-head
     // case (see RopeConfig::is_imrope / use_per_op_rope).
-    if (rope_op_case == ROPE_OP_CASE_IMROPE) {
+    if (rope_mode == "imrope") {
         rope_config.is_imrope = true;
         OPENVINO_ASSERT(rope_sections.size() <= rope_config.sections.size(), "[GGUF] too many M-RoPE sections");
         std::copy(rope_sections.begin(), rope_sections.end(), rope_config.sections.begin());

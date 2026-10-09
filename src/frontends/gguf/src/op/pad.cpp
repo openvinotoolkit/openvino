@@ -15,8 +15,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -82,12 +80,6 @@ OutputVector translate_pad(const NodeContext& context) {
                                               ov::op::PadMode::CONSTANT);
         return rename_outputs_with_suffix({result}, context.get_name());
     }
-    if (context.get_input_shape(0) == context.get_output_shape()) {
-        auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input);
-        auto res = std::make_shared<ov::op::v1::Reshape>(input, input_shape, false);
-        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
-    }
-
     auto pad_params = context.get_attribute<std::vector<int32_t>>("pad_params");
     FRONT_END_CHECK_IMPLEMENTED(pad_params.size() >= 8, "PAD requires 8 pad extents");
     const std::array<int32_t, 8> pads = {pad_params[0],
@@ -101,7 +93,9 @@ OutputVector translate_pad(const NodeContext& context) {
     const bool circular = context.get_attribute<bool>("pad_circular", false);
 
     if (circular) {
-        auto res = translate_circular_pad(input, pads, context.get_input_shape(0).to_shape());
+        FRONT_END_OP_CONVERSION_CHECK(input.get_partial_shape().is_static(),
+                                      "Circular PAD requires a static logical operand shape");
+        auto res = translate_circular_pad(input, pads, input.get_shape());
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 

@@ -47,12 +47,10 @@ bool is_silu_div_pattern(const ov::Output<ov::Node>& numerator, const ov::Output
 
 // ggml broadcasts by integer repetition (a [.,n] tensor over a [.,k*n] tensor). OV's NUMPY divide
 // broadcast can't express that, so Tile the smaller input up to the target shape first.
-ov::Output<ov::Node> repeat_input_to_match(const NodeContext& context,
-                                           const ov::Output<ov::Node>& input,
-                                           const ov::Output<ov::Node>& target,
-                                           size_t input_index) {
-    const auto input_shape = context.get_input_shape(input_index);
-    const auto target_shape = context.get_input_shape(0);
+ov::Output<ov::Node> repeat_input_to_match(const ov::Output<ov::Node>& input,
+                                           const ov::Output<ov::Node>& target) {
+    const auto input_shape = input.get_partial_shape();
+    const auto target_shape = target.get_partial_shape();
 
     if (input_shape == target_shape) {
         return input;
@@ -125,7 +123,7 @@ OutputVector translate_div(const NodeContext& context) {
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
-    input_1 = repeat_input_to_match(context, input_1, input_0, 1);
+    input_1 = repeat_input_to_match(input_1, input_0);
 
     const bool use_f32_compute = input_0.get_element_type() != ov::element::f32 ||
                                  input_1.get_element_type() != ov::element::f32 || output_type != ov::element::f32;

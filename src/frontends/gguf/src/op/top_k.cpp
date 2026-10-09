@@ -22,7 +22,6 @@
 namespace ov::frontend::gguf::op {
 
 // ggml_top_k(a, k): the indices of the k largest values along ne[0] (the OV last axis).
-// The caller supplies k; legacy decoders encode it in the output's last dimension.
 OutputVector translate_top_k(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
@@ -58,17 +57,9 @@ OutputVector translate_top_k(const NodeContext& context) {
     }
 
     const auto k_attribute = context.get_attribute_as_any("k");
-    int64_t k;
-    if (!k_attribute.empty()) {
-        k = k_attribute.as<int64_t>();
-    } else {
-        const auto shape = context.get_output_shape();
-        const auto rank = shape.rank();
-        FRONT_END_OP_CONVERSION_CHECK(
-            rank.is_static() && rank.get_length() > 0 && shape[rank.get_length() - 1].is_static(),
-            "TOP_K requires 'k' or a static last output dimension");
-        k = shape[rank.get_length() - 1].get_length();
-    }
+    FRONT_END_OP_CONVERSION_CHECK(!k_attribute.empty(), "TOP_K requires 'k'");
+    const int64_t k = k_attribute.as<int64_t>();
+    FRONT_END_OP_CONVERSION_CHECK(k > 0, "TOP_K requires a positive 'k'");
 
     auto k_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {k});
     auto indices = make_topk_indices(input, k_node, -1, ov::op::v11::TopK::Mode::MAX);

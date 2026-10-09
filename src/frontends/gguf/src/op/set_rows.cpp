@@ -36,7 +36,7 @@ OutputVector translate_set_rows(const NodeContext& context) {
     // output shape) matters for the flattened KV-cache write (gpt-oss cache_v is stored as
     // [1,1,ctx,1], row_size 1); the output layout can report a different last dim, which would
     // reshape the update to a width the ScatterUpdate dst cannot match.
-    const auto dst_ps = context.get_input_shape(2);
+    const auto dst_ps = dst.get_partial_shape();
     FRONT_END_OP_CONVERSION_CHECK(dst_ps.rank().is_static() && dst_ps[dst_ps.rank().get_length() - 1].is_static(),
                                   "SET_ROWS requires a static destination row size");
     const int64_t row_size = dst_ps[dst_ps.rank().get_length() - 1].get_length();

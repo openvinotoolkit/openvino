@@ -27,8 +27,8 @@ const GgufOp& GgufBuilderDecoder::node() const {
 ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
     if (name == "architecture" && m_node_idx < 0)
         return m_graph->architecture;
-    // RoPE config is queried at model scope (prepare_graph_inputs, to build the shared
-    // sin/cos table) and at node scope (each ROPE op's own config). At MODEL scope (no bound node)
+    // RoPE config is queried at model scope (the graph's configuration) and at node scope (each ROPE
+    // op's own config). At MODEL scope (no bound node)
     // expose the graph's config with per_op / n_dims==0 encoding "no shared table". At NODE scope
     // fall through to the node's own "rope_config" attribute -- the builder stores a per-node
     // config on each ROPE op (e.g. gemma4 SWA layers use a different freq_base / n_dims), so the
@@ -53,10 +53,6 @@ ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
     // Legacy source shape metadata is unavailable for native nodes.
     if (name == "output_shape")
         return ov::PartialShape::dynamic();
-
-    // Per-node op case (the op translators read it via get_attribute<int>("op_case", 0)).
-    if (name == "op_case")
-        return n.op_case;
 
     // Named op attributes
     auto it = n.attributes.find(name);

@@ -35,7 +35,8 @@ OutputVector translate_tri(const NodeContext& context) {
 
     auto tri_type = context.get_attribute<int>("tri_type");
 
-    auto shape = context.get_input_shape(0).to_shape();
+    FRONT_END_OP_CONVERSION_CHECK(x.get_partial_shape().is_static(), "TRI requires a static logical operand shape");
+    auto shape = x.get_shape();
     size_t n = shape[3];  // ne0 == ne1
     FRONT_END_GENERAL_CHECK(shape[2] == n, "translate_tri: expected a square matrix, got ", shape);
 

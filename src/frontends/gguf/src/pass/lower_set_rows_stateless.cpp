@@ -44,11 +44,7 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
 
         ov::Output<ov::Node> output_shape = std::make_shared<ov::op::v3::ShapeOf>(dst, ov::element::i64);
 
-        // Multi-sequence: if the destination is a Reshape, reshape the scatter result back to the
-        // original [1, n_seq, ctx_per_seq, emb] layout (ctx_per_seq stays dynamic for llama-bench).
-        if (auto dst_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(dst.get_node_shared_ptr())) {
-            output_shape = std::make_shared<ov::op::v3::ShapeOf>(dst_reshape->input_value(0), ov::element::i64);
-        }
+        // Keep the destination's logical layout. Storage aliases are rebound by TranslateSession.
         res = std::make_shared<ov::op::v1::Reshape>(res, output_shape, false);
 
         res->set_friendly_name(set_rows->get_friendly_name());

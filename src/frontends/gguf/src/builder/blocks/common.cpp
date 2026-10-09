@@ -19,7 +19,7 @@ std::string rms_norm(GraphEmitter& e,
         e.add_named_weight(weight);
     else
         e.add_weight(weight);
-    auto norm = e.add_op("GGML_OP_RMS_NORM", out_prefix + ".rms", {in}, 0, {{"eps", eps}});
+    auto norm = e.add_op("GGML_OP_RMS_NORM", out_prefix + ".rms", {in}, {{"eps", eps}});
     return e.add_op("GGML_OP_MUL", out_prefix, {norm, weight});
 }
 
@@ -29,7 +29,7 @@ std::string layer_norm(GraphEmitter& e,
                        const std::string& out_prefix,
                        float eps) {
     e.add_weight(weight);
-    auto norm = e.add_op("GGML_OP_NORM", out_prefix + ".norm", {in}, 0, {{"eps", eps}});
+    auto norm = e.add_op("GGML_OP_NORM", out_prefix + ".norm", {in}, {{"eps", eps}});
     auto scaled = e.add_op("GGML_OP_MUL", out_prefix + ".scaled", {norm, weight});
     return add_bias(e, scaled, bias_weight_name(weight), out_prefix);
 }
@@ -39,7 +39,7 @@ std::string bias_weight_name(const std::string& weight_name) {
 }
 
 std::string scale(GraphEmitter& e, const std::string& x, float factor, const std::string& name) {
-    return e.add_op("GGML_OP_SCALE", name, {x}, 0, {{"scale", factor}, {"bias", 0.0f}});
+    return e.add_op("GGML_OP_SCALE", name, {x}, {{"scale", factor}, {"bias", 0.0f}});
 }
 
 std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& bias_weight, const std::string& name) {

@@ -29,7 +29,6 @@ struct GgufOp {
     std::vector<std::string> input_names;         // producer tensor names (weights / inputs / other nodes)
     std::string output_name;                      // this node's output tensor name
     std::vector<std::string> extra_output_names;  // further outputs of multi-output ops
-    int op_case = 0;
 
     // Typed scalar/struct op attributes consumed by translators via get_attribute<T>
     // (e.g. "eps", "scale", "bias", "max_bias", "swapped", "rope_config").
@@ -58,9 +57,9 @@ struct GgufGraph {
     bool has_rope = false;
     RopeConfig rope_config;
 
-    // When true, each ROPE op builds its own sin/cos table from its per-op rope_config
-    // (useful when different layers need different n_dims, e.g. gemma4 SWA vs global).
-    // TranslateSession::add_rope_sin_cos skips the shared table when this is set.
+    // When true, each ROPE op carries its own rope_config (different layers need different n_dims,
+    // e.g. gemma4 SWA vs global). ROPE translators share a sin/cos table only between ops whose
+    // configuration and position input match.
     bool use_per_op_rope = false;
 
     // Sliding-window length in tokens, from the GGUF metadata (0 -> not configured: either the

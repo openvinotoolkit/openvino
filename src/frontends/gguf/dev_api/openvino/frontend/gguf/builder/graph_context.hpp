@@ -55,7 +55,6 @@ public:
     // Invoke a registered converter; its OpenVINO outputs supply shape/type inference.
     GgufValue node(const std::string& op_type,
                    const std::vector<GgufValue>& inputs,
-                   int op_case = 0,
                    const std::map<std::string, ov::Any>& attrs = {});
 
     // Declare the position contract before emitting nodes; config.per_op selects per-node tables.

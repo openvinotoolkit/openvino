@@ -21,8 +21,18 @@ OutputVector translate_ssm_scan(const NodeContext& context) {
 
     // ggml: s [slots,H,D,S], x [B,T,H,D], dt [1,B,T,H], A [1,1,H,1],
     // B/C [B,T,G,S], ids [1,1,1,B]. Only Mamba2 has scalar decay per head.
+    // A's innermost extent (ggml ne0) is 1 for Mamba2 and the state size for Mamba1. Index from the innermost
+    // axis: a decoder may describe the weight with its own rank ([H, 1]) rather than ggml's rank 4.
     const auto a_shape = context.get_input_shape(3);
-    FRONT_END_OP_CONVERSION_CHECK(a_shape.rank() == 4 && a_shape[0] == 1 && a_shape[1] == 1 && a_shape[3] == 1,
+    bool scalar_decay = a_shape.rank().is_static() && a_shape.rank().get_length() >= 2;
+    if (scalar_decay) {
+        const auto rank = a_shape.rank().get_length();
+        scalar_decay = a_shape[rank - 1] == 1;
+        for (int64_t i = 0; i + 2 < rank; ++i) {
+            scalar_decay = scalar_decay && a_shape[i] == 1;
+        }
+    }
+    FRONT_END_OP_CONVERSION_CHECK(scalar_decay,
                                   "SSM_SCAN: SelectiveSSM requires Mamba2 scalar decay per head; "
                                   "Mamba1 state-wise decay is not supported");
     const auto flat = v0::Constant::create(element::i64, {1}, {-1});
