@@ -502,6 +502,12 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                                                 const int32_t ptr_offset) {
     if (src_prc != dst_prc) {
         switch (src_prc) {
+        case ov::element::i32: {
+            // Reuse the f32 conversion path below: converting the i32 lanes to f32 first is lossless here,
+            // since the only i32-producing emitter (Clamp) always yields values representable exactly in f32.
+            scvtf(data.s, data.s);
+            [[fallthrough]];
+        }
         case ov::element::f32: {
             switch (dst_prc) {
             case ov::element::f16: {
@@ -577,6 +583,12 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                                                 const int32_t ptr_offset) {
     if (src_prc != dst_prc) {
         switch (src_prc) {
+        case ov::element::i32: {
+            // Reuse the f32 conversion path below: converting i32 to f32 first is lossless here,
+            // since the only i32-producing emitter (Clamp) always yields values representable exactly in f32.
+            scvtf(data, data);
+            [[fallthrough]];
+        }
         case ov::element::f32: {
             switch (dst_prc) {
             case ov::element::f16: {
