@@ -5,8 +5,10 @@
 #pragma once
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/model.hpp"
@@ -27,6 +29,7 @@ struct Options {
     bool allow_xattention;
     bool allow_adaptive_rkv;
     bool allow_qq_bias;
+    bool draft_model;
 };
 
 template <typename NodeT, typename VectorT>
@@ -162,7 +165,8 @@ public:
                                   bool allow_cache_rotation = false,
                                   bool allow_xattention = false,
                                   bool allow_adaptive_rkv = false,
-                                  bool allow_qq_bias = false);
+                                  bool allow_qq_bias = false,
+                                  bool draft_model = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:

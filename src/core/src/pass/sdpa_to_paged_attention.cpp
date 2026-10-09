@@ -20,6 +20,7 @@
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/paged_attention/attention_mask_shape_replacer.hpp"
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
+#include "transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp"
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
 #include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
@@ -61,19 +62,22 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool allow_cache_rotation,
                                                      bool allow_xattention,
                                                      bool allow_adaptive_rkv,
-                                                     bool allow_qq_bias)
+                                                     bool allow_qq_bias,
+                                                     bool draft_model)
     : m_options{use_per_layer_block_indices_inputs,
                 use_score_outputs,
                 allow_score_aggregation,
                 allow_cache_rotation,
                 allow_xattention,
                 allow_adaptive_rkv,
-                allow_qq_bias} {}
+                allow_qq_bias,
+                draft_model} {}
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
 
-    OPENVINO_ASSERT(!model->get_variables().empty(),
+    // A draft model reads the target model's KV cache through its inputs and has no state of its own.
+    OPENVINO_ASSERT(m_options.draft_model || !model->get_variables().empty(),
                     "Model is supposed to be stateful, cannot perform "
                     "the SDPAToPagedAttention transformation. "
                     "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
@@ -116,6 +120,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     std::unordered_set<std::string> var_ids_to_remove;
+    std::unordered_set<std::string> params_to_remove{"beam_idx", "attention_mask"};
 
     // Get-or-create the flattened position_ids parameter and restore its rank at each existing consumer with a
     // single shared Unsqueeze(-1). The PositionIDsReplacer* passes below consume the raw parameter and add their
@@ -153,7 +158,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
     auto ssm_fusion = manager.register_pass<SelectiveSSMFusion>();
-    manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
+    if (m_options.draft_model) {
+        manager.register_pass<Gemma4MTPStateManagementPattern>(m_params, params_to_remove);
+    } else {
+        manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
+    }
     manager.register_pass<EliminateConvPaddingMaskGating>();
     manager.register_pass<AttentionMaskShapeReplacer>(input_ids_node);
     auto paged_ssm_fusion = manager.register_pass<PagedSelectiveSSMFusion>(m_params, var_ids_to_remove);
@@ -191,7 +200,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
-    for (auto& param_name : {"beam_idx", "attention_mask"}) {
+    for (const auto& param_name : params_to_remove) {
         if (auto param = get_parameter(model, param_name)) {
             model->remove_parameter(param);
 
