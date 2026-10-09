@@ -1132,6 +1132,8 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
     for (std::size_t idx = 0; idx < submodels.size(); ++idx) {
         const auto& subm = submodels[idx];
         ov::SoPtr<ov::ICompiledModel> effective_compiled_model = subm.compiled_model;
+        // Imported function calls do not restore pipeline state, the function body owns it.
+        const CompiledModelDesc* behavior_desc = &subm;
 
         if (subm.replaced_by.has_value()) {
             const std::size_t target_idx = subm.replaced_by.value();
@@ -1144,6 +1146,7 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
                             submodels.size(),
                             ")");
             effective_compiled_model = submodels[target_idx].compiled_model;
+            behavior_desc = &submodels[target_idx];
             OPENVINO_ASSERT(effective_compiled_model,
                             "NPUW routing: submodel ",
                             idx,
@@ -1156,7 +1159,7 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
         const std::size_t closure_size = closure_desc.closure.size();
         const bool has_compiled_model = static_cast<bool>(effective_compiled_model);
         const std::size_t n_model_inputs = has_compiled_model ? effective_compiled_model->inputs().size() : 0u;
-        const bool skip_param_base_bound_check = ov::npuw::attn::has_block_kv_hfa(subm.pipeline);
+        const bool skip_param_base_bound_check = ov::npuw::attn::has_block_kv_hfa(behavior_desc->pipeline);
 
         validate_submodel_indices(subm.host_gather,
                                   subm.quant_unpack_gather,
@@ -1740,8 +1743,15 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                 return;
             }
             const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-            if (submodel_desc.compiled_model != nullptr &&
-                link.second >= submodel_desc.compiled_model->inputs().size()) {
+            if (submodel_desc.compiled_model == nullptr) {
+                return;
+            }
+            // Block-KV HFA has one function param per KV block, more than its tile model's inputs.
+            // Routed ports are function params, all of them are before the closure.
+            const std::size_t n_inputs = ov::npuw::attn::has_block_kv_hfa(submodel_desc.pipeline)
+                                             ? submodel_desc.param_base
+                                             : submodel_desc.compiled_model->inputs().size();
+            if (link.second >= n_inputs) {
                 OPENVINO_THROW("Invalid ",
                                table_name,
                                "[",
@@ -1751,7 +1761,7 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                                " for submodel ",
                                link.first,
                                " (inputs: ",
-                               submodel_desc.compiled_model->inputs().size(),
+                               n_inputs,
                                ")");
             }
         };

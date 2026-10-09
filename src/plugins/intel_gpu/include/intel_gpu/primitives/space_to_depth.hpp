@@ -57,16 +57,32 @@ struct space_to_depth : public primitive_base<space_to_depth> {
                    const size_t block_size = 1)
         : primitive_base(id, {input}), mode(mode), block_size(block_size) {}
 
+    space_to_depth(const primitive_id& id, const input_info& input, size_t factor_t, size_t factor_s, size_t output_channels)
+        : primitive_base(id, {input}),
+          grouped(true),
+          factor_t(factor_t),
+          factor_s(factor_s),
+          output_channels(output_channels) {}
+
     /// @brief Depth mode.
     SpaceToDepth::SpaceToDepthMode mode = SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
 
     /// @brief Block size.
     size_t block_size = 1;
 
+    bool grouped = false;
+    size_t factor_t = 1;
+    size_t factor_s = 1;
+    size_t output_channels = 0;
+
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, mode);
         seed = hash_combine(seed, block_size);
+        seed = hash_combine(seed, grouped);
+        seed = hash_combine(seed, factor_t);
+        seed = hash_combine(seed, factor_s);
+        seed = hash_combine(seed, output_channels);
         return seed;
     }
 
@@ -77,20 +93,28 @@ struct space_to_depth : public primitive_base<space_to_depth> {
 
         auto rhs_casted = downcast<const space_to_depth>(rhs);
 
-        return mode == rhs_casted.mode &&
-               block_size == rhs_casted.block_size;
+        return mode == rhs_casted.mode && block_size == rhs_casted.block_size && grouped == rhs_casted.grouped && factor_t == rhs_casted.factor_t &&
+               factor_s == rhs_casted.factor_s && output_channels == rhs_casted.output_channels;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<space_to_depth>::save(ob);
         ob << make_data(&mode, sizeof(SpaceToDepth::SpaceToDepthMode));
         ob << block_size;
+        ob << grouped;
+        ob << factor_t;
+        ob << factor_s;
+        ob << output_channels;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<space_to_depth>::load(ib);
         ib >> make_data(&mode, sizeof(SpaceToDepth::SpaceToDepthMode));
         ib >> block_size;
+        ib >> grouped;
+        ib >> factor_t;
+        ib >> factor_s;
+        ib >> output_channels;
     }
 };
 }  // namespace cldnn

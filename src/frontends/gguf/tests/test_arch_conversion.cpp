@@ -180,19 +180,20 @@ struct Fingerprint {
 
 const std::map<std::string, Fingerprint>& fingerprints() {
     static const std::map<std::string, Fingerprint> fp{
-        {"mamba2-dense.gguf.hdr", {289, 6}},     {"nemotron_h-dense.gguf.hdr", {278, 8}},
-        {"bailingmoe2-moe.gguf.hdr", {470, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {453, 10}},
+        {"mamba2-dense.gguf.hdr", {241, 6}},     {"nemotron_h-dense.gguf.hdr", {254, 8}},
+        {"bailingmoe2-moe.gguf.hdr", {489, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {472, 10}},
         {"exaone4-dense.gguf.hdr", {415, 11}},   {"gemma-dense.gguf.hdr", {365, 10}},
-        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {482, 10}},
-        {"gpt-oss-moe.gguf.hdr", {570, 11}},     {"hunyuan-dense-dense.gguf.hdr", {414, 10}},
-        {"hunyuan-moe-moe.gguf.hdr", {550, 10}}, {"llama-dense.gguf.hdr", {398, 10}},
-        {"llama-moe.gguf.hdr", {504, 10}},       {"maincoder-dense.gguf.hdr", {430, 10}},
-        {"minicpm-dense.gguf.hdr", {396, 10}},   {"minicpm-moe.gguf.hdr", {502, 10}},
-        {"minimax-m2-moe.gguf.hdr", {532, 10}},  {"mistral3-dense.gguf.hdr", {398, 10}},
-        {"mistral3-moe.gguf.hdr", {504, 10}},    {"olmoe-moe.gguf.hdr", {532, 10}},
-        {"phi3-dense.gguf.hdr", {378, 10}},      {"qwen2-dense.gguf.hdr", {366, 10}},
-        {"qwen3-dense.gguf.hdr", {414, 10}},     {"qwen3moe-moe.gguf.hdr", {544, 10}},
-        {"qwen35-dense.gguf.hdr", {391, 10}},    {"smollm3-dense.gguf.hdr", {382, 10}},
+        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {501, 10}},
+        {"gpt-oss-moe.gguf.hdr", {608, 11}},     {"hunyuan-dense-dense.gguf.hdr", {414, 10}},
+        {"hunyuan-moe-moe.gguf.hdr", {600, 10}}, {"llama-dense.gguf.hdr", {398, 10}},
+        {"llama-moe.gguf.hdr", {542, 10}},       {"maincoder-dense.gguf.hdr", {430, 10}},
+        {"minicpm-dense.gguf.hdr", {396, 10}},   {"minicpm-moe.gguf.hdr", {540, 10}},
+        {"minimax-m2-moe.gguf.hdr", {582, 10}},  {"mistral3-dense.gguf.hdr", {398, 10}},
+        {"mistral3-moe.gguf.hdr", {542, 10}},    {"olmoe-moe.gguf.hdr", {570, 10}},
+        {"phi3-dense.gguf.hdr", {368, 10}},      {"qwen2-dense.gguf.hdr", {366, 10}},
+        {"qwen3-dense.gguf.hdr", {414, 10}},     {"qwen3moe-moe.gguf.hdr", {582, 10}},
+        {"qwen35-dense.gguf.hdr", {360, 10}},    {"qwen35moe-moe.gguf.hdr", {532, 10}},
+        {"smollm3-dense.gguf.hdr", {382, 10}},   {"jais2-dense.gguf.hdr", {344, 10}},
     };
     return fp;
 }
@@ -309,7 +310,7 @@ TEST_P(GGUFArchConversion, MatchesManifestExpectation) {
         // The accept list must be what rejects it: a different failure means the file broke the
         // reader or the builder somewhere it should never have reached.
         ASSERT_FALSE(model) << fixture.header_file << " is marked `reject` but converted successfully. If the "
-                            << "builder now supports this architecture, add it to verified/experimental_archs() "
+                            << "builder now supports this architecture, add it to the architecture catalog "
                             << "and change the manifest line to `convert` with a fingerprint.";
         EXPECT_NE(error.find("native GGUF builder does not support architecture"), std::string::npos)
             << fixture.header_file << " failed for a reason other than the architecture accept list, which means "

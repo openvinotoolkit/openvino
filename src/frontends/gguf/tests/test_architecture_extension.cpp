@@ -23,6 +23,7 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/extension/architecture.hpp"
+#include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/concat.hpp"
@@ -78,13 +79,7 @@ std::string write_decoder_gguf(const std::string& dir, const std::string& arch =
     writer.kv_f32(arch + ".attn_logit_softcapping", 2.f);
     writer.kv_u32(arch + ".attention.sliding_window", 2);
     const auto weight = [&](const std::string& name, const std::vector<uint64_t>& shape, bool norm = false) {
-        size_t count = 1;
-        for (auto d : shape)
-            count *= d;
-        std::vector<float> values(count);
-        for (size_t i = 0; i < count; ++i)
-            values[i] = norm ? 1.f : 0.1f * std::sin(float(i + 1));
-        writer.tensor(name, shape, values);
+        writer.filled_tensor(name, shape, norm);
     };
     weight("token_embd.weight", {8, 16});
     weight("output_norm.weight", {8}, true);
@@ -136,6 +131,18 @@ TEST(GGUFArchitectureExtension, UnknownArchitectureIsRejectedWithoutAnExtension)
                                    testing::HasSubstr("ArchitectureExtension")));
 }
 
+TEST(GGUFArchitectureExtension, UnsupportedDiagnosticIncludesRegisteredArchitectures) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "unknown-decoder");
+    ASSERT_FALSE(path.empty());
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ArchitectureExtension>("custom-decoder", RopeMode::Neox));
+    OV_EXPECT_THROW(frontend.convert(frontend.load(path)),
+                    ov::Exception,
+                    testing::AllOf(testing::HasSubstr("Supported:"), testing::HasSubstr("custom-decoder")));
+    OV_EXPECT_THROW(convert_with(path), ov::Exception, testing::Not(testing::HasSubstr("custom-decoder")));
+}
+
 TEST(GGUFArchitectureExtension, DecoderDefinitionMatchesBuiltInGraph) {
     ScratchDir scratch;
 
@@ -174,6 +181,32 @@ TEST(GGUFArchitectureExtension, DecoderRopeModeReachesTheBuilder) {
     // NORMAL and NEOX lower to different rotation subgraphs, so the two graphs must differ.
     EXPECT_NE(op_histogram(neox), op_histogram(normal))
         << "the registered RoPE mode did not affect the graph, so it is not reaching the builder";
+}
+
+TEST(GGUFGenAIExtension, RegistrationIsLocalAndConversionCanBeRepeated) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path());
+    ASSERT_FALSE(path.empty());
+    ov::frontend::gguf::FrontEnd frontend;
+    auto extension = std::make_shared<ov::frontend::gguf::GenAIExtension>();
+    frontend.add_extension(extension);
+    const auto input = frontend.load(path);
+    for (size_t i = 0; i < 2; ++i) {
+        const auto model = frontend.convert(input);
+        EXPECT_EQ(model->get_variables().size(), 4);
+        EXPECT_NO_THROW(model->input("input_ids"));
+        EXPECT_NO_THROW(model->input("attention_mask"));
+        EXPECT_NO_THROW(model->input("position_ids"));
+        EXPECT_NO_THROW(model->input("beam_idx"));
+        EXPECT_EQ(model->output("logits").get_partial_shape().rank(), 3);
+        EXPECT_FALSE(extension->get_embedding_model());
+    }
+    const auto plain = convert_with(path);
+    EXPECT_TRUE(plain->get_variables().empty());
+    EXPECT_NO_THROW(plain->input("inp_tokens"));
+    OV_EXPECT_THROW(frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>()),
+                    ov::Exception,
+                    testing::HasSubstr("already registered"));
 }
 
 TEST(GGUFArchitectureExtension, DecoderOptionsSelectTheActivation) {
@@ -422,10 +455,7 @@ TEST(GGUFArchitectureExtension, SharedDecoderBlocksMatchNumericallyAcrossPrefill
                                        }},
                 RegistrationMode::Replace));
         }
-        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
-            ov::frontend::gguf::pass::GGUFMakeStateful()));
-        frontend.add_extension(
-            std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
+        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         return frontend.convert(frontend.load(path));
     };
     auto builtin = load(false);
