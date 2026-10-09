@@ -929,7 +929,7 @@ void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) 
     }
     // cursor is now the compute node — clear its output so it re-acquires from ext_block
     if (!cursor->is_input() && !cursor->has_inner_networks() && !cursor->can_be_optimized()) {
-        cursor->clear_output_memory();
+        cursor->release_and_clear_output_memory();
         GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
     }
 }

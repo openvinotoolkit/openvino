@@ -707,6 +707,13 @@ void primitive_inst::clear_output_memory() {
     _remote_permute_output_alias.reset();
 }
 
+void primitive_inst::release_and_clear_output_memory() {
+    if (_mem_allocated && _outputs[0])
+        get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+    _mem_allocated = false;
+    clear_output_memory();
+}
+
 void primitive_inst::realloc_intermediates() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_intermediates: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);

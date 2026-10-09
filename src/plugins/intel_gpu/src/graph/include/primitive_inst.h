@@ -381,6 +381,8 @@ public:
 
     virtual void update_output_memory() {}
     void clear_output_memory();
+    // Unlike clear_output_memory(), also returns pool-owned output memory so the next allocation can reuse it.
+    void release_and_clear_output_memory();
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
