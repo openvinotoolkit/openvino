@@ -22,6 +22,19 @@ logger = logging.getLogger(__name__)
 # The four apply_* entry points below are grouped so compile.py needs one
 # try/except per call site rather than one per hook.
 
+def decoder_rt_info(options):
+    """Frontend flags for the FX decoder's rt_info, read by the PyTorch frontend's normalize().
+
+    "canonical_float_precision" runs its CanonicalizeFloatPrecision pass: f32
+    activations, weights kept narrow behind a decompression Convert.
+    """
+    from openvino import OVAny
+    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    if bool_opt(options, "canonical_precision", False):
+        return {"canonical_float_precision": OVAny(True)}
+    return {}
+
+
 def apply_post_convert(om, options):
     """Run vLLM hooks on the freshly-converted Model.
 
@@ -34,8 +47,6 @@ def apply_post_convert(om, options):
         om.set_rt_info(True, "vllm_model")
     register_pa_parameters(om)
     normalize_concat_ranks(om)
-    if bool_opt(options, "canonical_precision", False):
-        canonicalize_float_precision(om)
 
 
 def apply_input_shapes(om, args, options, gm=None):
@@ -441,148 +452,3 @@ def apply_kv_cache_config_defaults(config, device, options=None, om=None):
         # lot. Matches OV GenAI CPU behavior.
         config["DYNAMIC_QUANTIZATION_GROUP_SIZE"] = int(
             os.environ.get("DYNAMIC_QUANTIZATION_GROUP_SIZE", "32"))
-
-
-# Narrow Constants up to this many elements (scalars, eps, rotary tables) are
-# folded to f32 instead of kept behind a decompression Convert.
-_FOLD_TO_F32_MAX_ELEMENTS = 1024
-
-
-def _constant_as_f32(const):
-    """Return a bf16/f16 Constant's values as a float32 numpy array."""
-    import numpy as np
-    from openvino import Type
-
-    data = const.get_tensor_view().data
-    if const.get_element_type() == Type.bf16:
-        # pyopenvino hands bf16 data over as float16-tagged bits; widen them.
-        bits = data.view(np.uint16).astype(np.uint32) << 16
-        return bits.view(np.float32).reshape(data.shape)
-    return data.astype(np.float32)
-
-
-def _destination_type(convert):
-    """Convert's destination type as an ov.Type (pyopenvino returns a string)."""
-    from openvino import Type
-
-    dst = convert.get_destination_type()
-    if not isinstance(dst, str):
-        return dst
-    # Only the float types matter to the callers; others stay as their name.
-    return {"bf16": Type.bf16, "f16": Type.f16, "f32": Type.f32}.get(dst, dst)
-
-
-def _mark_decompression(convert):
-    """Mark a Const->Convert(f32) the way MarkCompressedFloatConstants does.
-
-    The PyTorch frontend runs that pass during normalize(), before this hook,
-    so the Converts added here have to be marked explicitly.
-    """
-    rt_info = convert.get_rt_info()
-    rt_info["decompression_0"] = True
-    rt_info["DisableConstantFolding_0"] = True
-
-
-def canonicalize_float_precision(om):
-    """Rewrite a bf16/f16 graph into OV's canonical LLM form.
-
-    torch.compile hands the model over in its own dtype, so every activation,
-    Convert and weight is bf16 (or f16). The CPU LLM fusions (MLPFusion,
-    QKVProjFusion, FullyConnectedCompressed) are written for the form ovc and
-    optimum produce: f32 activations, weights kept narrow behind a
-    decompression Convert, compute precision chosen by
-    INFERENCE_PRECISION_HINT. Producing that form here keeps the plugin free of
-    any knowledge of where the model came from.
-
-    Graph inputs and outputs keep their dtype (a Convert is added next to
-    them), and so do the __pa__ side-channel Parameters, whose KV-cache
-    precision retype_kv_cache_parameters sets separately. Returns the number
-    of nodes changed.
-    """
-    from openvino import Type
-    from openvino import opset1 as _o1
-
-    narrow = (Type.bf16, Type.f16)
-    result_types = [r.get_input_element_type(0) for r in om.get_results()]
-    changed = 0
-
-    for node in list(om.get_ordered_ops()):
-        op_type = node.get_type_name()
-        if op_type == "Convert":
-            if _destination_type(node) in narrow:
-                node.set_destination_type(Type.f32)
-                changed += 1
-        elif op_type == "Constant":
-            if node.get_element_type() not in narrow:
-                continue
-            consumers = [c for c in node.output(0).get_target_inputs()
-                         if not (c.get_node().get_type_name() == "Convert"
-                                 and _destination_type(c.get_node()) == Type.f32)]
-            if not consumers:
-                continue  # already in decompression form
-            if node.get_output_size() and _shape_size(node) <= _FOLD_TO_F32_MAX_ELEMENTS:
-                repl = _o1.constant(_constant_as_f32(node))
-            else:
-                repl = _o1.convert(node.output(0), "f32")
-                _mark_decompression(repl)
-            for consumer in consumers:
-                consumer.replace_source_output(repl.output(0))
-            changed += 1
-        elif op_type == "Parameter":
-            if (node.get_element_type() not in narrow
-                    or node.get_friendly_name().startswith("__pa__")):
-                continue
-            consumers = list(node.output(0).get_target_inputs())
-            cvt = _o1.convert(node.output(0), "f32")
-            for consumer in consumers:
-                consumer.replace_source_output(cvt.output(0))
-            changed += 1
-    if not changed:
-        return 0
-    om.validate_nodes_and_infer_types()
-
-    # Give every output back its original dtype; move the tensor names onto
-    # the new Convert so the output port keeps them.
-    for result, et in zip(om.get_results(), result_types):
-        src = result.input_value(0)
-        if src.get_element_type() == et:
-            continue
-        cvt = _o1.convert(src, et.get_type_name())
-        names = src.get_names()
-        src.get_tensor().set_names(set())
-        cvt.output(0).get_tensor().set_names(names)
-        result.input(0).replace_source_output(cvt.output(0))
-
-    # Converts that used to bridge a narrow island and an f32 one are now
-    # identities; drop them so they don't sit between ops the fusions match.
-    for node in list(om.get_ordered_ops()):
-        if node.get_type_name() != "Convert" or "decompression_0" in node.get_rt_info():
-            continue
-        src = node.input_value(0)
-        if src.get_element_type() != _destination_type(node):
-            continue
-        targets = list(node.output(0).get_target_inputs())
-        if any(t.get_node().get_type_name() == "Result" for t in targets):
-            continue
-        for target in targets:
-            target.replace_source_output(src)
-
-    om.validate_nodes_and_infer_types()
-    remaining = sorted({n.get_type_name() for n in om.get_ordered_ops() if _has_narrow_output(n, narrow)})
-    if remaining:
-        logger.debug("narrow-float outputs left after canonicalization: %s", remaining)
-    return changed
-
-
-def _has_narrow_output(node, narrow):
-    """True for a compute op still producing a bf16/f16 output."""
-    if node.get_type_name() in ("Constant", "Parameter", "Result", "Convert"):
-        return False
-    return any(node.get_output_element_type(i) in narrow for i in range(node.get_output_size()))
-
-
-def _shape_size(node):
-    size = 1
-    for dim in node.get_output_shape(0):
-        size *= dim
-    return size

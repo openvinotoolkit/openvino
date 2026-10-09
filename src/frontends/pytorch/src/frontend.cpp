@@ -26,6 +26,7 @@
 #include "transforms/aten_getitem_replacer.hpp"
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
+#include "transforms/canonicalize_float_precision.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
@@ -298,6 +299,20 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         // make validation after previously non-validated passes
         if (is_changed)
             model->validate_nodes_and_infer_types();
+    }
+
+    // Opt-in for torch.compile callers that want the f32-activation form of a bf16/f16 model.
+    bool canonical_float_precision = false;
+    if (model->has_rt_info("canonical_float_precision")) {
+        canonical_float_precision = model->get_rt_info()["canonical_float_precision"].as<bool>();
+        model->get_rt_info().erase("canonical_float_precision");
+    }
+    if (canonical_float_precision) {
+        ov::pass::Manager manager("Frontend:Pytorch:normalize::canonical_float_precision");
+        manager.register_pass<ov::frontend::pytorch::pass::CanonicalizeFloatPrecision>();
+        // Marks the Converts the canonicalization added.
+        manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
+        manager.run_passes(model);
     }
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
