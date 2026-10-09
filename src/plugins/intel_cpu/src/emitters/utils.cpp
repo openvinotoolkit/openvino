@@ -80,15 +80,15 @@ std::pair<int32_t, int32_t> get_clamp_min_max(double alpha, double beta, const o
     int32_t minimum = 0;
     int32_t maximum = 0;
     switch (exec_prc) {
-    case ov::element::i32:
-        minimum =
-            static_cast<int32_t>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
-        if (beta >= static_cast<double>(std::numeric_limits<int32_t>::max())) {
-            maximum = std::numeric_limits<int32_t>::max();
-        } else {
-            maximum = static_cast<int32_t>(beta);
-        }
+    case ov::element::i32: {
+        // Clamp alpha/beta to the int32_t range in double space before casting:
+        // casting an out-of-range double to an integral type is undefined behavior.
+        constexpr auto i32_min = static_cast<double>(std::numeric_limits<int32_t>::min());
+        constexpr auto i32_max = static_cast<double>(std::numeric_limits<int32_t>::max());
+        minimum = static_cast<int32_t>(std::clamp(alpha, i32_min, i32_max));
+        maximum = static_cast<int32_t>(std::clamp(beta, i32_min, i32_max));
         break;
+    }
     case ov::element::f32:
         minimum = dnnl::impl::float2int(static_cast<float>(alpha));
         maximum = dnnl::impl::float2int(static_cast<float>(beta));

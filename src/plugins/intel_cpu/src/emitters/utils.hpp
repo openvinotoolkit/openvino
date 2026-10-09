@@ -24,6 +24,10 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func);
 
 ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n);
 
+// Returns clamp {min, max} for the requested execution precision.
+// For integral execution precisions, the pair contains numeric int32_t bounds.
+// For f32 execution, the pair contains the bitwise representation of the float
+// min/max values encoded as int32_t (for direct use in constant tables / SIMD loads).
 std::pair<int32_t, int32_t> get_clamp_min_max(double alpha, double beta, const ov::element::Type& exec_prc);
 
 }  // namespace ov::intel_cpu
