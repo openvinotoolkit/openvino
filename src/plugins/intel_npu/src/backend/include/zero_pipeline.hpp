@@ -108,7 +108,7 @@ private:
 
     std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
-    std::unique_ptr<IProfilingDecoder> _profiling_decoder;
+    std::shared_ptr<IProfilingDecoder> _profiling_decoder;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
 };
 

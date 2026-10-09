@@ -21,6 +21,7 @@
 #include "openvino/core/model.hpp"
 #include "weightless_graph.hpp"
 #include "weightless_utils.hpp"
+#include "zero_native_profiling_decoder.hpp"
 
 namespace intel_npu {
 
@@ -71,6 +72,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache)
     : _zeroInitStruct(zeroInitStruct),
       _optionSupportCache(optionSupportCache, driverOptionSupportKey),
+      _profilingDecoder(std::make_shared<NativeProfilingDecoder>()),
       _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize DriverCompilerAdapter start");
 
@@ -145,7 +147,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    /* blob = */ std::nullopt,
                                    get_compatibility_descriptor(graphDesc._handle),
                                    false,
-                                   nullptr);
+                                   _profilingDecoder);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -267,7 +269,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              /* initBlobs = */ std::nullopt,
                                              std::move(model),
                                              /* persistentBlob = */ false,
-                                             get_compatibility_descriptor(mainGraphHandle._handle));
+                                             get_compatibility_descriptor(mainGraphHandle._handle),
+                                             _profilingDecoder);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

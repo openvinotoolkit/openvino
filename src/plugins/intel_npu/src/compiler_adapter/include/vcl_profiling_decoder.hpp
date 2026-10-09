@@ -35,9 +35,10 @@ private:
 
 /**
  * @brief Resolves the VCL function table via VCLLoader and wraps it in a decoder.
- * @details For callers (e.g. Parser) that have not already resolved a VCLFunctionTable of their own. Throws if
- * the VCL compiler library cannot be loaded.
+ * @details For callers (e.g. Parser) that have not already resolved a VCLFunctionTable of their own, such as
+ * VCLCompilerImpl has (see VCLCompilerImpl::createProfilingDecoder()). Throws if the VCL compiler library cannot
+ * be loaded.
  */
-ProfilingDecoderFactory makeVCLProfilingDecoderFactory();
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder();
 
 }  // namespace intel_npu

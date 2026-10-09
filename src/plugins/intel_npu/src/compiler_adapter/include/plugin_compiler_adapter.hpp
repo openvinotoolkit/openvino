@@ -51,14 +51,10 @@ public:
     uint32_t get_version() const override;
 
 private:
-    /**
-     * @brief Builds a profiling decoder when PERF_COUNT is enabled, otherwise returns null.
-     */
-    ProfilingDecoderFactory make_profiling_decoder_factory(const Config& config) const;
-
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     ov::SoPtr<IVCLCompiler> _compiler;
+    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 
     Logger _logger;
 };

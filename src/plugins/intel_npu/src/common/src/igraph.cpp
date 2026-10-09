@@ -16,8 +16,8 @@ std::optional<ov::Tensor> IGraph::get_profiling_network() const {
     return std::nullopt;
 }
 
-ProfilingDecoderFactory IGraph::get_profiling_decoder_factory() const {
-    return {};
+std::shared_ptr<IProfilingDecoder> IGraph::get_profiling_decoder() const {
+    return nullptr;
 }
 
 void IGraph::set_argument_value(uint32_t, const void*) const {

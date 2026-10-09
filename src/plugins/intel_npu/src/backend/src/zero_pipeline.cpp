@@ -22,14 +22,6 @@ uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& 
     return graph->get_unique_id();
 }
 
-class DriverProfilingDecoder final : public intel_npu::IProfilingDecoder {
-public:
-    std::vector<ov::ProfilingInfo> decode(const intel_npu::IGraph&,
-                                          const intel_npu::zeroProfiling::ProfilingQuery& query) const override {
-        return query.getLayerStatistics();
-    }
-};
-
 }  // namespace
 
 namespace intel_npu {
@@ -96,27 +88,14 @@ void Pipeline::configure_profiling() {
         }
     };
 
+    const auto create_profiling_decoder = [this]() {
+        _profiling_decoder = _graph->get_profiling_decoder();
+        OPENVINO_ASSERT(_profiling_decoder != nullptr,
+                       "Graph does not provide a profiling decoder, but model-level profiling is enabled");
+    };
+
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
-
-    if (perf_count_enabled && _config.get<PROFILING_TYPE>() != ov::intel_npu::ProfilingType::INFER) {
-        switch (_config.get<COMPILER_TYPE>()) {
-        case ov::intel_npu::CompilerType::DRIVER:
-            _profiling_decoder = std::make_unique<DriverProfilingDecoder>();
-            break;
-        case ov::intel_npu::CompilerType::PLUGIN: {
-            auto decoderFactory = _graph->get_profiling_decoder_factory();
-            OPENVINO_ASSERT(decoderFactory,
-                            "Profiling decoder factory is missing for a graph using the plugin compiler");
-            _profiling_decoder = decoderFactory();
-            OPENVINO_ASSERT(_profiling_decoder != nullptr,
-                            "Profiling decoder factory returned a null decoder for the plugin compiler");
-            break;
-        }
-        default:
-            OPENVINO_THROW("Cannot create profiling decoder, unknown compiler type");
-        }
-    }
 
     if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         if (perf_count_enabled) {
@@ -147,10 +126,13 @@ void Pipeline::configure_profiling() {
                     _logger.warning(
                         "IPipeline - model was compiled with layer profiling enabled, PERF_COUNT is NOT set and "
                         "statistics will not be extracted");
+                } else {
+                    create_profiling_decoder();
                 }
                 enable_profiling();
             }
         } else if (perf_count_enabled) {  // unable to determine if it was compiled with profiling enabled
+            create_profiling_decoder();
             enable_profiling();
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }

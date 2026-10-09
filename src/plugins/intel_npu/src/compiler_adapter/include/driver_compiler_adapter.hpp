@@ -49,6 +49,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     ScopedOptionSupportCache _optionSupportCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
+    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 
     ze_device_graph_properties_t _compilerProperties = {};
 

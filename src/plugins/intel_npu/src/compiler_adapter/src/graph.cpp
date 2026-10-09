@@ -20,7 +20,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent,
-             ProfilingDecoderFactory profilingDecoderFactory)
+             std::shared_ptr<IProfilingDecoder> profilingDecoder)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -28,7 +28,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
-      _profilingDecoderFactory(std::move(profilingDecoderFactory)),
+      _profilingDecoder(std::move(profilingDecoder)),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", Logger::global().level()) {}
 
@@ -154,8 +154,8 @@ std::optional<ov::Tensor> Graph::get_profiling_network() const {
     return _blob;
 }
 
-ProfilingDecoderFactory Graph::get_profiling_decoder_factory() const {
-    return _profilingDecoderFactory;
+std::shared_ptr<IProfilingDecoder> Graph::get_profiling_decoder() const {
+    return _profilingDecoder;
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {

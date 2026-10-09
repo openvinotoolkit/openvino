@@ -94,6 +94,10 @@ public:
         }
         return false;
     }
+
+    std::shared_ptr<::intel_npu::IProfilingDecoder> createProfilingDecoder() const override {
+        return nullptr;
+    }
 };
 
 }  // namespace fake_vcl

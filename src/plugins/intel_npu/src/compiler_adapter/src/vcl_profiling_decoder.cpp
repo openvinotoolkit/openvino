@@ -85,12 +85,10 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
-ProfilingDecoderFactory makeVCLProfilingDecoderFactory() {
-    return []() -> std::unique_ptr<IProfilingDecoder> {
-        auto vclLoader = VCLLoader::getInstance();
-        OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-        return std::make_unique<VCLProfilingDecoder>(vclLoader->sharedFunctions());
-    };
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder() {
+    auto vclLoader = VCLLoader::getInstance();
+    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+    return std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
 }
 
 }  // namespace intel_npu

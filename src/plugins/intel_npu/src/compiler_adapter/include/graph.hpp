@@ -26,12 +26,12 @@ public:
           std::optional<ov::Tensor> blob,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false,
-          ProfilingDecoderFactory profilingDecoderFactory = {});
+          std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     std::optional<ov::Tensor> get_profiling_network() const override;
-    ProfilingDecoderFactory get_profiling_decoder_factory() const override;
+    std::shared_ptr<IProfilingDecoder> get_profiling_decoder() const override;
 
     void set_argument_value(uint32_t id, const void* data) const override;
     void set_argument_value_with_strides(uint32_t id,
@@ -91,7 +91,7 @@ protected:
     std::optional<ov::Tensor> _blob;
     std::optional<std::string> _compatibilityDescriptor;
 
-    ProfilingDecoderFactory _profilingDecoderFactory;
+    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported

@@ -16,7 +16,6 @@
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
-#include "vcl_profiling_decoder.hpp"
 #include "weightless_graph.hpp"
 #include "weightless_utils.hpp"
 
@@ -30,6 +29,8 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.info("initialize PluginCompilerAdapter start");
 
     OPENVINO_ASSERT(_compiler != nullptr, "PluginCompilerAdapter requires a non-null compiler");
+
+    _profilingDecoder = _compiler->createProfilingDecoder();
 
     if (_zeroInitStruct == nullptr) {
         return;
@@ -96,7 +97,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(tensor),
         compatibilityDescriptor,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
-        make_profiling_decoder_factory(config));
+        _profilingDecoder);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -254,7 +255,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::move(model),
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
         compatibilityDescriptor,
-        make_profiling_decoder_factory(config));
+        _profilingDecoder);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -283,14 +284,6 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                   supported ? "is supported" : "is not supported");
 
     return supported;
-}
-
-ProfilingDecoderFactory PluginCompilerAdapter::make_profiling_decoder_factory(const Config& config) const {
-    if (!config.get<PERF_COUNT>()) {
-        return {};
-    }
-
-    return makeVCLProfilingDecoderFactory();
 }
 
 }  // namespace intel_npu
