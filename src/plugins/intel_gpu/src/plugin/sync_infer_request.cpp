@@ -1301,8 +1301,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                                                                            user_tensor->data()),
                                         TensorOwner::USER};
                 auto candidate_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(candidate.ptr);
-                if (candidate_tensor && candidate_tensor->get_memory() &&
-                    network->can_bind_user_output_memory(internal_name, *candidate_tensor->get_memory())) {
+                if (candidate_tensor && candidate_tensor->get_memory() && candidate_tensor->get_memory()->size() != 0 &&
+                    may_bind_caller_output(internal_name, user_tensor->data())) {
                     m_plugin_outputs[output_idx] = std::move(candidate);
                 } else {
                     m_plugin_outputs[output_idx] = create_plugin_output();
@@ -1372,7 +1372,7 @@ bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::IT
             if (input_ptr == nullptr)
                 continue;
             // Like the output span, use recorded capacity to catch outputs starting in an input's unused tail.
-            m_input_alias_ranges.push_back({input_ptr, std::max(input_logical_size, wrapper.actual_size)});
+            m_input_alias_ranges.push_back({input_ptr, std::max(input_logical_size, wrapper.actual_size), entry.first});
         }
         m_input_alias_ranges_valid = true;
     }
@@ -1381,12 +1381,24 @@ bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::IT
     for (const auto& input : m_input_alias_ranges) {
         if (!byte_ranges_overlap(output_ptr, output_size, input.ptr, input.size))
             continue;
-        // A partial/offset overlap is never safe; an exact-address overlap is left to
-        // network::can_bind_user_output_memory().
+        // A partial/offset overlap is never safe; an exact-address overlap is left to may_bind_caller_output().
         if (input.ptr != output_ptr)
             return false;
         if (++overlapping_inputs > 1)
             return false;
+    }
+    return true;
+}
+
+bool SyncInferRequest::may_bind_caller_output(const std::string& output_id, const void* output_ptr) const {
+    for (const auto& input : m_input_alias_ranges) {
+        if (input.ptr != output_ptr)
+            continue;
+        // An input copied into plugin memory isn't the graph's buffer, so the output can't clobber it.
+        const auto plugin_input = m_plugin_inputs.find(input.port_idx);
+        if (plugin_input != m_plugin_inputs.end() && tensor_alias_range(plugin_input->second.ptr).first != output_ptr)
+            continue;
+        return m_graph->get_network()->may_alias(output_id, m_graph->input_port_index_to_internal(input.port_idx)[0]);
     }
     return true;
 }

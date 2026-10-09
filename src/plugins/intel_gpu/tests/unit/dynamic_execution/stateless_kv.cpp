@@ -312,7 +312,7 @@ TEST(stateless_kv_runtime, caller_output_binding_respects_inplace_contract) {
 }
 
 // A reader of past scheduled after stateless_kv restricts it from sharing past's buffer, so a Result bound
-// to past (bypassing network::can_bind_user_output_memory()) must not make stateless_kv update past in place.
+// to past (bypassing network::may_alias()) must not make stateless_kv update past in place.
 TEST(stateless_kv_runtime, restricted_past_forces_private_present) {
     auto& engine = get_test_engine();
     const layout past_layout{ov::Shape{1, 2, 16, 4}, data_types::f32, format::bfyx};
