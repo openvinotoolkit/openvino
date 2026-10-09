@@ -275,8 +275,8 @@ bool CRE::subexpression_already_registered(const std::vector<std::shared_ptr<CRE
     for (const std::vector<std::shared_ptr<CREToken>>& registered_subexpression : m_subexpressions) {
         // Can't compare directly since these are pointers and we are interested in comparing contents. The
         // "CRE::operator==" does compare the contents alone.
-        // TODO CRE ctor here?
-        if (subexpression == registered_subexpression) {
+        // TODO should define a utility for vector compatison instead of reconstructing CREs?
+        if (CRE(subexpression) == CRE(registered_subexpression)) {
             return true;
         }
     }
@@ -502,10 +502,9 @@ ov::CompatibilityCheck CRE::evaluate(
                 m_logger.trace("Section type %lu evaluated to %d", section_type, operand);
 
                 // Look for a section ID after the section type token
-                // Do not use "advance_iterator" since we are allowed to hit the end here
-                expression_iterator++;
+                advance_iterator(expression_iterator, expression_end);
 
-                if (expression_iterator != expression_end && !is_cre_special_token(*expression_iterator)) {
+                if (expression_iterator != expression_end && is_section_id(*expression_iterator)) {
                     // Found a section ID; there's no point in evaluating it if its section type is unsupported
                     if (operand != ov::CompatibilityCheck::UNSUPPORTED) {
                         const auto section_id = std::dynamic_pointer_cast<SectionID>(*expression_iterator);
@@ -518,12 +517,19 @@ ov::CompatibilityCheck CRE::evaluate(
                         m_logger.trace("Section ID %s evaluated to %d", section_id, operand);
                     }
                 } else {
-                    expression_iterator--;
+                    --expression_iterator;
                 }
 
                 operand = negate ? not_function(operand) : operand;
 
                 result = logical_function(result, operand);
+            } else {
+                // The evaluation of the section type was skipped. Check if a section ID followed the type, and, if so,
+                // skip that as well.
+                advance_iterator(expression_iterator, expression_end);
+                if (expression_iterator == expression_end || !is_section_id(*expression_iterator)) {
+                    --expression_iterator;
+                }
             }
 
             negate = false;
