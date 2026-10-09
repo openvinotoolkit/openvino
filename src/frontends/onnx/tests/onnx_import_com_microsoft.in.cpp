@@ -6445,8 +6445,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_head_sink) {
 // conversion, so a batch_size > 1 request must fail at inference instead of returning silently wrong results.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_dynamic_batch_greater_than_one_throws) {
     const auto model = convert_model("com.microsoft/gqa_absent_past.onnx");
-    std::vector<float> query = gqa_sink_query();
-    query.insert(query.end(), query.begin(), query.end());
+    const std::vector<float> one_batch = gqa_sink_query();
+    std::vector<float> query = one_batch;
+    query.insert(query.end(), one_batch.begin(), one_batch.end());
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{2, 4, 64}, query);
