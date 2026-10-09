@@ -247,3 +247,76 @@ TEST(stateless_kv_runtime, reallocation_across_executions) {
     run_and_verify(17, 3000.0f, true);
     run_and_verify(20, 4000.0f, false);
 }
+// Compressed KV caches (u8 also carries packed i4, f8e4m3) must have a stateless_kv implementation.
+class stateless_kv_compressed_runtime : public testing::TestWithParam<data_types> {};
+
+TEST_P(stateless_kv_compressed_runtime, compressed_cache_update) {
+    const auto dt = GetParam();
+    auto& engine = get_test_engine();
+
+    constexpr int64_t batch = 1;
+    constexpr int64_t heads = 2;
+    constexpr int64_t capacity = 8;
+    constexpr int64_t new_token_len = 2;
+    constexpr int64_t head_size = 4;
+    constexpr int64_t present_len = 5;
+    const auto past_layout = layout{ov::PartialShape{batch, heads, capacity, head_size}, dt, format::bfyx};
+    const auto new_token_layout = layout{ov::PartialShape{batch, heads, new_token_len, head_size}, dt, format::bfyx};
+    const auto seq_len_layout = layout{ov::PartialShape{1}, data_types::i64, format::bfyx};
+
+    auto stateless_kv_prim = stateless_kv("stateless_kv", {input_info("past"), input_info("new_token"), input_info("present_len")}, 2, true);
+    stateless_kv_prim.num_outputs = 2;
+    stateless_kv_prim.output_data_types = {dt, dt};
+
+    topology topology(input_layout("past", layout{ov::PartialShape{batch, heads, -1, head_size}, dt, format::bfyx}),
+                      input_layout("new_token", new_token_layout),
+                      input_layout("present_len", seq_len_layout),
+                      stateless_kv_prim,
+                      reorder("result", input_info("stateless_kv", 0), format::bfyx, dt));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto past = engine.allocate_memory(past_layout);
+    auto new_token = engine.allocate_memory(new_token_layout);
+    auto seq_len = engine.allocate_memory(seq_len_layout);
+    std::vector<uint8_t> past_values(past_layout.count());
+    std::vector<uint8_t> new_token_values(new_token_layout.count());
+    std::iota(past_values.begin(), past_values.end(), static_cast<uint8_t>(0));
+    std::iota(new_token_values.begin(), new_token_values.end(), static_cast<uint8_t>(200));
+    set_values(past, past_values);
+    set_values(new_token, new_token_values);
+    set_values<int64_t>(seq_len, {present_len});
+
+    std::vector<uint8_t> expected = past_values;
+    for (int64_t head = 0; head < heads; ++head) {
+        std::copy_n(new_token_values.begin() + head * new_token_len * head_size,
+                    new_token_len * head_size,
+                    expected.begin() + (head * capacity + present_len - new_token_len) * head_size);
+    }
+
+    network.set_input_data("past", past);
+    network.set_input_data("new_token", new_token);
+    network.set_input_data("present_len", seq_len);
+    network.set_output_memory("result", past);
+    const auto outputs = network.execute();
+
+    const auto output0 = network.get_primitive("stateless_kv")->output_memory_ptr(0);
+    const auto result = outputs.at("result").get_memory();
+    ASSERT_NE(output0, nullptr);
+    ASSERT_NE(result, nullptr);
+    EXPECT_TRUE(engine.is_the_same_buffer(*output0, *result));
+    EXPECT_EQ(output0->get_layout().data_type, dt);
+    mem_lock<uint8_t, mem_lock_type::read> output_lock(output0, get_test_stream());
+    const std::vector<uint8_t> actual(output_lock.begin(), output_lock.begin() + expected.size());
+    EXPECT_THAT(actual, testing::ElementsAreArray(expected));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         stateless_kv_compressed_runtime,
+                         testing::Values(data_types::u8, data_types::f8e4m3),
+                         [](const testing::TestParamInfo<data_types>& info) {
+                             return ov::element::Type(info.param).get_type_name();
+                         });
