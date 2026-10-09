@@ -77,7 +77,7 @@ Compare Opset versions to identify changes. Invoke `parse-op-spec` for both the 
 
 1. **Locate the Op specification** in:
    - `src/core/include/openvino/op/` — C++ Op definitions
-   - OpenVINO Opset documentation: https://docs.openvino.ai/latest/openvino_docs_ops_opset.html
+   - OpenVINO Opset documentation: https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/available-opsets.html
 
 2. **Compare versions** — Identify:
    - New attributes or parameters added
@@ -175,5 +175,5 @@ Both must pass before the migration is considered complete.
 # References
 
 - Related skills: `gpu-kernel-enabling`, `gpu-op-file-structure`, `collect-gpu-hardware-spec`, `write-gpu-tests`, `run-gpu-tests`
-- OpenVINO Opset documentation: https://docs.openvino.ai/latest/openvino_docs_ops_opset.html
+- OpenVINO Opset documentation: https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/available-opsets.html
 - Op definitions: `src/core/include/openvino/op/`

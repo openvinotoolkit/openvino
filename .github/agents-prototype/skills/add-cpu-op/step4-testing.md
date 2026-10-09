@@ -4,8 +4,8 @@
 
 ## Prerequisites
 
-- Completed **cpu_op_implementation** — node compiles and has basic execution.
-- Completed **cpu_op_optimization** (or skipped if reference-only).
+- Completed [implementation guide](step2-implementation.md) — node compiles and has basic execution.
+- Completed [optimization guide](step3-optimization.md) (or skipped if reference-only).
 
 ## Test Categories
 
@@ -210,7 +210,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OpName_Dynamic,
 
 ### Eltwise-Routed Ops: Use Activation Test Infrastructure
 
-For ops routed through the existing `Eltwise` node (see **cpu_op_implementation** Fast Path),
+For ops routed through the existing `Eltwise` node (see [implementation guide](step2-implementation.md) Fast Path),
 **do not create a separate custom test file**. Instead, extend the existing activation test infrastructure:
 
 **`src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/activation.cpp`:**

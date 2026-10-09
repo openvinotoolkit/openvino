@@ -84,9 +84,12 @@ not rule out CPU activation arithmetic differences.
 ## Execute with existing workflows
 
 Iterate on a focused local reproducer, then use the repository's GHA workflows for
-broader validation. OpenVINO's Ubuntu workflows run frontend GTest, model-hub and
-llama.cpp backend suites. The Ubuntu 22 workflow also runs the companion GenAI
-mmproj pytest harness against its own OpenVINO artifacts and a pinned GenAI SHA.
+broader validation. The [frontend GTest](../../../../.github/workflows/job_cxx_unit_tests.yml),
+[model-hub](../../../../.github/workflows/job_gguf_models_tests.yml) and
+[llama.cpp backend](../../../../.github/workflows/job_gguf_llamacpp_validation.yml) jobs
+run in OpenVINO's Ubuntu workflows. [Ubuntu 22](../../../../.github/workflows/ubuntu_22.yml)
+also runs the [GenAI acceptance job](../../../../.github/workflows/job_gguf_genai_validation.yml)
+against its own OpenVINO artifacts and a pinned GenAI SHA.
 Check the workflow's actual jobs and filters before claiming coverage. A green job with a
 skipped GGUF component or no collected tests provides no GGUF evidence.
 
@@ -112,8 +115,8 @@ missing required coverage. Stop on a user pause and retain the run IDs and logs.
 
 ## Delegate and report
 
-For long batches, use one validation worker with the user's configured model
-preference; use `ov-validation-runner` when available. Supply a fresh compact
+When delegation is available and authorized, use one worker for long batches
+with the user's configured model preference. Supply a fresh compact
 brief with the [ov-gguf entrypoint](../SKILL.md), this guide, the workflow/run ID
 or exact local command, stable source/build paths, acceptance contract and artifact paths. Run directly
 if delegation is unavailable. The worker executes and reports evidence; the main

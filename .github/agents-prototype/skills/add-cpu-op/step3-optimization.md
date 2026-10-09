@@ -4,9 +4,9 @@
 
 ## Prerequisites
 
-- Completed **cpu_op_implementation** skill — node class compiles and executes
+- Completed [implementation guide](step2-implementation.md) — node class compiles and executes
   via reference implementation.
-- ISA targets and implementation strategy determined in **cpu_op_analysis**.
+- ISA targets and implementation strategy determined in [analysis guide](step1-analysis.md).
 
 ## When to Apply
 
@@ -25,7 +25,7 @@ Skip criteria:
 
 All optimization techniques described below are used **inside executor
 implementations**. The executor framework handles ISA dispatch, fallback
-ordering, and precision matching — see `cpu_op_implementation` skill for
+ordering, and precision matching — see [implementation guide](step2-implementation.md) for
 the full wiring pattern. This skill focuses on the code that goes **inside**
 each executor class.
 
@@ -38,7 +38,7 @@ each executor class.
 
 ## JIT Eltwise Emitters
 
-For ops routed through the `Eltwise` node (see "Fast Path" in [**cpu_op_implementation**](step2-implementation.md)), JIT execution uses **eltwise emitter classes** rather than the executor framework. Each ISA has its own emitter base class.
+For ops routed through the `Eltwise` node (see "Fast Path" in [implementation guide](step2-implementation.md)), JIT execution uses **eltwise emitter classes** rather than the executor framework. Each ISA has its own emitter base class.
 
 ### Emitter Class Pattern
 
@@ -95,4 +95,4 @@ cmake --build . --target ov_cpu_func_tests -j$(nproc)
 - JIT kernels created (if applicable).
 - `CpuParallel` integration for multi-threaded execution.
 - Functional verification passes.
-- Proceed to **cpu_op_testing** skill.
+- Proceed to [test guide](step4-testing.md).

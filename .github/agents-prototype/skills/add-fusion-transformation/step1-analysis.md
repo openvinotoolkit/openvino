@@ -117,7 +117,7 @@ Constant constraints:
 - bias: MUST be Constant
 
 Template reference:
-src/common/transformations/src/transformations/common_optimizations/fuse_u4_weights_zero_point.cpp
+src/common/transformations/src/transformations/common_optimizations/convert_u4_weights_zero_point_to_scalar.cpp
 
 Registration target:
 src/common/transformations/src/transformations/common_optimizations/common_optimizations.cpp
@@ -128,5 +128,5 @@ src/common/transformations/src/transformations/common_optimizations/common_optim
 ## Output
 
 `transformation_analysis.md` written to `artifacts/` or posted as issue comment.
-Contains everything required by `openvino_transformation_implementation` to start
+Contains everything required by [the implementation guide](step2-implementation.md) to start
 coding without further research.

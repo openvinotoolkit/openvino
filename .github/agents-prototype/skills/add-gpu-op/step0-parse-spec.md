@@ -155,5 +155,5 @@ This summary is consumed by the caller — do not make implementation decisions 
 # References
 
 - Related skills: `plan-op-implementation`, `gpu-opset-migration`
-- OpenVINO Op specs: https://docs.openvino.ai/latest/openvino_docs_ops_opset.html
+- OpenVINO Op specs: https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/available-opsets.html
 - ONNX Op specs: https://onnx.ai/onnx/operators/

@@ -63,7 +63,7 @@ openvino/
 │     │  └─ <fusion_name>.cpp
 │     └─ utils/
 └─ tests/
-   └─ layer_tests/ or functional/    (if user-visible behavior/perf contract is affected)
+   └─ layer_tests/                  (functional C++ tests are under src/tests/functional/)
 
 ---
 

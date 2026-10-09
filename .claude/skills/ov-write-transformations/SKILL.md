@@ -11,4 +11,4 @@ description: >
 1. Read [src/common/transformations/docs/writing_transformations.md](../../../src/common/transformations/docs/writing_transformations.md) — it covers where transformations live, choosing the pass type, anatomy of a MatcherPass, pattern matching and predicates, writing the callback, modifying the graph, documenting the pass, and what NOT to do.
 2. Try to find an existing transformation that can be extended to cover the new pattern.
 3. Write or modify the pass following the patterns in that guide.
-4. Add tests using the `ov-transformation-tests` skill, then build and run them to ensure the pass compiles and behaves as expected.
+4. Add tests using [ov-transformation-tests](../ov-transformation-tests/SKILL.md), then build and run them to ensure the pass compiles and behaves as expected.

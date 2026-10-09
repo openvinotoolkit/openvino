@@ -46,8 +46,8 @@ grep -n '<OpName>' src/frontends/tensorflow/src/op_table.cpp
 
 **ONNX:**
 ```bash
-ls src/frontends/onnx/src/ops/<op_name>.cpp
-grep -rn 'ONNX_OP.*"<OpName>"' src/frontends/onnx/src/ops/
+ls src/frontends/onnx/frontend/src/op/<op_name>.cpp
+rg 'ONNX_OP.*"<OpName>"' src/frontends/onnx/frontend/src/op/
 ```
 
 Support states:

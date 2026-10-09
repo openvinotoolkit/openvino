@@ -83,7 +83,7 @@ OutputVector translate_<op_name>(const NodeContext& context) {
 
 ### ONNX
 
-Translator file: `src/frontends/onnx/src/ops/<op_name>.cpp`
+Translator file: `src/frontends/onnx/frontend/src/op/<op_name>.cpp`
 
 ```cpp
 #include "core/null_node.hpp"

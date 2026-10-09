@@ -20,7 +20,7 @@ Covers: header, source, CMake registration, pass-pipeline registration.
 Location: `src/common/transformations/include/transformations/<domain>/<pass_name>.hpp`
 
 Read an existing transformation header as your template. Good references:
-- `src/common/transformations/include/transformations/common_optimizations/fuse_u4_weights_zero_point.hpp`
+- `src/common/transformations/include/transformations/common_optimizations/convert_u4_weights_zero_point_to_scalar.hpp`
 - `src/common/transformations/include/transformations/common_optimizations/matmul_multiply_fusion.hpp`
 
 Every header must include:
@@ -32,7 +32,7 @@ Do not copy-paste the template file directly; read and adapt the structure.
 
 ### Step 2: Create Source File
 
-Location: `src/common/transformations/src/<domain>/<pass_name>.cpp`
+Location: `src/common/transformations/src/transformations/<domain>/<pass_name>.cpp`
 
 Use the template below as your starting point, then read the closest existing transformation to
 adapt the pattern to your sub-graph:
@@ -80,11 +80,11 @@ Key implementation patterns to follow from the template:
 - Return `true` from callback on successful replacement
 
 Real transformations to read before adapting your code:
-- `src/common/transformations/src/transformations/common_optimizations/fuse_u4_weights_zero_point.cpp`
+- `src/common/transformations/src/transformations/common_optimizations/convert_u4_weights_zero_point_to_scalar.cpp`
 - `src/common/transformations/src/transformations/common_optimizations/matmul_multiply_fusion.cpp`
 
 For `FunctionPass` (full-graph traversal), read:
-- `src/common/transformations/src/transformations/common_optimizations/align_mixed_fp32_fp16_types.cpp`
+- `src/common/transformations/src/transformations/fp16_compression/align_mixed_fp32_fp16_types.cpp`
 
 ### Step 3: Update CMakeLists.txt
 

@@ -33,7 +33,7 @@ flowchart TD
 
 # Prerequisites Check
 
-Verify the GPU plugin is built (see `build-openvino` skill):
+Verify the GPU plugin is built (see the [build guide](../../../../docs/dev/build.md)):
 
 **Windows (PowerShell):**
 ```powershell
@@ -48,7 +48,7 @@ test -f ./build/bin/intel64/Debug/ov_gpu_unit_tests && echo "OK" || echo "MISSIN
 ```
 
 - **If successful:** Proceed to "Quick Start - Main Steps"
-- **If failed:** Run `build-openvino` in Debug mode with tests enabled first
+- **If failed:** Follow the [build guide](../../../../docs/dev/build.md) in Debug mode with tests enabled first
 
 ---
 
@@ -56,7 +56,7 @@ test -f ./build/bin/intel64/Debug/ov_gpu_unit_tests && echo "OK" || echo "MISSIN
 
 ## Installation (Prerequisites Check failed)
 
-Build the GPU plugin first using the `build-openvino` skill in Debug mode.
+Build the GPU plugin first using the [build guide](../../../../docs/dev/build.md) in Debug mode.
 
 ---
 
@@ -160,5 +160,5 @@ Run unit tests and functional tests to verify kernel correctness.
 
 # References
 
-- Related skills: `collect-gpu-hardware-spec`, `build-openvino`, `gpu-op-file-structure`, `gpu-kernel-device-timing`
+- Related skills: `collect-gpu-hardware-spec`, [build guide](../../../../docs/dev/build.md), `gpu-op-file-structure`, `gpu-kernel-device-timing`
 - OpenVINO reference implementations: `src/core/reference/include/openvino/reference/`

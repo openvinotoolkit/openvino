@@ -18,7 +18,7 @@ Apply to changes under `src/frontends/onnx/`, in addition to the
     together with the reason strings in `src/frontends/onnx/tests/__init__.py`;
   - `src/frontends/onnx/tests/unit_test.manifest` and the per-backend manifests
     under `src/frontends/onnx/tests/runtime/*/unit_test.manifest`.
-- Check that test models (`tests/models/*.prototxt`) are valid ONNX for the
+- Check that test models (`src/frontends/onnx/tests/models/*.prototxt`) are valid ONNX for the
   declared opset: input element types match the operator's type constraints,
   scalar inputs have no `dims`, and operators exist in the imported opset.
   Prefer cross-checking expected values with onnxruntime or the ONNX reference

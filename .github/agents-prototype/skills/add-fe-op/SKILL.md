@@ -59,7 +59,7 @@ The following sections apply to frontends **not** covered by the framework-speci
     - Ensure `ONNX_OP` macro registration exists in translator file.
 
 ### 4) Add tests
-- Add frontend smoke test file under `tests/frontend` (not available for PyTorch). 
+- Add frontend smoke tests under `src/frontends/<frontend>/tests/` where that suite exists.
 - Add framework layer test under `tests/layer_tests` where supported.
 - Ensure test naming follows existing suite conventions.
 

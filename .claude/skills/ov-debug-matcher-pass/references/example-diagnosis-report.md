@@ -1,6 +1,7 @@
 # Example Diagnosis Report — MoE3GeMMFusion (transpose_b mismatch)
 
 This is a filled example of the output the skill produces. Use it as a quality reference when writing your own diagnosis report.
+Source paths and line numbers refer to the historical diagnosis, not the current checkout.
 
 ---
 

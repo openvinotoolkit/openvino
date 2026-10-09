@@ -41,7 +41,8 @@ converters; builders and validation differ. Registration or conversion alone nev
 - **Test build.** New translator or builder sources go into the explicit `FRONTEND_SRCS` list in
   `tests/CMakeLists.txt`, or the test binary fails to link. Run `ov_gguf_frontend_tests` unfiltered
   before finishing: the op-coverage gate runs in teardown, so check the exit status.
-  `GGUFArchConversion` skips silently without generated headers (`tests/gen_arch_fixtures.py --fetch`).
+  `GGUFArchConversion` skips without generated headers unless `OV_GGUF_REQUIRE_ARCH_FIXTURES=1`
+  requires them; generate them with [gen_arch_fixtures.py](../../../src/frontends/gguf/tests/gen_arch_fixtures.py) `--fetch`.
   Check actual selected counts and skips; registration, conversion, decoder numerics and
   GenAI media/API integration establish different levels of support.
 - **References.** Layout-sensitive expectations come from real ggml CPU via a committed oracle under

@@ -411,6 +411,6 @@ gdb --args ./build/bin/ov_onnx_frontend_tests --gtest_filter="*onnx_model_test_n
 
 - [ONNX Operator Specifications](https://onnx.ai/onnx/operators/)
 - [ONNX Operator Changelog](https://github.com/onnx/onnx/blob/main/docs/Changelog.md)
-- [OpenVINO Available Operations](https://docs.openvino.ai/latest/openvino_docs_ops_opset.html)
+- [OpenVINO Available Operations](https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/available-opsets.html)
 - [OpenVINO ONNX Frontend README](../../../../src/frontends/onnx/README.md)
 - [OpenVINO ONNX Supported Ops](../../../../src/frontends/onnx/docs/supported_ops.md)

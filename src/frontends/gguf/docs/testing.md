@@ -1,5 +1,7 @@
 # Building and validating the GGUF frontend
 
+Run commands from the repository root. Shorthand paths below are relative to `src/frontends/gguf/`.
+
 Use the repository [build prerequisites](../../../../docs/dev/build.md). GGUF defaults to enabled
 (`ENABLE_OV_GGUF_FRONTEND=ON`); C++ tests require `ENABLE_TESTS=ON` and a shared-library build.
 This Linux single-configuration example puts binaries and libraries in an explicit directory:

@@ -204,7 +204,7 @@ Ensure the files are included in the appropriate `CMakeLists.txt` so they are co
 
 # Troubleshooting
 
-- **Shared test definition header not found**: Check if the Op has a shared test class in `src/tests/functional/shared_test_classes/include/`. If not, it must be created first.
+- **Shared test definition header not found**: Check if the Op has a shared test class in `src/tests/functional/plugin/shared/include/`. If not, it must be created first.
 - **Test not discovered after build**: Verify the file is listed in the corresponding `CMakeLists.txt`
 - **Reference implementation missing**: If `ov::reference::<op_name>` does not exist, create one or use a custom evaluator in the test
 - **Parameter combination explosion**: Use `smoke_` prefix for essential combinations only; save exhaustive sweeps for `extended_` suites
@@ -215,5 +215,5 @@ Ensure the files are included in the appropriate `CMakeLists.txt` so they are co
 
 - Related skills: `gpu-kernel-enabling`, `gpu-opset-migration`, `gpu-integrate-onednn-primitive`, `run-gpu-tests`, `gpu-op-file-structure`
 - Test execution: Use `run-gpu-tests` skill to run the tests created by this skill
-- OpenVINO shared test infrastructure: `src/tests/functional/shared_test_classes/`
+- OpenVINO shared test infrastructure: [`src/tests/functional/plugin/shared/`](../../../../src/tests/functional/plugin/shared/) and [`base_func_tests`](../../../../src/tests/functional/base_func_tests/).
 - GPU unit test utilities: `src/plugins/intel_gpu/tests/unit/test_utils/`

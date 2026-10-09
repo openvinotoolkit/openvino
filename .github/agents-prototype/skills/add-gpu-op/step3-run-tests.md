@@ -51,7 +51,7 @@ test -f ./build/bin/intel64/Debug/ov_gpu_unit_tests && echo "OK" || echo "MISSIN
 ```
 
 - **If successful:** Proceed to "Quick Start - Main Steps"
-- **If failed:** Run `build-openvino` with Debug configuration and tests enabled
+- **If failed:** Follow the [build guide](../../../../docs/dev/build.md) with Debug configuration and tests enabled
 
 ---
 
@@ -59,7 +59,7 @@ test -f ./build/bin/intel64/Debug/ov_gpu_unit_tests && echo "OK" || echo "MISSIN
 
 ## Installation (Prerequisites Check failed)
 
-Build the GPU plugin first by running `build-openvino` with a Debug configuration and tests enabled.
+Build the GPU plugin first by following the [build guide](../../../../docs/dev/build.md) with a Debug configuration and tests enabled.
 
 ---
 
@@ -151,5 +151,5 @@ Summarize test results for the caller:
 
 # References
 
-- Related skills: `write-gpu-tests`, `gpu-kernel-enabling`, `gpu-kernel-optimize`, `gpu-integrate-onednn-primitive`, `gpu-opset-migration`, `build-openvino`
+- Related skills: `write-gpu-tests`, `gpu-kernel-enabling`, `gpu-kernel-optimize`, `gpu-integrate-onednn-primitive`, `gpu-opset-migration`, [build guide](../../../../docs/dev/build.md)
 - Test code creation: Use `write-gpu-tests` skill to create the test source files before running this skill

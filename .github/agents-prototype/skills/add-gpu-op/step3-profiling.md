@@ -25,7 +25,7 @@ flowchart TD
 
 # Procedure
 
-1. **Step 1: Ensure Release Build** — Verify Release binaries exist (see `build-openvino`)
+1. **Step 1: Ensure Release Build** — Verify Release binaries exist (see [build guide](../../../../docs/dev/build.md))
 2. **Step 2: Run Profiling** — Collect kernel execution metrics via clintercept
 3. **Step 3: Analyze Metrics** — Extract DeviceTotalTime, Call Count, Average Time
 4. **Step 4: Correlate with Hardware** — Cross-reference with `collect-gpu-hardware-spec` data
@@ -95,7 +95,7 @@ make -j$(nproc)
 # Add to PATH or use full path
 ```
 
-**Build Release binaries** by running `build-openvino` with a Release configuration and tests enabled.
+**Build Release binaries** by following the [build guide](../../../../docs/dev/build.md) with a Release configuration and tests enabled.
 
 ---
 
@@ -209,5 +209,5 @@ clintercept --call-logging -- ./build/bin/intel64/Release/ov_gpu_func_tests --gt
 
 # References
 
-- Related skills: `build-openvino`, `run-gpu-tests`, `gpu-kernel-enabling`, `gpu-kernel-optimize`, `gpu-integrate-onednn-primitive`, `collect-gpu-hardware-spec`
+- Related skills: [build guide](../../../../docs/dev/build.md), `run-gpu-tests`, `gpu-kernel-enabling`, `gpu-kernel-optimize`, `gpu-integrate-onednn-primitive`, `collect-gpu-hardware-spec`
 - Intel OpenCL Intercept Layer: https://github.com/intel/opencl-intercept-layer
