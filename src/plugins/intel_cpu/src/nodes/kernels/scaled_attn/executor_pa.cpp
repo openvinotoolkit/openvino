@@ -620,8 +620,7 @@ struct MHAHelper {
 
     [[nodiscard]] size_t get_sliding_start_idx(size_t q_global_idx, size_t default_ncausal) const {
         const size_t sw_start = default_ncausal > _sliding_window ? default_ncausal - _sliding_window : 0UL;
-        if (_params.image_tokens_use_sliding_window || !_has_image_tokens ||
-            q_global_idx >= _image_group_begin.size()) {
+        if (!_has_image_tokens || q_global_idx >= _image_group_begin.size()) {
             return sw_start;
         }
         if (_token_type.ptr<int32_t>()[q_global_idx] == 1) {
@@ -2851,8 +2850,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                             " , ",
                             value_cache_type);
             executor =
-                std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>(params,
-                                                                                                        cpu_parallel);
+                std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>(cpu_parallel);
         }
 #    else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
@@ -2897,8 +2895,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                             " , ",
                             value_cache_type);
             executor =
-                std::make_shared<AttentionExecutor<ov::float16, ov::element::f16, ov::element::f16>>(params,
-                                                                                                     cpu_parallel);
+                std::make_shared<AttentionExecutor<ov::float16, ov::element::f16, ov::element::f16>>(cpu_parallel);
         }
 #    else
         OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");

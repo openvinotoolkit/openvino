@@ -91,18 +91,16 @@ Compare these boundaries in order, saving each buffer and its geometry:
 3. **Embedding insertion and positions.** Feed the same encoder tensor to both decoders to
    separate encoder errors from text/media insertion, per-layer features or position IDs.
    Keep prompt IDs, token-type groups and sequence lengths identical.
-4. **Mask and window contract.** Compare local/global layers in SDPA and PA. Conversion must
-   preserve each sliding window, and the CPU executor must apply the correct image-token
-   policy. Gemma4 GGUF local layers can clip image groups while an exported-model policy
-   preserves the group. Test both policies rather than changing all model defaults. Track
-   a policy flag through graph runtime info, plugin, executor params and its cache key;
-   verify every selected compiled CPU variant contains the change. GGUF emits the existing
-   GPT-OSS/Gemma3 sliding-mask pattern and moves mask precision conversion into `Select`,
-   preserving any intervening `Slice`. The negative window offset carries the image policy;
-   the shared PA pass reuses it under `Multiply(offset, -1)`. CPU reads the window node or
-   its immediate inputs, and constant folding propagates the flag to the folded window.
-   This metadata transport is an internal workaround, not a portable PA attribute; GPU
-   does not consume the flag.
+4. **Mask and window contract.** Compare local/global layers in SDPA and PA. GGUF emits
+   the existing GPT-OSS/Gemma3 sliding-mask pattern and moves mask precision conversion
+   into `Select`, preserving any intervening `Slice`. GenAI-adapted masks follow
+   Optimum-intel's window policy: same-image tokens remain visible bidirectionally even
+   beyond the sliding window, while text attention remains windowed. This differs from
+   the pinned llama.cpp Gemma4 mask; see the [known parity gap](mmproj.md#gemma4-image-window-parity-gap).
+   Restoring both policies requires an explicit serializable PA operation input or
+   attribute and device support. Runtime metadata must not control attention semantics.
+   Compare full prefill with prefix reuse separately; see the
+   [bidirectional image prefix-cache gap](mmproj.md#bidirectional-image-prefix-cache-gap).
 5. **Decoder logits.** Compare full logits, top choices and their margin on identical
    history, then isolate cache/activation/weight arithmetic with exact expansions described under reference and precision.
    High encoder cosine alone does not establish decoder parity or rule out a close top-1 flip.

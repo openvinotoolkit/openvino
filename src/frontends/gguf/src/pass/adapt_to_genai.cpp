@@ -483,6 +483,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     };
     const auto causal = make_shared<v1::LessEqual>(k_row, q_pos_col);
     ov::Output<ov::Node> allowed = causal;
+    ov::Output<ov::Node> same_image;
     ov::Output<ov::Node> causal_or_query_image = causal;
     ov::Output<ov::Node> causal_or_key_image = causal;
     ov::Output<ov::Node> causal_or_same_group = causal;
@@ -499,7 +500,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto query_image = make_shared<v1::Equal>(as_query_col(token_type_ids), one);
         auto key_image = make_shared<v1::Equal>(as_key_row(key_types), one);
         auto images = make_shared<v1::LogicalAnd>(query_image, key_image);
-        allowed = make_shared<v1::LogicalOr>(allowed, make_shared<v1::LogicalAnd>(same_group, images));
+        same_image = make_shared<v1::LogicalAnd>(same_group, images);
+        allowed = make_shared<v1::LogicalOr>(allowed, same_image);
         causal_or_query_image = make_shared<v1::LogicalOr>(causal, query_image);
         causal_or_key_image = make_shared<v1::LogicalOr>(causal, key_image);
         causal_or_same_group = make_shared<v1::LogicalOr>(causal, same_group);
@@ -523,11 +525,16 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (swa_it != rt_info.end()) {
             const auto window = swa_it->second.as<int64_t>();
             auto offset = v0::Constant::create(ov::element::i32, ov::Shape{}, {-static_cast<int32_t>(window)});
-            if (arch == "gemma4" && token_type_ids)
-                offset->get_rt_info()["image_tokens_use_sliding_window"] = true;
+            auto query_positions = make_shared<v0::Unsqueeze>(q_pos_col, one_1);
+            ov::Output<ov::Node> window_key_positions = make_shared<v0::Unsqueeze>(k_row, one_1);
+            if (token_type_ids) {
+                // Same-image keys bypass the window, matching Optimum-intel and existing PA semantics.
+                window_key_positions = make_shared<v1::Select>(make_shared<v0::Unsqueeze>(same_image, one_1),
+                                                               query_positions,
+                                                               window_key_positions);
+            }
             auto within_window =
-                make_shared<v1::Greater>(make_shared<v0::Unsqueeze>(k_row, one_1),
-                                         make_shared<v1::Add>(make_shared<v0::Unsqueeze>(q_pos_col, one_1), offset));
+                make_shared<v1::Greater>(window_key_positions, make_shared<v1::Add>(query_positions, offset));
             // Distribute causal OR image-group conditions into the exported-model PA mask pattern.
             auto mask =
                 make_shared<v13::BitwiseAnd>(make_shared<v0::Unsqueeze>(causal_or_query_image, one_1), within_window);

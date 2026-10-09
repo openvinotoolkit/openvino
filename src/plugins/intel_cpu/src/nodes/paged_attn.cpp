@@ -58,7 +58,6 @@ struct PagedAttentionKey {
     bool quantKeyByChannel = false;
     bool quantValueByChannel = false;
     bool isSageAttn = false;
-    bool imageTokensUseSlidingWindow = false;
 
     [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
@@ -74,7 +73,6 @@ size_t PagedAttentionKey::hash() const {
     seed = hash_combine(seed, quantKeyByChannel);
     seed = hash_combine(seed, quantValueByChannel);
     seed = hash_combine(seed, isSageAttn);
-    seed = hash_combine(seed, imageTokensUseSlidingWindow);
 
     return seed;
 }
@@ -83,7 +81,7 @@ bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
     return rtPrecision == rhs.rtPrecision && keyCachePrecision == rhs.keyCachePrecision &&
            valueCachePrecision == rhs.valueCachePrecision && quantKeyByChannel == rhs.quantKeyByChannel &&
            quantValueByChannel == rhs.quantValueByChannel && isSageAttn == rhs.isSageAttn && headSize == rhs.headSize &&
-           numKvHeads == rhs.numKvHeads && imageTokensUseSlidingWindow == rhs.imageTokensUseSlidingWindow;
+           numKvHeads == rhs.numKvHeads;
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -104,16 +102,6 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     // BRGEMM kernels. Shapes cannot be used here because cache inputs are fully dynamic at
     // createPrimitive time.
     const auto& rt = op->get_rt_info();
-    if (const auto it = rt.find("image_tokens_use_sliding_window"); it != rt.end())
-        m_image_tokens_use_sliding_window = it->second.as<bool>();
-    const auto window = op->input_value(10).get_node_shared_ptr();
-    auto window_sources = window->input_values();
-    window_sources.push_back(window);
-    for (const auto& source : window_sources) {
-        const auto& window_rt = source.get_node()->get_rt_info();
-        if (const auto it = window_rt.find("image_tokens_use_sliding_window"); it != window_rt.end())
-            m_image_tokens_use_sliding_window = it->second.as<bool>();
-    }
     CPU_NODE_ASSERT(rt.count("k_head_size") != 0UL && rt.count("num_k_heads") != 0UL,
                     "Runtime info k_head_size and num_k_heads are required for PagedAttention node.");
     m_head_size = rt.at("k_head_size").as<size_t>();
@@ -301,8 +289,7 @@ void PagedAttention::createPrimitive() {
                              m_num_kv_heads,
                              quantKeybyChannel,
                              quantValuebyChannel,
-                             cpuConfig.enableSageAttn,
-                             m_image_tokens_use_sliding_window};
+                             cpuConfig.enableSageAttn};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
@@ -317,8 +304,7 @@ void PagedAttention::createPrimitive() {
                                     cpuConfig.valueCacheGroupSize,
                                     quantKeybyChannel,
                                     quantValuebyChannel,
-                                    cpuConfig.enableSageAttn,
-                                    m_image_tokens_use_sliding_window};
+                                    cpuConfig.enableSageAttn};
         return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params, context->getCpuParallel());
 #else
         return nullptr;

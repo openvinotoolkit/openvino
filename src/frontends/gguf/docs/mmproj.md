@@ -160,7 +160,7 @@ to reuse its existing encoders. GGUF preprocessing uses llama.cpp geometry and t
 | `muse-glimmer` | `vision_embeddings` | `pixel_values [rows*cols,3*patch*patch]`, `image_grid_thw [1,3]`; window, merge and position indices are derived in the graph |
 | `qwen3vl_merger` | `vision_embeddings`, `vision_embeddings_pos`, `vision_embeddings_merger` | flattened patches `hidden_states`; position-table indices `input [4,N]`; `hidden_states`, `attention_mask [1,N,N]`, `rotary_pos_emb [N,head/2]` |
 
-The adapted graphs preserve llama.cpp computation: Gemma4 retains GELU_QUICK unless the
+The adapted vision graphs preserve llama.cpp computation: Gemma4 retains GELU_QUICK unless the
 GGUF specifies GELU. Muse Glimmer GGUF files collapse HF's two-frame patch kernel,
 so the layout takes one frame per patch.
 
@@ -172,8 +172,42 @@ optimum-intel comparison checks compatibility and does not replace that referenc
 GenAI uses an F16 KV cache for GGUF multimodal models to match llama.cpp's default cache
 precision; explicit cache precision properties take precedence.
 
-Gemma4 sliding-window layers apply the window to image tokens as well as text tokens.
-The GenAI adaptation preserves this behavior through paged attention conversion.
+### Gemma4 image-window parity gap
+
+GenAI-adapted GGUF masks follow Optimum-intel's sliding-window behavior in both SDPA and
+PagedAttention: tokens within the same image attend bidirectionally to the entire image
+group, even when its beginning lies outside the sliding window. Text queries still use
+the normal window. This allows reuse of existing PA implementations without a behavioral
+switch in `rt_info`; serialization or transformations can discard that metadata.
+
+The pinned llama.cpp CPU reference (`03fa73cb27f5c251b9528489b18d303b1366aca4`) clips older
+image patches at the window boundary. For example, an image spanning positions 10–150,
+query position 100 and window 64 permits keys 10–150 here, versus 37–150 in llama.cpp.
+Gemma4 and Unified multimodal logits, generated tokens and subsequent text can therefore
+diverge when image groups cross that boundary. This is an accepted integration gap, not
+quantization loss; numerical parity is not established for affected requests. Text-only
+requests and same-image keys already inside the window are unaffected by this difference.
+Native GGUF graphs before GenAI adaptation retain their supplied-mask semantics.
+
+To close the gap while supporting both reference behaviors, add an explicit serializable
+image-window policy to the PA operation contract and implement it in the target plugins,
+then emit the corresponding SDPA mask in the frontend. Do not use runtime metadata as a
+semantic switch. Retain llama.cpp comparisons and failed artifacts for affected scenarios;
+report API compatibility and SDPA/PA agreement separately from llama.cpp parity.
+
+### Bidirectional image prefix-cache gap
+
+The Unified fixture also exposes a separate GenAI PA prefix-cache issue: after a
+single-image request, a two-image request can differ from SDPA, and restarting image
+chat can change the generated tokens. With the same model, media and F16 KV precision,
+disabling `SchedulerConfig.enable_prefix_caching` restores backend token agreement and
+chat/reset checks. Full-prompt prefill logits agree closely before cache reuse. This
+diagnostic does not restore llama.cpp parity or waive the failing default-cache checks.
+
+Until GenAI prefix reuse handles bidirectional image groups correctly, disable prefix
+caching for affected requests. A reusable prefix must include complete image groups and
+their media identity; cached attention states cannot be reused across changed image
+context. Validate this independently of the serializable PA image-window policy above.
 
 Use language checkpoints containing Q4_0 weights for quantized generation accuracy tests;
 inspect their tensor types because files named Q4_0 can also contain Q5_K/Q6_K weights.

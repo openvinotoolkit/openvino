@@ -65,6 +65,17 @@ State replay semantics: teacher-forced greedy choices on one engine's generated
 history measure local decisions, not identical free-running sequences. Tiny or
 random fixtures can produce nonsense text while numerically agreeing. Keep
 parity, model quality and fidelity to unquantized weights as separate claims.
+
+GenAI-adapted Gemma4 image groups intentionally follow Optimum-intel's window behavior; see the
+[accepted parity gap](../../../../src/frontends/gguf/docs/mmproj.md#gemma4-image-window-parity-gap).
+Keep affected llama.cpp comparisons as diagnostics with their original gates; report
+SDPA/PA agreement and API compatibility separately. Do not attribute the semantic
+mismatch to quantization or turn it into a numerical-parity pass.
+Exercise repeated media requests with prefix caching enabled and disabled; an isolated
+prefill pass cannot establish cache-reuse correctness. Keep default-cache failures
+separate from the [image prefix-cache gap](../../../../src/frontends/gguf/docs/mmproj.md#bidirectional-image-prefix-cache-gap)
+diagnostics.
+
 For failures, follow [multimodal integration bisection](../../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection):
 template/token IDs, encoder tensors, insertion/positions, masks/windows, cache
 precision, then logits on identical histories. Identical quantized weights do
