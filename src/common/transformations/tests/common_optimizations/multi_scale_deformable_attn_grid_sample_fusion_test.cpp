@@ -15,6 +15,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -71,6 +72,12 @@ struct PatternParams {
     // A Convert to f32 between the last Reshape and Transpose, as the GPU
     // pipeline leaves it when f16 inference keeps the model output in f32.
     bool converted_output = false;
+    // The sum as ConvertReduceToPooling leaves it: AvgPool over the samples times
+    // their count (pooled_sum_scale; 0 means the count), then a Reshape back to
+    // [B*H, D, Q] unless a later pass folds it into the next Reshape.
+    bool pooled_sum = false;
+    bool pooled_sum_reshape = true;
+    float pooled_sum_scale = 0.f;
 };
 
 element::Type locations_type(const PatternParams& p) {
@@ -207,7 +214,26 @@ std::shared_ptr<ov::Model> getModel(const PatternParams& p) {
         true);
 
     auto mul = std::make_shared<v1::Multiply>(values_reshape, weights_reshape);
-    auto reduce = std::make_shared<v1::ReduceSum>(mul, i64_const({-1}), false);
+    std::shared_ptr<ov::Node> reduce;
+    if (p.pooled_sum) {
+        const auto samples = p.levels * p.points;
+        auto pool = std::make_shared<v1::AvgPool>(mul,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{0, 0},
+                                                  Shape{1, samples},
+                                                  true,
+                                                  ov::op::RoundingType::FLOOR);
+        const float scale = p.pooled_sum_scale != 0.f ? p.pooled_sum_scale : static_cast<float>(samples);
+        reduce = std::make_shared<v1::Multiply>(pool, v0::Constant::create(p.data_type, Shape{1}, {scale}));
+        if (p.pooled_sum_reshape)
+            reduce = std::make_shared<v1::Reshape>(
+                reduce,
+                i64_const({int64_t(p.batch * p.heads), int64_t(p.embed), int64_t(p.queries)}),
+                true);
+    } else {
+        reduce = std::make_shared<v1::ReduceSum>(mul, i64_const({-1}), false);
+    }
     std::shared_ptr<ov::Node> heads =
         std::make_shared<v1::Reshape>(reduce, i64_const({-1, int64_t(p.heads * p.embed), 0}), true);
     if (p.converted_output)
@@ -236,12 +262,12 @@ std::shared_ptr<ov::Model> getModelRef(const PatternParams& p) {
         weights,
         i64_const({int64_t(p.batch), int64_t(p.queries), int64_t(p.heads), int64_t(p.levels), int64_t(p.points)}),
         true);
-    auto msda = std::make_shared<ov::op::internal::MSDA>(
-        OutputVector{value,
-                     v0::Constant::create(element::i32, Shape{p.levels, 2}, spatial_shapes),
-                     v0::Constant::create(element::i32, Shape{p.levels}, level_starts),
-                     locations,
-                     weights_value});
+    auto msda =
+        std::make_shared<ov::op::internal::MSDA>(value,
+                                                 v0::Constant::create(element::i32, Shape{p.levels, 2}, spatial_shapes),
+                                                 v0::Constant::create(element::i32, Shape{p.levels}, level_starts),
+                                                 locations,
+                                                 weights_value);
     std::shared_ptr<ov::Node> output = msda;
     if (p.converted_output)
         output = std::make_shared<v0::Convert>(msda, element::f32);
@@ -306,6 +332,31 @@ TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, ConvertedOutput) {
     p.converted_output = true;
     model = getModel(p);
     model_ref = getModelRef(p);
+}
+
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, PooledSum) {
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    PatternParams p;
+    p.pooled_sum = true;
+    model = getModel(p);
+    model_ref = getModelRef(p);
+}
+
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, PooledSumWithoutReshape) {
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    PatternParams p;
+    p.pooled_sum = true;
+    p.pooled_sum_reshape = false;
+    model = getModel(p);
+    model_ref = getModelRef(p);
+}
+
+TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, PooledSumWrongScale) {
+    // AvgPool times half the number of samples is not their sum.
+    PatternParams p;
+    p.pooled_sum = true;
+    p.pooled_sum_scale = static_cast<float>(p.levels * p.points / 2);
+    model = getModel(p);
 }
 
 TEST_F(MultiScaleDeformableAttnGridSampleFusionTest, WrongNormalization) {

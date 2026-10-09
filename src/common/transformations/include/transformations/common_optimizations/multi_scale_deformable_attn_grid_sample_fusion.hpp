@@ -54,7 +54,9 @@ class TRANSFORMATIONS_API MultiScaleDeformableAttnGridSampleFusion;
  *                                                |
  *                                    Transpose(0,2,1) [B,Q,H*D]
  *
- * The constants 2 and -1 may come through a decompression Convert.
+ * The constants 2 and -1 may come through a decompression Convert. The ReduceSum may also come as
+ * Multiply(AvgPool(kernel 1 x L*P, strides 1, no pads), L*P) -> [Reshape], the form ConvertReduceToPooling produces
+ * (the GPU plugin runs it before this pass for f16 on devices without XMX).
  *
  * After:
  *

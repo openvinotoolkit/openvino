@@ -20,12 +20,12 @@ std::shared_ptr<op::internal::MSDA> make_msda(const element::Type& et,
                                               const PartialShape& weights,
                                               const element::Type& index_et = element::i32,
                                               const element::Type& locations_et = element::dynamic) {
-    return std::make_shared<op::internal::MSDA>(OutputVector{
+    return std::make_shared<op::internal::MSDA>(
         std::make_shared<op::v0::Parameter>(et, value),
         std::make_shared<op::v0::Parameter>(index_et, spatial_shapes),
         std::make_shared<op::v0::Parameter>(index_et, level_start_index),
         std::make_shared<op::v0::Parameter>(locations_et == element::dynamic ? et : locations_et, locations),
-        std::make_shared<op::v0::Parameter>(et, weights)});
+        std::make_shared<op::v0::Parameter>(et, weights));
 }
 
 }  // namespace
@@ -240,8 +240,9 @@ TEST(type_prop, msda_wrong_input_count) {
     const auto spatial_shapes = std::make_shared<op::v0::Parameter>(element::i32, Shape{1, 2});
     const auto level_start_index = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
     const auto locations = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 7, 2, 1, 4, 2});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::MSDA>(
-                        OutputVector{value, spatial_shapes, level_start_index, locations}),
+    const auto op = std::make_shared<op::internal::MSDA>();
+    op->set_arguments(OutputVector{value, spatial_shapes, level_start_index, locations});
+    OV_EXPECT_THROW(op->validate_and_infer_types(),
                     NodeValidationFailure,
                     testing::HasSubstr("MSDA must have 5 inputs"));
 }

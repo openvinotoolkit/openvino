@@ -10,13 +10,19 @@ namespace ov {
 namespace op {
 namespace internal {
 
-MSDA::MSDA(const OutputVector& inputs) : Op(inputs) {
+MSDA::MSDA(const Output<Node>& value,
+           const Output<Node>& value_spatial_shapes,
+           const Output<Node>& level_start_index,
+           const Output<Node>& sampling_locations,
+           const Output<Node>& attention_weights)
+    : Op({value, value_spatial_shapes, level_start_index, sampling_locations, attention_weights}) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<ov::Node> MSDA::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_MSDA_clone_with_new_inputs);
-    return std::make_shared<MSDA>(new_args);
+    check_new_args_count(this, new_args);
+    return std::make_shared<MSDA>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4));
 }
 
 bool MSDA::visit_attributes(ov::AttributeVisitor& visitor) {

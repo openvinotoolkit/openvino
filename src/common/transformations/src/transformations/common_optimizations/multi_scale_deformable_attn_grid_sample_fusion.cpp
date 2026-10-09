@@ -14,6 +14,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -43,11 +44,11 @@ using namespace ov::pass::pattern;
 // One feature level: GridSample of VariadicSplit output l of value, sampled at
 // the coordinates 2 * locations[:, :, :, l] - 1.
 struct LevelPattern {
-    std::shared_ptr<ov::Node> value, split, image_flat, locations, gather, root;
+    std::shared_ptr<ov::Node> value, image_flat, locations, gather, root;
 
     LevelPattern() {
         value = any_input(has_static_shape() && shape_matches("B, S, H, D"));
-        split = wrap_type<v1::VariadicSplit>({value, 1, any_input()});
+        auto split = wrap_type<v1::VariadicSplit>({value, 1, any_input()});
         image_flat = wrap_type<v1::Reshape>({split, any_input()}, shape_matches("B, HW, HD"));
         auto image_transpose = wrap_type<v1::Transpose>({image_flat, {0, 2, 1}});
         auto image = wrap_type<v1::Reshape>({image_transpose, any_input()}, shape_matches("BH, D, h, w"));
@@ -170,7 +171,16 @@ ov::pass::MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGrid
     auto weights_reshape_m = wrap_type<v1::Reshape>({weights_transpose_m, any_input()}, shape_matches("BH, 1, Q, LP"));
     auto weighted_m = wrap_type<v1::Multiply>({values_m, weights_reshape_m});
     auto reduce_m = wrap_type<v1::ReduceSum>({weighted_m, -1}, {{"keep_dims", false}});
-    auto heads_m = wrap_type<v1::Reshape>({reduce_m, any_input()}, shape_matches("B, HD, Q"));
+    // On GPUs without XMX, ConvertReduceToPooling has already turned an f16
+    // ReduceSum into AvgPool over the last axis times the number of samples.
+    auto pool_m = wrap_type<v1::AvgPool>({weighted_m},
+                                         attrs_match({{"strides", std::vector<int64_t>{1, 1}},
+                                                      {"pads_begin", std::vector<int64_t>{0, 0}},
+                                                      {"pads_end", std::vector<int64_t>{0, 0}}}) &&
+                                             shape_matches("BH, D, Q, 1"));
+    auto pool_sum_m = wrap_type<v1::Multiply>({pool_m, wrap_type<v0::Constant>(value_matches("LP"))});
+    auto sum_m = reduce_m | optional<v1::Reshape>({pool_sum_m, any_input()});
+    auto heads_m = wrap_type<v1::Reshape>({sum_m, any_input()}, shape_matches("B, HD, Q"));
     // When the subgraph is a model output that f16 inference keeps in f32, the
     // GPU pipeline reaches this pass with a Convert before the last Transpose.
     auto heads_convert_m = optional<v0::Convert>({heads_m});
@@ -199,11 +209,11 @@ ov::pass::MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGrid
         const auto num_levels = levels->size();
         auto shapes = v0::Constant::create(ov::element::i32, ov::Shape{num_levels, 2}, spatial_shapes);
         auto starts = v0::Constant::create(ov::element::i32, ov::Shape{num_levels}, level_starts);
-        auto msda = std::make_shared<ov::op::internal::MSDA>(ov::OutputVector{levels->front().value,
-                                                                              shapes,
-                                                                              starts,
-                                                                              levels->front().locations,
-                                                                              pattern_map.at(weights_m)});
+        auto msda = std::make_shared<ov::op::internal::MSDA>(levels->front().value,
+                                                             shapes,
+                                                             starts,
+                                                             levels->front().locations,
+                                                             pattern_map.at(weights_m));
         ov::NodeVector created{shapes, starts, msda};
         std::shared_ptr<ov::Node> result = msda;
         if (pattern_map.count(heads_convert_m)) {

@@ -31,7 +31,11 @@ public:
 
     MSDA() = default;
 
-    MSDA(const OutputVector& inputs);
+    MSDA(const Output<Node>& value,
+         const Output<Node>& value_spatial_shapes,
+         const Output<Node>& level_start_index,
+         const Output<Node>& sampling_locations,
+         const Output<Node>& attention_weights);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

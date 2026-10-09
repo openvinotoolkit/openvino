@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <sstream>
+#include <tuple>
 #include <vector>
 
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -170,37 +172,50 @@ void run_msda_case(const MsdaCase& c, data_types type, bool is_caching_test) {
     }
 }
 
-void run_msda_case(const MsdaCase& c, bool is_caching_test = false) {
-    run_msda_case<float>(c, data_types::f32, is_caching_test);
-    run_msda_case<ov::float16>(c, data_types::f16, is_caching_test);
-}
+// Shape case, data type and whether the network goes through export and import.
+using MsdaTestParams = std::tuple<MsdaCase, data_types, bool>;
+
+const std::vector<MsdaCase> msda_cases = {
+    {1, 2, 2, 4, 2, 2, {{2, 2}, {2, 4}}},
+    {2, 3, 1, 8, 1, 3, {{5, 3}}},
+    // On 3x3 and 1x4 levels most samples touch a border or fall outside.
+    {1, 4, 1, 2, 2, 1, {{3, 3}, {1, 4}}},
+    // GroundingDINO 800x1333 stride-8 level: pixel coordinates up to 167 need
+    // more precision than f16 offers for the bilinear weights.
+    {1, 8, 2, 8, 2, 4, {{100, 167}, {50, 84}}},
+};
 
 }  // namespace
 
-TEST(msda_gpu, static_reference_two_levels) {
-    MsdaCase c{1, 2, 2, 4, 2, 2, {{2, 2}, {2, 4}}};
-    run_msda_case(c);
+class msda_gpu_test : public ::testing::TestWithParam<MsdaTestParams> {
+public:
+    static std::string get_test_case_name(const testing::TestParamInfo<MsdaTestParams>& info) {
+        const auto& [c, type, is_caching_test] = info.param;
+        std::ostringstream name;
+        name << "B" << c.batch << "_Q" << c.queries << "_H" << c.heads << "_D" << c.embed << "_P" << c.points << "_levels";
+        for (const auto& [h, w] : c.spatial)
+            name << "_" << h << "x" << w;
+        name << "_" << ov::element::Type(type) << (is_caching_test ? "_cached" : "");
+        return name.str();
+    }
+};
+
+TEST_P(msda_gpu_test, reference) {
+    const auto& [c, type, is_caching_test] = GetParam();
+    if (type == data_types::f16)
+        run_msda_case<ov::float16>(c, type, is_caching_test);
+    else
+        run_msda_case<float>(c, type, is_caching_test);
 }
 
-TEST(msda_gpu, static_reference_single_level_three_points) {
-    MsdaCase c{2, 3, 1, 8, 1, 3, {{5, 3}}};
-    run_msda_case(c);
-}
+INSTANTIATE_TEST_SUITE_P(smoke_msda_gpu_test,
+                         msda_gpu_test,
+                         ::testing::Combine(::testing::ValuesIn(msda_cases), ::testing::Values(data_types::f32, data_types::f16), ::testing::Values(false)),
+                         msda_gpu_test::get_test_case_name);
 
-TEST(msda_gpu, static_reference_small_levels) {
-    // On 3x3 and 1x4 levels most samples touch a border or fall outside.
-    MsdaCase c{1, 4, 1, 2, 2, 1, {{3, 3}, {1, 4}}};
-    run_msda_case(c);
-}
-
-TEST(msda_gpu, static_reference_large_level) {
-    // GroundingDINO 800x1333 stride-8 level: pixel coordinates up to 167 need
-    // more precision than f16 offers for the bilinear weights.
-    MsdaCase c{1, 8, 2, 8, 2, 4, {{100, 167}, {50, 84}}};
-    run_msda_case(c);
-}
-
-TEST(msda_gpu, static_reference_two_levels_cached) {
-    MsdaCase c{1, 2, 2, 4, 2, 2, {{2, 2}, {2, 4}}};
-    run_msda_case(c, true);
-}
+INSTANTIATE_TEST_SUITE_P(smoke_msda_gpu_test_cached,
+                         msda_gpu_test,
+                         ::testing::Combine(::testing::Values(msda_cases.front()),
+                                            ::testing::Values(data_types::f32, data_types::f16),
+                                            ::testing::Values(true)),
+                         msda_gpu_test::get_test_case_name);
