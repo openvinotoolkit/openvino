@@ -219,7 +219,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/ngen"
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/config"
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/gemm/jit/include"
-                             "${ONEDNN_GPU_DIR}/third_party/ngen")
+                             "${ONEDNN_GPU_DIR}/third_party/ngen"
+                             "${ONEDNN_GPU_DIR}/third_party/level_zero")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
