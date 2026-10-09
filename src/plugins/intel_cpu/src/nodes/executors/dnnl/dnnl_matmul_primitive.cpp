@@ -44,6 +44,9 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #endif
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "utils/precision_support.h"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -514,6 +517,13 @@ bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type in
     }
 #endif
 
+#if defined(OPENVINO_ARCH_X86_64)
+    // bf16/f16 x fp8: copy-B upconverts the weights to xf16, then a plain xf16 GEMM runs.
+    if (any_of(weightsType, f8e4m3, f8e5m2)) {
+        return hasFp8WeightsDecompressionSupport(inputType);
+    }
+#endif
+
     return (any_of(inputType, f32, bf16, f16) && any_of(weightsType, u8, i8, u4, i4));
 }
 
@@ -543,18 +553,31 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
         createPrimitiveAttrs(attrs, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
     if (srcDesc->getShape().isDynamic() || weiDesc->getShape().isDynamic()) {
-        const auto& srcShape = srcDesc->getShape();
-        const auto& weiShape = weiDesc->getShape();
-        auto [inDymmyDims, weiDymmyDims] =
-            makeDummyInputDims(srcShape, weiShape, dstDesc->getShape(), attrs.transposeA, attrs.transposeB);
-        const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims,
-                                                       weiDymmyDims,
-                                                       attrs.transposeA,
-                                                       attrs.transposeB,
-                                                       dstDesc->getShape().getRank());
-        srcDesc = std::make_shared<DnnlBlockedMemoryDesc>(srcDesc->getPrecision(), Shape(inDymmyDims));
-        weiDesc = std::make_shared<DnnlBlockedMemoryDesc>(weiDesc->getPrecision(), Shape(weiDymmyDims));
-        dstDesc = std::make_shared<DnnlBlockedMemoryDesc>(dstDesc->getPrecision(), Shape(outDymmyDims));
+        if (attrs.fcSemantic && srcDesc->getShape().getRank() != weiDesc->getShape().getRank()) {
+            // FC semantic: rank-2 static weights with possibly higher-rank dynamic src/dst, so
+            // only src/dst get dummy dims; K == IC and N == OC are taken from the [OC, IC] weights.
+            const auto& weiDims = weiDesc->getShape().getStaticDims();
+            auto srcDummyDims = MemoryDescUtils::makeDummyShape(srcDesc->getShape()).getStaticDims();
+            srcDummyDims.back() = weiDims[weiDims.size() - 1];
+            auto dstDummyDims = srcDummyDims;
+            dstDummyDims.back() = weiDims[weiDims.size() - 2];
+
+            srcDesc = std::make_shared<DnnlBlockedMemoryDesc>(srcDesc->getPrecision(), Shape(srcDummyDims));
+            dstDesc = std::make_shared<DnnlBlockedMemoryDesc>(dstDesc->getPrecision(), Shape(dstDummyDims));
+        } else {
+            const auto& srcShape = srcDesc->getShape();
+            const auto& weiShape = weiDesc->getShape();
+            auto [inDymmyDims, weiDymmyDims] =
+                makeDummyInputDims(srcShape, weiShape, dstDesc->getShape(), attrs.transposeA, attrs.transposeB);
+            const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims,
+                                                           weiDymmyDims,
+                                                           attrs.transposeA,
+                                                           attrs.transposeB,
+                                                           dstDesc->getShape().getRank());
+            srcDesc = std::make_shared<DnnlBlockedMemoryDesc>(srcDesc->getPrecision(), Shape(inDymmyDims));
+            weiDesc = std::make_shared<DnnlBlockedMemoryDesc>(weiDesc->getPrecision(), Shape(weiDymmyDims));
+            dstDesc = std::make_shared<DnnlBlockedMemoryDesc>(dstDesc->getPrecision(), Shape(outDymmyDims));
+        }
     }
 
     const dnnl::memory::desc srcDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc)->getDnnlDesc();

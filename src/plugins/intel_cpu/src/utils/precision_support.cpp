@@ -46,6 +46,24 @@ bool hasHardwareSupport(const ov::element::Type& precision) {
     }
 }
 
+bool hasFp8WeightsDecompressionSupport([[maybe_unused]] ov::element::Type activationPrecision) {
+#if defined(OPENVINO_ARCH_X86_64)
+    using namespace dnnl::impl::cpu::x64;
+    switch (activationPrecision) {
+    case ov::element::f16:
+        // no native f16 compute on Sapphire Rapids, so it is excluded
+        return mayiuse(avx512_core_amx_fp16) || mayiuse(avx10_2);
+    case ov::element::bf16:
+        return mayiuse(avx512_core_amx) || mayiuse(avx10_2);
+    default:
+        // oneDNN has no f32 x fp8 configuration (including ACCURACY mode's dynamic)
+        return false;
+    }
+#else
+    return false;
+#endif
+}
+
 ov::element::Type defaultFloatPrecision() {
     if (hasHardwareSupport(ov::element::f16)) {
         return ov::element::f16;

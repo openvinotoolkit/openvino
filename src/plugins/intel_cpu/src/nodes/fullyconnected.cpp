@@ -51,6 +51,9 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "utils/precision_support.h"
+#endif
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "openvino/core/shape.hpp"
 #    include "utils/arm_isa_support.h"
@@ -96,14 +99,8 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
         return {Type_t::f32, Type_t::f16};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    // BF16 compressed-activations path is intended for SIMD (avx512_vnni)
-    // dynamic-quant kernels. On AMX-capable HW, AMX BF16 TMUL outperforms
-    // VNNI int8 on prefill, so keep f32 here and let the existing AMX BF16
-    // path handle bf16 inference precision.
-    if (ov::with_cpu_x86_avx512_core_amx()) {
-        return {Type_t::f32};
-    }
-    return {Type_t::f32, Type_t::bf16};
+    // f16 is accepted only for fp8 weights, see isSupportedCompressedOperation()
+    return {Type_t::f32, Type_t::bf16, Type_t::f16};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
 #else
@@ -155,6 +152,36 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         }
 
         if (!ov::with_cpu_x86_avx2()) {
+            return false;
+        }
+
+        const auto weightsPrecision = op->get_input_element_type(WEIGHTS);
+        if (any_of(weightsPrecision, ov::element::f8e4m3, ov::element::f8e5m2)) {
+            // fp8 weights are decompressed by the oneDNN brgemm matmul kernel; there is no
+            // f32 x fp8 configuration, so the constant is folded for other precisions.
+            if (!hasFp8WeightsDecompressionSupport(config.inferencePrecision)) {
+                return false;
+            }
+            // Grouped scales over IC are rejected by oneDNN for fp8 weights
+            // (brgemm_matmul_utils.cpp, per-K weight scales check).
+            if (G != 1) {
+                return false;
+            }
+            // The fp8 dequantization scheme is scale-only.
+            if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
+                return false;
+            }
+            // Weights must be a real 2D [OC, IC] constant, not broadcast by the scale multiply.
+            const auto& weightsShape = op->get_input_shape(WEIGHTS);
+            if (weightsShape.size() != 2 || weightsShape[0] != OC || weightsShape[1] != IC) {
+                return false;
+            }
+            // Same shape limits as the other weights decompression paths.
+            return IC >= 4 && OC != 1;
+        }
+
+        if (op->get_input_element_type(DATA) == ov::element::f16) {
             return false;
         }
 
