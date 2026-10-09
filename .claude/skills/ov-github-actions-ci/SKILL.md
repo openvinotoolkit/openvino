@@ -173,6 +173,9 @@ volumes/options (shared drive, sccache) consistent with sibling jobs. GPU → Do
 ## Pitfalls to check
 
 * **Unpinned or tag-pinned third-party action** — supply-chain risk; CodeQL/semgrep will flag it.
+* **Model dependency pin lacks the required architecture** — verify the published wheel and import
+  the model/processor classes with the selected Torch/torchvision versions. Package availability
+  alone does not establish support; record dependencies after each family-specific install.
 * **Untrusted input in `run:`** — `${{ github.event.* }}` interpolated into shell is an injection vector;
   route through `env:`.
 * **Over-broad `permissions:`** — especially `write` scopes at workflow level.

@@ -162,7 +162,9 @@ jobs:
       - name: Muse image, video, chat, API and Optimum loading acceptance (SDPA and PA)
         if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
         run: |
-          python3 -m pip install transformers==5.10.4
+          python3 -m pip install transformers==5.15.0
+          python3 -c 'from transformers import MuseGlimmerConfig, MuseGlimmerForConditionalGeneration, MuseGlimmerProcessor'
+          python3 -m pip freeze > reports/muse-dependencies.txt
           python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k muse --junitxml=reports/muse.xml
 
       - name: Qwen3.5 image, video, chat, API and Optimum loading acceptance (SDPA and PA)
