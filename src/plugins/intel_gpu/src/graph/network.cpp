@@ -673,46 +673,6 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
     return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
 }
 
-bool network::can_bind_user_output_memory(const primitive_id& output_id, const memory& candidate) const {
-    auto output = find_primitive(output_id);
-    // Only network outputs with a usable buffer can be bound.
-    if (!output->is_output() || candidate.buffer_ptr() == nullptr || candidate.size() == 0)
-        return false;
-
-    const auto& engine = get_engine();
-    const auto candidate_type = candidate.get_allocation_type();
-    const auto candidate_ptr = reinterpret_cast<uintptr_t>(candidate.buffer_ptr());
-    const primitive_inst* aliased_input = nullptr;
-    for (const auto& input : _inputs) {
-        const auto input_memory = input->output_memory_ptr();
-        if (!input_memory || input_memory->buffer_ptr() == nullptr || input_memory->size() == 0)
-            continue;
-
-        // Compare address ranges only for matching USM types; other pointers may be buffer handles.
-        if (candidate_type == input_memory->get_allocation_type() && memory_capabilities::is_usm_type(candidate_type)) {
-            // Sharing can start only at the beginning of an input buffer.
-            const auto input_ptr = reinterpret_cast<uintptr_t>(input_memory->buffer_ptr());
-            const bool overlaps = candidate_ptr < input_ptr ? input_ptr - candidate_ptr < candidate.size()
-                                                            : candidate_ptr - input_ptr < input_memory->size();
-            if (!overlaps)
-                continue;
-            if (candidate_ptr != input_ptr)
-                return false;
-        } else if (!engine.is_the_same_buffer(*input_memory, candidate)) {
-            continue;
-        }
-
-        if (aliased_input)
-            return false;
-        aliased_input = input.get();
-    }
-
-    if (!aliased_input)
-        return true;
-
-    return may_alias(output_id, aliased_input->id());
-}
-
 bool network::may_alias(const primitive_id& output_id, const primitive_id& input_id) const {
     const auto output = find_primitive(output_id);
     const auto input = find_primitive(input_id);

@@ -170,8 +170,6 @@ public:
     void set_arguments();
     // Implementation specific calls
     bool does_node_need_lockable_output(const primitive_id& id) const;
-    // Returns whether a caller-owned memory can be bound to the given network output.
-    bool can_bind_user_output_memory(const primitive_id& output_id, const memory& candidate) const;
     // Returns whether the buffer of network output `output_id` may be the buffer of network input `input_id`.
     bool may_alias(const primitive_id& output_id, const primitive_id& input_id) const;
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);

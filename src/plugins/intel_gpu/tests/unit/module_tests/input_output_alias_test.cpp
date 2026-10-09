@@ -15,7 +15,6 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "test_utils.h"
 
-#include <map>
 #include <string>
 #include <vector>
 
@@ -71,29 +70,16 @@ protected:
         return topo;
     }
 
-    // Build the real stateless_kv graph, bind its inputs, then query whether an output buffer may
-    // reuse one of those inputs. Present length 16 and a two-token update produce a 16-element cache.
-    bool query(topology& topo,
-               const primitive_id& output_id,
-               const std::string& candidate_input,
-               bool separate_candidate = false) {
+    // Build the real stateless_kv graph and query whether an output buffer may reuse one of its inputs.
+    // Present length 16 and a two-token update produce a 16-element cache.
+    bool query(topology& topo, const primitive_id& output_id, const primitive_id& input_id) {
         ExecutionConfig config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         // network::may_alias() always rejects on out-of-order queues.
         config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         network net(get_test_engine(), topo, config);
-
-        std::map<std::string, memory::ptr> inputs;
-        inputs[past] = get_test_engine().allocate_memory(past_layout);
-        inputs[new_token] = get_test_engine().allocate_memory(new_token_layout);
-
-        const auto input_ids = net.get_input_ids();
-        for (const auto& input_id : input_ids)
-            net.set_input_data(input_id, inputs.at(input_id));
-
-        auto candidate = separate_candidate ? get_test_engine().allocate_memory(past_layout) : inputs.at(candidate_input);
-        return net.can_bind_user_output_memory(output_id, *candidate);
+        return net.may_alias(output_id, input_id);
     }
 };
 
@@ -141,20 +127,13 @@ TEST_F(InputOutputAliasTest, intermediate_writer_after_last_past_reader_is_alias
     EXPECT_TRUE(query(topo, net_output, past));
 }
 
-TEST_F(InputOutputAliasTest, non_overlapping_output_memory_is_allowed) {
-    auto topo = make_topology();
-
-    EXPECT_TRUE(query(topo, net_output, past, true));
-}
-
-TEST_F(InputOutputAliasTest, ordinary_reorder_rejects_input_alias_but_allows_separate_memory) {
+TEST_F(InputOutputAliasTest, ordinary_reorder_rejects_input_alias) {
     topology topo{
         input_layout(past, past_layout),
         reorder(net_output, input_info(past), format::bfyx, data_types::f16),
     };
 
     EXPECT_FALSE(query(topo, net_output, past));
-    EXPECT_TRUE(query(topo, net_output, past, true));
 }
 
 constexpr auto in0 = "in0";
