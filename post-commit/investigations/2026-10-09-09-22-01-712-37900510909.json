@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-09-09-22-01-712-37900510909",
+  "timestamp": "2026-10-09T09:22:01Z",
+  "run_id": "37900510909",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37900510909",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "344d28c8dfd6d4d80f4b68a6b42c9cedf826894c",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Dependencies",
+  "title": "PyTorch model hub HF Transformers tests fail to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+  "signature": "ImportError: pyarrow requires NumPy 2.0 or newer, found <version>|Dependencies",
+  "signature_hash": "d61249d5ea96108d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "Step 'PyTorch Models Tests Not Timm or Torchvision' failed: 7 HF Transformers tests errored with ImportError importing pyarrow/datasets."
+    }
+  ],
+  "key_errors": [
+    "multiprocessing.context.ProcessError:\nbert-base-uncased running failed:\n  File \".../test_hf_transformers.py\", line 51, in load_model\n    from datasets import Audio, load_dataset\n  File \"/venv/lib/python3.11/site-packages/datasets/arrow_dataset.py\", line 60, in <module>\n    import pyarrow as pa\n  File \"/venv/lib/python3.11/site-packages/pyarrow/__init__.py\", line 59, in <module>\n    from pyarrow.lib import (...)\nImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4",
+    "===== 7 failed, 5 passed, 23 skipped, 1759 deselected in 71.85s (0:01:11) ====="
+  ],
+  "root_cause": "tests/requirements_pytorch pins numpy==1.26.4 for python_version < '3.12' (this job runs Python 3.11). tests/model_hub_tests/pytorch/envs/hf_transformers.txt installs datasets==3.0.1, which pulls in a recent pyarrow release that now requires NumPy >= 2.0 at import time. Because requirements_pytorch is installed first and pins numpy to 1.26.4 for this Python version, pip resolves/keeps the older NumPy, and pyarrow's native extension module (pyarrow.lib) raises ImportError as soon as `datasets` is imported inside test_hf_transformers.py's load_model(), failing every HF Transformers model-hub test that needs `datasets` (audio/text datasets fixtures).",
+  "reproduction_steps": "1. Use Python 3.11.\n2. pip install -r tests/requirements_pytorch -r tests/model_hub_tests/pytorch/envs/hf_transformers.txt\n3. python -c \"from datasets import load_dataset\"  # raises ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4\n4. Equivalently: python -m pytest tests/model_hub_tests/pytorch/test_hf_transformers.py -k bert-base-uncased",
+  "recommended_actions": [
+    "Pin a pyarrow version compatible with NumPy 1.26.x (e.g. pyarrow<18 or whichever last release does not hard-require NumPy>=2.0) in tests/model_hub_tests/pytorch/envs/hf_transformers.txt for python_version < '3.12'.",
+    "Alternatively, pin datasets to an older release (pre the pyarrow bump) for python_version < '3.12', e.g. datasets==2.21.0, or add an explicit numpy>=2.0 marker scoped to python_version >= '3.12' alongside a compatible pyarrow floor for the <3.12 path.",
+    "Add a CI smoke check that imports `datasets`/`pyarrow` right after the HF Transformers deps are installed, to catch resolver-pin regressions like this before model-hub tests run."
+  ],
+  "prevention_strategies": "Pin pyarrow explicitly (not just transitively via datasets) in hf_transformers.txt and keep it in sync with the numpy pin in tests/requirements_pytorch; add a pip-compile/pip-check style CI step (or `pip check`) after installing model-hub extra requirement files to detect NumPy/pyarrow ABI incompatibilities before tests run.",
+  "historical_context": "Identical signature already recorded once before this run, on run https://github.com/openvinotoolkit/openvino/actions/runs/37901253160 (commit 89f0e3a6695b6761f1dea033624fcd7b8243c44f), where a GatedDeltaNet transformation test failed to collect with the same pyarrow/NumPy ImportError. This is now a recurring Dependencies issue (2nd occurrence) affecting multiple python_version<3.12 test jobs that install datasets/pyarrow, not an isolated flake."
+}
