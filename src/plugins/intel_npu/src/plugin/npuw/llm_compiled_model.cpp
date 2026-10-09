@@ -1803,6 +1803,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
                         ") does not match generate variant count (",
                         num_variants,
                         ").");
+        // Mirrors create_sync_infer_request(): only the encoder embedding request runs without generate variants.
+        const bool is_prefill_only =
+            !compiled->m_is_whisper && compiled->m_is_embedding && compiled->m_is_encoder_embedding;
+        OPENVINO_ASSERT(num_variants > 0 || is_prefill_only,
+                        "NPUW blob: no generate variants for a model that requires them.");
 
         compiled->m_generate_compiled_variants.reserve(num_variants);
 

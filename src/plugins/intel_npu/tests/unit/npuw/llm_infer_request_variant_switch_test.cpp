@@ -16,10 +16,11 @@
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "executor.hpp"
 #include "llm_block_kvcache_strategy.hpp"
-#include "llm_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "serialization.hpp"
@@ -91,6 +92,10 @@ struct LLMVariantSwitchTestAccess {
         compiled->m_kvcache_sizes = std::move(sizes);
     }
 
+    static void set_is_encoder_embedding(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, bool value) {
+        compiled->m_is_encoder_embedding = value;
+    }
+
     static std::size_t generate_request_count(const ov::npuw::LLMInferRequest& req) {
         return req.m_generate_requests.size();
     }
@@ -116,6 +121,13 @@ struct LLMVariantSwitchTestAccess {
     // deserializes successfully right up to the size-table/variant-count invariant check.
     static std::string serialize_meta_with_variant_count(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
                                                          uint32_t forged_variant_count) {
+        return serialize_meta_with_sizes_and_variant_count(compiled, compiled->m_kvcache_sizes, forged_variant_count);
+    }
+
+    static std::string serialize_meta_with_sizes_and_variant_count(
+        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+        const std::vector<uint32_t>& forged_kvcache_sizes,
+        uint32_t forged_variant_count) {
         namespace s = ov::npuw::s11n;
         std::ostringstream os;
         s::write(os, compiled->m_name);
@@ -146,7 +158,7 @@ struct LLMVariantSwitchTestAccess {
         s::write(os, compiled->m_swa_window_size);
         s::write(os, compiled->m_longrope_tables);
         s::write(os, compiled->m_cfg);
-        s::write(os, compiled->m_kvcache_sizes);
+        s::write(os, forged_kvcache_sizes);
         s::write(os, forged_variant_count);
         return os.str();
     }
@@ -455,6 +467,56 @@ TEST_F(LLMInferRequestVariantSwitchTest, ImportRejectsSizeTableThatDisagreesWith
     } catch (const ov::Exception& ex) {
         EXPECT_NE(std::string(ex.what()).find("does not match generate variant count"), std::string::npos) << ex.what();
     }
+}
+
+// Exact shape from the security report: two capacities {1, UINT32_MAX} but only one variant.
+TEST_F(LLMInferRequestVariantSwitchTest, ImportRejectsSizeTableLongerThanVariantCount) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const std::string blob = LLMVariantSwitchTestAccess::serialize_meta_with_sizes_and_variant_count(
+        compiled,
+        {1u, std::numeric_limits<uint32_t>::max()},
+        /*forged=*/1u);
+    std::istringstream in(blob);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(LLMVariantSwitchTestAccess::deserialize(in, m_plugin),
+                                  ov::Exception,
+                                  "kvcache size table (2) does not match generate variant count (1)");
+}
+
+// A non-encoder model with no generate variants would make select_generate_request() call back() on an
+// empty vector, so an empty size table + zero variants must be rejected too.
+TEST_F(LLMInferRequestVariantSwitchTest, ImportRejectsEmptyVariantListForGenerativeModel) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const std::string blob =
+        LLMVariantSwitchTestAccess::serialize_meta_with_sizes_and_variant_count(compiled, {}, /*forged=*/0u);
+    std::istringstream in(blob);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(LLMVariantSwitchTestAccess::deserialize(in, m_plugin),
+                                  ov::Exception,
+                                  "no generate variants for a model that requires them");
+}
+
+// m_is_encoder_embedding is blob-controlled: setting it without m_is_embedding still routes to
+// LLMInferRequest, so it must not exempt the blob from having generate variants.
+TEST_F(LLMInferRequestVariantSwitchTest, ImportRejectsEmptyVariantListWithForgedEncoderEmbeddingFlag) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    LLMVariantSwitchTestAccess::set_is_encoder_embedding(compiled, true);
+
+    const std::string blob =
+        LLMVariantSwitchTestAccess::serialize_meta_with_sizes_and_variant_count(compiled, {}, /*forged=*/0u);
+    std::istringstream in(blob);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(LLMVariantSwitchTestAccess::deserialize(in, m_plugin),
+                                  ov::Exception,
+                                  "no generate variants for a model that requires them");
 }
 
 // The loader now enforces the invariant, and this test pins the defence-in-depth guard in the consumer:
