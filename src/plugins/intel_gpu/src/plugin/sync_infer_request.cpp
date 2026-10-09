@@ -1283,7 +1283,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                         existing_tensor->get_original_memory()->get_layout().format == required_layout.format &&
                         existing_tensor->get_original_memory()->count() >= ov::shape_size(actual_memory_shape) &&
                         existing_tensor->get_original_memory()->size() >= required_layout.bytes_count() &&
-                        (!(need_lockable_mem || convert_needed) ||
+                        ((!need_lockable_mem && !convert_needed) ||
                          existing_tensor->get_original_memory()->get_allocation_type() != cldnn::allocation_type::usm_device)) {
                         existing_tensor->set_shape(actual_memory_shape);
                         return existing->second;
