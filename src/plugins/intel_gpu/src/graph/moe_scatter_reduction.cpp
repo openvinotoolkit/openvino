@@ -6,6 +6,7 @@
 #include "primitive_type_base.h"
 #include "json_object.h"
 #include "to_string_utils.h"
+#include "openvino/util/common_util.hpp"
 #include <string>
 #include <vector>
 
@@ -31,11 +32,11 @@ std::vector<layout> moe_scatter_reduction_inst::calc_output_layouts(moe_scatter_
     }
     if (desc->has_batch_dim) {
         const auto num_tokens = impl_param.input_layouts[0].get_shape()[1] / num_active_experts_per_token;
-        const auto& out_shape = ov::PartialShape{1, ov::Dimension(num_tokens), ov::Dimension(hidden_size)};
+        const auto& out_shape = ov::PartialShape{1, ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(num_tokens)), ov::Dimension(hidden_size)};
         return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
     }
     const auto num_tokens = impl_param.input_layouts[0].get_shape()[0] / num_active_experts_per_token;
-    const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens), 1, ov::Dimension(hidden_size)};
+    const auto& out_shape = ov::PartialShape{ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(num_tokens)), 1, ov::Dimension(hidden_size)};
     return {layout{out_shape, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
 }
 

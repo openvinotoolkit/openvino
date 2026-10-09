@@ -201,9 +201,6 @@ public:
     /// \brief Sets symbol of the Dimension
     void set_symbol(const std::shared_ptr<ov::Symbol>& s);
 
-    /// \brief Creates Dimension object from size_t value.
-    static Dimension create_from_size_t(size_t);
-
 private:
     Dimension(const Interval& interval) : m_dimension(interval) {}
 
