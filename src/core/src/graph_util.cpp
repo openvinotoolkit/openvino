@@ -355,7 +355,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m,
 
     if (compress_to_fp16) {
         // TODO: Implement on-the-fly compression in pass::Serialize, Ticket: 145380
-        bool postponed = true;
+        bool postponed = false;
         ov::pass::compress_model_to_f16(cloned, postponed);
     }
 

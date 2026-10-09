@@ -50,7 +50,9 @@ public:
 
     bool get_enable_mmap() const;
 
-    uint64_t get_constant_offload_min_size() const;
+    std::optional<uint64_t> get_max_memory() const;
+
+    const std::string& get_offloading_path() const;
 
     // Creating thread-safe copy of global config including shared_ptr to ICacheManager
     CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
@@ -63,7 +65,8 @@ private:
     CacheConfig m_cache_config{};
     std::map<std::string, CacheConfig> m_devices_cache_config{};
     bool m_flag_enable_mmap{true};
-    uint64_t m_constant_offload_min_size{0};
+    std::optional<uint64_t> m_max_memory{};
+    std::string m_offloading_path{};
 };
 
 struct Parsed {

@@ -303,8 +303,9 @@ TEST(PropertiesValidation, BoolPropertyAcceptsIntegerValues) {
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(1));
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(2));
     OV_ASSERT_NO_THROW(std::ignore = ov::enable_mmap(0));
-    OV_ASSERT_NO_THROW(std::ignore = ov::constant_offload_min_size(0));
-    OV_ASSERT_NO_THROW(std::ignore = ov::constant_offload_min_size(64ULL * 1024ULL * 1024ULL));
+    OV_ASSERT_NO_THROW(std::ignore = ov::max_memory(0));
+    OV_ASSERT_NO_THROW(std::ignore = ov::max_memory(64ULL * 1024ULL * 1024ULL));
+    OV_ASSERT_NO_THROW(std::ignore = ov::offloading_path(""));
 }
 
 }  // namespace ov::test

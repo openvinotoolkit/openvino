@@ -78,22 +78,30 @@ void run_constant_folding(std::shared_ptr<ov::Model>& model) {
     pass_manager.run_passes(model);
 }
 
-TEST(constant_folding, mmap_constants_config_scope_restores_previous_values) {
-    EXPECT_EQ(get_constant_offload_min_size(), 0);
+TEST(constant_folding, constant_memory_budget_scope_restores_previous_values) {
+    EXPECT_FALSE(get_constant_memory_budget().has_value());
 
     {
-        ScopedConstantOffloadConfig outer_scope{128};
-        EXPECT_EQ(get_constant_offload_min_size(), 128);
+        ScopedConstantOffloadConfig outer_scope{128, {}};
+        EXPECT_EQ(get_constant_memory_budget(), 128);
 
         {
-            ScopedConstantOffloadConfig inner_scope{256};
-            EXPECT_EQ(get_constant_offload_min_size(), 256);
+            ScopedConstantOffloadConfig inner_scope{std::nullopt, {}};
+            EXPECT_EQ(get_constant_memory_budget(), 128);
         }
 
-        EXPECT_EQ(get_constant_offload_min_size(), 128);
+        EXPECT_EQ(get_constant_memory_budget(), 128);
+        {
+            ScopedConstantOffloadConfig inner_scope{0, {}};
+            EXPECT_EQ(get_constant_memory_budget(), 0);
+            EXPECT_TRUE(should_offload_constant(element::f32, 1));
+        }
+        EXPECT_EQ(get_constant_memory_budget(), 128);
     }
 
-    EXPECT_EQ(get_constant_offload_min_size(), 0);
+    EXPECT_FALSE(get_constant_memory_budget().has_value());
+    EXPECT_FALSE(should_offload_constant(element::f32, 1));
+    EXPECT_THROW(ScopedConstantOffloadConfig(std::nullopt, "/tmp/offload"), ov::Exception);
 }
 
 TEST(constant_folding, temporary_file_backed_allocator_allows_read_write) {
@@ -224,7 +232,7 @@ TEST(constant_folding, folded_constant_uses_mmap_buffer_when_enabled) {
     auto model = make_foldable_add_model(num_elements);
 
     {
-        ScopedConstantOffloadConfig scope{1024};
+        ScopedConstantOffloadConfig scope{1024, {}};
         run_constant_folding(model);
     }
 

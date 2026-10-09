@@ -994,18 +994,29 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
 static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
- * @brief Read-write property that offloads large constants created during model conversion and graph
- * transformations to temporary files instead of keeping them in RAM.
+ * @brief Read-write property that caps the heap memory used by constants created during model conversion
+ * and graph transformations.
  *
- * The value is the minimum constant size, in bytes, that is offloaded. Smaller constants use the default
- * allocator. Setting it to 0 disables offloading, which is the default. Keep the value large enough, because
- * every offloaded constant needs its own memory mapping and the operating system limits how many mappings a
- * process may have.
+ * The value is a budget in bytes. While the constants built by conversion fit within it they are allocated
+ * normally; once the budget is exhausted, further constants are backed by temporary files instead of RAM, and
+ * freeing a constant returns its bytes to the budget. Setting it to 0 offloads every eligible constant.
+ * Omitting the property disables offloading.
  *
  * value type: uint64_t
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<uint64_t, PropertyMutability::RW> constant_offload_min_size{"CONSTANT_OFFLOAD_MIN_SIZE"};
+static constexpr Property<uint64_t, PropertyMutability::RW> max_memory{"MAX_MEMORY"};
+
+/**
+ * @brief Read-write property that selects the directory holding constants offloaded by ov::max_memory.
+ *
+ * An empty value, which is the default, uses the system temporary directory. Point it at a large, fast
+ * filesystem; a tmpfs mount would place the data back in RAM and defeat the purpose.
+ *
+ * value type: std::string
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> offloading_path{"OFFLOADING_PATH"};
 
 /**
  * @brief Namespace with device properties

@@ -119,17 +119,21 @@ For details on how plugins handle compressed ``FP16`` models, see
      ``ovc`` does not have ``share_weights`` option and always uses sharing to reduce
      conversion time and consume less amount of memory during the conversion.
 
-- ``constant_offload_min_size`` parameter available in Python ``openvino.convert_model``
-  only sets the minimum size, in bytes, for a constant produced during model conversion and
-  graph transformations to be stored in file-backed temporary storage. It is ``0`` by default,
-  which disables the feature. A positive value can reduce peak RAM usage when converting very
-  large models, at the cost of additional temporary disk usage and possible conversion-time
-  slowdown. Temporary ``mmap``-backed storage is supported on Linux, macOS, and Windows.
+- ``max_memory`` and ``offloading_path`` parameters in Python ``openvino.convert_model``
+   control temporary storage for constants allocated by OpenVINO during conversion and graph
+   transformations. ``max_memory`` is a budget in bytes for those constants in RAM. Once the
+   budget is exhausted, further constants use temporary ``mmap``-backed files in
+   ``offloading_path``. Freed constants return their bytes to the budget. Omitting ``max_memory``
+   disables offloading; explicitly setting ``max_memory=0`` offloads all eligible constants.
+   An empty ``offloading_path`` uses the system temporary directory. A non-empty path requires
+   ``max_memory``. These options do not cap total process RSS or memory owned by the source framework.
 
-  Constants below the limit use the regular allocator to avoid unnecessary overhead for small
-  tensors. Keep the limit large enough, because every file-backed constant needs its own mapping
-  and the operating system limits how many mappings a process may have. If there is not enough
-  free space in the temporary directory, conversion fails with an error.
+   Offloading can reduce anonymous memory usage at the cost of disk space and conversion time;
+   file-backed pages still count towards RSS. Use a filesystem with enough free space rather
+   than a RAM-backed temporary directory. Every offloaded constant needs its own mapping, so
+   offloading all constants can reach the operating system's mapping limit. On Linux, temporary
+   files are unlinked while mapped and will not appear in directory listings. Temporary mapping
+   is supported on Linux, macOS, and Windows.
 
   Example:
 
@@ -139,7 +143,8 @@ For details on how plugins handle compressed ``FP16`` models, see
 
      ov_model = ov.convert_model(
          "large_model.onnx",
-         constant_offload_min_size=128 * 1024 * 1024,
+             max_memory=16 * 1024**3,
+             offloading_path="/path/to/offload",
      )
      ov.save_model(ov_model, "large_model.xml")
 

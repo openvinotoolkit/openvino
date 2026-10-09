@@ -216,7 +216,8 @@ static const auto core_properties_names = ov::util::make_array(ov::cache_dir.nam
                                                                ov::cache_model_path.name(),
                                                                ov::cache_blob_id.name(),
                                                                ov::enable_mmap.name(),
-                                                               ov::constant_offload_min_size.name(),
+                                                               ov::max_memory.name(),
+                                                               ov::offloading_path.name(),
                                                                ov::force_tbb_terminate.name());
 
 static const auto auto_batch_properties_names =
@@ -870,7 +871,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                 m_core_config,
                                                 config_with_batch,
                                                 is_proxy_device(patched_device_name));
-    const ov::ScopedConstantOffloadConfig constant_offload_scope{parsed.m_core_config.get_constant_offload_min_size()};
+    const ov::ScopedConstantOffloadConfig constant_offload_scope{parsed.m_core_config.get_max_memory(),
+                                                                parsed.m_core_config.get_offloading_path()};
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, config, model);
@@ -911,7 +913,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
     auto parsed =
         parse_device_name_into_config(device_name, m_core_config, config_with_batch, is_proxy_device(device_name));
-    const ov::ScopedConstantOffloadConfig constant_offload_scope{parsed.m_core_config.get_constant_offload_min_size()};
+    const ov::ScopedConstantOffloadConfig constant_offload_scope{parsed.m_core_config.get_max_memory(),
+                                                                parsed.m_core_config.get_offloading_path()};
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, context, parsed.m_config, model);
@@ -944,7 +947,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Path");
     auto parsed = parse_device_config(device_name, m_core_config, config, false);
-    const ov::ScopedConstantOffloadConfig constant_offload_scope{parsed.m_core_config.get_constant_offload_min_size()};
+    const ov::ScopedConstantOffloadConfig constant_offload_scope{parsed.m_core_config.get_max_memory(),
+                                                                parsed.m_core_config.get_offloading_path()};
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
@@ -980,7 +984,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parse_device_name_into_config(device_name, m_core_config, config);
-    const ov::ScopedConstantOffloadConfig constant_offload_scope{parsed.m_core_config.get_constant_offload_min_size()};
+    const ov::ScopedConstantOffloadConfig constant_offload_scope{parsed.m_core_config.get_max_memory(),
+                                                                parsed.m_core_config.get_offloading_path()};
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, parsed.m_config);
@@ -1303,9 +1308,12 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
     } else if (name == ov::enable_mmap.name()) {
         const auto flag = m_core_config.get_enable_mmap();
         return decltype(ov::enable_mmap)::value_type(flag);
-    } else if (name == ov::constant_offload_min_size.name()) {
-        const auto min_constant_size = m_core_config.get_constant_offload_min_size();
-        return decltype(ov::constant_offload_min_size)::value_type(min_constant_size);
+    } else if (name == ov::max_memory.name()) {
+        const auto budget = m_core_config.get_max_memory();
+        OPENVINO_ASSERT(budget.has_value(), "MAX_MEMORY is not set; constant offloading is disabled");
+        return decltype(ov::max_memory)::value_type(*budget);
+    } else if (name == ov::offloading_path.name()) {
+        return decltype(ov::offloading_path)::value_type(m_core_config.get_offloading_path());
     }
 
     OPENVINO_THROW("Exception is thrown while trying to call get_property with unsupported property: '", name, "'");
@@ -1732,10 +1740,16 @@ ov::CoreConfig::CoreConfig(const CoreConfig& other) {
         m_devices_cache_config = other.m_devices_cache_config;
     }
     m_flag_enable_mmap = other.m_flag_enable_mmap;
-    m_constant_offload_min_size = other.m_constant_offload_min_size;
+    m_max_memory = other.m_max_memory;
+    m_offloading_path = other.m_offloading_path;
 }
 
 void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
+    if (const auto path = config.find(ov::offloading_path.name()); path != config.end()) {
+        OPENVINO_ASSERT(path->second.as<std::string>().empty() || m_max_memory.has_value() ||
+                            config.count(ov::max_memory.name()) != 0,
+                        "Set MAX_MEMORY before specifying OFFLOADING_PATH");
+    }
     if (const auto cache_path = get_cache_path_from_config(config); cache_path.has_value()) {
         if (std::lock_guard<std::mutex> lock(m_cache_config_mutex); device_name.empty()) {
             // fill global cache config
@@ -1757,8 +1771,11 @@ void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_nam
         m_flag_enable_mmap = cfg_entry->second.as<bool>();
     }
 
-    if (const auto cfg_entry = config.find(ov::constant_offload_min_size.name()); cfg_entry != config.end()) {
-        m_constant_offload_min_size = cfg_entry->second.as<uint64_t>();
+    if (const auto cfg_entry = config.find(ov::max_memory.name()); cfg_entry != config.end()) {
+        m_max_memory = cfg_entry->second.as<uint64_t>();
+    }
+    if (const auto cfg_entry = config.find(ov::offloading_path.name()); cfg_entry != config.end()) {
+        m_offloading_path = cfg_entry->second.as<std::string>();
     }
 }
 
@@ -1782,8 +1799,12 @@ bool ov::CoreConfig::get_enable_mmap() const {
     return m_flag_enable_mmap;
 }
 
-uint64_t ov::CoreConfig::get_constant_offload_min_size() const {
-    return m_constant_offload_min_size;
+std::optional<uint64_t> ov::CoreConfig::get_max_memory() const {
+    return m_max_memory;
+}
+
+const std::string& ov::CoreConfig::get_offloading_path() const {
+    return m_offloading_path;
 }
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov::Plugin& plugin) const {
@@ -1822,7 +1843,8 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::filesystem::path&
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = m_core_config;
     local_core_config.set(properties, {});
-    const ov::ScopedConstantOffloadConfig constant_offload_scope{local_core_config.get_constant_offload_min_size()};
+    const ov::ScopedConstantOffloadConfig constant_offload_scope{local_core_config.get_max_memory(),
+                                                                local_core_config.get_offloading_path()};
     return ov::util::read_model(model_path, bin_path, get_extensions_copy(), local_core_config.get_enable_mmap());
 }
 

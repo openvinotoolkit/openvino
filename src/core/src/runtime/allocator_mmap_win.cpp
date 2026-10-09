@@ -48,6 +48,17 @@ size_t get_page_size() {
 }
 
 std::filesystem::path get_temporary_directory() {
+    const auto& configured = ov::get_constant_offload_path();
+    if (!configured.empty()) {
+        std::error_code error;
+        const std::filesystem::path path{configured};
+        std::filesystem::create_directories(path, error);
+        OPENVINO_ASSERT(std::filesystem::is_directory(path),
+                        "Constant offload path '",
+                        configured,
+                        "' is not a usable directory");
+        return path;
+    }
     std::error_code error;
     auto temp_dir = std::filesystem::temp_directory_path(error);
     OPENVINO_ASSERT(!error, "Cannot get temporary directory for mmap constant storage: ", error.message());

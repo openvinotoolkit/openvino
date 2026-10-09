@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
-from typing import Any
+from typing import Any, Optional
 
 # pylint: disable=no-name-in-module,import-error
 from openvino import Model
-from openvino._pyopenvino import _TemporaryConstantOffloadScope
 from openvino.tools.ovc.cli_parser import get_all_cli_parser
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
@@ -24,7 +23,8 @@ def convert_model(
         verbose: bool = False,
         share_weights: bool = True,
         dynamo: bool = False,
-        constant_offload_min_size: int = 0,
+        max_memory: Optional[int] = None,
+        offloading_path: str = "",
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -108,21 +108,31 @@ def convert_model(
             dimensions set to -1 or Dimension(-1) become fully dynamic
             (torch.export.Dim.AUTO), and bounded dimensions such as Dimension(1, 10)
             are exported with explicit min/max constraints.
-        :param constant_offload_min_size:
-            Minimum size in bytes for constants produced during conversion to
-            use temporary mmap-backed storage. Set to 0 to disable.
-            Default is 0.
+        :param max_memory:
+            Budget in bytes for constants built during conversion. While they fit
+            within it they stay in RAM; once it is exhausted further constants are
+            backed by files under offloading_path. 0 offloads all eligible
+            constants. None (the default) disables offloading.
+        :param offloading_path:
+            Directory holding offloaded constants. Empty uses the system temporary
+            directory. Default is "".
 
     Returns:
         openvino.Model
     """
     params = locals()
-    if constant_offload_min_size < 0:
-        raise ValueError("constant_offload_min_size must be non-negative")
+    if max_memory is not None and max_memory < 0:
+        raise ValueError("max_memory must be non-negative")
+    if offloading_path and max_memory is None:
+        raise ValueError("offloading_path requires max_memory")
 
     logger_state = get_logger_state()
     cli_parser = get_all_cli_parser()
-    mmap_scope = _TemporaryConstantOffloadScope(constant_offload_min_size)
+    mmap_scope = None
+    if max_memory is not None:
+        from openvino._pyopenvino import _TemporaryConstantOffloadScope
+
+        mmap_scope = _TemporaryConstantOffloadScope(max_memory, offloading_path)
     try:
         ov_model, _ = _convert(cli_parser, params, True)
     finally:

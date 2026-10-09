@@ -20,16 +20,18 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
     consecutive compilation of the same model will fetch the information already stored in RAM
     instead of reading it one more time from storage.
 
-  * Temporary mapping for generated constants - large constants created while reading a model or
-    running graph transformations can be stored in temporary ``mmap``-backed files instead of RAM.
-    Enable it by passing ``ov::constant_offload_min_size(BYTES)`` to ``ov::Core::read_model()``,
-    ``ov::Core::compile_model()``, or by setting the property on ``ov::Core``. The value is the
-    minimum constant size that goes to file-backed storage; ``0`` disables the feature and is the
-    default. Constants below the limit use the regular allocator to minimize overhead. Keep the
-    limit large enough, because every file-backed constant needs its own mapping and the operating
-    system limits how many mappings a process may have. This mode is supported on Linux, macOS, and
-    Windows. Make sure the temporary directory has enough free disk space for the generated
-    constants; otherwise, model reading fails with an error.
+  * Temporary mapping for generated constants - constants allocated by OpenVINO while reading
+    a model or running graph transformations can use temporary ``mmap``-backed files. Set
+    ``ov::max_memory(BYTES)`` to budget their RAM usage; when the budget is exhausted, further
+    constants are backed by files in ``ov::offloading_path(PATH)``. Freed constants return their
+    bytes to the budget. Omitting the budget disables offloading; explicitly setting it to zero
+    offloads all eligible constants. An empty path uses the system temporary directory; a
+    non-empty path requires a budget. These properties can be set on ``ov::Core`` or passed to
+    ``ov::Core::read_model()`` or ``ov::Core::compile_model()``. The budget does not cap total
+    process RSS: file-backed pages still count towards RSS but can be reclaimed by the OS.
+    This mode is supported on Linux, macOS, and Windows. Use a directory with enough disk space,
+    not a RAM-backed temporary filesystem. Each offloaded constant needs its own mapping; on
+    Linux the temporary files are unlinked immediately and are invisible in directory listings.
 
     .. tab-set::
 
@@ -39,10 +41,9 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
           .. code-block:: cpp
 
              ov::Core core;
-             auto model = core.read_model(
-                 "model.xml",
-                 "model.bin",
-                 ov::constant_offload_min_size(64ULL * 1024ULL * 1024ULL));
+             core.set_property({ov::max_memory(16ULL * 1024ULL * 1024ULL * 1024ULL),
+                                ov::offloading_path("/path/to/offload")});
+             auto model = core.read_model("model.xml");
 
        .. tab-item:: Python
           :sync: py
@@ -50,13 +51,12 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
           .. code-block:: py
 
              import openvino as ov
+             from openvino import properties as props
 
              core = ov.Core()
-             model = core.read_model(
-                 "model.xml",
-                 "model.bin",
-                 constant_offload_min_size=64 * 1024 * 1024,
-             )
+             core.set_property({props.max_memory: 16 * 1024**3,
+                                props.offloading_path: "/path/to/offload"})
+             model = core.read_model("model.xml")
 
   * Decrease the number of threads for compilation - to change the number of threads, specify
     the ``ov::compilation_num_threads(NUMBER)`` property for the ``ov::Core`` or pass it as an additional

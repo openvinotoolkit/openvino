@@ -41,6 +41,19 @@ def test_properties_rw_base():
     assert "incompatible function arguments" in str(e.value)
 
 
+def test_constant_offload_budget_properties():
+    core = Core()
+    with pytest.raises(RuntimeError, match="MAX_MEMORY is not set"):
+        core.get_property(props.max_memory)
+    with pytest.raises(RuntimeError, match="Set MAX_MEMORY before specifying OFFLOADING_PATH"):
+        core.set_property({props.offloading_path: "/tmp/unused-offload"})
+
+    assert core.get_property(props.offloading_path) == ""
+    core.set_property({props.max_memory: 0, props.offloading_path: "/tmp/unused-offload"})
+    assert core.get_property(props.max_memory) == 0
+    assert core.get_property(props.offloading_path) == "/tmp/unused-offload"
+
+
 ###
 # Enum-like values
 ###
@@ -275,7 +288,8 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (props.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
         (props.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
-        (props.constant_offload_min_size, "CONSTANT_OFFLOAD_MIN_SIZE", ((64, 64),)),
+        (props.max_memory, "MAX_MEMORY", ((0, 0), (64, 64))),
+        (props.offloading_path, "OFFLOADING_PATH", (("/tmp/offload", "/tmp/offload"),)),
         (
             props.weights_path,
             "WEIGHTS_PATH",
