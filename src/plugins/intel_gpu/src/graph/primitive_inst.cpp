@@ -870,12 +870,26 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     const auto use_private_present = present_layout.data_type != mid_layout.data_type || present_layout.format != mid_layout.format ||
                                      aliases_restricted_input() || (is_same && !same_placement());
     auto kv_present = present_tensor;
+    auto& private_present = downcast<stateless_kv_inst>(*this).private_present();
     if (use_private_present) {
-        kv_present = engine.allocate_memory(mid_layout, engine.get_preferred_memory_allocation_type(), false);
+        const bool can_reuse = private_present && private_present->size() >= mid_layout.bytes_count();
+        auto& sp = *get_network().get_shape_predictor();
+        const auto prealloc = sp.predict_preallocation_shape(id(), mid_layout, can_reuse);
+        if (!can_reuse) {
+            auto alloc_layout = mid_layout;
+            if (prealloc.first && sp.can_preallocate(ov::shape_size(prealloc.second) * data_type_traits::size_of(mid_layout.data_type)))
+                alloc_layout = mid_layout.clone_with_other_shape(prealloc.second);
+            if (alloc_layout.bytes_count() < mid_layout.bytes_count())
+                alloc_layout = mid_layout;
+            private_present = engine.allocate_memory(alloc_layout, engine.get_preferred_memory_allocation_type(), false);
+        }
+        kv_present = engine.reinterpret_buffer(*private_present, mid_layout);
         // The Result stays a real reorder and copies the private present into its own buffer.
         result.set_can_be_optimized(false);
-    } else if (mid_layout == present_layout) {
-        result.set_can_be_optimized(true);
+    } else {
+        private_present.reset();
+        if (mid_layout == present_layout)
+            result.set_can_be_optimized(true);
     }
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
                            << present_tensor->buffer_ptr() << "](" << present_tensor->get_layout().to_short_string() << ")(" << result.id()

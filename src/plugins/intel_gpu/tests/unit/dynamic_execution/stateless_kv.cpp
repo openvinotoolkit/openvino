@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <numeric>
 
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/stateless_kv.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
@@ -310,6 +311,42 @@ TEST(stateless_kv_runtime, caller_output_binding_respects_inplace_contract) {
     EXPECT_THAT(std::vector<float>(actual.begin(), actual.begin() + expected.size()), testing::ElementsAreArray(expected));
 }
 
+// A reader of past scheduled after stateless_kv restricts it from sharing past's buffer, so a Result bound
+// to past (bypassing network::can_bind_user_output_memory()) must not make stateless_kv update past in place.
+TEST(stateless_kv_runtime, restricted_past_forces_private_present) {
+    auto& engine = get_test_engine();
+    const layout past_layout{ov::Shape{1, 2, 16, 4}, data_types::f32, format::bfyx};
+    const layout token_layout{ov::Shape{1, 2, 1, 4}, data_types::f32, format::bfyx};
+    const layout seq_len_layout{ov::Shape{1}, data_types::i64, format::bfyx};
+
+    auto topo = make_stateless_kv_topology(token_layout);
+    // Reading output 1 orders this reader of past after stateless_kv.
+    topo.add(eltwise("late_reader", input_info("past"), input_info("stateless_kv", 1), eltwise_mode::sum));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    network net(engine, topo, config);
+
+    auto past = engine.allocate_memory(past_layout, allocation_type::usm_host);
+    auto token = engine.allocate_memory(token_layout);
+    auto seq_len = engine.allocate_memory(seq_len_layout);
+    set_values(past, std::vector<float>(past_layout.count(), 1.0f));
+    set_values(token, std::vector<float>(token_layout.count(), 3.0f));
+    // Full capacity keeps output 1 the same shape as past for the eltwise.
+    set_values<int64_t>(seq_len, {16});
+    net.set_input_data("past", past);
+    net.set_input_data("new_token", token);
+    net.set_input_data("present_len", seq_len);
+    EXPECT_FALSE(net.may_alias("result", "past"));
+
+    net.set_output_memory("result", past, true);
+    net.execute();
+    auto kv_output = net.get_primitive("stateless_kv")->output_memory_ptr(0);
+    ASSERT_NE(kv_output, nullptr);
+    EXPECT_FALSE(engine.is_the_same_buffer(*kv_output, *past));
+}
+
 // Growing present over a caller buffer that also backs past changes the head pitch, so stateless_kv must not
 // update in place: it computes into its own buffer and result copies that into the caller buffer.
 TEST(stateless_kv_runtime, concat_growth_with_aliased_caller_buffer) {
@@ -411,6 +448,76 @@ TEST(stateless_kv_runtime, converting_result_does_not_share_present_buffer) {
             ASSERT_FLOAT_EQ(static_cast<float>(actual[offset]), expected[offset]) << "index=" << offset;
         }
     }
+}
+
+// The private present buffer of a converting Result is kept across executions while it is large enough.
+TEST(stateless_kv_runtime, converting_result_reuses_private_present_buffer) {
+    auto& engine = get_test_engine();
+
+    constexpr int64_t heads = 2;
+    constexpr int64_t head_size = 4;
+    const layout token_layout{ov::PartialShape{1, heads, 1, head_size}, data_types::f32, format::bfyx};
+    const layout seq_len_layout{ov::PartialShape{1}, data_types::i64, format::bfyx};
+
+    auto topo = make_stateless_kv_topology(token_layout, data_types::f16);
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network net(engine, topo, config);
+
+    auto new_token = engine.allocate_memory(token_layout);
+    auto seq_len = engine.allocate_memory(seq_len_layout);
+    net.set_input_data("new_token", new_token);
+    net.set_input_data("present_len", seq_len);
+
+    auto run = [&](int64_t capacity, int64_t present_len) -> memory::ptr {
+        const layout past_layout{ov::PartialShape{1, heads, capacity, head_size}, data_types::f32, format::bfyx};
+        auto past = engine.allocate_memory(past_layout);
+        std::vector<float> past_values(past_layout.count());
+        std::iota(past_values.begin(), past_values.end(), 0.0f);
+        set_values(past, past_values);
+        const float token_value = 1000.0f + static_cast<float>(present_len);
+        set_values(new_token, std::vector<float>(token_layout.count(), token_value));
+        set_values<int64_t>(seq_len, {present_len});
+        net.set_input_data("past", past);
+
+        auto outputs = net.execute();
+        auto result = outputs.at("result").get_memory();
+        auto kv_output = net.get_primitive("stateless_kv")->output_memory_ptr(0);
+        EXPECT_NE(result, nullptr);
+        EXPECT_NE(kv_output, nullptr);
+        if (!result || !kv_output)
+            return nullptr;
+        EXPECT_FALSE(engine.is_the_same_buffer(*kv_output, *result));
+
+        auto expected = past_values;
+        for (int64_t head = 0; head < heads; ++head)
+            std::fill_n(expected.begin() + (head * capacity + present_len - 1) * head_size, head_size, token_value);
+        mem_lock<ov::float16, mem_lock_type::read> actual(result, get_test_stream());
+        for (int64_t head = 0; head < heads; ++head) {
+            for (int64_t i = 0; i < present_len * head_size; ++i) {
+                const auto offset = static_cast<size_t>(head * capacity * head_size + i);
+                EXPECT_FLOAT_EQ(static_cast<float>(actual[offset]), expected[offset])
+                    << "capacity=" << capacity << " present_len=" << present_len << " index=" << offset;
+            }
+        }
+        return kv_output;
+    };
+
+    auto first = run(16, 5);
+    ASSERT_NE(first, nullptr);
+    for (int64_t present_len : {6, 7}) {
+        auto kv_output = run(16, present_len);
+        ASSERT_NE(kv_output, nullptr);
+        EXPECT_TRUE(engine.is_the_same_buffer(*kv_output, *first)) << "present_len=" << present_len;
+    }
+
+    // A larger cache needs a larger buffer; shrinking back must keep using it.
+    auto grown = run(32, 20);
+    ASSERT_NE(grown, nullptr);
+    auto shrunk = run(16, 8);
+    ASSERT_NE(shrunk, nullptr);
+    EXPECT_TRUE(engine.is_the_same_buffer(*shrunk, *grown));
 }
 
 namespace {
