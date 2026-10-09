@@ -20,7 +20,6 @@
 #include <map>
 #include <utility>
 #include <set>
-#include <mutex>
 
 namespace cldnn {
 
@@ -32,6 +31,7 @@ class base_pass;
 class program_wrapper;
 class kernels_cache;
 class state_conversion_executor;
+class state_conversion_registry;
 class ICompilationContext;
 using state_conversion_key = std::pair<data_types, data_types>;
 
@@ -310,9 +310,7 @@ private:
     stream::ptr _stream;
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
-    std::shared_ptr<state_conversion_executor> _state_conversion_executor;
-    std::mutex _state_conversion_mutex;
-    bool _state_conversions_prepared = false;
+    std::unique_ptr<state_conversion_registry> _state_conversions;
     ExecutionConfig _config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;
