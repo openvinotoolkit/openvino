@@ -1486,7 +1486,8 @@ void JitConverter<T[N]>::generate() {
 
         store(dst_uv, uv_out);
         dst_uv += uv_step;
-    });
+    })
+        ;
 
     // Tail: remaining pixels (width % N). NV12 requires even width, so tail is even.
     mov(width, argPtr(&Params::width));
