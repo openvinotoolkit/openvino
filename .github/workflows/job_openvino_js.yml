@@ -82,10 +82,9 @@ jobs:
         run: npm run test --loglevel=silly
 
       - name: Install electron deps and run Xvfb
-        if: runner.os == 'Linux' && fromJSON(inputs.nodejs-version) >= 22
+        if: runner.os == 'Linux'
         run: Xvfb "$DISPLAY" &
 
       - name: E2E of openvino-node package
-        if: ${{ 'false' }} # Skipping E2E tests for now due to CVS-192563
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e --loglevel=silly

@@ -220,6 +220,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/concat_reshape_concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/concat_sdp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/concat_transpose_sdp_transpose.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/constant_result_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv3d_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/convert_bool_math.cpp
@@ -406,6 +407,7 @@ set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/compatibility_string.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/export_import.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/concurent_release_memory.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/input_tensor_initialization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/properties.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/release_memory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_plugin/properties.cpp
@@ -754,6 +756,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/concat_reshape_concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/concat_sdp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/concat_transpose_sdp_transpose.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/constant_result_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv3d_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/conv_maxpool_activ.cpp

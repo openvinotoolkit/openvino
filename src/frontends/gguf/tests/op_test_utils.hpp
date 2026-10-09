@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <set>
@@ -26,6 +28,7 @@
 #include <vector>
 
 #include "cnpy.h"
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "gtest/gtest.h"
 #include "op_table.hpp"
@@ -76,6 +79,7 @@ class SingleOpDecoder : public GgufDecoder, public std::enable_shared_from_this<
 public:
     SingleOpDecoder(std::string op_type,
                     std::vector<TensorDesc> inputs,
+                    std::vector<TensorDesc> extra_inputs,
                     TensorDesc output,
                     std::map<std::string, ov::Any> attributes)
         : m_op_type(std::move(op_type)),
@@ -90,6 +94,12 @@ public:
             p->output(0).set_names({in.name});
             m_model_inputs[in.name] = p;
         }
+        for (const auto& in : extra_inputs) {
+            auto p = std::make_shared<ov::op::v0::Parameter>(in.type, in.shape);
+            p->set_friendly_name(in.name);
+            p->output(0).set_names({in.name});
+            m_model_extra_inputs[in.name] = p;
+        }
     }
 
     // ── typed node-scoped attribute access (we hold a single op) ────────────────
@@ -100,7 +110,8 @@ public:
 
     // ── per-node metadata ───────────────────────────────────────────────────────
     int64_t get_input_view_element_offset(const std::string&) const override {
-        return 0;
+        auto it = m_attributes.find("view_offset");
+        return it == m_attributes.end() ? 0 : it->second.as<int64_t>();
     }
     ov::PartialShape get_input_shape(const std::string& name) const override {
         return find_input(name).shape;
@@ -135,6 +146,9 @@ public:
     const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_inputs() const override {
         return m_model_inputs;
     }
+    const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_extra_inputs() const override {
+        return m_model_extra_inputs;
+    }
     std::vector<std::string> get_model_output_names() const override {
         return {m_output.name};
     }
@@ -159,6 +173,7 @@ private:
     std::map<std::string, ov::Any> m_attributes;
     std::vector<std::string> m_input_names;
     std::map<std::string, std::shared_ptr<ov::Node>> m_model_inputs;
+    std::map<std::string, std::shared_ptr<ov::Node>> m_model_extra_inputs;
 };
 
 // Fluent builder: describe a single op and convert it to an ov::Model.
@@ -170,6 +185,10 @@ public:
     }
     SingleOpBuilder& input(const std::string& name, ov::element::Type type, const ov::PartialShape& shape) {
         m_inputs.push_back({name, type, shape});
+        return *this;
+    }
+    SingleOpBuilder& extra_input(const std::string& name, ov::element::Type type, const ov::PartialShape& shape) {
+        m_extra_inputs.push_back({name, type, shape});
         return *this;
     }
     SingleOpBuilder& output(const std::string& name, ov::element::Type type, const ov::PartialShape& shape) {
@@ -194,7 +213,7 @@ public:
     std::shared_ptr<GgufDecoder> decoder() const {
         auto attrs = m_attributes;
         attrs.emplace("output_type", ov::Any(m_output.type));
-        return std::make_shared<SingleOpDecoder>(m_op_type, m_inputs, m_output, attrs);
+        return std::make_shared<SingleOpDecoder>(m_op_type, m_inputs, m_extra_inputs, m_output, attrs);
     }
 
     std::shared_ptr<ov::Model> build() const {
@@ -215,6 +234,7 @@ public:
 private:
     std::string m_op_type;
     std::vector<TensorDesc> m_inputs;
+    std::vector<TensorDesc> m_extra_inputs;
     TensorDesc m_output;
     std::map<std::string, ov::Any> m_attributes;
 };
@@ -225,6 +245,20 @@ inline ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<floa
     ov::Tensor t(ov::element::f32, shape);
     std::copy(data.begin(), data.end(), t.data<float>());
     return t;
+}
+
+inline ov::Tensor make_f16_tensor(const ov::Shape& shape, const std::vector<float>& data) {
+    ov::Tensor tensor(ov::element::f16, shape);
+    std::transform(data.begin(), data.end(), tensor.data<ov::float16>(), [](float value) {
+        return ov::float16(value);
+    });
+    return tensor;
+}
+
+inline ov::Tensor make_i64_tensor(const ov::Shape& shape, const std::vector<int64_t>& data) {
+    ov::Tensor tensor(ov::element::i64, shape);
+    std::copy(data.begin(), data.end(), tensor.data<int64_t>());
+    return tensor;
 }
 
 // Compile on CPU and run one inference with the given named inputs; return the single output.
@@ -292,5 +326,67 @@ std::vector<T> load_npy(const std::string& stem) {
     const T* begin = arr.data<T>();
     return std::vector<T>(begin, begin + arr.num_vals);
 }
+
+// cnpy::npz_t is a vector of pairs, so look the entry up by name.
+inline const cnpy::NpyArray& npz_array(const cnpy::npz_t& arrays, const std::string& name) {
+    const auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
+        return entry.first == name;
+    });
+    OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
+    return it->second;
+}
+
+// Normalized MSE, the acceptance metric for the accuracy fixtures: sum((a-e)^2) / sum(e^2).
+class Nmse {
+public:
+    void add(double actual, double expected) {
+        m_error += (actual - expected) * (actual - expected);
+        m_norm += expected * expected;
+        m_finite = m_finite && std::isfinite(actual);
+    }
+    bool all_finite() const {
+        return m_finite;
+    }
+    // Reference energy; a near-zero value means the fixture itself carries no signal.
+    double reference_norm() const {
+        return m_norm;
+    }
+    double value() const {
+        return m_error / m_norm;
+    }
+
+private:
+    double m_error = 0, m_norm = 0;
+    bool m_finite = true;
+};
+
+inline Nmse nmse(const float* actual, const float* expected, size_t count) {
+    Nmse result;
+    for (size_t i = 0; i < count; ++i)
+        result.add(actual[i], expected[i]);
+    return result;
+}
+
+inline void expect_nmse_below(const Nmse& metric, double limit, const std::string& context = {}) {
+    ASSERT_TRUE(metric.all_finite()) << context;
+    ASSERT_GT(metric.reference_norm(), 1e-12) << context;
+    EXPECT_LT(metric.value(), limit) << context;
+}
+
+// The GGUF bytes a reference npz stores as "model", written to a temporary file for its lifetime.
+struct TemporaryGguf {
+    std::string path =
+        (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
+    explicit TemporaryGguf(const cnpy::NpyArray& bytes) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(bytes.data<char>(), bytes.num_vals);
+        OPENVINO_ASSERT(file, "Cannot write ", path);
+    }
+    TemporaryGguf(const TemporaryGguf&) = delete;
+    TemporaryGguf& operator=(const TemporaryGguf&) = delete;
+    ~TemporaryGguf() {
+        std::filesystem::remove(path);
+    }
+};
 
 }  // namespace ov_gguf_test

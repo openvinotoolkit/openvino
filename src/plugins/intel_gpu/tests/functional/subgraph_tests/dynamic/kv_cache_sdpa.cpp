@@ -472,6 +472,16 @@ std::vector<Params> get_test_params() {
     // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
 
+    // Compressed KV-cache with head size >= 256: the new token must be appended by the dynamic quantize kernel that supports append mode.
+    for (size_t hs : {256u, 512u}) {
+        // The test mask is not shifted by the past length, so at q=1 only the first key is visible and the appended token is not checked.
+        p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 5, 4, hs, hs, 1, {0, 1, 2, 3}});
+        // Without a mask all keys are visible, so the appended token contributes to the result.
+        p.push_back({with_rearrange, !with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 5, 4, hs, hs, 1, {0, 1, 2, 3}});
+    }
+    // Same head size without compression
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 5, 4, 512, 512, 1, {0, 1, 2, 3}});
+
     return p;
 }
 
