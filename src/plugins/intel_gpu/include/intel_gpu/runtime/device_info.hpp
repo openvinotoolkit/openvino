@@ -125,6 +125,7 @@ struct device_info {
     bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
     bool supports_counter_based_events;         ///< [L0] Does the target runtime support counter based events
     bool supports_leo;                          ///< [L0] Does the device support Level Zero - OpenCL interoperability (LEO)
+    bool supports_external_memmap_sysmem;       ///< [L0] Does the driver support mapping an existing host pointer directly via zeMemAllocHost
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
