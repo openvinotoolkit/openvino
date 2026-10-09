@@ -6,7 +6,11 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
+#include <vector>
 
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
@@ -17,7 +21,9 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 #include "test_utils.h"
 
 #include "../../../src/plugin/transformations_pipeline.cpp"
@@ -124,7 +130,73 @@ std::shared_ptr<v0::Parameter> find_parameter_by_name(const std::shared_ptr<cons
     return nullptr;
 }
 
+std::shared_ptr<ov::Model> create_compressed_fc_model(bool dynamic_data,
+                                                      bool transpose_b,
+                                                      size_t output_features) {
+    constexpr size_t input_features = 128;
+    constexpr size_t group_size = 64;
+    auto data_shape = dynamic_data ? PartialShape{-1, -1, input_features} : PartialShape{1, 4, input_features};
+    auto weight_shape = transpose_b ? Shape{output_features, input_features}
+                                    : Shape{input_features, output_features};
+    auto scale_shape = transpose_b ? Shape{output_features, input_features / group_size}
+                                   : Shape{input_features / group_size, output_features};
+
+    auto data = std::make_shared<v0::Parameter>(element::f16, data_shape);
+    auto weights = std::make_shared<v0::Constant>(element::u4, weight_shape);
+    auto scale = std::make_shared<v0::Constant>(element::f16, scale_shape);
+    auto bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(data,
+                                                                            weights,
+                                                                            bias,
+                                                                            scale,
+                                                                            element::f16,
+                                                                            transpose_b);
+    return std::make_shared<ov::Model>(OutputVector{fc}, ParameterVector{data});
+}
+
+bool has_node_type(const std::shared_ptr<const ov::Model>& model, const std::string& type_name) {
+    const auto ordered_ops = model->get_ordered_ops();
+    return std::any_of(ordered_ops.begin(), ordered_ops.end(), [&type_name](const auto& node) {
+        return std::string(node->get_type_name()) == type_name;
+    });
+}
+
 }  // namespace
+
+using DynamicQuantizeParams = std::tuple<bool, bool, size_t, bool>;
+
+class DynamicQuantizeTransformPipelineTest : public testing::TestWithParam<DynamicQuantizeParams> {};
+
+TEST_P(DynamicQuantizeTransformPipelineTest, HandlesWeightLayout) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "Dynamic quantization requires IMMAD support";
+    }
+
+    const auto& [dynamic_data, transpose_b, output_features, expected_dynamic_quantize] = GetParam();
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(64));
+
+    auto model = create_compressed_fc_model(dynamic_data, transpose_b, output_features);
+    config.finalize(context.get(), model.get());
+
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+
+    EXPECT_TRUE(has_node_type(model, "FullyConnectedCompressed"));
+    EXPECT_EQ(has_node_type(model, "DynamicQuantize"), expected_dynamic_quantize);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicQuantization,
+                         DynamicQuantizeTransformPipelineTest,
+                         testing::Values(DynamicQuantizeParams{false, true, 1, false},
+                                         DynamicQuantizeParams{false, false, 1, false},
+                                         DynamicQuantizeParams{true, true, 1, false},
+                                         DynamicQuantizeParams{true, false, 1, false},
+                                         DynamicQuantizeParams{true, true, 16, true},
+                                         DynamicQuantizeParams{true, false, 16, true}));
 
 TEST(XAttentionTransformPipelineTest, NormalizesByTokenFp16RtInfoToCompressedCacheLayout) {
     auto& engine = get_test_engine();

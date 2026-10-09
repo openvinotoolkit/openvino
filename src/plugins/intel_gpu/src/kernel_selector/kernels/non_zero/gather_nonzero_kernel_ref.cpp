@@ -115,8 +115,9 @@ KernelsPriority GatherNonzeroKernelRef::GetKernelsPriority(const Params& /*param
 }
 
 bool GatherNonzeroKernelRef::Validate(const Params& p) const {
-    if (!KernelBaseOpenCL::Validate(p))
+    if (!KernelBaseOpenCL::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& rp = static_cast<const gather_nonzero_params&>(p);
 

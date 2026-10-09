@@ -11,6 +11,27 @@ namespace {
 using ov::test::Mvn1LayerTest;
 using ov::test::Mvn6LayerTest;
 
+// The GPU plugin runs a bf16 model with f32 inference precision (see core_config.cpp), so the
+// GPU result is the accurate f32 computation rounded to bf16 at the output. The default reference
+// would instead compute stepwise in bf16, whose rounding is lossier than a bf16-level tolerance;
+// convert the reference model to f32 as well and use a tolerance covering the bf16 output rounding.
+class Mvn6LayerGPUTest : public Mvn6LayerTest {
+protected:
+    void SetUp() override {
+        Mvn6LayerTest::SetUp();
+        const auto& [shapes, model_type, axis_type, axes, normalize_variance, eps, eps_mode, _targetDevice] =
+            this->GetParam();
+        if (model_type == ov::element::bf16) {
+            abs_threshold = 0.01;
+            convert_precisions = {{ov::element::bf16, ov::element::f32}};
+        }
+    }
+};
+
+TEST_P(Mvn6LayerGPUTest, Inference) {
+    run();
+}
+
 const std::vector<ov::AxisSet> emptyReductionAxes = {{}};
 
 const std::vector<std::vector<ov::Shape>> inputShapes = {
@@ -55,7 +76,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsMVN,
 
 std::vector<ov::element::Type> dataPrecisions = {
     ov::element::f32,
-    ov::element::f16
+    ov::element::f16,
+    ov::element::bf16
 };
 
 std::vector<ov::element::Type> idxPrecisions = {
@@ -72,7 +94,7 @@ const std::vector<float> epsilonF = {
     0.0001f
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MVN_5D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MVN_5D, Mvn6LayerGPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                 std::vector<std::vector<ov::Shape>>{{{1, 10, 5, 7, 8}}, {{1, 3, 8, 9, 49}}})),
@@ -85,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_5D, Mvn6LayerTest,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MVN_4D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MVN_4D, Mvn6LayerGPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                 std::vector<std::vector<ov::Shape>>{{{1, 10, 5, 17}}, {{1, 3, 8, 9}}})),
@@ -98,7 +120,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_4D, Mvn6LayerTest,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MVN_3D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MVN_3D, Mvn6LayerGPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                 std::vector<std::vector<ov::Shape>>{{{1, 32, 17}}, {{1, 37, 9}}})),
@@ -111,7 +133,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_3D, Mvn6LayerTest,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MVN_2D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MVN_2D, Mvn6LayerGPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                 std::vector<std::vector<ov::Shape>>{{{3, 5}}, {{2, 55}}})),
@@ -124,7 +146,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_2D, Mvn6LayerTest,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_1D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_1D, Mvn6LayerGPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                 std::vector<std::vector<ov::Shape>>{{{3}}, {{9}}, {{55}}})),
@@ -137,7 +159,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_1D, Mvn6LayerTest,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_3D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_3D, Mvn6LayerGPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                 std::vector<std::vector<ov::Shape>>{{{1, 32, 17}}, {{1, 37, 9}}})),
@@ -150,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_3D, Mvn6LayerTest,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_4D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_4D, Mvn6LayerGPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                 std::vector<std::vector<ov::Shape>>{{{1, 16, 5, 8}}, {{2, 19, 5, 10}}})),
@@ -163,7 +185,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_4D, Mvn6LayerTest,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_6D, Mvn6LayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_6D, Mvn6LayerGPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                 std::vector<std::vector<ov::Shape>>{{{1, 3, 5, 4, 2, 6}}})),

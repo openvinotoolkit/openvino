@@ -49,6 +49,8 @@ micro::Type convert_type(ov::element::Type t) {
         return micro::Type::f32;
     case ov::element::f16:
         return micro::Type::f16;
+    case ov::element::bf16:
+        return micro::Type::bf16;
     case ov::element::i8:
         return micro::Type::s8;
     case ov::element::u8:
@@ -164,6 +166,11 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
         }
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
+        if (qkv_idx != 0 && desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt)) {
+            const auto& order = qkv_idx == 1 ? desc->input_k_transpose_order : desc->input_v_transpose_order;
+            return get_head_size(params.input_layouts[qkv_idx], extend_order_in_num_heads_dim(order)) * 2;
+        }
+
         switch (qkv_idx) {
         case 0: {
             const auto head_size = get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
@@ -261,6 +268,17 @@ inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
     }
     auto desc = params.typed_desc<scaled_dot_product_attention>();
     return get_value_cache_id(*desc);
+}
+
+inline bool micro_is_v_transposed(const kernel_impl_params& params) {
+    if (params.is_type<paged_attention>())
+        return false;
+
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (desc->input_v_transpose_order.empty())
+        return false;
+    const auto order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+    return order[2] == 3 && order[3] == 2;
 }
 
 struct sdpa_config_t {
@@ -445,130 +463,190 @@ sdpa_config_t xe2_q_h256_s768_2nd_integrated = {64, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xe2_q_h256_s512_2nd_integrated = {32, 32, 32, 16, 16, 1, 8, 2};
 sdpa_config_t xe2_q_h256_s384_2nd_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t xe3_h128 = {32, 16, 32, 16, 16, 2, 16, 2};
-sdpa_config_t xe3_h256 = {32, 16, 32, 16, 16, 2, 16, 2};
+// Native Xe3p configurations from oneDNN SDPA's config catalog. OpenVINO does
+// not distinguish FMA and systolic configurations during config selection, so
+// FMA/f32 labels below preserve source catalog provenance.
+sdpa_config_t xe3_fma_h32 = {16, 16, 16, 16, 2, 2, 2, 2};
+sdpa_config_t xe3_fma_h64_2nd = {16, 16, 16, 16, 8, 4, 8, 4};
+sdpa_config_t xe3_fma_q_h32_2nd = {16, 16, 16, 16, 2, 2, 2, 2};
+sdpa_config_t xe3_fma_q_h64_2nd = {16, 16, 16, 16, 8, 4, 8, 4};
+sdpa_config_t xe3_fma_h32_pa = {16, 16, 16, 16, 2, 2, 2, 2};
+
+// PagedAttention generate_mixed block-size-16 records.
+sdpa_config_t xe3_h64_pa = {16, 16, 16, 16, 4, 4, 4, 4};
+
+sdpa_config_t xe3_h128 = {32, 32, 32, 32, 4, 4, 4, 4};
+sdpa_config_t xe3_h128_pa_sw0 = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xe3_h128_pa = {16, 16, 16, 16, 16, 4, 16, 4};
+sdpa_config_t xe3_h128_2nd = {32, 32, 32, 32, 4, 1, 4, 1};
+sdpa_config_t xe3_q_h128 = {32, 32, 32, 32, 4, 4, 4, 4};
+sdpa_config_t xe3_q_h128_2nd = {32, 32, 32, 32, 4, 1, 4, 1};
+
+sdpa_config_t xe3_h256_2nd = {32, 32, 32, 32, 8, 1, 8, 1};
+sdpa_config_t xe3_h256_pa = {16, 16, 16, 16, 16, 1, 16, 1};
+sdpa_config_t xe3_q_h256 = {32, 32, 32, 32, 8, 2, 8, 2};
+sdpa_config_t xe3_q_h256_2nd = {32, 32, 32, 32, 8, 1, 8, 1};
 
 sdpa_config_t xe3_h512 = {32, 16, 32, 16, 16, 2, 16, 2};
+sdpa_config_t xe3_h512_pa = {16, 16, 16, 16, 16, 2, 16, 2};
 sdpa_config_t xe3_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
-sdpa_config_t xe3_q_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
+sdpa_config_t xe3_fma_q_h512 = {16, 16, 32, 16, 16, 1, 16, 1};
+sdpa_config_t xe3_fma_f32_q_h512_2nd = {16, 16, 32, 16, 16, 1, 16, 1};
 
 sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return &xehpg_h32_pa;
+        }
         if (quantized && seq >= 128) {
-            if (thin_q)
+            if (thin_q) {
                 return &xehpg_q_h32_2nd;
+            }
             return &xehpg_q_h32;
         }
-        if (thin_q)
+        if (thin_q) {
             return &xehpg_h32_2nd;
-        if (seq <= 32)
+        }
+        if (seq <= 32) {
             return &xehpg_h32_s32;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpg_h32_s64;
-        if (seq <= 256)
+        }
+        if (seq <= 256) {
             return &xehpg_h32_s256;
+        }
         return &xehpg_h32;
     }
     if (head_size <= 64) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpg_h64 : &xehpg_h64_pa;
+        }
         if (quantized) {
             if (thin_q) {
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xehpg_q_h64_s64_2nd;
-                if (seq <= 128)
+                }
+                if (seq <= 128) {
                     return &xehpg_q_h64_s128_2nd;
+                }
                 return &xehpg_q_h64_2nd;
             }
-            if (seq <= 32)
+            if (seq <= 32) {
                 return &xehpg_q_h64_s32;
-            if (seq <= 64)
+            }
+            if (seq <= 64) {
                 return &xehpg_q_h64_s64;
-            if (seq <= 128)
+            }
+            if (seq <= 128) {
                 return &xehpg_q_h64_s128;
+            }
             return &xehpg_q_h64;
         }
-        if (thin_q)
+        if (thin_q) {
             return &xehpg_h64_2nd;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpg_h64_s64;
-        if (seq <= 128)
+        }
+        if (seq <= 128) {
             return &xehpg_h64_s128;
+        }
         return &xehpg_h64;
     }
     if (head_size <= 128) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpg_h128 : &xehpg_h128_pa;
+        }
         if (quantized) {
             if (thin_q) {
-                if (seq <= 1)
-                    return &xehpg_q_h128_2nd;
-                if (seq <= 96)
+                // xehpg_q_h128_2nd (unroll_m_kq = 32) does not fit the Xe HPG register budget once K
+                // is integer-typed: the KQ strategy is rejected, micro-kernel generation throws, and
+                // SDPA silently falls back to sdpa_opt - which cannot index per-channel scales at
+                // all. xehpg_h128_2nd differs only in unroll_m_kq (8) and does fit.
+                if (seq <= 96 && seq > 1) {
                     return &xehpg_q_h128_s96_2nd;
-                return &xehpg_q_h128_2nd;
+                }
+                return &xehpg_h128_2nd;
             }
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpg_q_h128_s64;
-            if (seq <= 512)
+            }
+            if (seq <= 512) {
                 return &xehpg_q_h128_s512;
+            }
             return &xehpg_q_h128;
         }
         if (thin_q) {
-            if (seq <= 256)
+            if (seq <= 256) {
                 return &xehpg_q_h128_2nd;
+            }
             return &xehpg_h128_2nd;
         }
-        if (seq <= 32)
+        if (seq <= 32) {
             return &xehpg_h128_s32;
+        }
         return &xehpg_h128;
     }
     if (head_size <= 256) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpg_h256 : &xehpg_h256_pa;
+        }
         if (thin_q) {
             if (quantized) {
-                if (seq <= 96)
+                if (seq <= 96) {
                     return &xehpg_q_h256_s96_2nd;
+                }
                 return &xehpg_q_h256_2nd;
             }
-            if (seq <= 32)
+            if (seq <= 32) {
                 return &xehpg_h256_s32_2nd;
-            if (seq <= 64)
+            }
+            if (seq <= 64) {
                 return &xehpg_h256_s64_2nd;
+            }
             return &xehpg_h256_2nd;
         }
         if (quantized) {
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpg_q_h256_s64;
-            if (seq <= 512)
+            }
+            if (seq <= 512) {
                 return &xehpg_q_h256_s512;
+            }
             return &xehpg_q_h256;
         }
-        if (seq <= 32)
+        if (seq <= 32) {
             return &xehpg_h256_s32;
-        if (seq <= 128)
+        }
+        if (seq <= 128) {
             return &xehpg_h256_s128;
+        }
         return &xehpg_h256;
     }
     if (head_size <= 512) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpg_h512 : &xehpg_h512_pa;
+        }
         if (quantized) {
             if (thin_q) {
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xehpg_q_h512_s64_2nd;
-                if (seq <= 256)
+                }
+                if (seq <= 256) {
                     return &xehpg_q_h512_s256_2nd;
+                }
                 return &xehpg_q_h512_2nd;
             }
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpg_q_h512_s64;
-            if (seq <= 128)
+            }
+            if (seq <= 128) {
                 return &xehpg_q_h512_s128;
-            if (seq <= 256)
+            }
+            if (seq <= 256) {
                 return &xehpg_q_h512_s256;
+            }
             return &xehpg_q_h512;
         }
         if (thin_q) {
@@ -581,59 +659,75 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
 
 sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h32 : &xehpc_h32_pa;
-        if (thin_q)
+        }
+        if (thin_q) {
             return &xehpc_h32_2nd;
-        if (seq <= 32)
+        }
+        if (seq <= 32) {
             return &xehpc_h32_s32;
+        }
         return &xehpc_h32;
     }
     if (head_size <= 64) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h64 : (thin_q ? &xehpc_h64_pa_2nd : &xehpc_h64_pa);
+        }
         if (thin_q) {
             if (quantized) {
-                if (seq <= 96)
+                if (seq <= 96) {
                     return &xehpc_q_h64_s96_2nd;
-                if (seq <= 256)
+                }
+                if (seq <= 256) {
                     return &xehpc_q_h64_s256_2nd;
-                if (seq <= 1152)
+                }
+                if (seq <= 1152) {
                     return &xehpc_q_h64_s1152_2nd;
+                }
                 return &xehpc_q_h64_2nd;
             }
 
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpc_h64_s64_2nd;
+            }
             return &xehpc_h64_2nd;
         }
         if (quantized) {
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpc_q_h64_s64;
-            if (seq <= 384)
+            }
+            if (seq <= 384) {
                 return &xehpc_q_h64_s384;
-            if (seq <= 1024)
+            }
+            if (seq <= 1024) {
                 return &xehpc_q_h64_s1024;
+            }
             return &xehpc_q_h64;
         }
-        if (seq <= 32)
+        if (seq <= 32) {
             return &xehpc_h64_s32;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpc_h64_s64;
+        }
         return &xehpc_h64;
     }
     if (head_size <= 128) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h128 : &xehpc_h128_pa;
+        }
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) {
                     return &xehpc_q_h128_2nd_integrated;
                 }
-                if (seq <= 96)
+                if (seq <= 96) {
                     return &xehpc_q_h128_s96_2nd;
-                if (seq <= 512)
+                }
+                if (seq <= 512) {
                     return &xehpc_q_h128_s512_2nd;
+                }
                 return &xehpc_q_h128_2nd;
             }
             if (is_integrated) {
@@ -641,86 +735,112 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
                     return &xehpc_q_h128_s128_integrated;
                 }
             }
-            if (seq <= 32)
+            if (seq <= 32) {
                 return &xehpc_q_h128_s32;
-            if (seq <= 128)
+            }
+            if (seq <= 128) {
                 return &xehpc_q_h128_s128;
+            }
             return &xehpc_q_h128;
         }
-        if (is_integrated)
+        if (is_integrated) {
             return &xehpc_q_h128_2nd_integrated;
-        if (thin_q)
+        }
+        if (thin_q) {
             return &xehpc_h128_2nd;
-        if (seq <= 32)
+        }
+        if (seq <= 32) {
             return &xehpc_h128_s32;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpc_h128_s64;
+        }
         return &xehpc_h128;
     }
     if (head_size <= 256) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h256 : &xehpc_h256_pa;
-        if (thin_q)
+        }
+        if (thin_q) {
             return &xehpc_h256_2nd;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpc_h256_s64;
+        }
         return &xehpc_h256;
     }
     if (head_size <= 512) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h512 : &xehpc_h512_pa;
+        }
         if (thin_q) {
             if (quantized) {
                 if (is_integrated) {
-                    if (seq <= 64)
+                    if (seq <= 64) {
                         return &xehpc_q_h512_s64_2nd_integrated;
-                    if (seq <= 128)
+                    }
+                    if (seq <= 128) {
                         return &xehpc_q_h512_s128_2nd_integrated;
-                    if (seq <= 256)
+                    }
+                    if (seq <= 256) {
                         return &xehpc_q_h512_s256_2nd_integrated;
-                    if (seq <= 512)
+                    }
+                    if (seq <= 512) {
                         return &xehpc_q_h512_s512_2nd_integrated;
-                    if (seq <= 1024)
+                    }
+                    if (seq <= 1024) {
                         return &xehpc_q_h512_s1024_2nd_integrated;
+                    }
                     return &xehpc_q_h512_2nd_integrated;
                 }
-                if (seq <= 512)
+                if (seq <= 512) {
                     return &xehpc_q_h512_s512_2nd;
-                if (seq <= 1024)
+                }
+                if (seq <= 1024) {
                     return &xehpc_q_h512_s1024_2nd;
+                }
                 return &xehpc_q_h512_2nd;
             }
 
             if (is_integrated) {
-                if (seq <= 256)
+                if (seq <= 256) {
                     return &xehpc_h512_s256_2nd_integrated;
-                if (seq <= 1024)
+                }
+                if (seq <= 1024) {
                     return &xehpc_h512_s1024_2nd_integrated;
+                }
                 return &xehpc_h512_2nd_integrated;
             }
-            if (seq <= 128)
+            if (seq <= 128) {
                 return &xehpc_h512_s128_2nd;
-            if (seq <= 512)
+            }
+            if (seq <= 512) {
                 return &xehpc_h512_s512_2nd;
-            if (seq <= 1024)
+            }
+            if (seq <= 1024) {
                 return &xehpc_h512_s1024_2nd;
+            }
             return &xehpc_h512_2nd;
         }
 
         if (quantized) {
-            if (is_integrated)
+            if (is_integrated) {
                 return &xehpc_q_h512_integrated;
-            if (seq <= 128)
+            }
+            if (seq <= 128) {
                 return &xehpc_q_h512_s128;
+            }
             return &xehpc_q_h512;
         }
         if (is_integrated) {
-            if (seq <= 128)
+            if (seq <= 128) {
                 return &xehpc_h512_s128_integrated;
+            }
             return &xehpc_h512_integrated;
         }
-        if (seq <= 64)
+        if (seq <= 64) {
             return &xehpc_h512_s64;
+        }
         return &xehpc_h512;
     }
     return nullptr;
@@ -734,39 +854,52 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) {
-                    if (seq <= 96)
+                    if (seq <= 96) {
                         return &xe2_q_h64_s96_2nd_integrated;
-                    if (seq <= 384)
+                    }
+                    if (seq <= 384) {
                         return &xe2_q_h64_s384_2nd_integrated;
+                    }
                     return &xe2_q_h64_2nd_integrated;
                 }
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xe2_q_h64_s64_2nd;
-                if (seq <= 128)
+                }
+                if (seq <= 128) {
                     return &xe2_q_h64_s128_2nd;
-                if (seq <= 384)
+                }
+                if (seq <= 384) {
                     return &xe2_q_h64_s384_2nd;
-                if (seq <= 512)
+                }
+                if (seq <= 512) {
                     return &xe2_q_h64_s512_2nd;
-                if (seq <= 768)
+                }
+                if (seq <= 768) {
                     return &xe2_q_h64_s768_2nd;
+                }
                 return &xe2_q_h64_2nd;
             }
-            if (seq <= 32)
+            if (seq <= 32) {
                 return &xe2_q_h64_s32;
-            if (is_integrated) {
-                if (seq <= 128)
-                    return &xe2_q_h64_s128_integrated;
             }
-            if (seq <= 128)
-                return &xe2_q_h64_s128;
-            if (seq <= 384)
-                return &xe2_q_h64_s384;
-            if (seq <= 512)
-                return &xe2_q_h64_s512;
             if (is_integrated) {
-                if (seq <= 1024)
+                if (seq <= 128) {
+                    return &xe2_q_h64_s128_integrated;
+                }
+            }
+            if (seq <= 128) {
+                return &xe2_q_h64_s128;
+            }
+            if (seq <= 384) {
+                return &xe2_q_h64_s384;
+            }
+            if (seq <= 512) {
+                return &xe2_q_h64_s512;
+            }
+            if (is_integrated) {
+                if (seq <= 1024) {
                     return &xe2_q_h64_s1024_integrated;
+                }
             }
             return &xe2_q_h64;
         }
@@ -780,50 +913,99 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
         if (quantized) {
             if (is_integrated) {
                 if (thin_q) {
-                    if (seq < 384)
+                    if (seq < 384) {
                         return &xe2_q_h256_s384_2nd_integrated;
-                    if (seq < 512)
+                    }
+                    if (seq < 512) {
                         return &xe2_q_h256_s512_2nd_integrated;
-                    if (seq < 768)
+                    }
+                    if (seq < 768) {
                         return &xe2_q_h256_s768_2nd_integrated;
-                    if (seq < 1152)
+                    }
+                    if (seq < 1152) {
                         return &xe2_q_h256_s1152_2nd_integrated;
+                    }
                     return &xe2_q_h256_2nd_integrated;
                 }
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xe2_q_h256_s64_integrated;
-                if (seq <= 128)
+                }
+                if (seq <= 128) {
                     return &xe2_q_h256_s128_integrated;
+                }
             }
             if (!thin_q) {
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xe2_q_h256_s64;
-                if (seq <= 128)
+                }
+                if (seq <= 128) {
                     return &xe2_q_h256_s128;
-                if (seq <= 384)
+                }
+                if (seq <= 384) {
                     return &xe2_q_h256_s384;
+                }
                 return &xe2_q_h256;
             }
         }
     }
     return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
-sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+
+sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill, int sliding_window) {
+    if (is_pa && !is_prefill && !thin_q) {
+        if (head_size > 32 && head_size <= 64) {
+            return &xe3_h64_pa;
+        }
+        if (head_size <= 32) {
+            return &xe3_fma_h32_pa;
+        }
+        if (head_size <= 128) {
+            return sliding_window == 0 ? &xe3_h128_pa_sw0 : &xe3_h128_pa;
+        }
+        if (head_size <= 256) {
+            return &xe3_h256_pa;
+        }
+        if (head_size <= 512) {
+            return &xe3_h512_pa;
+        }
+    }
+    if (head_size <= 32) {
+        if (thin_q) {
+            return quantized ? &xe3_fma_q_h32_2nd : &xe3_fma_h64_2nd;
+        }
+        if (!quantized) {
+            return &xe3_fma_h32;
+        }
+    }
+    if (head_size <= 64 && thin_q) {
+        return quantized ? &xe3_fma_q_h64_2nd : &xe3_fma_h64_2nd;
+    }
     if (head_size <= 128) {
-        return &xe3_h128;
+        if (thin_q) {
+            return quantized ? &xe3_q_h128_2nd : &xe3_h128_2nd;
+        }
+        return quantized ? &xe3_q_h128 : &xe3_h128;
     }
     if (head_size <= 256) {
-        return &xe3_h256;
+        if (thin_q) {
+            return quantized ? &xe3_q_h256_2nd : &xe3_h256_2nd;
+        }
+        if (quantized) {
+            return &xe3_q_h256;
+        }
         return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
     }
     if (head_size <= 512) {
         if (thin_q) {
             if (quantized) {
-                return &xe3_q_h512_2nd;
+                return &xe3_fma_f32_q_h512_2nd;
             }
             return &xe3_h512_2nd;
         }
-        return &xe3_h512;
+        if (!quantized) {
+            return &xe3_h512;
+        }
+        return &xe3_fma_q_h512;
     }
     return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
@@ -908,11 +1090,13 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
         const auto has_alibi = impl_param.get_input_layout(11).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         sdpa_config.input_num = 7;
-        if (has_scale_input)
+        if (has_scale_input) {
             sdpa_config.input_num++;
+        }
 
-        if (has_alibi)
+        if (has_alibi) {
             sdpa_config.input_num++;
+        }
     }
 }
 
@@ -988,6 +1172,52 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
 [[maybe_unused]] const bool kq_common_zp = false;
 [[maybe_unused]] const bool vs_common_scales = false;
 [[maybe_unused]] const bool vs_common_zp = false;
+
+// Per-channel key scales ([b, heads, 1, head_size]) vary along the KQ GEMM's *reduction* axis, so
+// gemmstone has to broadcast them across the whole M extent. Describing that through 2D
+// A-quantization is both fragile (the group descriptor has to cover every key tile) and expensive:
+// with a zero point added on top, the register budget of the pinned KQ strategy is exceeded and
+// micro-kernel generation fails outright, silently dropping SDPA onto sdpa_opt. Fold the scales
+// into Q instead, which is exact and needs no quantization parameters in the GEMM at all:
+//     sum_d K_int[m,d] * kscale[d] * Q[n,d] == sum_d K_int[m,d] * (kscale[d] * Q[n,d])
+// K then becomes a plain int -> f16 upconvert; see FOLD_KEY_SCALES_INTO_Q in sdpa_micro.cl.
+//
+// For asymmetric quantization the key zero point is dropped along with the scale instead of being
+// applied: -sum_d zp[d] * kscale[d] * Q[n,d] does not depend on the key m, so it shifts every logit
+// of a query by the same constant, and softmax over the keys is invariant to such a shift (the
+// attention scale and the mask preserve that). A sink logit, however, joins the softmax denominator
+// unshifted, so with sinks the shift would survive - don't fold then.
+inline bool micro_fold_key_scales_into_q(const kernel_impl_params& params, bool is_kv_compressed, bool use_asymmetric_quantization) {
+    if (params.is_type<paged_attention>() || !is_kv_compressed || kq_common_scales)
+        return false;
+    if (use_asymmetric_quantization && params.typed_desc<scaled_dot_product_attention>()->has_sink_input)
+        return false;
+    // Per-channel scales have seq == 1 and one entry per channel; per-token scales have seq > 1.
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto scale_idx = get_data_inputs_num(*desc);
+    const auto& ps = params.input_layouts[scale_idx].get_partial_shape();
+    return ps[2].get_length() == 1 && ps[3].get_length() > 1;
+}
+
+// Per-channel value scales/zero points ([b, heads, 1, head_size]) are constant along the VS GEMM's
+// *reduction* axis (the keys), so nothing forces them to be applied inside the k-loop. With
+//     acc[d,n] = sum_t V_int[d,t] * S[t,n]     and     l[n] = sum_t S[t,n]
+// (l is the softmax denominator the kernel already accumulates in SLM), the dequantized output is
+//     out[d,n] = vscale[d] * (acc[d,n] / l[n] - vzp[d])
+// exactly, for any number of k-chunks: both terms are linear in the chunk contributions, and the
+// running-maximum correction rescales acc and l by the same per-query factor. Applying the scales
+// once in the epilogue removes the per-element dequantization from the VS k-loop, the scale/zero
+// point loads and prefetches, and gemmstone's ABOffset::Calc column-sum bookkeeping. It is also
+// slightly more accurate: V enters the GEMM as an exactly representable integer instead of a
+// dequantized value rounded to f16. See FOLD_VAL_SCALES_INTO_OUTPUT in sdpa_micro.cl.
+inline bool micro_fold_value_scales_into_output(const kernel_impl_params& params, bool is_kv_compressed) {
+    if (params.is_type<paged_attention>() || !is_kv_compressed || vs_common_scales || vs_common_zp)
+        return false;
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto scale_idx = get_data_inputs_num(*desc) + 1;
+    const auto& ps = params.input_layouts[scale_idx].get_partial_shape();
+    return ps[2].get_length() == 1 && ps[3].get_length() > 1;
+}
 
 JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
     auto jit = make_base_jit_constants(params);
@@ -1082,6 +1312,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
+    jit.make("CAUSAL_MASK_LOWER_RIGHT", config.causal_lower_right);
     if (!config.is_paged_attention) {
         const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (config.has_const_attn_mask_val) {
@@ -1115,6 +1346,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("IS_PREFILL", m_is_prefill);
     jit.make("IS_GQA_SINGLE_TOKEN", m_is_gqa_single_token);
     jit.make("TRANSPOSE_K", false);
+    jit.make("TRANSPOSE_V", micro_is_v_transposed(params));
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
     jit.make("KV_HEADS_NUM", config.kv_heads_num);
     jit.make("HEADS_NUM", m_is_gqa_single_token ? config.kv_heads_num : config.heads_num);
@@ -1145,8 +1377,32 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         int vs_scale_mask = (static_cast<int>(config.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
         jit.make("KEY_SCALES", kq_scale_mask);
         jit.make("VAL_SCALES", vs_scale_mask);
-        jit.make("KEY_GROUP_SIZE", head_size);
-        jit.make("VAL_GROUP_SIZE", head_size);
+
+        // Derive group size from the scale tensor shape.
+        // Scale shape is [batch, heads, seq, num_groups], where num_groups = head_size / group_size.
+        // If seq == 1, the scale is broadcast across all tokens (per-channel quantization).
+        const auto key_scale_seq = key_cache_comp_scale.get_partial_shape()[2].get_length();
+        const auto key_scale_groups = key_cache_comp_scale.get_partial_shape()[3].get_length();
+        const auto key_group_size = head_size / key_scale_groups;
+        const auto val_scale_seq = value_cache_comp_scale.get_partial_shape()[2].get_length();
+        const auto val_scale_groups = value_cache_comp_scale.get_partial_shape()[3].get_length();
+        const auto val_group_size = head_size / val_scale_groups;
+        jit.make("KEY_GROUP_SIZE", key_group_size);
+        jit.make("VAL_GROUP_SIZE", val_group_size);
+        const bool is_key_by_channel = (key_scale_seq == 1 && key_scale_groups > 1);
+        const bool is_value_by_channel = (val_scale_seq == 1 && val_scale_groups > 1);
+        if (is_key_by_channel)
+            jit.make("IS_KEY_BY_CHANNEL", 1);
+        if (is_value_by_channel)
+            jit.make("IS_VALUE_BY_CHANNEL", 1);
+        // Per-channel key scales are folded into Q rather than applied to K in the KQ micro-kernel,
+        // and the key zero point is dropped with them; see micro_fold_key_scales_into_q().
+        if (is_key_by_channel && micro_fold_key_scales_into_q(params, config.is_kv_compressed, use_asymmetric_quantization))
+            jit.make("FOLD_KEY_SCALES_INTO_Q", 1);
+        // Per-channel value scales/zero points are applied once in the epilogue rather than to every
+        // V element inside the VS k-loop; see micro_fold_value_scales_into_output().
+        if (is_value_by_channel && micro_fold_value_scales_into_output(params, config.is_kv_compressed))
+            jit.make("FOLD_VAL_SCALES_INTO_OUTPUT", 1);
 
         jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
         jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
@@ -1209,8 +1465,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
     }
 
-    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(params.input_layouts[1].data_type));
-    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(params.input_layouts[2].data_type));
+    const auto compressed_dt = !config.is_paged_attention && config.is_kv_compressed
+                                   ? params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt
+                                   : ov::element::dynamic;
+    const bool is_byte_packed_int4 = !config.is_paged_attention && data_type_traits::is_i4_u4(compressed_dt);
+    if (is_byte_packed_int4)
+        jit.make("IS_INT4_KV_CACHE", 1);
+    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(K.data_type) : ov::element::Type(compressed_dt)));
+    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(V.data_type) : ov::element::Type(compressed_dt)));
 
     int tile_k = gemm_kq.getSetting("wg_tile_m");
     int tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -1218,8 +1480,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
-    // const ov::Dimension n_values = micro_get_seq_length(params, 2);
-    const ov::Dimension n_values = ov::Dimension(v_head_size);
+    const ov::Dimension n_values = ov::Dimension(static_cast<ov::Dimension::value_type>(v_head_size));
 
     bool d_full = (head_size == static_cast<size_t>(d_max));
     bool v_full = (head_size == static_cast<size_t>(tile_v));
@@ -1238,8 +1499,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         constexpr size_t packed_elems_per_uint = sizeof(uint32_t) / sizeof(ov::float16);
         constexpr size_t max_block_elems = 16;  // max 16 elements per block load/store per item
         const auto q_block_elems = (d_max / packed_elems_per_uint) / sg_size;
-        if (ldq % 4 == 0 && q_block_elems <= max_block_elems)
+        if (ldq % 4 == 0 && q_block_elems <= max_block_elems) {
             jit.make("BLOCK_Q", 1);
+        }
         // TODO: Causes accuracy drop for static SD model. Enable back once the issue is resolved
         // const auto a_block_elems = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m")) / sg_size;
         // if (lda % 4 == 0 && v_full && a_block_elems <= max_block_elems)
@@ -1255,15 +1517,17 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
         GPU_DEBUG_TRACE_DETAIL << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
                                << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
-        if (use_block2d)
+        if (use_block2d) {
             jit.make("BLOCK_2D_A", 1);
+        }
     }
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
         jit.make("PREFETCH_MASK", 1);
-        jit.make("PREFETCH_K0", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        jit.make("PREFETCH_K", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        jit.make("PREFETCH_V", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
+        const bool enable_kv_prefetch = (!config.is_paged_attention || m_is_prefill) && !is_byte_packed_int4;
+        jit.make("PREFETCH_K0", enable_kv_prefetch);
+        jit.make("PREFETCH_K", enable_kv_prefetch);
+        jit.make("PREFETCH_V", enable_kv_prefetch);
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
@@ -1325,6 +1589,17 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.add(convert_strides("KEY", "INPUT1", extended_input_k_transpose_order));
         jit.add(convert_strides("VAL", "INPUT2", extended_input_v_transpose_order));
         jit.add(convert_strides("DST", "OUTPUT", extended_output_transpose_order));
+
+        // Q/K/V batch may be broadcast (each is 1 or equal). An input whose batch differs from the
+        // output batch, or is dynamic, needs a modulo on its batch index in the kernel.
+        const auto q_batch = get_batch_size(params.get_input_layout(0), extended_input_q_transpose_order);
+        const auto k_batch = get_batch_size(params.get_input_layout(1), extended_input_k_transpose_order);
+        const auto v_batch = get_batch_size(params.get_input_layout(2), extended_input_v_transpose_order);
+        // -1 means dynamic
+        const auto out_batch = get_broadcast_batch(q_batch, k_batch, v_batch);
+        jit.make("BROADCAST_Q_BATCH", (out_batch == -1) || (q_batch != out_batch) ? 1 : 0);
+        jit.make("BROADCAST_K_BATCH", (out_batch == -1) || (k_batch != out_batch) ? 1 : 0);
+        jit.make("BROADCAST_V_BATCH", (out_batch == -1) || (v_batch != out_batch) ? 1 : 0);
     }
 
     jit.add(unit_parameters("QRY"));
@@ -1350,8 +1625,9 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
     Arguments args;
     sdpa_configuration config;
     init_sdpa_configuration(params, config);
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
@@ -1377,11 +1653,13 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // block_indices
             args.push_back({ArgumentDescriptor::Types::INPUT, 8});  // block_indices_begins
         }
-        if (!config.has_const_scale_val)
+        if (!config.has_const_scale_val) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
+        }
 
-        if (desc->has_sink_input)
+        if (desc->has_sink_input) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
 
         if (has_qq_bias && !m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
@@ -1401,14 +1679,17 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
 
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
-        if (sdpa_has_runtime_attn_mask_input(params))
+        if (sdpa_has_runtime_attn_mask_input(params)) {
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
+        }
         const uint32_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
-        if (config.input_num > scale_idx && !config.has_const_scale_val)
+        if (config.input_num > scale_idx && !config.has_const_scale_val) {
             args.push_back({ArgumentDescriptor::Types::INPUT, scale_idx});  // Scale
+        }
         const uint32_t sink_idx = ScaledDotProductAttentionInputIdx::SINK;
-        if (config.input_num > sink_idx)
+        if (config.input_num > sink_idx) {
             args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Sink
+        }
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
@@ -1419,12 +1700,14 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         const bool is_asym_quantization = config.use_asymmetric_quantization;
         uint32_t input_idx = static_cast<uint32_t>(data_inputs_num);
         args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 0});  // K scales
-        if (is_asym_quantization)
+        if (is_asym_quantization) {
             args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 2});  // K zp
+        }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 1});  // V scales
-        if (is_asym_quantization)
+        if (is_asym_quantization) {
             args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 3});  // V zp
+        }
     }
 
     return args;
@@ -1451,8 +1734,9 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
 
             if (params.is_type<paged_attention>()) {
                 auto* pa_rt_params = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-                if (pa_rt_params->stage == PagedAttentionStage::GENERATE)
+                if (pa_rt_params->stage == PagedAttentionStage::GENERATE) {
                     head_num = micro_get_num_heads(params, 1);
+                }
             }
 
             auto wg_tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -1528,7 +1812,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
-    const ov::Dimension n_values = ov::Dimension(v_head_size);
+    const ov::Dimension n_values = ov::Dimension(static_cast<ov::Dimension::value_type>(v_head_size));
     const auto head_num = micro_get_num_heads(params, 0);
     const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
@@ -1539,8 +1823,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     /* Retrieve pre-tuned kernel configuration */
     sdpa_config_t* config = nullptr;
     bool thin_q = (!n_queries.is_dynamic() && n_queries.get_length() <= 16) || !is_prefill;
-    if (is_paged_attention && !is_prefill)
+    if (is_paged_attention && !is_prefill) {
         thin_q = is_gqa_single_token;
+    }
     bool is_integrated = device_info.dev_type == device_type::integrated_gpu;
 
     bool is_quantized =
@@ -1559,7 +1844,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     case gpu_arch::xe3p:
-        config = choose_config_xe3p(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe3p(static_cast<int32_t>(k_head_size),
+                                    nkeys_v,
+                                    thin_q,
+                                    is_quantized,
+                                    is_integrated,
+                                    is_paged_attention,
+                                    is_prefill,
+                                    static_cast<int32_t>(configuration.paged_attention_sliding_window));
         break;
     default: {
         config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
@@ -1591,16 +1883,16 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem.Ta_ext = convert_type(K.data_type);
     problem.Tb_ext = convert_type(Q.data_type);
 
-    // Detect INT4 KV cache: stored as u8 but logical precision is u4/i4
-    const auto kv_cache_precision = is_paged_attention ? params.get_program().get_config().get_kv_cache_precision() : ov::element::dynamic;
+    // INT4 cache is byte-backed, so use its logical precision rather than the physical layout type.
+    const auto kv_cache_precision = is_paged_attention ? params.get_program().get_config().get_kv_cache_precision()
+                                                       : params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt;
     const bool is_int4_kv_cache = data_type_traits::is_i4_u4(kv_cache_precision);
 
-    // For INT4 PA generate: override Ta_ext to u4/i4 so micro-kernel handles u4 unpacking
-    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+    if (is_int4_kv_cache && (!is_paged_attention || !is_prefill)) {
         problem.Ta_ext = convert_type(kv_cache_precision);
     }
 
-    problem.Ta = problem.Tb = micro::Type::f16;
+    problem.Ta = problem.Tb = (Q.data_type == ov::element::bf16) ? micro::Type::bf16 : micro::Type::f16;
     problem.Tc = problem.Tc_ext = micro::Type::f32;
     problem.Ts = problem.Tc;
 
@@ -1652,7 +1944,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         opts_kq.offsetA = true;
     } else {
         const auto key_cache_id = micro_get_key_cache_id(params);
-        if (configuration.is_kv_compressed && !kq_common_scales) {
+
+        // Per-channel key scales are folded into Q instead of being applied to K, and for asymmetric
+        // quantization the key zero point is dropped with them; see micro_fold_key_scales_into_q(),
+        // which get_jit_constants() consults as well so the two agree on whether the micro-kernel
+        // takes quantization arguments.
+        const bool fold_key_scales_into_q = micro_fold_key_scales_into_q(params, configuration.is_kv_compressed, use_asymmetric_quantization);
+
+        if (configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q) {
             const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
             const auto scale_dt = convert_type(key_cache_comp_scale.data_type);
             problem_kq.Ta_scale = scale_dt;
@@ -1662,7 +1961,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
         }
 
-        if (configuration.is_kv_compressed && use_asymmetric_quantization) {
+        if (configuration.is_kv_compressed && use_asymmetric_quantization && !fold_key_scales_into_q) {
             const auto& key_cache_comp_zp = params.input_layouts[key_cache_id + 2];
             const auto zp_dt = convert_type(key_cache_comp_zp.data_type);
             problem_kq.Tao = zp_dt;
@@ -1672,18 +1971,23 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             problem_kq.aOffset = micro::ABOffset::Calc;
         }
 
-        if (configuration.is_kv_compressed) {
+        if (configuration.is_kv_compressed && !fold_key_scales_into_q) {
+            const auto& key_cache_comp_scale_layout = params.input_layouts[key_cache_id];
+            const auto key_scale_groups = key_cache_comp_scale_layout.get_partial_shape()[3].get_length();
+            const auto key_group_size = k_head_size / key_scale_groups;
+            // KQ GEMM: A=K[M=seq_k, K=head_size]. Per-token scales only (the per-channel case is
+            // folded into Q above): each token has its own scale, so aqGroupM = 1.
             problem_kq.aqGroupM = 1;
-            problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(k_head_size);
+            problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(key_group_size);
         }
 
-        opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales;
-        opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+        opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q;
+        opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization && !fold_key_scales_into_q;
     }
 
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
-    problem_kq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem.Ta)));
+    problem_kq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem_kq.Ta_ext)));
     if (is_paged_attention && !is_prefill) {
         auto pa_desc = params.typed_desc<paged_attention>();
         const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
@@ -1764,11 +2068,11 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     /* Update for second GEMM: V*S */
     auto problem_vs = problem;
     problem_vs.Ta_ext = convert_type(V.data_type);
-    // For INT4 V: override Ta_ext to u4/i4
-    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+    if (is_int4_kv_cache && (!is_paged_attention || !is_prefill)) {
         problem_vs.Ta_ext = convert_type(kv_cache_precision);
     }
-    problem_vs.A.layout = micro::MatrixLayout::N;
+    const bool transpose_v = micro_is_v_transposed(params);
+    problem_vs.A.layout = transpose_v ? micro::MatrixLayout::T : micro::MatrixLayout::N;
 
     if (is_paged_attention && !is_prefill && is_quantized) {
         auto scale_dt = convert_type(ov::element::f16);
@@ -1798,7 +2102,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         opts_vs.offsetA = true;
     } else {
         const auto value_cache_id = micro_get_value_cache_id(params);
-        if (configuration.is_kv_compressed && !vs_common_scales) {
+
+        // Per-channel value scales and zero points are applied in the epilogue instead of inside the
+        // VS GEMM, which then needs no quantization arguments at all; see
+        // micro_fold_value_scales_into_output(), which get_jit_constants() consults as well so the
+        // two agree on the micro-kernel's signature.
+        const bool fold_value_scales = micro_fold_value_scales_into_output(params, configuration.is_kv_compressed);
+
+        if (configuration.is_kv_compressed && !vs_common_scales && !fold_value_scales) {
             const auto& value_cache_comp_scale = params.input_layouts[value_cache_id];
             auto scale_dt = convert_type(value_cache_comp_scale.data_type);
             problem_vs.Ta_scale = scale_dt;
@@ -1808,7 +2119,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             GPU_DEBUG_TRACE_DETAIL << "vs: value_cache_id = " << value_cache_id << std::endl;
         }
 
-        if (configuration.is_kv_compressed && use_asymmetric_quantization) {
+        if (configuration.is_kv_compressed && use_asymmetric_quantization && !fold_value_scales) {
             const auto& value_cache_comp_zp = params.input_layouts[value_cache_id + 2];
             auto zp_dt = convert_type(value_cache_comp_zp.data_type);
             problem_vs.Tao = zp_dt;
@@ -1818,13 +2129,27 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             problem_vs.aOffset = micro::ABOffset::Calc;
         }
 
-        if (configuration.is_kv_compressed) {
-            problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
-            problem_vs.aqGroupK = 1;
+        if (configuration.is_kv_compressed && !fold_value_scales) {
+            const auto& value_cache_comp_scale_layout = params.input_layouts[value_cache_id];
+            const auto val_scale_seq = value_cache_comp_scale_layout.get_partial_shape()[2].get_length();
+            const auto val_scale_groups = value_cache_comp_scale_layout.get_partial_shape()[3].get_length();
+            const auto val_group_size = v_head_size / val_scale_groups;
+            // VS GEMM: A=V[M=head_size, K=seq_k]
+            // Per-channel broadcast (seq=1): each head_size row has own scale, all tokens share it
+            //   -> aqGroupM = group_size, aqGroupK >= k_chunk (bounded by wg_tile_m)
+            // Per-token (seq>1): all head_size share one scale per token
+            //   -> aqGroupM = head_size (don't vary per head_size), aqGroupK = 1 (vary per token)
+            if (val_scale_seq == 1) {
+                problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(val_group_size);
+                problem_vs.aqGroupK = config->unroll_m_kq * config->wg_m_kq;
+            } else {
+                problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
+                problem_vs.aqGroupK = 1;
+            }
         }
 
-        opts_vs.scaleA = configuration.is_kv_compressed && !vs_common_scales;
-        opts_vs.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+        opts_vs.scaleA = configuration.is_kv_compressed && !vs_common_scales && !fold_value_scales;
+        opts_vs.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization && !fold_value_scales;
     }
 
     problem_vs.B.layout = micro::MatrixLayout::Pr;
@@ -1833,8 +2158,10 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
         // INT4 V: ldv = packed_head_bytes + scales = v_head_size * u4 + 4 = 68
         problem_vs.A.setAlignment(static_cast<int>(v_head_size * problem_vs.Ta_ext) + 4);
+    } else if (transpose_v) {
+        problem_vs.A.setAlignment(problem_vs.Ta_ext.size());
     } else {
-        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
+        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem_vs.Ta_ext)));
     }
 
     problem_vs.B.setAlignment(64);  // S is packed in SLM

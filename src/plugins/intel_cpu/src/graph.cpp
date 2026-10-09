@@ -2092,6 +2092,19 @@ void Graph::EnforceInferencePrecision() const {
 
     // Pattern-based node skipping for BF16 precision enforcement
     if (inferPrec == ov::element::bf16) {
+        // Preserve a continuous f32 region around model-declared precision-sensitive operations.
+        for (const auto& node : graphNodes) {
+            if (!node->isBF16ConversionDisabled()) {
+                continue;
+            }
+            const auto inserted = nodesToSkip.insert(node);
+            if (!inserted.second) {
+                continue;
+            }
+            backwardSkipSearch(node, nodesToSkip);
+            forwardSkipSearch(node, nodesToSkip);
+        }
+
         for (const auto& node : graphNodes) {
             // Pattern 1: MatMul with Convert from integer to floating point on any input. This basically means that
             // converting such an integer input to bf16 leads to loosing accuracy, as bf16 can only exactly represent

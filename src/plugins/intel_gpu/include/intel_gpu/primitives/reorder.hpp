@@ -194,8 +194,9 @@ struct reorder : public primitive_base<reorder> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const reorder>(rhs);
 
@@ -271,8 +272,9 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (mean.is_valid())
+        if (mean.is_valid()) {
             ret[idx++] = &mean;
+        }
 
         return ret;
     }

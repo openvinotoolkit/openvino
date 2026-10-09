@@ -55,14 +55,14 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
             OPENVINO_ASSERT(m_fc_typed);
 
 
-            if (m_fc->input_values().size() == 4)
+            if (m_fc->input_values().size() == 4) {
                 new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
                                                                         m_bias,
                                                                         m_fc->input_value(3),
                                                                         output_type,
                                                                         m_fc_typed->get_transpose_b());
-            else
+            } else {
                 new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
                                                                         m_bias,
@@ -70,6 +70,7 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
                                                                         m_fc->input_value(4),
                                                                         output_type,
                                                                         m_fc_typed->get_transpose_b());
+            }
         }
         new_fc->set_friendly_name(m_convert->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), new_fc);

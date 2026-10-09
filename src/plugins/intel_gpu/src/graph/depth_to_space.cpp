@@ -21,11 +21,29 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
 
     const size_t block_size = desc->block_size;
 
-    if (input_layout.feature() % (block_size * block_size) != 0)
+    if (impl_param.has_fused_primitives()) {
+        input_layout.data_type = impl_param.get_output_element_type();
+    }
+
+    if (desc->mode == depth_to_space_mode::grouped_depth_first) {
+        const size_t factor = desc->factor_t * desc->factor_s * desc->factor_s;
+        if (format::spatial_num(input_layout.format) != 3 || desc->output_channels * factor % input_layout.feature() != 0) {
+            CLDNN_ERROR_MESSAGE(desc->id, "GroupedDepthToSpace requires a 5D input and divisible channel mapping");
+        }
+
+        const size_t z = input_layout.spatial(2) * desc->factor_t - desc->crop_begin_t;
+        const size_t y = input_layout.spatial(1) * desc->factor_s;
+        const size_t x = input_layout.spatial(0) * desc->factor_s;
+        auto out_size = tensor(TensorValue(input_layout.batch()), TensorValue(desc->output_channels), TensorValue(x), TensorValue(y), TensorValue(z));
+        return layout{input_layout.data_type, input_format, out_size};
+    }
+
+    if (input_layout.feature() % (block_size * block_size) != 0) {
         CLDNN_ERROR_MESSAGE(
             desc->id,
             "The depth of the input tensor must be divisible by squared block size. Actual block size is " +
                 std::to_string(block_size));
+    }
 
     auto out_size = input_layout.get_tensor();
     if (format::spatial_num(input_layout.format) == 3) {
@@ -41,10 +59,6 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
         out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y));
     }
 
-    if (impl_param.has_fused_primitives()) {
-        input_layout.data_type = impl_param.get_output_element_type();
-    }
-
     return layout{input_layout.data_type, input_format, out_size};
 }
 
@@ -54,6 +68,15 @@ std::vector<layout> depth_to_space_inst::calc_output_layouts(depth_to_space_node
     auto input_layout = impl_param.get_input_layout(0);
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     auto output_format = input_layout.format;
+
+    if (desc->mode == depth_to_space_mode::grouped_depth_first) {
+        auto output_shape = input_layout.get<ShapeType>();
+        output_shape[1] = desc->output_channels;
+        output_shape[2] = output_shape[2] * desc->factor_t - desc->crop_begin_t;
+        output_shape[3] = output_shape[3] * desc->factor_s;
+        output_shape[4] = output_shape[4] * desc->factor_s;
+        return {layout{output_shape, output_type, output_format}};
+    }
 
     ov::op::v0::DepthToSpace op;
     op.set_block_size(desc->block_size);
@@ -78,7 +101,16 @@ std::string depth_to_space_inst::to_string(depth_to_space_node const& node) {
     json_composite depth_to_space_info;
     depth_to_space_info.add("input id", input.id());
     depth_to_space_info.add("block size", desc->block_size);
-    depth_to_space_info.add("mode", desc->mode == depth_to_space_mode::blocks_first ? "blocks_first" : "depth_first");
+    const char* mode = desc->mode == depth_to_space_mode::blocks_first ? "blocks_first"
+                       : desc->mode == depth_to_space_mode::depth_first ? "depth_first"
+                       : "grouped_depth_first";
+    depth_to_space_info.add("mode", mode);
+    if (desc->mode == depth_to_space_mode::grouped_depth_first) {
+        depth_to_space_info.add("factor_t", desc->factor_t);
+        depth_to_space_info.add("factor_s", desc->factor_s);
+        depth_to_space_info.add("output_channels", desc->output_channels);
+        depth_to_space_info.add("crop_begin_t", desc->crop_begin_t);
+    }
 
     node_info->add("depth_to_space info", depth_to_space_info);
     node_info->dump(primitive_description);

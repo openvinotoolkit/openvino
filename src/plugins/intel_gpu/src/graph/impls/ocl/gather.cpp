@@ -83,11 +83,13 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance);
         const auto& desc = instance.get_typed_desc<gather>();
 
-        if (desc->decompression_scale.is_valid())
+        if (desc->decompression_scale.is_valid()) {
             args.inputs.push_back(instance.dep_memory_ptr(2));
+        }
 
-        if (desc->decompression_zero_point.is_valid())
+        if (desc->decompression_zero_point.is_valid()) {
             args.inputs.push_back(instance.dep_memory_ptr(3));
+        }
 
         return args;
     }
@@ -146,11 +148,13 @@ public:
             for (size_t fi = 0; fi < updated_impl_params.fused_desc.size(); fi++) {
                 auto& fd = updated_impl_params.fused_desc[fi];
                 // Extend fused op output_layout rank to match the restored output rank
-                auto fd_out_pshape = fd.output_layout.get_partial_shape();
+                auto fd_out_pshape = fd.get_output_layout().get_partial_shape();
                 if (fd_out_pshape.size() < output_pshape.size()) {
                     fd_out_pshape.insert(fd_out_pshape.begin() + prim->axis, ov::Dimension(1));
-                    fd.output_layout.set_partial_shape(fd_out_pshape);
-                    fd.output_layout.format = format::adjust_to_rank(fd.output_layout.format, fd_out_pshape.size());
+                    auto fd_output_layout = fd.get_output_layout();
+                    fd_output_layout.set_partial_shape(fd_out_pshape);
+                    fd_output_layout.format = format::adjust_to_rank(fd.get_output_layout().format, fd_out_pshape.size());
+                    fd.set_output_layout(fd_output_layout);
                 }
 
                 // Extend all fused op peer dependency tensor ranks (quantize has multiple: in_lo, in_hi, out_lo, out_hi)
@@ -158,8 +162,9 @@ public:
                     size_t num_outer_deps = fd.total_num_deps > 0 ? fd.total_num_deps - 1 : 0;
                     for (size_t di = 0; di < num_outer_deps; di++) {
                         size_t dep_idx = static_cast<size_t>(fd.outer_dep_start_idx) + di;
-                        if (dep_idx >= updated_impl_params.input_layouts.size())
+                        if (dep_idx >= updated_impl_params.input_layouts.size()) {
                             break;
+                        }
                         auto& dep_layout = updated_impl_params.input_layouts[dep_idx];
                         auto dep_pshape = dep_layout.get_partial_shape();
                         if (dep_pshape.size() < output_pshape.size()) {

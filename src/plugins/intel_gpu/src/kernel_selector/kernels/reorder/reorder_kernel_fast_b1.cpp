@@ -53,11 +53,13 @@ bool ReorderKernelFastBatch1::Validate(const Params& p) const {
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
 
-    if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32)
+    if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32)
+    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

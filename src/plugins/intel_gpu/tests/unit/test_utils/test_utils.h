@@ -409,7 +409,8 @@ std::string vec2str(const std::vector<vecElementType>& vec) {
     return "()";
 }
 
-inline float cosineSimilarity(cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read>& vec1, cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read>& memLockVec2) {
+template <typename T>
+inline float cosineSimilarity(cldnn::mem_lock<T, cldnn::mem_lock_type::read>& vec1, cldnn::mem_lock<T, cldnn::mem_lock_type::read>& memLockVec2) {
     if (vec1.size() != memLockVec2.size()) {
         return -1.0f;
     }

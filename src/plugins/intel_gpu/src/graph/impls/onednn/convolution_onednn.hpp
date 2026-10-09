@@ -25,8 +25,9 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         assert(node.is_type<convolution>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
         const auto& conv_node = node.as<convolution>();
 
@@ -76,15 +77,18 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             format::bs_fs_zyx_bsv32_fsv32,
         };
 
-        if (!one_of(in_fmt, supported_formats) || !one_of(out_fmt, supported_formats))
+        if (!one_of(in_fmt, supported_formats) || !one_of(out_fmt, supported_formats)) {
             return false;
+        }
 
         auto prim = conv_node.get_primitive();
-        if (prim->groups > 1 && !prim->grouped_weights_shape)
+        if (prim->groups > 1 && !prim->grouped_weights_shape) {
             return false;
+        }
 
-        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout))
+        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout)) {
             return false;
+        }
 
         bool f16_conv = everyone_is(data_types::f16, in_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8});
         bool bf16_conv = everyone_is(data_types::bf16, in_dt, wei_dt) &&
@@ -92,14 +96,17 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         bool int8_conv = one_of(in_dt, {data_types::i8, data_types::u8}) && one_of(wei_dt, {data_types::i8, data_types::u8}) &&
                          one_of(out_dt, {data_types::i32, data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8});
 
-        if (!f16_conv && !bf16_conv && !int8_conv)
+        if (!f16_conv && !bf16_conv && !int8_conv) {
             return false;
+        }
 
-        if (!is_supported_post_ops(conv_node))
+        if (!is_supported_post_ops(conv_node)) {
             return false;
+        }
 
-        if (prim->deformable_mode)
+        if (prim->deformable_mode) {
             return false;
+        }
 
         // oneDNN only supports asymmetric weights quantization by scalar zero-points
         return !conv_node.weights_zero_points_term() ||

@@ -47,8 +47,9 @@ struct softmax : public primitive_base<softmax> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const softmax>(rhs);
 

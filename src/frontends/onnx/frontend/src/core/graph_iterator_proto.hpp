@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
 #include <onnx/onnx_pb.h>
 
 #include <filesystem>
@@ -23,9 +24,7 @@ using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ::ONNX_NAMESPACE::ValueInfoProto;
 using ::ONNX_NAMESPACE::Version;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 class DecoderProtoTensor;
 using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
@@ -66,6 +65,7 @@ public:
     ~GraphIteratorProto() = default;
 
     void initialize(const std::filesystem::path& path);
+    void initialize(std::istream& stream, const std::filesystem::path& path = {});
     void initialize(std::shared_ptr<ModelProto> model);
 
     /// Verifies file is supported
@@ -93,7 +93,7 @@ public:
     void reset() override;
 
     size_t size() const override {
-        return m_decoders.size();
+        return m_graph ? static_cast<size_t>(m_graph->node_size()) : 0;
     }
 
     /// Moves to the next node in the graph
@@ -149,6 +149,4 @@ protected:
 private:
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

@@ -10,9 +10,7 @@
 #include "merge.hpp"
 #include "tf_utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 // Internal operation for NextIteration that makes its input available to the next iteration
 // the output is going to Merge node.
@@ -59,6 +57,4 @@ private:
     size_t m_producer_output_port_idx;
 };
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

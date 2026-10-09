@@ -160,8 +160,9 @@ private:
         const stream& stream = arg.get_program().get_stream();
         const auto& inputs = arg.get_dependencies();
 
-        if (inputs.size() <= idx)
+        if (inputs.size() <= idx) {
             return false;
+        }
 
         const SliceKernelRefNeededInputs kernel_needed_inputs = SliceKernelRefNeededInputs::Create(arg);
         if (kernel_needed_inputs.IsInputNeededInRuntime(idx)) {

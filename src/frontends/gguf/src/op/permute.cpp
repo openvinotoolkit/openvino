@@ -19,10 +19,7 @@
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_permute(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
@@ -34,6 +31,9 @@ OutputVector translate_permute(const NodeContext& context) {
     ov::Output<Node> res;
     auto src = context.get_input(0);
     auto perm_order = context.get_attribute<std::vector<int64_t>>("perm", {0, 2, 1, 3});
+    if (op_case == 1 && src.get_partial_shape().rank() == 3 && perm_order.size() == 4 && perm_order[0] == 0) {
+        perm_order = {perm_order[1] - 1, perm_order[2] - 1, perm_order[3] - 1};
+    }
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {perm_order.size()}, perm_order);
 
     if (op_case == 1) {
@@ -106,10 +106,11 @@ OutputVector translate_permute(const NodeContext& context) {
                 active_cache = std::make_shared<ov::op::v8::Slice>(src, seq_active_start, seq_active_end, one, zero);
             }
             res = std::make_shared<ov::op::v1::Transpose>(active_cache, perm);
-            return rename_outputs_with_suffix({res}, context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
 
-        int64_t ctx_per_seq = cache_shape[2].is_static() ? cache_shape[2].get_length() : -1;
+        const bool dynamic_cache = context.get_attribute<bool>("dynamic_cache", false);
+        int64_t ctx_per_seq = dynamic_cache ? -1 : (cache_shape[2].is_static() ? cache_shape[2].get_length() : -1);
         int64_t n_seq = cache_shape[1].get_length();
 
         Output<Node> seq_active_start;
@@ -149,10 +150,7 @@ OutputVector translate_permute(const NodeContext& context) {
         }
         res = std::make_shared<ov::op::v1::Transpose>(active_cache, perm);
     }
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

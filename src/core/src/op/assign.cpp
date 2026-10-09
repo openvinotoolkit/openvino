@@ -66,6 +66,7 @@ Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<util::Variab
 
 void Assign::validate_and_infer_types() {
     OV_OP_SCOPE(v6_Assign_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this, m_variable, "Variable is not initialized.");
     const auto& variable_info = m_variable->get_info();
     const auto& variable_type = variable_info.data_type;
     const auto& variable_shape = variable_info.data_shape;

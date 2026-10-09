@@ -13,11 +13,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace org_openvinotoolkit {
-namespace opset_1 {
+namespace ov::frontend::onnx::org_openvinotoolkit::opset_1 {
 
 namespace {
 void validate_generate_proposals_inputs(const ov::OutputVector& inputs) {
@@ -67,8 +63,4 @@ ov::OutputVector generate_proposals(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("GenerateProposals", OPSET_SINCE(1), org_openvinotoolkit::opset_1::generate_proposals, OPENVINO_ONNX_DOMAIN);
-}  // namespace opset_1
-}  // namespace org_openvinotoolkit
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::org_openvinotoolkit::opset_1

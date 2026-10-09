@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -22,8 +24,30 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("GroupQueryAttentionDecomposition");
     GroupQueryAttentionDecomposition();
 
-private:
+protected:
+    struct CompressedKV {
+        ov::Output<ov::Node> key;
+        ov::Output<ov::Node> value;
+        ov::OutputVector quantization_inputs;
+    };
+
     ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node);
+    virtual std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
+                                                const ov::Output<ov::Node>& key,
+                                                const ov::Output<ov::Node>& value,
+                                                const ov::Output<ov::Node>& mask,
+                                                const ov::Output<ov::Node>& scale,
+                                                const ov::Output<ov::Node>& sink,
+                                                bool is_causal,
+                                                const std::optional<CompressedKV>& compressed_kv);
+    virtual std::optional<CompressedKV> prepare_compressed_kv(
+        const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+        const ov::Output<ov::Node>& key,
+        const ov::Output<ov::Node>& value,
+        const ov::Output<ov::Node>& key_scale,
+        const ov::Output<ov::Node>& value_scale) {
+        return std::nullopt;
+    }
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);
@@ -44,15 +68,18 @@ private:
     // masked (local_window_size is always -1 in this case, enforced upstream). Either way the result is
     // optionally fused with an external bias. Masked positions use the compute type's finite lowest() so a
     // fully-masked row cannot softmax to NaN.
-    std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
-                                                  const ov::Output<ov::Node>& kv_len_scalar,
-                                                  const ov::Output<ov::Node>& kv_len_1d,
-                                                  const ov::Output<ov::Node>& past_seqlen,
-                                                  const ov::element::Type& compute_type,
-                                                  bool causal,
-                                                  int64_t local_window_size,
-                                                  const ov::Output<ov::Node>& external_bias,
-                                                  const ov::Output<ov::Node>& bias_col_offset);
+    virtual std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
+                                                          const ov::Output<ov::Node>& kv_len_scalar,
+                                                          const ov::Output<ov::Node>& kv_len_1d,
+                                                          const ov::Output<ov::Node>& past_seqlen,
+                                                          const ov::element::Type& compute_type,
+                                                          bool causal,
+                                                          int64_t local_window_size,
+                                                          const ov::Output<ov::Node>& external_bias,
+                                                          const ov::Output<ov::Node>& bias_col_offset,
+                                                          bool sliding_window_cache,
+                                                          float scale,
+                                                          bool has_sink);
     // Reshape a flat KV-cache dequant scale so it broadcasts against a [B, kv_num_heads, S, head_size] tensor:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,

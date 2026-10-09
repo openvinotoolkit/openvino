@@ -48,8 +48,9 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const embedding_bag>(rhs);
 

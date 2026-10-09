@@ -150,8 +150,9 @@ detection_output_inst::typed_primitive_inst(network& network, detection_output_n
     auto location_layout = node.location().get_output_layout();
     auto confidence_layout = node.confidence().get_output_layout();
     auto prior_box_layout = node.prior_box().get_output_layout();
-    if (location_layout.is_dynamic() || confidence_layout.is_dynamic() || prior_box_layout.is_dynamic())
+    if (location_layout.is_dynamic() || confidence_layout.is_dynamic() || prior_box_layout.is_dynamic()) {
         return;
+    }
 
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "Location memory format",

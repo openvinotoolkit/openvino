@@ -11,6 +11,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/reference/rounding_guard.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
@@ -20,11 +21,7 @@ namespace ov {
 namespace reference {
 template <typename T>
 size_t normalize_index(const T idx, const size_t dim_value) {
-    if (idx < 0) {
-        return static_cast<size_t>(idx + dim_value);
-    } else {
-        return static_cast<size_t>(idx);
-    }
+    return static_cast<size_t>(ov::util::normalize_shape_index(static_cast<std::ptrdiff_t>(idx), dim_value));
 }
 
 namespace {

@@ -1,57 +1,57 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "program_helpers.h"
-#include "pass_manager.h"
-
-#include "pooling_inst.h"
-#include "proposal_inst.h"
-#include "roi_pooling_inst.h"
-#include "quantize_inst.h"
-#include "activation_inst.h"
-#include "batch_to_space_inst.h"
-#include "crop_inst.h"
-#include "eltwise_inst.h"
-#include "gemm_inst.h"
-#include "lrn_inst.h"
-#include "mvn_inst.h"
-#include "rms_inst.h"
-#include "pooling_inst.h"
-#include "normalize_inst.h"
-#include "permute_inst.h"
-#include "reshape_inst.h"
-#include "softmax_inst.h"
-#include "resample_inst.h"
-#include "depth_to_space_inst.h"
-#include "fully_connected_inst.h"
-#include "space_to_depth_inst.h"
-#include "gather_inst.h"
-#include "gather_nd_inst.h"
-#include "gather_elements_inst.h"
-#include "scatter_update_inst.h"
-#include "scatter_nd_update_inst.h"
-#include "scatter_elements_update_inst.h"
-#include "reverse_sequence_inst.h"
-#include "shuffle_channels_inst.h"
-#include "space_to_batch_inst.h"
-#include "strided_slice_inst.h"
-#include "cum_sum_inst.h"
-#include "embedding_bag_inst.h"
-#include "swiglu_inst.h"
-#include "gather_matmul_inst.h"
-#include "extract_image_patches_inst.h"
-#include "reduce_inst.h"
-#include "group_normalization_inst.h"
-#include "lora_inst.h"
-#include "broadcast_inst.h"
-#include <vector>
-#include <map>
+#include <deque>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
-#include <deque>
+#include <vector>
+
+#include "activation_inst.h"
+#include "batch_to_space_inst.h"
+#include "broadcast_inst.h"
+#include "crop_inst.h"
+#include "cum_sum_inst.h"
+#include "depth_to_space_inst.h"
+#include "dynamic_quantize_inst.h"
+#include "eltwise_inst.h"
+#include "embedding_bag_inst.h"
+#include "extract_image_patches_inst.h"
+#include "fully_connected_inst.h"
+#include "gather_elements_inst.h"
+#include "gather_inst.h"
+#include "gather_matmul_inst.h"
+#include "gather_nd_inst.h"
+#include "gemm_inst.h"
+#include "group_normalization_inst.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "lora_inst.h"
+#include "lrn_inst.h"
+#include "mvn_inst.h"
+#include "normalize_inst.h"
+#include "pass_manager.h"
+#include "permute_inst.h"
+#include "pooling_inst.h"
+#include "program_helpers.h"
+#include "proposal_inst.h"
+#include "quantize_inst.h"
+#include "reduce_inst.h"
+#include "resample_inst.h"
+#include "reshape_inst.h"
+#include "reverse_sequence_inst.h"
+#include "rms_inst.h"
+#include "roi_pooling_inst.h"
+#include "scatter_elements_update_inst.h"
+#include "scatter_nd_update_inst.h"
+#include "scatter_update_inst.h"
+#include "shuffle_channels_inst.h"
+#include "softmax_inst.h"
+#include "space_to_batch_inst.h"
+#include "space_to_depth_inst.h"
+#include "strided_slice_inst.h"
+#include "swiglu_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
 #endif
@@ -536,6 +536,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto node_itr = itr++;
         const auto& node = (*node_itr);
 
+        auto& fused_primitives = node->get_fused_primitives();
+        if (std::any_of(fused_primitives.begin(), fused_primitives.end(), [](const fused_primitive_desc& f_desc) {
+                return f_desc.is_type<dynamic_quantize>();
+            })) {
+            GPU_DEBUG_TRACE_DETAIL << node->id() << " has fused dynamic_quantize. Skip fusing more primitives" << std::endl;
+            continue;
+        }
+
         if (node->is_output() || node->is_constant())
             continue;
 
@@ -647,9 +655,47 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return does_support_fusings;
         };
 
-        auto mvn_supports_fusings = [](mvn_node& node) -> bool {
+        // An MVN which requires alignment is executed on a virtually flattened iteration space:
+        // mvn_impl::static_canonicalize_shapes() folds every axis below the first reduced axis into batch and
+        // every reduced axis into the innermost one, e.g. [6,108,108,256] with axes={3} becomes [69984,1,1,256].
+        // Post-op peer tensors keep their original shape, so a peer may only be fused when its element index
+        // survives that fold:
+        //   - the reduced axes are always the trailing contiguous block (see the MVN6Decomposition callback in
+        //     transformations_pipeline.cpp, which is the only way a non-decomposed MVN reaches this point), so
+        //     the innermost axis keeps unit stride inside the folded innermost dim;
+        //   - MVNKernelBfyxOpt indexes peers with FUSED_OP_n_INPUTm_GET_INDEX_SAFE(b, f, y, x), which takes each
+        //     index modulo that axis' size, so `x % peer_size_x` still yields the original innermost index.
+        //     In ACROSS_CHANNELS mode, idx_order similarly indexes the innermost dim with
+        //     ((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X), so x % peer_size_x recovers the
+        //     same innermost index as well.
+        // A peer which varies along any other axis (e.g. a full-shape eltwise peer) would be indexed with a
+        // batch value that runs over the whole folded outer dim and must not be fused.
+        auto mvn_flattened_peer_is_indexable = [](const mvn_node& node, const layout& peer_layout) -> bool {
+            const auto& in_pshape = node.get_input_layout(0).get_partial_shape();
+            const auto& peer_pshape = peer_layout.get_partial_shape();
+            if (in_pshape.is_dynamic() || peer_pshape.is_dynamic())
+                return false;
+            // Scalar peers are broadcast without any index calculation
+            if (peer_layout.count() == 1)
+                return true;
+            if (peer_pshape.size() != in_pshape.size())
+                return false;
+            const auto last_axis = peer_pshape.size() - 1;
+            for (size_t i = 0; i < last_axis; i++) {
+                if (peer_pshape[i].get_length() != 1)
+                    return false;
+            }
+            return peer_pshape[last_axis].get_length() == in_pshape[last_axis].get_length();
+        };
+
+        auto mvn_supports_fusings = [&](mvn_node& node, const std::vector<layout>& peer_layouts) -> bool {
             auto in_layout = node.get_input_layout(0);
-            return !node.get_primitive()->requires_alignment(in_layout.get_partial_shape());
+            if (!node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
+                return true;
+
+            return std::all_of(peer_layouts.begin(), peer_layouts.end(), [&](const layout& peer_layout) {
+                return mvn_flattened_peer_is_indexable(node, peer_layout);
+            });
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -792,13 +838,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
-            if (activation_func == cldnn::activation_func::softplus && activation_node.get_output_layout().data_type == data_types::f16) {
-                // This is WA :
-                // - SoftPlus can overflow on f16 so that jitter.cpp currently resolves by typecasting to f32
-                // - But it doesn't guarantee the case of fusion.
-                // - For now it needs to disable fusion for SoftPlus.
-                return;
-            }
 
             auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
@@ -941,6 +980,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
 
+            // Layouts of the quantize parameters, i.e. of every fused-op tensor the post-op code may index.
+            // program::fuse_nodes() drops the per-tensor ones before they can be indexed, but they are reported
+            // here as well rather than duplicating that drop logic - per-tensor parameters are scalars in
+            // practice, which every consumer of this list accepts anyway.
+            auto quantize_param_layouts = [&]() {
+                std::vector<layout> layouts;
+                for (size_t i = 1; i < quantize_node.get_dependencies().size(); i++)
+                    layouts.push_back(quantize_node.get_dependency(i).get_output_layout());
+                return layouts;
+            };
+
             // In dynamic shape, quantize-fusion is disable in only cldnn convolution
             if ((in_layout.is_dynamic() || out_layout.is_dynamic()) &&
                 (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute()))
@@ -975,7 +1025,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            quantize_node.get_scale_shift_opt() &&
                            out_dt_is_i8_u8;
 
-            should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>()) &&
+            should_fuse |= input_data.is_type<mvn>() &&
+                           mvn_supports_fusings(input_data.as<mvn>(), quantize_param_layouts()) &&
                            quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<activation>() && quantize_node.get_scale_shift_opt();
@@ -1060,7 +1111,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
-                                       mvn_supports_fusings(parents[i].first->as<mvn>())) ||
+                                       mvn_supports_fusings(parents[i].first->as<mvn>(),
+                                                            { parents[parents.size() - 1 - i].first->get_output_layout() })) ||
                                       (parents[i].first->is_type<group_normalization>()) ||
                                       (parents[i].first->is_type<rms>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
@@ -1331,9 +1383,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 merge_allowed = fused_node->get_users().size() == 1;
             } else {
                 merge_allowed = fused_node->get_users().size() == 1;
-                for (const auto& parent : fused_node->get_dependencies())
+                for (const auto& parent : fused_node->get_dependencies()) {
                     if (parent.first->id() == peer_node->id())
                         merge_allowed = false;
+                }
             }
 
             if (!merge_allowed)
@@ -1352,11 +1405,42 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
-        // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
-        program_helpers::do_for_types<activation, quantize, eltwise>(*node,
+        auto fuse_dynamic_quantize_f = [&](dynamic_quantize_node& dynamic_quantize_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 14)
+                    return;
+            }
+            auto& input_data = dynamic_quantize_node.get_dependency(0);
+            if (!input_data.is_type<rms>() || input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
+                return;
+
+            if (input_data.in_shape_of_subgraph || dynamic_quantize_node.in_shape_of_subgraph)
+                return;
+
+            // Incompatible with feature axis.
+            const auto rms_prim = input_data.as<rms>().get_primitive();
+            if (rms_prim->axis != static_cast<int64_t>(input_data.get_output_layout().get_rank()) - 1 && rms_prim->axis != -1)
+                return;
+
+            auto dyn_quan_prim = dynamic_quantize_node.get_primitive();
+            auto attrs = dyn_quan_prim->attrs;
+
+            bool is_mxfp8 = attrs.scale_dt == ov::element::f8e8m0 &&
+                            (attrs.quantization_dt == ov::element::f8e4m3 || attrs.quantization_dt == ov::element::f8e5m2) && attrs.group_sizes.back() == 32;
+
+            if (!is_mxfp8) {
+                return;
+            }
+
+            p.fuse_nodes(input_data, dynamic_quantize_node, &fusing_history);
+        };
+
+        // Debug config DISABLE_POST_OPS_FUSION=11 to 14 specify enabling only one of fusions activation, quantize, eltwise and dynamic quantize
+        program_helpers::do_for_types<activation, quantize, eltwise, dynamic_quantize>(*node,
                 fuse_activation_f,
                 fuse_quantize_f,
-                fuse_eltwise_f);
+                fuse_eltwise_f,
+                fuse_dynamic_quantize_f);
     }
 
     // Need to update processing order to handle cases when peer node processing number is greater
@@ -1542,7 +1626,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
                 const auto& act_prim = fp.typed_desc<activation>();
                 const auto& quant_param = fp_next.get_typed_fuse_params<QuantizeFuseParams>();
 
-                bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.output_layout.data_type);
+                bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.get_output_layout().data_type);
                 can_skip &= ((act_prim->activation_function == activation_func::relu) && (act_prim->additional_params.a == 0.0f));
                 can_skip &= (quant_param->_scale_shift_opt && !quant_param->_need_pre_shift);
 

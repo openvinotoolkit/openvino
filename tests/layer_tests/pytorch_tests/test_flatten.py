@@ -39,3 +39,26 @@ class TestFlatten(PytorchLayerTest):
     def test_flatten(self, dim0, dim1, ie_device, precision, ir_version):
         self._test(*self.create_model(dim0, dim1),
                    ie_device, precision, ir_version)
+
+
+class TestFlattenRankSensitiveConsumer(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(2, 3, 4, 5),)
+
+    def create_model(self):
+        import torch
+
+        class aten_flatten_permute(torch.nn.Module):
+            def forward(self, x):
+                x = torch.flatten(x, 1, 2)
+                return torch.permute(x, (0, 2, 1))
+
+        return aten_flatten_permute(), ["aten::flatten", "aten::permute"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_flatten_static_rank_dynamic_dims_before_permute(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version,
+                   trace_model=True)

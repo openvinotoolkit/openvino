@@ -11,10 +11,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_unary_gelu(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
@@ -23,7 +20,7 @@ OutputVector translate_unary_gelu(const NodeContext& context) {
     // ggml GELU is the tanh approximation; v7::Gelu defaults to ERF.
     auto res = std::make_shared<ov::op::v7::Gelu>(input, ov::op::GeluApproximationMode::TANH);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 OutputVector translate_unary_gelu_quick(const NodeContext& context) {
@@ -36,10 +33,7 @@ OutputVector translate_unary_gelu_quick(const NodeContext& context) {
     auto scaled = std::make_shared<ov::op::v1::Multiply>(input, coef);
     auto res = std::make_shared<ov::op::v1::Multiply>(input, std::make_shared<ov::op::v0::Sigmoid>(scaled));
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

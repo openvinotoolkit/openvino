@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include "utils/device_telemetry.hpp"
@@ -57,10 +58,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          DeviceMonitorKeyTest::getTestCaseName);
 
 TEST(DeviceMonitorTest, low_power_mode_gear_mapping_matches_expected_policy) {
+    // Gears 1-3 request low-latency/performance operation (perf_curve_table); only
+    // gears 4-7 request low power operation (low_power_device).
     EXPECT_FALSE(device_monitor::is_low_power_gear(-1));
     EXPECT_FALSE(device_monitor::is_low_power_gear(0));
-    EXPECT_TRUE(device_monitor::is_low_power_gear(1));
-    EXPECT_TRUE(device_monitor::is_low_power_gear(2));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(1));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(2));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(3));
+    EXPECT_TRUE(device_monitor::is_low_power_gear(4));
+    EXPECT_TRUE(device_monitor::is_low_power_gear(7));
+    // Gears above the EPO-defined range are not low power.
+    EXPECT_FALSE(device_monitor::is_low_power_gear(8));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(100));
+}
+
+TEST(DeviceMonitorTest, valid_gear_range_matches_epo_specification) {
+    // EPO defines gears 1-7; anything outside that range is not a valid gear.
+    EXPECT_FALSE(device_monitor::is_valid_gear(-1));
+    EXPECT_FALSE(device_monitor::is_valid_gear(0));
+    EXPECT_TRUE(device_monitor::is_valid_gear(1));
+    EXPECT_TRUE(device_monitor::is_valid_gear(7));
+    EXPECT_FALSE(device_monitor::is_valid_gear(8));
+    EXPECT_FALSE(device_monitor::is_valid_gear(100));
 }
 
 TEST(DeviceMonitorTest, telemetry_client_low_power_mode_is_safe) {
@@ -72,25 +91,46 @@ TEST(DeviceMonitorTest, telemetry_client_low_power_mode_is_safe) {
 #endif
 }
 
-// TelemetryClient::utilization must never throw and must return a value within
-// [0.0, 100.0] when available, or std::nullopt otherwise. On builds without the
-// telemetry backend it consistently returns std::nullopt.
-TEST(DeviceMonitorTest, telemetry_client_utilization_is_safe) {
+// TelemetryClient::utilizations must never throw and must return values within
+// [0.0, 100.0] when available. On builds without the telemetry backend it consistently
+// returns an empty map.
+TEST(DeviceMonitorTest, telemetry_client_utilizations_is_safe) {
     device_monitor::TelemetryClient client;
-    std::optional<float> utilization;
-    ASSERT_NO_THROW(utilization = client.utilization("CPU"));
-    if (utilization.has_value()) {
-        EXPECT_GE(utilization.value(), 0.0f);
-        EXPECT_LE(utilization.value(), 100.0f);
+    std::unordered_map<std::string, float> utilizations;
+    ASSERT_NO_THROW(utilizations = client.utilizations({{"CPU", ""}}));
+    for (const auto& [device_name, utilization] : utilizations) {
+        EXPECT_GE(utilization, 0.0f);
+        EXPECT_LE(utilization, 100.0f);
     }
 }
 
-TEST(DeviceMonitorTest, telemetry_client_unknown_device_returns_nullopt) {
+TEST(DeviceMonitorTest, telemetry_client_unknown_device_is_excluded) {
     device_monitor::TelemetryClient client;
-    std::optional<float> utilization;
-    ASSERT_NO_THROW(utilization = client.utilization("UNKNOWN_DEVICE"));
-    EXPECT_FALSE(utilization.has_value());
+    std::unordered_map<std::string, float> utilizations;
+    ASSERT_NO_THROW(utilizations = client.utilizations({{"UNKNOWN_DEVICE", ""}}));
+    EXPECT_EQ(utilizations.count("UNKNOWN_DEVICE"), 0u);
 }
+
+#ifdef OV_AUTO_ENABLE_IPF
+TEST(DeviceMonitorTest, utilization_values_are_parsed_from_one_snapshot) {
+    const std::string snapshot = R"({
+        "Performance": {
+            "CPUUtilization": 12.5,
+            "NPUUtilization": 37.5
+        },
+        "Status": "Online"
+    })";
+
+    const auto utilizations = device_monitor::utilization_from_snapshot(
+        snapshot,
+        std::vector<std::pair<std::string, std::string>>{{"CPU", ""}, {"NPU", ""}});
+
+    ASSERT_EQ(utilizations.count("CPU"), 1u);
+    ASSERT_EQ(utilizations.count("NPU"), 1u);
+    EXPECT_FLOAT_EQ(utilizations.at("CPU"), 12.5f);
+    EXPECT_FLOAT_EQ(utilizations.at("NPU"), 37.5f);
+}
+#endif
 
 #ifdef OV_AUTO_ENABLE_IPF
 TEST(DeviceMonitorTest, parse_utilization_uses_gpu_fallback_for_igpu) {

@@ -43,6 +43,16 @@
 
 'category: snippets':
 - 'src/common/snippets/**/*'
+- 'src/plugins/intel_cpu/src/emitters/snippets/**/*'
+- 'src/plugins/intel_cpu/src/emitters/tpp/**/*'
+- 'src/plugins/intel_cpu/src/transformations/snippets/**/*'
+- 'src/plugins/intel_cpu/src/transformations/tpp/**/*'
+- 'src/plugins/intel_cpu/src/nodes/**/subgraph.*'
+- 'src/plugins/intel_cpu/tests/unit/snippets_transformations/**/*'
+- 'src/plugins/intel_cpu/tests/functional/shared_tests_instances/snippets/**/*'
+- 'src/tests/functional/plugin/shared/src/snippets/**/*'
+- 'src/tests/functional/plugin/shared/include/snippets/**/*'
+- 'src/tests/ov_helpers/ov_snippets_models/**/*'
 
 'category: dependency_changes':
 - '**/requirement*.txt'

@@ -16,8 +16,11 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/result.hpp"
@@ -149,6 +152,85 @@ std::shared_ptr<ov::Model> build_model_with_lfm2_v2_like_pattern() {
                                               "model_with_lfm2_v2_like_pattern");
 }
 
+// Gather-based (cache-table) RoPE, as in ONNX GroupQueryAttention-style exports. Instead of computing
+// cos/sin from inv_freq*positions, precomputed cos/sin cache tables are indexed with the positions:
+//
+//   Range -> [Convert] -> Unsqueeze -> [Add(past_len)] -> Squeeze -> [Maximum] -> [Minimum] --> Gather (cos)
+//                                                                                           --> Gather (sin)
+//
+// with_convert inserts the optional Convert right after Range; offset_positions inserts the optional
+// past-length Add; with_clip inserts the optional Maximum/Minimum clip of the position into cache bounds.
+// The cos and sin Gathers share the same position-producing Squeeze, matching the real export.
+std::shared_ptr<ov::Model> build_model_with_gather_rope_pattern(bool with_convert = false,
+                                                                bool offset_positions = false,
+                                                                bool with_clip = true) {
+    // Range: start=0, stop=seq_len, step=1  (mimics position_ids generation)
+    const auto range_type = with_convert ? ov::element::i32 : ov::element::i64;
+    auto start = ov::op::v0::Constant::create(range_type, ov::Shape{}, {0});
+    auto stop = ov::op::v0::Constant::create(range_type, ov::Shape{}, {128});
+    auto step = ov::op::v0::Constant::create(range_type, ov::Shape{}, {1});
+    auto range = std::make_shared<ov::op::v4::Range>(start, stop, step, range_type);
+    range->set_friendly_name("range");
+
+    ov::Output<ov::Node> positions = range->output(0);
+    if (with_convert) {
+        auto convert = std::make_shared<ov::op::v0::Convert>(positions, ov::element::i64);
+        convert->set_friendly_name("positions_convert");
+        positions = convert->output(0);
+    }
+
+    // Unsqueeze: add batch dim [seq_len] → [1, seq_len]
+    auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(positions, unsqueeze_axes);
+    unsqueeze->set_friendly_name("unsqueeze_batch");
+    ov::Output<ov::Node> seq = unsqueeze->output(0);
+
+    // transformers>=5.4: past length added after the Range
+    if (offset_positions) {
+        auto past_len = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {8});
+        auto offset_add = std::make_shared<ov::op::v1::Add>(seq, past_len);
+        offset_add->set_friendly_name("positions_offset_add");
+        seq = offset_add->output(0);
+    }
+
+    // Squeeze: drop batch dim [1, seq_len] → [seq_len] to feed the 1-D Gather index
+    auto squeeze_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(seq, squeeze_axes);
+    squeeze->set_friendly_name("positions_squeeze");
+    ov::Output<ov::Node> indices = squeeze->output(0);
+
+    // Optional clip of the absolute position into the cache bounds: Maximum(0) then Minimum(max_pos)
+    if (with_clip) {
+        auto lo = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto clip_max = std::make_shared<ov::op::v1::Maximum>(indices, lo);
+        clip_max->set_friendly_name("clip_max");
+        auto hi = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {255});
+        auto clip_min = std::make_shared<ov::op::v1::Minimum>(clip_max, hi);
+        clip_min->set_friendly_name("clip_min");
+        indices = clip_min->output(0);
+    }
+
+    // Precomputed cos/sin cache tables [max_pos, head_dim], indexed by the (shared) position sequence.
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto cos_cache =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{256, 8}, std::vector<float>(256 * 8, 1.0f));
+    auto sin_cache =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{256, 8}, std::vector<float>(256 * 8, 0.0f));
+    auto gather_cos = std::make_shared<ov::op::v8::Gather>(cos_cache, indices, gather_axis);
+    gather_cos->set_friendly_name("gather_cos");
+    auto gather_sin = std::make_shared<ov::op::v8::Gather>(sin_cache, indices, gather_axis);
+    gather_sin->set_friendly_name("gather_sin");
+
+    auto cos_result = std::make_shared<ov::op::v0::Result>(gather_cos);
+    cos_result->set_friendly_name("cos_result");
+    auto sin_result = std::make_shared<ov::op::v0::Result>(gather_sin);
+    sin_result->set_friendly_name("sin_result");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{cos_result, sin_result},
+                                       ov::ParameterVector{},
+                                       "model_with_gather_rope_pattern");
+}
+
 bool has_parameter_named(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     for (const auto& p : model->get_parameters()) {
         for (const auto& n : p->output(0).get_names()) {
@@ -160,6 +242,19 @@ bool has_parameter_named(const std::shared_ptr<ov::Model>& model, const std::str
     return false;
 }
 
+size_t count_parameters_named(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    size_t count = 0;
+    for (const auto& p : model->get_parameters()) {
+        for (const auto& n : p->output(0).get_names()) {
+            if (n == name) {
+                ++count;
+                break;
+            }
+        }
+    }
+    return count;
+}
+
 size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const std::string& type_name) {
     size_t count = 0;
     for (const auto& op : model->get_ops()) {
@@ -168,6 +263,22 @@ size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const std::str
         }
     }
     return count;
+}
+
+// Returns true if position_ids (through the new Squeeze and any preserved clip) feeds the given
+// Gather's index input (input 1). Walks back along the data input (input 0) of clip/squeeze nodes.
+bool gather_index_fed_by_position_ids(const std::shared_ptr<ov::Node>& gather) {
+    auto walk = gather->input_value(1).get_node_shared_ptr();
+    for (int depth = 0; depth < 6; ++depth) {
+        if (walk->get_type_name() == std::string("Parameter")) {
+            return walk->output(0).get_names().count("position_ids") > 0;
+        }
+        if (walk->get_input_size() == 0) {
+            break;
+        }
+        walk = walk->input_value(0).get_node_shared_ptr();
+    }
+    return false;
 }
 
 // ===================== TESTS =====================
@@ -526,5 +637,95 @@ TEST(AddPositionIdsParamTest, OffsetAddWithClampReplacesClampInput) {
         EXPECT_TRUE(squeeze_input->output(0).get_names().count("position_ids") > 0)
             << "Squeeze should be fed by position_ids parameter";
     }
+}
+
+// ===================== GATHER-BASED (CACHE-TABLE) RoPE TESTS =====================
+// ONNX GroupQueryAttention-style exports index precomputed cos/sin cache tables with the positions,
+// so the position sequence drives a Gather rather than a Cos/Sin. The pass must still synthesize a
+// position_ids parameter for these models.
+
+TEST(AddPositionIdsParamTest, GatherRopeAddsPositionIdsParameter) {
+    auto model = build_model_with_gather_rope_pattern();
+
+    EXPECT_FALSE(has_parameter_named(model, "position_ids"));
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+    EXPECT_TRUE(has_parameter_named(model, "position_ids"));
+}
+
+// Both the cos-cache and sin-cache Gathers share one position-producing Squeeze, so exactly one
+// position_ids parameter must be created (dedup), not one per Gather.
+TEST(AddPositionIdsParamTest, GatherRopeCreatesSinglePositionIdsForCosAndSin) {
+    auto model = build_model_with_gather_rope_pattern();
+    ov::npuw::AddPositionIdsParam().run_on_model(model);
+
+    EXPECT_EQ(count_parameters_named(model, "position_ids"), 1u)
+        << "The shared cos/sin Gathers should yield exactly one position_ids parameter";
+}
+
+// After the pass, both Gathers must be indexed by position_ids (through the preserved clip), not by
+// the original Range/Squeeze chain.
+TEST(AddPositionIdsParamTest, GatherRopeGatherIndexUsesPositionIds) {
+    auto model = build_model_with_gather_rope_pattern();
+    ov::npuw::AddPositionIdsParam().run_on_model(model);
+
+    size_t gathers_checked = 0;
+    for (const auto& op : model->get_ops()) {
+        if (op->get_type_name() != std::string("Gather")) {
+            continue;
+        }
+        ++gathers_checked;
+        EXPECT_TRUE(gather_index_fed_by_position_ids(op))
+            << "Gather '" << op->get_friendly_name() << "' should be indexed by position_ids";
+    }
+    EXPECT_EQ(gathers_checked, 2u) << "Model should contain both the cos-cache and sin-cache Gathers";
+}
+
+// The optional Convert / Add(past_len) / clip nodes are all absent in some exports; the pass must
+// match through the bare Range -> Unsqueeze -> Squeeze -> Gather chain too.
+TEST(AddPositionIdsParamTest, GatherRopeMatchesWithoutOptionalNodes) {
+    auto model = build_model_with_gather_rope_pattern(false /*with_convert*/, false /*offset*/, false /*with_clip*/);
+
+    EXPECT_FALSE(has_parameter_named(model, "position_ids"));
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+    EXPECT_TRUE(has_parameter_named(model, "position_ids"));
+    EXPECT_EQ(count_parameters_named(model, "position_ids"), 1u);
+
+    for (const auto& op : model->get_ops()) {
+        if (op->get_type_name() == std::string("Gather")) {
+            EXPECT_TRUE(gather_index_fed_by_position_ids(op))
+                << "Gather should be indexed by position_ids even without clip/convert/add";
+        }
+    }
+}
+
+// The optional Convert (after Range) and Add(past_len) must not prevent the match.
+TEST(AddPositionIdsParamTest, GatherRopeMatchesWithConvertAndOffsetAdd) {
+    auto model = build_model_with_gather_rope_pattern(true /*with_convert*/, true /*offset*/, true /*with_clip*/);
+
+    EXPECT_FALSE(has_parameter_named(model, "position_ids"));
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+    EXPECT_TRUE(has_parameter_named(model, "position_ids"));
+    EXPECT_EQ(count_parameters_named(model, "position_ids"), 1u);
+
+    for (const auto& op : model->get_ops()) {
+        if (op->get_type_name() == std::string("Gather")) {
+            EXPECT_TRUE(gather_index_fed_by_position_ids(op))
+                << "Gather should be indexed by position_ids through the optional Convert/Add";
+        }
+    }
+}
+
+// Reapplying the pass to an already-transformed Gather-RoPE model must be a no-op.
+TEST(AddPositionIdsParamTest, GatherRopeReapplyDoesNotModifyGraph) {
+    auto model = build_model_with_gather_rope_pattern();
+    ov::npuw::AddPositionIdsParam().run_on_model(model);
+
+    const size_t params_after_first = model->get_parameters().size();
+    const size_t ops_after_first = model->get_ops().size();
+
+    ov::npuw::AddPositionIdsParam().run_on_model(model);
+
+    EXPECT_EQ(model->get_parameters().size(), params_after_first) << "Second pass should not add duplicate parameters";
+    EXPECT_EQ(model->get_ops().size(), ops_after_first) << "Second pass should not add duplicate operations";
 }
 }  // namespace

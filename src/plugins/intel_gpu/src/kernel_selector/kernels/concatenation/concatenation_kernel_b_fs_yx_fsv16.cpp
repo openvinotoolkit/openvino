@@ -45,11 +45,13 @@ size_t getTileXY(const concatenation_params& params) {
     auto tileXYMultiple = input.X().v;
     bool noInputPad = input.X().pad.Total() == 0;
     bool noOutputPad = params.outputs[0].X().pad.Total() == 0;
-    if (noInputPad && noOutputPad)
+    if (noInputPad && noOutputPad) {
         tileXYMultiple = input.X().v * input.Y().v;
+    }
 
-    while (tileXYMultiple % tileXY != 0)
+    while (tileXYMultiple % tileXY != 0) {
         tileXY /= 2;
+    }
 
     return tileXY;
 }
@@ -100,8 +102,9 @@ bool ConcatenationKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
         }
     }
 
-    if (params.axis != ConcatAxis::FEATURE)
+    if (params.axis != ConcatAxis::FEATURE) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

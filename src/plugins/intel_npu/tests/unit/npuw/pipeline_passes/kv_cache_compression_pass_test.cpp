@@ -36,11 +36,13 @@
 #include <unordered_map>
 
 #include "npuw_transformations/kv_cache_compressed.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_min.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
@@ -97,20 +99,13 @@ std::shared_ptr<Model> build_sdpa_model(size_t num_sdpa) {
     for (size_t n = 0; n < num_sdpa; ++n) {
         const std::string idx = std::to_string(n);
 
-        auto make_param = [&](const std::string& name, const Shape& shape) {
-            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
-            params.push_back(p);
-            return p;
-        };
-
-        auto past_key = make_param("past_key_values." + idx + ".key",   past_shape);
-        auto past_val = make_param("past_key_values." + idx + ".value", past_shape);
-        auto query    = make_param("query."    + idx, new_token_shape);
-        auto new_key  = make_param("new_key."  + idx, new_token_shape);
-        auto new_val  = make_param("new_value." + idx, new_token_shape);
-        auto mask     = make_param("mask."     + idx, mask_shape);
+        auto past_key = ov::test::utils::make_param(element::f32, past_shape,      "past_key_values." + idx + ".key");
+        auto past_val = ov::test::utils::make_param(element::f32, past_shape,      "past_key_values." + idx + ".value");
+        auto query    = ov::test::utils::make_param(element::f32, new_token_shape, "query."     + idx);
+        auto new_key  = ov::test::utils::make_param(element::f32, new_token_shape, "new_key."   + idx);
+        auto new_val  = ov::test::utils::make_param(element::f32, new_token_shape, "new_value." + idx);
+        auto mask     = ov::test::utils::make_param(element::f32, mask_shape,      "mask."      + idx);
+        params.insert(params.end(), {past_key, past_val, query, new_key, new_val, mask});
 
         // Build SDPA: Q @ K^T -> Add(mask) -> Softmax -> @ V
         auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
@@ -144,16 +139,7 @@ std::shared_ptr<Model> build_sdpa_model_with_hanging_past_consumers() {
     const Shape new_token_shape = {1, 4, 1, 64};
     const Shape mask_shape      = {1, 1, 1, 9};
 
-    ParameterVector params;
     ResultVector results;
-
-    auto make_param = [&](const std::string& name, const Shape& shape) {
-        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-        p->set_friendly_name(name);
-        p->output(0).get_tensor().set_names({name});
-        params.push_back(p);
-        return p;
-    };
 
     auto make_result = [&](Output<Node> out, const std::string& name) {
         auto r = std::make_shared<op::v0::Result>(out);
@@ -162,12 +148,13 @@ std::shared_ptr<Model> build_sdpa_model_with_hanging_past_consumers() {
         results.push_back(r);
     };
 
-    auto past_key = make_param("past_key_values.0.key", past_shape);
-    auto past_val = make_param("past_key_values.0.value", past_shape);
-    auto query = make_param("query.0", new_token_shape);
-    auto new_key = make_param("new_key.0", new_token_shape);
-    auto new_val = make_param("new_value.0", new_token_shape);
-    auto mask = make_param("mask.0", mask_shape);
+    auto past_key = ov::test::utils::make_param(element::f32, past_shape, "past_key_values.0.key");
+    auto past_val = ov::test::utils::make_param(element::f32, past_shape, "past_key_values.0.value");
+    auto query = ov::test::utils::make_param(element::f32, new_token_shape, "query.0");
+    auto new_key = ov::test::utils::make_param(element::f32, new_token_shape, "new_key.0");
+    auto new_val = ov::test::utils::make_param(element::f32, new_token_shape, "new_value.0");
+    auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask.0");
+    ParameterVector params = {past_key, past_val, query, new_key, new_val, mask};
 
     auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
     auto concat_val = std::make_shared<op::v0::Concat>(OutputVector{past_val, new_val}, 2);
@@ -245,6 +232,75 @@ TEST_P(KVCacheCompressionPassTest, ModelValidAfterPass) {
 
     ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(model, make_compression_params(p)));
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+}
+
+TEST(KVCacheCompressionPassRegressionTest, NonTransposedValueAuxUsesTokenAxis) {
+    auto model = build_sdpa_model(1);
+    ov::npuw::KVCacheCompressionParams params;
+    params.key = {QuantizationType::Asymmetric, element::i8};
+    params.value = {QuantizationType::Asymmetric, element::i8};
+
+    ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(model, params));
+
+    bool found_value_scale = false;
+    for (const auto& input : model->inputs()) {
+        if (input.get_any_name().find("/past_key_values/value/scale") == std::string::npos) {
+            continue;
+        }
+        PartialShape ps{1, 4, 8, 1};
+        EXPECT_EQ(input.get_partial_shape(), ps) << "for input: " << input.get_any_name();
+        found_value_scale = true;
+    }
+    EXPECT_TRUE(found_value_scale) << "Value scale parameter was not added";
+}
+
+TEST(KVCacheCompressionPassRegressionTest, NonTransposedValueUsesEmbeddingReductionAxis) {
+    auto model = build_sdpa_model(1);
+    ov::npuw::KVCacheCompressionParams params;
+    params.key = {QuantizationType::Asymmetric, element::i8};
+    params.value = {QuantizationType::Asymmetric, element::i8};
+
+    ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(model, params, false));
+
+    const auto expect_shape = [&model](const std::string& name, const PartialShape& expected) {
+        for (const auto& input : model->inputs()) {
+            if (input.get_any_name().find(name) != std::string::npos) {
+                EXPECT_EQ(input.get_partial_shape(), expected) << name;
+                return true;
+            }
+        }
+        ADD_FAILURE() << "Missing input: " << name;
+        return false;
+    };
+
+    expect_shape("/past_key_values/key/scale", PartialShape{1, 4, 8, 1});
+    expect_shape("/past_key_values/value/scale", PartialShape{1, 4, 8, 1});
+    expect_shape("/past_key_values/key/zp", PartialShape{1, 4, 8, 1});
+    expect_shape("/past_key_values/value/zp", PartialShape{1, 4, 8, 1});
+
+    size_t key_reduce_axis_count = 0;
+    size_t value_reduce_axis_count = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto reduce_min = ov::as_type_ptr<ov::op::v1::ReduceMin>(node);
+        if (!reduce_min || reduce_min->get_input_size() < 2) {
+            continue;
+        }
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(reduce_min->input_value(1).get_node_shared_ptr());
+        if (!constant) {
+            continue;
+        }
+        const auto axes = constant->cast_vector<int64_t>();
+        ASSERT_EQ(axes.size(), 1u);
+        if (reduce_min->get_friendly_name().find("/key/ReduceMin") != std::string::npos) {
+            EXPECT_EQ(axes.front(), 3);
+            ++key_reduce_axis_count;
+        } else if (reduce_min->get_friendly_name().find("/value/ReduceMin") != std::string::npos) {
+            EXPECT_EQ(axes.front(), 3);
+            ++value_reduce_axis_count;
+        }
+    }
+    EXPECT_EQ(key_reduce_axis_count, 1u);
+    EXPECT_EQ(value_reduce_axis_count, 1u);
 }
 
 // The pass must inject exactly (num_sdpa * 2 * added_per_cache) new Parameters
@@ -499,16 +555,8 @@ std::shared_ptr<Model> build_decode_step_model(size_t window) {
     const Shape new_value_shape = {1, 1, D, 1};
     const Shape mask_shape      = {1, 1, 1, window + 1};
 
-    ParameterVector params;
     ResultVector   results;
 
-    auto make_param = [&](const std::string& n, const Shape& s) {
-        auto p = std::make_shared<op::v0::Parameter>(element::f32, s);
-        p->set_friendly_name(n);
-        p->output(0).get_tensor().set_names({n});
-        params.push_back(p);
-        return p;
-    };
     auto make_result = [&](Output<Node> out, const std::string& n) {
         auto r = std::make_shared<op::v0::Result>(out);
         r->set_friendly_name(n);
@@ -516,12 +564,13 @@ std::shared_ptr<Model> build_decode_step_model(size_t window) {
         results.push_back(r);
     };
 
-    auto past_key = make_param("past_key_values.0.key",   past_key_shape);
-    auto past_val = make_param("past_key_values.0.value", past_val_shape);
-    auto query    = make_param("query.0",    new_key_shape);
-    auto new_key  = make_param("new_key.0",  new_key_shape);
-    auto new_val  = make_param("new_value.0", new_value_shape);
-    auto mask     = make_param("mask.0",     mask_shape);
+    auto past_key = ov::test::utils::make_param(element::f32, past_key_shape,  "past_key_values.0.key");
+    auto past_val = ov::test::utils::make_param(element::f32, past_val_shape,  "past_key_values.0.value");
+    auto query    = ov::test::utils::make_param(element::f32, new_key_shape,   "query.0");
+    auto new_key  = ov::test::utils::make_param(element::f32, new_key_shape,   "new_key.0");
+    auto new_val  = ov::test::utils::make_param(element::f32, new_value_shape, "new_value.0");
+    auto mask     = ov::test::utils::make_param(element::f32, mask_shape,      "mask.0");
+    ParameterVector params = {past_key, past_val, query, new_key, new_val, mask};
 
     auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
     auto concat_val = std::make_shared<op::v0::Concat>(OutputVector{past_val, new_val}, 3);
@@ -667,7 +716,7 @@ TEST_P(KVCacheMultiStepDecodeTest, TransformedModelIoTypesMatchQuantConfig) {
     auto xform_model = build_decode_step_model(WINDOW);
     xform_model = apply_kv_cache_io_precision_for_test(xform_model, p.key_dt, p.val_dt);
     ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(
-        xform_model, p.to_compression_params()));
+        xform_model, p.to_compression_params(), true));
     ASSERT_NO_THROW(xform_model->validate_nodes_and_infer_types());
 
     const bool key_asym = (p.key_quant_type == QuantizationType::Asymmetric);
@@ -776,7 +825,7 @@ TEST_P(KVCacheMultiStepDecodeTest, DecodeLoopAccuracy) {
     auto ref_model   = build_decode_step_model(WINDOW);
     auto xform_model = build_decode_step_model(WINDOW);
     ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(
-        xform_model, p.to_compression_params()));
+        xform_model, p.to_compression_params(), true));
     ASSERT_NO_THROW(xform_model->validate_nodes_and_infer_types());
 
     std::mt19937 rng(77);

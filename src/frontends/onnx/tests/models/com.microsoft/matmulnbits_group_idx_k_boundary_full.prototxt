@@ -1,0 +1,96 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "a"
+    input: "b_q"
+    input: "b_scales"
+    input: ""
+    input: "g_idx"
+    output: "c"
+    op_type: "MatMulNBits"
+    attribute {
+      name: "K"
+      i: 17
+      type: INT
+    }
+    attribute {
+      name: "N"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "bits"
+      i: 8
+      type: INT
+    }
+    attribute {
+      name: "block_size"
+      i: 16
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "matmulnbits_group_idx_k_boundary_full"
+  initializer {
+    dims: 1
+    dims: 2
+    dims: 16
+    data_type: 2
+    name: "b_q"
+    raw_data: "\212\212\212\212\212\212\212\212\212\212\212\212\212\212\212\212\224\224\224\224\224\224\224\224\224\224\224\224\224\224\224\224"
+  }
+  initializer {
+    dims: 1
+    dims: 2
+    data_type: 1
+    name: "b_scales"
+    raw_data: "\000\000\200?\000\000\000@"
+  }
+  initializer {
+    dims: 17
+    data_type: 6
+    name: "g_idx"
+    raw_data: "\001\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
+  }
+  input {
+    name: "a"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 17
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 7
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

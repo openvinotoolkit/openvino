@@ -96,9 +96,10 @@ struct detection_output : public primitive_base<detection_output> {
           clip_before_nms(clip_before_nms),
           clip_after_nms(clip_after_nms),
           objectness_score(objectness_score) {
-        if (decrease_label_id && background_label_id != 0)
+        if (decrease_label_id && background_label_id != 0) {
             throw std::invalid_argument(
                 "Cannot use decrease_label_id and background_label_id parameter simultaneously.");
+        }
     }
 
     /// @brief Number of classes to be predicted.
@@ -165,8 +166,9 @@ struct detection_output : public primitive_base<detection_output> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const detection_output>(rhs);
 

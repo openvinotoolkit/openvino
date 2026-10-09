@@ -21,6 +21,13 @@ ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
+# rtti.hpp applies __attribute__((visibility("hidden"))) to static member functions.
+# GCC 13+ warns about this with -Wattributes. All transformation files are affected;
+# existing ones escape only because incremental CI caches their .o files.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-attributes)
+endif()
+
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common
@@ -50,7 +57,7 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX2 ANY
                     npuw/util_xarch.cpp
         API         npuw/util_xarch.hpp
-        NAME        unpack_i4i8 unpack_u4i8 unpack_i4f16 unpack_i4f16_scale unpack_i4f16_z unpack_u4f16 unpack_u4f16_scale_zp unpack_u4f16_asymm_zp unpack_u4f16_z unpack_u4f32 unpack_i8f16 unpack_i8f16_scale unpack_u8f16 to_f16 copy_row_as_column transpose_i4 transpose_f16 transpose_f32 unpack_f8f16_scale
+        NAME        unpack_i4i8 unpack_u4i8 unpack_i4f16 unpack_i4f16_scale unpack_i4f16_z unpack_u4f16 unpack_u4f16_scale_zp unpack_u4f16_asymm_zp unpack_u4f16_z unpack_u4f32 unpack_i8f16 unpack_i8f16_scale unpack_i8f16_zp unpack_u8f16 to_f16 copy_row_as_column transpose_i4 transpose_f16 transpose_f32 unpack_f8f16_scale subtract_128
         NAMESPACE   ov::npuw::util::XARCH
 )
 

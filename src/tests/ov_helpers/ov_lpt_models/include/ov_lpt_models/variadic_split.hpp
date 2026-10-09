@@ -36,7 +36,6 @@ public:
         const ov::PartialShape& inputShape,
         const ov::element::Type inputPrecision,
         const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ov::element::Type precisionAfterOperation,
         const std::vector<ov::builder::subgraph::DequantizationOperations>& dequantizationAfter,
         const int64_t splitedAxis,
         const std::vector<size_t>& splitLengths);

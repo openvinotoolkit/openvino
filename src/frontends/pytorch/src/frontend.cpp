@@ -27,7 +27,6 @@
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
 #include "transforms/dict_resolver.hpp"
-#include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
 #include "transforms/max_pool_dynamic_kernel_resolver.hpp"
@@ -47,9 +46,7 @@
 #include "translate_session.hpp"
 #include "unconverted_ops_report.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 namespace {
 
@@ -235,7 +232,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
         manager.register_pass<ov::frontend::pass::SequenceConcatReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
-        manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
@@ -370,16 +366,20 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 std::unordered_map<std::string, CreatorFunction> FrontEnd::get_supported_ops(
     const ov::frontend::InputModel::Ptr& model) const {
     std::unordered_map<std::string, CreatorFunction> supported_ops;
-    if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
+    if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx") {
         supported_ops = get_supported_ops_fx();
-    else
+        // FX and TorchScript names use disjoint separators (`aten.add.Tensor` vs `aten::add`), so both tables can be
+        // merged. TranslateSession::convert_node resolves an FX name to its TorchScript entry when no FX-specific
+        // translator is registered.
+        const auto ts_ops = get_supported_ops_ts();
+        supported_ops.insert(ts_ops.begin(), ts_ops.end());
+    } else {
         supported_ops = get_supported_ops_ts();
+    }
     for (const auto& ext : m_op_extension_translators) {
         supported_ops[ext.first] = ext.second;
     }
     return supported_ops;
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

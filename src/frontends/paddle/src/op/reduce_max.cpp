@@ -4,14 +4,8 @@
 
 #include "reduce_ops.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs reduce_max(const NodeContext& node_context) {
     return reduce_ops<default_opset::ReduceMax>(node_context);
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

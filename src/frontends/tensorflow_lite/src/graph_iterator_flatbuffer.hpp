@@ -14,9 +14,7 @@
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 struct TensorInfo {
     const tflite::Tensor* tensor;
@@ -98,6 +96,4 @@ public:
     std::shared_ptr<GraphIterator> get_subgraph(size_t idx) const override;
 };
 
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

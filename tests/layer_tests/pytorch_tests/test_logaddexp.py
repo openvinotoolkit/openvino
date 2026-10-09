@@ -3,7 +3,7 @@
 
 import pytest
 import numpy as np
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestLogAddExp(PytorchLayerTest):
@@ -116,7 +116,7 @@ class TestLogAddExp(PytorchLayerTest):
         ],
     )
     @pytest.mark.parametrize(
-        "out", (False, skip_if_export(True))
+        "out", (False, True)
     )
     def test_logaddexp_shapes(self, dtype1, dtype2, shape, out, ie_device, precision, ir_version):
         # Generate random inputs within a reasonable range
