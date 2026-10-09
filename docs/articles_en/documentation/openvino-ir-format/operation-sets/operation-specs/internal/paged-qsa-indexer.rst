@@ -17,7 +17,7 @@ The *PagedQSAIndexer* is the **model-specific plan producer** for Qwen Sparse At
 *PagedQSAIndexer* owns its recurrent caches **in place** as explicitly-passed paged tensors and reads the shared
 main PagedAttention page table (``block_indices`` / ``block_indices_begins``). It performs the same *K-side
 compression chain* (per-token or pooled key mean-pool, RMSNorm, block-start RoPE), maintains the incremental
-``summary_cache`` and the per-sequence ``pending_k_cache`` ring, and emits a clean ``(sel_indices, sel_count)``
+``summary_cache`` and the per-sequence ``indexer_k_cache`` ring, and emits a clean ``(sel_indices, sel_count)``
 block-selection contract. It **supports page-aligned prefix caching** (see :ref:`Prefix Caching` below): because
 ``page_size % compress_ratio == 0``, cached physical pages already have their ``summary_cache`` populated, so a
 matched prompt prefix skips summary recomputation for the cached pages.
@@ -39,22 +39,22 @@ their tier residency:
   ``H_ik``** (never hard-coded to ``1``). This requires
   ``page_size % compress_ratio == 0`` so every summary slot maps to a fixed position inside one physical page.
 
-- ``pending_k_cache`` ``[num_slots, H_ik, ring_capacity, D_idx]``: the projected, per-token indexer keys of the
+- ``indexer_k_cache`` ``[num_slots, H_ik, ring_capacity, D_idx]``: the projected, per-token indexer keys of the
   *currently incomplete* block(s) of each sequence, held in a **per-sequence ring buffer** (addressed by
   ``slot_mapping``). The second dimension is the **configurable index-key head count ``H_ik``**. The ring capacity
   ``C`` is a **real functional parameter**: ``C % compress_ratio == 0`` and ``C >= compress_ratio``. A token at
   logical position :math:`pos` is stored at ring offset :math:`off = pos \bmod C` in
-  ``pending_k_cache[slot, :, off, :]``. Position addressing makes the op **idempotent and decode-continuous**:
+  ``indexer_k_cache[slot, :, off, :]``. Position addressing makes the op **idempotent and decode-continuous**:
   re-running a step writes the same slot (overwriting stale content), and a chunked prefill that resumes at
   ``off == 0`` re-establishes the same block-start state without any internal counter.
-- ``pending_start_cos_sin`` ``[num_slots, C/r, 2 * indexer_rotary_dim]``: the precomputed RoPE ``(cos, sin)`` at
+- ``indexer_k_start_cos_sin`` ``[num_slots, C/r, 2 * indexer_rotary_dim]``: the precomputed RoPE ``(cos, sin)`` at
   the block-start position of each possible pending block start within the ring, addressed by
   ``(pos // compress_ratio) % (C / compress_ratio)``. It is refreshed when the first token of a block arrives.
 - ``k_rope_cos_sin`` ``[tokens, 2 * indexer_rotary_dim]``: key-side RoPE ``(cos, sin)``, used **only to capture
   the block-start phase** (decouples logical index from RoPE coordinate).
 
 A block is *completed* once exactly :math:`r` raw keys have been appended (the pending ring fills and its summary
-is flushed into ``summary_cache``). The flush pools ``pending_k_cache[slot, :, (b*r) % C : (b*r) % C + r, :]`` —
+is flushed into ``summary_cache``). The flush pools ``indexer_k_cache[slot, :, (b*r) % C : (b*r) % C + r, :]`` —
 the ring slice holding exactly the ``r`` keys of block :math:`b`. The last, partially-filled block of a sequence
 is *not* summarized into ``summary_cache``; instead it is emitted as a **valid block index** in the output (the
 producer-completeness rule), so the consumer gathers it as a partial block without any ``r-1`` tail hack.
@@ -123,7 +123,7 @@ used for positional rotation. The **logical position** of a token is derived fro
 partition (``subsequence_begins``): for sequence ``s`` and token ``t``,
 :math:`pos = past\_lens[s] + (t - subsequence\_begins[s])`. This logical position drives (a) which blocks are
 causally valid and (b) the pending ring slot addressing. The **RoPE coordinate** for the key side is a purely
-positional quantity, captured once per block in ``pending_start_cos_sin``; the query arrives already RoPE'ed;
+positional quantity, captured once per block in ``indexer_k_start_cos_sin``; the query arrives already RoPE'ed;
 ``k_rope_cos_sin`` supplies the key-side (possibly M-RoPE) ``(cos, sin)`` per token and is used only to capture
 each block's start phase. This decoupling is what makes 3-axis M-RoPE expressible.
 
@@ -190,8 +190,8 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
 .. code-block:: py
     :force:
 
-    def paged_qsa_indexer(q_idx, k_idx, k_rope_cos_sin, summary_cache, pending_k_cache,
-                          pending_start_cos_sin, k_norm_weight,
+    def paged_qsa_indexer(q_idx, k_idx, k_rope_cos_sin, summary_cache, indexer_k_cache,
+                          indexer_k_start_cos_sin, k_norm_weight,
                           slot_mapping, block_indices, block_indices_begins,
                           subsequence_begins, past_lens,
                           *, compress_ratio, block_topk, h_sel,
@@ -201,8 +201,8 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
         # k_idx:            [tokens, H_ik * D_idx]    (projected by external GEMM; H_ik configurable)
         # k_rope_cos_sin:   [tokens, 2 * indexer_rotary_dim]  (key-side RoPE (cos,sin); block-start phase)
         # summary_cache:    [num_blocks, H_ik, page_size // r, D_idx]
-        # pending_k_cache:  [num_slots, H_ik, ring_capacity, D_idx]  (per-sequence ring, capacity C)
-        # pending_start_cos_sin: [num_slots, C // r, 2 * indexer_rotary_dim]
+        # indexer_k_cache:  [num_slots, H_ik, ring_capacity, D_idx]  (per-sequence ring, capacity C)
+        # indexer_k_start_cos_sin: [num_slots, C // r, 2 * indexer_rotary_dim]
         # k_norm_weight:    [D_idx]
         # slot_mapping:     [num_sequences]   (seq -> ring slot)
         # block_indices:    [total_logical_blocks]   logical -> physical block map (shared with main PA)
@@ -235,18 +235,18 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
                 off = pos % C
                 if pos % r == 0:
                     # first token of a block: record the block-start RoPE phase from this token's table row
-                    pending_start_cos_sin[slot, (pos // r) % n_block_phases] = k_rope_cos_sin[t]
-                pending_k_cache[slot, :, off, :] = k[t]      # [Hik, Di] (H_ik configurable)
+                    indexer_k_start_cos_sin[slot, (pos // r) % n_block_phases] = k_rope_cos_sin[t]
+                indexer_k_cache[slot, :, off, :] = k[t]      # [Hik, Di] (H_ik configurable)
                 if pos % r == r - 1:
                     # block `b = pos // r` is now complete: mean-pool (fp32), RMSNorm, partial RoPE, flush.
                     # Its r keys live in the ring slice [(b*r) % C, (b*r) % C + r).
                     b = pos // r
                     ring_start = (b * r) % C
-                    pooled = mean(pending_k_cache[slot, :, ring_start:ring_start + r, :]
+                    pooled = mean(indexer_k_cache[slot, :, ring_start:ring_start + r, :]
                                   .astype(float32), axis=1).astype(k.dtype)       # [Hik, Di]
                     nb = rms_norm(pooled, k_norm_weight, eps)                     # [Hik, Di]
                     bar = concat([rope(nb[..., :indexer_rotary_dim],
-                                       pending_start_cos_sin[slot, (b) % n_block_phases]),
+                                       indexer_k_start_cos_sin[slot, (b) % n_block_phases]),
                                   nb[..., indexer_rotary_dim:]], axis=-1)         # keep unrotated tail
                     phys = block_indices[block_indices_begins[s] + (b * r) // page_size]
                     slot_in_block = (b * r % page_size) // r
@@ -386,7 +386,7 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
 * **2**: ``k_rope_cos_sin``
   A 2D tensor of type *T* with shape ``[tokens, 2 * indexer_rotary_dim]``.
   Key-side RoPE ``(cos, sin)``, used **only to capture the block-start phase** when a new block begins (the
-  ``(pos // r) % (C / r)`` slot of ``pending_start_cos_sin``). Prepared by the caller from the full table using
+  ``(pos // r) % (C / r)`` slot of ``indexer_k_start_cos_sin``). Prepared by the caller from the full table using
   the appropriate (possibly M-RoPE) key coordinates. **Required.**
 
 * **3**: ``summary_cache``
@@ -395,13 +395,13 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
   shared main PA page table (``block_indices`` / ``block_indices_begins``). The ``H_ik`` head count is
   configurable, never hard-coded to ``1``. Updated in place. **Required.**
 
-* **4**: ``pending_k_cache``
+* **4**: ``indexer_k_cache``
   A 4D tensor of type *T* with shape ``[num_slots, H_ik, ring_capacity, D_idx]``.
   Per-sequence ring buffer holding the projected, unrotated keys of the recent (possibly incomplete) blocks,
   addressed by logical position (``off = pos % ring_capacity``). The ``H_ik`` head count is configurable, never
   hard-coded to ``1``. **Required.**
 
-* **5**: ``pending_start_cos_sin``
+* **5**: ``indexer_k_start_cos_sin``
   A 3D tensor of type *T* with shape ``[num_slots, ring_capacity // compress_ratio, 2 * indexer_rotary_dim]``.
   RoPE ``(cos, sin)`` at the block-start position of each possible pending block start within the ring, addressed
   by ``(pos // compress_ratio) % (ring_capacity / compress_ratio)``. Refreshed at the first token of each block.
@@ -462,10 +462,10 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
   ``H_sel`` in ``{1, H_ik}``.
 * ``page_size % compress_ratio == 0``; ``summary_cache`` dim 2 equals ``page_size // compress_ratio``, dim 1
   equals ``H_ik``, and dim 0 equals ``num_blocks`` (shared with the main KV ``key_cache`` dim 0).
-* ``slot_mapping`` length equals ``num_sequences``; ``pending_k_cache`` dim 0 equals ``num_slots``, dim 1 equals
+* ``slot_mapping`` length equals ``num_sequences``; ``indexer_k_cache`` dim 0 equals ``num_slots``, dim 1 equals
   ``H_ik``, and dim 2 equals ``ring_capacity`` (with ``ring_capacity % compress_ratio == 0`` and
   ``ring_capacity >= compress_ratio``).
-* ``pending_start_cos_sin`` dim 0 equals ``num_slots``, dim 1 equals ``ring_capacity // compress_ratio``, and dim 2
+* ``indexer_k_start_cos_sin`` dim 0 equals ``num_slots``, dim 1 equals ``ring_capacity // compress_ratio``, and dim 2
   equals ``2 * indexer_rotary_dim``.
 * ``sel_indices`` last dimension ``K_max`` equals ``block_topk + 1``; ``sel_count[t, sh] <= K_max``, and the valid
   prefix ``sel_indices[t, sh, :sel_count[t, sh]]`` is **strictly ascending** and contains no ``-1`` entries.
@@ -511,10 +511,10 @@ index-query heads participate in the single selection head's score.
            <port id="3">   <!-- summary_cache: [num_blocks, H_ik, page_size//r, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>4</dim><dim>128</dim>
            </port>
-           <port id="4">   <!-- pending_k_cache: [num_slots, H_ik, ring_capacity, D_idx] -->
+           <port id="4">   <!-- indexer_k_cache: [num_slots, H_ik, ring_capacity, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>4</dim><dim>128</dim>
            </port>
-           <port id="5">   <!-- pending_start_cos_sin: [num_slots, C//r, 2*rotary_dim] -->
+           <port id="5">   <!-- indexer_k_start_cos_sin: [num_slots, C//r, 2*rotary_dim] -->
                <dim>1</dim><dim>1</dim><dim>256</dim>
            </port>
            <port id="6">   <!-- k_norm_weight: [D_idx] -->

@@ -23,26 +23,26 @@ cache. For continuous batching over a PagedAttention page table, see the separat
 **Functional State Interface and graph wiring**
 
 Unlike the paged variant, *QSAIndexer* owns **no internal, opaque state** and reads **no page table**. It is a
-stateless function of its inputs plus the explicit state passed in on ``summary_past`` / ``pending_past`` /
-``pending_start_past``, and it returns the *updated* state on ``summary_present`` / ``pending_present`` /
-``pending_start_present``. The surrounding graph is responsible for the state lifecycle:
+stateless function of its inputs plus the explicit state passed in on ``summary_past`` / ``indexer_k_past`` /
+``indexer_k_start_past``, and it returns the *updated* state on ``summary_present`` / ``indexer_k_present`` /
+``indexer_k_start_present``. The surrounding graph is responsible for the state lifecycle:
 
 .. code-block:: text
 
-   ReadValue(summary_state)  ----------> summary_past  ----> QSAIndexer ----> summary_present  ----> Assign(summary_state)
-   ReadValue(pending_state)  ----------> pending_past  ----> QSAIndexer ----> pending_present  ----> Assign(pending_state)
-   ReadValue(pending_start)  ----------> pending_start_past -> QSAIndexer -> pending_start_present -> Assign(pending_start)
+   ReadValue(summary_state)          --> summary_past         --> QSAIndexer --> summary_present         --> Assign(summary_state)
+   ReadValue(indexer_k_state)        --> indexer_k_past       --> QSAIndexer --> indexer_k_present       --> Assign(indexer_k_state)
+   ReadValue(indexer_k_start_state)  --> indexer_k_start_past --> QSAIndexer --> indexer_k_start_present --> Assign(indexer_k_start_state)
 
-   Gather(ReadValue(summary_state), beam_idx, axis=0)  ----> summary_past
-   Gather(ReadValue(pending_state), beam_idx, axis=0)  ----> pending_past
-   Gather(ReadValue(pending_start), beam_idx, axis=0)  ----> pending_start_past
+   Gather(ReadValue(summary_state), beam_idx, axis=0)          --> summary_past
+   Gather(ReadValue(indexer_k_state), beam_idx, axis=0)        --> indexer_k_past
+   Gather(ReadValue(indexer_k_start_state), beam_idx, axis=0)  --> indexer_k_start_past
 
    beam_idx (a Parameter) -> Gather(ReadValue(var), beam_idx, axis=0)
 
 When beam search is used, the **state tensors only** are gathered with ``beam_idx`` before the op, so each
 hypothesis branch carries its own independent summary / pending / RoPE-start state. ``beam_idx`` is a plain
 ``Parameter``; the ``Gather(ReadValue(var), beam_idx, axis=0)`` applies **only** to the three state tensors
-(``summary_past``, ``pending_past``, ``pending_start_past``) — never to ``q_idx``, ``k_idx``, or
+(``summary_past``, ``indexer_k_past``, ``indexer_k_start_past``) — never to ``q_idx``, ``k_idx``, or
 ``k_rope_cos_sin``, which are produced fresh for the step and are identical across hypotheses. The op itself is
 pure: the same inputs yield the same outputs, making it trivially re-runnable for rollback and deterministic
 across devices.
@@ -115,17 +115,17 @@ The K-side history is maintained as two explicit state tensors plus one RoPE-sta
   RoPE'ed summary keys of the **completed** blocks (:math:`N_c = \lfloor (S_0 + L) / r \rfloor` complete blocks
   after this step, with :math:`S_0` the number of already-stored token positions). This is the incrementally-
   updated artifact that makes the per-token update :math:`O(1)`.
-- ``pending_past`` / ``pending_present`` ``[B, H_ik, P, D_idx]``: the projected, per-token indexer keys of the
-  **currently incomplete** block, with :math:`P = S_0 \bmod r \in [0, r)` on input (``pending_past``) and
-  :math:`P' = (S_0 + L) \bmod r` on output (``pending_present``). These are the raw
+- ``indexer_k_past`` / ``indexer_k_present`` ``[B, H_ik, P, D_idx]``: the projected, per-token indexer keys of the
+  **currently incomplete** block, with :math:`P = S_0 \bmod r \in [0, r)` on input (``indexer_k_past``) and
+  :math:`P' = (S_0 + L) \bmod r` on output (``indexer_k_present``). These are the raw
   (unrotated) keys that will be pooled into the next completed-block summary when the block fills.
-- ``pending_start_past`` / ``pending_start_present`` ``[B, 2 * indexer_rotary_dim]``: the precomputed RoPE
+- ``indexer_k_start_past`` / ``indexer_k_start_present`` ``[B, 2 * indexer_rotary_dim]``: the precomputed RoPE
   ``(cos, sin)`` at the block-start position of the pending block, refreshed when the first token of a block
   arrives.
 
 The **logical position** of a token is ``S_0 + l`` (batch element ``b``, step token ``l``), where ``S_0`` is the
 number of already-stored key positions for that batch element before this step (equivalently, the length of the
-history already summarized into ``summary_past``/``pending_past``). A block is *completed* once exactly :math:`r`
+history already summarized into ``summary_past``/``indexer_k_past``). A block is *completed* once exactly :math:`r`
 raw keys have been appended; the last, partially-filled block is **not** summarized but emitted as a **valid
 block index** in the output (the producer-completeness rule).
 
@@ -181,22 +181,22 @@ truncation is applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the *
 .. code-block:: py
     :force:
 
-    def qsa_indexer(q_idx, k_idx, k_rope_cos_sin, summary_past, pending_past, pending_start_past,
+    def qsa_indexer(q_idx, k_idx, k_rope_cos_sin, summary_past, indexer_k_past, indexer_k_start_past,
                     k_norm_weight,
                     *, compress_ratio, block_topk, h_sel, indexer_rotary_dim,
                     indexer_head_dim, eps, scale):
-        # q_idx:              [B, L, H_iq, D_idx]        (projected, RMSNorm'ed and RoPE'ed externally)
-        # k_idx:              [B, L, H_ik, D_idx]        (projected by external GEMM)
-        # k_rope_cos_sin:     [B, L, 2 * indexer_rotary_dim]  (key-side RoPE (cos,sin); block-start phase)
-        # summary_past:       [B, H_ik, N_c, D_idx]      (completed-block summaries; N_c dynamic)
-        # pending_past:       [B, H_ik, P, D_idx]        (incomplete pending keys; 0 <= P < r)
-        # pending_start_past: [B, 2 * indexer_rotary_dim] (RoPE (cos,sin) at the pending block start)
-        # k_norm_weight:      [D_idx]
-        # returns: sel_indices [B, H_sel, L, K_max]  (int32; -1 = pad), K_max = block_topk + 1
-        #          sel_count   [B, H_sel, L]          (int32)
-        #          summary_present  [B, H_ik, N_c', D_idx]
-        #          pending_present  [B, H_ik, P', D_idx]
-        #          pending_start_present [B, 2 * indexer_rotary_dim]
+        # q_idx:                 [B, L, H_iq, D_idx]          (projected, RMSNorm'ed and RoPE'ed externally)
+        # k_idx:                 [B, L, H_ik, D_idx]          (projected by external GEMM)
+        # k_rope_cos_sin:        [B, L, 2 * indexer_rotary_dim]  (key-side RoPE (cos,sin); block-start phase)
+        # summary_past:          [B, H_ik, N_c, D_idx]        (completed-block summaries; N_c dynamic)
+        # indexer_k_past:        [B, H_ik, P, D_idx]          (incomplete pending keys; 0 <= P < r)
+        # indexer_k_start_past:  [B, 2 * indexer_rotary_dim]  (RoPE (cos,sin) at the pending block start)
+        # k_norm_weight:         [D_idx]
+        # returns: sel_indices               [B, H_sel, L, K_max]          (int32; -1 = pad), K_max = block_topk + 1
+        #          sel_count                 [B, H_sel, L]                (int32)
+        #          summary_present           [B, H_ik, N_c', D_idx]
+        #          indexer_k_present         [B, H_ik, P', D_idx]
+        #          indexer_k_start_present   [B, 2 * indexer_rotary_dim]
         B, L, H_iq, Di = q_idx.shape
         Hik = k_idx.shape[2]                     # index-key heads, taken from the shape (configurable!)
         Hsel = h_sel
@@ -204,13 +204,13 @@ truncation is applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the *
         Kmax = block_topk + 1                    # +1 slot for the causal-diagonal / incomplete block
         G = H_iq // Hik                          # index-query heads per index-key head (H_iq % Hik == 0)
         assert H_iq % Hik == 0 and Hsel in (1, Hik) and r >= 1
-        S0 = summary_past.shape[2] * r + pending_past.shape[2]   # already-stored logical length
+        S0 = summary_past.shape[2] * r + indexer_k_past.shape[2]   # already-stored logical length
 
         # 1. Append current keys to the pending block; flush completed blocks into summary_present.
         #    k_t: [B, H_ik, L, D_idx] (transpose of [B, L, H_ik, D_idx]).
         k_t = transpose(k_idx, (0, 2, 1, 3))                       # [B, Hik, L, Di]
-        P = pending_past.shape[2]                # number of pending keys carried into this step
-        pending = concat([pending_past, k_t], axis=2)              # [B, Hik, P+L, Di]
+        P = indexer_k_past.shape[2]                # number of pending keys carried into this step
+        pending = concat([indexer_k_past, k_t], axis=2)              # [B, Hik, P+L, Di]
         n_pending = pending.shape[2]
         n_complete = n_pending // r              # blocks fully filled in this step
         rem = n_pending % r
@@ -224,20 +224,20 @@ truncation is applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the *
             # block-start RoPE phase of this completed block: its first token is at logical offset
             # j0 = b_idx*r - P within this step (negative => it began before this step, use the pending phase).
             j0 = b_idx * r - P
-            cs = pending_start_past if j0 < 0 else k_rope_cos_sin[:, j0]   # [B, 2*rot]
+            cs = indexer_k_start_past if j0 < 0 else k_rope_cos_sin[:, j0]   # [B, 2*rot]
             rot = nb[..., :indexer_rotary_dim]
             bar = concat([rope(rot, cs), nb[..., indexer_rotary_dim:]], axis=-1)  # [B, Hik, Di]
             summary[:, :, summary_past.shape[2] + b_idx, :] = bar
-        pending_present = pending[:, :, n_complete*r :, :]         # [B, Hik, rem, Di]
+        indexer_k_present = pending[:, :, n_complete*r :, :]         # [B, Hik, rem, Di]
         summary_present = summary
-        # pending_start_present: the RoPE phase of the next (new) block start.
+        # indexer_k_start_present: the RoPE phase of the next (new) block start.
         # rem == 0: no pending block remains; the next step's first token starts a new block and refreshes the
         # phase from its own k_rope_cos_sin row, so the carried value is unused.
         if rem == 0:
-            pending_start_present = pending_start_past
+            indexer_k_start_present = indexer_k_start_past
         else:
             j0 = n_complete * r - P          # offset in this step of the first token of the still-open block
-            pending_start_present = pending_start_past if j0 < 0 else k_rope_cos_sin[:, j0]
+            indexer_k_start_present = indexer_k_start_past if j0 < 0 else k_rope_cos_sin[:, j0]
 
         # 2. Score the causally-valid complete blocks per selection head (grouped per-query-head reduction).
         sel_indices = full((B, Hsel, L, Kmax), -1, dtype=int32)
@@ -268,7 +268,7 @@ truncation is applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the *
                         inc = (pos + 1) // r              # causal-diagonal / incomplete block (> all complete)
                         sel_indices[b_batch, sh, l, k] = inc
                         sel_count[b_batch, sh, l] = k + 1
-        return sel_indices, sel_count, summary_present, pending_present, pending_start_present
+        return sel_indices, sel_count, summary_present, indexer_k_present, indexer_k_start_present
 
 
 **Attributes**
@@ -353,12 +353,12 @@ truncation is applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the *
   Mean-pooled + RMSNorm'ed + block-start-RoPE'ed summary keys of the completed blocks so far (``N_c`` dynamic).
   Wired from a ``ReadValue`` node. **Required.**
 
-* **4**: ``pending_past``
+* **4**: ``indexer_k_past``
   A 4D tensor of type *T* with shape ``[B, H_ik, P, D_idx]``.
   Projected, unrotated keys of the currently incomplete block so far, with ``0 <= P < compress_ratio``. Wired
   from a ``ReadValue`` node. **Required.**
 
-* **5**: ``pending_start_past``
+* **5**: ``indexer_k_start_past``
   A 2D tensor of type *T* with shape ``[B, 2 * indexer_rotary_dim]``.
   RoPE ``(cos, sin)`` at the block-start position of the pending block. Wired from a ``ReadValue`` node.
   **Required.**
@@ -386,11 +386,11 @@ truncation is applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the *
   A 4D tensor of type *T* with shape ``[B, H_ik, floor((S_0 + L) / r), D_idx]``.
   Updated completed-block summary state, wired to an ``Assign`` node. **Required.**
 
-* **3**: ``pending_present``
+* **3**: ``indexer_k_present``
   A 4D tensor of type *T* with shape ``[B, H_ik, (S_0 + L) % r, D_idx]``.
   Updated incomplete-block key state, wired to an ``Assign`` node. **Required.**
 
-* **4**: ``pending_start_present``
+* **4**: ``indexer_k_start_present``
   A 2D tensor of type *T* with shape ``[B, 2 * indexer_rotary_dim]``.
   Updated block-start RoPE phase, wired to an ``Assign`` node. **Required.**
 
@@ -403,15 +403,15 @@ truncation is applied by the consumers (``SparseSDPA`` / ``SparsePA``) via the *
   ``q_idx`` penultimate dimension is ``H_iq`` and ``k_idx`` penultimate dimension is ``H_ik``, with
   ``H_iq % H_ik == 0`` and ``G = H_iq / H_ik`` index-query heads sharing each index-key head.
 * ``H_ik`` (index-key heads) is taken from ``k_idx`` shape; ``H_sel`` is ``1`` or ``H_ik``.
-* ``summary_past`` dim 1 equals ``H_ik``; ``pending_past`` dim 1 equals ``H_ik``; ``pending_past`` dim 2 satisfies
+* ``summary_past`` dim 1 equals ``H_ik``; ``indexer_k_past`` dim 1 equals ``H_ik``; ``indexer_k_past`` dim 2 satisfies
   ``0 <= P < compress_ratio``.
-* ``pending_start_past`` last dimension equals ``2 * indexer_rotary_dim``; ``k_rope_cos_sin`` dim 2 equals the
+* ``indexer_k_start_past`` last dimension equals ``2 * indexer_rotary_dim``; ``k_rope_cos_sin`` dim 2 equals the
   same.
 * ``sel_indices`` last dimension ``K_max`` equals ``block_topk + 1``; ``sel_count[..., sh] <= K_max``, and the
   valid prefix ``sel_indices[..., sh, :sel_count[..., sh]]`` is **strictly ascending** and contains no ``-1``
   entries.
-* ``summary_present`` dim 2 equals ``floor((S_0 + L) / r)``; ``pending_present`` dim 2 equals
-  ``(S_0 + L) % r``, where ``S_0 = summary_past.shape[2] * r + pending_past.shape[2]``.
+* ``summary_present`` dim 2 equals ``floor((S_0 + L) / r)``; ``indexer_k_present`` dim 2 equals
+  ``(S_0 + L) % r``, where ``S_0 = summary_past.shape[2] * r + indexer_k_past.shape[2]``.
 * When the selection for a row is empty (``sel_count == 0``), the consumer must produce a zero output vector for
   that row.
 
@@ -455,10 +455,10 @@ index-query heads participate in the single selection head's score.
            <port id="3">   <!-- summary_past: [B, H_ik, N_c, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>2</dim><dim>128</dim>
            </port>
-           <port id="4">   <!-- pending_past: [B, H_ik, P, D_idx], 0 <= P < r -->
+           <port id="4">   <!-- indexer_k_past: [B, H_ik, P, D_idx], 0 <= P < r -->
                <dim>1</dim><dim>1</dim><dim>1</dim><dim>128</dim>
            </port>
-           <port id="5">   <!-- pending_start_past: [B, 2*rotary_dim] -->
+           <port id="5">   <!-- indexer_k_start_past: [B, 2*rotary_dim] -->
                <dim>1</dim><dim>256</dim>
            </port>
            <port id="6">   <!-- k_norm_weight: [D_idx] -->
@@ -475,10 +475,10 @@ index-query heads participate in the single selection head's score.
            <port id="9">   <!-- summary_present: [B, H_ik, floor((S0+L)/r), D_idx] -->
                <dim>1</dim><dim>1</dim><dim>2</dim><dim>128</dim>
            </port>
-           <port id="10">  <!-- pending_present: [B, H_ik, (S0+L)%r, D_idx] -->
+           <port id="10">  <!-- indexer_k_present: [B, H_ik, (S0+L)%r, D_idx] -->
                <dim>1</dim><dim>1</dim><dim>2</dim><dim>128</dim>
            </port>
-           <port id="11">  <!-- pending_start_present: [B, 2*rotary_dim] -->
+           <port id="11">  <!-- indexer_k_start_present: [B, 2*rotary_dim] -->
                <dim>1</dim><dim>256</dim>
            </port>
        </output>
