@@ -95,6 +95,8 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const ov::SoPtr<ov::ITensor>& to,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
+void subtract_128(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
+
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
 void gather_cb4(const ov::SoPtr<ov::ITensor>& src,
                 const ov::SoPtr<ov::ITensor>& idx,
@@ -232,6 +234,10 @@ bool matchLinCacheString(const std::string& input, const std::string& past_or_pr
 
 bool starts_with_past_lincache(const std::string& input_name);
 
+// Matches past_key_values.N.key/value Parameter (and present.N.key/value output) names of
+// layers managed by sliding window attention.
+bool is_swa_kv_cache_name(const std::string& input_name);
+
 // Matches the paged KV cache inputs of the PagedAttention model deployed by
 // the GenAI continuous-batching pipeline (key_cache.N / value_cache.N, named
 // by the SDPAToPagedAttention transformation).
@@ -351,6 +357,17 @@ inline std::optional<int> isPastKeyValuesValue(const std::string& str) {
 
 std::optional<int> isPresentKeyValuesKey(const std::string& str);
 std::optional<int> isPresentKeyValuesValue(const std::string& str);
+bool isKVCacheName(const std::string& str);
+
+namespace constants {
+inline constexpr const char* past_key_values = "past_key_values";
+inline constexpr const char* present = "present";
+}  // namespace constants
+
+std::string present_to_past_key_values_name(const std::string& output_name);
+std::string past_key_values_to_present_name(const std::string& input_name);
+std::optional<std::string> resolveKVInputName(const std::string& output_name,
+                                              const std::function<bool(const std::string&)>& has_input_name);
 
 // Matches any past key param: contiguous (past_key_values.N.key) or block-split (key_block_M).
 bool isPastKeyParam(const std::string& str);

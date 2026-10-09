@@ -11,11 +11,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 
 ov::OutputVector bias_add(const ov::frontend::onnx::Node& node) {
     // Documentation: BiasAdd computes Y = X + bias + skip
@@ -73,8 +69,4 @@ ov::OutputVector bias_add(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("BiasAdd", OPSET_SINCE(1), com_microsoft::opset_1::bias_add, MICROSOFT_DOMAIN);
 
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

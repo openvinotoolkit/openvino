@@ -8,23 +8,15 @@ This API provides a simplified interface for OpenVINO functionality that allows 
 
 ## Supported OSes
 
-Currently the OpenVINO C API is supported on Ubuntu* 18.04/20.04/22.04 Microsoft Windows* 10/11 and CentOS* 7.3/10.15 and above OSes.
-Supported Python* versions:
-
-  - Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
-  - Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
-  - Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
-  - Windows* 10
-  - Windows* 11
-  - macOS* 12.6 and above, 64-bit and ARM64
-  - Red Hat Enterprise Linux* 8, 64-bit
-  - CentOS 7 64-bit
+The C API is built as part of the OpenVINO Runtime distributions. Refer to the
+[OpenVINO system requirements](https://docs.openvino.ai/latest/about-openvino/release-notes-openvino/system-requirements.html)
+for the maintained operating-system and architecture matrix.
 
 ## Setting Up the Environment
 
 To configure the environment for the OpenVINO C* API, run:
 
-- On Ubuntu 20.04/22.04: `source <INSTALL_DIR>/setupvars.sh .`
+- On Linux: `source <INSTALL_DIR>/setupvars.sh`
 - On Windows 10/11:
 
   * `. <path-to-setupvars-folder>/setupvars.ps1` in PowerShell

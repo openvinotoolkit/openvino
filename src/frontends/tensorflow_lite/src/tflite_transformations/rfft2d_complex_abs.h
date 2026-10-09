@@ -3,17 +3,13 @@
 //
 
 #pragma once
-
 #include <memory>
 #include <utility>
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace pass {
+namespace ov::frontend::tensorflow_lite::pass {
 
 // This transformation replaces a pattern containing complex numbers with simpler one:
 // Original pattern:
@@ -28,7 +24,4 @@ public:
     Rfft2dSimplifier();
 };
 
-}  // namespace pass
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::pass

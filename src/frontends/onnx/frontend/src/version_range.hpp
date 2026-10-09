@@ -4,9 +4,7 @@
 
 #pragma once
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 constexpr int LATEST_SUPPORTED_ONNX_OPSET_VERSION = ONNX_OPSET_VERSION;
 struct VersionRange {
@@ -24,6 +22,4 @@ struct VersionRange {
     const int m_since = -1, m_until = -1;
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestIndexSelect(PytorchLayerTest):
@@ -37,7 +37,7 @@ class TestIndexSelect(PytorchLayerTest):
 
     @pytest.mark.parametrize("dim", [0, 1, 2, 3, -1, -2, -3])
     @pytest.mark.parametrize("indices", [[0, 1], [0], [1, 0]])
-    @pytest.mark.parametrize("out", [False, skip_if_export(True)])
+    @pytest.mark.parametrize("out", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend

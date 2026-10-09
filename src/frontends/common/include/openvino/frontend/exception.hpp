@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include <memory>
 #include <string>
 
 #include "openvino/core/except.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 class FRONTEND_API GeneralFailure : public AssertFailure {
 public:
     [[noreturn]] static void create(const char* file,
@@ -121,5 +119,4 @@ protected:
 /// \throws ::ov::frontend::GeneralFailure
 #define FRONT_END_THROW(MSG) FRONT_END_GENERAL_CHECK(false, MSG)
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

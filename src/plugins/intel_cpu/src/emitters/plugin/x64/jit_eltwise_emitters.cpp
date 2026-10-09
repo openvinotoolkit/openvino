@@ -26,6 +26,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/is_inf.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "utils/general_utils.h"
 
@@ -2664,6 +2665,22 @@ void jit_is_finite_emitter::register_table_entries() {
 }
 
 /// IS_INF ///
+jit_is_inf_emitter::jit_is_inf_emitter(x64::jit_generator_t* host,
+                                       x64::cpu_isa_t host_isa,
+                                       const std::shared_ptr<ov::Node>& node,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    const auto is_inf = ov::as_type_ptr<ov::op::v10::IsInf>(node);
+    if (is_inf == nullptr) {
+        OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v10::IsInf");
+    }
+
+    const auto& attributes = is_inf->get_attributes();
+    detect_negative = attributes.detect_negative;
+    detect_positive = attributes.detect_positive;
+    prepare_table();
+}
+
 template <>
 void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& in_vec_idxs,
                                                     const std::vector<size_t>& out_vec_idxs) const {

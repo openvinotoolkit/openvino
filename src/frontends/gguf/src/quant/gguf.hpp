@@ -11,7 +11,6 @@
 #include <variant>
 #include <vector>
 
-#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -42,6 +41,7 @@ enum GgufTensorType {
     GGUF_TYPE_F64 = 28,
     GGUF_TYPE_BF16 = 30,
     GGUF_TYPE_MXFP4 = 39,  // 4-bit microscaling (gpt-oss): 1-byte E8M0 scale + 32x E2M1
+    GGUF_TYPE_Q1_0 = 41,   // binary: f16 scale + 128x 1-bit codes, value = bit ? +scale : -scale
     GGUF_TYPE_Q2_0 = 42,   // ternary: f16 scale + 64x 2-bit codes, value = (code - 1) * scale
     GGUF_TYPE_COUNT,
 };
@@ -85,15 +85,11 @@ struct GgufTensor {
 using GGUFMetaData =
     std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
 
-// GGUFLoad result: (metadata, tensor arrays, qtype map, mmap, quant_buf).
-// - mmap: must stay alive while arrays tensors are used (non-quantized tensors are mmap views).
-// - quant_buf: single AlignedBuffer holding all repacked quantized weight/scale/bias data;
-//   tensors in `arrays` for quantized weights are SharedBuffer slices into this buffer.
+// Parsed arrays own repacked quantized buffers and keep non-quantized mmap views alive.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::unordered_map<std::string, ov::Tensor>,
                             std::unordered_map<std::string, GgufTensorType>,
-                            std::shared_ptr<ov::MappedMemory>,
-                            std::shared_ptr<ov::AlignedBuffer>>;
+                            std::shared_ptr<ov::MappedMemory>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
 // (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights packed as u8).
@@ -112,6 +108,11 @@ void gguf_fill_mxfp4(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& 
 // The zero-point is the constant 1 for every block: value = (code - 1) * scale.
 void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp);
 
+// Quantize one row to Q8_0_C: a single channel-wise f16 scale (amax/127) plus signed int8
+// weights. Shared by every channel-wise requant source so the rounding and the zero-row rule
+// live in one place.
+void quantize_row_q8_0_c(const float* x, size_t cols, int8_t* out_weights, ov::float16& out_scale);
+
 // Fused bit-exact ggml dequant + channel-wise Q8_0_C requant for the token_embd/output/Q6_K/Q5_K
 // requant path. Streams one row at a time (never materializes the full f32 weight). Fills i8
 // weights [rows,cols] + f16 scales [rows,1]; matches upstream's to_float->quantize_q8_0 exactly so
@@ -128,10 +129,7 @@ void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
-// Parse a GGUF file: returns (metadata, tensors-by-ggml-name, qtype map, mmap, quant_buf).
-// Non-quantized tensors are zero-copy views into the mmap (mmap must outlive arrays use).
-// Quantized tensors are SharedBuffer slices of a single AlignedBuffer (quant_buf) so all
-// repacked weight/scale/bias data lives in one allocation (IR-frontend pattern).
+// Parse GGUF metadata and tensors. Each repacked quantized tensor owns its buffer.
 GGUFLoad get_gguf_data(const std::string& file);
 
 // Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,

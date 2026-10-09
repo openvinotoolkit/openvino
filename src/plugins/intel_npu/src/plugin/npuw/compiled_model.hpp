@@ -38,6 +38,14 @@ public:
     static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
                                                             const std::shared_ptr<const ov::IPlugin>& plugin,
                                                             const ov::AnyMap& properties);
+    // True when the stream holds an NPUW blob: a partitioned ORC container or an
+    // indicator-headed blob. The stream position is left where it was.
+    static bool is_npuw_blob(std::istream& stream);
+    // Imports any NPUW blob, routing it to the matching implementation's
+    // import_model(). The import counterpart of create().
+    static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
+                                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                  const ov::AnyMap& properties);
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
 };
 
@@ -358,12 +366,16 @@ struct CompiledModelDescTestAccessor {
 // Throws ov::Exception when an index would cause an out-of-bounds vector access
 // in bind_global_params / unpack_closure at inference time.
 // has_compiled_model: true when a compiled_model was loaded (enables input-bounds checks).
+// skip_param_base_bound_check: true when a runtime behavior (e.g. HostFlashAttention) owns the
+// function prologue and substitutes its own, differently-shaped compiled model, making the
+// generic param_base/closure_size vs n_model_inputs invariant inapplicable.
 void validate_submodel_indices(const Subgraph::Gather& host_gather,
                                const Subgraph::QuantUnpackGather& quant_unpack_gather,
                                std::size_t param_base,
                                std::size_t closure_size,
                                bool has_compiled_model,
-                               std::size_t n_model_inputs);
+                               std::size_t n_model_inputs,
+                               bool skip_param_base_bound_check = false);
 
 }  // namespace npuw
 }  // namespace ov

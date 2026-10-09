@@ -28,10 +28,7 @@
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 
@@ -87,14 +84,13 @@ ov::Output<ov::Node> activations_per_expert(const ov::Output<ov::Node>& activati
     if (!already_per_expert) {
         rows = std::make_shared<ov::op::v1::Reshape>(
             activations,
-            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{get_dimensions(ids_shape, {0}),
-                                                                  const_i64({1}),
-                                                                  get_dimensions(activations_shape, {2})},
-                                                 0),
+            std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{gather_dims(ids_shape, {0}), const_i64({1}), gather_dims(activations_shape, {2})},
+                0),
             false);
     }
     auto target = std::make_shared<ov::op::v0::Concat>(
-        ov::OutputVector{get_dimensions(ids_shape, {0, 1}), get_dimensions(activations_shape, {2})},
+        ov::OutputVector{gather_dims(ids_shape, {0, 1}), gather_dims(activations_shape, {2})},
         0);
     return std::make_shared<ov::op::v3::Broadcast>(rows, target, ov::op::BroadcastType::BIDIRECTIONAL);
 }
@@ -120,8 +116,8 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(ov::Output<ov::Node> expe
 
     auto activations_shape_4d = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
     auto ids_shape_4d = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
-    auto activations_shape_3d = get_dimensions(activations_shape_4d, {1, 2, 3});
-    auto ids_shape_2d = get_dimensions(ids_shape_4d, {2, 3});
+    auto activations_shape_3d = gather_dims(activations_shape_4d, {1, 2, 3});
+    auto ids_shape_2d = gather_dims(ids_shape_4d, {2, 3});
 
     activations = std::make_shared<ov::op::v1::Reshape>(activations, activations_shape_3d, false);
     ids = std::make_shared<ov::op::v1::Reshape>(ids, ids_shape_2d, false);
@@ -169,9 +165,9 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(ov::Output<ov::Node> expe
         std::make_shared<ov::op::v1::Multiply>(weights_f32, scales_f32, ov::op::AutoBroadcastType::NUMPY);
 
     auto ids_shape = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
-    auto selected_weights_target_dims = std::make_shared<ov::op::v0::Concat>(
-        ov::OutputVector{get_dimensions(ids_shape, {0, 1}), const_i64({rows, cols})},
-        0);
+    auto selected_weights_target_dims =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather_dims(ids_shape, {0, 1}), const_i64({rows, cols})},
+                                             0);
     selected_weights = std::make_shared<ov::op::v1::Reshape>(selected_weights, selected_weights_target_dims, false);
 
     auto activations_shape = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
@@ -184,8 +180,7 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(ov::Output<ov::Node> expe
     auto batch_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     auto row_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {rows});
     auto result_target_dims =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, get_dimensions(ids_shape, {0, 1}), row_dim},
-                                             0);
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, gather_dims(ids_shape, {0, 1}), row_dim}, 0);
     result = std::make_shared<ov::op::v1::Reshape>(result, result_target_dims, false);
 
     return result;
@@ -217,7 +212,7 @@ ov::Output<ov::Node> translate_mul_mat_id_gathermatmul(ov::Output<ov::Node> expe
     ov::Output<ov::Node> as = expert_weights;
     if (as.get_partial_shape().rank().is_static() && as.get_partial_shape().rank().get_length() == 4) {
         auto as_shape = std::make_shared<ov::op::v3::ShapeOf>(as, ov::element::i64);
-        as = std::make_shared<ov::op::v1::Reshape>(as, get_dimensions(as_shape, {1, 2, 3}), false);
+        as = std::make_shared<ov::op::v1::Reshape>(as, gather_dims(as_shape, {1, 2, 3}), false);
     }
     auto b = activations;
 
@@ -285,12 +280,11 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(ov::Output<ov::Node> expert_we
     auto activations_shape_4d = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
     auto ids_shape_4d = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
 
-    expert_weights = std::make_shared<ov::op::v1::Reshape>(expert_weights,
-                                                           get_dimensions(expert_weights_shape_4d, {1, 2, 3}),
-                                                           false);
+    expert_weights =
+        std::make_shared<ov::op::v1::Reshape>(expert_weights, gather_dims(expert_weights_shape_4d, {1, 2, 3}), false);
     activations =
-        std::make_shared<ov::op::v1::Reshape>(activations, get_dimensions(activations_shape_4d, {1, 2, 3}), false);
-    ids = std::make_shared<ov::op::v1::Reshape>(ids, get_dimensions(ids_shape_4d, {2, 3}), false);
+        std::make_shared<ov::op::v1::Reshape>(activations, gather_dims(activations_shape_4d, {1, 2, 3}), false);
+    ids = std::make_shared<ov::op::v1::Reshape>(ids, gather_dims(ids_shape_4d, {2, 3}), false);
 
     if (ids.get_element_type() != ov::element::i32 && ids.get_element_type() != ov::element::i64) {
         ids = std::make_shared<ov::op::v0::Convert>(ids, ov::element::i32);
@@ -324,8 +318,7 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(ov::Output<ov::Node> expert_we
     ov::Output<ov::Node> result =
         std::make_shared<ov::op::v0::MatMul>(activations_expanded, selected_weights, false, true);
     auto result_target_dims =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, get_dimensions(ids_shape, {0, 1}), row_dim},
-                                             0);
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, gather_dims(ids_shape, {0, 1}), row_dim}, 0);
     result = std::make_shared<ov::op::v1::Reshape>(result, result_target_dims, false);
     return result;
 }
@@ -367,7 +360,4 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(result)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

@@ -4,6 +4,7 @@
 
 #include "node/include/helper.hpp"
 
+#include <cassert>
 #include <sstream>
 
 #include "node/include/compiled_model.hpp"
@@ -13,6 +14,16 @@
 #include "node/include/type_validation.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/common_util.hpp"
+
+void release_tsfn_after_blocking_call(const Napi::ThreadSafeFunction& tsfn, napi_status call_status) noexcept {
+    assert((call_status == napi_ok || call_status == napi_closing) &&
+           "Unexpected ThreadSafeFunction::BlockingCall status");
+
+    if (call_status == napi_ok) {
+        [[maybe_unused]] const auto release_status = tsfn.Release();
+        assert(release_status == napi_ok && "ThreadSafeFunction::Release failed");
+    }
+}
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =

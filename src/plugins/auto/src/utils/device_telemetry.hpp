@@ -8,6 +8,9 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "../common.hpp"
 
@@ -31,13 +34,9 @@ public:
     TelemetryClient();
     ~TelemetryClient();
 
-    std::optional<float> utilization(const std::string& device_name, const std::string& device_type = "");
-
-    // Fetches one JSON snapshot from IPF covering utilization for all devices in a single round
-    // trip. Returns an empty string if the client isn't initialized or the query fails. Callers
-    // should fetch this once per decision and reuse it via utilization_from_snapshot() for every
-    // candidate device, instead of querying IPF once per device.
-    std::string fetch_utilization_snapshot();
+    // Resolves utilization for multiple (device_name, device_type) devices, keyed by device_name.
+    // Fetches and parses the underlying IPF snapshot only once regardless of device count.
+    std::unordered_map<std::string, float> utilizations(const std::vector<std::pair<std::string, std::string>>& devices);
 
     // Whether the platform is currently in low power mode, based on startup CurrentGear state and
     // any later IPF/DTT OnEpoGearChanged notifications. std::nullopt means the mode is unknown.
@@ -52,9 +51,13 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-// Parses one device's utilization out of a snapshot string previously obtained via
-// TelemetryClient::fetch_utilization_snapshot(). Pure parsing, no IPF call, so callers can fetch
-// a snapshot once per decision and reuse it across every candidate device.
+// Parses utilization for multiple (device_name, device_type) devices from one snapshot,
+// keyed by device_name. Parses the snapshot only once regardless of device count.
+std::unordered_map<std::string, float> utilization_from_snapshot(
+    const std::string& snapshot,
+    const std::vector<std::pair<std::string, std::string>>& devices);
+
+// Parses one device's utilization from a snapshot.
 std::optional<float> utilization_from_snapshot(const std::string& snapshot,
                                                 const std::string& device_name,
                                                 const std::string& device_type = "");

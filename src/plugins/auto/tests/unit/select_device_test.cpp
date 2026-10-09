@@ -303,8 +303,15 @@ public:
                              _))
             .WillByDefault(Return(ov::Any(properties_thresholds)));
         ON_CALL(*plugin, get_device_utilizations)
-            .WillByDefault([this](const std::list<DeviceInformation>& /*devices*/) -> std::unordered_map<std::string, float> {
-                return std::unordered_map<std::string, float>(deviceUtilization.begin(), deviceUtilization.end());
+            .WillByDefault([this](const std::list<DeviceInformation>& devices) -> std::unordered_map<std::string, float> {
+                std::unordered_map<std::string, float> result;
+                for (const auto& device : devices) {
+                    auto it = deviceUtilization.find(device.device_name);
+                    if (it != deviceUtilization.end()) {
+                        result.emplace(it->first, it->second);
+                    }
+                }
+                return result;
             });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -513,8 +520,15 @@ public:
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(npuCapability));
         ON_CALL(*plugin, get_device_utilizations)
-            .WillByDefault([this](const std::list<DeviceInformation>& /*devices*/) -> std::unordered_map<std::string, float> {
-                return std::unordered_map<std::string, float>(deviceUtilization.begin(), deviceUtilization.end());
+            .WillByDefault([this](const std::list<DeviceInformation>& devices) -> std::unordered_map<std::string, float> {
+                std::unordered_map<std::string, float> result;
+                for (const auto& device : devices) {
+                    auto it = deviceUtilization.find(device.device_name);
+                    if (it != deviceUtilization.end()) {
+                        result.emplace(it->first, it->second);
+                    }
+                }
+                return result;
             });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -617,8 +631,15 @@ public:
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(npuCapability));
         ON_CALL(*plugin, get_device_utilizations)
-            .WillByDefault([this](const std::list<DeviceInformation>& /*devices*/) -> std::unordered_map<std::string, float> {
-                return std::unordered_map<std::string, float>(deviceUtilization.begin(), deviceUtilization.end());
+            .WillByDefault([this](const std::list<DeviceInformation>& devices) -> std::unordered_map<std::string, float> {
+                std::unordered_map<std::string, float> result;
+                for (const auto& device : devices) {
+                    auto it = deviceUtilization.find(device.device_name);
+                    if (it != deviceUtilization.end()) {
+                        result.emplace(it->first, it->second);
+                    }
+                }
+                return result;
             });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -763,8 +784,15 @@ public:
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(npuCapability));
         ON_CALL(*plugin, get_device_utilizations)
-            .WillByDefault([this](const std::list<DeviceInformation>& /*devices*/) -> std::unordered_map<std::string, float> {
-                return std::unordered_map<std::string, float>(deviceUtilization.begin(), deviceUtilization.end());
+            .WillByDefault([this](const std::list<DeviceInformation>& devices) -> std::unordered_map<std::string, float> {
+                std::unordered_map<std::string, float> result;
+                for (const auto& device : devices) {
+                    auto it = deviceUtilization.find(device.device_name);
+                    if (it != deviceUtilization.end()) {
+                        result.emplace(it->first, it->second);
+                    }
+                }
+                return result;
             });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {

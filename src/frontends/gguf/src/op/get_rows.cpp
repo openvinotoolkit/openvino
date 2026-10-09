@@ -6,6 +6,8 @@
 #include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -15,10 +17,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_get_rows(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
@@ -37,6 +36,16 @@ OutputVector translate_get_rows(const NodeContext& context) {
         return rows;
     };
 
+    if (context.get_attribute<bool>("gather_elements", false)) {
+        // Select a column independently in each row; singleton index batches broadcast.
+        auto shape = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{get_dimensions(data, {0, 1, 2}), get_dimensions(indices, {3})},
+            0);
+        indices = std::make_shared<ov::op::v3::Broadcast>(indices, shape);
+        return rename_outputs_with_suffix(
+            {convert_rows(std::make_shared<ov::op::v6::GatherElements>(data, indices, 3))},
+            context.get_name());
+    }
     if (op_case == 3) {
         return {convert_rows(data)};
     }
@@ -61,7 +70,17 @@ OutputVector translate_get_rows(const NodeContext& context) {
         const auto ids_shape = indices.get_partial_shape();
         const int64_t K = ids_shape[ids_shape.size() - 1].get_length();
         auto idx = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);
-        auto ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
+        // A single shared row (per-expert scales [1,1,1,E]) is gathered directly instead of per token.
+        ov::Output<Node> ge;
+        if (context.get_attribute<bool>("shared_row", false)) {
+            auto row = std::make_shared<ov::op::v1::Reshape>(data,
+                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                                             false);
+            ge =
+                std::make_shared<ov::op::v8::Gather>(row, idx, ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
+        } else {
+            ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
+        }
         auto col = std::make_shared<ov::op::v1::Reshape>(
             ge,
             ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, K, 1}),
@@ -101,7 +120,4 @@ OutputVector translate_get_rows(const NodeContext& context) {
     return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

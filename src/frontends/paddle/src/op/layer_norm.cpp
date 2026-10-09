@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs layer_norm(const NodeContext& node) {
     using namespace default_opset;
     const auto data = node.get_input("X");
@@ -52,7 +49,4 @@ NamedOutputs layer_norm(const NodeContext& node) {
 
     return node.default_single_output_mapping({result}, {"Y"});
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

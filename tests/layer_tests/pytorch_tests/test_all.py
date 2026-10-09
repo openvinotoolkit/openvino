@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 class aten_all_noparam(torch.nn.Module):
     def __init__(self) -> None:
@@ -79,7 +79,7 @@ class TestAll(PytorchLayerTest):
         ([7, 7], np.uint8),
         ([4, 4], bool)
     ])
-    @pytest.mark.parametrize("out", [skip_if_export(True), False])
+    @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
@@ -108,7 +108,7 @@ class TestAll(PytorchLayerTest):
         False,
         None
     ])
-    @pytest.mark.parametrize("out", [skip_if_export(True), False])
+    @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
