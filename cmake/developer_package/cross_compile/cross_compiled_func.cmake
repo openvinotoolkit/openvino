@@ -219,7 +219,7 @@ function(_remove_source_from_target TARGET SOURCE_FILE)
     get_target_property(ORIGINAL_SOURCES ${TARGET} SOURCES)
 
     ## To match by file name only. The path is any.
-    string(REGEX REPLACE "([][+.*?()^$|\\\\])" "\\\\\\1" escapedSourceFile "${SOURCE_FILE}")
+    ov_regex_escape(escapedSourceFile "${SOURCE_FILE}")
     list(FILTER ORIGINAL_SOURCES EXCLUDE REGEX ".*${escapedSourceFile}$")
 
     set_target_properties(${TARGET}
