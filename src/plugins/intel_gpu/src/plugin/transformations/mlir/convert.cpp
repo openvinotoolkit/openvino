@@ -270,7 +270,7 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, con
         output_map.emplace_back(dm);
     }
     return std::make_shared<ov::intel_gpu::op::MLIROp>(inputs,
-                                                       std::make_shared<MLIREvaluateGcGPU>(std::move(module), loweringContext),
+                                                       create_mlir_evaluator(std::move(module), loweringContext),
                                                        output_types,
                                                        output_map);
 };

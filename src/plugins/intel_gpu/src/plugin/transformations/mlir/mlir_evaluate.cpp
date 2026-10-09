@@ -18,6 +18,25 @@ namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
+class MLIREvaluateGcGPU final : public MLIREvaluateBase {
+    std::unique_ptr<const gc::gpu::OclModule> module;
+
+public:
+    MLIREvaluateGcGPU(OwningOpRef<ModuleOp> module, const std::shared_ptr<ov::EvaluationContext>& loweringContext);
+
+    [[nodiscard]] bool requires_packed_args() const override {
+        return !module->isStatic();
+    }
+    bool invoke(const ov::TensorVector& inputs,
+                ov::TensorVector& outputs,
+                const ov::EvaluationContext& evaluationContext) override;
+    bool invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) override;
+
+private:
+    gc::gpu::OclContext build_ocl_context(const ov::EvaluationContext& evaluationContext);
+    static void maybe_set_result_events(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx);
+};
+
 static cl_device_id extract_device_from_context(cl_context context) {
     size_t devices_size = 0;
     cl_int err = clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size);
@@ -160,6 +179,12 @@ gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationCon
 
     const bool createEvents = evaluationContext.count(ov::internal::mlir_meta::result_events.name()) != 0;
     return gc::gpu::OclContext(module->runtime, queue, createEvents, waitListLen, reinterpret_cast<cl_event*>(waitList.data()));
+}
+
+std::shared_ptr<MLIREvaluateBase> create_mlir_evaluator(
+    OwningOpRef<ModuleOp> module,
+    const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
+    return std::make_shared<MLIREvaluateGcGPU>(std::move(module), loweringContext);
 }
 
 }  // namespace ov::intel_gpu::mlir
