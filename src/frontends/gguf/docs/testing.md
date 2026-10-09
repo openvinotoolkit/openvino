@@ -114,10 +114,20 @@ does not erase a failed comparison against quantized CPU arithmetic, and coheren
 does not establish encoder accuracy or broad answer quality.
 
 CI runs the two C++ binaries through [Smart CI's GGUF component gate](../../../../.github/workflows/job_cxx_unit_tests.yml).
-Ubuntu x64 jobs use [run_matrix.py](../tests/run_matrix.py), installed with the test artifact,
-to enforce report counts/skips and retain logs. See the [runner contract](validation-runner.md)
-for the same local command and artifact-only manifests. Its behavioral tests live in
-`tests/test_run_matrix.py` and run in Linux build CI.
+The jobs invoke GTest directly and upload XML reports. Fixture availability and
+conversion expectations are checked by the architecture suite itself. Run the
+same binaries locally with `--gtest_filter` while editing; use GHA for broader
+coverage and inspect test counts and skips in its artifacts.
 [Model-hub CI](../../../../.github/workflows/job_gguf_models_tests.yml) runs checkpoint lists;
 [llama.cpp compatibility CI](../../../../.github/workflows/job_gguf_llamacpp_validation.yml) records
 the backend revision, operator tests, state scenarios, and exclusions. These validate different contracts.
+
+[GenAI acceptance CI](../../../../.github/workflows/job_gguf_genai_validation.yml)
+uses this workflow's OpenVINO package and wheels and a pinned companion GenAI
+commit. Its pytest harness builds an independent pinned llama.cpp CPU oracle,
+converts pinned tiny checkpoints, and runs square/JPEG, SDPA/PA, single/multiple
+media, video/audio, chat, cancellation/reset and beam-search cases. Separate
+checks cover Optimum directory/map loading and a real Qwen3.5 pure Q4_0 fixture.
+Acceptance reports record required coverage and source/precision provenance;
+Q4_K_M is excluded from accuracy gates pending the plugin fix. Known Gemma4
+window and Unified prefix-cache parity gaps remain documented in [mmproj.md](mmproj.md).

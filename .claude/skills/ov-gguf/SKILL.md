@@ -29,7 +29,7 @@ converters; builders and validation differ. Registration or conversion alone nev
 | GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) |
 | Unsupported weight type | [quantization.md](../../../src/frontends/gguf/docs/quantization.md); the fix belongs in `src/quant/`, not a builder |
 | Build, run tests, regenerate fixtures | [testing.md](../../../src/frontends/gguf/docs/testing.md) |
-| Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use its runner for stable inputs, coverage contracts and retained failures |
+| Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use existing GHA workflows and focused local tests, preserving revisions, coverage and failures |
 
 ## Easy to miss
 

@@ -24,7 +24,7 @@ overlay is necessary, check the actual compile and link commands:
 After an actual inference, record resolved module paths and loaded core/frontend/plugin
 libraries. On Linux, `/proc/self/maps` from that process shows plugins loaded lazily;
 `ldd` on the executable alone does not. Hash the actual files and put those paths in the
-matrix inputs, along with the build wrapper and explicit untracked source dependencies.
+validation record, along with the build wrapper and explicit untracked source dependencies.
 Separate the OpenVINO runtime from the independent reference runtime.
 
 ## When a pass or plugin fix seems ineffective
@@ -41,7 +41,7 @@ cache key. A flag reaching the plugin does not prove the new executor is running
 
 Keep sources, build inputs and binaries stable for each delegated batch. Fetching remote
 refs is read-only with respect to tracked files, but merges, commits and rebuilds alter
-the runner's identity: wait for its final audit. Integrate required upstream changes
+the tested inputs: wait for validation to finish. Integrate required upstream changes
 before final validation where practical. If another merge before push changes tested
 dependencies, rebuild and run the checks justified by those changes.
 

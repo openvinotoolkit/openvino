@@ -1,0 +1,189 @@
+name: GGUF Frontend x GenAI acceptance
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        required: true
+      image:
+        type: string
+        required: true
+      genai-ref:
+        description: 'Reviewed companion GenAI commit; never use a moving branch'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  INSTALL_DIR: ${{ github.workspace }}/install
+  GENAI_DIR: ${{ github.workspace }}/genai
+  BUILD_DIR: ${{ github.workspace }}/genai-build
+  HF_HOME: /mount/caches/huggingface/gguf-genai
+  HF_TOKEN_PATH: /secrets/huggingface/token-secondary
+
+jobs:
+  acceptance:
+    name: GGUF GenAI acceptance
+    timeout-minutes: 120
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
+        - ${{ github.workspace }}:${{ github.workspace }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout workflow actions
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        with:
+          sparse-checkout: .github/actions
+          submodules: 'false'
+
+      - name: Checkout pinned GenAI
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        with:
+          repository: mvafin/openvino.genai
+          ref: ${{ inputs.genai-ref }}
+          path: genai
+          submodules: recursive
+
+      - name: Download same-run OpenVINO package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download same-run OpenVINO developer package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_developer_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download same-run OpenVINO wheels
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}/wheels
+
+      - name: Extract packages
+        run: |
+          pigz -dc "${INSTALL_DIR}/openvino_package.tar.gz" | tar -xf - -C "${INSTALL_DIR}"
+          mkdir -p "${INSTALL_DIR}/developer_package"
+          pigz -dc "${INSTALL_DIR}/developer_package.tar.gz" | tar -xf - -C "${INSTALL_DIR}/developer_package"
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'true'
+          use-pip-proxy: 'true'
+
+      - name: Install same-run OpenVINO wheel
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_DIR }}/wheels
+          wheels-to-install: openvino
+
+      - name: Install acceptance dependencies
+        run: |
+          apt-get update
+          apt-get install -y ffmpeg
+          python3 -m pip install pytest pillow numpy sentencepiece gguf==0.19.0 cmake==3.26.4 py-build-cmake==0.5.0
+          python3 -m pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu
+          python3 -c 'import importlib.metadata as m; print("openvino==" + m.version("openvino"))' > "${INSTALL_DIR}/runtime-constraints.txt"
+          python3 -m pip install -c "${INSTALL_DIR}/runtime-constraints.txt" 'optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@dd4ed1a86f9c2abf34d8dce777da5b592765b644'
+          python3 -m pip wheel --no-build-isolation --no-deps --wheel-dir "${INSTALL_DIR}/wheels" "${GENAI_DIR}/thirdparty/openvino_tokenizers"
+          python3 -m pip install --no-deps "${INSTALL_DIR}"/wheels/openvino_tokenizers-*.whl
+
+      - name: Build pinned GenAI against same-run OpenVINO
+        id: build_genai
+        run: |
+          source "${INSTALL_DIR}/setupvars.sh"
+          cmake -S "${GENAI_DIR}" -B "${BUILD_DIR}" \
+            -DOpenVINODeveloperPackage_DIR="${INSTALL_DIR}/developer_package/cmake" \
+            -DENABLE_PYTHON=ON -DENABLE_TESTS=OFF -DENABLE_SAMPLES=OFF -DENABLE_TOOLS=OFF \
+            -DBUILD_TOKENIZERS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER= -DCMAKE_CXX_COMPILER_LAUNCHER=
+          cmake --build "${BUILD_DIR}" --target py_openvino_genai --parallel 4
+          python3 - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          from openvino_tokenizers import _ext_path
+          shutil.copy2(_ext_path, Path(os.environ['BUILD_DIR']) / 'openvino_genai/libopenvino_tokenizers.so')
+          PY
+          echo "PYTHONPATH=${BUILD_DIR}" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${BUILD_DIR}/openvino_genai" >> "$GITHUB_ENV"
+          echo "GGUF_LLAMA_BUILD_DIR=${GITHUB_WORKSPACE}/llama-reference" >> "$GITHUB_ENV"
+          echo "GGUF_MMPROJ_REPORT_DIR=${GITHUB_WORKSPACE}/reports" >> "$GITHUB_ENV"
+          echo "GGUF_RUNTIME_MANIFEST=${GITHUB_WORKSPACE}/reports/runtime.json" >> "$GITHUB_ENV"
+
+      - name: Record tested revisions and artifacts
+        env:
+          GENAI_REF: ${{ inputs.genai-ref }}
+          OPENVINO_REF: ${{ github.sha }}
+        run: |
+          mkdir -p reports
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          head = subprocess.check_output(['git', '-C', os.environ['GENAI_DIR'], 'rev-parse', 'HEAD'], text=True).strip()
+          assert head == os.environ['GENAI_REF'], (head, os.environ['GENAI_REF'])
+          install = Path(os.environ['INSTALL_DIR'])
+          archives = list(install.glob('*.tar.gz')) + list((install / 'wheels').glob('*.whl'))
+          data = {'openvino_revision': os.environ['OPENVINO_REF'], 'genai_revision': head,
+                  'workflow_run': os.environ['GITHUB_RUN_ID'],
+                  'llama_reference_revision': '03fa73cb27f5c251b9528489b18d303b1366aca4',
+                  'artifacts': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in archives}}
+          Path('reports/runtime.json').write_text(json.dumps(data, indent=2))
+          PY
+          python3 -m pip freeze > reports/dependencies.txt
+
+      - name: Acceptance coverage and accuracy guard tests
+        run: python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_validation.py" --junitxml=reports/validation.xml
+
+      - name: Gemma3 image, chat, API and Optimum loading acceptance (SDPA and PA)
+        id: gemma3
+        run: |
+          python3 -m pip install transformers==5.0.0
+          python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k gemma3 --junitxml=reports/gemma3.xml
+
+      - name: Gemma4 image, video, audio, boundaries, chat, API and Optimum loading acceptance (SDPA and PA)
+        if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
+        run: |
+          python3 -m pip install transformers==5.5.4
+          python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k gemma4 --junitxml=reports/gemma4.xml
+
+      - name: Muse image, video, chat, API and Optimum loading acceptance (SDPA and PA)
+        if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
+        run: |
+          python3 -m pip install transformers==5.10.4
+          python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k muse --junitxml=reports/muse.xml
+
+      - name: Qwen3.5 image, video, chat, API and Optimum loading acceptance (SDPA and PA)
+        if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
+        run: |
+          python3 -m pip install transformers==5.2.0
+          python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k qwen35 --junitxml=reports/qwen35.xml
+
+      - name: Real Qwen3.5 pure Q4_0 acceptance (SDPA and PA)
+        if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
+        run: |
+          python3 -m pip install transformers==5.2.0
+          python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k q4_0 --junitxml=reports/q4_0.xml
+
+      - name: Upload acceptance reports
+        if: ${{ !cancelled() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: test-results-gguf-genai
+          path: |
+            reports/
+            llama-reference/configure-mmproj.log
+            llama-reference/build-mmproj.log
+          if-no-files-found: error

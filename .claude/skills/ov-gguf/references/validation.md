@@ -9,8 +9,8 @@ conversion alone does not establish accuracy or end-to-end integration.
 
 Record repository revisions, model/projector paths and revisions, tensor-type
 inventory, fixtures/media, prompts, generation settings, seeds, toolchain and
-runtime settings. Include exact model, projector, media, reference and build
-wrapper files in the manifest inputs. Verify the libraries actually loaded after
+runtime settings. Record hashes of the exact model, projector, media, reference
+and build wrapper files used. Verify the libraries actually loaded after
 inference; read [build and runtime identity](build-runtime.md) for overlays,
 incremental builds, multiple worktrees or dispatched CPU kernels.
 
@@ -81,48 +81,49 @@ template/token IDs, encoder tensors, insertion/positions, masks/windows, cache
 precision, then logits on identical histories. Identical quantized weights do
 not rule out CPU activation arithmetic differences.
 
-## Execute and resume
+## Execute with existing workflows
 
-Agree coverage early, iterate on a small reproducer, then run shared-path
-regressions and the final matrix with stable sources and runtime. Expand or
-repeat only for changed inputs, a new failure or missing required coverage.
+Iterate on a focused local reproducer, then use the repository's GHA workflows for
+broader validation. OpenVINO's Ubuntu workflows run frontend GTest, model-hub and
+llama.cpp backend suites. The Ubuntu 22 workflow also runs the companion GenAI
+mmproj pytest harness against its own OpenVINO artifacts and a pinned GenAI SHA.
+Check the workflow's actual jobs and filters before claiming coverage. A green job with a
+skipped GGUF component or no collected tests provides no GGUF evidence.
 
-For long or repeated batches, read the [runner contract](../../../../src/frontends/gguf/docs/validation-runner.md) to prepare a manifest for
-[run_matrix.py](../../../../src/frontends/gguf/tests/run_matrix.py). It executes serially, checkpoints each
-case and preserves logs and report snapshots. Use executable report contracts
-for gtest counts/skips and required GenAI modalities/API metrics: process exit
-zero and prose in metadata cannot establish coverage.
-Run a single test directly when checkpoints and resume are unnecessary. The runner's
-command/resume machinery is general; its GGUF report checks support this skill's
-cross-repository accuracy and media validation.
+Use `gh workflow run <workflow> --ref <branch>` with supported revision inputs,
+then `gh run watch <run-id> --exit-status`. Record the workflow revision, tested
+commit (including PR merge commits), companion repository SHAs and reference pin.
+Verify artifact provenance when a workflow consumes another repository's build;
+`latest_available_commit` does not identify the requested frontend revision.
+Inspect GTest XML, pytest counts/skips and acceptance reports downloaded with
+`gh run download <run-id> --dir <artifact-directory>`. Required coverage and
+numerical gates belong in the tests, rather than a second report runner.
 
-Keep manifests, logs and downloaded fixtures outside the checkout, for example
-`~/.cache/ov-validation/<task>/`. Fingerprint build sources/configuration for build
-cases, and tested binaries for inference cases; do not list generated outputs as
-stable inputs. Include all relevant libraries, reference binaries, wrappers and
-untracked source dependencies. The runner cannot prove build provenance or
-discover omitted dependencies.
+For local checks, invoke the GTest binary or pytest/acceptance script directly,
+with explicit filters and report paths. Keep commands, logs and reports outside
+the checkout, for example `~/.cache/ov-validation/<task>/`. Record resolved binary
+and library hashes, configuration and untracked source dependencies when using
+an overlay. A successful local run does not prove GHA packaging or job selection.
 
-Inspect saved provenance before resuming. Use a new output directory for another
-contract or experiment. Failed results remain visible; use `--retry-failed` only
-for a deliberate retry. Changed inputs invalidate reuse; interrupted or stale
-cases do not count as passes. Give each case unique report paths so subsequent
-runs cannot overwrite prior evidence. Stop on a user pause and keep checkpoints.
+Retain failed attempts. Use `gh run rerun <run-id> --failed` for a deliberate retry
+of transient failures; fixes require a new run at the new revision. Changed inputs
+invalidate reuse. Expand or repeat only for changed inputs, a new failure or
+missing required coverage. Stop on a user pause and retain the run IDs and logs.
 
 ## Delegate and report
 
 For long batches, use one validation worker with the user's configured model
 preference; use `ov-validation-runner` when available. Supply a fresh compact
-brief with the [ov-gguf entrypoint](../SKILL.md), this guide, the manifest,
-stable source/build paths, acceptance contract and artifact paths. Run directly
+brief with the [ov-gguf entrypoint](../SKILL.md), this guide, the workflow/run ID
+or exact local command, stable source/build paths, acceptance contract and artifact paths. Run directly
 if delegation is unavailable. The worker executes and reports evidence; the main
 agent owns diagnosis, fixes and acceptance. Missing prerequisites or unexpected
 results return to the main agent without expanding setup or changing criteria.
 
 Freeze sources and binaries for the batch, using an isolated worktree/build when
-needed. Wait for execution and the final input audit to finish before committing,
-merging or rebuilding those inputs. Report useful checkpoints from the saved
-summary without per-test polling.
+needed. Wait for execution and the provenance check to finish before committing,
+merging or rebuilding those inputs. Report useful checkpoints from the workflow
+artifacts without per-test polling.
 
 Return tested revisions and runtime identity, completed/remaining cases, exact
 selected counts/skips, failures with excerpts, reproduction commands and artifact

@@ -272,10 +272,6 @@ jobs:
         if: ${{ inputs.build-samples }}
         run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component samples_bin
 
-      - name: Validate GGUF matrix runner
-        if: ${{ fromJSON(inputs.affected-components).GGUF_FE.test }}
-        run: python3 "${OPENVINO_REPO}/src/frontends/gguf/tests/test_run_matrix.py"
-
       # The GGUF per-architecture fixtures are GGUF headers emitted by llama.cpp's test-llama-archs.
       # They are generated here rather than committed, and land in the tests artifact so the test job
       # (which has neither a source checkout nor cmake) can consume them like any other test data.

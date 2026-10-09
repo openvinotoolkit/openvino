@@ -364,7 +364,6 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'ubuntu_22_04'
-      gguf-matrix: true
       event_name: ${{ github.event_name }}
 
   Python_Unit_Tests:
@@ -540,6 +539,16 @@ jobs:
       runner: 'aks-linux-16-cores-64gb'
       model_scope: 'nightly'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+
+  GGUF_GenAI_Validation:
+    name: GGUF Frontend x GenAI acceptance
+    if: ${{ fromJSON(needs.smart_ci.outputs.affected_components).GGUF_FE.test }}
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_gguf_genai_validation.yml
+    with:
+      runner: 'aks-linux-8-cores-32gb'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      genai-ref: 490237c850a54f64ebd0682def3081706998b13c
 
   GGUF_LlamaCpp_Validation:
     name: GGUF Frontend x llama.cpp validation
@@ -721,7 +730,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit,
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit, GGUF_GenAI_Validation,
             NVIDIA_Plugin, Openvino_tokenizers, iGPU,
             Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
     if: ${{ always() }}
