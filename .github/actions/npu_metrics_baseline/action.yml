@@ -88,13 +88,24 @@ runs:
           if (-not $artifact) { continue }
 
           # The archive URL redirects to a pre-signed storage URL, which must be fetched without the token.
-          $redirect = Invoke-WebRequest -Headers $headers -Uri $artifact.archive_download_url -MaximumRedirection 0 -SkipHttpErrorCheck
-          $location = $redirect.Headers.Location | Select-Object -First 1
-          if (-not $location) { Write-Host "Run $($run.id): no download location returned"; continue }
+          # Invoke-WebRequest throws on the 302 when redirects are disabled, so use HttpClient.
+          $handler = [System.Net.Http.HttpClientHandler]::new()
+          $handler.AllowAutoRedirect = $false
+          $client = [System.Net.Http.HttpClient]::new($handler)
+          try {
+            $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Get, $artifact.archive_download_url)
+            $request.Headers.Authorization = [System.Net.Http.Headers.AuthenticationHeaderValue]::new("Bearer", $env:GH_TOKEN)
+            $request.Headers.UserAgent.ParseAdd("npu-metrics-baseline")
+            $response = $client.SendAsync($request).GetAwaiter().GetResult()
+            $location = $response.Headers.Location
+          } finally {
+            $client.Dispose()
+          }
+          if (-not $location) { Write-Host "Run $($run.id): no download location returned (HTTP $([int]$response.StatusCode))"; continue }
 
           Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force $tmp | Out-Null
-          Invoke-WebRequest -Uri $location -OutFile "$tmp.zip"
+          Invoke-WebRequest -Uri $location.AbsoluteUri -OutFile "$tmp.zip"
           Expand-Archive "$tmp.zip" -DestinationPath $tmp -Force
 
           $found = Get-ChildItem $tmp -Recurse -Filter $env:FILE_NAME | Select-Object -First 1
