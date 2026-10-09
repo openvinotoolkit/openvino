@@ -76,6 +76,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/move_eltwise_up_data_movement.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mul_conv_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mul_fake_quantize_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mvn_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nearest_neighbor_upsampling_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.cpp
@@ -354,6 +355,7 @@ set(OV_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/grouped_matmul_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/lora_subgraph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/moe_compressed.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/msda.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/multiclass_nms_ie_internal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_ie_internal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_static_shape_ie.cpp

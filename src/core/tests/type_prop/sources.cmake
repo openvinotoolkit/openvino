@@ -124,6 +124,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/minimum.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mod.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/msda.cpp
     ${CMAKE_CURRENT_LIST_DIR}/multiclass_nms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/multinomial.cpp
     ${CMAKE_CURRENT_LIST_DIR}/multiply.cpp

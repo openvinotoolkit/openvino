@@ -150,6 +150,7 @@
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+#include "transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
@@ -1935,6 +1936,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::EliminatePad>();
 
         manager.register_pass<ov::pass::ConstantsReduce>();
+        manager.register_pass<ov::pass::MultiScaleDeformableAttnGridSampleFusion>();
 
         manager.register_pass<ov::intel_gpu::PreserveSingleSelectiveSSMOutput>();
 
