@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "ImportError: pyarrow requires NumPy 2.0 or newer, found <version>|Dependencies",
+  "signature_hash": "d61249d5ea96108d",
+  "title": "GatedDeltaNet transformation test fails to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+  "category": "Dependencies",
+  "count": 1,
+  "first_seen": "2026-10-09T09:08:53Z",
+  "last_seen": "2026-10-09T09:08:53Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/37901253160"
+  ],
+  "affected_commits": [
+    "89f0e3a6695b6761f1dea033624fcd7b8243c44f"
+  ],
+  "recent_timestamps": [
+    "2026-10-09T09:08:53Z"
+  ]
+}

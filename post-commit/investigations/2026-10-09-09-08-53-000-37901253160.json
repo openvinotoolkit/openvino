@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-09-09-08-53-000-37901253160",
+  "timestamp": "2026-10-09T09:08:53Z",
+  "run_id": "37901253160",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37901253160",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "89f0e3a6695b6761f1dea033624fcd7b8243c44f",
+  "pr_number": "38550",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38550",
+  "author": "andrew-k-park",
+  "category": "Dependencies",
+  "title": "GatedDeltaNet transformation test fails to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+  "signature": "ImportError: pyarrow requires NumPy 2.0 or newer, found <version>|Dependencies",
+  "signature_hash": "d61249d5ea96108d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_gated_delta_net_transformation.py fails to collect due to ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Downstream aggregate status check fails because the PyTorch Models tests job failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/transformation_tests/test_gated_delta_net_transformation.py:7: in <module>\n    from optimum.intel import OVModelForCausalLM\n...\n/venv/lib/python3.11/site-packages/optimum/intel/openvino/quantization.py:82: in <module>\n    from datasets import Dataset\n/venv/lib/python3.11/site-packages/datasets/arrow_dataset.py:60: in <module>\n    import pyarrow as pa\npyarrow/lib.pyx:42: in init pyarrow.lib\nE   ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4",
+    "ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\ntensorboard 2.21.0 requires protobuf<8.0.0,>=6.31.1, but you have protobuf 5.28.3 which is incompatible."
+  ],
+  "root_cause": "The 'GatedDeltaNet Fusion Test' step installs its own requirements file (gated_delta_net.txt, pinning optimum-intel==2.2.0 and transformers==4.57.6) into a venv shared across all PyTorch Models tests sub-steps that run sequentially in the same job/container. An earlier sub-step in the same job (optimum_intel.txt install) pulled in a 'datasets'/'pyarrow' stack that requires NumPy>=2.0, while the venv's installed NumPy stayed pinned at 1.26.4 (a dependency of an earlier-installed, older torch/transformers combination). pip's resolver, warned about in the preceding 'dependency conflicts' messages, does not uninstall/upgrade numpy when installing the later gated_delta_net requirements, so by the time the GatedDeltaNet test module imports `datasets` -> `pyarrow`, pyarrow's compiled extension (built against NumPy ABI 2.x) refuses to initialize against the older NumPy 1.26.4 still present in site-packages. This is a transitive dependency/version-skew problem across sequential per-test pip installs in one shared venv, not a bug in the GatedDeltaNet transformation or test code itself.",
+  "reproduction_steps": "In a fresh venv (python3.11): 1) pip install -r install/tests/model_hub_tests/pytorch/envs/optimum_intel.txt (installs numpy 1.26.4 transitively via older torch/transformers chain); 2) pip install -r install/tests/model_hub_tests/pytorch/envs/gated_delta_net.txt (installs optimum-intel==2.2.0, transformers==4.57.6, pulling a newer 'datasets'/'pyarrow' stack) without upgrading numpy; 3) python3 -c \"from optimum.intel import OVModelForCausalLM\" -> reproduces the ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4.",
+  "recommended_actions": [
+    "Pin or upgrade numpy explicitly in tests/model_hub_tests/pytorch/envs/gated_delta_net.txt (and/or optimum_intel.txt) to a version >=2.0 compatible with the pinned pyarrow/datasets stack, or pin pyarrow/datasets to versions compatible with numpy 1.26.x.",
+    "Run each PyTorch model-hub test group (optimum_intel, gated_delta_net, moe, etc.) in an isolated venv/container instead of sequentially reusing one shared venv, to avoid cross-test transitive dependency skew.",
+    "Add a CI sanity check (e.g., 'pip check' or an explicit import smoke test) immediately after each requirements install step to fail fast with a clearer dependency-conflict message instead of only pytest collection errors.",
+    "Review tests/model_hub_tests/pytorch/envs/*.txt files for numpy pinning consistency across all per-model requirement files used by the same job."
+  ],
+  "prevention_strategies": "Isolate per-test-suite Python dependency installs (venv-per-suite or constraints file shared across all requirement files in the job) so that a later install step cannot silently leave an earlier, incompatible package version (numpy) installed while pulling in a package (pyarrow) that hard-requires a newer ABI-incompatible version. Add automated 'pip check' / import-smoke-test gating after dependency installation steps in CI.",
+  "historical_context": "No prior post-commit investigation in this knowledge base matches this exact pyarrow/NumPy ABI mismatch signature; it is a new, distinct pattern. Other known recurring infra patterns (ARM64 cross-compilation cc1plus invalid-pch, pip-proxy malformed JSON) are unrelated dependency/toolchain issues."
+}

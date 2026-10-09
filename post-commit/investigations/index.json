@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 23,
+  "total": 24,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -246,6 +246,17 @@
       "category": "Infrastructure",
       "signature_hash": "0ee6d7327812b344",
       "commit_sha": "85f36e7eea05976a96b61fd155cfd4ec38500479"
+    },
+    {
+      "investigation_id": "2026-10-09-09-08-53-000-37901253160",
+      "run_id": "37901253160",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37901253160",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-09T09:08:53Z",
+      "title": "GatedDeltaNet transformation test fails to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+      "category": "Dependencies",
+      "signature_hash": "d61249d5ea96108d",
+      "commit_sha": "89f0e3a6695b6761f1dea033624fcd7b8243c44f"
     }
   ]
 }
