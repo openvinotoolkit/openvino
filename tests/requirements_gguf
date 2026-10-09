@@ -3,9 +3,12 @@
 # The tests only need numpy (to build input tensors), pytest, and huggingface_hub (to
 # download the .gguf checkpoints). No tokenizer / transformers / framework dependency:
 # the suite feeds synthetic token ids and checks conversion + a single forward step,
-# not generated text.
+# not generated text. The mmproj tests also build the llama.cpp reference encoder with
+# cmake and ninja, using the system C++ compiler and git.
 numpy==1.26.4; python_version < "3.12"
 numpy==2.2.1; python_version >= "3.12"
 pytest==7.0.1
 pytest-html==4.2.0
 huggingface-hub==0.25.2
+cmake==3.31.6
+ninja==1.11.1.3

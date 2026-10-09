@@ -5,6 +5,7 @@
 #include "program_node.h"
 
 #include "activation_inst.h"
+#include "dynamic_quantize_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "loop_inst.h"
 #include "primitive_inst.h"
@@ -266,7 +267,9 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         fused_node_info.add("dependencies", dep_ids);
         fused_node_info.add("dep start_idx", fused_desc.outer_dep_start_idx);
         json_composite info;
-        info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
+        for (size_t i = 0; i < fused_desc.output_layouts.size(); ++i) {
+            info.add("data type" + std::to_string(i), dt_to_str(fused_desc.output_layouts[i].data_type));
+        }
         info.add("format", output_layouts[0].format.to_string());
         info.add("size", output_layouts[0].to_short_string());
         fused_node_info.add("output layout", info);
@@ -726,6 +729,29 @@ void program_node::add_dependant_shape_of_node(const program_node* node) {
     dependant_shape_of_nodes.insert(node);
 }
 
+void program_node::set_num_outputs(size_t new_num_outputs) {
+    OPENVINO_ASSERT(new_num_outputs >= num_outputs, "Decreasing number of outputs not supported.");
+
+    num_outputs = new_num_outputs;
+    if (valid_output_layouts.size() < new_num_outputs) {
+        valid_output_layouts.insert(valid_output_layouts.end(), new_num_outputs - valid_output_layouts.size(), false);
+    }
+    if (output_layouts.size() < new_num_outputs) {
+        output_layouts.insert(output_layouts.end(), new_num_outputs - output_layouts.size(), {});
+    }
+    if (preferred_output_fmts.size() < new_num_outputs) {
+        preferred_output_fmts.insert(preferred_output_fmts.end(), new_num_outputs - preferred_output_fmts.size(), format::any);
+    }
+
+    desc->num_outputs = new_num_outputs;
+    if (desc->output_paddings.size() < new_num_outputs) {
+        desc->output_paddings.insert(desc->output_paddings.end(), new_num_outputs - desc->output_paddings.size(), padding());
+    }
+    if (desc->output_data_types.size() < num_outputs) {
+        desc->output_data_types.insert(desc->output_data_types.end(), num_outputs - desc->output_data_types.size(), optional_data_type());
+    }
+}
+
 void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << unique_id;
     ob << valid_output_layouts;
@@ -785,7 +811,11 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
                 ob << f_desc.desc;
             }
             ob << f_desc.input_layout;
-            ob << f_desc.output_layout;
+            size_t num_output_layouts = f_desc.output_layouts.size();
+            ob << num_output_layouts;
+            for (const auto& output_layout : f_desc.output_layouts) {
+                ob << output_layout;
+            }
             ob << cldnn::prim_map_storage::instance().get_type_string(f_desc.f_param->type());
             if (f_desc.f_param->type() == activation::type_id()) {
                 auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(f_desc.f_param);
@@ -842,6 +872,18 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
                     ob << false;
                     ob << casted->_desc;
                 }
+            } else if (f_desc.f_param->type() == dynamic_quantize::type_id()) {
+                auto casted = std::dynamic_pointer_cast<DynamicQuantizeFuseParams>(f_desc.f_param);
+				ob << make_data(&casted->_attrs.quantization_type, sizeof(casted->_attrs.quantization_type));
+				ob << make_data(&casted->_attrs.quantization_dt, sizeof(casted->_attrs.quantization_dt));
+				ob << make_data(&casted->_attrs.scale_dt, sizeof(casted->_attrs.scale_dt));
+				ob << make_data(&casted->_attrs.zp_dt, sizeof(casted->_attrs.zp_dt));
+				ob << make_data(&casted->_attrs.precomputed_reduction_dt, sizeof(casted->_attrs.precomputed_reduction_dt));
+				ob << casted->_attrs.precomputed_reduction;
+				ob << casted->_attrs.group_sizes;
+				ob << casted->_attrs.scales_zp_output_order;
+				ob << make_data(&casted->_attrs.output_storage_type, sizeof(casted->_attrs.output_storage_type));
+                ob << casted->_input_size;
             }
 
             ob << f_desc.deps.size();
@@ -973,7 +1015,13 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
             }
             auto f_desc = fused_primitive_desc(desc);
             ib >> f_desc.input_layout;
-            ib >> f_desc.output_layout;
+            size_t num_output_layouts;
+            ib >> num_output_layouts;
+            for (size_t i = 0; i < num_output_layouts; ++i) {
+                layout layout;
+                ib >> layout;
+                f_desc.output_layouts.push_back(layout);
+            }
 
             std::string f_param_type_str;
             ib >> f_param_type_str;
@@ -1086,6 +1134,20 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
                 }
                 f_desc.f_param = std::make_shared<SwigluFuseParams>(param_desc);
 
+            } else if (f_param_type == dynamic_quantize::type_id()) {
+                dynamic_quantize::Attributes attrs;
+                size_t input_size;
+				ib >> make_data(&attrs.quantization_type, sizeof(attrs.quantization_type));
+				ib >> make_data(&attrs.quantization_dt, sizeof(attrs.quantization_dt));
+				ib >> make_data(&attrs.scale_dt, sizeof(attrs.scale_dt));
+				ib >> make_data(&attrs.zp_dt, sizeof(attrs.zp_dt));
+				ib >> make_data(&attrs.precomputed_reduction_dt, sizeof(attrs.precomputed_reduction_dt));
+				ib >> attrs.precomputed_reduction;
+				ib >> attrs.group_sizes;
+				ib >> attrs.scales_zp_output_order;
+				ib >> make_data(&attrs.output_storage_type, sizeof(attrs.output_storage_type));
+                ib >> input_size;
+                f_desc.f_param = std::make_shared<DynamicQuantizeFuseParams>(attrs, input_size);
             } else {
                 f_desc.f_param = std::make_shared<NodeFuseParams>(f_param_type);
             }
@@ -1838,7 +1900,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                 }
 
                 // 2. round
-                auto out_dt = desc.output_layout.data_type;
+                auto out_dt = desc.get_output_layout().data_type;
                 {
                     bool output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
                     if (!output_type_is_int8) {
@@ -2024,6 +2086,8 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                     }
                 }
             }
+        } else if (desc.is_type<dynamic_quantize>()) {
+            continue;
         } else if (desc.is_type<reorder>()) {
             continue;
         } else {
@@ -2064,4 +2128,5 @@ void program_node::init_onednn_primitive_attributes() {
     add_onednn_fused_primitives(fused_ops);
     add_onednn_attrs(attrs);
 }
+
 #endif  // ENABLE_ONEDNN_FOR_GPU

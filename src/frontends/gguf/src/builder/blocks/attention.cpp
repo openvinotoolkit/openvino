@@ -181,7 +181,7 @@ std::string attention(GraphEmitter& e,
     const std::string kc = "cache_k_l" + std::to_string(anchor_il);
     const std::string vc = "cache_v_l" + std::to_string(anchor_il);
 
-    if (has_own_kv) {
+    if (!cfg.embedding_model && has_own_kv) {
         // Per-layer f16 KV cache Parameters. The K/V read back out of a cache are f16, and so is
         // Q after its convert in the translator, so the FLASH_ATTN inputs agree.
         const ov::PartialShape cache_shape = ps({1, D, n_head_kv_l, head_size_l});
@@ -200,7 +200,7 @@ std::string attention(GraphEmitter& e,
         // sink paired with the cache's ReadValue).
         graph.model_output_names.push_back(kc);
         graph.model_output_names.push_back(vc);
-    } else {
+    } else if (!cfg.embedding_model) {
         // Shared-KV layer: K/V have already been set in the anchor layer's SET_ROWS.
         // Use the anchor's combined cache. If the current layer has a smaller head size
         // (SWA shared layer vs a global anchor), slice K/V to the layer's head_size along
@@ -229,12 +229,16 @@ std::string attention(GraphEmitter& e,
     // FLASH_ATTN_EXT(q, k, v, mask[, sinks]) -> [1, n_tokens, n_head, head_size].
     // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
     const std::string mask_name = is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask";
-    std::vector<std::string> attn_in = {q, k, v, mask_name};
+    std::vector<std::string> attn_in = {q, k, v};
+    if (!cfg.embedding_model || cfg.causal_attention)
+        attn_in.push_back(mask_name);
     if (cfg.has_sinks) {
         e.add_named_weight(p + "attn_sinks.weight");
         attn_in.push_back(p + "attn_sinks.weight");
     }
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
+    if (cfg.embedding_model)
+        attn_attrs["f32_attention"] = true;
     if (cfg.attn_soft_cap != 0.0f) {
         attn_attrs["kq_soft_cap"] = cfg.attn_soft_cap;
     }

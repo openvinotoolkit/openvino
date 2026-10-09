@@ -66,6 +66,16 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     }
 
     arch = std::get<std::string>(config.at("architecture"));
+    embedding_model = arch == "llama-embed";
+    if (embedding_model) {
+        pooling_type = cfg_i("pooling_type");
+        causal_attention = cfg_i("causal_attention") != 0;
+        OPENVINO_ASSERT(pooling_type >= 0 && pooling_type <= 3,
+                        "[GGUF] unsupported embedding pooling type: ",
+                        pooling_type);
+    }
+    layer_norm = arch == "jais2";
+    relu_squared_ffn = arch == "jais2";
 
     // Per-architecture structure, auto-detected from the GGUF tensor table (layer 0).
     has_qk_norm = has("blk.0.attn_q_norm.weight");
@@ -84,7 +94,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     {
         const int probe = (std::max(0, n_dense_lead) / moe_layer_step + 1) * moe_layer_step - 1;
         const std::string pp = "blk." + std::to_string(probe) + ".";
-        is_moe = has(pp + "ffn_gate_exps.weight");
+        is_moe = has(pp + "ffn_gate_exps.weight") || has(pp + "ffn_gate_up_exps.weight");
     }
     // Gemma/Gemma2 use GeGLU (GELU-gated FFN). Detected by arch name since other archs
     // in the supported set (llama, qwen2, qwen3, phi3) all use SwiGLU.
@@ -104,9 +114,13 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
         options.qk_norm_after_rope.value_or(arch == "hunyuan-dense" || arch == "hunyuan-moe" || arch == "maincoder");
     post_norm_only = options.post_norm_only.value_or(arch == "exaone4");
     // EXAONE4 has only post-norms; GPT-OSS names its pre-FFN norm post_attention_norm.
-    has_attn_post_norm = has("blk.0.post_attention_norm.weight") &&
+    if (!has("blk.0." + attn_post_norm_key) && has("blk.0.post_attention_norm"))
+        attn_post_norm_key = "post_attention_norm";
+    if (!has("blk.0." + ffn_post_norm_key) && has("blk.0.post_ffw_norm"))
+        ffn_post_norm_key = "post_ffw_norm";
+    has_attn_post_norm = has("blk.0." + attn_post_norm_key) &&
                          (post_norm_only || (has("blk.0.attn_norm.weight") && has("blk.0.ffn_norm.weight")));
-    has_ffn_post_norm = has("blk.0.post_ffw_norm.weight") && (post_norm_only || has("blk.0.ffn_norm.weight"));
+    has_ffn_post_norm = has("blk.0." + ffn_post_norm_key) && (post_norm_only || has("blk.0.ffn_norm.weight"));
     if (!post_norm_only && !has("blk.0.ffn_norm.weight") && has("blk.0.post_attention_norm.weight"))
         ffn_norm_key = "post_attention_norm.weight";
     moe_sigmoid_gating = cfg_i("expert_gating_func") == 2;
@@ -133,7 +147,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // tighter eps (post_norm_eps = 1e-8) than the pre-norms use.
     const bool is_muse_glimmer = arch == "muse-glimmer";
     scaleless_embd_norm = is_muse_glimmer;
-    rope_on_swa_only = is_muse_glimmer || (arch == "exaone4" && n_layer == 64);
+    rope_on_swa_only = is_muse_glimmer || arch == "exaone-moe" || (arch == "exaone4" && n_layer == 64);
     rope_skip_period = options.rope_skip_period.value_or(arch == "smollm3" ? 4 : 0);
     OPENVINO_ASSERT(rope_skip_period >= 0, "[GGUF] RoPE skip period must be nonnegative");
     post_norm_eps = is_muse_glimmer ? 1e-8f : 0.0f;  // 0 -> reuse rms_eps
@@ -141,7 +155,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // ---- qwen35 (Qwen3.5/3.6): hybrid Gated-DeltaNet + full attention ----
     // Layers alternate: every full_attention_interval-th layer is full attention, the rest
     // run a linear-attention (GDN) block. llama.cpp src/models/qwen35.cpp.
-    is_qwen35 = arch == "qwen35";
+    is_qwen35 = arch == "qwen35" || arch == "qwen35moe";
     ssm_conv_kernel = cfg_i("ssm_conv_kernel");
     ssm_state_size = cfg_i("ssm_state_size");
     ssm_group_count = cfg_i("ssm_group_count");
@@ -180,21 +194,24 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
         // qwen35's pre-FFN norm key ("post_attention_norm.weight", HF's
         // post_attention_layernorm) already falls out of the generic rule above: attn_norm
         // exists, ffn_norm does not, which is the gpt-oss pattern.
-        // MTP/NextN blocks are stored past the main stack and are not part of a normal
-        // forward pass, so the layer loop must not walk into them.
-        n_layer -= n_layer_nextn;
-        OPENVINO_ASSERT(n_layer > 0, "[GGUF] qwen35: no trunk layers left after excluding NextN blocks");
     }
+    // Trailing MTP/NextN blocks are excluded from the decoder trunk.
+    OPENVINO_ASSERT(n_layer_nextn >= 0 && n_layer_nextn < n_layer,
+                    "[GGUF] invalid number of NextN blocks: ",
+                    n_layer_nextn);
+    n_layer -= n_layer_nextn;
 
     // Per-architecture scalars from metadata (1.0 / 0.0 when absent -> no-op).
     embedding_scale = cfg_f("embedding_scale");
+    embedding_scale_tokens_only = arch == "gemma3" || arch == "gemma4";
     residual_scale = cfg_f("residual_scale");
     logit_scale = cfg_f("logit_scale");
     attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)
     expert_weights_scale = cfg_f("expert_weights_scale");  // 0 -> 1.0 no-op
     // These llama.cpp builders require normalization independently of optional GGUF metadata.
     expert_weights_norm = options.normalize_expert_weights.value_or(
-        arch == "qwen3moe" || arch == "ernie4_5-moe" || arch == "mellum" || cfg_i("expert_weights_norm") != 0);
+        arch == "hunyuan-moe" || arch == "minimax-m2" || arch == "qwen3moe" || arch == "qwen35moe" ||
+        arch == "ernie4_5-moe" || arch == "mellum" || arch == "gemma4" || cfg_i("expert_weights_norm") != 0);
     rope_freq_base_swa = cfg_f("rope_freq_base_swa");
     swa_layer_pattern = cfg_i("swa_layer_pattern");
     // Gemma4: per-layer SWA boolean flags (non-empty when swa_layer_pattern==0).
@@ -236,6 +253,10 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     rope_config_swa = rope_config;
     rope_config_swa.freq_base = cfg_f("rope_freq_base_swa");
     rope_config_swa.n_dims = cfg_i("rope_dimension_count_swa");
+    // Gemma local attention uses the training default, independently of global
+    // linear RoPE scaling (for example 1/8 in Gemma3 4B).
+    if (arch == "gemma3" || arch == "gemma4")
+        rope_config_swa.freq_scale = 1.0f;
     if (options.geglu)
         is_geglu = *options.geglu;
     if (options.value_norm)
@@ -276,7 +297,8 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // share the global table and SWA layers would be roped wrong.
     const bool swa_dims_differ = rope_dim_swa > 0 && rope_dim_swa != rope_config.n_dims;
     const bool swa_freq_differs = rope_config_swa.freq_base != rope_config.freq_base;
-    if (has_swa && (swa_dims_differ || swa_freq_differs)) {
+    const bool swa_scale_differs = rope_config_swa.freq_scale != rope_config.freq_scale;
+    if (has_swa && (swa_dims_differ || swa_freq_differs || swa_scale_differs)) {
         use_per_op_rope = true;
     }
     // M-RoPE: inp_pos carries 4 sections per token and only the first n_dims of each head
@@ -285,6 +307,8 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // case (see RopeConfig::is_imrope / use_per_op_rope).
     if (rope_op_case == ROPE_OP_CASE_IMROPE) {
         rope_config.is_imrope = true;
+        OPENVINO_ASSERT(rope_sections.size() <= rope_config.sections.size(), "[GGUF] too many M-RoPE sections");
+        std::copy(rope_sections.begin(), rope_sections.end(), rope_config.sections.begin());
         use_per_op_rope = true;
     }
 }
