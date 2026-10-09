@@ -8,9 +8,17 @@
 
 #include "sycl_test_context.hpp"
 
+#include "intel_gpu/runtime/kernel.hpp"
+#include "intel_gpu/runtime/kernel_args.hpp"
+#include "intel_gpu/runtime/kernel_builder.hpp"
+
 #include "runtime/sycl/sycl_base_event.hpp"
 #include "runtime/sycl/sycl_event.hpp"
 #include "runtime/sycl/sycl_user_event.hpp"
+
+#include <memory>
+#include <string>
+#include <vector>
 
 using namespace cldnn;
 using namespace sycl_tests;
@@ -133,5 +141,101 @@ TEST(sycl_event, user_event_does_not_hide_incomplete_deps_in_group) {
     ASSERT_NO_THROW(grouped_ev->wait());
     ASSERT_TRUE(grouped_ev->is_set());
 }
+
+/*
+USER EVENTS AS DEPENDENCIES OF ENQUEUED COMMANDS:
+*/
+
+namespace {
+
+// Picks the config which makes stream::get_expected_sync_method() return the requested method:
+// profiling -> events, out_of_order queue -> barriers, in_order queue -> none.
+std::shared_ptr<cldnn::stream> create_stream_with_sync_method(cldnn::engine& engine, SyncMethods sync_method) {
+    auto config = ::tests::get_test_default_config(engine);
+    config.set_property(ov::enable_profiling(sync_method == SyncMethods::events));
+    config.set_property(ov::intel_gpu::queue_type(sync_method == SyncMethods::barriers ? QueueTypes::out_of_order
+                                                                                       : QueueTypes::in_order));
+    auto stream = engine.create_stream(config);
+    OPENVINO_ASSERT(stream->get_sync_method() == sync_method, "[GPU] Unexpected sync method of the test stream");
+    return stream;
+}
+
+kernel::ptr build_noop_kernel(cldnn::engine& engine) {
+    const std::string source = R"__cl(
+        __kernel void noop() {}
+    )__cl";
+
+    std::vector<kernel::ptr> kernels;
+    engine.create_kernel_builder()->build_kernels(source.data(), source.size(), KernelFormat::SOURCE, "", kernels);
+    OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Failed to build the noop kernel for tests");
+    return kernels[0];
+}
+
+std::string sync_method_name(const testing::TestParamInfo<SyncMethods>& info) {
+    switch (info.param) {
+        case SyncMethods::events:   return "events";
+        case SyncMethods::barriers: return "barriers";
+        case SyncMethods::none:     return "none";
+        default:                    return "unknown";
+    }
+}
+
+}  // namespace
+
+// A user event which is not set yet can't be ordered against by the device, so it must be rejected
+// as a dependency under every sync method. In barrier mode its zero queue stamp makes sync_events()
+// skip it and SyncMethods::none ignores deps entirely, so these modes need an explicit check.
+class sycl_user_event_deps : public ::testing::TestWithParam<SyncMethods> {};
+
+TEST_P(sycl_user_event_deps, enqueue_marker_rejects_incomplete_user_event) {
+    auto ctx = create_sycl_test_context();
+    auto stream = create_stream_with_sync_method(*ctx.sycl_test_engine, GetParam());
+
+    auto user_ev = stream->create_user_event(false);
+    auto base_ev = stream->enqueue_marker({}, false);
+
+    // The position of the user event in the list must not matter.
+    ASSERT_THROW(stream->enqueue_marker({ user_ev }, false), ov::Exception);
+    ASSERT_THROW(stream->enqueue_marker({ user_ev, base_ev }, false), ov::Exception);
+    ASSERT_THROW(stream->enqueue_marker({ base_ev, user_ev }, false), ov::Exception);
+
+    user_ev->set();
+    event::ptr marker_ev;
+    ASSERT_NO_THROW(marker_ev = stream->enqueue_marker({ user_ev, base_ev }, false));
+    ASSERT_NE(marker_ev, nullptr);
+    ASSERT_NO_THROW(marker_ev->wait());
+}
+
+TEST_P(sycl_user_event_deps, enqueue_kernel_rejects_incomplete_user_event) {
+    auto ctx = create_sycl_test_context();
+    auto stream = create_stream_with_sync_method(*ctx.sycl_test_engine, GetParam());
+    auto kernel = build_noop_kernel(*ctx.sycl_test_engine);
+
+    kernel_arguments_desc args_desc;
+    kernel_arguments_data args;
+
+    auto user_ev = stream->create_user_event(false);
+    auto base_ev = stream->enqueue_marker({}, false);
+
+    ASSERT_THROW(stream->enqueue_kernel(*kernel, args_desc, args, { user_ev }, false), ov::Exception);
+    ASSERT_THROW(stream->enqueue_kernel(*kernel, args_desc, args, { user_ev, base_ev }, false), ov::Exception);
+    ASSERT_THROW(stream->enqueue_kernel(*kernel, args_desc, args, { base_ev, user_ev }, false), ov::Exception);
+
+    // An empty launch falls back to enqueue_marker(), which must reject it as well.
+    kernel_arguments_desc empty_args_desc;
+    empty_args_desc.workGroups.global = {0, 1, 1};
+    ASSERT_THROW(stream->enqueue_kernel(*kernel, empty_args_desc, args, { user_ev }, false), ov::Exception);
+
+    user_ev->set();
+    event::ptr kernel_ev;
+    ASSERT_NO_THROW(kernel_ev = stream->enqueue_kernel(*kernel, args_desc, args, { user_ev, base_ev }, false));
+    ASSERT_NE(kernel_ev, nullptr);
+    ASSERT_NO_THROW(kernel_ev->wait());
+}
+
+INSTANTIATE_TEST_SUITE_P(sycl_event,
+                         sycl_user_event_deps,
+                         ::testing::Values(SyncMethods::events, SyncMethods::barriers, SyncMethods::none),
+                         sync_method_name);
 
 #endif  // OV_GPU_WITH_SYCL_RT

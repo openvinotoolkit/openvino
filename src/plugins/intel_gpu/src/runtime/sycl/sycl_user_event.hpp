@@ -26,10 +26,12 @@ namespace sycl {
 // dependency of an enqueued command before it is set, otherwise that command would not be ordered
 // against whatever the user event stands for. get() asserts on that to catch the misuse early.
 //
-// The queue stamp stays 0 because nothing is ever enqueued for this event, so
-// sycl_stream::sync_events() skips it in barrier mode. That is correct: a barrier waits for work
-// already submitted to the queue, and a user event has none. Only the paths which actually ask for
-// the native ::sycl::event need the guard above.
+// The queue stamp stays 0 because nothing is ever enqueued for this event. Giving it a real stamp
+// would not help: in barrier mode it would only make sycl_stream::sync_events() submit a barrier,
+// which waits for work already submitted to the queue, not for set(); SyncMethods::none ignores
+// stamps altogether. So the guard can't rely on the sync method: sycl_stream::enqueue_kernel() and
+// enqueue_marker() reject an incomplete user event dependency up front, sycl_events rejects it on
+// grouping, and get() keeps asserting for the remaining paths which ask for the native event.
 struct sycl_user_event : public sycl_base_event {
 public:
     explicit sycl_user_event(bool is_set = false) : sycl_base_event(0) {
