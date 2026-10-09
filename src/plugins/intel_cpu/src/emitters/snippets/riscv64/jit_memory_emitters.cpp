@@ -92,8 +92,8 @@ std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
 void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
                                         const std::vector<size_t>& out_idxs,
                                         const std::vector<size_t>& pool_vec_idxs,
-                                        const std::vector<size_t>& pool_gpr_idxs) const {
-    std::vector<size_t> pool_fp_gpr_idxs;  // Empty for now
+                                        const std::vector<size_t>& pool_gpr_idxs,
+                                        const std::vector<size_t>& pool_fp_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
 
     auto reg_runtime_params = Xbyak_riscv::a0;  // First ABI parameter register
