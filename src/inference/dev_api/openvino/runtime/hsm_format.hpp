@@ -227,6 +227,28 @@ struct SectionTag {
 };
 
 /**
+ * @brief #SectionTag plus its 4 reserved bytes (#ManifestEntry::tag_reserved). Implicitly convertible
+ * from a bare #SectionTag (reserved bytes default to zero), so existing #IWriter::add_section() callers
+ * are unaffected - only a caller whose `(device, tag)` pair redefines #ManifestEntry::tag_reserved's
+ * meaning needs to construct one explicitly.
+ * @note Never part of `(device, tag)` dispatch - see #SectionTag's unknown-tag rule; opaque sub-dispatch
+ * data for the handler that already owns the pair, nothing more.
+ */
+struct SectionTagReserved {
+    SectionTag tag;
+    std::array<uint8_t, 4> bytes;
+
+    constexpr SectionTagReserved(SectionTag tag, std::array<uint8_t, 4> bytes = {}) noexcept : tag(tag), bytes(bytes) {}
+
+    constexpr bool is_inline() const noexcept {
+        return tag.is_inline();
+    }
+    constexpr bool is_pointer() const noexcept {
+        return tag.is_pointer();
+    }
+};
+
+/**
  * @brief Core-owned HSM tag identifiers - explicit wire values so reordering is safe; never change or reuse a
  * value once shipped. #sentinel_count auto-tracks the count and must stay last.
  */
