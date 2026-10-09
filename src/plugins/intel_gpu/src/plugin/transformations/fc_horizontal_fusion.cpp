@@ -231,7 +231,6 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 }
             } else {
                 fused_zps = concat_and_fold(zp_nodes, get_param_n_axis(zp_nodes[0], transpose_b_zp), "_fused_zps");
-                ov::copy_runtime_info(zp_nodes, fused_zps);
                 if (!fused_zps) {
                     return false;
                 }
