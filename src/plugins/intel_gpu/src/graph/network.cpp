@@ -601,7 +601,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         const auto bound_it = _bound_user_output_memory.find(id);
         if (bound_it == _bound_user_output_memory.end()) {
             invalidate_ext_block_compute_nodes(id);
-        } else if (!eng.is_the_same_buffer(*bound_it->second, *mem_new) || bound_it->second->get_layout() != mem_new->get_layout()) {
+        } else if (!eng.is_the_same_buffer(*bound_it->second, *mem_new) || bound_it->second->size() != mem_new->size()) {
             release_user_output_memory(id);
         }
     }
