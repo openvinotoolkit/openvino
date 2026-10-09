@@ -206,12 +206,18 @@ event::ptr state_conversion_executor::execute(state_conversion_key key, memory::
     return stream.enqueue_kernel(*it->second.compiled_kernel, desc, args, dependencies, true);
 }
 
-void program::prepare_state_conversions(const std::vector<state_conversion_key>& requested_keys) {
-    std::lock_guard<std::mutex> lock(_state_conversion_mutex);
+std::shared_ptr<state_conversion_executor> state_conversion_registry::get() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _executor;
+}
+
+void state_conversion_registry::prepare(const engine& engine, kernels_cache& cache,
+                                        const std::vector<state_conversion_key>& requested_keys) {
+    std::lock_guard<std::mutex> lock(_mutex);
 
     std::set<state_conversion_key> unique_keys;
-    if (_engine.runtime_type() == runtime_types::ocl) {
-        const auto& device_info = _engine.get_device_info();
+    if (engine.runtime_type() == runtime_types::ocl) {
+        const auto& device_info = engine.get_device_info();
         for (const auto& key : requested_keys) {
             const bool needs_fp64 = key.first == data_types::f64 || key.second == data_types::f64;
             const bool needs_fp16 = key.first == data_types::f16 || key.second == data_types::f16;
@@ -222,9 +228,8 @@ void program::prepare_state_conversions(const std::vector<state_conversion_key>&
     }
     std::vector<state_conversion_key> keys(unique_keys.begin(), unique_keys.end());
 
-    if (_state_conversions_prepared) {
-        const auto existing_keys = _state_conversion_executor ? _state_conversion_executor->get_keys()
-                                                              : std::vector<state_conversion_key>{};
+    if (_prepared) {
+        const auto existing_keys = _executor ? _executor->get_keys() : std::vector<state_conversion_key>{};
         OPENVINO_ASSERT(keys == existing_keys, "[GPU] State conversion kernels do not match the network");
         return;
     }
@@ -236,7 +241,7 @@ void program::prepare_state_conversions(const std::vector<state_conversion_key>&
             sources.push_back(make_source(key));
 
         kernel_impl_params params;
-        auto compiled = _kernels_cache->compile(params, sources);
+        auto compiled = cache.compile(params, sources);
         OPENVINO_ASSERT(compiled.size() == 1, "[GPU] State conversion compilation failed");
         std::vector<kernel::ptr> kernels(keys.size());
         for (const auto& entry : compiled.begin()->second) {
@@ -244,10 +249,29 @@ void program::prepare_state_conversions(const std::vector<state_conversion_key>&
             kernels[entry.second] = entry.first;
         }
         auto executor = std::make_shared<state_conversion_executor>();
-        executor->set_kernels(keys, kernels, _engine);
-        _state_conversion_executor = std::move(executor);
+        executor->set_kernels(keys, kernels, engine);
+        _executor = std::move(executor);
     }
-    _state_conversions_prepared = true;
+    _prepared = true;
+}
+
+void state_conversion_registry::restore(const engine& engine, const std::vector<state_conversion_key>& keys,
+                                        const std::vector<kernel::ptr>& kernels) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (!keys.empty()) {
+        auto executor = std::make_shared<state_conversion_executor>();
+        executor->set_kernels(keys, kernels, engine);
+        _executor = std::move(executor);
+    }
+    _prepared = true;
+}
+
+std::shared_ptr<state_conversion_executor> program::get_state_conversion_executor() const {
+    return _state_conversions->get();
+}
+
+void program::prepare_state_conversions(const std::vector<state_conversion_key>& requested_keys) {
+    _state_conversions->prepare(_engine, *_kernels_cache, requested_keys);
 }
 
 }  // namespace cldnn

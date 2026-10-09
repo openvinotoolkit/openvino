@@ -13,6 +13,7 @@
 #include <array>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <utility>
 #include <vector>
@@ -85,6 +86,26 @@ private:
     };
     std::map<state_conversion_key, kernel_info> _kernels;
     std::mutex _mutex;
+};
+
+class kernels_cache;
+
+// Owns the conversion kernels of one program and guards their preparation and lookup.
+class state_conversion_registry {
+public:
+    std::shared_ptr<state_conversion_executor> get() const;
+
+    // Compiles kernels for supported keys once; later calls must request the same keys.
+    void prepare(const engine& engine, kernels_cache& cache, const std::vector<state_conversion_key>& requested_keys);
+
+    // Restores kernels imported from the model cache.
+    void restore(const engine& engine, const std::vector<state_conversion_key>& keys,
+                 const std::vector<kernel::ptr>& kernels);
+
+private:
+    mutable std::mutex _mutex;
+    bool _prepared = false;
+    std::shared_ptr<state_conversion_executor> _executor;
 };
 
 }  // namespace cldnn
