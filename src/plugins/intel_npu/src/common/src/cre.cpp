@@ -273,6 +273,9 @@ CRE::CRE(const std::vector<std::shared_ptr<CREToken>>& subexpression, const ov::
 
 bool CRE::subexpression_already_registered(const std::vector<std::shared_ptr<CREToken>>& subexpression) const {
     for (const std::vector<std::shared_ptr<CREToken>>& registered_subexpression : m_subexpressions) {
+        // Can't compare directly since these are pointers and we are interested in comparing contents. The
+        // "CRE::operator==" does compare the contents alone.
+        // TODO CRE ctor here?
         if (subexpression == registered_subexpression) {
             return true;
         }
@@ -300,6 +303,10 @@ void CRE::append_to_expression(const std::vector<std::shared_ptr<CREToken>>& sub
         return;
     }
     CRE_ASSERT(is_expression_valid(subexpression), "Received an invalid subexpression to append to the CRE");
+    if (subexpression_already_registered(subexpression)) {
+        m_logger.trace("Subexpression already registered");
+        return;
+    }
 
     // Add brackets to ensure the correct order of evaluation. Required only if the current subexpression is not the
     // first one
@@ -312,7 +319,7 @@ void CRE::append_to_expression(const std::vector<std::shared_ptr<CREToken>>& sub
         enclosed_subexpression.push_back(CRE::CLOSE_PTR);
     }
 
-    if (subexpression_already_registered(subexpression)) {
+    if (subexpression_already_registered(enclosed_subexpression)) {
         m_logger.trace("Subexpression already registered");
         return;
     }
@@ -446,6 +453,7 @@ bool CRE::end_condition(const std::vector<std::shared_ptr<CREToken>>::const_iter
                         const Delimiter end_delimiter) const {
     switch (end_delimiter) {
     case Delimiter::PARRENTHESIS: {
+        CRE_ASSERT(expression_iterator != expression_end, CRE_UNEXPECTED_END_MESSAGE);
         return is_close_special_token(*expression_iterator);
     }
     case Delimiter::SIZE:
@@ -547,7 +555,6 @@ ov::CompatibilityCheck CRE::evaluate(
                                             Delimiter::PARRENTHESIS,
                                             skip_all_evaluations || skip_next_evaluation,
                                             force_all_evaluations);
-            // CRE_ASSERT(expression_iterator != expression_end, CRE_UNEXPECTED_END_MESSAGE);
             CRE_ASSERT(is_close_special_token(*expression_iterator),
                        "Expected a closed parrenthesis token during CRE evaluation. Received: ",
                        *expression_iterator);
@@ -644,6 +651,9 @@ std::string CRE::to_string() const {
 CRE CRE::from_string(const std::string_view cre, const ov::log::Level log_level) {
     Logger logger("CRE::from_string", log_level);
     logger.debug("Converting the string CRE \"%s\" to internal tokens", cre.data());
+    if (cre.empty()) {
+        return CRE();
+    }
 
     std::vector<std::shared_ptr<CREToken>> expression;
     std::string_view remaining = cre;
@@ -657,7 +667,7 @@ CRE CRE::from_string(const std::string_view cre, const ov::log::Level log_level)
         if (special_token) {
             expression.push_back(special_token);
         } else {
-            // The current substring should have the form "<section type name>_<id>"
+            // The current substring should have one of two forms: "<section type name>" or "<section type name>_<id>"
             const auto [section_type, section_id] = section_type_and_id_from_string(token_string);
             expression.push_back(std::make_shared<SectionType>(section_type));
             if (section_id.has_value()) {

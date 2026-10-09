@@ -151,6 +151,7 @@ CREParams make_test_params_invalid_expression(const std::vector<std::shared_ptr<
 std::vector<CREParams> generate_invalid_test_cases(
     const std::vector<std::vector<std::shared_ptr<CREToken>>>& expression) {
     std::vector<CREParams> result;
+    result.resize(expression.size());
     std::transform(expression.begin(), expression.end(), result.begin(), make_test_params_invalid_expression);
     return result;
 }
@@ -276,6 +277,7 @@ TEST_F(CRETests, AppendAndBrackets) {
 
     cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{ELF_MAIN_SCHEDULE_TOKEN});
     std::vector<std::shared_ptr<CREToken>> reference{BATCH_SIZE_TOKEN,
+                                                     CRE::AND_PTR,
                                                      CRE::OPEN_PTR,
                                                      ELF_MAIN_SCHEDULE_TOKEN,
                                                      CRE::CLOSE_PTR};
@@ -287,9 +289,11 @@ TEST_F(CRETests, AppendAndBrackets) {
     cre.append_to_expression(
         std::vector<std::shared_ptr<CREToken>>{CRE::OPEN_PTR, ELF_INIT_SCHEDULES_TOKEN, CRE::CLOSE_PTR});
     reference = std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN,
+                                                       CRE::AND_PTR,
                                                        CRE::OPEN_PTR,
                                                        ELF_MAIN_SCHEDULE_TOKEN,
                                                        CRE::CLOSE_PTR,
+                                                       CRE::AND_PTR,
                                                        CRE::OPEN_PTR,
                                                        CRE::OPEN_PTR,
                                                        ELF_INIT_SCHEDULES_TOKEN,
@@ -302,8 +306,8 @@ TEST_F(CRETests, EqualityOperatorsOnEmptyExpression) {
     ASSERT_TRUE(CRE() == CRE());
     ASSERT_FALSE(CRE() != CRE());
 
-    ASSERT_TRUE(CRE() == CRE({BATCH_SIZE_TOKEN}));
-    ASSERT_FALSE(CRE() != CRE({BATCH_SIZE_TOKEN}));
+    ASSERT_FALSE(CRE() == CRE({BATCH_SIZE_TOKEN}));
+    ASSERT_TRUE(CRE() != CRE({BATCH_SIZE_TOKEN}));
 }
 
 TEST_F(CRETests, EqualityOperatorsOnSimpleExpressions) {
@@ -379,7 +383,7 @@ TEST_F(CRETests, ToStringSingleToken) {
     ASSERT_EQ(cre.to_string(), "ENCRYPTED_SCHEDULES_FLAG");
 
     cre = CRE({COMPILER_VERSION_TOKEN});
-    ASSERT_EQ(cre.to_string(), "COMPILER_VERSION_TOKEN");
+    ASSERT_EQ(cre.to_string(), "COMPILER_VERSION");
 }
 
 TEST_F(CRETests, ToStringAllTokensOneSubexpression) {
@@ -408,9 +412,10 @@ TEST_F(CRETests, ToStringAllTokensOneSubexpression) {
         COMPILER_VERSION_TOKEN,
         ID_0_TOKEN,
     });
-    ASSERT_EQ(cre.to_string(),
-              "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.NOT.(.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
-              "LAYOUTS.OR.(.BATCH_SIZE.).AND.ENCRYPTED_SCHEDULES_FLAG.).OR.COMPILER_VERSION_0");
+    ASSERT_EQ(
+        cre.to_string(),
+        "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.NOT.OPEN.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
+        "LAYOUTS.OR.OPEN.BATCH_SIZE.CLOSE.AND.ENCRYPTED_SCHEDULES_FLAG.CLOSE.OR.COMPILER_VERSION_0");
 }
 
 TEST_F(CRETests, ToStringAllTokensMultipleSubexpression) {
@@ -434,8 +439,8 @@ TEST_F(CRETests, ToStringAllTokensMultipleSubexpression) {
                               ENCRYPTED_SCHEDULES_FLAG_TOKEN});
     cre.append_to_expression({COMPILER_VERSION_TOKEN, ID_0_TOKEN});
     ASSERT_EQ(cre.to_string(),
-              "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.(.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
-              "LAYOUTS.OR.(.BATCH_SIZE.).AND.ENCRYPTED_SCHEDULES_FLAG.).AND.(.COMPILER_VERSION_0.)");
+              "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.OPEN.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
+              "LAYOUTS.OR.OPEN.BATCH_SIZE.CLOSE.AND.ENCRYPTED_SCHEDULES_FLAG.CLOSE.AND.OPEN.COMPILER_VERSION_0.CLOSE");
 }
 
 TEST_F(CRETests, UnknownToString) {
@@ -453,36 +458,36 @@ TEST_F(CRETests, FromEmptyString) {
 }
 
 TEST_F(CRETests, FromStringSingleValidToken) {
-    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS"), CRE({RUNTIME_REQUIREMENTS_TOKEN}));
-    ASSERT_EQ(CRE::from_string("ELF_MAIN_SCHEDULE"), CRE({ELF_MAIN_SCHEDULE_TOKEN}));
-    ASSERT_EQ(CRE::from_string("ELF_INIT_SCHEDULES"), CRE({ELF_INIT_SCHEDULES_TOKEN}));
-    ASSERT_EQ(CRE::from_string("DYNAMIC_SCHEDULE"), CRE({DYNAMIC_SCHEDULE_TOKEN}));
-    ASSERT_EQ(CRE::from_string("IO_LAYOUTS"), CRE({IO_LAYOUTS_TOKEN}));
-    ASSERT_EQ(CRE::from_string("BATCH_SIZE"), CRE({BATCH_SIZE_TOKEN}));
-    ASSERT_EQ(CRE::from_string("ENCRYPTED_SCHEDULES_FLAG"), CRE({ENCRYPTED_SCHEDULES_FLAG_TOKEN}));
-    ASSERT_EQ(CRE::from_string("COMPILER_VERSION_TOKEN"), CRE({COMPILER_VERSION_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS") == CRE({RUNTIME_REQUIREMENTS_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("ELF_MAIN_SCHEDULE") == CRE({ELF_MAIN_SCHEDULE_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("ELF_INIT_SCHEDULES") == CRE({ELF_INIT_SCHEDULES_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("DYNAMIC_SCHEDULE") == CRE({DYNAMIC_SCHEDULE_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("IO_LAYOUTS") == CRE({IO_LAYOUTS_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("BATCH_SIZE") == CRE({BATCH_SIZE_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("ENCRYPTED_SCHEDULES_FLAG") == CRE({ENCRYPTED_SCHEDULES_FLAG_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("COMPILER_VERSION") == CRE({COMPILER_VERSION_TOKEN}));
 }
 
 TEST_F(CRETests, FromStringSectionIDs) {
-    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS_0"), CRE({RUNTIME_REQUIREMENTS_TOKEN, ID_0_TOKEN}));
-    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS_" + std::to_string(std::numeric_limits<uint16_t>::max())),
-              CRE({RUNTIME_REQUIREMENTS_TOKEN, LAST_ID_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS_0") == CRE({RUNTIME_REQUIREMENTS_TOKEN, ID_0_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS_" + std::to_string(std::numeric_limits<uint16_t>::max())) ==
+                CRE({RUNTIME_REQUIREMENTS_TOKEN, LAST_ID_TOKEN}));
 }
 
 TEST_F(CRETests, FromStringOperators) {
-    ASSERT_EQ(CRE::from_string("NOT.RUNTIME_REQUIREMENTS"), CRE({CRE::NOT_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
-    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS.AND.RUNTIME_REQUIREMENTS"),
-              CRE({RUNTIME_REQUIREMENTS_TOKEN, CRE::AND_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
-    ASSERT_EQ(CRE::from_string("RUNTIME_REQUIREMENTS.OR.RUNTIME_REQUIREMENTS"),
-              CRE({RUNTIME_REQUIREMENTS_TOKEN, CRE::OR_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
-    ASSERT_EQ(CRE::from_string("(.RUNTIME_REQUIREMENTS.)"),
-              CRE({CRE::OPEN_PTR, RUNTIME_REQUIREMENTS_TOKEN, CRE::CLOSE_PTR}));
+    ASSERT_TRUE(CRE::from_string("NOT.RUNTIME_REQUIREMENTS") == CRE({CRE::NOT_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS.AND.RUNTIME_REQUIREMENTS") ==
+                CRE({RUNTIME_REQUIREMENTS_TOKEN, CRE::AND_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("RUNTIME_REQUIREMENTS.OR.RUNTIME_REQUIREMENTS") ==
+                CRE({RUNTIME_REQUIREMENTS_TOKEN, CRE::OR_PTR, RUNTIME_REQUIREMENTS_TOKEN}));
+    ASSERT_TRUE(CRE::from_string("OPEN.RUNTIME_REQUIREMENTS.CLOSE") ==
+                CRE({CRE::OPEN_PTR, RUNTIME_REQUIREMENTS_TOKEN, CRE::CLOSE_PTR}));
 }
 
 TEST_F(CRETests, FromStringComplexExpression) {
     CRE result = CRE::from_string(
-        "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.NOT.(.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
-        "LAYOUTS.OR.(.BATCH_SIZE.).AND.ENCRYPTED_SCHEDULES_FLAG.).OR.COMPILER_VERSION_0");
+        "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.NOT.OPEN.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
+        "LAYOUTS.OR.OPEN.BATCH_SIZE.CLOSE.AND.ENCRYPTED_SCHEDULES_FLAG.CLOSE.OR.COMPILER_VERSION_0");
     CRE reference({
         RUNTIME_REQUIREMENTS_TOKEN,
         CRE::OR_PTR,
@@ -509,7 +514,7 @@ TEST_F(CRETests, FromStringComplexExpression) {
         ID_0_TOKEN,
     });
 
-    ASSERT_EQ(result, reference);
+    ASSERT_TRUE(result == reference);
 }
 
 TEST_F(CRETests, FromInvalidStrings) {
@@ -537,11 +542,11 @@ TEST_F(CRETests, FromInvalidStrings) {
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.BATCH_SIZE"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("0.BATCH_SIZE"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.OR.0"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("(.RUNTIME_REQUIREMENTS"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.)"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("OPEN.RUNTIME_REQUIREMENTS"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.CLOSE"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.NOT.BATCH_SIZE"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("OR.BATCH_SIZE"), InvalidCRE, _);
-    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.(.BATCH_SIZE.)"), InvalidCRE, _);
+    OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.OPEN.BATCH_SIZE.CLOSE"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.AND"), InvalidCRE, _);
     OV_EXPECT_THROW(CRE::from_string("RUNTIME_REQUIREMENTS.NOT"), InvalidCRE, _);
 }
@@ -572,7 +577,7 @@ TEST_F(CRETests, ToStringFromStringChain) {
         COMPILER_VERSION_TOKEN,
         ID_0_TOKEN,
     });
-    ASSERT_EQ(cre, CRE::from_string(cre.to_string()));
+    ASSERT_TRUE(cre == CRE::from_string(cre.to_string()));
 }
 
 TEST_F(CRETests, SectionTypeEvaluation) {
@@ -584,7 +589,7 @@ TEST_F(CRETests, SectionTypeEvaluation) {
     ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_EQ(section_type_evaluators.at(BATCH_SIZE_CODE)->get_result(), true);
 
-    section_type_evaluators.emplace(BATCH_SIZE_CODE, std::make_shared<MockTypeEvaluator>(false));
+    section_type_evaluators[BATCH_SIZE_CODE] = std::make_shared<MockTypeEvaluator>(false);
     cre.check_compatibility(section_type_evaluators, {});
     ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_EQ(section_type_evaluators.at(BATCH_SIZE_CODE)->get_result(), false);
@@ -607,6 +612,7 @@ TEST_F(CRETests, SectionIdEvaluation) {
     ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
     ASSERT_EQ(section_instance_evaluators.at(SectionID(0)).get_result(), ov::CompatibilityCheck::NOT_APPLICABLE);
 
+    section_instance_evaluators.erase(SectionID(0));
     section_instance_evaluators.emplace(
         SectionID(0),
         SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_SUPPORTED));
@@ -614,6 +620,7 @@ TEST_F(CRETests, SectionIdEvaluation) {
     ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
     ASSERT_EQ(section_instance_evaluators.at(SectionID(0)).get_result(), ov::CompatibilityCheck::SUPPORTED);
 
+    section_instance_evaluators.erase(SectionID(0));
     section_instance_evaluators.emplace(
         SectionID(0),
         SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNSUPPORTED));
@@ -638,14 +645,15 @@ TEST_F(CRETests, AndShallowEvaluation) {
     ASSERT_FALSE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_FALSE(section_instance_evaluators.at(SectionID(0)).evaluated());
 
-    section_type_evaluators.emplace(RUNTIME_REQUIREMENTS_CODE, std::make_shared<MockTypeEvaluator>(true));
+    section_type_evaluators[RUNTIME_REQUIREMENTS_CODE] = std::make_shared<MockTypeEvaluator>(true);
     cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
     ASSERT_TRUE(section_type_evaluators.at(RUNTIME_REQUIREMENTS_CODE)->evaluated());
     ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
 
-    section_type_evaluators.emplace(RUNTIME_REQUIREMENTS_CODE, std::make_shared<MockTypeEvaluator>(true));
-    section_type_evaluators.emplace(BATCH_SIZE_CODE, std::make_shared<MockTypeEvaluator>(true));
+    section_type_evaluators[RUNTIME_REQUIREMENTS_CODE] = std::make_shared<MockTypeEvaluator>(true);
+    section_type_evaluators[BATCH_SIZE_CODE] = std::make_shared<MockTypeEvaluator>(true);
+    section_instance_evaluators.erase(SectionID(0));
     section_instance_evaluators.emplace(
         SectionID(0),
         SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNKNOWN));
@@ -675,14 +683,15 @@ TEST_F(CRETests, OrShallowEvaluation) {
     ASSERT_FALSE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_FALSE(section_instance_evaluators.at(SectionID(0)).evaluated());
 
-    section_type_evaluators.emplace(RUNTIME_REQUIREMENTS_CODE, std::make_shared<MockTypeEvaluator>(false));
+    section_type_evaluators[RUNTIME_REQUIREMENTS_CODE] = std::make_shared<MockTypeEvaluator>(false);
     cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
     ASSERT_TRUE(section_type_evaluators.at(RUNTIME_REQUIREMENTS_CODE)->evaluated());
     ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
 
-    section_type_evaluators.emplace(RUNTIME_REQUIREMENTS_CODE, std::make_shared<MockTypeEvaluator>(false));
-    section_type_evaluators.emplace(BATCH_SIZE_CODE, std::make_shared<MockTypeEvaluator>(true));
+    section_type_evaluators[RUNTIME_REQUIREMENTS_CODE] = std::make_shared<MockTypeEvaluator>(false);
+    section_type_evaluators[BATCH_SIZE_CODE] = std::make_shared<MockTypeEvaluator>(true);
+    section_instance_evaluators.erase(SectionID(0));
     section_instance_evaluators.emplace(
         SectionID(0),
         SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNKNOWN));
@@ -761,7 +770,7 @@ TEST_F(CRETests, OrDeepEvaluation) {
     section_type_evaluators.emplace(ELF_INIT_SCHEDULES_CODE, std::make_shared<MockTypeEvaluator>(true));
     section_instance_evaluators.emplace(
         SectionID(0),
-        SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNKNOWN));
+        SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_SUPPORTED));
     section_instance_evaluators.emplace(
         SectionID(1),
         SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNKNOWN));
@@ -827,6 +836,12 @@ public:
 
         for (const auto& token : expression) {
             expression_string += VALUES_SEPARATOR;
+
+            if (is_section_type(token) &&
+                std::dynamic_pointer_cast<SectionType>(token)->get_code() == SectionTypeCode::UNKNOWN) {
+                expression_string += "UNKNOWN";
+                continue;
+            }
             expression_string += token->to_string();
         }
 
@@ -1373,7 +1388,6 @@ std::vector<CREParams> valid_test_cases{
     make_test_params(expression_2, ov::CompatibilityCheck::SUPPORTED, {RUNTIME_REQUIREMENTS_CODE}, {}, {}),
     make_test_params(expression_2, ov::CompatibilityCheck::UNSUPPORTED, {RUNTIME_REQUIREMENTS_CODE}, {0}, {}),
     make_test_params(expression_2, ov::CompatibilityCheck::NOT_APPLICABLE, {RUNTIME_REQUIREMENTS_CODE}, {}, {0}),
-    make_test_params(expression_2, ov::CompatibilityCheck::SUPPORTED, {RUNTIME_REQUIREMENTS_CODE}, {}, {}),
     make_test_params(expression_2, ov::CompatibilityCheck::SUPPORTED, {RUNTIME_REQUIREMENTS_CODE}, {1}, {}),
     make_test_params(expression_2, ov::CompatibilityCheck::SUPPORTED, {RUNTIME_REQUIREMENTS_CODE}, {}, {1}),
 
@@ -1384,44 +1398,49 @@ std::vector<CREParams> valid_test_cases{
     make_test_params(expression_4, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
     make_test_params(expression_4, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}),
 
-    make_test_params(expression_5, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_5, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_5, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
+    make_test_params(expression_5, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_5, ov::CompatibilityCheck::UNSUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_5,
+    ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
 
-    make_test_params(expression_6, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_6, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_6, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}),
-    make_test_params(expression_6, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_6, ov::CompatibilityCheck::UNSUPPORTED),
+    make_test_params(expression_6, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_6, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_6,
+    ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}), make_test_params(expression_6,
+    ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_6,
+    ov::CompatibilityCheck::UNSUPPORTED),
 
-    make_test_params(expression_7, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_7, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_7, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
-    make_test_params(expression_7, ov::CompatibilityCheck::UNSUPPORTED, {ELF_INIT_SCHEDULES_CODE}),
+    make_test_params(expression_7, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_7, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_7, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE}), make_test_params(expression_7, ov::CompatibilityCheck::UNSUPPORTED,
+    {ELF_INIT_SCHEDULES_CODE}),
 
-    make_test_params(expression_8, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_8, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_8, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}),
-    make_test_params(expression_8, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
+    make_test_params(expression_8, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_8, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_8,
+    ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}), make_test_params(expression_8,
+    ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
 
-    make_test_params(expression_9, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_9, ov::CompatibilityCheck::SUPPORTED, {ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_9, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
-    make_test_params(expression_9, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}),
-    make_test_params(expression_9, ov::CompatibilityCheck::UNSUPPORTED),
+    make_test_params(expression_9, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_9, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_9, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE}), make_test_params(expression_9, ov::CompatibilityCheck::UNSUPPORTED,
+    {BATCH_SIZE_CODE}), make_test_params(expression_9, ov::CompatibilityCheck::UNSUPPORTED),
 
     // should have the same behavior as expression_9
-    make_test_params(expression_10, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_10, ov::CompatibilityCheck::SUPPORTED, {ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_10, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
-    make_test_params(expression_10, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}),
-    make_test_params(expression_10, ov::CompatibilityCheck::UNSUPPORTED),
+    make_test_params(expression_10, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_10, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_10, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE}), make_test_params(expression_10, ov::CompatibilityCheck::UNSUPPORTED,
+    {BATCH_SIZE_CODE}), make_test_params(expression_10, ov::CompatibilityCheck::UNSUPPORTED),
 
-    make_test_params(expression_12, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_12, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_12, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}),
-    make_test_params(expression_12, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_12, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
+    make_test_params(expression_12, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_12, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_12,
+    ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}), make_test_params(expression_12,
+    ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_12,
+    ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
 
     make_test_params(expression_13, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}),
 
@@ -1436,14 +1455,15 @@ std::vector<CREParams> valid_test_cases{
     make_test_params(expression_15, ov::CompatibilityCheck::UNSUPPORTED),
 
     make_test_params(expression_16, ov::CompatibilityCheck::SUPPORTED, {ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_16, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_16, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_16, ov::CompatibilityCheck::UNSUPPORTED),
+    make_test_params(expression_16, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_16, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_16, ov::CompatibilityCheck::UNSUPPORTED),
 
     make_test_params(expression_17, ov::CompatibilityCheck::SUPPORTED, {ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_17, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_17, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_17, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
+    make_test_params(expression_17, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_17, ov::CompatibilityCheck::UNSUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_17,
+    ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
 
     make_test_params(expression_18, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}),
     make_test_params(expression_18, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
@@ -1454,21 +1474,23 @@ std::vector<CREParams> valid_test_cases{
     make_test_params(expression_19, ov::CompatibilityCheck::SUPPORTED, {ELF_INIT_SCHEDULES_CODE}),
     make_test_params(expression_19, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE}),
     make_test_params(expression_19, ov::CompatibilityCheck::SUPPORTED),
-    make_test_params(expression_19, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}),
+    make_test_params(expression_19, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE,
+    ELF_INIT_SCHEDULES_CODE}),
 
-    make_test_params(expression_20, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_20, ov::CompatibilityCheck::SUPPORTED, {ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_20, ov::CompatibilityCheck::SUPPORTED),
+    make_test_params(expression_20, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_20, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_20, ov::CompatibilityCheck::SUPPORTED),
     make_test_params(expression_20, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}),
 
-    make_test_params(expression_21, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_21, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_21, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_21, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}),
-    make_test_params(expression_21, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
-    make_test_params(expression_21, ov::CompatibilityCheck::UNSUPPORTED, {ELF_INIT_SCHEDULES_CODE}),
-    make_test_params(expression_21, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}),
-    make_test_params(expression_21, ov::CompatibilityCheck::UNSUPPORTED),
+    make_test_params(expression_21, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE,
+    ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_21, ov::CompatibilityCheck::SUPPORTED,
+    {ELF_MAIN_SCHEDULE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_21,
+    ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_21,
+    ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE, BATCH_SIZE_CODE}), make_test_params(expression_21,
+    ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE}), make_test_params(expression_21,
+    ov::CompatibilityCheck::UNSUPPORTED, {ELF_INIT_SCHEDULES_CODE}), make_test_params(expression_21,
+    ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}), make_test_params(expression_21,
+    ov::CompatibilityCheck::UNSUPPORTED),
 
     make_test_params(expression_22, ov::CompatibilityCheck::SUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
     make_test_params(expression_23, ov::CompatibilityCheck::UNSUPPORTED, {ELF_MAIN_SCHEDULE_CODE}),
@@ -1515,15 +1537,18 @@ std::vector<CREParams> valid_test_cases{
     make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}, {0}, {1}),
     make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}, {}, {0, 1}),
     make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}, {1}, {0}),
-    make_test_params(expression_32, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {}),
-    make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0}, {}),
-    make_test_params(expression_32, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {0}),
-    make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {1}, {}),
-    make_test_params(expression_32, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {1}),
-    make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0, 1}, {}),
-    make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0}, {1}),
-    make_test_params(expression_32, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {0, 1}),
-    make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {1}, {0}),
+    make_test_params(expression_32, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE},
+    {}, {}), make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE,
+    RUNTIME_REQUIREMENTS_CODE}, {0}, {}), make_test_params(expression_32, ov::CompatibilityCheck::NOT_APPLICABLE,
+    {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {0}), make_test_params(expression_32,
+    ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {1}, {}),
+    make_test_params(expression_32, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE,
+    RUNTIME_REQUIREMENTS_CODE}, {}, {1}), make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED,
+    {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0, 1}, {}), make_test_params(expression_32,
+    ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0}, {1}),
+    make_test_params(expression_32, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE,
+    RUNTIME_REQUIREMENTS_CODE}, {}, {0, 1}), make_test_params(expression_32, ov::CompatibilityCheck::UNSUPPORTED,
+    {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {1}, {0}),
 
     make_test_params(expression_33, ov::CompatibilityCheck::UNSUPPORTED, {}, {}, {}),
     make_test_params(expression_33, ov::CompatibilityCheck::UNSUPPORTED, {}, {0}, {}),
@@ -1543,15 +1568,18 @@ std::vector<CREParams> valid_test_cases{
     make_test_params(expression_33, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE}, {0}, {1}),
     make_test_params(expression_33, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE}, {}, {0, 1}),
     make_test_params(expression_33, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE}, {1}, {0}),
-    make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {}),
-    make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0}, {}),
-    make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {0}),
-    make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {1}, {}),
-    make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {1}),
-    make_test_params(expression_33, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0, 1}, {}),
-    make_test_params(expression_33, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0}, {1}),
-    make_test_params(expression_33, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {0, 1}),
-    make_test_params(expression_33, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {1}, {0}),
+    make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE},
+    {}, {}), make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE,
+    RUNTIME_REQUIREMENTS_CODE}, {0}, {}), make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED,
+    {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {0}), make_test_params(expression_33,
+    ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {1}, {}),
+    make_test_params(expression_33, ov::CompatibilityCheck::SUPPORTED, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE},
+    {}, {1}), make_test_params(expression_33, ov::CompatibilityCheck::UNSUPPORTED, {BATCH_SIZE_CODE,
+    RUNTIME_REQUIREMENTS_CODE}, {0, 1}, {}), make_test_params(expression_33, ov::CompatibilityCheck::NOT_APPLICABLE,
+    {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {0}, {1}), make_test_params(expression_33,
+    ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE, RUNTIME_REQUIREMENTS_CODE}, {}, {0, 1}),
+    make_test_params(expression_33, ov::CompatibilityCheck::NOT_APPLICABLE, {BATCH_SIZE_CODE,
+    RUNTIME_REQUIREMENTS_CODE}, {1}, {0}),
 
     // NOT (EMS AND (NOT BS0 OR UNK2) AND (EIS OR NOT BS1))
     make_test_params(expression_34, ov::CompatibilityCheck::SUPPORTED, {}, {}, {}),
