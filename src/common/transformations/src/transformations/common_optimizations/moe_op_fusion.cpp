@@ -53,7 +53,7 @@ static size_t weight_logical_K(const ov::Shape& shape) {
 Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
-    auto hidden_states_m = pattern::any_input();
+    auto hidden_states_m = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
     auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
     auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
@@ -110,18 +110,10 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         }
 
         auto hidden_states = pm.at(hidden_states_m);
-        const auto output_shape = pm.at(end_reshape_m).get_partial_shape();
-        bool requires_output_reshape = false;
-        if (!hidden_states.get_partial_shape().same_scheme(output_shape)) {
+        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
             hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
-            requires_output_reshape = !hidden_states.get_partial_shape().same_scheme(output_shape);
         }
-        const auto hidden_states_rank = hidden_states.get_partial_shape().rank();
-        if (hidden_states_rank.is_dynamic() ||
-            (hidden_states_rank.get_length() != 2 && hidden_states_rank.get_length() != 3)) {
-            return false;
-        }
-        const bool has_batch_dim = hidden_states_rank.get_length() == 3;
+        const bool has_batch_dim = hidden_states.get_partial_shape().rank().get_length() == 3;
 
         auto routing = pm.at(routing_m);
         auto topk_indices = pm.at(topk_indices_m);
@@ -239,7 +231,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         }
 
         auto replacement = moe_node;
-        if (requires_output_reshape) {
+        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
             moe_node->set_friendly_name(m.get_match_root()->get_friendly_name() + "/MOE");
             replacement = pm.at(end_reshape_m)
                               .get_node_shared_ptr()
@@ -260,7 +252,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
 Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
-    auto hidden_states_m = pattern::any_input();
+    auto hidden_states_m = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
     auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
     auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
@@ -322,18 +314,10 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
         }
 
         auto hidden_states = pm.at(hidden_states_m);
-        const auto output_shape = pm.at(end_reshape_m).get_partial_shape();
-        bool requires_output_reshape = false;
-        if (!hidden_states.get_partial_shape().same_scheme(output_shape)) {
+        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
             hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
-            requires_output_reshape = !hidden_states.get_partial_shape().same_scheme(output_shape);
         }
-        const auto hidden_states_rank = hidden_states.get_partial_shape().rank();
-        if (hidden_states_rank.is_dynamic() ||
-            (hidden_states_rank.get_length() != 2 && hidden_states_rank.get_length() != 3)) {
-            return false;
-        }
-        const bool has_batch_dim = hidden_states_rank.get_length() == 3;
+        const bool has_batch_dim = hidden_states.get_partial_shape().rank().get_length() == 3;
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
         // Order is enforced by the pattern (value_matches("1, 0")).
@@ -459,7 +443,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
         }
 
         auto replacement = moe_node;
-        if (requires_output_reshape) {
+        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
             moe_node->set_friendly_name(m.get_match_root()->get_friendly_name() + "/MOE");
             replacement = pm.at(end_reshape_m)
                               .get_node_shared_ptr()
