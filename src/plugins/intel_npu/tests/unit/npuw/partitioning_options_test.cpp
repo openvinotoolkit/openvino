@@ -12,11 +12,13 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <tuple>
 
 #include "attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "model_builder.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "partitioning/online/compiler.hpp"
@@ -415,6 +417,207 @@ TEST(PartitioningOptionsTest, CwaiCreatesFunctionCallsForRepeatedBlocks) {
         return !sg._funcall.empty();
     }));
 }
+struct ShapeConsumerModel {
+    std::shared_ptr<ov::Model> model;
+    std::vector<bool> eliminated;
+};
+
+ShapeConsumerModel build_shape_consumer_model(unsigned eliminated_mask) {
+    ShapeConsumerModel built;
+    ov::ParameterVector inputs;
+    ov::ResultVector results;
+    for (unsigned i = 0; i < 3; ++i) {
+        const auto suffix = std::to_string(i);
+        const bool eliminated = (eliminated_mask & (1u << i)) != 0;
+        auto input = std::make_shared<ov::op::v0::Parameter>(eliminated ? ov::element::f32 : ov::element::i64,
+                                                             eliminated ? ov::Shape{2, 3} : ov::Shape{2});
+        input->set_friendly_name("input_" + suffix);
+        std::shared_ptr<ov::Node> shape = input;
+        if (eliminated) {
+            shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
+        }
+        auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto gather = std::make_shared<ov::op::v8::Gather>(shape, indices, axis);
+        gather->set_friendly_name("gather_" + suffix);
+        if (eliminated) {
+            ov::util::evaluate_both_bounds(gather->output(0));
+        }
+        auto value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto consumer = std::make_shared<ov::op::v1::Add>(gather, value);
+        consumer->set_friendly_name("consumer_" + suffix);
+        inputs.push_back(input);
+        results.push_back(std::make_shared<ov::op::v0::Result>(consumer));
+        built.eliminated.push_back(eliminated);
+    }
+    built.model = std::make_shared<ov::Model>(results, inputs);
+    return built;
+}
+
+void write_shape_consumer_plan(const std::filesystem::path& plan_path,
+                               const std::string& shape_family,
+                               const std::string& consumer_family) {
+    std::ofstream plan(plan_path);
+    ASSERT_TRUE(plan.is_open());
+    auto write_group = [&plan](const std::string& layer, const std::string& family) {
+        plan << "<group gflops=\"0\"";
+        if (!family.empty()) {
+            plan << " repeated=\"" << family << "\"";
+        }
+        plan << "><input name=\"" << layer << "\"/><output name=\"" << layer << "\"/><layer name=\"" << layer
+             << "\"/></group>";
+    };
+    auto write_block = [&plan](const std::string& family, const std::string& layer_stem) {
+        if (family.empty()) {
+            return;
+        }
+        plan << "<block id=\"" << family << "\"><match>";
+        for (unsigned i = 0; i < 3; ++i) {
+            plan << "<layer name=\"" << layer_stem << i << "\"/>";
+        }
+        plan << "</match></block>";
+    };
+    plan << "<ensemble gflops=\"0\"><partitioning>";
+    for (unsigned i = 0; i < 3; ++i) {
+        write_group("gather_" + std::to_string(i), shape_family);
+    }
+    for (unsigned i = 0; i < 3; ++i) {
+        write_group("consumer_" + std::to_string(i), consumer_family);
+    }
+    plan << "</partitioning><repeated>";
+    write_block(shape_family, "gather_");
+    write_block(consumer_family, "consumer_");
+    plan << "</repeated></ensemble>";
+    ASSERT_TRUE(plan.good());
+}
+
+// Evaluates a subgraph (or the function it calls) with every input set to `input_value`.
+int64_t evaluate_subgraph(const ov::npuw::Partitioning& partitioning,
+                          const ov::npuw::Subgraph& subgraph,
+                          int64_t input_value) {
+    auto model = subgraph._funcall.empty() ? std::make_shared<ov::Model>(subgraph._results, subgraph._parameters)
+                                           : partitioning.functions.at(subgraph._funcall)._model;
+    ov::TensorVector inputs;
+    for (const auto& input : model->inputs()) {
+        inputs.emplace_back(input.get_element_type(), input.get_shape());
+        std::fill_n(inputs.back().data<int64_t>(), inputs.back().get_size(), input_value);
+    }
+    ov::TensorVector outputs{ov::Tensor(ov::element::i64, ov::Shape{1})};
+    EXPECT_TRUE(model->evaluate(outputs, inputs));
+    return outputs.front().data<int64_t>()[0];
+}
+
+template <typename Param>
+class EliminatedSubgraphTestBase : public ::testing::TestWithParam<Param> {
+protected:
+    const std::filesystem::path plan_path = make_unique_temp_path("npuw_eliminated_subgraphs", ".xml");
+
+    ~EliminatedSubgraphTestBase() override {
+        std::error_code ec;
+        std::filesystem::remove(plan_path, ec);  // never throws from a destructor
+    }
+};
+
+class EliminatedSubgraphTest : public EliminatedSubgraphTestBase<std::tuple<bool, bool, unsigned>> {};
+
+TEST_P(EliminatedSubgraphTest, ExcludesEliminatedInstancesFromFunctions) {
+    const auto [force_funcall, cwai, eliminated_mask] = GetParam();
+    const auto built = build_shape_consumer_model(eliminated_mask);
+    write_shape_consumer_plan(plan_path, force_funcall ? "" : "shape_family", "");
+
+    auto cfg = make_cfg({{"NPUW_PLAN", plan_path.string()},
+                         {"NPUW_FUNCALL_FOR_ALL", force_funcall ? "YES" : "NO"},
+                         {"NPUW_FOLD", cwai ? "NO" : "YES"},
+                         {"NPUW_CWAI", cwai ? "YES" : "NO"}});
+    auto partitioning = ov::npuw::getPartitioning(built.model, cfg);
+
+    ASSERT_EQ(partitioning.subgraphs.size(), 6u);
+    std::set<std::string> live_shape_functions;
+    unsigned live_shapes = 0;
+    for (unsigned i = 0; i < 3; ++i) {
+        const bool eliminated = built.eliminated[i];
+        const auto& subgraph = partitioning.subgraphs[i];
+        EXPECT_EQ(subgraph._optimized_out, eliminated);
+        if (eliminated) {
+            EXPECT_TRUE(subgraph._funcall.empty());
+            EXPECT_TRUE(subgraph._repeated_id.empty());
+            EXPECT_TRUE(subgraph._results.empty());
+        } else {
+            ++live_shapes;
+            EXPECT_FALSE(subgraph._funcall.empty());
+            live_shape_functions.insert(subgraph._funcall);
+            ASSERT_EQ(partitioning.functions.count(subgraph._funcall), 1u);
+            const auto& function = partitioning.functions.at(subgraph._funcall);
+            ASSERT_EQ(function._model->get_results().size(), 1u);
+            EXPECT_EQ(function._model->output().get_element_type(), ov::element::i64);
+            EXPECT_EQ(function._model->output().get_shape(), ov::Shape{1});
+            ASSERT_EQ(function._model->inputs().size(), 1u);
+            EXPECT_EQ(evaluate_subgraph(partitioning, subgraph, 5), 5);
+        }
+        const auto& consumer = partitioning.subgraphs[i + 3];
+        EXPECT_FALSE(consumer._optimized_out);
+        auto consumer_model = consumer._funcall.empty()
+                                  ? std::make_shared<ov::Model>(consumer._results, consumer._parameters)
+                                  : partitioning.functions.at(consumer._funcall)._model;
+        ASSERT_EQ(consumer_model->inputs().size(), eliminated ? 0u : 1u);
+        EXPECT_EQ(evaluate_subgraph(partitioning, consumer, 5), eliminated ? 3 : 6);
+    }
+    EXPECT_EQ(live_shape_functions.size(), !force_funcall && !cwai && live_shapes ? 1u : live_shapes);
+    const auto expected_functions = live_shape_functions.size() + (force_funcall ? 3u : 0u);
+    EXPECT_EQ(partitioning.functions.size(), expected_functions);
+    ASSERT_EQ(partitioning.input_to_prev_output.size(), live_shapes);
+    for (const auto& link : partitioning.input_to_prev_output) {
+        EXPECT_FALSE(partitioning.subgraphs.at(link.first.first)._optimized_out);
+        EXPECT_FALSE(partitioning.subgraphs.at(link.second.first)._optimized_out);
+    }
+    for (const auto& entry : partitioning.functions) {
+        EXPECT_FALSE(entry.second._model->get_results().empty());
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Partitioning,
+                         EliminatedSubgraphTest,
+                         ::testing::Combine(::testing::Bool(), ::testing::Bool(), ::testing::Range(0u, 8u)));
+
+class EliminatedProducerRepeatedConsumerTest : public EliminatedSubgraphTestBase<unsigned> {};
+
+// The consumers of the (partially) eliminated shape family form a repeated block of
+// their own. Where the producer is eliminated, the consumer's Parameter is folded into a
+// Constant. The consumers stay a function only if all or none of the producers are
+// eliminated; otherwise their instances differ and are kept as plain subgraphs.
+TEST_P(EliminatedProducerRepeatedConsumerTest, FoldsConsumersOfEliminatedProducers) {
+    const auto eliminated_mask = GetParam();
+    const auto built = build_shape_consumer_model(eliminated_mask);
+    write_shape_consumer_plan(plan_path, "shape_family", "consumer_family");
+
+    auto cfg = make_cfg({{"NPUW_PLAN", plan_path.string()}, {"NPUW_FOLD", "YES"}});
+    auto partitioning = ov::npuw::getPartitioning(built.model, cfg);
+
+    const bool uniform = eliminated_mask == 0u || eliminated_mask == 7u;
+    ASSERT_EQ(partitioning.subgraphs.size(), 6u);
+    std::set<std::string> consumer_functions;
+    for (unsigned i = 0; i < 3; ++i) {
+        const bool eliminated = built.eliminated[i];
+        EXPECT_EQ(partitioning.subgraphs[i]._optimized_out, eliminated);
+        const auto& consumer = partitioning.subgraphs[i + 3];
+        EXPECT_FALSE(consumer._optimized_out);
+        // function calls carry the function in _funcall (their _repeated_id is moved there),
+        // demoted instances have neither
+        EXPECT_EQ(consumer._funcall.empty(), !uniform) << "consumer_" << i;
+        EXPECT_TRUE(consumer._repeated_id.empty()) << "consumer_" << i;
+        if (!consumer._funcall.empty()) {
+            consumer_functions.insert(consumer._funcall);
+            const auto& function = partitioning.functions.at(consumer._funcall);
+            EXPECT_EQ(function._model->inputs().size(), eliminated ? 0u : 1u);
+        }
+        EXPECT_EQ(evaluate_subgraph(partitioning, consumer, 5), eliminated ? 3 : 6) << "consumer_" << i;
+    }
+    EXPECT_EQ(consumer_functions.size(), uniform ? 1u : 0u);
+    const bool any_live_shape = std::count(built.eliminated.begin(), built.eliminated.end(), false) > 0;
+    EXPECT_EQ(partitioning.functions.size(), consumer_functions.size() + (any_live_shape ? 1u : 0u));
+}
+
+INSTANTIATE_TEST_SUITE_P(Partitioning, EliminatedProducerRepeatedConsumerTest, ::testing::Range(0u, 8u));
 
 TEST(PartitioningOptionsTest, FoldOnlyProcessesTaggedRepeatedFamiliesWithoutCwai) {
     auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},

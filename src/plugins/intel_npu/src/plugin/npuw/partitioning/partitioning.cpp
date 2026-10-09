@@ -896,11 +896,62 @@ void Partitioner::identifySubgraphs() {
             } else {
                 LOG_VERB("Completely optimize out group " << this_group_idx);
                 group.sg._optimized_out = true;
+                if (!group.repeated_id.empty()) {
+                    // The group was an instance of a repeated block but has no model anymore,
+                    // so it can't become a function call. Detach it from its family here, where
+                    // the elimination is decided, so the folding passes never see it: an empty
+                    // function body, or match banks with more entries than function calls, break
+                    // them. The match banks describe the original family, so the eliminated
+                    // instance's layers are removed from them explicitly (not by reachability:
+                    // a live instance may have unreachable layers of its own, which must stay).
+                    LOG_VERB("Detach the eliminated group from the repeated block " << group.repeated_id);
+                    auto rep_iter = ens.repeated.find(group.repeated_id);
+                    if (rep_iter != ens.repeated.end()) {
+                        auto& banks = rep_iter->second.matches;
+                        for (auto&& bank : banks) {
+                            for (auto&& layer : group.all_layers) {
+                                bank.erase(layer);
+                            }
+                        }
+                        banks.erase(std::remove_if(banks.begin(),
+                                                   banks.end(),
+                                                   [](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
+                                                       return bank.empty();
+                                                   }),
+                                    banks.end());
+                    }
+                    group.sg._repeated_id.clear();
+                }
             }
         }
         this_group_idx++;  // FIXME: indexed() is better!
         nodes_known_now.insert(group_nodes.begin(), group_nodes.end());
     }  // for (partitions)
+
+    // Instances of a repeated block can only be folded into one function if they share
+    // one structure. Folding an input Parameter into a Constant (see parameter_from) in
+    // some instances only - e.g., when just some of their producers were optimized out
+    // above - breaks that: the instances then differ in their parameter lists, and the
+    // function matching passes would fail on them. Keep such instances as plain subgraphs.
+    std::map<std::string, std::set<std::size_t>> num_params_per_family;
+    for (auto&& group : partitions) {
+        if (!group.sg._repeated_id.empty()) {
+            num_params_per_family[group.sg._repeated_id].insert(group.sg._parameters.size());
+        }
+    }
+    for (auto&& family : num_params_per_family) {
+        if (family.second.size() == 1) {
+            continue;
+        }
+        LOG_WARN("Instances of the repeated block " << family.first << " differ in the number of parameters "
+                                                    << "after constant folding - they are kept as plain subgraphs");
+        ens.repeated.erase(family.first);
+        for (auto&& group : partitions) {
+            if (group.sg._repeated_id == family.first) {
+                group.sg._repeated_id.clear();
+            }
+        }
+    }
 
     // Return what we've got here
     std::vector<Subgraph>& result = P.subgraphs;
