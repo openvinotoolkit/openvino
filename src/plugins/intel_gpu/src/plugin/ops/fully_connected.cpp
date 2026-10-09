@@ -51,10 +51,6 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
         }
     }
 
-    // The decompression zp node should be kept for onednn FC.
-    const bool transpose_b_scale = op->get_transpose_b_scale();
-    const bool transpose_b_zp = op->get_transpose_b_zp();
-
     auto fc = cldnn::fully_connected(primitive_name,
                                      cldnn::input_info(input_name),
                                      weights_name,
@@ -68,8 +64,8 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      op->get_input_partial_shape(0).size(),
                                      op->get_input_partial_shape(1).size(),
                                      op->get_transpose_b(),
-                                     transpose_b_scale,
-                                     transpose_b_zp);
+                                     op->get_transpose_b_scale(),
+                                     op->get_transpose_b_zp());
 
     if (has_scalar_zp) {
         fc.decompression_zero_point_scalar = zp_value;
