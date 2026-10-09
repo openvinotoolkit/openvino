@@ -8,6 +8,7 @@
 #include <filesystem>
 
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
