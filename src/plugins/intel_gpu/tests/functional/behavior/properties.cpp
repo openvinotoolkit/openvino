@@ -2,15 +2,115 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
 #include "openvino/runtime/properties.hpp"
+
+#include <algorithm>
+#include <sstream>
+
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "openvino/runtime/core.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-
-
 namespace {
+
+std::shared_ptr<ov::Model> make_4bit_pa_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16});
+    auto weights = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{32, 16}, {1});
+    auto convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+    auto zero_point = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
+    auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1}, {1});
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, multiply, false, true);
+
+    const size_t hs = 64;
+    auto parameter = [](const ov::element::Type& type, const ov::PartialShape& shape) {
+        return std::make_shared<ov::op::v0::Parameter>(type, shape);
+    };
+    auto query = parameter(ov::element::f32, {-1, hs});
+    auto key = parameter(ov::element::f32, {-1, hs});
+    auto value = parameter(ov::element::f32, {-1, hs});
+    auto key_cache = parameter(ov::element::f32, {-1, 1, 16, hs});
+    auto value_cache = parameter(ov::element::f32, {-1, 1, 16, hs});
+    auto past_lens = parameter(ov::element::i32, {-1});
+    auto subsequence_begins = parameter(ov::element::i32, {-1});
+    auto block_indices = parameter(ov::element::i32, {-1});
+    auto block_indices_begins = parameter(ov::element::i32, {-1});
+    auto max_context_len = parameter(ov::element::i32, {});
+    auto score_aggregation_window = parameter(ov::element::i32, {-1});
+    auto xattention_threshold = parameter(ov::element::f32, {-1});
+    auto xattention_block_size = parameter(ov::element::i32, {});
+    auto xattention_stride = parameter(ov::element::i32, {});
+    auto adaptive_rkv_evict = parameter(ov::element::i32, {-1});
+    auto adaptive_rkv_div_idx = parameter(ov::element::i32, {-1});
+    auto adaptive_rkv_div_begins = parameter(ov::element::i32, {-1});
+    auto token_type_ids = parameter(ov::element::i32, {0});
+    auto qq_bias = parameter(ov::element::u8, {-1});
+    auto qq_bias_begins = parameter(ov::element::i32, {-1});
+
+    auto scalar = [](const ov::element::Type& type, const auto& value) {
+        return ov::op::v0::Constant::create(type, ov::Shape{}, {value});
+    };
+    ov::OutputVector pa_inputs = {query,
+                                  key,
+                                  value,
+                                  key_cache,
+                                  value_cache,
+                                  past_lens,
+                                  subsequence_begins,
+                                  block_indices,
+                                  block_indices_begins,
+                                  scalar(ov::element::f32, 1.0f),
+                                  scalar(ov::element::i32, 0),
+                                  ov::op::v0::Constant::create(ov::element::f32, {0}, {}),
+                                  max_context_len,
+                                  score_aggregation_window,
+                                  ov::op::v0::Constant::create(ov::element::i32, {0}, {}),
+                                  ov::op::v0::Constant::create(ov::element::i32, {0}, {}),
+                                  ov::op::v0::Constant::create(ov::element::f32, {0}, {}),
+                                  xattention_threshold,
+                                  xattention_block_size,
+                                  xattention_stride,
+                                  ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {0}),
+                                  scalar(ov::element::i32, 0),
+                                  adaptive_rkv_evict,
+                                  adaptive_rkv_div_idx,
+                                  adaptive_rkv_div_begins,
+                                  token_type_ids,
+                                  qq_bias,
+                                  qq_bias_begins};
+    auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{matmul, paged_attention->output(0)},
+                                       ov::ParameterVector{input,
+                                                           query,
+                                                           key,
+                                                           value,
+                                                           key_cache,
+                                                           value_cache,
+                                                           past_lens,
+                                                           subsequence_begins,
+                                                           block_indices,
+                                                           block_indices_begins,
+                                                           max_context_len,
+                                                           score_aggregation_window,
+                                                           xattention_threshold,
+                                                           xattention_block_size,
+                                                           xattention_stride,
+                                                           adaptive_rkv_evict,
+                                                           adaptive_rkv_div_idx,
+                                                           adaptive_rkv_div_begins,
+                                                           token_type_ids,
+                                                           qq_bias,
+                                                           qq_bias_begins});
+}
 
 class TestPropertiesGPU : public ::testing::Test {
 public:
@@ -33,6 +133,18 @@ TEST_F(TestPropertiesGPU, NoRTInfo) {
     OV_ASSERT_NO_THROW(type = compiled_model.get_property(ov::hint::kv_cache_precision));
     OV_ASSERT_NO_THROW(size = compiled_model.get_property(ov::hint::dynamic_quantization_group_size));
     OV_ASSERT_NO_THROW(scale = compiled_model.get_property(ov::hint::activations_scale_factor));
+}
+
+TEST_F(TestPropertiesGPU, AutoDynamicQuantizationGroupSizePreservedOnImport) {
+    ov::Core core;
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    const auto group_size = compiled_model.get_property(ov::hint::dynamic_quantization_group_size);
+    ASSERT_NE(group_size, 0);
+
+    std::stringstream blob;
+    compiled_model.export_model(blob);
+    auto imported_model = core.import_model(blob, ov::test::utils::DEVICE_GPU);
+    ASSERT_EQ(imported_model.get_property(ov::hint::dynamic_quantization_group_size), group_size);
 }
 
 TEST_F(TestPropertiesGPU, RTInfoPropertiesWithDefault) {
@@ -116,6 +228,40 @@ TEST(KVCachePrecisionAutoDetection, I4NormalizedToU4) {
 
     auto kv_prec = compiled_model.get_property(ov::hint::kv_cache_precision);
     ASSERT_EQ(kv_prec, ov::element::u4);
+}
+
+TEST(KVCachePrecisionAutoDetection, ResolvedPrecisionPreservedOnImport) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::kv_cache_precision(ov::element::i4)));
+    auto kv_prec = compiled_model.get_property(ov::hint::kv_cache_precision);
+    ASSERT_EQ(kv_prec, ov::element::u4);
+
+    std::stringstream blob;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(blob));
+
+    ov::CompiledModel imported_model;
+    OV_ASSERT_NO_THROW(imported_model = core.import_model(blob, ov::test::utils::DEVICE_GPU));
+    kv_prec = imported_model.get_property(ov::hint::kv_cache_precision);
+    ASSERT_EQ(kv_prec, ov::element::u4);
+}
+
+TEST(KVCachePrecisionAutoDetection, DefaultPrecisionFor4BitModelIsU4) {
+    ov::Core core;
+    auto model = make_4bit_pa_model();
+
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    ov::Any kv_prec = compiled_model.get_property(ov::hint::kv_cache_precision);
+    ASSERT_EQ(kv_prec.as<ov::element::Type>(), ov::element::u4);
+
+    std::stringstream blob;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(blob));
+
+    auto imported_model = core.import_model(blob, ov::test::utils::DEVICE_GPU);
+    kv_prec = imported_model.get_property(ov::hint::kv_cache_precision);
+    ASSERT_EQ(kv_prec.as<ov::element::Type>(), ov::element::u4);
 }
 
 // Test u8 -> i8 normalization in finalize_impl
