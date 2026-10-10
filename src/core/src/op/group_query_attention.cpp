@@ -352,7 +352,7 @@ bool GroupQueryAttention::is_shared_kv() const {
            key_ps[2].get_length() == 0;
 }
 
-bool GroupQueryAttention::has_dynamic_kv_length() const {
+bool GroupQueryAttention::has_independent_kv_length() const {
     const auto key_idx = static_cast<size_t>(GroupQueryAttentionInputs::KEY);
     const auto& key_ps = get_input_partial_shape(key_idx);
     const bool packed_qkv = input_value(static_cast<size_t>(GroupQueryAttentionInputs::QUERY)).get_node() ==
