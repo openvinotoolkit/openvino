@@ -22,6 +22,43 @@
 using namespace cldnn;
 using namespace ::tests;
 
+class activation_relu_byxf_gpu_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(activation_relu_byxf_gpu_test, basic) {
+    const bool is_dynamic = GetParam();
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{2, 2, 2, 2}, data_types::f32, format::byxf});
+    set_values(input, {1.f, -3.f, -2.f, 4.f, -5.f, 6.f, 7.f, -8.f,
+                       9.f, -10.f, -11.f, 12.f, -13.f, 14.f, 15.f, -16.f});
+
+    auto in_layout = is_dynamic ? layout{ov::PartialShape::dynamic(4), data_types::f32, format::byxf}
+                                : input->get_layout();
+    topology topology(input_layout("input", in_layout),
+                      activation("activation", input_info("input"), activation_func::relu));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    if (is_dynamic)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("activation").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::byxf);
+    mem_lock<float, mem_lock_type::read> result(output, get_test_stream());
+    const std::vector<float> expected = {1.f, 0.f, 0.f, 4.f, 0.f, 6.f, 7.f, 0.f,
+                                         9.f, 0.f, 0.f, 12.f, 0.f, 14.f, 15.f, 0.f};
+    ASSERT_EQ(result.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        EXPECT_FLOAT_EQ(result[i], expected[i]);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         activation_relu_byxf_gpu_test,
+                         ::testing::Values(false, true),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return info.param ? "dynamic" : "static";
+                         });
+
 TEST(activation_f32_fw_gpu, dynamic) {
     auto& engine = get_test_engine();
 

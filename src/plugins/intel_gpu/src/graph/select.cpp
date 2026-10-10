@@ -54,7 +54,14 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
 
     std::vector<ShapeType> output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
 
-    return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
+    const auto out_rank = output_shapes[0].size();
+    auto out_format = format::get_default_format(out_rank);
+    // Keep byxf from the "then" input to avoid an extra reorder after select in byxf graphs
+    if (input1_layout.format == format::byxf && input1_layout.get_partial_shape().size() == out_rank) {
+        out_format = format::byxf;
+    }
+
+    return {{output_shapes[0], dt, out_format}};
 }
 
 template std::vector<layout> select_inst::calc_output_layouts<ov::PartialShape>(select_node const& node, const kernel_impl_params& impl_param);

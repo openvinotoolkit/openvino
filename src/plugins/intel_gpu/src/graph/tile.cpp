@@ -30,7 +30,7 @@ layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params c
     for (size_t i = 0; i < repeats.size(); ++i) {
         out_shape[i] *= repeats[i];
     }
-    return layout{input_layout.data_type, input_format, tensor(input_format, out_shape)};
+    return layout{ov::PartialShape(out_shape), input_layout.data_type, input_format};
 }
 
 template<typename ShapeType>

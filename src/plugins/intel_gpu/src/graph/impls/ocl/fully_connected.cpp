@@ -241,6 +241,8 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
                                              shape_types::dynamic_shape,
                                              typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>,
                                              {
+                                                 std::make_tuple(data_types::f32, format::byxf),
+                                                 std::make_tuple(data_types::f16, format::byxf),
                                                  std::make_tuple(data_types::f32, format::bfyx),
                                                  std::make_tuple(data_types::f16, format::bfyx),
                                                  std::make_tuple(data_types::i32, format::bfyx),

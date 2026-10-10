@@ -62,6 +62,8 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::bfzyx);

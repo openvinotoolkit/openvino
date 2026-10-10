@@ -26,6 +26,7 @@ static std::vector<format> supported_static_fmts = {
 
 static std::vector<format> supported_dynamic_fmts = {
     format::bfyx,
+    format::byxf,
     format::bfzyx,
 };
 
