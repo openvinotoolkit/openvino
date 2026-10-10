@@ -1,0 +1,193 @@
+ir_version: 9
+graph {
+  node {
+    input: "data"
+    output: "shape_of_data"
+    op_type: "Shape"
+  }
+  node {
+    input: "shape_of_data"
+    output: "split_counts"
+    op_type: "ConstantOfShape"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 1
+        name: "one"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "data"
+    input: "split_counts"
+    output: "dyn_seq"
+    op_type: "SplitToSequence"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "keepdims"
+      i: 1
+      type: INT
+    }
+  }
+  node {
+    input: "trip_count"
+    input: "cond_init"
+    input: "acc_init"
+    output: "acc_final"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "dyn_seq"
+          input: "iter_num"
+          output: "slot"
+          op_type: "SequenceAt"
+        }
+        node {
+          input: "acc_in"
+          input: "slot"
+          output: "acc_out"
+          op_type: "Add"
+        }
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          op_type: "Identity"
+        }
+        name: "bug2_body"
+        input {
+          name: "iter_num"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "acc_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "acc_out"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  name: "sal_dynamic_unit_split_loop_idiom"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "N"
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "cond_init"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "acc_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "acc_final"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 16
+}
