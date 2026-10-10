@@ -64,7 +64,7 @@ TEST(depth_to_space_test, grouped_fused_output_type) {
 
     auto impl_params = depth_to_space_node.get_kernel_impl_params();
     fused_primitive_desc fused_reorder(reorder_prim);
-    fused_reorder.output_layout = layout{output_shape, data_types::i8, format::bfzyx};
+    fused_reorder.output_layouts = {layout{output_shape, data_types::i8, format::bfzyx}};
     impl_params->fused_desc = {fused_reorder};
 
     const auto result = depth_to_space_inst::calc_output_layout(depth_to_space_node, *impl_params);
