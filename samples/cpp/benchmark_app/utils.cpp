@@ -173,6 +173,9 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
 
     auto devices = split(comma_separated_devices, ',');
     for (auto&& device : devices) {
+        device = trim(device);
+        if (device.empty())
+            continue;
         // e.g. in AUTO:-CPU,-GPU
         if (device.front() == '-')
             device.erase(device.begin());
