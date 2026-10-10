@@ -260,7 +260,7 @@ void DynamicPipeline::push() {
     const bool commandQueueVersionChanged = (commandQueueDesc.key() != _command_queue->desc().key());
 
     const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
-    std::shared_ptr<CommandQueue> previousCommandQueue;
+
     if (useV2Api) {
         if (commandQueueVersionChanged && commandQueueDesc.sharedCommonQueue()) {
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
