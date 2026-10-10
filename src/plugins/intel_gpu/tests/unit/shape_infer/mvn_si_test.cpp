@@ -61,4 +61,26 @@ INSTANTIATE_TEST_SUITE_P(smoke, mvn_test,
         }
     }));
 
+// Without fused ops, an i8/u8 input must not produce an integer MVN output (matches calc_output_layout).
+TEST(mvn_si_test, int8_input_without_fusion_outputs_f32) {
+    auto& engine = get_test_engine();
+
+    for (auto dt : {data_types::i8, data_types::u8}) {
+        for (const auto& pshape : {ov::PartialShape{1, 24, 24, 256}, ov::PartialShape{-1, 24, 24, 256}}) {
+            auto in_layout = layout{pshape, dt, format::bfyx};
+            auto input_layout_prim = std::make_shared<input_layout>("input", in_layout);
+            auto mvn_prim = std::make_shared<mvn>("output", input_info("input"), true, 1e-6f, true, std::vector<int64_t>{3});
+
+            cldnn::program prog(engine);
+            auto& input_layout_node = prog.get_or_create(input_layout_prim);
+            auto& mvn_node = prog.get_or_create(mvn_prim);
+            program_wrapper::add_connection(prog, input_layout_node, mvn_node);
+            auto res = mvn_inst::calc_output_layouts<ov::PartialShape>(mvn_node, *mvn_node.get_kernel_impl_params());
+
+            ASSERT_EQ(res.size(), 1);
+            ASSERT_EQ(res[0], (layout{pshape, data_types::f32, format::bfyx}));
+        }
+    }
+}
+
 }  // shape_infer_tests
