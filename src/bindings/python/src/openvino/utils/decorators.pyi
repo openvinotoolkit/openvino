@@ -7,12 +7,13 @@ from openvino._pyopenvino import Node
 from openvino._pyopenvino import Output
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
+from typing import Any
 from typing import get_args
 from typing import get_origin
 import collections.abc
 import openvino._pyopenvino
 import typing
-__all__: list[str] = ['Callable', 'MultiMethod', 'Node', 'NodeInput', 'Output', 'as_node', 'as_nodes', 'binary_op', 'custom_preprocess_function', 'get_args', 'get_origin', 'nameable_op', 'overloading', 'registry', 'signature', 'unary_op', 'wraps']
+__all__: list[str] = ['Any', 'Callable', 'MultiMethod', 'Node', 'NodeInput', 'Output', 'as_node', 'as_nodes', 'binary_op', 'custom_preprocess_function', 'get_args', 'get_origin', 'nameable_op', 'overloading', 'registry', 'signature', 'unary_op', 'wraps']
 class MultiMethod:
     def __call__(self, *args, **kwargs) -> typing.Any:
         ...

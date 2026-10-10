@@ -4,12 +4,13 @@ from builtins import module as ModuleType
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
+from typing import Any
 import collections.abc
 import importlib as importlib
 import os as os
 import sys as sys
 import typing
-__all__: list[str] = ['Callable', 'LazyLoader', 'ModuleType', 'Path', 'classproperty', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'importlib', 'os', 'sys', 'wraps']
+__all__: list[str] = ['Any', 'Callable', 'LazyLoader', 'ModuleType', 'Path', 'classproperty', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'importlib', 'os', 'sys', 'wraps']
 class LazyLoader:
     """
     A class to lazily load a module, importing it only when an attribute is accessed.
@@ -43,7 +44,7 @@ def deprecated(name: typing.Any = None, version: str = '', message: str = '', st
         :param message: A message explaining why the function is deprecated and/or what to use instead.
         
     """
-def deprecatedclassproperty(name: typing.Any = None, version: str = '', message: str = '', stacklevel: int = 2) -> collections.abc.Callable[[typing.Any], _ClassPropertyDescriptor]:
+def deprecatedclassproperty(name: typing.Any = None, version: str = '', message: str = '', stacklevel: int = 2) -> collections.abc.Callable[[typing.Any], openvino.package_utils._ClassPropertyDescriptor]:
     ...
 def get_cmake_path() -> str:
     """
