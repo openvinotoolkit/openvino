@@ -90,6 +90,10 @@ public:
         return false;
     }
 
+    const std::shared_ptr<ov::op::v0::Constant>& getConstOp() const {
+        return m_constOp;
+    }
+
 private:
     void cloneBlobIfRequired();
     void initSupportedPdDefault();

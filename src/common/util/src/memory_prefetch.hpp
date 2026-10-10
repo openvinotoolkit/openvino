@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <future>
 #include <thread>
-#include <vector>
 
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -32,8 +31,6 @@ struct PageToucher {
     }
 };
 
-class PrefetchToken;
-
 /**
  * @brief Pre-fetches a page-aligned, committed VM range into physical memory, blocking until every
  * page is resident.
@@ -47,72 +44,18 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Asynchronous variant of @ref vm_prefetch: submits page-population to the shared pool and
- * returns immediately with a @ref PrefetchToken to wait on.
+ * returns immediately with a handle reporting progress of the whole range.
  *
  * @param ptr          Page-aligned base address of the range.
  * @param size         Multiple of the system page size.
  * @param num_threads  Number of population jobs to split the range into; @c 0 requests only a
- *                     lightweight advisory OS hint instead of touching pages and returns an empty
- *                     token.
+ *                     lightweight advisory OS hint instead of touching pages and returns an invalid
+ *                     handle.
  *
- * Returns an empty token if the work could not be scheduled.
+ * The handle does not keep the populated memory alive: the caller must keep that memory valid until
+ * the handle becomes ready. Returns an invalid handle if the work could not be scheduled.
  */
-PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept;
-
-/**
- * @brief Move-only RAII handle for background page-population started by @ref vm_prefetch_async.
- *
- * Destruction (or an explicit @ref wait) joins the outstanding work, so nothing is ever left
- * running uncontrolled. The token does not keep the populated memory alive: the caller must keep
- * that memory valid until the token completes, is destroyed, or its futures are @ref detach "detached".
- */
-class PrefetchToken {
-public:
-    PrefetchToken() noexcept = default;
-    explicit PrefetchToken(std::vector<std::future<void>>&& tasks) noexcept : m_tasks(std::move(tasks)) {}
-
-    PrefetchToken(const PrefetchToken&) = delete;
-    PrefetchToken& operator=(const PrefetchToken&) = delete;
-    PrefetchToken(PrefetchToken&&) noexcept = default;
-
-    PrefetchToken& operator=(PrefetchToken&& other) noexcept {
-        if (this != &other) {
-            wait();
-            m_tasks = std::move(other.m_tasks);
-        }
-        return *this;
-    }
-
-    ~PrefetchToken() {
-        wait();
-    }
-
-    void wait() noexcept {
-        for (auto& task : m_tasks) {
-            if (task.valid()) {
-                task.wait();
-            }
-        }
-        m_tasks.clear();
-    }
-
-    std::vector<std::future<void>> detach() noexcept {
-        auto tasks = std::move(m_tasks);
-        m_tasks.clear();
-        return tasks;
-    }
-
-    bool valid() const noexcept {
-        return !m_tasks.empty();
-    }
-
-    explicit operator bool() const noexcept {
-        return valid();
-    }
-
-private:
-    std::vector<std::future<void>> m_tasks;
-};
+std::shared_future<void> vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Submits page-population jobs for [ptr, ptr + size) to the shared background thread pool,
@@ -122,9 +65,10 @@ private:
  * @param size         Multiple of the system page size.
  * @param num_threads  Number of population jobs to split the range into.
  *
- * Returns an empty vector if the work could not be scheduled (e.g. an allocation failure).
+ * Returns a handle that becomes ready once every chunk has been touched, or an invalid handle if
+ * the work could not be scheduled (e.g. an allocation failure).
  */
-std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
+std::shared_future<void> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result, rounding

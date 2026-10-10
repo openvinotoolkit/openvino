@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <future>
 #include <memory>
 
 #include "openvino/core/attribute_adapter.hpp"
@@ -77,11 +78,21 @@ public:
     /// \brief Ensures the buffer is available and populated with actual data.
     virtual void hint_prefetch() const;
 
+    /// \brief Starts populating the buffer in the background and returns immediately.
+    /// \return A handle that can be waited on to know when the data is actually resident; an
+    ///         invalid handle means there is nothing to wait for.
+    virtual std::shared_future<void> hint_prefetch_async() const;
+
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
 
     static void invoke_hint_prefetch(const AlignedBuffer& buffer);
+
+    virtual std::shared_future<void> hint_prefetch_async(size_t offset, size_t size) const;
+    static std::shared_future<void> invoke_hint_prefetch_async(const AlignedBuffer& buffer,
+                                                                size_t offset,
+                                                                size_t size);
 
     char* m_aligned_buffer;
     size_t m_byte_size;

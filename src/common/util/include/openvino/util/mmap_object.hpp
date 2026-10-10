@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <limits>
 #include <memory>
 #include <string>
@@ -79,8 +80,10 @@ public:
      * @param offset Offset within the mapping where prefetching starts.
      * @param size   Number of bytes to prefetch. Defaults to the rest of the
      *               mapping when set to auto_size.
+     * @return A handle that can be waited on to know when the region is actually resident; an
+     *         invalid handle means there is nothing to wait for.
      */
-    virtual void hint_prefetch_async(size_t offset = 0, size_t size = auto_size) = 0;
+    virtual std::shared_future<void> hint_prefetch_async(size_t offset = 0, size_t size = auto_size) = 0;
 };
 
 /**

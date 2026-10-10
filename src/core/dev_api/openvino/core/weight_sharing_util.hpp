@@ -5,6 +5,7 @@
 #pragma once
 
 #include <filesystem>
+#include <future>
 #include <optional>
 #include <unordered_map>
 
@@ -131,6 +132,16 @@ struct OPENVINO_API Extension {
      * @param constant Constant node to evict buffer for.
      */
     static void hint_evict(ov::op::v0::Constant& constant) noexcept;
+
+    /** @brief Hint to start loading the constant's buffer into physical memory in the background.
+     *
+     * @note Returns immediately, the data is not guaranteed to be resident when the call returns.
+     *
+     * @param constant Constant node to prefetch buffer for.
+     * @return A handle that can be waited on to know when the data is actually resident; an
+     *         invalid handle means there is nothing to wait for.
+     */
+    static std::shared_future<void> hint_prefetch(const ov::op::v0::Constant& constant) noexcept;
 };
 
 /** @brief Get the source buffer for a given source id.

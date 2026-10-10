@@ -8,11 +8,13 @@
 
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <optional>
 #include <sstream>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -545,7 +547,7 @@ public:
 
     MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (noexcept, override));
 
-    MOCK_METHOD(void, hint_prefetch_async, (size_t offset, size_t size), (override));
+    MOCK_METHOD(std::shared_future<void>, hint_prefetch_async, (size_t offset, size_t size), (override));
 
 private:
     std::vector<char> m_data;
@@ -607,5 +609,67 @@ TEST_F(SharedBufferTest, no_call_when_mmap_object_is_null) {
         buf_size,
         std::shared_ptr<ov::MappedMemory>{} /*null*/);
     EXPECT_NO_THROW(buffer->hint_evict());
+}
+
+TEST_F(SharedBufferTest, aligned_shared_buffer_propagates_prefetch_async_to_mmap) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t parent_offset = 64;
+    constexpr size_t child_offset = 32;
+    constexpr size_t child_size = 128;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + parent_offset,
+                                                                                        mmap_size - parent_offset,
+                                                                                        mock);
+    auto child = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        parent->get_ptr<char>() + child_offset,
+        child_size,
+        std::static_pointer_cast<ov::AlignedBuffer>(parent));
+
+    EXPECT_CALL(*mock, hint_prefetch_async(parent_offset + child_offset, child_size)).Times(1);
+    child->hint_prefetch_async();
+}
+
+TEST_F(SharedBufferTest, prefetch_scheduler_keeps_lookahead_window) {
+    constexpr size_t count = 4;
+    constexpr size_t size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(count * size);
+    // hint_prefetch_async must return a handle PrefetchScheduler::acquire() can wait on without blocking.
+    ON_CALL(*mock, hint_prefetch_async(::testing::_, ::testing::_)).WillByDefault(::testing::Invoke([](size_t, size_t) {
+        std::promise<void> ready;
+        ready.set_value();
+        return ready.get_future().share();
+    }));
+    auto mapped =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data(), count * size, mock);
+    std::vector<std::shared_ptr<ov::Node>> ops;
+    for (size_t i = 0; i < count; ++i) {
+        auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+            mapped->get_ptr<char>() + i * size,
+            size,
+            std::static_pointer_cast<ov::AlignedBuffer>(mapped));
+        ops.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{size}, buffer));
+    }
+
+    {
+        // lookahead = 2: prefetch A, B; consume A, evict A, prefetch C; consume B, evict B, prefetch D; ...
+        ::testing::InSequence in_sequence;
+        EXPECT_CALL(*mock, hint_prefetch_async(0 * size, size));
+        EXPECT_CALL(*mock, hint_prefetch_async(1 * size, size));
+        EXPECT_CALL(*mock, hint_evict_mock(0 * size, size));
+        EXPECT_CALL(*mock, hint_prefetch_async(2 * size, size));
+        EXPECT_CALL(*mock, hint_evict_mock(1 * size, size));
+        EXPECT_CALL(*mock, hint_prefetch_async(3 * size, size));
+        EXPECT_CALL(*mock, hint_evict_mock(2 * size, size));
+        EXPECT_CALL(*mock, hint_evict_mock(3 * size, size));
+    }
+
+    ov::weight_sharing::PrefetchScheduler scheduler(ops, 2);
+    for (const auto& op : ops) {
+        const auto& constant = static_cast<const ov::op::v0::Constant&>(*op);
+        scheduler.acquire(constant);
+        scheduler.release(constant);
+    }
 }
 }  // namespace ov::test
