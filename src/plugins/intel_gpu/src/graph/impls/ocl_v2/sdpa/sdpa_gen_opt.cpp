@@ -259,7 +259,7 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
 
             const size_t head_size_u = ensure_positive_dim(head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
-            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN, 0);
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", num_of_partitions = " << num_of_partitions << "\n";
             GPU_DEBUG_TRACE_DETAIL << "sg_num_scale = " << sg_num_scale << "\n";
