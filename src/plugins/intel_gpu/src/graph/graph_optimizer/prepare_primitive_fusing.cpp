@@ -1149,6 +1149,18 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[i] = can_fuse_parents[i] && (!parents[i].first->is_constant() || parents[parents.size() - 1 - i].first->is_constant());
             }
 
+            // The OCL FC impl flattens an input_size > 3 FC to 2D [B*T, N], but a non-constant fused peer
+            // keeps its original rank (e.g. [B, 1, T, N]), so the fused-op indexing reads it out of bounds.
+            for (size_t i = 0; i < parents.size(); i++) {
+                auto& parent = *parents[i].first;
+                auto& peer = *parents[parents.size() - 1 - i].first;
+                if (can_fuse_parents[i] && parent.is_type<fully_connected>() && !peer.is_constant() &&
+                    parent.as<fully_connected>().get_primitive()->input_size > 3 &&
+                    lo.get_preferred_impl_type(parent, format::any /*dummy*/) != impl_types::onednn) {
+                    can_fuse_parents[i] = false;
+                }
+            }
+
             if (node.in_shape_of_subgraph || parents[0].first->in_shape_of_subgraph || parents[1].first->in_shape_of_subgraph)
                 return;
 

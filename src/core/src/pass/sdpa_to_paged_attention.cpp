@@ -8,6 +8,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -175,6 +176,17 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     " SelectiveSSM node(s), but PagedSelectiveSSMFusion converted ",
                     paged_ssm_fusion->get_fused_count(),
                     ". Stateful SSM nodes cannot be left in the graph.");
+
+    // A GatedDeltaNet that PagedGatedDeltaNetFusion did not match still assumes the [batch, tokens, ...]
+    // layout, while the paged graph now carries [tokens, 1, ...]; it would fail or mix tokens at runtime.
+    for (const auto& op : model->get_ops()) {
+        OPENVINO_ASSERT(!ov::is_type<ov::op::internal::GatedDeltaNet>(op),
+                        "GatedDeltaNet node '",
+                        op->get_friendly_name(),
+                        "' was not converted to PagedGatedDeltaNet (its recurrent state is not read directly "
+                        "from ReadValue or Gather(ReadValue)). Stateful GatedDeltaNet nodes cannot be left in the "
+                        "graph.");
+    }
 
     {
         // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
