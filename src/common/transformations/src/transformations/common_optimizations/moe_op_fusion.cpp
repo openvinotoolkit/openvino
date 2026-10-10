@@ -50,10 +50,10 @@ static size_t weight_logical_K(const ov::Shape& shape) {
     return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
 }
 
-Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
+Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
-    auto hidden_states_m = pattern::any_input();
+    auto hidden_states_m = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
     auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
     auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
@@ -68,7 +68,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     auto bgm_gate_6_m = pattern::wrap_type<GatherMatmulCompressed>(
         {unsqueeze_m, gate_w_m, topk_indices_m, pattern::any_input(), gate_scale_m, gate_zp_m});
     // Or-pattern
-    auto bgm_gate_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_gate_4_m, bgm_gate_6_m});
+    auto bgm_gate_m = bgm_gate_4_m | bgm_gate_6_m;
 
     // Gate activation: Swish (SwiGLU) or Gelu (GeGLU) with TANH or ERF approximation.
     auto swish_m = pattern::wrap_type<v4::Swish, v7::Gelu>({bgm_gate_m});
@@ -79,7 +79,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     auto up_zp_m = pattern::any_input();
     auto bgm_up_6_m = pattern::wrap_type<GatherMatmulCompressed>(
         {unsqueeze_m, up_w_m, topk_indices_m, pattern::any_input(), up_scale_m, up_zp_m});
-    auto bgm_up_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_up_4_m, bgm_up_6_m});
+    auto bgm_up_m = bgm_up_4_m | bgm_up_6_m;
 
     auto swiglu_m = pattern::wrap_type<v1::Multiply>({swish_m, bgm_up_m});
 
@@ -89,7 +89,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     auto down_zp_m = pattern::any_input();
     auto bgm_down_6_m = pattern::wrap_type<GatherMatmulCompressed>(
         {swiglu_m, down_w_m, topk_indices_m, pattern::any_input(), down_scale_m, down_zp_m});
-    auto bgm_down_m = std::make_shared<pattern::op::Or>(OutputVector{bgm_down_4_m, bgm_down_6_m});
+    auto bgm_down_m = bgm_down_4_m | bgm_down_6_m;
 
     auto routing_m = pattern::any_input();
     auto routing_slice_m = pattern::optional<v8::Slice>(
@@ -102,7 +102,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     auto end_reshape_shape_m = pattern::any_input();
     auto end_reshape_m = pattern::wrap_type<v1::Reshape>({reduce_sum_m, end_reshape_shape_m});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -110,6 +110,10 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         }
 
         auto hidden_states = pm.at(hidden_states_m);
+        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
+            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+        }
+        const bool has_batch_dim = hidden_states.get_partial_shape().rank().get_length() == 3;
 
         auto routing = pm.at(routing_m);
         auto topk_indices = pm.at(topk_indices_m);
@@ -226,10 +230,17 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
             moe_node = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
         }
 
-        moe_node->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), moe_node);
-        ov::replace_node(m.get_match_root(), moe_node);
-
+        auto replacement = moe_node;
+        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
+            moe_node->set_friendly_name(m.get_match_root()->get_friendly_name() + "/MOE");
+            replacement = pm.at(end_reshape_m)
+                              .get_node_shared_ptr()
+                              ->clone_with_new_inputs({moe_node, pm.at(end_reshape_shape_m)});
+            register_new_node(replacement);
+        }
+        replacement->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), {moe_node, replacement});
+        ov::replace_node(m.get_match_root(), replacement);
         register_new_node(moe_node);
         return true;
     };
@@ -238,10 +249,10 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
     this->register_matcher(matcher, callback);
 }
 
-Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool has_batch_dim) {
+Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert2GatherMatmulMoeBlockToMoeOp);
 
-    auto hidden_states_m = pattern::any_input();
+    auto hidden_states_m = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
     auto hidden_state_reshape = pattern::optional<v1::Reshape>({hidden_states_m, pattern::any_input()});
     auto unsqueeze_m = pattern::wrap_type<v0::Unsqueeze>({hidden_state_reshape, pattern::any_input()});
 
@@ -303,6 +314,10 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         }
 
         auto hidden_states = pm.at(hidden_states_m);
+        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
+            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
+        }
+        const bool has_batch_dim = hidden_states.get_partial_shape().rank().get_length() == 3;
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
         // Order is enforced by the pattern (value_matches("1, 0")).
@@ -427,10 +442,17 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
             moe_node = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
         }
 
-        moe_node->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), moe_node);
-        ov::replace_node(m.get_match_root(), moe_node);
-
+        auto replacement = moe_node;
+        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
+            moe_node->set_friendly_name(m.get_match_root()->get_friendly_name() + "/MOE");
+            replacement = pm.at(end_reshape_m)
+                              .get_node_shared_ptr()
+                              ->clone_with_new_inputs({moe_node, pm.at(end_reshape_shape_m)});
+            register_new_node(replacement);
+        }
+        replacement->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), {moe_node, replacement});
+        ov::replace_node(m.get_match_root(), replacement);
         register_new_node(moe_node);
         return true;
     };
