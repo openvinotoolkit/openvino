@@ -46,6 +46,34 @@ struct LLMVariantSwitchTestAccess {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
     }
 
+    static void set_kv_dim(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t dim) {
+        compiled->m_kvcache_desc.dim = dim;
+    }
+
+    static void validate_imported_kvcache_dim(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        compiled->validate_imported_kvcache_dim();
+    }
+
+    static void set_prefill_compiled(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                     std::shared_ptr<ov::npuw::ICompiledModel_v0> prefill) {
+        compiled->m_prefill_compiled = std::move(prefill);
+    }
+
+    // Mirrors the production name-matching in validate_imported_kvcache_dim(): a port may carry
+    // several names, so match against all of them rather than get_any_name()'s single alias.
+    static uint32_t past_key_tensor_rank(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        for (const auto& port : compiled->m_generate_compiled_variants.back()->inputs()) {
+            const auto& names = port.get_names();
+            const bool is_past_key = std::any_of(names.begin(), names.end(), [](const std::string& name) {
+                return ov::npuw::util::isPastKeyParam(name);
+            });
+            if (is_past_key) {
+                return static_cast<uint32_t>(port.get_partial_shape().rank().get_length());
+            }
+        }
+        return 0u;
+    }
+
     static uint32_t kv_dim_for_name(const ov::npuw::LLMInferRequest& req, const std::string& name) {
         const auto& desc = req.m_npuw_llm_compiled_model->m_kvcache_desc;
         // Mirror copy_kvcache()/on_generate_variant_switch(): classify via the present name so
@@ -491,6 +519,53 @@ TEST_F(LLMInferRequestVariantSwitchTest, CurrentVariantCapacityRejectsOutOfRange
     LLMVariantSwitchTestAccess::set_current_variant_index(req, 1u);
 
     EXPECT_THROW(LLMVariantSwitchTestAccess::current_variant_capacity(req), std::out_of_range);
+}
+
+// KVCacheDesc::dim is read verbatim from an imported blob and is later used to subscript shape
+// vectors in the KV-slice helpers, so a malformed value is a heap out-of-bounds write. deserialize()
+// runs validate_imported_kvcache_dim() at the trust boundary to reject such blobs.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedKvcacheDimOutOfTensorRank) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const uint32_t rank = LLMVariantSwitchTestAccess::past_key_tensor_rank(compiled);
+    ASSERT_GT(rank, 0u) << "test model is expected to expose past-key KV tensors";
+
+    for (uint32_t dim = 0; dim < rank; ++dim) {
+        LLMVariantSwitchTestAccess::set_kv_dim(compiled, dim);
+        EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled)) << "dim=" << dim;
+    }
+
+    LLMVariantSwitchTestAccess::set_kv_dim(compiled, rank);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
+
+    LLMVariantSwitchTestAccess::set_kv_dim(compiled, 0xFFFFFFFFu);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
+}
+
+// A dim valid for the rank-4 generate KV tensors must still be rejected when a restored prefill KV
+// tensor has a smaller rank, since prefill SWA updates slice along it too.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedKvcacheDimOutOfPrefillTensorRank) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::past_key_tensor_rank(compiled), 4u);
+
+    auto past = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8});
+    past->output(0).set_names({"past_key_values.0.swa.key"});
+    auto present = std::make_shared<ov::op::v0::Result>(past);
+    present->output(0).set_names({"present.0.swa.key"});
+    auto prefill_model = std::make_shared<ov::Model>(ov::ResultVector{present}, ov::ParameterVector{past});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(prefill_model, m_plugin, ov::AnyMap{}));
+
+    LLMVariantSwitchTestAccess::set_kv_dim(compiled, 1u);
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled));
+
+    LLMVariantSwitchTestAccess::set_kv_dim(compiled, 2u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
 }
 
 }  // namespace
