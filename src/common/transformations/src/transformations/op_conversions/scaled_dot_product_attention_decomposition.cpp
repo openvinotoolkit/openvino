@@ -14,6 +14,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
@@ -71,6 +72,13 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
+    // An integer key or value is converted to the query's type, as the op specification defines.
+    if (v13::ScaledDotProductAttention::is_quantized_kv_type(key.get_element_type())) {
+        key = register_new_node<v0::Convert>(key, query.get_element_type());
+    }
+    if (v13::ScaledDotProductAttention::is_quantized_kv_type(value.get_element_type())) {
+        value = register_new_node<v0::Convert>(value, query.get_element_type());
+    }
     auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
     auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
     auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
