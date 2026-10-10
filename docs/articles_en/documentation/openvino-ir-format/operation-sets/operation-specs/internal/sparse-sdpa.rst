@@ -80,6 +80,36 @@ the consumer applies the **token-level** causal truncation :math:`kpos \le S - L
 that is the final guarantee of correctness. An empty selection (``sel_count == 0``, e.g. a query with no
 causally-valid block) yields a zero output vector for that row.
 
+**Mask-only plans for unbounded-K_max producers**
+
+Not every producer has a fixed per-row top-:math:`K`. Threshold-based selection — e.g. XAttention's block
+scoring, which greedily accumulates the highest-scoring blocks until their *cumulative softmax mass* crosses a
+threshold fraction, with no cap on how many blocks that takes — is **data-dependent**: for a near-uniform score
+distribution the loop keeps going until almost every block is selected, so the worst-case selected-block count
+approaches the full block grid, :math:`K_{max} \to \mathrm{num\_k\_blocks} = \lceil S / B_k \rceil`. Unlike QSA's
+fixed ``block_topk + 1``, there is no tighter bound to declare. Forcing such a plan through ``sel_indices`` then
+pays for a full-width ``int32`` index per logical block per query row (4 bytes, often carrying no more
+information than "every block is selected") instead of the 1 bit a boolean mask would need — the opposite of the
+bandwidth win the index-based contract exists to provide.
+
+For this case, the plan **may instead be carried directly through** ``attn_mask`` **in place of**
+``sel_indices``/``sel_count``: the producer expands its ``[B, H_sel, num_q_blocks, num_k_blocks]`` boolean
+block decision to a tensor broadcastable to ``[B, H_sel, L, S]`` (SDPA-13 boolean-mask semantics, replicated at
+``sel_block_size``/``q_block_size`` granularity) and supplies it as ``attn_mask``; ``sel_indices`` and
+``sel_count`` are then omitted, and ``combined_mask`` reduces to ``attn_mask`` :math:`\wedge`
+:math:`\mathrm{causal}_{S-L+l}` (``expand(plan)`` is trivially all-ones since the plan no longer exists as a
+separate index structure). This forgoes the bandwidth benefit a bounded index list gives a consumer that can
+skip ungathered blocks entirely, but that benefit was illusory for a producer whose own selection is already
+block-dense: expressing it as a mask avoids round-tripping through a same-size-or-larger ``int32`` index buffer
+for no gain. This mirrors the GPU implementation of XAttention (``xattn_find_block.cm`` / ``xattn_post_proc.cm``),
+which computes exactly a per-(head, q-block, k-block) boolean mask and feeds it to the paged-attention kernel
+directly — it is never converted into an index list.
+
+One of the two plan representations must be present: either the ``sel_indices``/``sel_count`` pair, or a
+plan-carrying ``attn_mask``. When ``sel_indices``/``sel_count`` are omitted, ``attn_mask`` is **required** (not
+optional) and plays both roles at once — ordinary attention masking and sparsity selection — since the two are
+joined by the same conjunction regardless of representation.
+
 **Causal responsibility**
 
 Causality is split across the producer and the consumer:
@@ -321,18 +351,24 @@ page table; the fused GPU primitive dispatch is shared.
 * **3**: ``sel_indices``
   A 4D tensor of type *T_IND* with shape ``[B, H_sel, num_q_blocks, K_max]``.
   Per-query-block, per-selection-head selected *block* indices emitted by the upstream producer, where
-  ``num_q_blocks = ceil(L / B_q)`` (equals ``L`` when ``B_q == 1``). ``-1`` padded. **Required.**
+  ``num_q_blocks = ceil(L / B_q)`` (equals ``L`` when ``B_q == 1``). ``-1`` padded. **Required**, unless the plan
+  is instead carried directly by ``attn_mask`` (see "Mask-only plans for unbounded-K_max producers" above),
+  in which case this input is omitted.
 
 * **4**: ``sel_count``
   A 3D tensor of type *T_IND* with shape ``[B, H_sel, num_q_blocks]``.
-  Valid selected block count per query block per selection head. **Required.**
+  Valid selected block count per query block per selection head. **Required, unless omitted together with**
+  ``sel_indices`` **when the plan is carried by** ``attn_mask``.
 
 * **5**: ``attn_mask``
-  A tensor broadcastable to ``[B, 1, L, S]`` (optional).
+  A tensor broadcastable to ``[B, 1, L, S]`` (optional, unless it is carrying the sparsity plan — see below).
   Attention mask in SDPA-13 semantics: either a **boolean** mask (``False`` excludes a position) or a
   **floating-point additive** mask (``-inf`` excludes, finite values are added to the logits). The effective
   mask is the conjunction ``attn_mask & causal & expand(plan)``. When omitted, only ``causal & expand(plan)``
-  applies. **Optional.**
+  applies. **Optional**, except when ``sel_indices``/``sel_count`` are omitted: for producers with no fixed
+  per-row top-:math:`K` (e.g. XAttention's threshold-based block selection), the full sparsity plan may instead
+  be expanded directly into ``attn_mask`` (see "Mask-only plans for unbounded-K_max producers" above), in
+  which case ``attn_mask`` becomes **Required**.
 
 * **6**: ``scale``
   A scalar tensor of type *T* (optional).
@@ -360,6 +396,11 @@ page table; the fused GPU primitive dispatch is shared.
   producer, or ``ceil(S / sel_block_size)`` when the selection is produced from a block-level mask conversion
   (the full set of logical KV blocks). ``sel_count[b, sh, qb] <= K_max``, and the valid prefix
   ``sel_indices[b, sh, qb, :sel_count[b, sh, qb]]`` is **strictly ascending** and contains no ``-1`` entries.
+  When a producer has no bound on ``K_max`` tighter than ``ceil(S / sel_block_size)`` (e.g. XAttention's
+  threshold-based selection), ``sel_indices``/``sel_count`` should be omitted and the plan carried directly via
+  ``attn_mask`` instead — see "Mask-only plans for unbounded-K_max producers".
+* Exactly one plan representation is present: either both ``sel_indices`` and ``sel_count``, or a plan-carrying
+  ``attn_mask`` with ``sel_indices``/``sel_count`` both omitted.
 * When ``q_block_size > 1``, the history length satisfies ``(S - L) % q_block_size == 0``.
 * The selected blocks form a **strictly ascending, duplicate-free** sequence; the consumer gathers exactly the
   valid prefix.
@@ -460,6 +501,44 @@ one 3D window.
        </input>
        <output>
            <port id="5">   <!-- output: [B, Hq, L, Dv] -->
+               <dim>1</dim><dim>12</dim><dim>512</dim><dim>128</dim>
+           </port>
+       </output>
+   </layer>
+
+**Example 3 — XAttention Threshold-Based Sparsity** (:math:`B_q = B_k = 128`, plan carried by ``attn_mask``,
+``sel_indices``/``sel_count`` omitted).
+
+XAttention's block selection accumulates the highest-scoring blocks per query block until their cumulative
+softmax mass crosses a threshold fraction, so the selected-block count is content-dependent with no fixed cap.
+With ``B=1``, ``L=512``, ``S=512``, :math:`B_q = B_k = 128` (``num_q_blocks = num_k_blocks = 4``), suppose query
+block ``qb=1`` keeps blocks ``{0, 1}`` while query block ``qb=3`` (near-uniform scores) keeps all of
+``{0, 1, 2, 3}``: a fixed-width ``sel_indices`` would need ``K_max = 4 == num_k_blocks`` to cover the worst case,
+buying no index-list savings for ``qb=3``. The plan is instead expanded to a per-token boolean mask (every token
+of a selected block is ``True``) and passed as ``attn_mask``; ``sel_indices`` and ``sel_count`` are omitted.
+
+.. code-block:: xml
+   :force:
+
+   <layer ... type="SparseSDPA">
+       <data num_heads="12" num_kv_heads="12" h_sel="12" k_head_size="128" v_head_size="128"
+             sel_block_size="128" q_block_size="128" causal="false"/>
+       <input>
+           <port id="0">   <!-- query: [B, Hq, L, Dh] -->
+               <dim>1</dim><dim>12</dim><dim>512</dim><dim>128</dim>
+           </port>
+           <port id="1">   <!-- key: [B, Hkv, S, Dh] -->
+               <dim>1</dim><dim>12</dim><dim>512</dim><dim>128</dim>
+           </port>
+           <port id="2">   <!-- value: [B, Hkv, S, Dv] -->
+               <dim>1</dim><dim>12</dim><dim>512</dim><dim>128</dim>
+           </port>
+           <port id="3">   <!-- attn_mask: [B, H_sel, L, S], carries the plan directly; sel_indices/sel_count omitted -->
+               <dim>1</dim><dim>12</dim><dim>512</dim><dim>512</dim>
+           </port>
+       </input>
+       <output>
+           <port id="4">   <!-- output: [B, Hq, L, Dv] -->
                <dim>1</dim><dim>12</dim><dim>512</dim><dim>128</dim>
            </port>
        </output>

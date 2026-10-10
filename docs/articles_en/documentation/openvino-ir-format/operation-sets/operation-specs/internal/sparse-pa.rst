@@ -88,6 +88,33 @@ contiguous prefix ``sel_indices[:sel_count]`` and never re-derives the block sel
 (``sel_count == 0``) yields a zero output vector for that row. The kernel handles the boundary where ``sel_count``
 is smaller than the selection width (short context / prefill) directly from ``sel_count``.
 
+**Mask-only plans for unbounded-K_max producers**
+
+Not every producer has a fixed per-row top-:math:`K`. Threshold-based selection — e.g. XAttention's block
+scoring, which greedily accumulates the highest-scoring blocks until their *cumulative softmax mass* crosses a
+threshold fraction, with no cap on how many blocks that takes — is **data-dependent**: for a near-uniform score
+distribution the loop keeps going until almost every block of the sequence is selected, so the worst-case
+selected-block count approaches that sequence's full logical block grid. Unlike QSA's fixed ``block_topk + 1``,
+there is no tighter bound to declare, and forcing such a plan through ``sel_indices`` then pays for a full-width
+``int32`` index per logical block per query row — in the worst case carrying no more information than "every
+block of this sequence is selected" — instead of the 1 bit a boolean mask would need.
+
+``SparsePA`` has no token-level ``attn_mask`` input to reuse for this (it operates on a ragged, physically paged
+token stream rather than a dense ``[B, H, L, S]`` layout), so the mask-only alternative here is a **block-level**
+boolean mask, ``sel_block_mask``, carried **in place of** the ``(sel_indices, sel_count)`` pair. When a producer
+has no bound on ``K_max`` tighter than a sequence's full logical block count, it supplies
+``sel_block_mask[row, sh, :num_k_blocks_s]`` directly — one bit per logical selection block of that row's
+sequence, where ``num_k_blocks_s = (block_indices_begins[s+1] - block_indices_begins[s]) * (block_size /
+sel_block_size)`` — instead of an ascending index list, and ``sel_indices``/``sel_count`` are omitted. This
+mirrors the GPU implementation of XAttention (``xattn_find_block.cm`` / ``xattn_post_proc.cm``), which computes
+exactly a per-(head, q-block, k-block) boolean mask and never converts it into an index list. It also gives the
+standalone dev op an equivalent of the representation its eventual fusion target would use: see "Relationship to
+``PagedAttention`` and ``XAttention``" below, where XAttention's threshold selection is a mask-mode sparse plan of
+the fused ``PagedAttention`` primitive rather than an index list.
+
+One of the two plan representations must be present: either the ``sel_indices``/``sel_count`` pair, or
+``sel_block_mask`` with ``sel_indices``/``sel_count`` both omitted.
+
 **Causal responsibility and the slot-read upper bound**
 
 Causality is split across the producer and the consumer:
@@ -123,7 +150,10 @@ full block count) and ``sel_block_size == block_size``, the kernel degenerates t
 This mirrors the XAttention design, in which sparsity is a selectable execution mode of the paged-attention
 primitive rather than a separate operator. The intended final form is therefore to absorb ``SparsePA`` into
 ``PagedAttention`` as an optional sparse-plan input group (mutually exclusive with the XAttention threshold
-path); ``SparsePA`` remains a standalone internal dev op until that fusion lands.
+path); ``SparsePA`` remains a standalone internal dev op until that fusion lands. In the meantime, a
+threshold-based producer (no fixed top-:math:`K`) that targets this op directly should carry its plan via
+``sel_block_mask`` rather than ``sel_indices``/``sel_count`` — see "Mask-only plans for unbounded-K_max
+producers" above.
 
 .. note::
    **Known limitations vs. full ``PagedAttention``** — as a standalone dev op, ``SparsePA`` does *not* yet
@@ -349,19 +379,30 @@ carries its own selection.
   Per-query-block, per-selection-head selected *block* indices emitted by the upstream producer, as a
   **strictly ascending, duplicate-free** sequence in the contiguous prefix ``sel_indices[:sel_count]``. ``-1``
   padded only past ``sel_count``. When ``q_block_size == 1``, the first dimension ``total_q_blocks`` equals
-  ``tokens``. **Required.**
+  ``tokens``. **Required**, unless the plan is instead carried by ``sel_block_mask`` (see "Mask-only plans for
+  unbounded-K_max producers" above), in which case this input is omitted.
 
 * **10**: ``sel_count``
   A 2D tensor of type *T_IND* with shape ``[total_q_blocks, h_sel]``.
   Valid selected block count per selection head. An empty selection (``sel_count == 0``) yields a zero output
-  vector for that row. **Required.**
+  vector for that row. **Required, unless omitted together with** ``sel_indices`` **when the plan is carried by**
+  ``sel_block_mask``.
 
-* **11**: ``qb_start``
+* **11**: ``sel_block_mask``
+  A 3D boolean tensor with shape ``[total_q_blocks, h_sel, max_k_blocks]``, where ``max_k_blocks`` is the
+  largest per-sequence logical block count in the batch, :math:`\max_s ((\mathrm{block\_indices\_begins}[s{+}1] -
+  \mathrm{block\_indices\_begins}[s]) \cdot \mathrm{block\_size} / \mathrm{sel\_block\_size})`. For a row
+  belonging to sequence ``s``, only the first ``num_k_blocks_s`` entries are meaningful; entries past that are
+  padding. **Optional** — used in place of ``sel_indices``/``sel_count`` for producers with no fixed per-row
+  top-:math:`K` (see "Mask-only plans for unbounded-K_max producers" above); omitted when ``sel_indices``/
+  ``sel_count`` are present.
+
+* **12**: ``qb_start``
   A 1D tensor of type *T_IND* with shape ``[num_sequences + 1]``.
   Running prefix sum of the per-sequence query-block counts: ``qb_start[0] == 0``,
   ``qb_start[s] == sum_{s'<s} ceil(chunk_len_{s'} / q_block_size)``, and
   ``qb_start[-1] == total_q_blocks``. Maps a (sequence, token) to the row of its query block in
-  ``sel_indices``/``sel_count``/``query``/``output``. **Required.**
+  ``sel_indices``/``sel_count`` (or ``sel_block_mask``) ``/query/output``. **Required.**
 
 
 **Outputs**
@@ -384,13 +425,21 @@ carries its own selection.
   producer's summary cache has the same first dimension ``num_blocks``.
 * ``block_indices`` values must be valid physical block indices ``< num_blocks``.
 * ``query`` and ``output`` first dimension equals ``tokens``.
-* ``sel_indices``/``sel_count`` first dimension equals ``total_q_blocks``, where
+* ``sel_indices``/``sel_count`` (or ``sel_block_mask``) first dimension equals ``total_q_blocks``, where
   ``total_q_blocks == qb_start[-1] == sum_s ceil(chunk_len_s / q_block_size)``; when ``q_block_size == 1`` this
   equals ``tokens``.
 * ``sel_indices`` last dimension ``K_max`` is **determined by the producer**: ``block_topk + 1`` for a QSA-style
   producer, or ``ceil(S / sel_block_size)`` when the selection is produced from a block-level mask conversion.
+  When a producer has no bound on ``K_max`` tighter than a sequence's full logical block count (e.g.
+  XAttention's threshold-based selection), ``sel_indices``/``sel_count`` should be omitted and the plan carried
+  directly via ``sel_block_mask`` instead — see "Mask-only plans for unbounded-K_max producers".
 * ``sel_count[row, sh] <= K_max`` for every row ``row`` and selection head ``sh``; the valid prefix
   ``sel_indices[row, sh, :sel_count[row, sh]]`` is **strictly ascending** and contains no ``-1`` entries.
+* Exactly one plan representation is present: either both ``sel_indices`` and ``sel_count``, or
+  ``sel_block_mask`` with ``sel_indices``/``sel_count`` both omitted. ``sel_block_mask``'s last dimension,
+  ``max_k_blocks``, equals :math:`\max_s` of each sequence's logical block count
+  ``(block_indices_begins[s+1] - block_indices_begins[s]) * block_size / sel_block_size``; for a row of sequence
+  ``s``, entries past that sequence's own logical block count are padding and not read.
 * ``block_indices_begins[0] == 0`` and ``block_indices_begins[-1] == len(block_indices)`` (block splits);
   ``subsequence_begins[0] == 0`` and ``subsequence_begins[-1] == tokens`` (token splits).
 * ``past_lens[s]`` equals the number of tokens already written for sequence ``s``; the write slot
@@ -536,6 +585,68 @@ is exactly one 3D window.
        </input>
        <output>
            <port id="12">  <!-- output: [tokens, Hq*Dv] -->
+               <dim>512</dim><dim>1536</dim>
+           </port>
+       </output>
+   </layer>
+
+**Example 3 — XAttention Threshold-Based Sparsity** (:math:`B_q = B_k = 128`, plan carried by
+``sel_block_mask``, ``sel_indices``/``sel_count`` omitted).
+
+XAttention's block selection accumulates the highest-scoring blocks per query block until their cumulative
+softmax mass crosses a threshold fraction, so the selected-block count is content-dependent with no fixed cap.
+Reusing the one-sequence, ``tokens = 512``, :math:`B_q = B_k = 128` layout of Example 2
+(``total_q_blocks = 4``, ``qb_start = [0, 4]``, one physically paged sequence with ``num_k_blocks_s = 4``
+logical blocks, so ``max_k_blocks = 4``): suppose query block ``qb=0`` keeps blocks ``{0, 2, 3}`` (as in
+Example 2) while query block ``qb=3`` (near-uniform scores) keeps all of ``{0, 1, 2, 3}`` — a fixed-width
+``sel_indices`` would need ``K_max = 4 == num_k_blocks_s`` to cover the worst case, buying no index-list savings
+for ``qb=3``. The plan is instead supplied as the boolean ``sel_block_mask``
+(``sel_block_mask[0, :, :] = [[1, 0, 1, 1], ...]``, ``sel_block_mask[3, :, :] = [[1, 1, 1, 1], ...]``, replicated
+across the :math:`H_{sel}` selection heads); ``sel_indices`` and ``sel_count`` are omitted.
+
+.. code-block:: xml
+   :force:
+
+   <layer ... type="SparsePA">
+       <data num_heads="12" num_kv_heads="12" h_sel="12" k_head_size="128" v_head_size="128"
+             block_size="128" sel_block_size="128" q_block_size="128" scale="0.088388" causal="false"/>
+       <input>
+           <port id="0">   <!-- query: [tokens, Hq*Dh] -->
+               <dim>512</dim><dim>1536</dim>
+           </port>
+           <port id="1">   <!-- key: [tokens, Hkv*Dh] -->
+               <dim>512</dim><dim>1536</dim>
+           </port>
+           <port id="2">   <!-- value: [tokens, Hkv*Dv] -->
+               <dim>512</dim><dim>1536</dim>
+           </port>
+           <port id="3">   <!-- key_cache: [num_blocks, Hkv, block_size, Dh] -->
+               <dim>4</dim><dim>12</dim><dim>128</dim><dim>128</dim>
+           </port>
+           <port id="4">   <!-- value_cache: [num_blocks, Hkv, block_size, Dv] -->
+               <dim>4</dim><dim>12</dim><dim>128</dim><dim>128</dim>
+           </port>
+           <port id="5">   <!-- block_indices: [total_logical_blocks] -->
+               <dim>4</dim>
+           </port>
+           <port id="6">   <!-- block_indices_begins: [num_sequences+1] -->
+               <dim>2</dim>
+           </port>
+           <port id="7">   <!-- subsequence_begins: [num_sequences+1] -->
+               <dim>2</dim>
+           </port>
+           <port id="8">   <!-- past_lens: [num_sequences] -->
+               <dim>1</dim>
+           </port>
+           <port id="9">   <!-- sel_block_mask: [total_q_blocks, H_sel, max_k_blocks]; sel_indices/sel_count omitted -->
+               <dim>4</dim><dim>12</dim><dim>4</dim>
+           </port>
+           <port id="10">  <!-- qb_start: [num_sequences+1] -->
+               <dim>2</dim>
+           </port>
+       </input>
+       <output>
+           <port id="11">  <!-- output: [tokens, Hq*Dv] -->
                <dim>512</dim><dim>1536</dim>
            </port>
        </output>
