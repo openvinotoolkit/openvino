@@ -1067,6 +1067,9 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
         cfg[ov::workload_type.name()] = ov::WorkloadType::DEFAULT;
 
         auto model = createModelByName(selectedModelName);
+        if(selectedModelName == "MaxPool_NCHW") {
+            cfg[ov::intel_npu::compile_log_level.name()] = ov::log::Level::TRACE;
+        }
         ov::CompiledModel compiledModel;
         try {
             auto savedCfg = configuration;
