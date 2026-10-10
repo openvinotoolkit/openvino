@@ -1526,6 +1526,10 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         auto permute_order = permute_node.get_primitive()->permute_order;
         // Assumption that fc weights will be reshaped to 2d
         if (permute_order.size() != 2 && weightable_node->is_type<fully_connected>()) {
+            // The onednn reorder below works on the N-D layout, where {1,0} doesn't swap the last two dims; the kept permute is constant-folded.
+            if (lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn) {
+                continue;
+            }
             if (permute_order == std::vector<uint16_t>{0, 2, 1} ||
                 permute_order == std::vector<uint16_t>{0, 1, 3, 2}) {
                 permute_order = {1, 0};

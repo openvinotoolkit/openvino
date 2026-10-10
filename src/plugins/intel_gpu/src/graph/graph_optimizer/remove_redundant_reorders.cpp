@@ -150,6 +150,18 @@ void remove_redundant_reorders::run(program& p) {
 
             node.can_be_optimized(true);
             LOG_NODE_REMOVAL(node.id());
+
+            // A reorder user with format::any follows its input format, so pin the output format this reorder produced before removal.
+            if (input.get_output_layout().format != output_layout.format) {
+                for (auto* usr : node.get_users()) {
+                    if (!usr->is_type<reorder>())
+                        continue;
+                    auto usr_prim = std::const_pointer_cast<reorder>(usr->as<reorder>().get_primitive());
+                    if (usr_prim->output_format == format::any)
+                        usr_prim->output_format = output_layout.format;
+                }
+            }
+            
             p.extract_and_remove(node);
 
             for (auto* rl : recalc_list) {
