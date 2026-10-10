@@ -13,6 +13,7 @@
 #include <arm_compute/runtime/NEON/functions/NEPooling3dLayer.h>
 #include <arm_compute/runtime/NEON/functions/NEPoolingLayer.h>
 
+#include <algorithm>
 #include <any>
 #include <cstddef>
 #include <functional>
@@ -79,6 +80,14 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     const auto pool_type = poolTypeOpt.value();
     const bool exclude_padding =
         (pool_type == PoolingType::MAX) ? (poolingAttrs.pad_type != op::PadType::EXPLICIT) : poolingAttrs.exclude_pad;
+
+    // ACL pooling has no dilation parameter, so a dilated pooling would silently be computed without dilation.
+    if (std::any_of(poolingAttrs.dilation.begin(), poolingAttrs.dilation.end(), [](const ptrdiff_t d) {
+            return d != 1;
+        })) {
+        DEBUG_LOG("ACL pooling does not support dilation. ACL executor will not be created.");
+        return false;
+    }
 
     // The combination of parameters: NCHW + CEIL gives an accuracy problem in AvgPool.
     // One workaround is to disable the ACL executor for these parameters.
