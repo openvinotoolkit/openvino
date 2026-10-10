@@ -78,10 +78,17 @@ TensorImpl::TensorImpl(Napi::Env env,
 }
 
 // Tears down the shutdown coordination state from any thread-safe destruction path.
+// Destructors are implicitly noexcept: the OPENVINO_ASSERTs inside these cleanup
+// helpers must not be allowed to escape, otherwise a failure would call
+// std::terminate() and abort the whole process during teardown.
 TensorImpl::~TensorImpl() {
-    _cleanup_ctx->remove_cleanup_hook();
-    _cleanup_ctx->release_tsfn();
-    _cleanup_ctx->release_owner();
+    try {
+        _cleanup_ctx->remove_cleanup_hook();
+        _cleanup_ctx->release_tsfn();
+        _cleanup_ctx->release_owner();
+    } catch (...) {
+        // Nothing can be recovered while destroying; swallow to keep the destructor noexcept.
+    }
 }
 
 // Reshapes the wrapped tensor and refreshes cached strides that are exposed by reference.
