@@ -978,6 +978,11 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
             return false;
         }
 
+        if (!ctx.get().is_closure(w_param) || !ctx.get().is_closure(s_param)) {
+            // Only closures can be concatenated. Function inputs stay unchanged.
+            return false;
+        }
+
         if (!matmul->get_transpose_a() && !matmul->get_transpose_b()) {
             ctx.get().register_parallel_matmul(
                 node_to_output.at(qmmi),
@@ -1637,6 +1642,8 @@ HostGather::HostGather(Context::Ref ctx) {
         auto out_shape = node_to_output.at(qgthrw).get_shape();
         auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
+        auto matched_qweight =
+            std::static_pointer_cast<ov::op::v0::Parameter>(matched_out_qweight.get_node_shared_ptr());
 
         const auto& matched_out_gather = node_to_output.at(qgthrw);
 
@@ -1646,13 +1653,14 @@ HostGather::HostGather(Context::Ref ctx) {
             return readers.begin()->get_node();
         };
 
+        // NB: Only a closure can be the vocab. A function input (an output of
+        // another subgraph) is not a weight and stays unchanged.
         if (out_shape.back() >= 2048 && (qweight_type == ov::element::f16 || qweight_type == ov::element::f32) &&
+            ctx.get().is_closure(matched_qweight) &&
             (matched_out_gather.get_target_inputs().size() > 1 ||
              ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
-            auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             const auto& matched_out_gthr = node_to_output.at(qgthrw);
-            auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
             if (qweight_type == ov::element::f32) {
@@ -1974,7 +1982,8 @@ DQUnpackDictMatMulGQi::DQUnpackDictMatMulGQi(Context::Ref ctx) {
 // TO:
 //     Param(W):f16 -------->
 //     ???(Act) -> to(f16) -> MatMul -> to(f32) -> Result
-// NB: This pass only worsens the performance so is disabled
+// NB: Only closure weights are compressed. A Parameter that is a function
+// input (an output of another subgraph) is not a weight and stays unchanged.
 CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
     auto weight = opp::wrap_type<ov::op::v0::Parameter>();
     auto mmi = opp::any_input();
@@ -1994,7 +2003,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
         auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_res);
 
-        if (ov::element::f32 == matched_weight->get_element_type() &&
+        if (ov::element::f32 == matched_weight->get_element_type() && ctx.get().is_closure(matched_weight) &&
             matched_matmul->output(0).get_target_inputs().size() == 1) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 

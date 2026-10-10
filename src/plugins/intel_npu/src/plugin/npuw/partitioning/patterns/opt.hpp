@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
 #include "openvino/openvino.hpp"
@@ -28,6 +29,13 @@ struct Context {
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using NPtr = std::shared_ptr<ov::Node>;
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+
+    // Function body Parameters that are not closures (inputs from other subgraphs).
+    // Passes must not change them. Empty set = every Parameter is a closure.
+    std::set<PPtr> non_closure_params;
+    bool is_closure(const PPtr& param) const {
+        return non_closure_params.count(param) == 0;
+    }
 
     using Axes = std::vector<std::size_t>;
     std::map<PPtr, Axes> closures_to_permute;

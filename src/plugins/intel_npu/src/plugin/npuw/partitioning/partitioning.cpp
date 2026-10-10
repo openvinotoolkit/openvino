@@ -2149,9 +2149,14 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
     auto& func_group = all_functions.at(func_name);
 
+    auto mark_non_closures = [&](ov::npuw::patterns::opt::Context& ctx) {
+        const auto& params = f._model->get_parameters();
+        ctx.non_closure_params.insert(params.begin(), params.begin() + static_cast<std::ptrdiff_t>(f._param_offset));
+    };
     auto do_permute = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_permute) {
             auto param_idx = f._model->get_parameter_index(p.first);
+            NPUW_ASSERT(param_idx >= static_cast<int64_t>(f._param_offset));
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
@@ -2162,7 +2167,7 @@ void Partitioner::optimize(const std::string& func_name) {
     auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_f16) {
             auto param_idx = f._model->get_parameter_index(p);
-            NPUW_ASSERT(param_idx != -1);
+            NPUW_ASSERT(param_idx >= static_cast<int64_t>(f._param_offset));
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
@@ -2174,6 +2179,7 @@ void Partitioner::optimize(const std::string& func_name) {
     // Regardless of DQ setting, run this first
     {
         ov::npuw::patterns::opt::Context ctx;
+        mark_non_closures(ctx);
         ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
@@ -2228,6 +2234,7 @@ void Partitioner::optimize(const std::string& func_name) {
             std::vector<std::size_t> to_concat_idx;
             for (auto&& p_to_concat : params_to_concat) {
                 auto p_to_concat_idx = f._model->get_parameter_index(p_to_concat);
+                NPUW_ASSERT(p_to_concat_idx >= static_cast<int64_t>(f._param_offset));
                 to_remove.push_back(p_to_concat);
                 to_concat_idx.push_back(p_to_concat_idx - f._param_offset);
                 to_remove_idx.insert(p_to_concat_idx);
@@ -2254,6 +2261,7 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& p : ctx.params_to_nf4_gather) {
             const auto& tensor_to_gather = p.second;
             auto w_idx = f._model->get_parameter_index(tensor_to_gather.w);
+            NPUW_ASSERT(w_idx >= static_cast<int64_t>(f._param_offset));
 
             // Need to add a new parameter right away, since it's going to be processed by the unpack below
             f._model->add_parameters({p.first});
@@ -2281,6 +2289,9 @@ void Partitioner::optimize(const std::string& func_name) {
             auto w_idx = f._model->get_parameter_index(tensor_to_unpack.w);
             auto z_idx = f._model->get_parameter_index(tensor_to_unpack.z);
             auto s_idx = f._model->get_parameter_index(tensor_to_unpack.s);
+            NPUW_ASSERT(w_idx >= static_cast<int64_t>(f._param_offset));
+            NPUW_ASSERT(s_idx >= static_cast<int64_t>(f._param_offset));
+            NPUW_ASSERT(z_idx == -1 || z_idx >= static_cast<int64_t>(f._param_offset));
 
             new_params.push_back(p.first);
             to_remove.push_back(tensor_to_unpack.w);
@@ -2463,6 +2474,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Run "dynamic quantization"
     ov::npuw::patterns::opt::Context ctx;
+    mark_non_closures(ctx);
     ctx.is_spatial = f._spatial.has_value();
     ctx.mm_dq_full = cfg.get<::intel_npu::NPUW_DQ_FULL>();
 
