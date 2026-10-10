@@ -51,6 +51,10 @@ void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr
     const auto src_plane_stride = src_tensor->get_strides()[H];
     const auto dst_plane_stride = dst_tensor->get_strides()[H];
     const auto plane_size_in_bytes = src_tensor->get_strides()[S] * src_tensor->get_shape()[S];
+    const auto dst_plane_size_in_bytes = dst_tensor->get_strides()[S] * dst_tensor->get_shape()[S];
+
+    OPENVINO_ASSERT(num_planes == 0u || plane_size_in_bytes <= dst_plane_size_in_bytes,
+                    "copy_by_planes: source plane size exceeds destination plane capacity");
 
     for (size_t i = 0; i < num_planes; ++i) {
         std::copy_n(src_tensor_data, plane_size_in_bytes, dst_tensor_data);
