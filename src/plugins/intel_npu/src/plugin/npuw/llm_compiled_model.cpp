@@ -1,7 +1,10 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "llm_compiled_model.hpp"
+
+#include <queue>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -46,12 +49,14 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
+#include "shared_weights_producer.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
 #include "whisper/prepare_whisper_model.hpp"
@@ -880,6 +885,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                         "inputs which the hash prefix cache cannot process. "
                         "Please disable one of the two options.");
         LOG_INFO("Continuous prefill is enabled");
+    }
+
+    auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
+    if (shared_weight_property_it != properties.end()) {
+        LOG_DEBUG("Try to assign shared weights to the model if possible.");
+        std::tie(m_shared_weight_sources, m_shared_ctx_ptr) =
+            ::ov::intel_npu::transformations::assign_shared_weight_to_model_if_possible(
+                model,
+                shared_weight_property_it->second);
     }
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
