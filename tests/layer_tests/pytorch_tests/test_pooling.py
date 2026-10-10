@@ -161,6 +161,32 @@ class TestPooling(PytorchLayerTest):
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=is_dynamic_shapes)
 
+    # PyTorch allows an avg_pool kernel larger than the input for 1D/2D pooling: with ceil_mode the sliding
+    # window is clipped to the input and a single averaged element is produced (e.g. HuggingFace EfficientNet
+    # uses nn.AvgPool2d(1280, ceil_mode=True) over a 7x7 feature map). (avg_pool3d rejects oversized kernels,
+    # so that case cannot occur.) ov::op::AvgPool requires the kernel to fit the (padded) data shape, so the
+    # frontend lowers oversized unpadded axes to ReduceMean.
+    @pytest.mark.parametrize("op_type,input_shape,kernel_size,padding", [
+        ("avg_pool1d", [1, 8, 7], 1280, 0),
+        ("avg_pool1d", [8, 7], 32, 0),
+        ("avg_pool2d", [1, 8, 7, 7], [1280, 1280], 0),
+        ("avg_pool2d", [1, 8, 7, 7], [9, 2], 0),
+        ("avg_pool2d", [8, 7, 7], [16, 16], 0),
+        ("avg_pool2d", [1, 8, 7, 8], [8, 2], [1, 0]),
+    ])
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_avg_pool_oversized_kernel(self, op_type, input_shape, kernel_size, padding, count_include_pad,
+                                       ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape)
+        self._test(*self.create_model(op_type, kernel_size=kernel_size, stride=None, padding=padding,
+                                       ceil_mode=True, count_include_pad=count_include_pad),
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False)
+
     @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
