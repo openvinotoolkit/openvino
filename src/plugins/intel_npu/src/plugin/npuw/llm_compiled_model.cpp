@@ -1823,9 +1823,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_kvcache_compiled = compiled->m_generate_compiled_variants.back();
         }
 
-        // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
-        compiled->validate_imported_kvcache_dim();
-
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         bool is_shared_lm_head = false;
         stream & is_shared_lm_head;
@@ -1833,6 +1830,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_lm_head_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
+
+        // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
+        compiled->validate_imported_kvcache_dim();
 
         return compiled;
     };
@@ -1853,26 +1853,42 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 }
 
 void ov::npuw::LLMCompiledModel::validate_imported_kvcache_dim() const {
-    // Nothing to validate for pipelines without a generate stage / KV cache.
-    if (m_generate_compiled_variants.empty()) {
-        return;
-    }
-    // KVCacheDesc::dim indexes the sequence axis of the past-key tensors. Cross-check it against
-    // the rank those restored tensors actually declare; on the compile path dim is a derived axis
-    // in [0, rank), so a dim outside that range can only come from a tampered blob.
-    for (const auto& port : m_generate_compiled_variants.back()->inputs()) {
-        // A port can carry several tensor names; match against all of them, as the runtime does
-        // when it collects the past-KV ports, so get_any_name()'s choice of alias can't hide one.
-        const auto& names = port.get_names();
-        const bool is_past_key = std::any_of(names.begin(), names.end(), [](const std::string& name) {
-            return ov::npuw::util::isPastKeyParam(name);
-        });
-        if (!is_past_key) {
-            continue;
+    // On the compile path every KV axis is in [0, rank), so an out-of-range one means a tampered blob.
+    auto validate_ports = [this](const std::vector<ov::Output<const ov::Node>>& ports, bool v_transposed) {
+        for (const auto& port : ports) {
+            // Check every alias, so get_any_name()'s choice can't hide a KV port.
+            for (const auto& name : port.get_names()) {
+                const bool is_key = ov::npuw::util::isPastKeyParam(name) ||
+                                    ov::npuw::util::isPresentKeyValuesKey(name).has_value() ||
+                                    ov::npuw::util::isDQScaleOrZPKey(name);
+                const bool is_value = ov::npuw::util::isPastValueParam(name) ||
+                                      ov::npuw::util::isPresentKeyValuesValue(name).has_value() ||
+                                      ov::npuw::util::isDQScaleOrZPValue(name);
+                if (!is_key && !is_value) {
+                    continue;
+                }
+                // Same axis selection as the runtime KV copy/slice helpers.
+                const uint32_t axis = (is_value && v_transposed) ? 3u : m_kvcache_desc.dim;
+                const auto& rank = port.get_partial_shape().rank();
+                OPENVINO_ASSERT(rank.is_static() && axis < static_cast<uint32_t>(rank.get_length()),
+                                "NPUW blob: KV axis ",
+                                axis,
+                                " is out of range for tensor '",
+                                name,
+                                "' of rank ",
+                                rank,
+                                ".");
+            }
         }
-        const auto& rank = port.get_partial_shape().rank();
-        NPUW_ASSERT(rank.is_static() && m_kvcache_desc.dim < static_cast<uint32_t>(rank.get_length()) &&
-                    "Imported KVCacheDesc::dim is out of range for the KV tensor rank");
+    };
+
+    for (const auto& variant : m_generate_compiled_variants) {
+        validate_ports(variant->inputs(), m_kvcache_desc.v_tensors_transposed_gen);
+        validate_ports(variant->outputs(), m_kvcache_desc.v_tensors_transposed_gen);
+    }
+    if (m_prefill_compiled) {
+        validate_ports(m_prefill_compiled->inputs(), m_kvcache_desc.v_tensors_transposed_pre);
+        validate_ports(m_prefill_compiled->outputs(), m_kvcache_desc.v_tensors_transposed_pre);
     }
 }
 

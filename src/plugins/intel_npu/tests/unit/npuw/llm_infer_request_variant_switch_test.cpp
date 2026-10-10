@@ -54,6 +54,11 @@ struct LLMVariantSwitchTestAccess {
         compiled->validate_imported_kvcache_dim();
     }
 
+    static void set_prefill_compiled(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                     std::shared_ptr<ov::npuw::ICompiledModel_v0> prefill) {
+        compiled->m_prefill_compiled = std::move(prefill);
+    }
+
     // Mirrors the production name-matching in validate_imported_kvcache_dim(): a port may carry
     // several names, so match against all of them rather than get_any_name()'s single alias.
     static uint32_t past_key_tensor_rank(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
@@ -536,6 +541,30 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedKvcacheDimOutOfTensorRan
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
 
     LLMVariantSwitchTestAccess::set_kv_dim(compiled, 0xFFFFFFFFu);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
+}
+
+// A dim valid for the rank-4 generate KV tensors must still be rejected when a restored prefill KV
+// tensor has a smaller rank, since prefill SWA updates slice along it too.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedKvcacheDimOutOfPrefillTensorRank) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::past_key_tensor_rank(compiled), 4u);
+
+    auto past = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8});
+    past->output(0).set_names({"past_key_values.0.swa.key"});
+    auto present = std::make_shared<ov::op::v0::Result>(past);
+    present->output(0).set_names({"present.0.swa.key"});
+    auto prefill_model = std::make_shared<ov::Model>(ov::ResultVector{present}, ov::ParameterVector{past});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(prefill_model, m_plugin, ov::AnyMap{}));
+
+    LLMVariantSwitchTestAccess::set_kv_dim(compiled, 1u);
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled));
+
+    LLMVariantSwitchTestAccess::set_kv_dim(compiled, 2u);
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
 }
 

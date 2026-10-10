@@ -112,10 +112,10 @@ protected:
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
 
-    // Trust-boundary check for imported blobs: KVCacheDesc::dim is read verbatim from the stream
-    // and later used to subscript shape vectors in the KV-slice helpers. Reject any imported
-    // descriptor whose dim is not a valid axis of the restored KV tensors before it can be used.
-    // No-op when there are no KV tensors.
+    // Trust-boundary check for imported blobs: KVCacheDesc::dim and the V-transposed flags are read
+    // from the stream and select the axis used to subscript shape vectors in the KV-slice helpers.
+    // Reject them unless that axis is valid for every KV input/output of the restored prefill and
+    // generate models.
     void validate_imported_kvcache_dim() const;
 
     std::string m_name;
