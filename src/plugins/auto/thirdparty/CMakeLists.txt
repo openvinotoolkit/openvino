@@ -43,6 +43,19 @@ if(NOT TARGET ClientApiLib)
     return()
 endif()
 
+if(OV_COMPILER_IS_CLANG_CL)
+    target_compile_options(ClientApiLib PRIVATE
+        -Wno-suggest-override
+        -Wno-sign-compare
+        -Wno-missing-field-initializers)
+    if(TARGET ClientApi)
+        target_compile_options(ClientApi PRIVATE
+            -Wno-suggest-override
+            -Wno-sign-compare
+            -Wno-missing-field-initializers)
+    endif()
+endif()
+
 set_target_properties(ClientApiLib PROPERTIES EXPORT_NAME ipf_client_api
                                               MSVC_RUNTIME_LIBRARY "${_ov_msvc_runtime}")
 add_library(openvino::ipf_client_api ALIAS ClientApiLib)

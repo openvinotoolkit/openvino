@@ -1,0 +1,73 @@
+name: Windows (VS 2026, Clang-CL, Python 3.14, Release)
+on:
+  workflow_dispatch:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    branches: [ master, main ]
+
+env:
+  PYTHON_VERSION: '3.14'
+  OPENVINO_BUILD_DIR: "${{ github.workspace }}\\build-clang-cl"
+  OPENVINO_INSTALL_DIR: "${{ github.workspace }}\\openvino-install"
+  SAMPLE_BUILD_DIR: "${{ github.workspace }}\\build-msvc-sample"
+
+permissions: read-all
+
+jobs:
+  build:
+    name: Build OpenVINO with clang-cl
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: recursive
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: 'true'
+          use-pip-proxy: 'true'
+          self-hosted-runner: 'false'
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install -r .\src\bindings\python\wheel\requirements-dev.txt
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B ${{ env.OPENVINO_BUILD_DIR }} -G "Visual Studio 18 2026" `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
+            -T ClangCL
+
+      - name: Build OpenVINO
+        run: cmake --build ${{ env.OPENVINO_BUILD_DIR }} --config Release --parallel 4
+
+      - name: Install OpenVINO
+        run: cmake --install ${{ env.OPENVINO_BUILD_DIR }} --config Release --prefix ${{ env.OPENVINO_INSTALL_DIR }}
+
+      - name: Configure MSVC sample consumer
+        run: |
+          if (Test-Path ${{ env.SAMPLE_BUILD_DIR }}) {
+            Remove-Item ${{ env.SAMPLE_BUILD_DIR }} -Recurse -Force
+          }
+          cmake -S samples\cpp -B ${{ env.SAMPLE_BUILD_DIR }} -G "Visual Studio 18 2026" `
+            -DBUILD_SAMPLE_NAME=hello_query_device `
+            -DOpenVINO_DIR=${{ env.OPENVINO_INSTALL_DIR }}\runtime\cmake `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+      - name: Build hello_query_device with MSVC
+        run: cmake --build ${{ env.SAMPLE_BUILD_DIR }} --config Release --target hello_query_device --parallel 4
+
+      - name: Run hello_query_device with clang-cl-built runtime
+        shell: cmd
+        run: |
+          call "${{ env.OPENVINO_INSTALL_DIR }}\setupvars.bat"
+          "${{ env.SAMPLE_BUILD_DIR }}\intel64\Release\hello_query_device.exe"

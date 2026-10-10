@@ -20,6 +20,12 @@
 namespace ov {
 namespace threading {
 
+// Baseline-compiled accessor backing the shared streams executor mutex.
+std::mutex& streams_executor_mutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
 IStreamsExecutor::~IStreamsExecutor() {}
 
 void IStreamsExecutor::Config::set_property(const std::string& key, const ov::Any& value) {
@@ -327,7 +333,7 @@ void IStreamsExecutor::Config::update_executor_config() {
 void IStreamsExecutor::Config::update_executor_config(bool lock) {
     if (lock) {
         {
-            std::lock_guard<std::mutex> lock{_streams_executor_mutex};
+            std::lock_guard<std::mutex> lock{streams_executor_mutex()};
             update_executor_config();
         }
     } else {
