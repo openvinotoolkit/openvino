@@ -227,6 +227,27 @@ TEST_P(MoECompressedFusionTest, Inference) {
     run();
 }
 
+// GatherMatmul and fused MoE kernels support only f16 activations, so with f32 inference precision
+// the MoE subgraph must be executed by the regular ops regardless of OV_GPU_MOE_DISABLE_FUSION.
+class MoECompressedF32Test : public MoECompressedFusionTest {
+protected:
+    void SetUp() override {
+        MoECompressedFusionTest::SetUp();
+        inType = outType = inference_precision = ov::element::f32;
+    }
+
+    void validate() override {
+        ov::test::SubgraphBaseTest::validate();
+        for (const auto& type : {"gather_matmul", "moe_3gemm_fused_compressed", "moe_gemm", "moe_router_fused"}) {
+            ov::test::CheckNumberOfNodesWithType(compiledModel, type, 0);
+        }
+    }
+};
+
+TEST_P(MoECompressedF32Test, Inference) {
+    run();
+}
+
 const std::vector<MoERoutingType> routing_types = {MoERoutingType::SOFTMAX, MoERoutingType::SIGMOID_BIAS};
 
 const std::vector<MoeTestShapeParams> moe_params_smoke = {
@@ -356,6 +377,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmGatherMatmul,
                                             ::testing::Values(false),   // use_layernorm_multiply
                                             ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedF32,
+                         MoECompressedF32Test,
+                         ::testing::Combine(::testing::Values(moe_params_smoke[1]),
+                                            ::testing::Values(MoePatternType::GEMM3, MoePatternType::GEMM2),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
+                                            ::testing::Values(ov::element::u4),   // weights_precision
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),   // gate_idx
+                                            ::testing::Values(true, false),  // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),   // use_per_expert_scale
+                                            ::testing::Values(false),   // use_layernorm_multiply
+                                            ::testing::Values(true)),   // use_weight_decompression
+                         MoECompressedF32Test::getTestCaseName);
 
 // Gemma-4 style: Gelu activation + SOFTMAX routing with a per-expert scale table (Const[N] → Gather(topk_idx) → Multiply).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
