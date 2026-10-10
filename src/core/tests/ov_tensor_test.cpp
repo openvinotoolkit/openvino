@@ -23,6 +23,7 @@
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov::test {
@@ -1341,6 +1342,56 @@ TEST_F(OVTensorTest, sourceIdAllocatedTensorHasNoSourceId) {
     // and therefore do not have a source_id
     ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}};
     EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
+}
+
+TEST_F(OVTensorTest, tensorBufferNotSetByDefault) {
+    float data[6] = {};
+    ov::Tensor view{ov::element::f32, ov::Shape{2, 3}, data};
+    EXPECT_EQ(ov::get_tensor_buffer(view), nullptr);
+
+    ov::Tensor owning{ov::element::f32, ov::Shape{2, 3}};
+    EXPECT_EQ(ov::get_tensor_buffer(owning), nullptr);
+
+    // ROI tensor does not expose the buffer (only ViewTensor does), and setting it there is a no-op
+    ov::Tensor roi{view, {0, 0}, {1, 3}};
+    ov::set_tensor_buffer(roi, std::make_shared<ov::AlignedBuffer>(16));
+    EXPECT_EQ(ov::get_tensor_buffer(roi), nullptr);
+    EXPECT_EQ(ov::get_tensor_buffer(view), nullptr);
+}
+
+TEST_F(OVTensorTest, tensorBufferSetGet) {
+    auto buffer = std::make_shared<ov::AlignedBuffer>(6 * sizeof(float));
+    ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}, buffer->get_ptr()};
+    ov::set_tensor_buffer(tensor, buffer);
+    EXPECT_EQ(ov::get_tensor_buffer(tensor), buffer);
+}
+
+TEST_F(OVTensorTest, tensorBufferMmapTensorExposesBackingBuffer) {
+    auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_tensor_buffer_test.bin";
+    {
+        std::ofstream f(tmp_path, std::ios::binary);
+        float data[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+        f.write(reinterpret_cast<const char*>(data), sizeof(data));
+    }
+
+    {
+        auto tensor = ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, true);
+        const auto buffer = ov::get_tensor_buffer(tensor);
+        ASSERT_NE(buffer, nullptr);
+        EXPECT_EQ(buffer->get_ptr(), tensor.data());
+        EXPECT_EQ(buffer->size(), tensor.get_byte_size());
+        ASSERT_NE(buffer->get_descriptor(), nullptr);
+
+        // A sub-range wrapped over the exposed buffer resolves its offset against it and can be evicted
+        // without affecting the data visible through the tensor.
+        ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>> range(static_cast<char*>(buffer->get_ptr(3 * sizeof(float))),
+                                                                   3 * sizeof(float),
+                                                                   buffer);
+        EXPECT_EQ(range.get_offset(), 3 * sizeof(float));
+        range.hint_evict();
+        EXPECT_EQ(tensor.data<float>()[5], 6.f);
+    }
+    std::filesystem::remove(tmp_path);
 }
 
 }  // namespace ov::test

@@ -33,8 +33,10 @@ ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr&
                                                const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,
                                                const BF16Cache& _bf16_consts,
-                                               const ov::FileHandleProvider& _handle_provider)
+                                               const ov::FileHandleProvider& _handle_provider,
+                                               const std::shared_ptr<ov::AlignedBuffer>& _weights_buffer)
     : weights(_weights),
+      weights_buffer(_weights_buffer),
       weights_path(_weights_path),
       consts_cache(_consts_cache),
       bf16_consts(_bf16_consts),
