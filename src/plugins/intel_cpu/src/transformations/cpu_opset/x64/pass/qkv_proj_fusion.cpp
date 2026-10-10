@@ -36,7 +36,8 @@ using namespace ov::op;
 ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
     MATCHER_SCOPE(QKVProjFusionPass1);
 
-    auto input = pattern::any_input(pattern::rank_equals(3));
+    // QKVProjection flattens all leading dims into M, so a flattened [tokens, hidden] input works as well.
+    auto input = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
 
     auto q_proj_weight_const_i8 =
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
@@ -190,11 +191,12 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
 ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
     MATCHER_SCOPE(QKVProjFusionPass2);
 
-    auto input = pattern::any_input(pattern::rank_equals(3));
+    // QKVProjection flattens all leading dims into M, so a flattened [tokens, hidden] input works as well.
+    auto input = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
 
     auto qkv_proj_weight_const = pattern::wrap_const();
     auto qkv_proj_cvt =
-        pattern::wrap_type<op::v0::Convert>({qkv_proj_weight_const}, pattern::type_matches(element::f32));
+        pattern::optional<op::v0::Convert>({qkv_proj_weight_const}, pattern::type_matches(element::f32));
 
     auto qkv_proj_weight_const_i8 =
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
@@ -208,30 +210,41 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
 
     auto qkv_proj = pattern::wrap_type<op::v0::MatMul>({input, qkv_proj_cvt | qkv_proj_weight_deq},
                                                        {{"transpose_a", false}, {"transpose_b", true}});
-    auto qkv_split_lengths =
-        pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i32) && pattern::shape_matches("[3]"));
-    auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
+    // The axis and lengths types/values are checked in the callback: the split must cut the last dim,
+    // whatever the input rank, and the lengths may be i32 or i64.
+    auto qkv_split_axis = pattern::wrap_type<op::v0::Constant>();
+    auto qkv_split_lengths = pattern::wrap_type<op::v0::Constant>(pattern::shape_matches("[3]"));
+    auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj, qkv_split_axis, qkv_split_lengths});
     auto result = qkv_split->output(0);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
-        auto node_split_lengths =
-            ov::as_type_ptr<op::v0::Constant>(pattern_map.at(qkv_split_lengths).get_node_shared_ptr());
-        if (!node_split_lengths) {
+        const auto vsplit = pattern_map.at(qkv_split).get_node_shared_ptr();
+        const auto& rank = vsplit->get_input_partial_shape(0).rank();
+        const auto node_split_axis =
+            ov::as_type_ptr<op::v0::Constant>(pattern_map.at(qkv_split_axis).get_node_shared_ptr());
+        if (rank.is_dynamic() || !node_split_axis) {
             return false;
         }
-        auto split_lengths = node_split_lengths->get_vector<int32_t>();
-        if (split_lengths.size() != 3) {
+        const auto axis = node_split_axis->cast_vector<int64_t>();
+        const auto last = rank.get_length() - 1;
+        if (axis.size() != 1 || (axis[0] != -1 && axis[0] != last)) {
             return false;
         }
 
-        auto proj_size = split_lengths[0];
-        if (split_lengths[1] != proj_size) {
-            return false;
+        // Read the projection sizes from the split outputs rather than the lengths constant: one length may be -1.
+        // Q, K and V may differ (GQA).
+        std::vector<int> split_lengths;
+        for (size_t i = 0; i < vsplit->get_output_size(); i++) {
+            const auto& dim = vsplit->get_output_partial_shape(i)[last];
+            if (dim.is_dynamic() || dim.get_length() <= 0) {
+                return false;
+            }
+            split_lengths.push_back(static_cast<int>(dim.get_length()));
         }
-        if (split_lengths[2] != proj_size) {
+        if (split_lengths.size() != 3) {
             return false;
         }
 
@@ -250,20 +263,26 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
         }
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        if (w_shape[0] != static_cast<uint64_t>(proj_size) * 3) {
+        const auto total_proj_size = static_cast<uint64_t>(split_lengths[0]) + static_cast<uint64_t>(split_lengths[1]) +
+                                     static_cast<uint64_t>(split_lengths[2]);
+        if (w_shape[0] != total_proj_size) {
             return false;
         }
 
         QKVProjectionNode::Config config{is_quantized_int8,
                                          static_cast<int>(w_shape[1]),
-                                         1,
                                          split_lengths[0],
                                          split_lengths[1],
-                                         static_cast<bool>(split_lengths[2])};
+                                         split_lengths[2],
+                                         /*weights_combined=*/true};
 
         OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
         if (is_quantized_int8) {
             auto scales = pattern_map.at(qkv_proj_weight_scales_per_OC).get_node_shared_ptr();
+            // the executor reads one dequantization scale per output channel of the combined weight
+            if (scales->get_output_partial_shape(0) != ov::PartialShape{static_cast<int64_t>(w_shape[0]), 1}) {
+                return false;
+            }
             args.emplace_back(scales);
             args.emplace_back(scales);
             args.emplace_back(scales);
@@ -277,8 +296,6 @@ ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
         if (!transformation_callback(new_node)) {
             return false;
         }
-
-        auto vsplit = pattern_map.at(qkv_split).get_node_shared_ptr();
 
         for (size_t i = 0; i < vsplit->get_output_size(); i++) {
             vsplit->output(i).replace(new_node->output(i));

@@ -3332,3 +3332,172 @@ def test_compressed_tensors_missing_format_still_converts():
         assert four_bit_consts, "Expected a packed 4-bit weight constant when format is None"
     finally:
         _restore_ct_modules(prior)
+
+
+def _pack_int4(values):
+    """Pack a flat int8 tensor of [-8, 7] two-per-byte, low nibble first."""
+    shifted = (values + 8).to(torch.uint8)
+    return torch.bitwise_or(
+        shifted[0::2], torch.bitwise_left_shift(shifted[1::2], 4)).reshape(-1, 1)
+
+
+class _PackedInt4WeightCast(torch.nn.Module):
+    """Group-wise int4 weights, dequantized in f16, then cast to the model dtype.
+
+    This mirrors NNCF's ``INT4*WeightsDecompressor.forward``, which is how a
+    bf16 torch model with weight-only int4 quantization reaches the frontend.
+    Two properties matter and both are load-bearing:
+
+    1. The weights arrive as a *packed uint8* buffer unpacked by bitwise ops --
+       int4 has no torch dtype. Only ``U4BlockRepack`` / ``U4ConvertReshape``
+       collapse that into a u4/i4 Constant, so any pass that wants to match on
+       ``Constant -> Convert`` must be registered after them. Storing an int8
+       buffer instead skips the repack entirely and silently stops testing this.
+
+    2. The dequantization happens in f16 (the scale's dtype) and the chain ends
+       with an f16->bf16 cast. That trailing Convert is the node under test:
+       ``MarkCompressedFloatConstants`` cannot see it (it only marks Converts
+       that target f32 and sit directly on a Constant) and ``MarkDequantization``
+       uses the separate dequantization attribute, so without
+       ``MarkCompressedWeightsCast`` nothing marks it and consumers gating on
+       ``ov::is_decompression`` -- notably the CPU plugin's ConvertMatMulToFC --
+       reject the weights.
+    """
+
+    def __init__(self, zero_point, out_features=8, in_features=16, group_size=8):
+        super().__init__()
+        weights = torch.randint(-8, 8, (out_features * in_features,), dtype=torch.int8)
+        groups = in_features // group_size
+        self.register_buffer("qweight", _pack_int4(weights))
+        self.register_buffer(
+            "scale", torch.rand(out_features, groups, 1, dtype=torch.float16) + 0.5)
+        self.zero_point = zero_point
+        if zero_point:
+            self.register_buffer(
+                "zp", torch.full((out_features, groups, 1), 4.0, dtype=torch.float16))
+        self.compressed_weight_shape = (out_features, groups, group_size)
+        self.result_shape = (out_features, in_features)
+
+    def forward(self, x):
+        low = torch.bitwise_and(self.qweight, 15)
+        high = torch.bitwise_right_shift(self.qweight, 4)
+        w = torch.stack((low, high), dim=-1).type(torch.int8) - 8
+        w = w.reshape(self.compressed_weight_shape).type(torch.float16)
+        if self.zero_point:
+            w = w - self.zp
+        w = (w * self.scale).reshape(self.result_shape)
+        return torch.matmul(x, w.type(torch.bfloat16).t())
+
+
+class _PlainWeightCast(torch.nn.Module):
+    """A bare precision cast on float weights, with no dequantization under it.
+
+    Must not be treated as decompression -- the marking has to stay narrow.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("weight", torch.randn(4, 4, dtype=torch.float32))
+
+    def forward(self, x):
+        return torch.matmul(x, self.weight.to(torch.bfloat16).t())
+
+
+def _decompression_marked_converts(ov_model):
+    return [op for op in ov_model.get_ops()
+            if op.get_type_name() == "Convert" and "decompression_0" in op.get_rt_info()]
+
+
+@pytest.mark.parametrize("zero_point", [False, True], ids=["sym", "asym"])
+def test_compressed_weights_trailing_cast_is_marked(zero_point):
+    """The trailing dtype cast of a weight-decompression subgraph must be marked
+    as decompression."""
+    from openvino import convert_model
+
+    ov_model = convert_model(
+        _PackedInt4WeightCast(zero_point).eval(),
+        example_input=torch.randn(2, 16, dtype=torch.bfloat16))
+
+    # Guard the precondition: without an int4 Constant, assertions below
+    # would be vacuous.
+    assert any(op.get_element_type() == Type.i4
+               for op in ov_model.get_ops() if op.get_type_name() == "Constant"), \
+        "Expected U4BlockRepack to have produced an i4 weights Constant"
+
+    marked = _decompression_marked_converts(ov_model)
+    assert len(marked) == 1, \
+        f"Expected exactly one Convert marked as decompression, got {len(marked)}"
+    assert marked[0].get_output_element_type(0) == Type.bf16, \
+        "The marked Convert must be the cast into the model dtype"
+
+
+def test_plain_weights_cast_is_not_marked():
+    """A precision cast on float weights is not a decompression path."""
+    from openvino import convert_model
+
+    ov_model = convert_model(
+        _PlainWeightCast().eval(),
+        example_input=torch.randn(2, 4, dtype=torch.bfloat16))
+
+    assert not _decompression_marked_converts(ov_model), \
+        "A cast with no dequantization underneath must not be marked as decompression"
+
+
+class _Bf16Linear(torch.nn.Module):
+    """A bf16 linear layer: a large weight and a small bias."""
+
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x)
+
+
+def _convert_fx(rt_info):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    with torch.no_grad():
+        ep = torch.export.export(_Bf16Linear().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
+    # Keep the decoder referenced until convert() is done: the frontend calls back into it.
+    decoder = TorchFXPythonDecoder(ep.module(), rt_info=rt_info)
+    fe = FrontEndManager().load_by_framework("pytorch")
+    return fe.convert(fe.load(decoder))
+
+
+def _ops_of_type(ov_model, op_type):
+    return [op for op in ov_model.get_ordered_ops() if op.get_type_name() == op_type]
+
+
+def test_canonicalize_float_precision_is_opt_in():
+    ov_model = _convert_fx({})
+    assert [op.get_output_element_type(0) for op in _ops_of_type(ov_model, "MatMul")] == [Type.bf16]
+
+
+def test_canonicalize_float_precision(tmp_path):
+    """bf16 activations become f32, the large weight stays bf16 behind a Convert
+    carrying the real decompression attribute, and the model's I/O keeps bf16."""
+    from openvino import OVAny, Core, serialize
+
+    ov_model = _convert_fx({"canonical_float_precision": OVAny(True)})
+    assert "canonical_float_precision" not in ov_model.get_rt_info()
+    assert [op.get_output_element_type(0) for op in _ops_of_type(ov_model, "MatMul")] == [Type.f32]
+    assert ov_model.inputs[0].get_element_type() == Type.bf16
+    assert ov_model.outputs[0].get_element_type() == Type.bf16
+
+    weight_converts = [op for op in _ops_of_type(ov_model, "Convert")
+                       if op.input_value(0).get_node().get_type_name() == "Constant"]
+    assert len(weight_converts) == 1
+    assert weight_converts[0].input_value(0).get_element_type() == Type.bf16
+    assert weight_converts[0].input_value(0).get_shape() == [64, 64]
+    # The 64-element bias is folded to f32 instead.
+    assert any(op.get_element_type() == Type.f32 and op.get_shape() == [64]
+               for op in _ops_of_type(ov_model, "Constant"))
+
+    # The mark must be the real attribute: a plain rt_info value under the
+    # same key would be dropped from the IR.
+    xml_path, bin_path = str(tmp_path / "model.xml"), str(tmp_path / "model.bin")
+    serialize(ov_model, xml_path, bin_path)
+    reloaded = Core().read_model(xml_path)
+    assert [op for op in _ops_of_type(reloaded, "Convert") if "decompression_0" in op.get_rt_info()], \
+        "The decompression mark must survive an IR round trip"

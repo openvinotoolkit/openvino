@@ -1,0 +1,15 @@
+# Self-contained dependency list for the vLLM + OpenVINO torchdynamo backend
+# tests. Deliberately NOT installed alongside tests/requirements_pytorch:
+# that file pins torch==2.12.0, while vllm-cpu pins torch==2.13.0+cpu, and
+# pip cannot satisfy both. vllm-cpu pulls in its own validated torch,
+# torchvision and numpy, so only the test tooling is listed here.
+
+# CPU-only vLLM build; version pinned to the one validated against this
+# backend integration -- bump deliberately and re-validate test_run.py's
+# eager-vs-openvino parity check before raising it. Keep the torch build it
+# requires in sync with the version documented in the backend README.
+--extra-index-url https://download.pytorch.org/whl/cpu
+vllm-cpu==0.28.0
+
+pytest==9.0.3
+pytest-html==4.2.0
