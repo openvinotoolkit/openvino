@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-10-23-39-24-489-38092857906",
+  "timestamp": "2026-10-10T23:39:24Z",
+  "run_id": "38092857906",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38092857906",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "f7ddd2e2421c85746425d3e124cd10470e012e56",
+  "pr_number": "38105",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38105",
+  "author": "Daksha1611",
+  "category": "Infrastructure",
+  "title": "Windows build job terminated mid-build with unavailable job logs",
+  "signature": "Windows build job terminated during Cmake build step with no completion status and job logs unavailable (404)|Infrastructure",
+  "signature_hash": "afb479532c52bf68",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Job stopped with all steps up through \"Clean ccache stats\" successful; step \"Cmake build - OpenVINO\" (#15) left in status in_progress with no conclusion when the job completed as failure. All following steps (Pack Artifacts, Uploads, etc.) remained pending. No log content is retrievable for this job (GitHub Actions log API returns HTTP 404 for job 114332803709)."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregator step \"Check status of all jobs\" exited 1 solely because the upstream Build / Build job failed; this job has no independent root cause."
+    }
+  ],
+  "key_errors": [
+    "Job 114332803709 (Build / Build): log download failed - no content returned by the Actions logs API (HTTP 404), and the last recorded step 'Cmake build - OpenVINO' (#15) is stuck at status=in_progress with started_at=2026-10-10T23:05:10Z while the job itself has completed_at=2026-10-10T23:33:44Z and conclusion=failure.",
+    "ci/gha_overall_status_windows log:\n##[group]Run exit 1\nexit 1\n##[endgroup]\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Release build job (aks-win-16-cores-32gb-build runner) was terminated or crashed partway through the 'Cmake build - OpenVINO' compilation step (started at 23:05:10, job completed/failed at 23:33:44 — a ~28 minute gap with no further step transitions recorded), and GitHub never persisted step-level or job-level logs for it (the logs API returns HTTP 404 for this job, unlike every other job in the run). This pattern (job ends as 'failure' with an in-progress build step and completely unavailable logs) is consistent with an abrupt runner failure — e.g., the self-hosted aks-runners Windows build agent losing connectivity, running out of disk/memory during the heavy MSVC compile, or the pod/VM being evicted/recycled by the AKS runner infrastructure — rather than a code-level compile error. The merge-queue PR (#38105, a small Python string-parsing fix in tools/ovc) is unrelated in scope to a C++ build step and does not plausibly cause a runner-level crash with zero log output. The downstream 'ci/gha_overall_status_windows' failure is purely a secondary aggregation effect of the Build job's failure and carries no independent diagnostic information.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a CI runner/infrastructure-level failure on the aks-win-16-cores-32gb-build self-hosted runner pool (runner aks-win-16-cores-32gb-build-xxdhs-runner-vm2rl) with no retrievable logs to pinpoint an exact command or exit code.",
+  "recommended_actions": [
+    "Re-run the failed Windows Release workflow (manually, since this doctor only reports) to confirm whether the failure reproduces on a fresh runner instance.",
+    "Check AKS/self-hosted runner pool health and recent infrastructure events for the aks-win-16-cores-32gb-build runner group around 2026-10-10T23:05-23:34 UTC (disk space, memory pressure, node evictions, network blips).",
+    "File/escalate to CI infrastructure maintainers that job logs for 114332803709 are completely unavailable (HTTP 404) — this is itself an infrastructure defect worth tracking, since it blocks root-cause analysis of any failure on that job.",
+    "If this recurs, consider adding a disk-space / memory usage diagnostic step before the 'Cmake build - OpenVINO' step on Windows build jobs to capture resource state at failure time."
+  ],
+  "prevention_strategies": "Add resource-usage monitoring (disk space, memory) around long-running Windows CMake build steps so future runner-level failures leave diagnostic evidence even if GitHub's log capture fails. Consider configuring log retention/upload checks so that a job reporting 'failure' without any captured log output triggers an automatic infrastructure alert distinct from code-caused CI failures.",
+  "historical_context": "No prior pattern in the post-commit knowledge base matches a Windows build job failing with completely unavailable logs and a stuck in-progress step; this is a new signature. The closest related pattern is an ARM64 cross-compilation 'cc1plus invalid-pch' Infrastructure issue (18 occurrences), which is a distinct, code/cache-related compiler error with full logs available — not applicable here."
+}

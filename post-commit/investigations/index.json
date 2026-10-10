@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 28,
+  "total": 29,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -299,6 +299,17 @@
       "category": "Dependencies",
       "signature_hash": "d61249d5ea96108d",
       "commit_sha": "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f"
+    },
+    {
+      "investigation_id": "2026-10-10-23-39-24-489-38092857906",
+      "run_id": "38092857906",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38092857906",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-10-10T23:39:24Z",
+      "title": "Windows build job terminated mid-build with unavailable job logs",
+      "category": "Infrastructure",
+      "signature_hash": "afb479532c52bf68",
+      "commit_sha": "f7ddd2e2421c85746425d3e124cd10470e012e56"
     }
   ]
 }
