@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
-#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 #include <cstdint>
 #include <memory>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/runtime/itensor.hpp"
 
 template <>
 struct std::hash<ov::intel_gpu::SharedBufferHandle> {
@@ -93,8 +95,14 @@ static void copy_roi_recursively(const MemWrapper& src_mem,
                                  const ov::Strides& roi_strides) {
     if (axis == roi_shape.size() - 1) {
         // Copy the innermost dimension
-        const auto size = roi_strides[axis] * roi_shape[axis];
-        src_mem.copy_to(dst_mem, src_offset, dst_offset, size);
+        if (src_strides[axis] == roi_strides[axis] && dst_strides[axis] == roi_strides[axis]) {
+            const auto size = roi_strides[axis] * roi_shape[axis];
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, size);
+        } else {
+            for (size_t i = 0; i < roi_shape[axis]; ++i) {
+                src_mem.copy_to(dst_mem, src_offset + i * src_strides[axis], dst_offset + i * dst_strides[axis], roi_strides[axis]);
+            }
+        }
     } else {
         // Check if the current dimension and all inner dimensions can be copied as a single chunk
         bool can_copy_as_chunk = true;
@@ -128,6 +136,11 @@ static void copy_roi(const MemWrapper& src_mem,
                      const ov::Shape& src_shape,
                      const ov::Shape& dst_shape,
                      const ov::Shape& roi_shape) {
+    OPENVINO_ASSERT(src_strides.size() == roi_shape.size() && dst_strides.size() == roi_shape.size() && roi_strides.size() == roi_shape.size(),
+                    "ROI strides rank must match shape rank.");
+    if (ov::shape_size(roi_shape) == 0) {
+        return;
+    }
     const size_t start_axis = 0;
     copy_roi_recursively(src_mem, dst_mem, start_axis, src_offset, dst_offset, roi_shape, src_strides, dst_strides, roi_strides);
 }
@@ -241,6 +254,9 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
         return;
     }
 
+    if (shape.empty()) {
+        shape = {1};
+    }
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (dst_remote_tensor != nullptr) {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to RemoteTensor ("
@@ -250,7 +266,16 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
         auto src_mem = MemWrapper(stream, get_memory(), nullptr);
         auto dst_mem = MemWrapper(stream, dst_remote_tensor->get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), shape);
+        copy_roi(src_mem,
+                 dst_mem,
+                 src_offset,
+                 dst_offset,
+                 get_strides_for_shape(shape),
+                 dst->get_strides_for_shape(shape),
+                 roi_strides,
+                 get_shape(),
+                 dst->get_shape(),
+                 shape);
     } else {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to host tensor, src_offset="
                                << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape=" << get_shape()
@@ -261,7 +286,16 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
         auto src_mem = MemWrapper(stream, get_memory(), nullptr);
         auto dst_mem = MemWrapper(stream, nullptr, dst->data());
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), shape);
+        copy_roi(src_mem,
+                 dst_mem,
+                 src_offset,
+                 dst_offset,
+                 get_strides_for_shape(shape),
+                 dst->get_strides_for_shape(shape),
+                 roi_strides,
+                 get_shape(),
+                 dst->get_shape(),
+                 shape);
     }
 }
 
@@ -291,6 +325,9 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
         return;
     }
 
+    if (shape.empty()) {
+        shape = {1};
+    }
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (src_remote_tensor != nullptr) {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << src_remote_tensor->get_memory()->get_allocation_type() << ") to RemoteTensor ("
@@ -300,7 +337,16 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
         auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
         auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
+        copy_roi(src_mem,
+                 dst_mem,
+                 src_offset,
+                 dst_offset,
+                 src->get_strides_for_shape(shape),
+                 get_strides_for_shape(shape),
+                 roi_strides,
+                 src->get_shape(),
+                 get_shape(),
+                 shape);
     } else {
         GPU_DEBUG_TRACE_DETAIL << "Copying from host tensor to RemoteTensor (" << get_memory()->get_allocation_type() << "), src_offset="
                                << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape" << src->get_shape()
@@ -312,7 +358,16 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
         auto src_mem = MemWrapper(stream, nullptr, const_cast<void*>(src->data()));
         auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
-        copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
+        copy_roi(src_mem,
+                 dst_mem,
+                 src_offset,
+                 dst_offset,
+                 src->get_strides_for_shape(shape),
+                 get_strides_for_shape(shape),
+                 roi_strides,
+                 src->get_shape(),
+                 get_shape(),
+                 shape);
     }
 }
 

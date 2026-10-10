@@ -41,6 +41,30 @@ size_t ITensor::get_byte_size() const {
     return util::get_memory_size(get_element_type(), get_size());
 }
 
+Strides ITensor::get_strides_for_shape(const Shape& shape) const {
+    const auto& strides = get_strides();
+    OPENVINO_ASSERT(strides.size() == get_shape().size(), "Tensor strides rank must match shape rank.");
+    Strides result(shape.size());
+    const auto rank = std::min(shape.size(), strides.size());
+    for (size_t i = 0; i < rank; ++i) {
+        OPENVINO_ASSERT(shape[shape.size() - rank + i] <= get_shape()[strides.size() - rank + i],
+                        "ROI shape exceeds tensor shape.");
+    }
+    std::copy(strides.end() - rank, strides.end(), result.end() - rank);
+    auto pad = shape.size() - rank;
+    for (size_t i = 0; i < pad; ++i) {
+        OPENVINO_ASSERT(shape[i] <= 1, "Additional leading ROI dimensions must be singleton or empty dimensions.");
+    }
+    if (rank == 0 && !result.empty()) {
+        result.back() = get_element_type().size();
+        --pad;
+    }
+    for (size_t i = pad; i > 0; --i) {
+        result[i - 1] = shape[i] * result[i];
+    }
+    return result;
+}
+
 bool ITensor::is_continuous() const {
     if ((get_element_type().bitwidth() < 8) || get_size() == 0) {
         // OpenVINO doesn't support strides for lp types
@@ -48,6 +72,8 @@ bool ITensor::is_continuous() const {
     }
 
     const auto& strides = get_strides();
+    OPENVINO_ASSERT(strides.size() == get_shape().size(),
+                    "Tensor strides rank must match shape rank for is_continuous.");
     auto stride = strides.rbegin();
     const auto default_strides = default_byte_strides(get_shape(), get_element_type());
     auto default_stride = default_strides.rbegin();
@@ -59,8 +85,6 @@ bool ITensor::is_continuous() const {
     }
 
     const auto default_last = default_strides.rend();
-    // It assumed that `default_strides' and `strides' have the same size, thus `default_stride' iterator is valid
-    // coverity[deref_iterator:SUPPRESS]
     return (default_stride == default_last) || (*default_stride < *stride && (get_shape()[0] == 1) &&
                                                 std::all_of(default_stride, default_last, cmp::Equal(*default_stride)));
 }
@@ -89,6 +113,24 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         return;
     }
 
+    const auto& type = get_element_type();
+    const auto shape_rank = shape.size();
+    bool copy_continuously = type.bitwidth() < 8;
+    if (!copy_continuously) {
+        const auto& src_strides = get_strides();
+        const auto& dst_strides = dst->get_strides();
+        OPENVINO_ASSERT(src_strides.size() == shape_rank && dst_strides.size() == shape_rank,
+                        "Tensor strides rank must match shape rank for copy_to (src_strides: ",
+                        src_strides.size(),
+                        ", dst_strides: ",
+                        dst_strides.size(),
+                        ", shape: ",
+                        shape_rank,
+                        ")");
+        copy_continuously =
+            (src_strides == dst_strides && is_continuous()) || (is_scalar(shape) && is_scalar(dst->get_shape()));
+    }
+
     auto* src_data = static_cast<const uint8_t*>(data());
     auto* dst_data = static_cast<uint8_t*>(dst->data());
     ov::Strides src_strides{get_byte_size()};
@@ -96,15 +138,12 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     ov::Shape cur_pos{0};
     ov::Shape max_pos{1};
 
-    if (get_element_type().bitwidth() < 8 || (get_strides() == dst->get_strides() && is_continuous()) ||
-        (is_scalar(shape) && is_scalar(dst->get_shape()))) {
+    if (copy_continuously) {
         // OpenVINO doesn't support strides for LP types
         // or both tensors have default strides
         // Strides and positions already initialized
     } else {
         // Tensors have default strides
-        const auto& type = get_element_type();
-        const auto shape_rank = shape.size();
         const auto default_strides = default_byte_strides(shape, type);
 
         src_strides = get_strides();
