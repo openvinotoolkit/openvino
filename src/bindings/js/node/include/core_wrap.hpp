@@ -5,7 +5,7 @@
 #pragma once
 
 #include <napi.h>
-
+#include <sstream>
 #include <thread>
 #include <variant>
 
@@ -133,6 +133,10 @@ struct ImportModelContext {
     Napi::ThreadSafeFunction tsfn;
 
     std::stringstream _stream;
+    Napi::Reference<Napi::Buffer<uint8_t>> _buffer;
+    const char* _buffer_data = nullptr;
+    size_t _buffer_size = 0;
+
     std::string _device;
     std::map<std::string, ov::Any> _config = {};
     ov::Core& _core;
