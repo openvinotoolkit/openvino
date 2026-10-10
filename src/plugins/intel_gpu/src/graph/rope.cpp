@@ -6,6 +6,7 @@
 
 #include "primitive_type_base.h"
 #include "json_object.h"
+#include "openvino/util/common_util.hpp"
 #include <string>
 
 namespace cldnn {
@@ -33,20 +34,20 @@ std::vector<layout> rope_inst::calc_output_layouts(rope_node const& node, kernel
     if (desc->config.is_qwen) {
         output_shape = { input0_shape[0],
                          input0_shape[1],
-                         ov::Dimension(desc->config.head_cnt),
-                         ov::Dimension(desc->config.head_size) };
+                         ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(desc->config.head_cnt)),
+                         ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(desc->config.head_size)) };
     } else if (desc->config.is_chatglm) {
         if (desc->config.support_2d_rope) {
             // input0_shape = [batch_size, seq_length]
             output_shape = { input0_shape[0],
-                            ov::Dimension(desc->config.head_cnt),
+                            ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(desc->config.head_cnt)),
                             input0_shape[1],
-                            ov::Dimension(desc->config.head_size) };
+                            ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(desc->config.head_size)) };
         } else {
             output_shape = { input0_shape[0],
                             input0_shape[1],
-                            ov::Dimension(desc->config.head_cnt),
-                            ov::Dimension(desc->config.head_size) };
+                            ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(desc->config.head_cnt)),
+                            ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(desc->config.head_size)) };
         }
     } else if (desc->config.is_ltx_video) {
         // input and output shapes are identical [batch, seq_len, 2048]

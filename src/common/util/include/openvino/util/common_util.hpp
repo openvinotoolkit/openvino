@@ -6,7 +6,9 @@
 
 #include <charconv>
 #include <iterator>
+#include <limits>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -131,6 +133,29 @@ constexpr bool ends_with(std::basic_string_view<T> src, std::basic_string_view<T
     return src.size() >= with.size() && src.substr(src.size() - with.size()) == with;
 }
 /** @} */
+
+/**
+ * @brief Narrows an unsigned integral value (e.g. size_t) to another (usually smaller and/or signed)
+ * integral type, asserting that no information is lost in the conversion.
+ *
+ * Use this instead of a bare static_cast whenever an unsigned size/count value needs to be narrowed
+ * to a signed type (int32_t, int64_t, ov::Dimension::value_type, ...) to avoid a silent overflow /
+ * underflow.
+ *
+ * @tparam To    Target integral type to cast to.
+ * @tparam From  Source type of `value`. Must be an unsigned integral type (SFINAE).
+ * @param value  Value to be narrowed to `To`.
+ * @return       `value` casted to `To`.
+ */
+template <typename To,
+          typename From,
+          std::enable_if_t<std::is_integral_v<To> && std::is_integral_v<From> && std::is_unsigned_v<From>, int> = 0>
+To narrow_cast(From value) {
+    if (value > static_cast<From>(std::numeric_limits<To>::max())) {
+        throw std::out_of_range("Value exceeds the maximum representable value of the target type");
+    }
+    return static_cast<To>(value);
+}
 
 std::string to_lower(std::string_view s);
 
