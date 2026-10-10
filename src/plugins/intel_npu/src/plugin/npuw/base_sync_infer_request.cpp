@@ -498,6 +498,11 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     // Run host-side gather, if required
     if (comp_model_desc.host_gather.dst_idx != -1) {
+        const auto param_base_idx = static_cast<int64_t>(comp_model_desc.param_base);
+        NPUW_ASSERT(comp_model_desc.host_gather.src_idx >= param_base_idx &&
+                    comp_model_desc.host_gather.src_idx - param_base_idx <
+                        static_cast<int64_t>(comp_model_desc.closure.get().closure.size()));
+
         const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
         const auto gather = request->get_tensor(gport);
 
@@ -529,6 +534,9 @@ void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx, Rq
         const auto& vocabw = request->get_tensor(wport);
 
         auto ids_shape = lookup->get_shape();
+        // lookup must be rank-2/batch-1/i64 (ov::npuw::util::gather()'s own contract);
+        // get_gathered_shape() below also reads ids_shape[1] unchecked.
+        NPUW_ASSERT(lookup->get_element_type() == ov::element::i64 && ids_shape.size() == 2 && ids_shape[0] == 1);
 
         auto get_gathered_shape = [&ids_shape](const ov::Shape& shape) {
             return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};

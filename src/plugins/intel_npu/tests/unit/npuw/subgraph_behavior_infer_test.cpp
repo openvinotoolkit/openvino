@@ -10,9 +10,11 @@
 #include <cstring>
 #include <functional>
 #include <map>
-#include <numeric>
 #include <mutex>
+#include <numeric>
 #include <vector>
+
+#include "common_test_utils/test_assertions.hpp"
 
 #define private public
 #include "compiled_model.hpp"
@@ -23,12 +25,12 @@
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
-#include "partitioning/patterns/sdpa.hpp"
-#include "pyramid_attention.hpp"
-#include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "partitioning/patterns/sdpa.hpp"
+#include "pyramid_attention.hpp"
+#include "unfold_sync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
@@ -255,7 +257,7 @@ private:
     std::function<void(std::exception_ptr)> m_callback;
 };
 
-    class FakeSubCompiledModel final : public ov::ICompiledModel {
+class FakeSubCompiledModel final : public ov::ICompiledModel {
 public:
     FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
                          const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -315,8 +317,9 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
                                           ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(output,
-                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
@@ -425,7 +428,8 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
     auto behavior_model = build_static_llm_model();
     ASSERT_GT(count_sdpa_nodes(behavior_model), 0u);
     ov::npuw::v1::subgraphs::PatternRegistry behavior_registry;
-    auto behavior_compiled = std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, base_props(), &behavior_registry);
+    auto behavior_compiled =
+        std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, base_props(), &behavior_registry);
     bool attached_behavior = false;
     for (auto& desc : behavior_compiled->m_compiled_submodels) {
         if (!desc.compiled_model) {
@@ -436,7 +440,8 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
         spec.registration.group = "test";
         spec.registration.name = "record-hit";
         spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
-        spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+        spec.factory =
+            [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
             const auto recorder = ctx.get<std::shared_ptr<BehaviorHits>>();
             return std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
                 [recorder](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
@@ -470,7 +475,8 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
     auto behavior_model = build_static_llm_model();
     auto hits = std::make_shared<BehaviorHits>();
     ov::npuw::v1::subgraphs::PatternRegistry behavior_registry;
-    auto behavior_compiled = std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, unfold_props(), &behavior_registry);
+    auto behavior_compiled =
+        std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, unfold_props(), &behavior_registry);
 
     bool attached_behavior = false;
     for (auto& desc : behavior_compiled->m_compiled_submodels) {
@@ -482,7 +488,8 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
         spec.registration.group = "test";
         spec.registration.name = "record-hit";
         spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
-        spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+        spec.factory =
+            [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
             const auto recorder = ctx.get<std::shared_ptr<BehaviorHits>>();
             return std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
                 [recorder](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
@@ -541,8 +548,7 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithStaticAttentionM
     auto props = base_props();
     props["NPUW_ATTN"] = std::string("STATIC");
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
-    EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
-        << "DynAttnBehavior must NOT be attached when NPUW_ATTN=STATIC";
+    EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u) << "DynAttnBehavior must NOT be attached when NPUW_ATTN=STATIC";
 }
 
 TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation) {
@@ -607,6 +613,70 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
         request->set_tensor(input, ov::get_tensor_impl(tensor));
     }
     EXPECT_NO_THROW(request->infer());
+}
+
+TEST_F(SubgraphBehaviorInferTest, HostGatherRejectsSrcIdxUnderflowingParamBase) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    bool mutated = false;
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (desc.compiled_model && desc.compiled_model->inputs().size() >= 2) {
+            desc.host_gather.dst_idx = 0;
+            desc.host_gather.idx_idx = 1;
+            desc.host_gather.src_idx = 0;
+            desc.param_base = 4;
+            desc.closure.get().closure.resize(4);
+            desc.closure.get().closure_uid.resize(4, -1);
+            desc.closure.get().is_remote.resize(4, false);
+            mutated = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(mutated) << "No compiled submodel with >=2 inputs was available to inject host_gather into";
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    OV_EXPECT_THROW_HAS_SUBSTRING(request->infer(), ov::Exception, "host_gather.src_idx >= param_base_idx");
+}
+
+TEST_F(SubgraphBehaviorInferTest, QuantUnpackGatherRejectsNonI64LookupTensor) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    bool mutated = false;
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (!desc.compiled_model) {
+            continue;
+        }
+        const auto& inputs = desc.compiled_model->inputs();
+        for (std::size_t i = 0; i < inputs.size(); ++i) {
+            if (inputs[i].get_element_type() != ov::element::i64) {
+                desc.quant_unpack_gather.dst_idx = 0;
+                desc.quant_unpack_gather.src_w_idx = 0;
+                desc.quant_unpack_gather.src_z_idx = -1;
+                desc.quant_unpack_gather.src_s_idx = -1;
+                desc.quant_unpack_gather.idx_idx = static_cast<int64_t>(i);
+                mutated = true;
+                break;
+            }
+        }
+        if (mutated) {
+            break;
+        }
+    }
+    ASSERT_TRUE(mutated) << "No compiled submodel with a non-i64 input was available to inject "
+                            "quant_unpack_gather.idx_idx into";
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(compiled->create_infer_request(), ov::Exception, "ids_shape[0] == 1");
 }
 
 }  // namespace
