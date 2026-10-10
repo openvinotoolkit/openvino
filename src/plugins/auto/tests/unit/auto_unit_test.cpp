@@ -122,7 +122,7 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
                               const std::string& netPrecision,
                               unsigned int priority,
                               const ov::auto_plugin::DeviceSelectionPolicy& selection_policy,
-                              const std::string& low_power_device) {
+                              const std::optional<DeviceInformation>& low_power_device) {
             return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device);
         });
 

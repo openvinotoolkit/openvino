@@ -193,6 +193,20 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
 +----------------------------------------------+--------------------------------------------------------------------+
+| ``ov::intel_auto::compile_for_all``          | **Values**:                                                        |
+|                                              |                                                                    |
+|                                              | ``true``                                                           |
+|                                              |                                                                    |
+|                                              | ``false``                                                          |
+|                                              |                                                                    |
+|                                              | Enables compiling the model to all candidate devices in the        |
+|                                              | background (in addition to the actual and CPU helper devices)      |
+|                                              | to populate cache blobs for faster subsequent loading. Only        |
+|                                              | takes effect when a cache directory (``ov::cache_dir``) is         |
+|                                              | configured.                                                        |
+|                                              |                                                                    |
+|                                              | The default value is ``false``.                                    |
++----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
