@@ -22,4 +22,18 @@ macro(ov_cpack_settings)
     endforeach()
     unset(cpack_components_all)
     list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
+
+    # Multi-flavor archive packaging (opt-in via -DOV_CPACK_ARCHIVE_FLAVORS=ON).
+    # Produces two archives from a single build: the full OpenVINO archive and a
+    # reduced "winget" archive without samples and Python. The flavor is selected
+    # at packaging time (cpack -D OV_CPACK_ARCHIVE_FLAVOR=full|winget) and applied
+    # by the per-run project config file, which redefines CPACK_COMPONENTS_ALL.
+    if(OV_CPACK_ARCHIVE_FLAVORS)
+        # a single monolithic archive per flavor that still honors the component
+        # list: COMPONENT_INSTALL must stay ON so setting CPACK_COMPONENTS_ALL
+        # takes effect, while ALL_COMPONENTS_IN_ONE bundles them into one archive
+        set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+        set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
+        set(CPACK_PROJECT_CONFIG_FILE "${OpenVINO_SOURCE_DIR}/cmake/packaging/archive_flavors.cmake")
+    endif()
 endmacro()
