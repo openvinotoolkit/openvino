@@ -633,6 +633,21 @@ void PagedAttnTestBase::prepare() {
     compile_model();
     inferRequest = compiledModel.create_infer_request();
     ASSERT_TRUE(inferRequest);
+    auto runtime_model = compiledModel.get_runtime_model();
+    ASSERT_NE(runtime_model, nullptr);
+    bool has_pa = false;
+    if (function) {
+        for (const auto& op : function->get_ops()) {
+            if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+                has_pa = true;
+                break;
+            }
+        }
+    }
+    if (has_pa) {
+        ASSERT_TRUE(runtime_model->has_rt_info("paged_attention_block_size"));
+        EXPECT_EQ(runtime_model->get_rt_info<size_t>("paged_attention_block_size"), 32);
+    }
 }
 void PagedAttnTestBase::reset() {
     for (auto&& state : inferRequest.query_state()) {
