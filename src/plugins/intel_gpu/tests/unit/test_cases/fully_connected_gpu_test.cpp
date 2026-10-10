@@ -3183,9 +3183,9 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
     void test_compressed_int8_transpose_scale_zp(bool is_caching_test) {
         auto& engine = get_test_engine();
 
-        auto ofm = 3;
-        auto ifm = 32;
-        constexpr size_t group_size = 16;
+        const int64_t ofm = 3;
+        const int64_t ifm = 32;
+        constexpr int64_t group_size = 16;
 
         auto input_mem = engine.allocate_memory({ {1, 2, ifm}, data_types::f16, format::bfyx });
         auto weights_mem = engine.allocate_memory({ {ofm, ifm}, data_types::u8, format::bfyx });
@@ -3199,10 +3199,10 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         std::vector<uint8_t> weights_data;
         weights_data.reserve(ifm * ofm);
-        for (size_t output = 0; output < ofm; ++output) {
-            for (size_t group = 0; group < ifm / group_size; ++group) {
+        for (int64_t output = 0; output < ofm; ++output) {
+            for (int64_t group = 0; group < ifm / group_size; ++group) {
                 const auto zp = static_cast<uint8_t>(group * ofm + output + 1);
-                weights_data.insert(weights_data.end(), group_size, static_cast<uint8_t>(zp + 1));
+                weights_data.insert(weights_data.end(), static_cast<size_t>(group_size), static_cast<uint8_t>(zp + 1));
             }
         }
         set_values<uint8_t>(weights_mem, weights_data);
