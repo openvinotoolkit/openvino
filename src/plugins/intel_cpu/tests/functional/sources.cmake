@@ -248,6 +248,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/lora_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matmul_decompress_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matmul_strided_inputs_outputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matrix_nms_zero_boxes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/merge_transpose_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
@@ -784,6 +785,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/lora_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matmul_decompress_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matmul_strided_inputs_outputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matrix_nms_zero_boxes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/merge_transpose_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
