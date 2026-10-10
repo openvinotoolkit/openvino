@@ -21,6 +21,7 @@ using namespace ov::intel_gpu;
 struct MoETestGraph {
     std::shared_ptr<ov::op::internal::MOECompressed> moe_node;
     std::vector<std::shared_ptr<ov::op::v0::Constant>> constants;  // indices 3..21
+    ov::ParameterVector parameters;
 
     static MoETestGraph build(size_t num_experts = 4, size_t hidden_size = 128, size_t inter_size = 256, size_t group_size = 128) {
         MoETestGraph g;
@@ -44,14 +45,17 @@ struct MoETestGraph {
 
         // 0: hidden_states [1, 1, hidden_size]
         auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, hidden_size});
+        g.parameters.push_back(hidden);
         inputs.push_back(hidden->output(0));
 
         // 1: routing_weights [1, 1, top_k]
         auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, top_k});
+        g.parameters.push_back(routing);
         inputs.push_back(routing->output(0));
 
         // 2: topk_indices [1, 1, top_k]
         auto topk_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, top_k});
+        g.parameters.push_back(topk_idx);
         inputs.push_back(topk_idx->output(0));
 
         // Helper to create a constant with given shape and type
@@ -92,6 +96,38 @@ struct MoETestGraph {
         return g;
     }
 };
+
+TEST(moe_offload_constant, validates_resident_weight_budget) {
+    auto g = MoETestGraph::build();
+    auto result = std::make_shared<ov::op::v0::Result>(g.moe_node);
+    ov::Model model(ov::ResultVector{result}, g.parameters);
+    const uint64_t resident_bytes = get_model_resident_constant_bytes(model, 1);
+
+    EXPECT_GT(resident_bytes, 0U);
+    EXPECT_NO_THROW(validate_model_resident_constant_memory(model, 1, resident_bytes));
+    EXPECT_THROW(validate_model_resident_constant_memory(model, 1, resident_bytes - 1), ov::Exception);
+    EXPECT_NO_THROW(validate_model_resident_constant_memory(model, 0, 1));
+    EXPECT_NO_THROW(validate_model_resident_constant_memory(model, 0, 0));
+}
+
+TEST(moe_offload_constant, offload_ratio_reduces_resident_weight_estimate) {
+    auto g = MoETestGraph::build();
+    auto result = std::make_shared<ov::op::v0::Result>(g.moe_node);
+    ov::Model model(ov::ResultVector{result}, g.parameters);
+
+    EXPECT_LT(get_model_resident_constant_bytes(model, 75), get_model_resident_constant_bytes(model, 0));
+    EXPECT_GT(get_model_resident_constant_bytes(model, 100), get_model_resident_constant_bytes(model, 75));
+    EXPECT_LT(get_model_resident_constant_bytes(model, 100), get_model_resident_constant_bytes(model, 0));
+}
+
+TEST(moe_offload_constant, non_moe_model_is_not_subject_to_resident_constant_check) {
+    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{4, 128}, 0);
+    auto result = std::make_shared<ov::op::v0::Result>(constant);
+    ov::Model model(ov::ResultVector{result}, ov::ParameterVector{});
+
+    EXPECT_EQ(get_model_resident_constant_bytes(model, 0), 0U);
+    EXPECT_NO_THROW(validate_model_resident_constant_memory(model, 0, 1));
+}
 
 // Test that routed expert constants (inputs 3-11) are classified as RoutedExpert
 TEST(moe_offload_constant, routed_expert_classification) {
