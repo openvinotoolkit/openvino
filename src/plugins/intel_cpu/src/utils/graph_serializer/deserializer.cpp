@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <functional>
 #include <istream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -280,11 +281,15 @@ ov::Any XmlDeserializer::parse_weightless_cache_attribute(const pugi::xml_node& 
             for (const auto& attr : child.attributes()) {
                 if (strcmp(attr.name(), "name") == 0 &&
                     strcmp(attr.value(), ov::WeightlessCacheAttribute::get_type_info_static().name) == 0) {
-                    const auto origin_size =
-                        static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "original_size"));
-                    const auto offset = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "bin_offset"));
+                    const auto origin_size = ov::util::pugixml::get_uint64_attr(child, "original_size");
+                    const auto offset = ov::util::pugixml::get_uint64_attr(child, "bin_offset");
+                    OPENVINO_ASSERT(origin_size <= std::numeric_limits<size_t>::max() &&
+                                        offset <= std::numeric_limits<size_t>::max(),
+                                    "[CPU] Weightless cache offset or size is too large.");
                     const ov::element::Type original_dt(child.attribute("original_dtype").value());
-                    return {ov::WeightlessCacheAttribute{origin_size, offset, original_dt}};
+                    return {ov::WeightlessCacheAttribute{static_cast<size_t>(origin_size),
+                                                         static_cast<size_t>(offset),
+                                                         original_dt}};
                 }
             }
         }
@@ -317,7 +322,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
     auto actual_size = wlc_attribute.original_size;
     auto offset = wlc_attribute.bin_offset;
     auto w_size = m_origin_weights->size();
-    OPENVINO_ASSERT(w_size >= offset + actual_size, "Incorrect weights in bin file!");
+    OPENVINO_ASSERT(offset <= w_size && actual_size <= w_size - offset, "Incorrect weights in bin file!");
 
     auto original_dtype = wlc_attribute.original_dtype;
     char* data = m_origin_weights->get_ptr<char>() + offset;
@@ -326,27 +331,19 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
     OPENVINO_ASSERT(getParameters<size_t>(dn, "shape", shape),
                     "[ CPU ] Could not get attribute 'shape' during weights deserialization.");
 
+    const auto target_size = ov::util::get_memory_size_safe(target_dtype, shape);
+    OPENVINO_ASSERT(target_size, "[CPU] Weightless cache target size overflow.");
+    const auto source_size = ov::util::get_memory_size_safe(original_dtype, shape);
+    OPENVINO_ASSERT(source_size && *source_size <= actual_size, "[CPU] Weightless cache source is too small.");
+
     if (original_dtype != target_dtype) {
         const auto org_tensor = ov::Tensor(original_dtype, shape, data);
-        auto converted_weights =
-            std::make_shared<ov::AlignedBuffer>(ov::util::get_memory_size(target_dtype, ov::shape_size(shape)));
+        auto converted_weights = std::make_shared<ov::AlignedBuffer>(*target_size);
         auto converted_output = ov::TensorVector{{target_dtype, shape, converted_weights->get_ptr()}};
         auto convert = op::v0::Convert();
         OPENVINO_ASSERT(convert.evaluate(converted_output, {org_tensor}), "Conversion not supported");
         adapter.set(converted_weights);
     } else {
-        if (actual_size < ((ov::shape_size(shape) * target_dtype.bitwidth() + 7) >> 3)) {
-            const auto type = ov::util::pugixml::get_str_attr(get_node(), "type");
-            OPENVINO_THROW("Attribute and shape size are inconsistent for ",
-                           type,
-                           " op!",
-                           actual_size,
-                           ", ",
-                           ((ov::shape_size(shape) * target_dtype.bitwidth() + 7) >> 3),
-                           ", ",
-                           ov::util::get_memory_size(target_dtype, ov::shape_size(shape)));
-        }
-
         auto buffer =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, actual_size, m_origin_weights);
         adapter.set(buffer);
