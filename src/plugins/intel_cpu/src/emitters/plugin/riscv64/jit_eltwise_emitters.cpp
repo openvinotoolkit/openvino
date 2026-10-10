@@ -224,6 +224,10 @@ size_t jit_ceil_emitter::get_inputs_num() const {
     return 1;
 }
 
+size_t jit_ceil_emitter::aux_vecs_count() const {
+    return 1;
+}
+
 size_t jit_ceil_emitter::aux_fp_gprs_count() const {
     return 1;
 }
@@ -239,6 +243,8 @@ void jit_ceil_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 
 void jit_ceil_emitter::register_table_entries() {
     push_arg_entry_of("one", 0x3f800000);
+    // RVV has no FP round-to-integer instruction, so this limit bounds the int32 round-trip.
+    push_arg_entry_of("int32_limit", 0x4f000000);
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -247,12 +253,18 @@ void jit_ceil_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
+    auto original = VReg(aux_vec_idxs[0]);
     auto fp1 = FReg(aux_fp_gpr_idxs[0]);
 
-    h->vfcvt_x_f_v(dst, src);
-    h->vfcvt_f_x_v(dst, dst);
+    h->vmv_v_v(original, src);
+    h->vfsgnjx_vv(dst, original, original);
+    load_table_val("int32_limit", fp1);
+    h->vmflt_vf(mask_vreg(), dst, fp1);
+    h->vmv_v_v(dst, original);
+    h->vfcvt_x_f_v(dst, original, VM::masked);
+    h->vfcvt_f_x_v(dst, dst, VM::masked);
 
-    h->vmflt_vv(mask_vreg(), dst, src);
+    h->vmflt_vv(mask_vreg(), dst, original);
     load_table_val("one", fp1);
     h->vfadd_vf(dst, dst, fp1, VM::masked);
 }
@@ -933,6 +945,8 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 void jit_floor_emitter::register_table_entries() {
     push_arg_entry_of("neg_one", 0xbf800000);
+    // RVV has no FP round-to-integer instruction, so this limit bounds the int32 round-trip.
+    push_arg_entry_of("int32_limit", 0x4f000000);
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -942,14 +956,18 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto aux1 = VReg(aux_vec_idxs[0]);
+    auto original = VReg(aux_vec_idxs[0]);
     auto fp1 = FReg(aux_fp_gpr_idxs[0]);
 
-    h->vmv_v_v(aux1, src);
-    h->vfcvt_x_f_v(dst, src);
-    h->vfcvt_f_x_v(dst, dst);
+    h->vmv_v_v(original, src);
+    h->vfsgnjx_vv(dst, original, original);
+    load_table_val("int32_limit", fp1);
+    h->vmflt_vf(mask_vreg(), dst, fp1);
+    h->vmv_v_v(dst, original);
+    h->vfcvt_x_f_v(dst, original, VM::masked);
+    h->vfcvt_f_x_v(dst, dst, VM::masked);
 
-    h->vmfgt_vv(mask_vreg(), dst, aux1);
+    h->vmfgt_vv(mask_vreg(), dst, original);
     load_table_val("neg_one", fp1);
     h->vfadd_vf(dst, dst, fp1, VM::masked);
 }
