@@ -148,6 +148,25 @@ KERNEL(quantize_input)(
 #define A_UINTS_PER_ROW  (TILE_IN_B_PITCH / 4)
 #define A_UINTS_PER_CHUNK (K_CHUNK / 4)
 
+// The three words of granule `chunk` (along K) of output channel nblk * 16 + lane.
+#if WEIGHTS_PLAIN
+// Plain [N, K] u3 bit stream: a row is CHUNKS_K granules of 3 words each.
+#define LOAD_GRANULE(B, nblk, chunk, w0, w1, w2)                                         \
+    do {                                                                                 \
+        const uint3 g_ = vload3(0, (B) + ((nblk) * SIMD + get_sub_group_local_id()) *    \
+                                         (CHUNKS_K * 3) + (chunk) * 3);                  \
+        w0 = g_.s0; w1 = g_.s1; w2 = g_.s2;                                              \
+    } while (0)
+#else
+#define LOAD_GRANULE(B, nblk, chunk, w0, w1, w2)                                         \
+    do {                                                                                 \
+        const __global uint* wp_ = (B) + ((nblk) * CHUNKS_K + (chunk)) * CHUNK_UINTS;    \
+        w0 = intel_sub_group_block_read(wp_);                                            \
+        w1 = intel_sub_group_block_read(wp_ + SIMD);                                     \
+        w2 = intel_sub_group_block_read(wp_ + 2 * SIMD);                                 \
+    } while (0)
+#endif
+
 // Quantization groups staged into SLM per barrier, so that every subgroup has at
 // least one granule to decode.
 #if SG_M > CHUNKS_PER_GROUP
@@ -344,16 +363,15 @@ KERNEL(fc)(
     uint raw[V2_GRAN_PER_SG][3];
 
     // Granule gidx of staging iteration it: group gi, chunk cc, column block j.
-#define V2_GRAN_PTR(it, gidx)                                                       \
-    (B + ((nbw * V2_NB + ((gidx) % V2_NB)) * CHUNKS_K +                             \
-          ((it) * V2_GPI + (gidx) / V2_GRAN_PER_GROUP) * CHUNKS_PER_GROUP +         \
-          ((gidx) / V2_NB) % CHUNKS_PER_GROUP) * CHUNK_UINTS)
+#define V2_GRAN_NBLK(gidx) (nbw * V2_NB + ((gidx) % V2_NB))
+#define V2_GRAN_CHUNK(it, gidx)                                                     \
+    (((it) * V2_GPI + (gidx) / V2_GRAN_PER_GROUP) * CHUNKS_PER_GROUP +              \
+     ((gidx) / V2_NB) % CHUNKS_PER_GROUP)
 #define V2_LOAD_RAW(it_)                                                            \
     unroll_for (uint i = 0; i < V2_GRAN_PER_SG; ++i) {                              \
-        const __global uint* wp = V2_GRAN_PTR(it_, sg * V2_GRAN_PER_SG + i);        \
-        raw[i][0] = intel_sub_group_block_read(wp);                                 \
-        raw[i][1] = intel_sub_group_block_read(wp + SIMD);                          \
-        raw[i][2] = intel_sub_group_block_read(wp + 2 * SIMD);                      \
+        const uint gidx_ = sg * V2_GRAN_PER_SG + i;                                 \
+        LOAD_GRANULE(B, V2_GRAN_NBLK(gidx_), V2_GRAN_CHUNK(it_, gidx_),             \
+                     raw[i][0], raw[i][1], raw[i][2]);                              \
     }
 #define V2_STAGE_RAW(b_)                                                            \
     unroll_for (uint i = 0; i < V2_GRAN_PER_SG; ++i)                                \
@@ -461,7 +479,8 @@ KERNEL(fc)(
         if (it + 1 < V2_ITERS_K)
             intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
     }
-#undef V2_GRAN_PTR
+#undef V2_GRAN_NBLK
+#undef V2_GRAN_CHUNK
 #undef V2_LOAD_RAW
 #undef V2_STAGE_RAW
 
@@ -524,12 +543,8 @@ KERNEL(fc)(
         const uint buf = it & 1u;
         unroll_for (uint i = 0; i < CHUNKS_PER_SG; ++i) {
             const uint cc = sg * CHUNKS_PER_SG + i;
-            const __global uint* wp =
-                B + (nb * CHUNKS_K + g0 * CHUNKS_PER_GROUP + cc) * CHUNK_UINTS;
-
-            const uint w0 = intel_sub_group_block_read(wp);
-            const uint w1 = intel_sub_group_block_read(wp + SIMD);
-            const uint w2 = intel_sub_group_block_read(wp + 2 * SIMD);
+            uint w0, w1, w2;
+            LOAD_GRANULE(B, nb, g0 * CHUNKS_PER_GROUP + cc, w0, w1, w2);
             wshare[buf][cc][lane] = U3_TO_DPAS_B(w0, w1, w2);
         }
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -543,12 +558,8 @@ KERNEL(fc)(
 #if SG_M > 1
                 wb[cc] = wshare[buf][gi * CHUNKS_PER_GROUP + cc][lane];
 #else
-                const __global uint* wp =
-                    B + (nb * CHUNKS_K + g * CHUNKS_PER_GROUP + cc) * CHUNK_UINTS;
-
-                const uint w0 = intel_sub_group_block_read(wp);
-                const uint w1 = intel_sub_group_block_read(wp + SIMD);
-                const uint w2 = intel_sub_group_block_read(wp + 2 * SIMD);
+                uint w0, w1, w2;
+                LOAD_GRANULE(B, nb, g * CHUNKS_PER_GROUP + cc, w0, w1, w2);
                 wb[cc] = U3_TO_DPAS_B(w0, w1, w2);
 #endif
             }
@@ -615,13 +626,21 @@ KERNEL(fc)(
         unroll_for (uint t = 0; t < TILE_M; ++t)
             acc[t] = 0;
 
+#if WEIGHTS_PLAIN && CHUNKS_PER_GROUP == 4
+        // The group's 4 granules are 48 contiguous bytes of this lane's row.
+        const __global uint* gp = B + (nb * SIMD + lane) * (CHUNKS_K * 3) + g * CHUNKS_PER_GROUP * 3;
+        const uint8 ga = vload8(0, gp);
+        const uint4 gb = vload4(0, gp + 8);
+        const uint gw[12] = {ga.s0, ga.s1, ga.s2, ga.s3, ga.s4, ga.s5, ga.s6, ga.s7, gb.s0, gb.s1, gb.s2, gb.s3};
+#endif
         unroll_for (uint cc = 0; cc < CHUNKS_PER_GROUP; ++cc) {
             const uint chunk = g * CHUNKS_PER_GROUP + cc;
-            const __global uint* wp = B + (nb * CHUNKS_K + chunk) * CHUNK_UINTS;
-
-            const uint w0 = intel_sub_group_block_read(wp);
-            const uint w1 = intel_sub_group_block_read(wp + SIMD);
-            const uint w2 = intel_sub_group_block_read(wp + 2 * SIMD);
+            uint w0, w1, w2;
+#if WEIGHTS_PLAIN && CHUNKS_PER_GROUP == 4
+            w0 = gw[cc * 3]; w1 = gw[cc * 3 + 1]; w2 = gw[cc * 3 + 2];
+#else
+            LOAD_GRANULE(B, nb, chunk, w0, w1, w2);
+#endif
 
             const char4 v0 = U3_CHAR4(w0, w1, w2, 0);
             const char4 v1 = U3_CHAR4(w0, w1, w2, 4);
@@ -716,6 +735,7 @@ KERNEL(fc)(
 #undef M_BLOCKS
 #undef A_UINTS_PER_ROW
 #undef A_UINTS_PER_CHUNK
+#undef LOAD_GRANULE
 #undef GROUPS_PER_ITER
 #undef CHUNKS_PER_ITER
 #undef CHUNKS_PER_SG

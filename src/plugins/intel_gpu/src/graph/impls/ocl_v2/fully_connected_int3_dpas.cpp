@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <functional>
 #include <numeric>
 #include <string>
@@ -304,8 +305,13 @@ size_t get_scalar_sg_k(const Int3FcInfo& info) {
     return 1;
 }
 
+bool use_plain_weights_experiment() {
+    static const bool plain = std::getenv("INT3_PLAIN_W") != nullptr;
+    return plain;
+}
+
 std::shared_ptr<WeightsReorderParams> make_weights_reorder_params(const layout& weights) {
-    if (weights.format == format::os_is_yx_osv16_isv32) {
+    if (use_plain_weights_experiment() || weights.format == format::os_is_yx_osv16_isv32) {
         return nullptr;
     }
     const auto& pshape = weights.get_partial_shape();
@@ -415,6 +421,7 @@ protected:
             jit.make("BIAS_TYPE", to_ocl_type(params.get_input_layout(2).data_type));
         }
 
+        jit.make("WEIGHTS_PLAIN", use_plain_weights_experiment());
         jit.make("USE_DPAS", m_cfg.dpas);
         jit.make("DPAS_V2", m_cfg.v2);
         jit.make("V2_NB", m_cfg.nb);
