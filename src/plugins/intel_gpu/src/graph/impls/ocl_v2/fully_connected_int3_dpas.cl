@@ -278,11 +278,16 @@ inline int4 FUNC(u3_to_dpas_b4)(uint w0, uint w1, uint w2) {
 #endif
 
 inline int FUNC(mad4)(char4 a, char4 b, int acc) {
+#ifdef cl_khr_integer_dot_product
+    // dp4a. The sum over K stays far below INT_MAX, so the saturation never applies.
+    return dot_acc_sat(a, b, acc);
+#else
     acc += (int)a.x * (int)b.x;
     acc += (int)a.y * (int)b.y;
     acc += (int)a.z * (int)b.z;
     acc += (int)a.w * (int)b.w;
     return acc;
+#endif
 }
 
 REQD_SUB_GROUP_SIZE(SIMD)
