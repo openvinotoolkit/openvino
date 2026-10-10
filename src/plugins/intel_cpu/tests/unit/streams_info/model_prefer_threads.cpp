@@ -187,6 +187,20 @@ TEST_F(ModelPreferThreadsIntegrationTest, arm64_linux_default_threads) {
 }
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(_WIN32)
+TEST_F(ModelPreferThreadsIntegrationTest, arm64_win_default_threads) {
+    std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config, 1, 1.0f);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 8);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+#endif
+
 TEST_F(ModelPreferThreadsIntegrationTest, num_streams_vs_sockets_boundary) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
