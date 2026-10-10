@@ -276,8 +276,7 @@ protected:
                          {"NPUW_LLM_MAX_PROMPT_LEN", "256"},
                          {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
                          {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
-                         {"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}};
+                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}};
         for (const auto& [key, value] : extra_props) {
             props[key] = value;
         }
@@ -286,7 +285,7 @@ protected:
                                                                   props,
                                                                   factory.make_factory());
         ASSERT_NE(m_compiled, nullptr);
-        ASSERT_TRUE(m_compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED").as<bool>());
+        ASSERT_TRUE(m_compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 
         m_request = std::make_unique<ov::npuw::LLMInferRequest>(m_compiled);
 
