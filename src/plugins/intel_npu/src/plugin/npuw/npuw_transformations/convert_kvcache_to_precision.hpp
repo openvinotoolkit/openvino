@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/pass.hpp"
@@ -16,9 +18,13 @@ class ConvertKVCacheToPrecision : public ov::pass::ModelPass {
     ov::element::Type m_lp_type;
     bool m_v_tensors_transposed = false;
 
+    std::string m_kv_cache_compression_config;
+
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ConvertKVCacheToPrecision");
-    explicit ConvertKVCacheToPrecision(const ov::element::Type lptype, bool v_tensors_transposed = false);
+    explicit ConvertKVCacheToPrecision(const ov::element::Type lptype,
+                                       bool v_tensors_transposed = false,
+                                       const std::string& kv_cache_compression_config = "");
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 

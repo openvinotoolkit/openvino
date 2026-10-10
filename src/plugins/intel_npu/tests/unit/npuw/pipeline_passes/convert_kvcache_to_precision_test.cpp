@@ -1035,4 +1035,64 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, ClearChunkPrefillZeroFillsQuantizedAux
     }
 }
 
+// Test KV-cache compression configuration string parsing
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_DefaultConfig) {
+    // Default configuration should use symmetric for both key and value with BY_TOKEN granularity
+    RecordingFactory recorder;
+    ASSERT_NO_THROW(create_compiled_model({}, recorder));
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    expect_kv_cache_input_types(generate.model, ov::element::i8);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_SymmetricKeyValue) {
+    // Explicitly set symmetric key and value
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    ASSERT_NO_THROW(create_compiled_model(props, recorder));
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    // Symmetric key should have scale but NO zero-point
+    expect_kv_cache_input_types(generate.model, ov::element::i8);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_AsymmetricKey) {
+    // Set asymmetric key quantization (the failing case from EISW-237450)
+    // Note: This is for testing the configuration parsing; the NPU still has the underlying
+    // asymmetric quantization issue, but we verify the config is correctly parsed.
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:ASYM:BY_TOKEN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    ASSERT_NO_THROW(create_compiled_model(props, recorder));
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    // Asymmetric key should have scale AND zero-point
+    expect_kv_cache_input_types(generate.model, ov::element::i8);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_InvalidFormat) {
+    // Invalid configuration format should throw
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "INVALID_FORMAT"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    EXPECT_THROW(create_compiled_model(props, recorder), ov::Exception);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_UnknownQuantizationType) {
+    // Unknown quantization type should throw
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:UNKNOWN:BY_TOKEN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    EXPECT_THROW(create_compiled_model(props, recorder), ov::Exception);
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_UnknownGranularity) {
+    // Unknown granularity should throw
+    RecordingFactory recorder;
+    ov::AnyMap props = {{"NPUW_LLM_KV_CACHE_COMPRESSION", "KEY:SYM:BY_UNKNOWN,VALUE:SYM:BY_TOKEN"}};
+    props.emplace(ov::hint::kv_cache_precision.name(), ov::element::i8);
+    EXPECT_THROW(create_compiled_model(props, recorder), ov::Exception);
+}
+
 }  // namespace

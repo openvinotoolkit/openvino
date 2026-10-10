@@ -2386,6 +2386,17 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 }
                 strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
                                   std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+                // The scale / zero-point tiles of an int8-compressed KV cache are views of their blocks, too
+                const auto& tile_in = hfa->_sdpa_attention_info._tile_input_indices;
+                constexpr auto no_input = ov::npuw::compiled::HostFlashAttentionInfo::kNoInput;
+                for (const auto& [input_idx, quant_id] : {std::pair{tile_in.k_scale, HFATileQuantInputId::K_SCALE_TILE},
+                                                          std::pair{tile_in.k_zp, HFATileQuantInputId::K_ZP_TILE},
+                                                          std::pair{tile_in.v_scale, HFATileQuantInputId::V_SCALE_TILE},
+                                                          std::pair{tile_in.v_zp, HFATileQuantInputId::V_ZP_TILE}}) {
+                    if (input_idx != no_input) {
+                        strided_inputs += std::string(",") + hfa_tile_quant_input_id_to_string(quant_id);
+                    }
+                }
                 m_meta_devices[device][strides_key] = strided_inputs;
                 supports_strides_for = true;
                 LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs);
