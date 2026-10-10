@@ -22,6 +22,8 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
+
 #define private public
 #include "compiled_model.hpp"
 #undef private
@@ -894,6 +896,70 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
         request->set_tensor(input, ov::get_tensor_impl(tensor));
     }
     EXPECT_NO_THROW(request->infer());
+}
+
+TEST_F(SubgraphBehaviorInferTest, HostGatherRejectsSrcIdxUnderflowingParamBase) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    bool mutated = false;
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (desc.compiled_model && desc.compiled_model->inputs().size() >= 2) {
+            desc.host_gather.dst_idx = 0;
+            desc.host_gather.idx_idx = 1;
+            desc.host_gather.src_idx = 0;
+            desc.param_base = 4;
+            desc.closure.get().closure.resize(4);
+            desc.closure.get().closure_uid.resize(4, -1);
+            desc.closure.get().is_remote.resize(4, false);
+            mutated = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(mutated) << "No compiled submodel with >=2 inputs was available to inject host_gather into";
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    OV_EXPECT_THROW_HAS_SUBSTRING(request->infer(), ov::Exception, "host_gather.src_idx >= param_base_idx");
+}
+
+TEST_F(SubgraphBehaviorInferTest, QuantUnpackGatherRejectsNonI64LookupTensor) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    bool mutated = false;
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (!desc.compiled_model) {
+            continue;
+        }
+        const auto& inputs = desc.compiled_model->inputs();
+        for (std::size_t i = 0; i < inputs.size(); ++i) {
+            if (inputs[i].get_element_type() != ov::element::i64) {
+                desc.quant_unpack_gather.dst_idx = 0;
+                desc.quant_unpack_gather.src_w_idx = 0;
+                desc.quant_unpack_gather.src_z_idx = -1;
+                desc.quant_unpack_gather.src_s_idx = -1;
+                desc.quant_unpack_gather.idx_idx = static_cast<int64_t>(i);
+                mutated = true;
+                break;
+            }
+        }
+        if (mutated) {
+            break;
+        }
+    }
+    ASSERT_TRUE(mutated) << "No compiled submodel with a non-i64 input was available to inject "
+                            "quant_unpack_gather.idx_idx into";
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(compiled->create_infer_request(), ov::Exception, "ids_shape[0] == 1");
 }
 
 }  // namespace
