@@ -17,20 +17,20 @@ namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
 KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
-    auto wei_0_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto wei_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto wei_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_0_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto zp_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto wei_0_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto wei_1_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto wei_2_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto zp_0_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto zp_1_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto zp_2_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
 
     // Shared expert weights
-    auto sh_gate_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_gate_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_up_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_up_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_down_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
-    auto sh_down_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
+    auto sh_gate_wei_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto sh_gate_zp_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto sh_up_wei_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto sh_up_zp_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto sh_down_wei_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
+    auto sh_down_zp_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u2}));
 
     // Without shared expert: 12 inputs [hs, routing, topk, w0, s0, zp0, w1, s1, zp1, w2, s2, zp2]
     auto moe_no_shared_m = wrap_type<ov::op::internal::MOECompressed>(

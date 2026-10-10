@@ -14,8 +14,10 @@ ParamsKey ReorderWeightsKernelInt4::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableInputWeightsType(WeightsType::UINT4);
+    k.EnableInputWeightsType(WeightsType::UINT2);
     k.EnableOutputWeightsType(WeightsType::UINT4);
     k.EnableOutputWeightsType(WeightsType::INT4);
+    k.EnableOutputWeightsType(WeightsType::UINT2);
     k.EnableInputWeightsLayout(WeightsLayout::oiyx);
     k.EnableInputWeightsLayout(WeightsLayout::ioyx);
     k.EnableOutputWeightsLayout(WeightsLayout::os_iyx_osv16);
@@ -39,26 +41,35 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
 
     const auto& output = params.output;
 
-    // Divide one of the dimensions by 2 to save with byte granularity
+    // Number of packed values per byte (2 for int4/uint4, 4 for uint2)
+    const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
+
+    // Divide one of the dimensions by the number of values per byte to save with byte granularity
     if (output.GetLayout() == WeightsLayout::os_iyx_osv32) {
         dispatchData.gws = { Align(output.OFM().v, 32) / 2, output.IFM().v, 1 };
     } else if (output.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         dispatchData.gws = { Align(output.OFM().v, 32), output.IFM().v / 2, 1 };
     } else if (output.GetLayout() == WeightsLayout::os_iyx_osv16) {
-        dispatchData.gws = { Align(output.OFM().v, 16), output.IFM().v / 2, 1 };
+        dispatchData.gws = { Align(output.OFM().v, 16), output.IFM().v / values_per_byte, 1 };
     } else if (output.GetLayout() == WeightsLayout::os_iyx_osv64) {
         dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v, 1 };
     } else if (output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
-        dispatchData.gws = { Align(output.OFM().v, 64), output.IFM().v / 2, 1 };
+        if (output.GetDType() == WeightsType::UINT2) {
+            // u2: each output byte packs a k-pair of two output features,
+            // so a 64-wide k-pair line holds 32 bytes
+            dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v / 2, 1 };
+        } else {
+            dispatchData.gws = { Align(output.OFM().v, 64), output.IFM().v / 2, 1 };
+        }
     } else if (output.GetLayout() == WeightsLayout::oiyx) {
         auto dims = output.GetDims();
         bool has_pads = std::any_of(dims.begin(), dims.end(), [](const kernel_selector::Tensor::Dim& d) {
             return d.pad.Total() != 0;
         });
         if (has_pads) {
-            dispatchData.gws = { CeilDiv(output.PhysicalSize(), 2), 1, 1 };
+            dispatchData.gws = { CeilDiv(output.PhysicalSize(), values_per_byte), 1, 1 };
         } else {
-            dispatchData.gws = { CeilDiv(output.LogicalSize(), 2), 1, 1 };
+            dispatchData.gws = { CeilDiv(output.LogicalSize(), values_per_byte), 1, 1 };
         }
     }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -71,6 +82,10 @@ JitConstants ReorderWeightsKernelInt4::GetJitConstants(const reorder_weights_par
     const auto& input = params.input;
     const auto& output = params.output;
 
+    if (output.GetDType() == WeightsType::UINT2) {
+        jit.AddConstant(MakeJitConstant("INT2_PACKED", 1));
+    }
+
     if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
         const auto idims = input.GetDims();
         const auto odims = output.GetDims();
@@ -80,9 +95,11 @@ JitConstants ReorderWeightsKernelInt4::GetJitConstants(const reorder_weights_par
 
         const auto input_inner_most_dim = idims.at(input_inner_most_idx).LogicalDimPadded();
         const auto output_inner_most_dim = odims.at(output_inner_most_idx).LogicalDimPadded();
-        OPENVINO_ASSERT(input_inner_most_dim % 2 != 0 && output_inner_most_dim % 2 == 0,
+        // Number of packed values per byte (2 for int4/uint4, 4 for uint2)
+        const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
+        OPENVINO_ASSERT(input_inner_most_dim % values_per_byte != 0 && output_inner_most_dim % values_per_byte == 0,
                         "Reorder weight i4 kernel for data padding only supports"
-                        "an odd input innermost dimension and an even output innermost dimension.");
+                        "an unaligned input innermost dimension and an aligned output innermost dimension.");
         jit.AddConstant(MakeJitConstant("INPUT0_INNERMOST_NUM", input_inner_most_dim));
         jit.AddConstant(MakeJitConstant("OUTPUT_INNERMOST_NUM", output_inner_most_dim));
     }
@@ -95,8 +112,8 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     const auto& input = p.input;
     const auto& output = p.output;
 
-    // To use the reorder weight i4 kernel for adding padding to an odd innermost dimension,
-    // the input tensor should have an odd innermost dimension without any padding,
+    // To use the reorder weight i4 kernel for adding padding to an unaligned innermost dimension,
+    // the input tensor should have an unaligned innermost dimension without any padding,
     // and the output tensor should have padding with only the pad.after value for the innermost dimension.
     if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
         const auto idims = input.GetDims();
@@ -104,6 +121,9 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
 
         size_t input_inner_most_idx  = idims.size() - p.original_input_rank;
         size_t output_inner_most_idx = odims.size() - p.original_output_rank;
+
+        // Number of packed values per byte (2 for int4/uint4, 4 for uint2)
+        const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
 
         bool has_pads_for_input_dims = std::any_of(idims.begin(), idims.end(), [](const kernel_selector::Tensor::Dim& d) {
             return d.pad.Total() != 0;
@@ -113,11 +133,11 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
             return d.pad.Total() != 0;
         });
 
-        if (idims[input_inner_most_idx].v % 2 != 0
+        if (idims[input_inner_most_idx].v % values_per_byte != 0
             && !has_pads_for_input_dims
             && !has_pads_for_output_dims_except_inner_most
             && odims[output_inner_most_idx].pad.before == 0
-            && odims[output_inner_most_idx].LogicalDimPadded() % 2 == 0) {
+            && odims[output_inner_most_idx].LogicalDimPadded() % values_per_byte == 0) {
             return true;
         }
     }
@@ -125,6 +145,15 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     OPENVINO_ASSERT((input.LogicalSize() == input.OFM().v * input.IFM().v
                     && output.LogicalSize() == output.OFM().v * output.IFM().v),
                     "Reorder weight i4 only supports 2D input/output, except when adding padding for the same shape(WeightsLayout::oiyx).");
+
+    // u2 packed weights are supported only for repacking to os_iyx_osv16 / os_is_yx_osv64_isv2
+    // and for plain/transposed oiyx
+    if (output.GetDType() == WeightsType::UINT2) {
+        bool supported_u2_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv16;
+        supported_u2_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;
+        supported_u2_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::oiyx;
+        return supported_u2_case;
+    }
 
     bool supported_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2;
