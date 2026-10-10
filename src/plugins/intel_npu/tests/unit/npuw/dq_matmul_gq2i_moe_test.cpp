@@ -8,25 +8,23 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "partitioning/patterns/opt.hpp"
 
-// Unit tests for DQMatMulGQiGather (partitioning/patterns/opt.cpp): re-layouts the
+// Unit tests for DQMatMulGQ2iMoE (partitioning/patterns/opt.cpp): re-layouts the
 // per-expert group-quantized Wdict/Sdict closures of a MoE expert MatMul into an
 // NPU compiler friendlier memory order ([E,OC,NSPLIT,G] -> [E,NSPLIT,OC,G]) by
 // inserting a Transpose(0,2,1,3) between the dequant Multiply and the existing
 // Reshape.
 //
-// The pass must match BOTH shapes the SAME shared Wdict/Sdict closures show up
-// in, because prefill (dense, no Gather) and generate (Gather-selected K of E
-// experts) are compiled as separate NPUW "functions" that otherwise end up with
-// non-deduplicatable closures (see opt.cpp's "NB" comment on DQMatMulGQiGather
-// for the weights-bank-dedup rationale) - hence the heavy focus below on
-// exercising the Gather-present and Gather-absent cases identically.
+// The pass must apply identically to both the host router (no Gather) and
+// device router (Gather-selected) variants, since they share the same
+// Wdict/Sdict closures and must record the same permute order to stay
+// deduplicatable.
 
 namespace {
 
 using namespace ov;
 
-constexpr size_t kExperts = 4;                       // E: total experts in the dict (dense/prefill case)
-constexpr size_t kGathered = 2;                      // K: experts selected by Gather (decode/generate case)
+constexpr size_t kExperts = 4;                       // E: total experts in the dict (host router case)
+constexpr size_t kGathered = 2;                      // K: experts selected by Gather (device router case)
 constexpr size_t kOutChannels = 6;                   // OC
 constexpr size_t kNumSplits = 3;                     // NSPLIT
 constexpr size_t kGroupSize = 4;                     // G
@@ -45,18 +43,19 @@ struct MoEGraph {
 //   Param(Wdict, i4)[E,OC,NSPLIT,G] -> (Gather) -> Convert(f16) -> Multiply -> Reshape -> Convert(f32) -> MatMul
 //   Param(Sdict)[E,OC,NSPLIT,1] -----> (Gather) ----------------->
 //   Param(Act)[rows,act_tokens,NSPLIT*G] ------------------------------------------------------------------->-'
-// `with_gather=true` models the decode/generate case (rows=K, Gather present, ids is a Parameter
-// standing in for the real router TopK output); `with_gather=false` models the dense/prefill case
+// `with_gather=true` models the device router case (rows=K, Gather present, ids is a Parameter
+// standing in for the real router TopK output); `with_gather=false` models the host router case
 // (rows=E, no Gather at all - every expert runs on every token).
 MoEGraph make_moe_graph(bool with_gather,
                         size_t act_tokens,
                         ov::element::Type coeff_type = ov::element::f16,
                         bool transpose_b = true,
-                        size_t out_channels = kOutChannels) {
+                        size_t out_channels = kOutChannels,
+                        ov::element::Type weight_type = ov::element::i4) {
     const size_t rows = with_gather ? kGathered : kExperts;
 
     auto weight =
-        std::make_shared<op::v0::Parameter>(element::i4, Shape{kExperts, out_channels, kNumSplits, kGroupSize});
+        std::make_shared<op::v0::Parameter>(weight_type, Shape{kExperts, out_channels, kNumSplits, kGroupSize});
     weight->set_friendly_name("Wdict");
     auto coeff = std::make_shared<op::v0::Parameter>(coeff_type, Shape{kExperts, out_channels, kNumSplits, 1});
     coeff->set_friendly_name("Sdict");
@@ -104,13 +103,13 @@ MoEGraph make_moe_graph(bool with_gather,
     matmul->set_friendly_name("MatMul");
 
     auto result = std::make_shared<op::v0::Result>(matmul);
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, params, "dq_matmul_gqi_gather_test");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, params, "dq_matmul_gq2i_moe_test");
     return {model, weight, coeff, muls, reshp, matmul};
 }
 
-void run_dqmatmulgqigather(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns::opt::Context& ctx) {
+void run_dqmatmulgq2imoe(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns::opt::Context& ctx) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQiGather>(std::ref(ctx));
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2iMoE>(std::ref(ctx));
     rewr.run_on_model(model);
 }
 
@@ -122,13 +121,13 @@ std::shared_ptr<op::v1::Transpose> transpose_before_reshape(const std::shared_pt
 }  // namespace
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Case (a): decode/generate - Gather(ids) selects K of E experts.
+// Case (a): device router - Gather(ids) selects K of E experts.
 // ─────────────────────────────────────────────────────────────────────────────
-TEST(DQMatMulGQiGatherTest, GatheredDecodeCaseIsTransformed) {
+TEST(DQMatMulGQ2iMoETest, DeviceRouterCaseIsTransformed) {
     auto graph = make_moe_graph(/*with_gather=*/true, /*act_tokens=*/1);
 
     ov::npuw::patterns::opt::Context ctx;
-    run_dqmatmulgqigather(graph.model, ctx);
+    run_dqmatmulgq2imoe(graph.model, ctx);
 
     EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
 
@@ -155,13 +154,13 @@ TEST(DQMatMulGQiGatherTest, GatheredDecodeCaseIsTransformed) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Case (b): dense/prefill - no Gather, all E experts run on every token.
+// Case (b): host router - no Gather, all E experts run on every token.
 // ─────────────────────────────────────────────────────────────────────────────
-TEST(DQMatMulGQiGatherTest, DenseGatherlessPrefillCaseIsTransformed) {
+TEST(DQMatMulGQ2iMoETest, HostRouterCaseIsTransformed) {
     auto graph = make_moe_graph(/*with_gather=*/false, /*act_tokens=*/4);
 
     ov::npuw::patterns::opt::Context ctx;
-    run_dqmatmulgqigather(graph.model, ctx);
+    run_dqmatmulgq2imoe(graph.model, ctx);
 
     EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
 
@@ -179,45 +178,66 @@ TEST(DQMatMulGQiGatherTest, DenseGatherlessPrefillCaseIsTransformed) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Core regression target: prefill and generate share the SAME Wdict/Sdict
-// closures (see opt.cpp's "NB" comment) - the weights bank only deduplicates
-// them if BOTH functions record an IDENTICAL permute order. This test directly
-// pins that invariant.
+// The eligibility guard accepts a family of quantized weight types (i4, i8,
+// f8e4m3, f8e5m2, f8e8m0), not just i4 - pin that i8 is matched too.
 // ─────────────────────────────────────────────────────────────────────────────
-TEST(DQMatMulGQiGatherTest, GatheredAndGatherlessRecordIdenticalPermuteOrder) {
-    auto gathered = make_moe_graph(/*with_gather=*/true, /*act_tokens=*/1);
-    auto dense = make_moe_graph(/*with_gather=*/false, /*act_tokens=*/4);
+TEST(DQMatMulGQ2iMoETest, I8WeightIsTransformed) {
+    auto graph = make_moe_graph(/*with_gather=*/true,
+                                /*act_tokens=*/1,
+                                /*coeff_type=*/ov::element::f16,
+                                /*transpose_b=*/true,
+                                /*out_channels=*/kOutChannels,
+                                /*weight_type=*/ov::element::i8);
 
-    ov::npuw::patterns::opt::Context ctx_gathered;
-    run_dqmatmulgqigather(gathered.model, ctx_gathered);
-    ov::npuw::patterns::opt::Context ctx_dense;
-    run_dqmatmulgqigather(dense.model, ctx_dense);
+    ov::npuw::patterns::opt::Context ctx;
+    run_dqmatmulgq2imoe(graph.model, ctx);
 
-    ASSERT_EQ(ctx_gathered.closures_to_permute.count(gathered.weight), 1u);
-    ASSERT_EQ(ctx_dense.closures_to_permute.count(dense.weight), 1u);
-    EXPECT_EQ(ctx_gathered.closures_to_permute.at(gathered.weight), ctx_dense.closures_to_permute.at(dense.weight));
-    EXPECT_EQ(ctx_gathered.closures_to_permute.at(gathered.coeff), ctx_dense.closures_to_permute.at(dense.coeff));
+    EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
+    ASSERT_EQ(ctx.closures_to_permute.count(graph.weight), 1u);
+    EXPECT_EQ(ctx.closures_to_permute.at(graph.weight), (ov::npuw::patterns::opt::Context::Axes{0, 2, 1, 3}));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Core regression target: the host router and device router share the SAME Wdict/Sdict
+// closures (see opt.cpp's "NB" comment), and the weights bank only dedups them if both
+// record an IDENTICAL permute order - this test pins that invariant.
+// ─────────────────────────────────────────────────────────────────────────────
+TEST(DQMatMulGQ2iMoETest, DeviceAndHostRouterRecordIdenticalPermuteOrder) {
+    auto device_router = make_moe_graph(/*with_gather=*/true, /*act_tokens=*/1);
+    auto host_router = make_moe_graph(/*with_gather=*/false, /*act_tokens=*/4);
+
+    ov::npuw::patterns::opt::Context ctx_device_router;
+    run_dqmatmulgq2imoe(device_router.model, ctx_device_router);
+    ov::npuw::patterns::opt::Context ctx_host_router;
+    run_dqmatmulgq2imoe(host_router.model, ctx_host_router);
+
+    ASSERT_EQ(ctx_device_router.closures_to_permute.count(device_router.weight), 1u);
+    ASSERT_EQ(ctx_host_router.closures_to_permute.count(host_router.weight), 1u);
+    EXPECT_EQ(ctx_device_router.closures_to_permute.at(device_router.weight),
+              ctx_host_router.closures_to_permute.at(host_router.weight));
+    EXPECT_EQ(ctx_device_router.closures_to_permute.at(device_router.coeff),
+              ctx_host_router.closures_to_permute.at(host_router.coeff));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A scale closure that's still f32 must be marked for the same f16 lowering the
 // sibling DQMatMul* passes apply - regardless of whether Gather is present.
 // ─────────────────────────────────────────────────────────────────────────────
-TEST(DQMatMulGQiGatherTest, F32CoeffIsMarkedForF16Conversion) {
+TEST(DQMatMulGQ2iMoETest, F32CoeffIsMarkedForF16Conversion) {
     auto graph = make_moe_graph(/*with_gather=*/true, /*act_tokens=*/1, /*coeff_type=*/ov::element::f32);
 
     ov::npuw::patterns::opt::Context ctx;
-    run_dqmatmulgqigather(graph.model, ctx);
+    run_dqmatmulgq2imoe(graph.model, ctx);
 
     EXPECT_EQ(ctx.closures_to_f16.count(graph.coeff), 1u);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Negative: matmul with transpose_b=false does not match DQMatMulGQiGather's
+// Negative: matmul with transpose_b=false does not match DQMatMulGQ2iMoE's
 // eligibility guard (this pass only handles the already-transpose_b=true
 // layout; see DQMatMulGQi for the transpose_b=false family).
 // ─────────────────────────────────────────────────────────────────────────────
-TEST(DQMatMulGQiGatherTest, NonTransposedMatMulIsNotTransformed) {
+TEST(DQMatMulGQ2iMoETest, NonTransposedMatMulIsNotTransformed) {
     // out_channels == kHidden keeps the MatMul shape-valid with transpose_b=false too.
     auto graph = make_moe_graph(/*with_gather=*/true,
                                 /*act_tokens=*/1,
@@ -226,7 +246,7 @@ TEST(DQMatMulGQiGatherTest, NonTransposedMatMulIsNotTransformed) {
                                 /*out_channels=*/kHidden);
 
     ov::npuw::patterns::opt::Context ctx;
-    run_dqmatmulgqigather(graph.model, ctx);
+    run_dqmatmulgq2imoe(graph.model, ctx);
 
     EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
     EXPECT_TRUE(ctx.closures_to_permute.empty());
@@ -237,7 +257,7 @@ TEST(DQMatMulGQiGatherTest, NonTransposedMatMulIsNotTransformed) {
 // Negative: a 3D (non-MoE, no expert axis) weight/scale dict belongs to the
 // plain DQMatMulGQi family, not this MoE-specific pass.
 // ─────────────────────────────────────────────────────────────────────────────
-TEST(DQMatMulGQiGatherTest, ThreeDWeightIsNotTransformed) {
+TEST(DQMatMulGQ2iMoETest, ThreeDWeightIsNotTransformed) {
     auto weight = std::make_shared<op::v0::Parameter>(element::i4, Shape{kNumSplits, kGroupSize, kOutChannels});
     auto coeff = std::make_shared<op::v0::Parameter>(element::f16, Shape{kNumSplits, 1, kOutChannels});
     auto cvtw = std::make_shared<op::v0::Convert>(weight, element::f16);
@@ -249,15 +269,13 @@ TEST(DQMatMulGQiGatherTest, ThreeDWeightIsNotTransformed) {
     auto reshp = std::make_shared<op::v1::Reshape>(muls, reshape_const, false);
     auto cvtm = std::make_shared<op::v0::Convert>(reshp, element::f32);
     auto act = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, kHidden});
-    // transpose_b=false here: the reshape naturally produces [hidden,OC], the stored layout
-    // transpose_b=false expects - irrelevant to the test anyway, since qweight_shape.size()==4
-    // short-circuits the pattern's guard before transpose_b is even inspected.
+    // transpose_b value is irrelevant here - the 4D-shape guard short-circuits first.
     auto matmul = std::make_shared<op::v0::MatMul>(act, cvtm, false, false);
     auto result = std::make_shared<op::v0::Result>(matmul);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{weight, coeff, act});
 
     ov::npuw::patterns::opt::Context ctx;
-    run_dqmatmulgqigather(model, ctx);
+    run_dqmatmulgq2imoe(model, ctx);
 
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
     EXPECT_TRUE(ctx.closures_to_permute.empty());
