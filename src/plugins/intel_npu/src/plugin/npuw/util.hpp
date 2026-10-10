@@ -330,7 +330,10 @@ private:
         if (done)
             return data;
         if (future.valid()) {
-            future.wait();
+            // Previously used `future.wait()`, which waits for completion but does not
+            // propagate exceptions. `get()` retrieves the result and rethrows any
+            // stored exception, but makes the future invalid afterward.
+            future.get();
             done = true;
         }
         return data;
