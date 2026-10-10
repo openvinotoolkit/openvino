@@ -463,15 +463,22 @@ struct CPUStreamsExecutor::Impl {
         if (_config.get_cpu_pinning()) {
             auto stream = _streams->local();
             auto proc_type_table = get_org_proc_type_table();
-            std::tie(stream->_mask, stream->_ncpus) = get_process_mask();
+            // Save the calling thread's own affinity mask so it can be restored accurately in
+            // unpin_stream_to_cpus(). Using the process baseline here would widen a narrower thread
+            // mask back to the process baseline on restore.
+            std::tie(stream->_mask, stream->_ncpus) = query_thread_mask();
+            // Use the process baseline mask for choosing a vacant core to pin to.
+            CpuSet process_mask;
+            int process_ncpus = 0;
+            std::tie(process_mask, process_ncpus) = get_process_mask();
             if (get_num_numa_nodes() > 1) {
                 pin_current_thread_to_socket(stream->_numaNodeId);
             } else if (proc_type_table.size() == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
-                if (nullptr != stream->_mask) {
+                if (nullptr != process_mask) {
                     pin_thread_to_vacant_core(stream->_streamId + _config.get_thread_binding_offset(),
                                               _config.get_thread_binding_step(),
-                                              stream->_ncpus,
-                                              stream->_mask);
+                                              process_ncpus,
+                                              process_mask);
                 }
             }
         }

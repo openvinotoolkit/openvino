@@ -40,6 +40,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/property_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/query_model_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/single_file_storage.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/thread_affinity_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/tlv_format.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/variable_state_test.cpp
         DEPENDENCIES
