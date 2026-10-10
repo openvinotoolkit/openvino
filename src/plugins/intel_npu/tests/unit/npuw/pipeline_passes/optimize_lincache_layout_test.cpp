@@ -6,14 +6,24 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <map>
+#include <numeric>
 #include <regex>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "llm_pass_test_fixture.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace {
 
@@ -120,20 +130,133 @@ TEST_F(OptimizeLinCacheLayoutPassTest, NoConvStatesIsNoOp) {
     EXPECT_EQ(model->get_ops().size(), n_ops);
 }
 
-// Applying the pass twice must not flip the layout back: the second run sees a
-// rank-3 state again and transposes it once more, which is the expected and
-// well-defined behaviour; here we only check it stays consistent and valid.
-TEST_F(OptimizeLinCacheLayoutPassTest, PastAndPresentStayConsistentAfterRepeatedRuns) {
+TEST_F(OptimizeLinCacheLayoutPassTest, RepeatedRunsAreNoOpIncludingAfterClone) {
     auto model = make_stateless(ov::test::npuw::build_lfm2_llm_test_model());
     ASSERT_TRUE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(model));
-    ASSERT_TRUE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(model));
-    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
-
     const auto past = shapes_by_name(model->inputs(), "cache_params.past.conv");
     const auto present = shapes_by_name(model->outputs(), "cache_params.present.conv");
-    for (const auto& [name, shape] : present) {
-        const auto past_name = std::regex_replace(name, std::regex("present"), "past");
-        EXPECT_EQ(shape, past.at(past_name)) << name;
+    const auto n_ops = model->get_ops().size();
+
+    for (const auto& candidate : {model, model->clone()}) {
+        EXPECT_FALSE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(candidate));
+        EXPECT_EQ(candidate->get_ops().size(), n_ops);
+        EXPECT_EQ(shapes_by_name(candidate->inputs(), "cache_params.past.conv"), past);
+        EXPECT_EQ(shapes_by_name(candidate->outputs(), "cache_params.present.conv"), present);
+        ASSERT_NO_THROW(candidate->validate_nodes_and_infer_types());
+    }
+}
+
+TEST_F(OptimizeLinCacheLayoutPassTest, PreservesPassThroughStateNames) {
+    for (const bool cross_layer : {false, true}) {
+        SCOPED_TRACE(cross_layer);
+        ov::ParameterVector params;
+        ov::ResultVector results;
+        for (size_t i = 0; i < 2; ++i) {
+            auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
+            param->output(0).set_names({"cache_params.past.conv." + std::to_string(i),
+                                        "cache_params.present.conv." + std::to_string(cross_layer ? 1 - i : i)});
+            params.push_back(param);
+            results.push_back(std::make_shared<ov::op::v0::Result>(param));
+        }
+        auto reference = std::make_shared<ov::Model>(results, params);
+        auto optimized = reference->clone();
+        ASSERT_TRUE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(optimized));
+        for (size_t i = 0; i < 2; ++i) {
+            EXPECT_EQ(optimized->input(i).get_names(), reference->input(i).get_names());
+            EXPECT_EQ(optimized->output(i).get_names(), reference->output(i).get_names());
+            EXPECT_EQ(optimized->output(i).get_shape(), (ov::Shape{1, 3, 2}));
+        }
+    }
+}
+
+TEST_F(OptimizeLinCacheLayoutPassTest, UnsupportedPairLeavesAllStatesUnchanged) {
+    for (const bool missing_present : {false, true}) {
+        SCOPED_TRACE(missing_present);
+        auto model = make_stateless(ov::test::npuw::build_lfm2_llm_test_model());
+        const auto port = find_output(model, "cache_params.present.conv.1");
+        ASSERT_TRUE(port.has_value());
+        auto result = model->get_results().at(model->get_result_index(*port));
+        if (missing_present) {
+            model->remove_result(result);
+        } else {
+            const auto names = result->input_value(0).get_names();
+            result->input(0).replace_source_output(
+                ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 3}, {0}));
+            result->input_value(0).set_names(names);
+            model->validate_nodes_and_infer_types();
+        }
+        const auto past = shapes_by_name(model->inputs(), "cache_params.past.conv");
+        const auto present = shapes_by_name(model->outputs(), "cache_params.present.conv");
+        const auto n_ops = model->get_ops().size();
+        EXPECT_FALSE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(model));
+        EXPECT_EQ(model->get_ops().size(), n_ops);
+        EXPECT_EQ(shapes_by_name(model->inputs(), "cache_params.past.conv"), past);
+        EXPECT_EQ(shapes_by_name(model->outputs(), "cache_params.present.conv"), present);
+    }
+}
+
+// Exercise the cache recurrence with evaluable ops, independently of device compilation.
+std::shared_ptr<ov::Model> make_cache_step_model(int64_t token_count) {
+    auto past = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
+    past->output(0).set_names({"cache_params.past.conv.0"});
+    auto tokens = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, token_count});
+    tokens->output(0).set_names({"tokens"});
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past, tokens}, 2);
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto present = std::make_shared<ov::op::v8::Slice>(
+        concat,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {token_count}),
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {token_count + 3}),
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        axis);
+    present->output(0).set_names({"cache_params.present.conv.0"});
+    auto activation = std::make_shared<ov::op::v1::ReduceSum>(concat, axis, false);
+    activation->output(0).set_names({"activation"});
+    return std::make_shared<ov::Model>(ov::OutputVector{activation, present}, ov::ParameterVector{past, tokens});
+}
+
+TEST_F(OptimizeLinCacheLayoutPassTest, PreservesNonzeroStateAcrossPrefillAndDecode) {
+    std::vector<std::shared_ptr<ov::Model>> references{make_cache_step_model(2),
+                                                       make_cache_step_model(1),
+                                                       make_cache_step_model(1)};
+    std::vector<std::shared_ptr<ov::Model>> optimized;
+    for (const auto& reference : references) {
+        optimized.push_back(reference->clone());
+        ASSERT_TRUE(ov::npuw::util::OptimizeLinCacheLayout().run_on_model(optimized.back()));
+    }
+    ov::Tensor ref_state(ov::element::f32, {1, 2, 3});
+    ov::Tensor opt_state(ov::element::f32, {1, 3, 2});
+    std::iota(ref_state.data<float>(), ref_state.data<float>() + ref_state.get_size(), 1.0f);
+    for (size_t c = 0; c < 2; ++c) {
+        for (size_t k = 0; k < 3; ++k) {
+            opt_state.data<float>()[k * 2 + c] = ref_state.data<float>()[c * 3 + k];
+        }
+    }
+    // Two prefill chunks, then decode with a switch to a separate generate model.
+    size_t step = 0;
+    for (const size_t variant : {0, 0, 1, 1, 2, 2}) {
+        SCOPED_TRACE(step);
+        const auto& reference = references.at(variant);
+        const auto& transformed = optimized.at(variant);
+        ov::Tensor tokens(ov::element::f32, reference->input(1).get_shape());
+        std::iota(tokens.data<float>(), tokens.data<float>() + tokens.get_size(), 10.0f * (++step));
+        ov::TensorVector ref_outputs, opt_outputs;
+        for (size_t i = 0; i < reference->outputs().size(); ++i) {
+            ref_outputs.emplace_back(ov::element::f32, reference->output(i).get_shape());
+            opt_outputs.emplace_back(ov::element::f32, transformed->output(i).get_shape());
+        }
+        ASSERT_TRUE(reference->evaluate(ref_outputs, ov::TensorVector{ref_state, tokens}));
+        ASSERT_TRUE(transformed->evaluate(opt_outputs, ov::TensorVector{opt_state, tokens}));
+        for (size_t i = 0; i < ref_outputs[0].get_size(); ++i) {
+            EXPECT_FLOAT_EQ(ref_outputs[0].data<float>()[i], opt_outputs[0].data<float>()[i]);
+        }
+        for (size_t c = 0; c < 2; ++c) {
+            for (size_t k = 0; k < 3; ++k) {
+                EXPECT_FLOAT_EQ(ref_outputs[1].data<float>()[c * 3 + k], opt_outputs[1].data<float>()[k * 2 + c]);
+            }
+        }
+        ref_outputs[1].copy_to(ref_state);
+        opt_outputs[1].copy_to(opt_state);
     }
 }
 

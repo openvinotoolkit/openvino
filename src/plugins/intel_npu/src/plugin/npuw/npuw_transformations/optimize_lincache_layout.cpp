@@ -7,6 +7,9 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "../logging.hpp"
 #include "../util.hpp"
@@ -16,6 +19,8 @@
 #include "openvino/op/transpose.hpp"
 
 namespace {
+
+constexpr const char* layout_optimized = "npuw_lincache_layout_optimized";
 
 // Returns the cache_params.{past|present}.conv.N name carried by the tensor, if any.
 std::optional<std::string> conv_cache_name(const ov::descriptor::Tensor& tensor, const std::string& past_or_present) {
@@ -43,6 +48,10 @@ std::shared_ptr<ov::op::v0::Constant> swap_last_two_axes() {
 }  // namespace
 
 bool ov::npuw::util::OptimizeLinCacheLayout::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    if (model->has_rt_info(layout_optimized) && model->get_rt_info<bool>(layout_optimized)) {
+        return false;
+    }
+
     std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> past;
     std::map<std::string, std::shared_ptr<ov::op::v0::Result>> present;
 
@@ -75,6 +84,16 @@ bool ov::npuw::util::OptimizeLinCacheLayout::run_on_model(const std::shared_ptr<
         }
     }
 
+    // A pass-through Result can share its tensor names with a Parameter. Snapshot all
+    // I/O names before reconnecting any consumers, and restore them after validation.
+    std::vector<std::pair<ov::Output<ov::Node>, std::unordered_set<std::string>>> io_names;
+    for (const auto& input : model->inputs()) {
+        io_names.emplace_back(input, input.get_names());
+    }
+    for (const auto& output : model->outputs()) {
+        io_names.emplace_back(output, output.get_names());
+    }
+
     for (auto& [idx, param] : past) {
         // Parameter: [batch, channels, kernel] -> [batch, kernel, channels], then restore the
         // original layout for the consumers with a Transpose.
@@ -90,16 +109,13 @@ bool ov::npuw::util::OptimizeLinCacheLayout::run_on_model(const std::shared_ptr<
             consumer.replace_source_output(to_kernel_innermost);
         }
 
-        // Result: transpose the produced state into the new layout and move the output
-        // tensor names so the pipeline keeps finding cache_params.present.conv.N.
+        // Result: transpose the produced state into the new layout.
         auto result = present.at(idx);
         auto source = result->input_value(0);
-        const auto names = source.get_names();
 
         auto to_channels_innermost = std::make_shared<ov::op::v1::Transpose>(source, swap_last_two_axes());
         to_channels_innermost->set_friendly_name(result->get_friendly_name() + "/lincache_layout");
         source.set_names({});
-        to_channels_innermost->output(0).set_names(names);
         result->input(0).replace_source_output(to_channels_innermost);
         result->validate_and_infer_types();
 
@@ -107,5 +123,9 @@ bool ov::npuw::util::OptimizeLinCacheLayout::run_on_model(const std::shared_ptr<
     }
 
     model->validate_nodes_and_infer_types();
+    for (auto& [port, names] : io_names) {
+        port.set_names(names);
+    }
+    model->set_rt_info(true, layout_optimized);
     return true;
 }
