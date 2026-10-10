@@ -686,6 +686,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/utils/platform.h
     ${CPU_SRC_DIR}/utils/precision_support.cpp
     ${CPU_SRC_DIR}/utils/precision_support.h
+    ${CPU_SRC_DIR}/utils/rt_info/approximate_exp_attribute.cpp
+    ${CPU_SRC_DIR}/utils/rt_info/approximate_exp_attribute.hpp
     ${CPU_SRC_DIR}/utils/rt_info/memory_formats_attribute.cpp
     ${CPU_SRC_DIR}/utils/rt_info/memory_formats_attribute.hpp
     ${CPU_SRC_DIR}/utils/verbose.h
@@ -876,6 +878,8 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp
     ${CPU_SRC_DIR}/transformations/snippets/x64/pass/lowered/parallelize_gated_mlp_n_loops.cpp
     ${CPU_SRC_DIR}/transformations/snippets/x64/pass/lowered/parallelize_gated_mlp_n_loops.hpp
+    ${CPU_SRC_DIR}/transformations/snippets/x64/pass/mark_approximate_softmax_exp.cpp
+    ${CPU_SRC_DIR}/transformations/snippets/x64/pass/mark_approximate_softmax_exp.hpp
     ${CPU_SRC_DIR}/transformations/snippets/x64/pass/remove_converts.cpp
     ${CPU_SRC_DIR}/transformations/snippets/x64/pass/remove_converts.hpp
     ${CPU_SRC_DIR}/transformations/snippets/x64/pass/repack_matmul_weights.cpp
