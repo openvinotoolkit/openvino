@@ -83,11 +83,11 @@ struct DynamicModelConfig {
 inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
     static const std::map<std::string, DynamicModelConfig> configs = {
         // {"ESPCN_x2_DynHW_FHD2", {ov::Dimension(1), ov::Dimension(10, 2160), ov::Dimension(10, 3840), true}},  /// too large to run with many times
-        {"ESPCN_x2_DynHW_FHD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1920), true}},
-        {"ESPCN_x2_DynNHW_FHD", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 1920), true}},
-        {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1280), true}},
-        {"ESPCN_x2_DynNHW_HD_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 1080), ov::Dimension(10, 1280), false}},
-        {"ESPCN_x2_DynN_HD_NCHW", {ov::Dimension(1, 10), ov::Dimension(1080), ov::Dimension(1280), false}},
+        {"ESPCN_x2_DynHW_FHD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1080), true}},
+        {"ESPCN_x2_DynNHW_FHD", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 1080), true}},
+        {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1080), true}},
+        {"ESPCN_x2_DynNHW_HD_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 1080), ov::Dimension(10, 1080), false}},
+        {"ESPCN_x2_DynN_HD_NCHW", {ov::Dimension(1, 10), ov::Dimension(1080), ov::Dimension(1080), false}},
     };
     return configs;
 }
