@@ -463,17 +463,17 @@ TEST(type_prop, group_query_attention_regular_kv_is_not_shared) {
     EXPECT_FALSE(op->is_shared_kv());
 }
 
-TEST(type_prop, group_query_attention_dynamic_kv_length_separate_kv) {
+TEST(type_prop, group_query_attention_independent_kv_length_separate_kv) {
     using ov::op::v0::Parameter;
     auto args = make_valid_gqa_args();
-    EXPECT_FALSE(
-        std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false)->has_dynamic_kv_length());
+    EXPECT_FALSE(std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false)
+                     ->has_independent_kv_length());
 
     // A dynamic key length may differ from the query's at runtime (0 for ORT shared KV).
     args[1] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
     args[2] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
     const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
-    EXPECT_TRUE(op->has_dynamic_kv_length());
+    EXPECT_TRUE(op->has_independent_kv_length());
     EXPECT_FALSE(op->is_shared_kv());
 }
 
@@ -495,7 +495,7 @@ TEST(type_prop, group_query_attention_dynamic_kv_len_static_past_grows_by_key) {
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, -1, 8}));
 }
 
-TEST(type_prop, group_query_attention_dynamic_kv_length_packed_qkv) {
+TEST(type_prop, group_query_attention_independent_kv_length_packed_qkv) {
     using ov::op::v0::Constant;
     using ov::op::v0::Parameter;
     // Packed QKV: Q/K/V split from one tensor, so S_kv == S_q even when the length is dynamic.
@@ -508,17 +508,17 @@ TEST(type_prop, group_query_attention_dynamic_kv_length_packed_qkv) {
     args[1] = split->output(1);
     args[2] = split->output(2);
     const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
-    EXPECT_FALSE(op->has_dynamic_kv_length());
+    EXPECT_FALSE(op->has_independent_kv_length());
 }
 
-TEST(type_prop, group_query_attention_dynamic_kv_length_static_shared_kv) {
+TEST(type_prop, group_query_attention_independent_kv_length_static_shared_kv) {
     using ov::op::v0::Parameter;
     auto args = make_valid_gqa_args();
     args[1] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
     args[2] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
     const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
     EXPECT_TRUE(op->is_shared_kv());
-    EXPECT_FALSE(op->has_dynamic_kv_length());
+    EXPECT_FALSE(op->has_independent_kv_length());
 }
 
 namespace {
