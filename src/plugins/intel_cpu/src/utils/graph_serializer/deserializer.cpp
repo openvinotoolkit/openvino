@@ -43,6 +43,15 @@
 
 namespace ov::intel_cpu {
 
+namespace {
+bool has_valid_sections(const pass::StreamSerialize::DataHeader& hdr, size_t available_bytes) {
+    return hdr.custom_data_offset == sizeof(hdr) && hdr.custom_data_offset <= hdr.consts_offset &&
+           hdr.consts_offset <= hdr.model_offset && hdr.model_offset < available_bytes &&
+           hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset &&
+           hdr.consts_size == hdr.model_offset - hdr.consts_offset;
+}
+}  // namespace
+
 ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_buffer,
                                      const std::shared_ptr<ov::ICore>& core,
                                      const CacheDecrypt& decrypt_fn,
@@ -151,13 +160,11 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
 
     const auto file_size = model_buffer->size();
     pass::StreamSerialize::DataHeader hdr = {};
+    OPENVINO_ASSERT(file_size >= sizeof(hdr), "[CPU] Could not deserialize by device xml header.");
     std::memcpy(reinterpret_cast<char*>(&hdr), buffer_base, sizeof hdr);
 
     // Check if model header contains valid data.
-    bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr)) &&
-                          (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
-                          (hdr.consts_size == hdr.model_offset - hdr.consts_offset) && (file_size > hdr.model_offset);
-    OPENVINO_ASSERT(is_valid_model, "[CPU] Could not deserialize by device xml header.");
+    OPENVINO_ASSERT(has_valid_sections(hdr, file_size), "[CPU] Could not deserialize by device xml header.");
 
     hdr.model_size = file_size - hdr.model_offset;
 
@@ -207,19 +214,22 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
                                       std::reference_wrapper<std::istream> model_stream_ref) {
     auto& model_stream = model_stream_ref.get();
 
-    const size_t hdr_pos = model_stream.tellg();
+    const auto hdr_pos = model_stream.tellg();
+    OPENVINO_ASSERT(hdr_pos >= 0, "[CPU] Could not deserialize by device xml header.");
     model_stream.seekg(0, std::istream::end);
-    const size_t file_size = model_stream.tellg();
-    model_stream.seekg(hdr_pos, std::istream::beg);
+    const auto end_pos = model_stream.tellg();
+    OPENVINO_ASSERT(end_pos >= hdr_pos, "[CPU] Could not deserialize by device xml header.");
+    const auto file_size = static_cast<size_t>(end_pos - hdr_pos);
+    model_stream.seekg(hdr_pos);
 
     pass::StreamSerialize::DataHeader hdr = {};
+    OPENVINO_ASSERT(file_size >= sizeof(hdr), "[CPU] Could not deserialize by device xml header.");
     model_stream.read(reinterpret_cast<char*>(&hdr), sizeof(hdr));
+    OPENVINO_ASSERT(model_stream.gcount() == static_cast<std::streamsize>(sizeof(hdr)),
+                    "[CPU] Could not deserialize by device xml header.");
 
     // Check if model header contains valid data.
-    bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr)) &&
-                          (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
-                          (hdr.consts_size == hdr.model_offset - hdr.consts_offset) && (file_size > hdr.model_offset);
-    OPENVINO_ASSERT(is_valid_model, "[CPU] Could not deserialize by device xml header.");
+    OPENVINO_ASSERT(has_valid_sections(hdr, file_size), "[CPU] Could not deserialize by device xml header.");
 
     hdr.model_size = file_size - hdr.model_offset;
 
