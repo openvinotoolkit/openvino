@@ -20,7 +20,7 @@ and produces block selections. Unlike the standard
 main PagedAttention page table (``block_indices`` / ``block_indices_begins``). It performs the same *K-side
 compression chain* (per-token or pooled key mean-pool, RMSNorm, block-start RoPE), maintains the full-history
 ``indexer_raw_k_cache`` and incremental ``summary_cache``, and emits a clean ``(sel_indices, sel_count)``
-block-selection contract. It **supports page-aligned prefix caching** (see :ref:`Prefix Caching` below): because
+block-selection contract. It **supports page-aligned prefix caching** (see "Prefix Caching" below): because
 ``page_size % compress_ratio == 0``, cached physical pages already have their ``summary_cache`` populated, so a
 matched prompt prefix skips summary recomputation for the cached pages.
 
@@ -54,8 +54,6 @@ raw-key slice from the shared paged cache and writes its pooled, normalized, log
 into ``summary_cache``. The last, partially-filled block is not summarized or selected as a complete block; its
 logical ID is appended as the optional final tail marker, and the paired sparse-attention consumer handles only its
 visible causal prefix.
-
-.. _Prefix Caching:
 
 **Prefix Caching**
 
@@ -180,7 +178,7 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
   computes the selection as ``argsort(-scores, kind='stable')``, takes the first ``k`` entries, and emits them in
   **strictly ascending** block order (``sort(order[:k])``), yielding a deterministic, implementation-independent,
   monotone result. The valid output prefix ``sel_indices[t, sh, :sel_count[t, sh]]`` is sorted ascending.
-* **Causal-tail block ID**: when ``(p+1) % r != 0``, append ``floor((p+1)/r)`` after the selected complete-block
+- **Causal-tail block ID**: when ``(p+1) % r != 0``, append ``floor((p+1)/r)`` after the selected complete-block
   IDs and increment ``sel_count``. This final ID identifies the block whose visible token prefix is processed by
   the consumer as the causal tail; it is not attended as a complete selected block.
 
