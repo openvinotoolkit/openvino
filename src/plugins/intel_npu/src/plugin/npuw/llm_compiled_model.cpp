@@ -20,6 +20,7 @@
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
+#include "npuw_transformations/optimize_lincache_layout.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/propagate_slice.hpp"
@@ -1165,6 +1166,36 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
+
+    if (m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT>()) {
+        LOG_DEBUG("Check and apply lincache layout optimization");
+        LOG_BLOCK();
+        // present -> past is a byte-wise copy between the prefill and generate models,
+        // so the conv state layout must change in all of them or in none.
+        size_t optimized_count = 0;
+        for (auto& model_variant : generate_model_variants) {
+            if (ov::npuw::util::OptimizeLinCacheLayout().run_on_model(model_variant)) {
+                ++optimized_count;
+            }
+        }
+        const bool prefill_optimized = ov::npuw::util::OptimizeLinCacheLayout().run_on_model(prefill_model);
+        const size_t expected_count = prefill_optimized ? generate_model_variants.size() : 0u;
+        OPENVINO_ASSERT(optimized_count == expected_count,
+                        "Inconsistent lincache layout optimization: prefill ",
+                        prefill_optimized ? "transposed" : "unchanged",
+                        ", ",
+                        optimized_count,
+                        " out of ",
+                        generate_model_variants.size(),
+                        " generate variants transposed.");
+        if (prefill_optimized) {
+            LOG_DEBUG("Conv state tensors re-laid out in prefill and generate models");
+        } else {
+            LOG_DEBUG("No conv state tensors to re-lay out");
+        }
+    } else {
+        LOG_DEBUG("Check and apply lincache layout optimization --- SKIPPED");
+    }
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
             LOG_DEBUG("Removing EmptyKVInputs");
@@ -1987,6 +2018,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::optimize_lincache_layout, NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
