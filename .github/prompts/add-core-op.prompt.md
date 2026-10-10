@@ -1,5 +1,5 @@
 ---
-mode: agent
+agent: agent
 description: Add a new operation to the OpenVINO Core opset — class definition, shape inference, registration, reference kernel, and documentation.
 ---
 

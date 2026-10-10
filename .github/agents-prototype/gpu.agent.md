@@ -1,7 +1,7 @@
 ---
 name: GPU Plugin Agent
 description: OpenVINO Intel GPU plugin specialist. Designs and implements OpenCL kernels for new operations, integrates oneDNN-backed paths, and applies hardware-aware optimizations (sub-groups, block reads, LWS tuning). Runs in parallel with the Transformation and CPU agents after Core OpSpec publishes the op spec. Reports skipped when no GPU hardware is available.
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 ---
 # GPU Agent
 
