@@ -29,6 +29,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/bitwise_or.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bitwise_rigth_shift.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bitwise_xor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/block_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bucketize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/ceiling.cpp

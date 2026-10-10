@@ -27,6 +27,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/bitwise_or.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bitwise_right_shift.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bitwise_xor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/block_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bucketize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ceiling.cpp
