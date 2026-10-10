@@ -120,6 +120,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/leaky_relu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/less.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/less_or_equal.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/linear_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/log.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/log_softmax.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/loop.cpp
