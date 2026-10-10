@@ -9,26 +9,24 @@
 
 #include "dynamic_graph.hpp"
 #include "graph.hpp"
-#include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
-#include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "weightless_graph.hpp"
 #include "weightless_utils.hpp"
 
 namespace intel_npu {
 
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             ov::SoPtr<IVCLCompiler> compiler)
+                                             ov::SoPtr<IVCLCompiler> compiler,
+                                             ov::SoPtr<VCLProfilingDecoder> profilingDecoder)
     : _zeroInitStruct(zeroInitStruct),
       _compiler(std::move(compiler)),
+      _profilingDecoder(std::move(profilingDecoder)),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
@@ -57,7 +55,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile start");
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
-
     const auto& compilationMode = config.get<COMPILATION_MODE>();
     const bool isHostCompile = compilationMode.find("HostCompile") != std::string::npos;
     const BlobType blobType =
@@ -99,7 +96,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(networkMeta),
         std::move(tensor),
         compatibilityDescriptor,
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        _profilingDecoder);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -255,8 +253,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::move(initNetworkMetadata),
         tensorsInits,
         std::move(model),
-        /* persistentBlob = */ true,
-        compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        compatibilityDescriptor,
+        _profilingDecoder);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

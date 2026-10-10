@@ -9,10 +9,36 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
+#include "vcl_profiling_decoder.hpp"
 #include "weightless_graph.hpp"
 #include "weightless_utils.hpp"
 
 namespace intel_npu {
+
+namespace {
+
+/**
+ * @brief Always tries to build a VCL decoder for the blob being imported, regardless of which compiler actually
+ * produced it; Pipeline falls back to the driver's own layer statistics if decoding through it ever fails.
+ * @details Gated on PERF_COUNT only, so import stays free of VCL entirely unless profiling was actually
+ * requested - not because building the decoder is costly: unlike creating a full compiler, it never calls
+ * vclCompilerCreate, so it's safe to attempt without the heavier cost the import path used to pay. Never reads
+ * COMPILER_TYPE: whether this decoder actually applies to the imported blob is settled lazily, the first time
+ * Pipeline tries to decode with it.
+ */
+ov::SoPtr<VCLProfilingDecoder> make_profiling_decoder(const Config& config) {
+    if (!config.get<PERF_COUNT>()) {
+        return {};
+    }
+
+    try {
+        return makeVCLProfilingDecoder();
+    } catch (const std::exception&) {
+        return {};
+    }
+}
+
+}  // namespace
 
 Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
@@ -73,7 +99,8 @@ std::shared_ptr<IGraph> Parser::parse(
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
                                        compatibilityDescriptor,
-                                       blobIsPersistent);
+                                       blobIsPersistent,
+                                       make_profiling_decoder(config));
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
@@ -103,7 +130,8 @@ std::shared_ptr<IGraph> Parser::parse(
                                              initBlobs,
                                              std::move(weightsSource),
                                              blobIsPersistent,
-                                             compatibilityDescriptor);
+                                             compatibilityDescriptor,
+                                             make_profiling_decoder(config));
 }
 
 }  // namespace intel_npu

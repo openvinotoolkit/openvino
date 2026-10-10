@@ -140,17 +140,19 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
         _logger.debug("get_profiling_info - completed with _npu_profiling->getNpuInferStatistics()");
         return _npu_profiling->getNpuInferStatistics();
     }
+
     /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
-        _logger.debug("get_profiling_info - completed with _profiling_query->getLayerStatistics()");
-        return _profiling_query->getLayerStatistics();
-    } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
-        // For plugin compiler retrieve raw profiling data from backend and delegate
-        // processing to the compiler
-        _logger.debug("get_profiling_info - completed with _graph->process_profiling_output()");
+    OPENVINO_ASSERT(_profiling_query != nullptr, "Profiling query is unavailable for model-level profiling");
+
+    // Always try the graph's own (compiler-specific) decode first; if it throws - e.g. no decoder is
+    // available, or the raw data doesn't match what the decoder expects - fall back to the driver's own
+    // layer statistics.
+    try {
         return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
-    } else {
-        OPENVINO_THROW("Cannot get profiling info, unknown compiler type");
+    } catch (const std::exception& ex) {
+        _logger.debug("get_profiling_info - graph-level decode unavailable (%s), falling back to L0 layer statistics",
+                      ex.what());
+        return _profiling_query->getLayerStatistics();
     }
 }
 

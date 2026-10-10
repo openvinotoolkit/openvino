@@ -6,13 +6,10 @@
 
 #include <iterator>
 
-#include "compiler_impl.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
 
@@ -22,7 +19,8 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
              const std::optional<std::string>& compatibilityDescriptor,
-             const bool blobIsPersistent)
+             const bool blobIsPersistent,
+             ov::SoPtr<VCLProfilingDecoder> profilingDecoder)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -30,6 +28,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _metadata(std::move(metadata)),
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
+      _profilingDecoder(std::move(profilingDecoder)),
       _blobIsPersistent(blobIsPersistent),
       _logger("Graph", Logger::global().level()) {}
 
@@ -157,15 +156,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    // Built through the same factory the adapter uses, so the load and library pairing stay in one
-    // place. Profiling decode needs no compiler handle, so this does more work than necessary.
-    auto compiler = makeVCLCompiler();
-    OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
-
-    std::vector<uint8_t> blob(_blob->get_byte_size());
-    blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
-                reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return compiler->process_profiling_output(profData, blob);
+    OPENVINO_ASSERT(_profilingDecoder != nullptr, "No VCL profiling decoder is available for this graph");
+    OPENVINO_ASSERT(_blob.has_value(), "VCL profiling decoder requires the compiled network blob");
+    return _profilingDecoder->decode(profData, _blob.value());
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {

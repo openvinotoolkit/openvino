@@ -14,6 +14,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "ivcl_compiler.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "vcl_profiling_decoder.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -29,9 +30,11 @@ public:
      * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
      *        produces export-only graphs with no runtime metadata.
      * @param compiler The compiler-in-plugin to adapt; must be non-null.
+     * @param profilingDecoder The VCL profiling decoder to hand to every compiled graph; may be empty.
      */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                          ov::SoPtr<IVCLCompiler> compiler);
+                          ov::SoPtr<IVCLCompiler> compiler,
+                          ov::SoPtr<VCLProfilingDecoder> profilingDecoder = {});
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const Config& config,
@@ -54,6 +57,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     ov::SoPtr<IVCLCompiler> _compiler;
+    ov::SoPtr<VCLProfilingDecoder> _profilingDecoder;
 
     Logger _logger;
 };

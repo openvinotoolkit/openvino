@@ -11,7 +11,6 @@
 #include <queue>
 
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -264,14 +263,16 @@ WeightlessGraph::WeightlessGraph(
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const bool blobIsPersistent,
-    const std::optional<std::string>& compatibilityDescriptor)
+    const std::optional<std::string>& compatibilityDescriptor,
+    ov::SoPtr<VCLProfilingDecoder> profilingDecoder)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
             std::move(mainMetadata),
             std::move(mainBlob),
             compatibilityDescriptor,
-            blobIsPersistent),
+            blobIsPersistent,
+            std::move(profilingDecoder)),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),

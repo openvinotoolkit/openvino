@@ -13,9 +13,8 @@
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
-#include "openvino/runtime/so_ptr.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
 
@@ -49,6 +48,10 @@ public:
      */
     virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const;
 
+    /**
+     * @brief Turns raw, driver-queried profiling bytes into per-layer records. Throws if this graph has no
+     * compiler-specific decoder for them; callers should fall back to the driver's own layer statistics.
+     */
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
 
     virtual void set_argument_value(uint32_t id, const void* data) const;

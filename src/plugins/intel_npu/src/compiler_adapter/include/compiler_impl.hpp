@@ -19,7 +19,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -92,9 +91,6 @@ public:
      *         LSB 16bits = Minor version
      */
     uint32_t get_version() const override;
-
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const std::vector<uint8_t>& network) const override;
 
     /**
      * @brief Returns the compiler supported options list

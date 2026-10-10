@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cinttypes>
-#include <cstring>
 #include <limits>
 #include <mutex>
 #include <sstream>
@@ -16,7 +15,6 @@
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vcl/vcl_allocator.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
@@ -24,6 +22,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "vcl_error_utils.hpp"
 #include "vcl_version_utils.hpp"
 #include "weightless_utils.hpp"
 #include "ze_graph_ext_wrappers.hpp"
@@ -33,42 +32,6 @@ namespace intel_npu {
 using vcl_version_utils::checkVclVersion;
 using vcl_version_utils::getUsedVclVersion;
 using vcl_version_utils::UsedVersion;
-
-static inline std::string getLatestVCLLog(const VCLFunctionTable& functions, vcl_log_handle_t logHandle) {
-    Logger _logger("VCLAPI", Logger::global().level());
-    _logger.debug("getLatestVCLLog start");
-
-    vcl_version_info_t compilerVersion;
-    vcl_version_info_t profilingVersion;
-    vcl_result_t ret = functions.vclGetVersion(&compilerVersion, &profilingVersion);
-
-    if (ret != VCL_RESULT_SUCCESS || compilerVersion.major < 3) {
-        _logger.warning("Failed to get VCL version: 0x%x", ret);
-        return "Can not get VCL log, VCL version is too old!";
-    }
-
-    // Get log size
-    size_t size = 0;
-    // Null graph handle to get error log
-    ret = functions.vclLogHandleGetString(logHandle, &size, nullptr);
-    if (VCL_RESULT_SUCCESS != ret) {
-        return "Failed to get size of latest VCL log";
-    }
-
-    if (size <= 0) {
-        return "No error stored in VCL when error detected";
-    }
-
-    // Get log content
-    std::string logContent{};
-    logContent.resize(size);
-    ret = functions.vclLogHandleGetString(logHandle, &size, logContent.data());
-    if (VCL_RESULT_SUCCESS != ret) {
-        return "Size of latest error log > 0, failed to get content";
-    }
-    _logger.debug("getLatestBuildError end");
-    return logContent;
-}
 
 static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTable& functions,
                                                             vcl_executable_handle_t executable,
@@ -110,25 +73,6 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTab
     }
     return compatibilityString;
 }
-
-/**
- * @brief Throws with the VCL error log appended when `ret` is not VCL_RESULT_SUCCESS.
- * @param functions The function table to fetch the error log through, passed explicitly rather than
- * captured from the enclosing scope so the macro is usable outside VCLCompilerImpl members.
- */
-#define THROW_ON_FAIL_FOR_VCL(functions, step, ret, logHandle)       \
-    do {                                                             \
-        const vcl_result_t vclResult_ = (ret);                       \
-        if (vclResult_ != VCL_RESULT_SUCCESS) {                      \
-            OPENVINO_THROW("Failed to call VCL API : ",              \
-                           step,                                     \
-                           " result: 0x",                            \
-                           std::hex,                                 \
-                           vclResult_,                               \
-                           " - ",                                    \
-                           getLatestVCLLog((functions), logHandle)); \
-        }                                                            \
-    } while (0)
 
 VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
                                  const std::optional<IDevice::DeviceProperties>& deviceProperties,
@@ -488,56 +432,6 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIter
     updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
     // Return the compatibility descriptor together with the compiled blob.
     return compile(model, updatedConfig, true);
-}
-
-std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                         const std::vector<uint8_t>& network) const {
-    _logger.debug("process_profiling_output start");
-
-    vcl_profiling_handle_t profilingHandle;
-    vcl_profiling_input_t profilingInput = {network.data(), network.size(), profData.data(), profData.size()};
-    vcl_log_handle_t logHandle;
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclProfilingCreate",
-                          _functions->vclProfilingCreate(&profilingInput, &profilingHandle, &logHandle),
-                          nullptr);
-
-    vcl_profiling_properties_t profProperties;
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclProfilingGetProperties",
-                          _functions->vclProfilingGetProperties(profilingHandle, &profProperties),
-                          logHandle);
-
-    _logger.info("VCL Profiling Properties: Version: %d.%d",
-                 profProperties.version.major,
-                 profProperties.version.minor);
-
-    // We only use layer level info
-    vcl_profiling_request_type_t request = VCL_PROFILING_LAYER_LEVEL;
-
-    vcl_profiling_output_t profOutput;
-    profOutput.data = NULL;
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclGetDecodedProfilingBuffer",
-                          _functions->vclGetDecodedProfilingBuffer(profilingHandle, request, &profOutput),
-                          logHandle);
-    if (profOutput.data == NULL) {
-        OPENVINO_THROW("Failed to get VCL profiling output");
-    }
-
-    std::vector<ze_profiling_layer_info> layerInfo(profOutput.size / sizeof(ze_profiling_layer_info));
-    if (profOutput.size > 0) {
-        _logger.debug("VCL profiling output size: %d", profOutput.size);
-        std::memcpy(layerInfo.data(), profOutput.data, profOutput.size);
-    }
-
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclProfilingDestroy",
-                          _functions->vclProfilingDestroy(profilingHandle),
-                          logHandle);
-
-    // Return processed profiling info
-    return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
 uint32_t VCLCompilerImpl::get_version() const {
