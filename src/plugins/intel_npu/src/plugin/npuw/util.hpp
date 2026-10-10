@@ -6,6 +6,7 @@
 
 #include <future>
 #include <optional>
+#include <ostream>
 #include <random>
 #include <string>
 
@@ -242,6 +243,15 @@ bool is_swa_kv_cache_name(const std::string& input_name);
 // the GenAI continuous-batching pipeline (key_cache.N / value_cache.N, named
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
+
+// One-line tensor digest for log traces: LOG_VERB("x: " << TensorBrief{t}).
+// Tensors past kMaxStats elements, such as KV cache pools, print their shape only.
+struct TensorBrief {
+    static constexpr std::size_t kMaxInline = 16u;
+    static constexpr std::size_t kMaxStats = 1u << 20;
+    ov::SoPtr<ov::ITensor> tensor;
+};
+std::ostream& operator<<(std::ostream& os, const TensorBrief& brief);
 
 // Structure to hold SDPA pattern nodes.
 // After SplitKVCacheIntoBlocks the single past_key / past_value parameter is
