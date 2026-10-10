@@ -22,7 +22,9 @@ public:
     ///
     /// \param input_embeds Input embeddings [batch_size_in_tokens, hidden_size].
     /// \param conv_state_table Physical block table containing conv_cache states
-    ///        [num_physical_blocks, hidden_size, kernel_size].
+    ///        [num_physical_blocks, hidden_size, causal_window], where causal_window is
+    ///        (kernel_taps-1)*dilation+1. With the default dilation=1, causal_window equals
+    ///        conv_weight's raw tap count K, so the two terms merge in the common case.
     /// \param conv_weight Convolution weight [out_channels, hidden_size/group_size, conv_kernel_size].
     /// \param conv_bias Convolution bias [out_channels] or [0] (empty = no bias).
     /// \param subsequence_begins Start indices of tokens from current sequences [batch_size_in_sequences+1],
@@ -35,6 +37,7 @@ public:
     ///        element type i32.
     /// \param cache_interval Interval between tokens to cache conv_state [batch_size_in_sequences],
     ///        element type i32.
+    /// \param dilation Dilation factor for the convolution.
     PagedCausalConv1D(const Output<Node>& input_embeds,
                       const Output<Node>& conv_state_table,
                       const Output<Node>& conv_weight,
@@ -43,16 +46,29 @@ public:
                       const Output<Node>& la_block_indices,
                       const Output<Node>& la_block_indices_begins,
                       const Output<Node>& processed_tokens,
-                      const Output<Node>& cache_interval);
+                      const Output<Node>& cache_interval,
+                      size_t dilation = 1);
 
     /// \brief Constructs a PagedCausalConv1D operation from input vector.
     ///
     /// \param args Input tensor vector (9 inputs in order listed above).
-    PagedCausalConv1D(const ov::OutputVector& args);
+    /// \param dilation Dilation factor for the convolution.
+    PagedCausalConv1D(const ov::OutputVector& args, size_t dilation = 1);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
+    size_t get_dilation() const {
+        return m_dilation;
+    }
+
+    void set_dilation(size_t dilation) {
+        m_dilation = dilation;
+    }
+
+private:
+    size_t m_dilation{1};
 };
 
 }  // namespace ov::op::internal

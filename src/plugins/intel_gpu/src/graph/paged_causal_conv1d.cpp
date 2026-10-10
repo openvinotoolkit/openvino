@@ -34,6 +34,7 @@ std::vector<layout> paged_causal_conv1d_inst::calc_output_layouts(const paged_ca
     }
 
     ov::op::internal::PagedCausalConv1D op;
+    op.set_dilation(node.get_primitive()->dilation);
     const auto output_shapes = ov::op::internal::shape_infer(&op, input_shapes);
 
     return {layout(output_shapes[0], input_layout.data_type, input_layout.format)};
@@ -60,6 +61,7 @@ std::string paged_causal_conv1d_inst::to_string(const paged_causal_conv1d_node& 
     pcc_info.add("cache_interval", node.input(8).id());
     pcc_info.add("hidden_size", desc->hidden_size);
     pcc_info.add("kernel_size", desc->kernel_size);
+    pcc_info.add("dilation", desc->dilation);
 
     node_info->add("paged_causal_conv1d_info", pcc_info);
     node_info->dump(primitive_description);

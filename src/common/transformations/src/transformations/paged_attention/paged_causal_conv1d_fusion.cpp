@@ -19,7 +19,6 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
@@ -29,6 +28,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -65,12 +65,12 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
     MATCHER_SCOPE(PagedCausalConv1DFusion);
 
     auto p_read_value = wrap_type<ov::op::util::ReadValueBase>(has_static_rank() && rank_equals(3));
-    auto p_past_via_gather = ov::pass::pattern::optional<v8::Gather>({p_read_value, any_input(), any_input()});
+    auto p_past_via_gather =
+        ov::pass::pattern::optional<ov::op::util::GatherBase>({p_read_value, any_input(), any_input()});
     auto p_token_input = any_input(rank_equals(3));
     auto p_concat_past_first = wrap_type<v0::Concat>({p_past_via_gather, p_token_input}, {{"axis", -1}});
     auto p_concat_token_first = wrap_type<v0::Concat>({p_token_input, p_past_via_gather}, {{"axis", -1}});
-    auto p_state_concat =
-        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{p_concat_past_first, p_concat_token_first});
+    auto p_state_concat = p_concat_past_first | p_concat_token_first;
 
     auto p_weight_input = any_input(has_static_shape() && rank_equals(4));
     auto p_group_conv = wrap_type<v1::GroupConvolution>({p_state_concat, p_weight_input});
@@ -88,34 +88,25 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
 
         const auto& pm = m.get_pattern_value_map();
 
-        const auto state_concat = pm.at(p_state_concat).get_node_shared_ptr();
         const auto group_conv_node = ov::as_type_ptr<v1::GroupConvolution>(pm.at(p_group_conv).get_node_shared_ptr());
         const auto weight_node = pm.at(p_weight_input).get_node_shared_ptr();
         const auto cache_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(p_read_value).get_node_shared_ptr());
         const auto slice_out = pm.at(p_slice_out).get_node_shared_ptr();
-
-        pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
-        pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
-        pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
-        pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
-        pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
-
-        const auto conv_state_table = pa_params.add("conv_state_table." + std::to_string(m_layer_index++),
-                                                    ov::element::dynamic,
-                                                    make_conv_state_table_shape(cache_rv->get_output_partial_shape(0)));
-
-        enable_keep_const_precision(conv_state_table);
-        var_ids_to_remove.insert(cache_rv->get_variable_id());
-
-        auto token_input = pm.at(p_token_input).get_node_shared_ptr();
         const auto past_state = pm.count(p_past_via_gather) ? pm.at(p_past_via_gather).get_node_shared_ptr() : cache_rv;
+        auto token_input = pm.at(p_token_input).get_node_shared_ptr();
+
+        OPENVINO_ASSERT(group_conv_node);
+        OPENVINO_ASSERT(cache_rv);
 
         const auto& weight_shape = weight_node->get_output_shape(0);
         const size_t hidden_size = weight_shape[0];
         const size_t kernel_size = weight_shape[3];
 
+        const size_t dilation = group_conv_node->get_dilations()[0];
+        const size_t causal_window = (kernel_size - 1) * dilation + 1;
+
         const auto& state_pshape = past_state->get_output_partial_shape(0);
-        if (!state_pshape[1].compatible(hidden_size) || !state_pshape[2].compatible(kernel_size)) {
+        if (!state_pshape[1].compatible(hidden_size) || !state_pshape[2].compatible(causal_window)) {
             return false;
         }
 
@@ -145,17 +136,12 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         if (pm.count(p_add_bias)) {
             const auto bias_input = pm.at(p_bias_input).get_node_shared_ptr();
             const auto& bias_shape = bias_input->get_output_partial_shape(0);
-            if (bias_shape.rank().is_static() && bias_shape.rank().get_length() == 1 &&
-                bias_shape[0].compatible(hidden_size)) {
+            if (bias_shape.rank().get_length() == 1 && bias_shape[0].compatible(hidden_size)) {
                 bias_node = bias_input;
             } else {
                 if (bias_shape.is_static()) {
                     // Validate that the total element count matches hidden_size
-                    size_t num_elements = 1;
-                    for (size_t i = 0; i < static_cast<size_t>(bias_shape.rank().get_length()); ++i) {
-                        num_elements *= bias_shape[i].get_length();
-                    }
-                    if (num_elements != hidden_size) {
+                    if (ov::shape_size(bias_shape.to_shape()) != hidden_size) {
                         return false;
                     }
                 }
@@ -167,6 +153,19 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
             bias_node = v0::Constant::create(elem_type, ov::Shape{0}, std::vector<float>{});
         }
 
+        pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
+
+        const auto conv_state_table = pa_params.add("conv_state_table." + std::to_string(m_layer_index++),
+                                                    ov::element::dynamic,
+                                                    make_conv_state_table_shape(cache_rv->get_output_partial_shape(0)));
+
+        enable_keep_const_precision(conv_state_table);
+        var_ids_to_remove.insert(cache_rv->get_variable_id());
+
         const auto paged_conv =
             std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds_node,
                                                                   conv_state_table,
@@ -176,7 +175,8 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
                                                                   pa_params["la.block_indices"],
                                                                   pa_params["la.block_indices_begins"],
                                                                   pa_params["la.past_lens"],
-                                                                  pa_params["la.cache_interval"]);
+                                                                  pa_params["la.cache_interval"],
+                                                                  dilation);
 
         paged_conv->set_friendly_name(group_conv_node->get_friendly_name() + "/PagedCausalConv1D");
 

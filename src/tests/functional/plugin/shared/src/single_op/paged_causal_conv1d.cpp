@@ -57,9 +57,11 @@ void run_reference(const std::vector<T>& input_embeds,
                    const std::vector<int32_t>& past_lens,
                    const std::vector<int32_t>& cache_interval,
                    int32_t hidden_size,
-                   int32_t kernel_size,
+                   int32_t num_taps,
+                   int32_t dilation,
                    std::vector<T>& output) {
-    const size_t state_stride = static_cast<size_t>(hidden_size) * kernel_size;
+    const int32_t window = (num_taps - 1) * dilation + 1;
+    const size_t state_stride = static_cast<size_t>(hidden_size) * window;
     const int32_t num_sequences = static_cast<int32_t>(subsequence_begins.size()) - 1;
     const size_t total_tokens = input_embeds.size() / hidden_size;
     output.resize(total_tokens * hidden_size);
@@ -88,16 +90,16 @@ void run_reference(const std::vector<T>& input_embeds,
             const size_t token_idx = static_cast<size_t>(token_begin + t);
 
             for (int32_t h = 0; h < hidden_size; h++) {
-                float* state_h = local_state.data() + static_cast<size_t>(h) * kernel_size;
-                for (int32_t k = 0; k + 1 < kernel_size; k++) {
+                float* state_h = local_state.data() + static_cast<size_t>(h) * window;
+                for (int32_t k = 0; k + 1 < window; k++) {
                     state_h[k] = state_h[k + 1];
                 }
-                state_h[kernel_size - 1] = static_cast<float>(input_embeds[token_idx * hidden_size + h]);
+                state_h[window - 1] = static_cast<float>(input_embeds[token_idx * hidden_size + h]);
 
-                const size_t weight_off = static_cast<size_t>(h) * kernel_size;
+                const size_t weight_off = static_cast<size_t>(h) * num_taps;
                 float sum = has_bias ? static_cast<float>(conv_bias[h]) : 0.0f;
-                for (int32_t k = 0; k < kernel_size; k++) {
-                    sum += state_h[k] * static_cast<float>(conv_weight[weight_off + k]);
+                for (int32_t k = 0; k < num_taps; k++) {
+                    sum += state_h[k * dilation] * static_cast<float>(conv_weight[weight_off + k]);
                 }
                 output[token_idx * hidden_size + h] = static_cast<T>(sum);
             }
@@ -136,6 +138,7 @@ std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::
                                              const std::shared_ptr<ov::Model>& function,
                                              int32_t hidden_size,
                                              int32_t kernel_size,
+                                             int32_t dilation,
                                              bool has_bias,
                                              const ov::element::Type& data_type) {
     const auto& params = function->get_parameters();
@@ -163,6 +166,7 @@ std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::
                   cache_interval,
                   hidden_size,
                   kernel_size,
+                  dilation,
                   ref_output);
 
     ov::Tensor output_tensor(data_type, host_inputs.at(params[0]).get_shape());
@@ -203,6 +207,7 @@ std::string PagedCausalConv1DLayerTest::getTestCaseName(
     }
     result << "_Type=" << p.element_type;
     result << "_Target=" << p.target_device;
+    result << "_Dilation=" << p.dilation;
     return result.str();
 }
 
@@ -221,6 +226,8 @@ void PagedCausalConv1DLayerTest::SetUp() {
 
     const auto hidden = static_cast<size_t>(p.hidden_size);
     const auto kernel = static_cast<size_t>(p.kernel_size);
+    const auto dilation = static_cast<size_t>(p.dilation);
+    const auto window = (kernel - 1) * dilation + 1;
     const ov::Shape weight_shape{hidden, 1, kernel};
     const ov::Shape bias_shape = p.has_bias ? ov::Shape{hidden} : ov::Shape{0};
 
@@ -241,7 +248,7 @@ void PagedCausalConv1DLayerTest::SetUp() {
         const auto cfg = compute_shape_config(sl, ci);
 
         embeds_targets.push_back({static_cast<size_t>(cfg.tokens), hidden});
-        state_targets.push_back({static_cast<size_t>(cfg.num_blocks), hidden, kernel});
+        state_targets.push_back({static_cast<size_t>(cfg.num_blocks), hidden, window});
         subseq_targets.push_back({static_cast<size_t>(cfg.num_sequences + 1)});
         blocks_targets.push_back({static_cast<size_t>(cfg.num_blocks)});
         block_begins_targets.push_back({static_cast<size_t>(cfg.num_sequences + 1)});
@@ -288,7 +295,7 @@ void PagedCausalConv1DLayerTest::SetUp() {
     // Use dynamic partial shapes for dimensions that vary across iterations
     init_input_shapes({
         InputShape{ov::PartialShape{-1, static_cast<int64_t>(hidden)}, embeds_targets},
-        InputShape{ov::PartialShape{-1, static_cast<int64_t>(hidden), static_cast<int64_t>(kernel)}, state_targets},
+        InputShape{ov::PartialShape{-1, static_cast<int64_t>(hidden), static_cast<int64_t>(window)}, state_targets},
         InputShape{ov::PartialShape{static_cast<int64_t>(hidden), 1, static_cast<int64_t>(kernel)}, {weight_shape}},
         InputShape{ov::PartialShape{static_cast<int64_t>(p.has_bias ? p.hidden_size : 0)}, {bias_shape}},
         InputShape{ov::PartialShape{-1}, subseq_targets},
@@ -317,7 +324,8 @@ void PagedCausalConv1DLayerTest::SetUp() {
                                                                         p_blocks,
                                                                         p_block_begins,
                                                                         p_past_lens,
-                                                                        p_cache_interval);
+                                                                        p_cache_interval,
+                                                                        dilation);
 
     function = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(conv1d)},
                                            ov::ParameterVector{p_embeds,
@@ -403,6 +411,7 @@ std::vector<ov::Tensor> PagedCausalConv1DLayerTest::calculate_refs() {
                                                  function,
                                                  p.hidden_size,
                                                  p.kernel_size,
+                                                 p.dilation,
                                                  p.has_bias,
                                                  data_type);
     }
@@ -412,11 +421,18 @@ std::vector<ov::Tensor> PagedCausalConv1DLayerTest::calculate_refs() {
                                                   function,
                                                   p.hidden_size,
                                                   p.kernel_size,
+                                                  p.dilation,
                                                   p.has_bias,
                                                   data_type);
     }
 
-    return calculate_typed_refs<float>(host_inputs, function, p.hidden_size, p.kernel_size, p.has_bias, data_type);
+    return calculate_typed_refs<float>(host_inputs,
+                                       function,
+                                       p.hidden_size,
+                                       p.kernel_size,
+                                       p.dilation,
+                                       p.has_bias,
+                                       data_type);
 }
 
 std::vector<ov::Tensor> PagedCausalConv1DLayerTest::get_plugin_outputs() {

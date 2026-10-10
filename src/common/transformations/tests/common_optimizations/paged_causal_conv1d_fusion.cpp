@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -435,6 +436,109 @@ std::shared_ptr<ov::Model> build_model_without_concat_lfm2_like_multiple() {
     return std::make_shared<ov::Model>(results, params);
 }
 
+constexpr size_t hidden_size = 3;
+constexpr size_t kernel_size = 4;
+constexpr size_t seq_len = 8;
+
+std::shared_ptr<v8::Slice> make_last_n_slice(const ov::Output<ov::Node>& data, size_t n) {
+    auto begin = v0::Constant::create(element::i64, Shape{1}, {-static_cast<int64_t>(n)});
+    auto end = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+    auto step = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto axis = v0::Constant::create(element::i64, Shape{1}, {2});
+    return std::make_shared<v8::Slice>(data, begin, end, step, axis);
+}
+
+// past[B, H, state_len] ++ tokens[B, H, T] -> GroupConv(dilation) -> keep last T outputs.
+std::shared_ptr<ov::Model> build_dilated_conv_model(size_t state_len, size_t dilation) {
+    auto past_state_param = std::make_shared<v0::Parameter>(element::f32, Shape{2, hidden_size, state_len});
+    auto read_value = std::make_shared<ov::op::v3::ReadValue>(past_state_param->output(0), "past_cache");
+    read_value->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
+
+    auto token = std::make_shared<v0::Parameter>(element::f32, Shape{2, hidden_size, seq_len});
+    auto state_concat = std::make_shared<v0::Concat>(OutputVector{read_value, token}, -1);
+
+    auto weights = v0::Constant::create(element::f32,
+                                        Shape{hidden_size, 1, 1, kernel_size},
+                                        std::vector<float>(hidden_size * kernel_size, 0.25f));
+    auto group_conv = std::make_shared<v1::GroupConvolution>(state_concat,
+                                                             weights,
+                                                             Strides{1},
+                                                             CoordinateDiff{0},
+                                                             CoordinateDiff{0},
+                                                             Strides{dilation});
+    auto conv_out = make_last_n_slice(group_conv, seq_len);
+
+    auto present_res = std::make_shared<v0::Result>(make_last_n_slice(state_concat, state_len));
+    present_res->get_output_tensor(0).set_names({"cache_params.present.conv.0"});
+
+    auto conv_res = std::make_shared<v0::Result>(conv_out);
+    return std::make_shared<ov::Model>(ResultVector{conv_res, present_res}, ParameterVector{token, past_state_param});
+}
+
+std::shared_ptr<ov::Model> build_dilated_conv_fused_reference(size_t state_len, size_t dilation) {
+    using ov::test::utils::make_param;
+    auto past_state_param = std::make_shared<v0::Parameter>(element::f32, Shape{2, hidden_size, state_len});
+    auto read_value = std::make_shared<ov::op::v3::ReadValue>(past_state_param->output(0), "past_cache");
+    read_value->get_output_tensor(0).set_names({"cache_params.past.conv.0"});
+
+    // The present-state branch is untouched by the fusion.
+    auto token = std::make_shared<v0::Parameter>(element::f32, Shape{2, hidden_size, seq_len});
+    auto state_concat = std::make_shared<v0::Concat>(OutputVector{read_value, token}, -1);
+    auto present_res = std::make_shared<v0::Result>(make_last_n_slice(state_concat, state_len));
+    present_res->get_output_tensor(0).set_names({"cache_params.present.conv.0"});
+
+    auto transpose_order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+    auto token_transpose = std::make_shared<v1::Transpose>(token, transpose_order);
+    auto input_embeds_shape =
+        v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)});
+    auto input_embeds = std::make_shared<v1::Reshape>(token_transpose, input_embeds_shape, false);
+
+    auto weights = v0::Constant::create(element::f32,
+                                        Shape{hidden_size, 1, 1, kernel_size},
+                                        std::vector<float>(hidden_size * kernel_size, 0.25f));
+    auto pa_weight_shape = v0::Constant::create(
+        element::i64,
+        Shape{3},
+        std::vector<int64_t>{static_cast<int64_t>(hidden_size), 1, static_cast<int64_t>(kernel_size)});
+    auto weight_reshaped = std::make_shared<v1::Reshape>(weights, pa_weight_shape, false);
+    auto bias = v0::Constant::create(element::f32, Shape{0}, std::vector<float>{});
+
+    auto subsequence_begins = make_param(element::i32, PartialShape{-1}, "subsequence_begins");
+    auto block_indices = make_param(element::i32, PartialShape{-1}, "la.block_indices");
+    auto block_indices_begins = make_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
+    auto past_lens = make_param(element::i32, PartialShape{-1}, "la.past_lens");
+    auto cache_interval = make_param(element::i32, PartialShape{-1}, "la.cache_interval");
+
+    auto conv_state_table =
+        make_param(element::dynamic,
+                   PartialShape{-1, static_cast<int64_t>(hidden_size), static_cast<int64_t>(state_len)},
+                   "conv_state_table.0");
+
+    auto paged_conv = std::make_shared<ov::op::internal::PagedCausalConv1D>(input_embeds,
+                                                                            conv_state_table,
+                                                                            weight_reshaped,
+                                                                            bias,
+                                                                            subsequence_begins,
+                                                                            block_indices,
+                                                                            block_indices_begins,
+                                                                            past_lens,
+                                                                            cache_interval,
+                                                                            dilation);
+    auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
+    auto unsqueeze = std::make_shared<v0::Unsqueeze>(paged_conv, unsqueeze_axis);
+    auto conv_res = std::make_shared<v0::Result>(unsqueeze);
+
+    ParameterVector params{token,
+                           past_state_param,
+                           subsequence_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval,
+                           conv_state_table};
+    return std::make_shared<ov::Model>(ResultVector{conv_res, present_res}, params);
+}
+
 }  // namespace
 
 class PagedCausalConv1DFusionTest : public ::TransformationTestsF {};
@@ -595,4 +699,26 @@ TEST_F(PagedCausalConv1DFusionTest, FusesNoBiasUsesEmptyBiasConstant) {
     run_paged_causal_conv1d_fusion(model);
 
     model_ref = build_fused_reference_model(false);
+}
+
+// Dilated conv whose state holds the full causal window (K-1)*d+1 fuses and keeps the dilation.
+TEST_F(PagedCausalConv1DFusionTest, FusesDilatedConvWithCausalWindowState) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
+    constexpr size_t dilation = 3;
+    constexpr size_t causal_window = (kernel_size - 1) * dilation + 1;
+
+    model = build_dilated_conv_model(causal_window, dilation);
+    run_paged_causal_conv1d_fusion(model);
+    model_ref = build_dilated_conv_fused_reference(causal_window, dilation);
+}
+
+// Dilated conv whose state is only K long does not match the paged state layout and must stay untouched.
+TEST_F(PagedCausalConv1DFusionTest, DoesNotFuseDilatedConvWhenStateIsKernelSize) {
+    constexpr size_t dilation = 3;
+
+    model = build_dilated_conv_model(kernel_size, dilation);
+    run_paged_causal_conv1d_fusion(model);
+    model_ref = build_dilated_conv_model(kernel_size, dilation);
 }

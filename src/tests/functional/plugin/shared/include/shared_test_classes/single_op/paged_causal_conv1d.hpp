@@ -24,6 +24,8 @@ struct PagedCausalConv1DLayerParams {
     std::vector<std::vector<int32_t>> cache_intervals_sets;
     ov::element::Type element_type;
     std::string target_device;
+    // Spacing between convolution taps; causal_window = (kernel_size-1)*dilation+1.
+    int32_t dilation = 1;
 };
 
 class PagedCausalConv1DLayerTest : public testing::WithParamInterface<PagedCausalConv1DLayerParams>,
