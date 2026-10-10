@@ -21,8 +21,13 @@ namespace ov::intel_gpu {
  *                         |   |                               |   |
  *                        Sin Cos                             Sin Cos
  *                     (FP16) (FP16)                       (FP32) (FP32)
+ *                                                             |   |
+ *                                                          Convert Convert (-> FP16)
  *
- * Only disable_fp16_compression rt_info is added; the graph topology is unchanged.
+ * The Converts end the FP32 region at the tables, so their consumers (e.g. a RoPE rotation)
+ * stay in FP16. They are not added in front of Results, Converts, or consumers that another
+ * pass has already kept in FP32. Consumers marked later, inside ConvertPrecision, read the tables
+ * rounded to FP16.
  */
 class DisableFP16CompForDirectMultiplySinCos : public ov::pass::MatcherPass {
 public:
