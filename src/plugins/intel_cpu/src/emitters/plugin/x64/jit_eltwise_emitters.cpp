@@ -833,14 +833,14 @@ void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs
     }
 }
 
-template <x64::cpu_isa_t isa>
-void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                                         const std::vector<size_t>& out_vec_idxs) const {
-    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-
+namespace {
+template <x64::cpu_isa_t isa, typename Vmm>
+void emit_powf(x64::jit_generator_t* h,
+               const Vmm& vmm_src0,
+               const Vmm& vmm_src1,
+               const Vmm& vmm_dst,
+               size_t vecs_count,
+               size_t vlen) {
     auto xmm0 = Xmm(0);
     auto xmm1 = Xmm(1);
 
@@ -856,6 +856,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     }
 
     // caller obligation to save k-regs as callee may use them
+    constexpr size_t k_mask_size = 8;
     size_t n_k_regs_to_save = 8;
     if (isa == x64::avx512_core) {
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
@@ -875,12 +876,12 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
     // `vlen` should be replaced with `host_isa::vlen` and
     // `host_isa::vecs_count`.
-    h->sub(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
-    for (size_t i = 2; i < get_max_vecs_count() + 2; ++i) {
-        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i - 2));
+    h->sub(h->rsp, (vecs_count + 2) * vlen);
+    for (size_t i = 2; i < vecs_count + 2; ++i) {
+        h->uni_vmovups(h->ptr[h->rsp + i * vlen], Vmm(i - 2));
     }
-    h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_src0);  // src
-    h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_src1);  // beta
+    h->uni_vmovups(h->ptr[h->rsp + 0 * vlen], vmm_src0);  // src
+    h->uni_vmovups(h->ptr[h->rsp + 1 * vlen], vmm_src1);  // beta
 
     // save function address in gpr to pass in in call instruction
     h->mov(h->rbp, reinterpret_cast<uintptr_t>(powf));
@@ -891,22 +892,28 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->sub(h->rsp, h->rbx);
 
     // Take src, apply powf on it and replace value on a stack with dst.
-    for (size_t i = 0; i < get_vec_length() / sizeof(float); ++i) {
+    for (size_t i = 0; i < vlen / sizeof(float); ++i) {
         const Address& source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
         h->uni_vmovss(xmm0, source);
-        h->uni_vmovss(xmm1, h->ptr[h->rsp + h->rbx + get_vec_length() + i * sizeof(float)]);
+        h->uni_vmovss(xmm1, h->ptr[h->rsp + h->rbx + vlen + i * sizeof(float)]);
+        // All live vector registers are spilled; avoid AVX-to-SSE transitions in libm.
+        h->uni_vzeroupper();
         h->call(h->rbp);
+        if (isa == x64::sse41) {
+            // libm may use AVX internally; clear upper state before returning to legacy SSE.
+            h->uni_vzeroupper();
+        }
         h->uni_vmovss(source, xmm0);
     }
 
     h->add(h->rsp, h->rbx);
 
     // restore vector registers
-    for (size_t i = get_max_vecs_count() + 1; i >= 2; --i) {
-        h->uni_vmovups(Vmm(i - 2), h->ptr[h->rsp + i * get_vec_length()]);
+    for (size_t i = vecs_count + 1; i >= 2; --i) {
+        h->uni_vmovups(Vmm(i - 2), h->ptr[h->rsp + i * vlen]);
     }
-    h->uni_vmovups(vmm_dst, h->ptr[h->rsp + 0 * get_vec_length()]);
-    h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
+    h->uni_vmovups(vmm_dst, h->ptr[h->rsp + 0 * vlen]);
+    h->add(h->rsp, (vecs_count + 2) * vlen);
 
     // restore k registers
     if (isa == x64::avx512_core) {
@@ -925,6 +932,19 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
     }
     h->add(h->rsp, n_gprs_to_save * gpr_size);
+}
+}  // namespace
+
+template <x64::cpu_isa_t isa>
+void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                         const std::vector<size_t>& out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    emit_powf<isa>(h,
+                   Vmm(in_vec_idxs[0]),
+                   Vmm(in_vec_idxs[1]),
+                   Vmm(out_vec_idxs[0]),
+                   get_max_vecs_count(),
+                   get_vec_length());
 }
 
 /// EQUAL ///
@@ -1773,9 +1793,6 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
-    auto xmm0 = Xmm(0);
-    auto xmm1 = Xmm(1);
-
     if (scale != 1.F || shift != 0.F) {
         if (isa == x64::sse41) {
             h->uni_vmovups(vmm_aux0, table_val("scale"));
@@ -1836,87 +1853,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     } else {
         h->uni_vmovups(vmm_aux0, table_val("power"));
 
-        // caller obligation to save gprs as callee may use them
-        size_t gpr_size = 8;
-        Xbyak::Operand gprs_to_save[] =
-            {h->r8, h->r9, h->r10, h->r11, h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-        size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
-
-        h->sub(h->rsp, n_gprs_to_save * gpr_size);
-        for (size_t i = 0; i < n_gprs_to_save; ++i) {
-            h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
-        }
-
-        // caller obligation to save k-regs as callee may use them
-        size_t n_k_regs_to_save = 8;
-        if (isa == x64::avx512_core) {
-            h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
-            for (size_t i = 0; i < n_k_regs_to_save; ++i) {
-                if (x64::mayiuse(x64::avx512_core)) {
-                    h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
-                } else {
-                    h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
-                }
-            }
-        }
-
-        // 1. Caller obligation to save vector registers as callee may use them.
-        // 2. Additionally save space for vmm_src, to put the answer in-place on
-        // this space and space for beta.
-        // 3. There is an implicit assumption that the host code uses the same
-        // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
-        // `vlen` should be replaced with `host_isa::vlen` and
-        // `host_isa::vecs_count`.
-        h->sub(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
-        for (size_t i = 2; i < get_max_vecs_count() + 2; ++i) {
-            h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i - 2));
-        }
-        h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_dst);   // src
-        h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_aux0);  // beta
-
-        // save function address in gpr to pass in in call instruction
-        h->mov(h->rbp, reinterpret_cast<uintptr_t>(powf));
-
-        // align stack on 16-byte as ABI requires
-        h->mov(h->rbx, h->rsp);
-        h->and_(h->rbx, 0xf);
-        h->sub(h->rsp, h->rbx);
-
-        // Take src, apply powf on it and replace value on a stack with dst.
-        for (size_t i = 0; i < get_vec_length() / sizeof(float); ++i) {
-            const Address& source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
-            h->uni_vmovss(xmm0, source);
-            h->uni_vmovss(xmm1, h->ptr[h->rsp + h->rbx + get_vec_length() + i * sizeof(float)]);
-            h->call(h->rbp);
-            h->uni_vmovss(source, xmm0);
-        }
-
-        h->add(h->rsp, h->rbx);
-
-        // restore vector registers
-        for (size_t i = get_max_vecs_count() + 1; i >= 2; --i) {
-            h->uni_vmovups(Vmm(i - 2), h->ptr[h->rsp + i * get_vec_length()]);
-        }
-        h->uni_vmovups(vmm_dst, h->ptr[h->rsp + 0 * get_vec_length()]);
-        h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
-
-        // restore k registers
-        if (isa == x64::avx512_core) {
-            for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
-                if (x64::mayiuse(x64::avx512_core)) {
-                    h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-                } else {
-                    h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-                }
-            }
-            h->add(h->rsp, n_k_regs_to_save * k_mask_size);
-        }
-
-        // restore gpr registers
-        for (int i = n_gprs_to_save - 1; i >= 0; --i) {
-            h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
-        }
-        h->add(h->rsp, n_gprs_to_save * gpr_size);
+        emit_powf<isa>(h, vmm_dst, vmm_aux0, vmm_dst, get_max_vecs_count(), get_vec_length());
     }
 }
 
