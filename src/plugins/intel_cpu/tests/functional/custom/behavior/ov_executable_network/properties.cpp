@@ -50,6 +50,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RO_property(ov::intel_cpu::tbb_partitioner.name()),
         RO_property(ov::hint::dynamic_quantization_group_size.name()),
+        RO_property(ov::hint::activations_scale_factor.name()),
         RO_property(ov::hint::kv_cache_precision.name()),
         RO_property(ov::key_cache_precision.name()),
         RO_property(ov::value_cache_precision.name()),
@@ -225,6 +226,38 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckDynamicQuantizationGroupSi
     size_t groupSize = 0;
     OV_ASSERT_NO_THROW(groupSize = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
     ASSERT_EQ(groupSize, 64);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckActivationsScaleFactor) {
+    ov::Core core;
+    ov::CompiledModel compiledModel;
+    float scaleFactor = 0.0f;
+
+    // disabled by default
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(scaleFactor = compiledModel.get_property(ov::hint::activations_scale_factor));
+    ASSERT_EQ(scaleFactor, -1.0f);
+
+    core.set_property(deviceName, ov::hint::activations_scale_factor(8.0f));
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(scaleFactor = compiledModel.get_property(ov::hint::activations_scale_factor));
+    ASSERT_EQ(scaleFactor, 8.0f);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckActivationsScaleFactorRuntimeOptions) {
+    ov::Core core;
+    ov::CompiledModel compiledModel;
+    float scaleFactor = 0.0f;
+
+    model->set_rt_info("8.0", "runtime_options", ov::hint::activations_scale_factor.name());
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(scaleFactor = compiledModel.get_property(ov::hint::activations_scale_factor));
+    ASSERT_EQ(scaleFactor, 8.0f);
+
+    // property has higher priority than rt_info
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName, ov::hint::activations_scale_factor(4.0f)));
+    OV_ASSERT_NO_THROW(scaleFactor = compiledModel.get_property(ov::hint::activations_scale_factor));
+    ASSERT_EQ(scaleFactor, 4.0f);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckKVCachePrecision) {

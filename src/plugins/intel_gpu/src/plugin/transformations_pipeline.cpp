@@ -25,14 +25,11 @@
 #include "intel_gpu/op/read_value.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/concat.hpp"
-#include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
-#include "low_precision/group_convolution.hpp"
 #include "low_precision/qdq_stripping.hpp"
 #include "low_precision/low_precision.hpp"
-#include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
@@ -146,7 +143,6 @@
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
-#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
@@ -227,7 +223,6 @@
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/resolve_names_collisions.hpp"
-#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
@@ -1662,55 +1657,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         float activations_scale_factor = config.get_activations_scale_factor();
 
         if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
-            using namespace ov::pass::low_precision;
-
-            auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
-            auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({});
-
-            pass_config->disable<ov::pass::AddMultiplyFusion>();
-            pass_config->disable<RecurrentCellTransformation>();
-            pass_config->disable<MultiplyToGroupConvolutionTransformation>();
-            pass_config->disable<ConvolutionTransformation>();
-            pass_config->disable<ConvolutionBackpropDataTransformation>();
-            pass_config->disable<GroupConvolutionTransformation>();
-            pass_config->disable<MatMulTransformation>();
-            pass_config->disable<MVNTransformation>();
-
-            pass_config->set_callback<FoldConvertTransformation>(
-                [](const std::shared_ptr<const ov::Node> &node) -> bool {
-                    return ov::is_dequantization_node(node);
-                });
-
-            pass_config->set_callback<FuseConvertTransformation>(
-                [](const std::shared_ptr<const ov::Node> &node) -> bool {
-                    return (ov::is_dequantization_node(node) || ov::is_type<ov::opset1::FakeQuantize>(node));
-                });
-
-            manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
-            manager.register_pass<ov::pass::SharedOpOptimization>();
-
-            pass_config->set_callback<ov::pass::activations_scaling::ScaleDownSingleLayer>(
-                [&infer_precision](const std::shared_ptr<const ov::Node> &node) -> bool {
-                    return (node->input(0).get_element_type() != infer_precision);
-                });
-
-            // Move down scalar-multiply layers as much as possible
-            auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, true);
-            auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
-            lpt_pass->add_main<ov::pass::activations_scaling::EliminateScalarMul>();
-            lpt_pass->add_main<ov::pass::activations_scaling::MoveDownScalarMul>();
-
-            // Move up remained scalar-multiply layers
-            manager.register_pass<ov::pass::EliminateEltwise>();
-            manager.register_pass<ov::pass::activations_scaling::MulShareTransformation>();
-
-            const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
-                ov::op::v1::Reshape::get_type_info_static(),
-                ov::op::v1::Transpose::get_type_info_static(),
-            };
-            manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
-            manager.register_pass<ov::pass::SharedOpOptimization>();
-            manager.register_pass<ov::pass::Validate>();
+            manager.register_pass<ov::pass::ActivationsScaling>(activations_scale_factor, infer_precision);
         }
 
         manager.run_passes(func);

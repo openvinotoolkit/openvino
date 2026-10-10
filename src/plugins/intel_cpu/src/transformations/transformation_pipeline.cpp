@@ -207,6 +207,7 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
+#    include "transformations/common_optimizations/activations_scaling.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
@@ -1143,8 +1144,9 @@ void Transformations::PostLpt() {
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
                                  (config.inferencePrecision == element::bf16);
+    // ActivationsScaling (registered below) can't scale MatMuls once they are fused into LLMMLP/QKVProjection
     auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-                            (config.inferencePrecision == element::f16);
+                            (config.inferencePrecision == element::f16) && config.activationsScaleFactor <= 0.F;
 
     if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
         const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;
@@ -1194,6 +1196,15 @@ void Transformations::PostLpt() {
                           ov::pass::RMSFusion,
                           false /* force_tail_convert */,
                           enable_without_gamma);
+#if defined(OPENVINO_ARCH_X86_64)
+    // before DecomposeRMSNorm: scale_up multiplies are dropped only in front of fused RMS
+    if (config.inferencePrecision == ov::element::f16 && config.activationsScaleFactor > 0.F) {
+        CPU_REGISTER_PASS_X64(postLPTPassManager,
+                              ov::pass::ActivationsScaling,
+                              config.activationsScaleFactor,
+                              config.inferencePrecision);
+    }
+#endif  // OPENVINO_ARCH_X86_64
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,
