@@ -31,6 +31,25 @@ bool is_value_preserving(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type_any_of<v1::Reshape, v1::Transpose, op_util::SqueezeBase, v0::Unsqueeze>(node);
 }
 
+bool have_same_range(const std::shared_ptr<v0::FakeQuantize>& fq, size_t lhs, size_t rhs) {
+    return fq->get_input_partial_shape(lhs) == fq->get_input_partial_shape(rhs) &&
+           ov::compare_constants(fq->get_input_node_shared_ptr(lhs), fq->get_input_node_shared_ptr(rhs));
+}
+
+bool is_idempotent(const std::shared_ptr<v0::FakeQuantize>& fq) {
+    return have_same_range(fq, 1, 3) && have_same_range(fq, 2, 4);
+}
+
+bool is_per_tensor(const std::shared_ptr<v0::FakeQuantize>& fq) {
+    for (size_t index = 1; index < fq->get_input_size(); ++index) {
+        const auto& shape = fq->get_input_partial_shape(index);
+        if (shape.is_dynamic() || ov::shape_size(shape.to_shape()) != 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace
 
 bool FakeQuantizeEliminateSequential::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -39,9 +58,10 @@ bool FakeQuantizeEliminateSequential::run_on_model(const std::shared_ptr<ov::Mod
     bool eliminated = false;
     for (const auto& op : model->get_ordered_ops()) {
         auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(op);
-        if (!fq1) {
+        if (!fq1 || !is_idempotent(fq1)) {
             continue;
         }
+        const bool per_tensor = is_per_tensor(fq1);
 
         // Walk forward from FQ1 following its consumers and collect the redundant FakeQuantizes.
         // Traversal continues only through FQ1, value-preserving ops, and redundant FakeQuantizes, so
@@ -52,8 +72,11 @@ bool FakeQuantizeEliminateSequential::run_on_model(const std::shared_ptr<ov::Mod
         std::unordered_set<ov::Node*> visited;
         auto skip_node = [&](ov::Node* node) {
             auto shared_node = node->shared_from_this();
-            if (shared_node == fq1 || is_value_preserving(shared_node)) {
+            if (shared_node == fq1) {
                 return false;
+            }
+            if (is_value_preserving(shared_node)) {
+                return !per_tensor;
             }
             return !op_util::have_same_fake_quantize_params(fq1, ov::as_type_ptr<v0::FakeQuantize>(shared_node));
         };

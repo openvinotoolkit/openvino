@@ -92,6 +92,8 @@ const std::vector<SequentialFqParams> sequential_fq_params = {
     // Out-of-range scenario from the geekbench_ai model 011: FQ2 range is slightly looser than FQ1,
     // so the ranges differ and FQ2 must be kept.
     {{-17.819f, 4.900f, -17.819f, 4.900f}, 256, {-17.799f, 5.124f, -17.799f, 5.124f}, 256, false, "out_of_range"},
+    {{0.0f, 2.0f, -1.0f, 1.0f}, 3, {0.0f, 2.0f, -1.0f, 1.0f}, 3, false, "identical_output_range_differs_from_input"},
+    {{-1.0f, 1.0f, 0.0f, 255.0f}, 256, {-1.0f, 1.0f, 0.0f, 255.0f}, 256, false, "identical_integer_output_range"},
 };
 
 INSTANTIATE_TEST_SUITE_P(SequentialFakeQuantize,
@@ -317,6 +319,47 @@ TEST_F(TransformationTestsF, eliminate_identical_consumer_with_direct_branch) {
         auto abs_fq = std::make_shared<v0::Abs>(fq1);
         auto abs_direct = std::make_shared<v0::Abs>(fq1);
         model_ref = std::make_shared<ov::Model>(OutputVector{abs_fq, abs_direct}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, keep_per_channel_fake_quantize_through_transpose) {
+    const Shape per_channel_shape{1, 3, 1, 1};
+    const std::vector<float> in_low{-1.0f, -2.0f, -3.0f};
+    const std::vector<float> in_high{1.0f, 2.0f, 3.0f};
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 3, 3});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, per_channel_shape, in_low, in_high, in_low, in_high);
+        auto order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
+        auto transpose = std::make_shared<v1::Transpose>(fq1, order);
+        auto fq2 =
+            make_fake_quantize(transpose, element::f32, 256, per_channel_shape, in_low, in_high, in_low, in_high);
+        auto abs = std::make_shared<v0::Abs>(fq2);
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
+    }
+
+    manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, keep_per_channel_fake_quantize_through_reshape) {
+    const Shape per_channel_shape{1, 3, 1, 1};
+    const std::vector<float> in_low{-1.0f, -2.0f, -3.0f};
+    const std::vector<float> in_high{1.0f, 2.0f, 3.0f};
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3, 3, 1});
+        auto fq1 = make_fake_quantize(input, element::f32, 256, per_channel_shape, in_low, in_high, in_low, in_high);
+        auto target_shape = v0::Constant::create(element::i64, Shape{4}, {3, 3, 1, 1});
+        auto reshape = std::make_shared<v1::Reshape>(fq1, target_shape, false);
+        auto fq2 = make_fake_quantize(reshape, element::f32, 256, per_channel_shape, in_low, in_high, in_low, in_high);
+        auto abs = std::make_shared<v0::Abs>(fq2);
+        model = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{input});
     }
 
     manager.register_pass<ov::pass::FakeQuantizeEliminateSequential>();
