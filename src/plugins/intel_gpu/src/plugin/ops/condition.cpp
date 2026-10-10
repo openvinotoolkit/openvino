@@ -33,10 +33,17 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
     auto external_inputs = p.GetInputInfo(op);
     auto internal_inputs = internal_body->get_parameters();
     auto input_desc_vec = op->get_input_descriptions(static_cast<int>(idx));
+    branch.dep_to_internal.assign(op->get_input_size(), "");
     for (auto& in_desc : input_desc_vec) {
-        const auto& external_id = external_inputs.at(in_desc->m_input_index).pid;
+        const auto& ext = external_inputs.at(in_desc->m_input_index);
+        // Include output port in the key so that multiple If inputs from different
+        // ports of the same primitive each get a distinct entry in the map.
+        std::string external_key = ext.pid;
+        if (ext.idx != 0)
+            external_key += ".out" + std::to_string(ext.idx);
         const auto& internal_id = layer_type_name_ID(internal_inputs.at(in_desc->m_body_parameter_index));
-        input_map.insert({external_id, internal_id});
+        input_map.insert({external_key, internal_id});
+        branch.dep_to_internal[in_desc->m_input_index] = internal_id;
     }
 
     auto& output_map = branch.output_map;

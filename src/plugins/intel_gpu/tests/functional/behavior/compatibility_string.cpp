@@ -174,6 +174,16 @@ TEST_F(CompatibilityStringGPU, ImportRejectsCorruptedDescriptorHeader) {
         EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
     }
 
+    // A blob using the previous compiled-model layout must be rejected before its graph payload
+    // is parsed. This protects serialized condition primitives after their payload layout changes.
+    {
+        std::string corrupted = original;
+        const uint32_t previous_version = 1;
+        std::memcpy(&corrupted[version_offset], &previous_version, sizeof(previous_version));
+        std::stringstream blob(corrupted);
+        EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
+    }
+
     // Keep the magic but set an unrecognized descriptor version: import must fail.
     {
         std::string corrupted = original;
