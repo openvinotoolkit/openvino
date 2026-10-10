@@ -216,4 +216,29 @@ TEST_F(ModelUtilTest, auto_set_missing_output_tensors_names) {
     EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
+TEST_F(ModelUtilTest, get_model_source_id_falls_back_to_friendly_name_when_rt_info_absent) {
+    auto model = make_model_with_named_nodes();  // friendly_name == "ModelWithNamedNodes"
+
+    EXPECT_FALSE(model->has_rt_info(std::string(util::model_source_id_rt_info_key)));
+    EXPECT_EQ(util::get_model_source_id(*model), model->get_friendly_name());
+}
+
+TEST_F(ModelUtilTest, get_model_source_id_prefers_rt_info_over_friendly_name) {
+    auto model = make_model_with_named_nodes();  // friendly_name == "ModelWithNamedNodes"
+    model->set_rt_info(std::string{"meta-llama/Llama-3.2-1B-Instruct"}, std::string(util::model_source_id_rt_info_key));
+
+    EXPECT_EQ(util::get_model_source_id(*model), "meta-llama/Llama-3.2-1B-Instruct");
+}
+
+TEST_F(ModelUtilTest, model_source_id_coexists_with_other_user_rt_info) {
+    auto model = make_model_with_named_nodes();
+    model->set_rt_info(std::string{"meta-llama/Llama-3.2-1B-Instruct"}, std::string(util::model_source_id_rt_info_key));
+    model->set_rt_info(std::string{"1.0.0"}, "MODEL_VERSION");
+    model->set_rt_info(std::string{"Meta"}, "MODEL_AUTHOR");
+
+    EXPECT_EQ(util::get_model_source_id(*model), "meta-llama/Llama-3.2-1B-Instruct");
+    EXPECT_EQ(model->get_rt_info<std::string>("MODEL_VERSION"), "1.0.0");
+    EXPECT_EQ(model->get_rt_info<std::string>("MODEL_AUTHOR"), "Meta");
+}
+
 }  // namespace ov::test
