@@ -7,6 +7,7 @@
 #include "sycl_stream.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "sycl_event.hpp"
+#include "sycl_user_event.hpp"
 #include "sycl_command_queues_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "sycl_base_kernel.hpp"
@@ -32,6 +33,22 @@
 
 namespace cldnn {
 namespace sycl {
+
+namespace {
+// A user event which is not set yet can't be ordered against by the device (see sycl_user_event).
+// Reject it regardless of the sync method: in barrier mode its zero queue stamp makes
+// sync_events() skip it and SyncMethods::none ignores deps entirely, so without this check the
+// dependent command would be silently submitted. Grouped events are validated on construction.
+void validate_user_event_deps(const std::vector<event::ptr>& deps) {
+    for (const auto& dep : deps) {
+        if (auto user_ev = dynamic_cast<sycl_user_event*>(dep.get())) {
+            OPENVINO_ASSERT(user_ev->is_set(),
+                            "[GPU] A user event which is not set yet can't be used as a dependency of an "
+                            "enqueued command: SYCL runtime can't represent its completion state.");
+        }
+    }
+}
+}  // namespace
 
 sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
@@ -105,6 +122,8 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
         }
     }
 
+    validate_user_event_deps(deps);
+
     // Collect dependency events
     std::vector<::sycl::event> dep_events;
     if (m_sync_method == SyncMethods::events) {
@@ -153,6 +172,8 @@ event::ptr sycl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool
         return std::make_shared<sycl_event>(ret_ev, _command_queue);
     }
 
+    validate_user_event_deps(deps);
+
     if (m_sync_method == SyncMethods::events) {
         ::sycl::event ret_ev;
         std::vector<::sycl::event> dep_events;
@@ -187,8 +208,9 @@ event::ptr sycl_stream::group_events(std::vector<event::ptr> const& deps) {
 }
 
 event::ptr sycl_stream::create_user_event(bool set) {
-    OPENVINO_ASSERT(set, "[GPU] create user event with set=false is not supported in SYCL runtime");
-    return std::make_shared<sycl_event>(::sycl::event(), _command_queue);
+    // SYCL has no native user event, so the completion state is kept on the host side.
+    // See sycl_user_event for the implications.
+    return std::make_shared<sycl_user_event>(set);
 }
 
 event::ptr sycl_stream::create_base_event() {
