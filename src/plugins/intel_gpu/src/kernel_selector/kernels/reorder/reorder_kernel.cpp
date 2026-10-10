@@ -15,6 +15,7 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT4);
     k.EnableInputDataType(Datatype::INT4);
     k.EnableInputDataType(Datatype::UINT2);
+    k.EnableInputDataType(Datatype::UINT3);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::INT16);
     k.EnableInputDataType(Datatype::INT32);
@@ -85,6 +86,10 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
 
     if ( params.inputs[0].GetDType() == Datatype::UINT2 ) {
          jit.AddConstant(MakeJitConstant("UINT2_INPUT", true));
+    }
+
+    if ( params.inputs[0].GetDType() == Datatype::UINT3 ) {
+         jit.AddConstant(MakeJitConstant("UINT3_INPUT", true));
     }
 
     if ( params.outputs[0].GetDType() == Datatype::UINT4 ) {

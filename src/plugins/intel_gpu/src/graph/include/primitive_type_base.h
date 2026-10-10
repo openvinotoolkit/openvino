@@ -134,7 +134,9 @@ struct primitive_type_base : primitive_type {
         for (auto& impl : all_impls) {
             // Ignore impl validation if it was forced. Mainly used in unit tests
             if (forced_impl_type != impl_types::any && forced_impl_type == impl->get_impl_type()) {
-                supported_list.push_back(impl);
+                if (!impl->validate_when_forced() || impl->validate(node)) {
+                    supported_list.push_back(impl);
+                }
             } else if (forced_impl_type == impl_types::any && impl->validate(node)) {
                 supported_list.push_back(impl);
             }
@@ -180,7 +182,7 @@ struct primitive_type_base : primitive_type {
             if (forced_impl_type != impl_types::any) {
                 // in case if we have forced impl, we don't do validation
                 // and skip all other impl types here
-                if (forced_impl_type == impl->get_impl_type()) {
+                if (forced_impl_type == impl->get_impl_type() && (!impl->validate_when_forced() || impl->validate(node))) {
                     return true;
                 }
                 continue;
