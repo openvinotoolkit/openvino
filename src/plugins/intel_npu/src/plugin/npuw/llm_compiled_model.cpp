@@ -1852,7 +1852,21 @@ std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model()
 }
 
 void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    // Propagate to every inner compiled model once; they validate which keys are mutable
+    auto apply = [&](const std::shared_ptr<ov::npuw::ICompiledModel_v0>& cm) {
+        if (cm) {
+            cm->set_property(properties);
+        }
+    };
+    apply(m_prefill_compiled);
+    for (const auto& variant : m_generate_compiled_variants) {
+        apply(variant);
+    }
+    // m_kvcache_compiled is the last generate variant when variants are used
+    if (m_generate_compiled_variants.empty()) {
+        apply(m_kvcache_compiled);
+    }
+    apply(m_lm_head_compiled);
 }
 
 bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {

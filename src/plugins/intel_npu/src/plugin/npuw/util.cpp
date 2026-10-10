@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+#include <algorithm>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -192,6 +193,17 @@ ov::Tensor ov::npuw::util::copy_tensor_from_const(const std::shared_ptr<ov::Node
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {
     return str.substr(0, prefix.size()) == prefix;
+}
+
+std::unordered_set<std::string> ov::npuw::util::mutable_properties(
+    const std::vector<ov::PropertyName>& supported_properties) {
+    std::unordered_set<std::string> result;
+    for (const auto& p : supported_properties) {
+        if (p.is_mutable()) {
+            result.insert(p);
+        }
+    }
+    return result;
 }
 
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {

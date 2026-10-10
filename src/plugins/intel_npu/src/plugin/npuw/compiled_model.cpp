@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_set>
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
@@ -2748,7 +2749,77 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_re
 }
 
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    // Properties which can be changed after compilation.
+    static const std::unordered_set<std::string> runtime_mutable = {ov::hint::model_priority.name()};
+
+    ov::AnyMap updates;
+    for (const auto& [key, value] : properties) {
+        if (!runtime_mutable.count(key)) {
+            OPENVINO_THROW("NPUW CompiledModel: '", key, "' cannot be changed after the model is compiled");
+        }
+        updates.emplace(key, value);
+    }
+    if (updates.empty()) {
+        return;
+    }
+
+    // Validate the value and store it in its typed form
+    if (auto it = updates.find(ov::hint::model_priority.name()); it != updates.end()) {
+        it->second = it->second.as<ov::hint::Priority>();
+    }
+
+    // Collect every device-level compiled model owned by this partitioned model, once.
+    // Function calls have neither a compiled model nor extra models of their own (they run
+    // their body's), so each model appears only in the submodel which owns it. The extra
+    // models may reuse that submodel's own compiled model (e.g. the last pyramid model or
+    // the HFA final tile), so skip those.
+    std::vector<ov::SoPtr<ov::ICompiledModel>> targets;
+    for (const auto& desc : m_compiled_submodels) {
+        if (desc.compiled_model) {
+            targets.push_back(desc.compiled_model);
+        }
+        if (desc.pipeline.for_each_extra_compiled_model) {
+            desc.pipeline.for_each_extra_compiled_model(desc.pipeline.context,
+                                                        [&](const ov::SoPtr<ov::ICompiledModel>& cm) {
+                                                            if (cm && cm._ptr != desc.compiled_model._ptr) {
+                                                                targets.push_back(cm);
+                                                            }
+                                                        });
+        }
+    }
+
+    // Each submodel gets only the keys its device can change (e.g. CPU can't change any)
+    for (const auto& cm : targets) {
+        const auto cm_mutable = ov::npuw::util::mutable_properties(
+            cm->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>());
+        ov::AnyMap cm_updates;
+        for (const auto& [key, value] : updates) {
+            if (cm_mutable.count(key)) {
+                cm_updates.emplace(key, value);
+            }
+        }
+        if (cm_updates.empty()) {
+            LOG_DEBUG("Skipping a submodel which can't change any of the requested properties");
+            continue;
+        }
+        cm->set_property(cm_updates);
+    }
+
+    // Keep the per-device configs in sync so submodels compiled later (e.g. failsafe
+    // fallbacks) inherit the new values, and remember them for get_property/export
+    auto core = get_npuw_plugin()->get_core();
+    for (auto& [device, device_props] : m_meta_devices) {
+        const auto device_mutable =
+            ov::npuw::util::mutable_properties(core->get_property(device, ov::supported_properties));
+        for (const auto& [key, value] : updates) {
+            if (device_mutable.count(key)) {
+                device_props[key] = value;
+            }
+        }
+    }
+    for (const auto& [key, value] : updates) {
+        m_non_npuw_props[key] = value;
+    }
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() const {
@@ -2880,70 +2951,77 @@ void ov::npuw::CompiledModel::implement_properties() {
 
     // 1.
     // OV Public
-    m_prop_to_opt = {{ov::supported_properties.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) -> std::vector<PropertyName>& {
-                           return m_all_supported_props;
-                       }}},
-                     {ov::device::id.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::device::id);
-                       }}},
-                     {ov::enable_profiling.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::enable_profiling);
-                       }}},
-                     {ov::model_name.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) -> std::string& {
-                           return m_name;
-                       }}},
-                     {ov::optimal_number_of_infer_requests.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           return 1u;
-                       }}},
-                     {ov::execution_devices.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           return "NPU";
-                       }}},
-                     {ov::loaded_from_cache.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           return m_loaded_from_cache;
-                       }}},
-                     // OV Public Hints
-                     {ov::hint::performance_mode.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::performance_mode);
-                       }}},
-                     {ov::hint::execution_mode.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::execution_mode);
-                       }}},
-                     {ov::hint::num_requests.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::num_requests);
-                       }}},
-                     {ov::hint::inference_precision.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::inference_precision);
-                       }}},
-                     {ov::hint::enable_cpu_pinning.name(),
-                      {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
-                           GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
-                       }}},
-                     {ov::hint::model_priority.name(), {ov::PropertyMutability::RO, [&](const ::intel_npu::Config&) {
-                                                            GET_PLUGIN_PROP(ov::hint::model_priority);
-                                                        }}}};
+    m_prop_to_opt = {
+        {ov::supported_properties.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) -> std::vector<PropertyName>& {
+              return m_all_supported_props;
+          }}},
+        {ov::device::id.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::device::id);
+          }}},
+        {ov::enable_profiling.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::enable_profiling);
+          }}},
+        {ov::model_name.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) -> std::string& {
+              return m_name;
+          }}},
+        {ov::optimal_number_of_infer_requests.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              return 1u;
+          }}},
+        {ov::execution_devices.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              return "NPU";
+          }}},
+        {ov::loaded_from_cache.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              return m_loaded_from_cache;
+          }}},
+        // OV Public Hints
+        {ov::hint::performance_mode.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::performance_mode);
+          }}},
+        {ov::hint::execution_mode.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::execution_mode);
+          }}},
+        {ov::hint::num_requests.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::num_requests);
+          }}},
+        {ov::hint::inference_precision.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::inference_precision);
+          }}},
+        {ov::hint::enable_cpu_pinning.name(),
+         {ov::PropertyMutability::RO,
+          [&](const ::intel_npu::Config&) {
+              GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
+          }}},
+        {ov::hint::model_priority.name(), {ov::PropertyMutability::RW, [&](const ::intel_npu::Config&) -> ov::Any {
+                                               // Report the priority the submodels actually use (set at compile time
+                                               // or via set_property), falling back to the plugin's default
+                                               if (auto it = m_non_npuw_props.find(ov::hint::model_priority.name());
+                                                   it != m_non_npuw_props.end()) {
+                                                   return it->second.as<ov::hint::Priority>();
+                                               }
+                                               GET_PLUGIN_PROP(ov::hint::model_priority);
+                                           }}}};
 #undef GET_PLUGIN_PROP
 
     // 2.

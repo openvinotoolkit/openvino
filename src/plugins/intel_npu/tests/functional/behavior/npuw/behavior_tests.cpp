@@ -686,3 +686,132 @@ TEST_F(BehaviorTestsNPUW, CanSayNoToPMMProperty) {
     auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
     EXPECT_EQ("NO", prop.as<std::string>());
 }
+
+namespace {
+// By default mock compiled models don't list ov::hint::model_priority and throw from set_property.
+// This makes one behave like an NPU compiled model: priority is RW and can be updated.
+void allow_model_priority_updates(MockCompiledModel& model) {
+    ON_CALL(model, get_property(StrEq(ov::supported_properties.name())))
+        .WillByDefault(Return(ov::Any(std::vector<ov::PropertyName>{
+            ov::PropertyName(ov::num_streams.name()),
+            ov::PropertyName(ov::enable_profiling.name()),
+            ov::PropertyName(ov::hint::model_priority.name(), ov::PropertyMutability::RW)})));
+    ON_CALL(model, set_property(_)).WillByDefault(Return());
+}
+
+Matcher<const ov::AnyMap&> IsModelPriority(ov::hint::Priority priority) {
+    return Truly([priority](const ov::AnyMap& props) {
+        const auto it = props.find(ov::hint::model_priority.name());
+        return props.size() == 1 && it != props.end() && it->second.as<ov::hint::Priority>() == priority;
+    });
+}
+}  // anonymous namespace
+
+TEST_F(BehaviorTestsNPUWOnlinePartitioning, ModelPriorityIsPropagatedToAllSubmodels) {
+    model = model_builder.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(12));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+    for (int i = 0; i < 12; i++) {
+        mock_npu_plugin->set_expectations_to_comp_models(MODEL(i), [](MockCompiledModel& model) {
+            allow_model_priority_updates(model);
+            EXPECT_CALL(model, set_property(IsModelPriority(ov::hint::Priority::HIGH))).Times(1);
+        });
+    }
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Do the actual test:
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
+    EXPECT_NO_THROW(compiled_model.set_property(ov::hint::model_priority(ov::hint::Priority::HIGH)));
+    EXPECT_EQ(ov::hint::Priority::HIGH, compiled_model.get_property(ov::hint::model_priority));
+}
+
+TEST_F(BehaviorTestsNPUWOnlinePartitioning, ModelPriorityIsSkippedForSubmodelsWhichCannotChangeIt) {
+    model = model_builder.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    // the 1st subgraph falls back to MockCPU, the remaining 11 stay on MockNPU
+    {
+        InSequence s;
+
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(1), THROW("Compilation on MockNPU is failed"));
+        EXPECT_COMPILE_MODEL(mock_cpu, TIMES(1));
+        EXPECT_COMPILE_MODEL(mock_npu, TIMES(11));
+    }
+    for (int i = 0; i < 11; i++) {
+        mock_npu_plugin->set_expectations_to_comp_models(MODEL(i), [](MockCompiledModel& model) {
+            allow_model_priority_updates(model);
+            EXPECT_CALL(model, set_property(IsModelPriority(ov::hint::Priority::LOW))).Times(1);
+        });
+    }
+    // MockCPU keeps the default behavior (priority isn't RW, set_property throws),
+    // like the real CPU plugin, so it must not be touched
+    mock_cpu_plugin->set_expectations_to_comp_models(MODEL(0), [](MockCompiledModel& model) {
+        EXPECT_CALL(model, set_property(_)).Times(0);
+    });
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Do the actual test:
+    use_npuw_props.emplace(devices("MockNPU,MockCPU"));
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
+    EXPECT_NO_THROW(compiled_model.set_property(ov::hint::model_priority(ov::hint::Priority::LOW)));
+    EXPECT_EQ(ov::hint::Priority::LOW, compiled_model.get_property(ov::hint::model_priority));
+}
+
+TEST_F(BehaviorTestsNPUW, SettingNonPriorityPropertyAfterCompilationThrows) {
+    model = model_builder.get_model_with_one_op();
+
+    // Set expectations first:
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+    mock_npu_plugin->set_expectations_to_comp_models(MODEL(0), [](MockCompiledModel& model) {
+        allow_model_priority_updates(model);
+        EXPECT_CALL(model, set_property(_)).Times(0);
+    });
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Do the actual test:
+    use_npuw_props.emplace(devices("MockNPU"));
+    auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
+    EXPECT_ANY_THROW(compiled_model.set_property(partitioning::fold(true)));
+    // Nothing is applied when the same call also contains an unsupported key
+    EXPECT_ANY_THROW(compiled_model.set_property(
+        ov::AnyMap{ov::hint::model_priority(ov::hint::Priority::HIGH), partitioning::fold(true)}));
+    EXPECT_NE(ov::hint::Priority::HIGH, compiled_model.get_property(ov::hint::model_priority));
+}
+
+TEST_F(BehaviorTestsNPUWOnlinePartitioning, ModelPriorityIsSetOnceForFoldedFunction) {
+    model = model_builder.get_model_with_repeated_blocks();
+
+    // Set expectations first:
+    // head, function body (shared by all repeated blocks) and tail
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(3));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+    for (int i = 0; i < 3; i++) {
+        mock_npu_plugin->set_expectations_to_comp_models(MODEL(i), [](MockCompiledModel& model) {
+            allow_model_priority_updates(model);
+            EXPECT_CALL(model, set_property(IsModelPriority(ov::hint::Priority::HIGH))).Times(1);
+        });
+    }
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Do the actual test:
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::online::min_size(12));
+    use_npuw_props.emplace(partitioning::fold(true));
+    auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
+    EXPECT_NO_THROW(compiled_model.set_property(ov::hint::model_priority(ov::hint::Priority::HIGH)));
+    EXPECT_EQ(ov::hint::Priority::HIGH, compiled_model.get_property(ov::hint::model_priority));
+}

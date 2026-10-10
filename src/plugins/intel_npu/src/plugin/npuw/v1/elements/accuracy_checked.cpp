@@ -67,6 +67,10 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(m_mutex);
+    // This debug wrapper doesn't handle runtime property changes (e.g. ov::hint::model_priority)
+    // itself: they only reach the currently active model. The inactive one keeps its
+    // compile-time values. After a switch to a reference which can't change a property
+    // (e.g. CPU), ov::supported_properties reports it as read-only, so NPUW skips this wrapper.
     active_compiled_model_locked()->set_property(properties);
 }
 
