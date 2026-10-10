@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+function(ov_regex_escape out_var value)
+    string(REGEX REPLACE "([][+.*?()^$|\\\\])" "\\\\\\1" escaped "${value}")
+    set(${out_var} "${escaped}" PARENT_SCOPE)
+endfunction()
+
 #[[
 function to create CMake target and setup its options in a declarative style.
 
@@ -131,8 +136,9 @@ function(ov_add_target)
 
         # remove unnecessary directories
         foreach(excludedDir IN LISTS ARG_EXCLUDED_SOURCE_PATHS)
-            list(FILTER includes EXCLUDE REGEX "${excludedDir}.*")
-            list(FILTER sources EXCLUDE REGEX "${excludedDir}.*")
+            ov_regex_escape(excludedDirRegex "${excludedDir}")
+            list(FILTER includes EXCLUDE REGEX "^${excludedDirRegex}")
+            list(FILTER sources EXCLUDE REGEX "^${excludedDirRegex}")
         endforeach()
 
         source_group("include" FILES ${includes})
