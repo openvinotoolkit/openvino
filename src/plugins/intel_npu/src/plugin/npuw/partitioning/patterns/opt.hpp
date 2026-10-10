@@ -119,6 +119,12 @@ public:
     explicit DQMatMulGQ2iP(Context::Ref ctx);
 };
 
+class DQMatMulGQ2iMoE : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQ2iMoE");
+    explicit DQMatMulGQ2iMoE(Context::Ref ctx);
+};
+
 class DQParMMGQ : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQParMMGQ");

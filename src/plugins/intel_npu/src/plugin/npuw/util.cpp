@@ -6,6 +6,7 @@
 
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
+#include <map>
 #include <openvino/core/parallel.hpp>
 #include <openvino/core/type/bfloat16.hpp>
 #include <openvino/core/type/float16.hpp>
@@ -682,108 +683,170 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     return tnew;
 }
 
-ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::size_t>& axes) {
-    ov::Shape shape = t.get_shape();
-    NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
+namespace {
 
-    if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
-        return transpose(t);
-    } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32 ||
-                    t.get_element_type() == ov::element::f16);
-        ov::Shape tshape = {shape[0], shape[2], shape[1]};
-        ov::Tensor tnew(t.get_element_type(), tshape);
-        switch (t.get_element_type()) {
-        case ov::element::i4: {
-            NPUW_ASSERT(shape[2] % 2 == 0);
-            const uint8_t* src = static_cast<const uint8_t*>(t.data());
-            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
-            ov::parallel_for(shape[0], [&](size_t p) {
-                const uint8_t* src_ptr = src + p * shape[1] * shape[2] / 2;
-                uint8_t* dst_ptr = dst + p * shape[1] * shape[2] / 2;
-                ov::npuw::util::XARCH::transpose_i4(src_ptr, dst_ptr, shape[1], shape[2]);
-            });
-            break;
-        }
-        case ov::element::f32: {
-            const float* src = static_cast<const float*>(t.data());
-            float* dst = static_cast<float*>(tnew.data());
-            ov::parallel_for(shape[0], [&](size_t p) {
-                const float* src_ptr = src + p * shape[1] * shape[2];
-                float* dst_ptr = dst + p * shape[1] * shape[2];
-                ov::npuw::util::XARCH::transpose_f32(src_ptr, dst_ptr, shape[1], shape[2]);
-            });
-            break;
-        }
-        case ov::element::f16: {
-            const uint16_t* src = static_cast<const uint16_t*>(t.data());
-            uint16_t* dst = static_cast<uint16_t*>(tnew.data());
-            ov::parallel_for(shape[0], [&](size_t p) {
-                const uint16_t* src_ptr = src + p * shape[1] * shape[2];
-                uint16_t* dst_ptr = dst + p * shape[1] * shape[2];
-                ov::npuw::util::XARCH::transpose_f16(src_ptr, dst_ptr, shape[1], shape[2]);
-            });
-            break;
-        }
-        default:
-            NPUW_ASSERT(false && "Element type is not supported yet");
-        }
-        return tnew;
-    } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
-        ov::Shape tshape = {shape[1], shape[0], shape[2]};
-        ov::Tensor tnew(t.get_element_type(), tshape);
-        switch (t.get_element_type()) {
-        case ov::element::i4: {
-            NPUW_ASSERT(shape[2] % 2 == 0);
-            const uint8_t* src = static_cast<const uint8_t*>(t.data());
-            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
-            for (size_t p = 0; p < shape[0]; ++p) {
-                for (size_t r = 0; r < shape[1]; ++r) {
-                    std::copy_n(&src[(p * shape[1] * shape[2] + r * shape[2]) / 2],
-                                shape[2] / 2,
-                                &dst[(r * shape[0] * shape[2] + p * shape[2]) / 2]);
-                }
-            }
-            break;
-        }
-        case ov::element::f16: {
-            const uint16_t* src = static_cast<const uint16_t*>(t.data());
-            uint16_t* dst = static_cast<uint16_t*>(tnew.data());
-            ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
-                const size_t src_off = (p * shape[1] + r) * shape[2];
-                const size_t dst_off = (r * shape[0] + p) * shape[2];
-                std::copy_n(src + src_off, shape[2], dst + dst_off);
-            });
-            break;
-        }
-        default:
-            NPUW_ASSERT(false && "Element type is not supported yet");
-        }
-        return tnew;
-    } else if (axes[0] == 1 && axes[1] == 2 && axes[2] == 0) {
-        ov::Shape tshape = {shape[1], shape[2], shape[0]};
-        ov::Tensor tnew(t.get_element_type(), tshape);
-        switch (t.get_element_type()) {
-        case ov::element::f32: {
-            const float* src = static_cast<const float*>(t.data());
-            float* dst = static_cast<float*>(tnew.data());
-            ov::npuw::util::XARCH::transpose_f32(src, dst, shape[0], shape[1] * shape[2]);
-            break;
-        }
-        case ov::element::f16: {
-            const uint16_t* src = static_cast<const uint16_t*>(t.data());
-            uint16_t* dst = static_cast<uint16_t*>(tnew.data());
-            ov::npuw::util::XARCH::transpose_f16(src, dst, shape[0], shape[1] * shape[2]);
-            break;
-        }
-        default:
-            NPUW_ASSERT(false && "Element type is not supported yet");
-        }
-        return tnew;
-    } else {
-        NPUW_ASSERT(false && "Not supported yet");
+// permute({2,0,1}) on a 3D tensor: rotate axes right by one.
+ov::Tensor permute_3d_201(const ov::Tensor& t) {
+    return ov::npuw::util::transpose(t);
+}
+
+// permute({0,2,1}) on a 3D tensor: swap the middle two axes.
+ov::Tensor permute_3d_021(const ov::Tensor& t) {
+    const auto shape = t.get_shape();
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32 ||
+                t.get_element_type() == ov::element::f16);
+    ov::Shape tshape = {shape[0], shape[2], shape[1]};
+    ov::Tensor tnew(t.get_element_type(), tshape);
+    switch (t.get_element_type()) {
+    case ov::element::i4: {
+        NPUW_ASSERT(shape[2] % 2 == 0);
+        const uint8_t* src = static_cast<const uint8_t*>(t.data());
+        uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+        ov::parallel_for(shape[0], [&](size_t p) {
+            const uint8_t* src_ptr = src + p * shape[1] * shape[2] / 2;
+            uint8_t* dst_ptr = dst + p * shape[1] * shape[2] / 2;
+            ov::npuw::util::XARCH::transpose_i4(src_ptr, dst_ptr, shape[1], shape[2]);
+        });
+        break;
     }
+    case ov::element::f32: {
+        const float* src = static_cast<const float*>(t.data());
+        float* dst = static_cast<float*>(tnew.data());
+        ov::parallel_for(shape[0], [&](size_t p) {
+            const float* src_ptr = src + p * shape[1] * shape[2];
+            float* dst_ptr = dst + p * shape[1] * shape[2];
+            ov::npuw::util::XARCH::transpose_f32(src_ptr, dst_ptr, shape[1], shape[2]);
+        });
+        break;
+    }
+    case ov::element::f16: {
+        const uint16_t* src = static_cast<const uint16_t*>(t.data());
+        uint16_t* dst = static_cast<uint16_t*>(tnew.data());
+        ov::parallel_for(shape[0], [&](size_t p) {
+            const uint16_t* src_ptr = src + p * shape[1] * shape[2];
+            uint16_t* dst_ptr = dst + p * shape[1] * shape[2];
+            ov::npuw::util::XARCH::transpose_f16(src_ptr, dst_ptr, shape[1], shape[2]);
+        });
+        break;
+    }
+    default:
+        NPUW_ASSERT(false && "Element type is not supported yet");
+    }
+    return tnew;
+}
+
+// permute({1,0,2}) on a 3D tensor: swap the first two axes, keep the last.
+ov::Tensor permute_3d_102(const ov::Tensor& t) {
+    const auto shape = t.get_shape();
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
+    ov::Shape tshape = {shape[1], shape[0], shape[2]};
+    ov::Tensor tnew(t.get_element_type(), tshape);
+    switch (t.get_element_type()) {
+    case ov::element::i4: {
+        NPUW_ASSERT(shape[2] % 2 == 0);
+        const uint8_t* src = static_cast<const uint8_t*>(t.data());
+        uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+        for (size_t p = 0; p < shape[0]; ++p) {
+            for (size_t r = 0; r < shape[1]; ++r) {
+                std::copy_n(&src[(p * shape[1] * shape[2] + r * shape[2]) / 2],
+                            shape[2] / 2,
+                            &dst[(r * shape[0] * shape[2] + p * shape[2]) / 2]);
+            }
+        }
+        break;
+    }
+    case ov::element::f16: {
+        const uint16_t* src = static_cast<const uint16_t*>(t.data());
+        uint16_t* dst = static_cast<uint16_t*>(tnew.data());
+        ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
+            const size_t src_off = (p * shape[1] + r) * shape[2];
+            const size_t dst_off = (r * shape[0] + p) * shape[2];
+            std::copy_n(src + src_off, shape[2], dst + dst_off);
+        });
+        break;
+    }
+    default:
+        NPUW_ASSERT(false && "Element type is not supported yet");
+    }
+    return tnew;
+}
+
+// permute({1,2,0}) on a 3D tensor: rotate axes left by one.
+ov::Tensor permute_3d_120(const ov::Tensor& t) {
+    const auto shape = t.get_shape();
+    ov::Shape tshape = {shape[1], shape[2], shape[0]};
+    ov::Tensor tnew(t.get_element_type(), tshape);
+    switch (t.get_element_type()) {
+    case ov::element::f32: {
+        const float* src = static_cast<const float*>(t.data());
+        float* dst = static_cast<float*>(tnew.data());
+        ov::npuw::util::XARCH::transpose_f32(src, dst, shape[0], shape[1] * shape[2]);
+        break;
+    }
+    case ov::element::f16: {
+        const uint16_t* src = static_cast<const uint16_t*>(t.data());
+        uint16_t* dst = static_cast<uint16_t*>(tnew.data());
+        ov::npuw::util::XARCH::transpose_f16(src, dst, shape[0], shape[1] * shape[2]);
+        break;
+    }
+    default:
+        NPUW_ASSERT(false && "Element type is not supported yet");
+    }
+    return tnew;
+}
+
+// permute({0,2,1,3}) on a 4D tensor: swap the middle two axes within each batch slice.
+ov::Tensor permute_4d_0213(const ov::Tensor& t) {
+    const auto shape = t.get_shape();
+    const auto etype = t.get_element_type();
+    const auto B = shape[0], R = shape[1], C = shape[2], G = shape[3];
+    ov::Shape tshape = {B, C, R, G};
+    ov::Tensor tnew(etype, tshape);
+
+    const bool is_i4 = etype == ov::element::i4;
+    NPUW_ASSERT(is_i4 || etype == ov::element::i8 || etype == ov::element::f8e4m3 || etype == ov::element::f8e5m2 ||
+                etype == ov::element::f8e8m0 || etype == ov::element::f16 || etype == ov::element::f32);
+    if (is_i4) {
+        NPUW_ASSERT(G % 2 == 0);  // nibble-packed - a [G] run must be a whole number of bytes
+    }
+    const auto elem_size = etype.size();
+    const size_t block_bytes = is_i4 ? G / 2 : G * elem_size;
+
+    const uint8_t* src = static_cast<const uint8_t*>(t.data());
+    uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+
+    // Parallelize over (B,R), not just B - keeps threads busy even with few experts
+    ov::parallel_for2d(B, R, [&](size_t b, size_t r) {
+        for (size_t c = 0; c < C; ++c) {
+            const size_t elem_off_src = b * R * C * G + r * C * G + c * G;
+            const size_t elem_off_dst = b * C * R * G + c * R * G + r * G;
+            const size_t byte_off_src = is_i4 ? elem_off_src / 2 : elem_off_src * elem_size;
+            const size_t byte_off_dst = is_i4 ? elem_off_dst / 2 : elem_off_dst * elem_size;
+            std::copy_n(src + byte_off_src, block_bytes, dst + byte_off_dst);
+        }
+    });
+    return tnew;
+}
+
+using PermuteFn = ov::Tensor (*)(const ov::Tensor&);
+
+// Maps a supported axes order to the function implementing it.
+const std::map<std::vector<std::size_t>, PermuteFn> permute_dispatch_table = {
+    {{2, 0, 1}, &permute_3d_201},
+    {{0, 2, 1}, &permute_3d_021},
+    {{1, 0, 2}, &permute_3d_102},
+    {{1, 2, 0}, &permute_3d_120},
+    {{0, 2, 1, 3}, &permute_4d_0213},
+};
+
+}  // namespace
+
+ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::size_t>& axes) {
+    NPUW_ASSERT(t.get_shape().size() == axes.size() && "axes rank must match tensor rank");
+    const auto it = permute_dispatch_table.find(axes);
+    NPUW_ASSERT(it != permute_dispatch_table.end() &&
+                "Unsupported permute order - see permute_dispatch_table for the supported list");
+    return it->second(t);
 }
 
 ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t axis) {
