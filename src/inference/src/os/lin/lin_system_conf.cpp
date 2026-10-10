@@ -7,18 +7,53 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/util/common_util.hpp"
 #include "os/cpu_map_info.hpp"
 
 namespace ov {
+
+bool parse_cpu_list_linux(const std::string& cpu_list, std::vector<std::pair<int, int>>& cpu_ranges) {
+    // view_to_number() alone would also accept "-1" or "0x1"
+    const auto to_cpu_id = [](std::string_view id) -> std::optional<int> {
+        const auto is_digit = [](unsigned char c) {
+            return std::isdigit(c) != 0;
+        };
+        if (id.empty() || !std::all_of(id.begin(), id.end(), is_digit)) {
+            return std::nullopt;
+        }
+        return ov::util::view_to_number<int>(id);
+    };
+
+    cpu_ranges.clear();
+    for (const auto token : ov::util::split(cpu_list, ",")) {
+        const auto ids = ov::util::split(token, "-");
+        if (ids.empty() || ids.size() > 2) {
+            cpu_ranges.clear();
+            return false;
+        }
+        const auto first = to_cpu_id(ids.front());
+        const auto last = to_cpu_id(ids.back());
+        if (!first || !last || *last < *first) {
+            cpu_ranges.clear();
+            return false;
+        }
+        cpu_ranges.emplace_back(*first, *last);
+    }
+    return true;
+}
 
 CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
@@ -31,15 +66,12 @@ CPU::CPU() {
         int cpu_index = 0;
         int file_index = 0;
         int max_files = 3;
+        int max_cpu_id = 0;
 
         std::string one_info;
 
-        std::string::size_type pos = 0;
-        std::string::size_type endpos = 0;
-        std::string sub_str;
-
-        int core_1;
-        int core_2;
+        std::vector<std::pair<int, int>> possible_cpus;
+        std::vector<std::pair<int, int>> online_cpus;
 
         system_info_table.clear();
 
@@ -52,13 +84,8 @@ CPU::CPU() {
             return -1;
         }
 
-        if ((endpos = possible_info.find('-', pos)) != std::string::npos) {
-            sub_str = possible_info.substr(pos, endpos - pos);
-            core_1 = std::stoi(sub_str);
-            sub_str = possible_info.substr(endpos + 1);
-            core_2 = std::stoi(sub_str);
-            system_info_table.resize(core_2 + 1, std::vector<std::string>(max_files, ""));
-        } else {
+        // lists like "0-1,3" mix single ids and ranges, see Documentation/admin-guide/cputopology.rst
+        if (!parse_cpu_list_linux(possible_info, possible_cpus) || possible_cpus.empty()) {
             return -1;
         }
 
@@ -68,63 +95,67 @@ CPU::CPU() {
         if (online_file.is_open()) {
             std::getline(online_file, online_info);
         } else {
-            system_info_table.clear();
             return -1;
         }
 
-        while (1) {
-            if ((endpos = online_info.find('-', pos)) != std::string::npos) {
-                sub_str = online_info.substr(pos, endpos - pos);
-                core_1 = std::stoi(sub_str);
-                sub_str = online_info.substr(endpos + 1);
-                core_2 = std::stoi(sub_str);
+        if (!parse_cpu_list_linux(online_info, online_cpus) || online_cpus.empty()) {
+            return -1;
+        }
 
-                for (cpu_index = core_1; cpu_index <= core_2; cpu_index++) {
-                    if (mode == cache_info_mode) {
-                        for (int n = 0; n < max_files; n++) {
-                            file_index = (n == 0) ? n : n + 1;
-                            one_info.clear();
+        // rows are indexed by CPU id, so keep a row for every possible id and not only the online ones
+        for (const auto& range : possible_cpus) {
+            max_cpu_id = std::max(max_cpu_id, range.second);
+        }
+        system_info_table.resize(static_cast<size_t>(max_cpu_id) + 1, std::vector<std::string>(max_files, ""));
 
-                            std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) +
-                                                     "/cache/index" + std::to_string(file_index) + "/shared_cpu_list");
-                            if (cache_file.is_open()) {
-                                std::getline(cache_file, one_info);
-                            } else {
-                                if ((cpu_index == core_1) && (n == 0)) {
-                                    system_info_table.clear();
-                                    return -1;
-                                }
-                            }
-                            system_info_table[cpu_index][n] = std::move(one_info);
-                        }
-                    } else {
-                        std::vector<std::string> file_name = {"/topology/core_cpus_list",
-                                                              "/topology/physical_package_id",
-                                                              "/cpufreq/cpuinfo_max_freq"};
+        for (const auto& range : online_cpus) {
+            const int core_1 = range.first;
+            const int core_2 = range.second;
 
-                        for (int n = 0; n < max_files; n++) {
-                            one_info.clear();
-
-                            std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) +
-                                                     file_name[n]);
-                            if (cache_file.is_open()) {
-                                std::getline(cache_file, one_info);
-                            } else {
-                                if ((cpu_index == core_1) && (n == 2)) {
-                                    system_info_table.clear();
-                                    return -1;
-                                }
-                            }
-                            system_info_table[cpu_index][n] = std::move(one_info);
-                        }
-                    }
-                }
+            if (core_2 > max_cpu_id) {
+                system_info_table.clear();
+                return -1;
             }
 
-            if ((pos = online_info.find(',', endpos)) != std::string::npos) {
-                pos++;
-            } else {
-                break;
+            for (cpu_index = core_1; cpu_index <= core_2; cpu_index++) {
+                if (mode == cache_info_mode) {
+                    for (int n = 0; n < max_files; n++) {
+                        file_index = (n == 0) ? n : n + 1;
+                        one_info.clear();
+
+                        std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) +
+                                                 "/cache/index" + std::to_string(file_index) + "/shared_cpu_list");
+                        if (cache_file.is_open()) {
+                            std::getline(cache_file, one_info);
+                        } else {
+                            if ((cpu_index == core_1) && (n == 0)) {
+                                system_info_table.clear();
+                                return -1;
+                            }
+                        }
+                        system_info_table[cpu_index][n] = std::move(one_info);
+                    }
+                } else {
+                    std::vector<std::string> file_name = {"/topology/core_cpus_list",
+                                                          "/topology/physical_package_id",
+                                                          "/cpufreq/cpuinfo_max_freq"};
+
+                    for (int n = 0; n < max_files; n++) {
+                        one_info.clear();
+
+                        std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) +
+                                                 file_name[n]);
+                        if (cache_file.is_open()) {
+                            std::getline(cache_file, one_info);
+                        } else {
+                            if ((cpu_index == core_1) && (n == 2)) {
+                                system_info_table.clear();
+                                return -1;
+                            }
+                        }
+                        system_info_table[cpu_index][n] = std::move(one_info);
+                    }
+                }
             }
         }
 
@@ -272,7 +303,8 @@ CPU::CPU() {
         for (auto&& socket : sockets) {
             _cores += socket.second;
         }
-        if (_cores == 0) {
+        // a container's /proc/cpuinfo can list fewer processors than the host's "cpu cores"
+        if (_cores == 0 || _cores > _processors) {
             _cores = _processors;
         }
         if (_processors > 0 && _numa_nodes > 0 && _cores > 0) {
@@ -310,37 +342,16 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
     int max_node_id = 0;
 
     for (auto& one_info : node_info_table) {
-        int core_1 = 0;
-        int core_2 = 0;
-        std::string::size_type pos = 0;
-        std::string::size_type endpos = 0;
-        std::string sub_str = "";
+        std::vector<std::pair<int, int>> cpu_ranges;
         nodes_table.push_back({});
 
-        if (((endpos = one_info.find('-', pos)) == std::string::npos) &&
-            ((endpos = one_info.find(',', pos)) != std::string::npos)) {
-            while (endpos != std::string::npos) {
-                sub_str = one_info.substr(pos);
-                core_1 = std::stoi(sub_str);
-                nodes_table[node_index].insert(core_1);
-                endpos = one_info.find(',', pos);
-                pos = endpos + 1;
-            }
-        } else {
-            while (endpos != std::string::npos) {
-                if ((endpos = one_info.find('-', pos)) != std::string::npos) {
-                    sub_str = one_info.substr(pos, endpos - pos);
-                    core_1 = std::stoi(sub_str);
-                    sub_str = one_info.substr(endpos + 1);
-                    core_2 = std::stoi(sub_str);
-                    for (int i = core_1; i <= core_2; i++) {
-                        nodes_table[node_index].insert(i);
-                    }
-                    pos = one_info.find(',', endpos);
-                    if (pos == std::string::npos) {
+        // an unparsable list leaves the node empty
+        if (parse_cpu_list_linux(one_info, cpu_ranges)) {
+            for (const auto& range : cpu_ranges) {
+                for (int i = range.first;; i++) {
+                    nodes_table[node_index].insert(i);
+                    if (i == range.second) {  // checked before ++i so range.second == INT_MAX cannot overflow
                         break;
-                    } else {
-                        pos = pos + 1;
                     }
                 }
             }
@@ -497,6 +508,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 }
 
                 for (int m = core_1; m <= core_2; m++) {
+                    // offline members of the cluster have no row
+                    if (system_info_table[m][0].size() == 0) {
+                        continue;
+                    }
                     update_proc_info(m, core_type);
 
                     if ((core_2 - core_1 == 1) &&

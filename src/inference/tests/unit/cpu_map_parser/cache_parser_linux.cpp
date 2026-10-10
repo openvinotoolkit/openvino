@@ -1668,6 +1668,25 @@ LinuxCpuMapTestCase cache_1sockets_4cores_2 = {
         {"0-3"},
     },
 };
+LinuxCpuMapTestCase cache_1sockets_4cores_3 = {
+    2,
+    1,
+    1,
+    2,
+    0,
+    {{2, 0, 2, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
+        {2, 0, 0, 1, EFFICIENT_CORE_PROC, 0, -1},
+    },
+    {
+        {"0", "0-3", "0-3"},
+        {"", "", ""},
+        {"2", "0-3", "0-3"},
+        {"", "", ""},
+    },
+    {},
+};
 LinuxCpuMapTestCase cache_VM_cache_0 = {
     0,
     0,
@@ -2645,6 +2664,7 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_4cores,
                                          cache_1sockets_4cores_1,
                                          cache_1sockets_4cores_2,
+                                         cache_1sockets_4cores_3,
                                          cache_VM_cache_0,
                                          cache_mock_0,
                                          cache_mock_1,
