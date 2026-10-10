@@ -115,7 +115,7 @@ struct Header {
      * in place, no copy.
      * @warning No bounds checking: caller must ensure `data` points to at least `sizeof(Header)` readable bytes.
      */
-    static const Header& view(const uint8_t* data) noexcept {
+    static const Header& view(const void* data) noexcept {
         return *reinterpret_cast<const Header*>(data);
     }
 };

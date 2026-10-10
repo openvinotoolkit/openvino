@@ -28,7 +28,7 @@ bool MultiBlobView::NextContainer::is_blob() const noexcept {
 }
 
 const Header& ContainerView::header() const noexcept {
-    return Header::view(reinterpret_cast<const uint8_t*>(begin()));
+    return Header::view(begin());
 }
 
 const ManifestEntry& ContainerView::manifest() const noexcept {
@@ -88,7 +88,7 @@ ContainerView MultiBlobView::blob_at(size_t index) const noexcept {
 
 std::optional<MultiBlobView::NextContainer> MultiBlobView::advance_container(
     const ov::util::MemoryView& view) noexcept {
-    const auto& hdr = Header::view(reinterpret_cast<const uint8_t*>(view.data()));
+    const auto& hdr = Header::view(view.data());
     if (!is_recognized_header(hdr) || hdr.container_size > view.size()) {
         return std::nullopt;
     } else {
