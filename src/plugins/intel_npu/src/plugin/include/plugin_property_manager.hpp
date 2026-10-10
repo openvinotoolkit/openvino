@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -18,6 +19,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "merged_config.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
@@ -37,8 +39,19 @@ public:
     ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
-    std::pair<Config, ov::AnyMap> getMergedConfigAndUnknownProperties(const ov::AnyMap& properties,
-                                                                      ConfigMergeMode mergeMode);
+    /**
+     * @brief Merges the given properties into a copy of the plugin config for the compile or query path.
+     * @param mergeMode Either ConfigMergeMode::Compile or ConfigMergeMode::Query.
+     * @return The merged config, the properties to be sent to the compiler and the unknown properties.
+     */
+    MergedConfig getMergedConfigForCompilation(const ov::AnyMap& properties, ConfigMergeMode mergeMode);
+
+    /**
+     * @brief Merges the given properties into a copy of the plugin config for the import path. Compile-time-only
+     * options are skipped, so no compiler properties are produced.
+     * @return The merged runtime config and the unknown properties, the compiler properties are always empty.
+     */
+    MergedConfig getMergedConfigForImport(const ov::AnyMap& properties);
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
@@ -46,6 +59,11 @@ public:
 
 private:
     void registerProperties();
+
+    // Merges the given properties into a copy of the stored config. The returned compiler properties hold only the
+    // internal compiler options (stored ones overridden by the passed ones), the caller is responsible for adding the
+    // compile-time options and for cleaning up the runtime config. Doesn't lock _mutex, callers must hold it.
+    MergedConfig mergeConfig(const ov::AnyMap& properties, ConfigMergeMode mergeMode);
 
     // The helpers below read the value from the arguments and fall back to the stored config when missing.
     // They don't lock _mutex, callers must hold it.
@@ -57,6 +75,9 @@ private:
     void warnCompilerOnlyOptionSkipped(const std::string& key) const;
 
     Config _config;
+    // Internal compiler options set through set_property. They are unknown to the plugin, only the compiler supports
+    // them, so they are kept here and sent to the compiler through the compiler properties instead of the config.
+    std::map<std::string, std::string> _internalCompilerProperties;
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;

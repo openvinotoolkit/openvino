@@ -304,19 +304,6 @@ details::OptionConcept Config::getOpt(std::string_view key) const {
     return _desc->get(key);
 }
 
-void Config::addOrUpdateInternal(std::string key, std::string value) {
-    const auto [it, inserted] = _internal_compiler_configs.insert_or_assign(std::move(key), std::move(value));
-    if (inserted) {
-        _log.trace("Store internal compiler option %s: %s", it->first.c_str(), it->second.c_str());
-    } else {
-        _log.warning("Internal compiler option '%s' was already registered! Updating value only!", it->first.c_str());
-    }
-}
-
-bool Config::hasInternal(std::string_view key) const {
-    return _internal_compiler_configs.count(std::string(key)) != 0;
-}
-
 void Config::removeCompileTimeConfigs() {
     for (auto it = _impl.begin(); it != _impl.end();) {
         if (_desc->get(it->first).mode() == OptionMode::CompileTime) {
@@ -325,65 +312,31 @@ void Config::removeCompileTimeConfigs() {
             ++it;
         }
     }
-
-    _internal_compiler_configs.clear();
 }
 
-std::string Config::getInternal(std::string_view key) const {
-    // `ConfigMap` is keyed by `std::string` and uses the default comparator, so it has no heterogeneous lookup
-    const auto it = _internal_compiler_configs.find(std::string(key));
-    if (it == _internal_compiler_configs.end()) {
-        OPENVINO_THROW("Internal compiler option ", key, " does not exist!");
-    }
+void Config::extractTo(std::map<std::string, std::string>& target,
+                       const std::function<bool(std::string_view)>& shouldExtract) {
+    OPENVINO_ASSERT(shouldExtract, "Config::extractTo requires a valid predicate");
 
-    return it->second;
-}
-
-std::string Config::toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const {
-    if (!isSupported) {
-        OPENVINO_THROW("Config::toStringForCompiler requires a valid support predicate");
-    }
-
-    std::stringstream resultStream;
-    bool hasSerializedValue = false;
-
-    const auto append = [&](std::string_view key, std::string_view serializedValue) {
-        if (hasSerializedValue) {
-            resultStream << " ";
+    for (auto it = _impl.begin(); it != _impl.end();) {
+        if (shouldExtract(it->first)) {
+            target[std::string(it->first)] = it->second->toString();
+            it = _impl.erase(it);
+        } else {
+            ++it;
         }
-        resultStream << key << "=\"" << serializedValue << "\"";
-        hasSerializedValue = true;
-    };
+    }
+}
+
+void Config::copyTo(std::map<std::string, std::string>& target,
+                    const std::function<bool(std::string_view)>& shouldCopy) const {
+    OPENVINO_ASSERT(shouldCopy, "Config::copyTo requires a valid predicate");
 
     for (const auto& [key, value] : _impl) {
-        if (!_desc->has(key)) {
-            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
-                           "' is not supported for current configuration");
+        if (shouldCopy(key)) {
+            target[std::string(key)] = value->toString();
         }
-
-        const auto mode = _desc->get(key).mode();
-        if (mode != OptionMode::CompileTime && mode != OptionMode::Both) {
-            continue;
-        }
-        if (mode == OptionMode::CompileTime && !isSupported(std::string(key))) {
-            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
-                           "' is not supported for current configuration");
-        }
-        if (mode == OptionMode::Both && !isSupported(std::string(key))) {
-            continue;
-        }
-
-        append(key, value->toString());
     }
-
-    for (const auto& [key, value] : _internal_compiler_configs) {
-        if (!isSupported(key)) {
-            OPENVINO_THROW("[ NOT_FOUND ] Option '" + key + "' is not supported for current configuration");
-        }
-        append(key, value);
-    }
-
-    return resultStream.str();
 }
 
 }  // namespace intel_npu

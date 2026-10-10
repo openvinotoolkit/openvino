@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -15,6 +16,7 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "merged_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "property_registration.hpp"
 
@@ -22,8 +24,12 @@ namespace intel_npu {
 
 class CompiledModelPropertyManager final : private PropertyRegistrationBase {
 public:
-    CompiledModelPropertyManager(const Config& config,
-                                 const ov::AnyMap& properties,
+    /**
+     * @param mergedConfig The configuration of the compiled model. The runtime options are read from the runtime
+     * config, the compile-time properties are exposed from the compiler properties and the unknown properties are set
+     * into the property descriptors.
+     */
+    CompiledModelPropertyManager(const MergedConfig& mergedConfig,
                                  const std::shared_ptr<IDevice>& device,
                                  const std::shared_ptr<IGraph>& graph,
                                  const std::optional<int64_t>& batchSize,
@@ -38,6 +44,7 @@ private:
     void registerProperties();
 
     Config _config;
+    const std::map<std::string, std::string> _compilerProperties;
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;

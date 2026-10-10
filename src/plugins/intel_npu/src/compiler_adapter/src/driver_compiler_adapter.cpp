@@ -16,6 +16,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "mem_usage.hpp"
 #include "model_serializer.hpp"
 #include "openvino/core/model.hpp"
@@ -88,7 +89,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config,
+                                                       const std::map<std::string, std::string>& compilerProperties,
                                                        const AdapterDescriptor& adapterDesc) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
@@ -105,25 +106,23 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    compiler_utils::getModelSerializerVersion(compilerProperties),
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported());
-    Config updatedConfig = config;
+    std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+        string_map::set(updatedProperties,
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
-    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
-        return is_option_supported(optionName);
-    };
 
     _logger.debug("build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedProperties, compilerVersion);
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
@@ -147,7 +146,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const Config& config,
+                                                         const std::map<std::string, std::string>& compilerProperties,
                                                          const AdapterDescriptor& adapterDesc) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
@@ -162,9 +161,18 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
-    if (config.get<SEPARATE_WEIGHTS_VERSION>() != ov::intel_npu::WSVersion::ITERATIVE) {
+    std::map<std::string, std::string> localProperties = compilerProperties;
+    if (!string_map::has(localProperties, ov::intel_npu::separate_weights_version.name())) {
+        string_map::set(localProperties,
+                        ov::intel_npu::separate_weights_version.name(),
+                        SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ITERATIVE));
+    }
+    const auto wsVersion = SEPARATE_WEIGHTS_VERSION::parse(
+        string_map::get(localProperties, ov::intel_npu::separate_weights_version.name()));
+
+    if (wsVersion != ov::intel_npu::WSVersion::ITERATIVE) {
         OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call:",
-                       config.get<SEPARATE_WEIGHTS_VERSION>(),
+                       wsVersion,
                        ". \"WSVersion::ITERATIVE\" is the only supported value for the compiler-in-driver path.");
     }
 
@@ -176,14 +184,15 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    compiler_utils::getModelSerializerVersion(compilerProperties),
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported(),
                                                     true);
-    Config updatedConfig = config;
+    std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+        string_map::set(updatedProperties,
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -191,8 +200,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     const std::string serializedIOInfo = compiler_utils::serializeIOInfo(model, useIndices);
 
-    // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
-    // the current call iteration.
+    // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the
+    // index of the current call iteration.
     std::vector<NetworkMetadata> initNetworkMetadata;
     NetworkMetadata mainNetworkMetadata;
     std::vector<GraphDescriptor> initGraphDescriptors;
@@ -205,23 +214,19 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         compile_model_mem_start = get_peak_memory_usage();
     }
 
-    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
-        return is_option_supported(optionName);
-    };
-
     OPENVINO_ASSERT(is_option_supported(ov::intel_npu::ws_compile_call_number.name()),
                     "WS_COMPILE_CALL_NUMBER is a compiler option and must be supported by the compiler.");
-    OPENVINO_ASSERT(!updatedConfig.has(ov::intel_npu::ws_compile_call_number.name()),
+    OPENVINO_ASSERT(!string_map::has(updatedProperties, ov::intel_npu::ws_compile_call_number.name()),
                     "WS_COMPILE_CALL_NUMBER is an internal option owned by the weights separation compilation "
                     "loop and must not be set by the user.");
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
-        updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++));
+        string_map::set(updatedProperties, ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++));
 
         _logger.debug("build flags");
         buildFlags = serializedIOInfo;
         buildFlags += " ";
-        buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
+        buildFlags += compiler_utils::serializeConfig(updatedProperties, compilerVersion);
 
         _logger.debug("compile start");
         auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR,
@@ -269,7 +274,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const Config& config) const {
+                                                 const std::map<std::string, std::string>& compilerProperties) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -284,20 +289,18 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    compiler_utils::getModelSerializerVersion(compilerProperties),
                                                     isOptionValueSupportedByCompiler);
 
-    Config updatedConfig = config;
+    std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+        string_map::set(updatedProperties,
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
-    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
-        return is_option_supported(optionName);
-    };
 
     std::string buildFlags;
-    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedProperties, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ov::SupportedOpsMap result;

@@ -5,13 +5,13 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "intel_npu/config/config.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -35,8 +35,9 @@ public:
      * @return a pair containing an ov::Tensor object with the compiled model (blob) and an optional
      *         string with runtime requirements for the blob
      */
-    virtual std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
-                                                                      const Config& config) const = 0;
+    virtual std::pair<ov::Tensor, std::optional<std::string>> compile(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::map<std::string, std::string>& compilerProperties) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main
@@ -46,20 +47,23 @@ public:
      */
     virtual std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
         const std::shared_ptr<ov::Model>& model,
-        const Config& config) const = 0;
+        const std::map<std::string, std::string>& compilerProperties) const = 0;
 
     /**
      * @brief Sequential compilation of Init(s) and Main ("stateless compiler" approach).
      * @param callNumber Tells the compiler which Init (or Main) to return; the plugin does not know
      * the total number of Init schedules.
      */
-    virtual std::pair<ov::Tensor, std::optional<std::string>>
-    compileWsIterative(const std::shared_ptr<ov::Model>& model, const Config& config, size_t callNumber) const = 0;
+    virtual std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(
+        const std::shared_ptr<ov::Model>& model,
+        const std::map<std::string, std::string>& compilerProperties,
+        size_t callNumber) const = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed.
      */
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                                      const std::map<std::string, std::string>& compilerProperties) const = 0;
 
     /**
      * @brief Returns the compiler version.

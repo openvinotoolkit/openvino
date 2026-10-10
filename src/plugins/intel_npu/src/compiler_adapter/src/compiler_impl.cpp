@@ -17,6 +17,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vcl/vcl_allocator.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
@@ -231,13 +232,13 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const Config& config) const {
-    return compile(model, config, false);
+    const std::map<std::string, std::string>& compilerProperties) const {
+    return compile(model, compilerProperties, false);
 }
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const Config& config,
+    const std::map<std::string, std::string>& compilerProperties,
     const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
@@ -266,14 +267,15 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    compiler_utils::getModelSerializerVersion(compilerProperties),
                                                     isOptionSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
-    Config updatedConfig = config;
+    std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+        string_map::set(updatedProperties,
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -281,7 +283,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedProperties, compilerVersion);
 
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
@@ -368,7 +370,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
 std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::compileWsOneShot(
     const std::shared_ptr<ov::Model>& model,
-    const Config& config) const {
+    const std::map<std::string, std::string>& compilerProperties) const {
     _logger.debug("compileWsOneShot start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -396,14 +398,15 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    compiler_utils::getModelSerializerVersion(compilerProperties),
                                                     isOptionSupportedByCompiler,
                                                     false,
                                                     true);
-    Config updatedConfig = config;
+    std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+        string_map::set(updatedProperties,
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -411,7 +414,7 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedProperties, compilerVersion);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -481,13 +484,13 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIterative(
     const std::shared_ptr<ov::Model>& model,
-    const Config& config,
+    const std::map<std::string, std::string>& compilerProperties,
     size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    Config updatedConfig = config;
-    updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
+    std::map<std::string, std::string> updatedProperties = compilerProperties;
+    string_map::set(updatedProperties, ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
     // Return the compatibility descriptor together with the compiled blob.
-    return compile(model, updatedConfig, true);
+    return compile(model, updatedProperties, true);
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -544,7 +547,8 @@ uint32_t VCLCompilerImpl::get_version() const {
     return ZE_MAKE_VERSION(_compilerProperties.version.major, _compilerProperties.version.minor);
 }
 
-ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
+                                           const std::map<std::string, std::string>& compilerProperties) const {
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -564,7 +568,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    Config updatedConfig = config;
+    std::map<std::string, std::string> updatedProperties = compilerProperties;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName,
                                                     const std::optional<std::string>& optionValue = std::nullopt) {
         return is_option_supported(optionName, optionValue);
@@ -572,15 +576,16 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    compiler_utils::getModelSerializerVersion(compilerProperties),
                                                     isOptionSupportedByCompiler);
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+        string_map::set(updatedProperties,
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
-    buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
+    buildFlags += compiler_utils::serializeConfig(updatedProperties, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;

@@ -14,6 +14,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
@@ -50,15 +51,15 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config,
+                                                       const std::map<std::string, std::string>& compilerProperties,
                                                        const AdapterDescriptor&) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
-    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
+    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, compilerProperties);
     _logger.debug("compile end");
 
-    const auto& compilationMode = config.get<COMPILATION_MODE>();
+    const auto compilationMode = string_map::get(compilerProperties, ov::intel_npu::compilation_mode.name());
     const bool isHostCompile = compilationMode.find("HostCompile") != std::string::npos;
     const BlobType blobType =
         isHostCompile ? (compilationMode.find("HostCompile_Interpreter") != std::string::npos ? BlobType::BYTECODE
@@ -103,18 +104,21 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const Config& config,
+                                                         const std::map<std::string, std::string>& compilerProperties,
                                                          const AdapterDescriptor&) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
 
-    Config localConfig = config;
-    if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
-        localConfig.update(ov::intel_npu::separate_weights_version.name(), "ONE_SHOT");
+    std::map<std::string, std::string> localProperties = compilerProperties;
+    if (!string_map::has(localProperties, ov::intel_npu::separate_weights_version.name())) {
+        string_map::set(localProperties,
+                        ov::intel_npu::separate_weights_version.name(),
+                        SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ONE_SHOT));
     }
+    const auto wsVersion = SEPARATE_WEIGHTS_VERSION::parse(
+        string_map::get(localProperties, ov::intel_npu::separate_weights_version.name()));
 
-    _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
-                 SEPARATE_WEIGHTS_VERSION::toString(localConfig.get<SEPARATE_WEIGHTS_VERSION>()).c_str());
+    _logger.info("SEPARATE_WEIGHTS_VERSION: %s", SEPARATE_WEIGHTS_VERSION::toString(wsVersion).c_str());
 
     int64_t compileModelMemStart = 0;
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -130,9 +134,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     NetworkMetadata mainNetworkMetadata;
     std::optional<std::string> compatibilityDescriptor;
 
-    switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
+    switch (wsVersion) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
-        auto oneShotResult = _compiler->compileWsOneShot(model, localConfig);
+        auto oneShotResult = _compiler->compileWsOneShot(model, localProperties);
         auto initMainTensors = std::move(oneShotResult.first);
         compatibilityDescriptor = std::move(oneShotResult.second);
 
@@ -198,11 +202,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
         OPENVINO_ASSERT(is_option_supported(ov::intel_npu::ws_compile_call_number.name()),
                         "WS_COMPILE_CALL_NUMBER is a compiler option and must be supported by the compiler.");
-        OPENVINO_ASSERT(!localConfig.has(ov::intel_npu::ws_compile_call_number.name()),
+        OPENVINO_ASSERT(!string_map::has(localProperties, ov::intel_npu::ws_compile_call_number.name()),
                         "WS_COMPILE_CALL_NUMBER is an internal option owned by the weights separation compilation "
                         "loop and must not be set by the user.");
         while (true) {
-            auto iterativeResult = _compiler->compileWsIterative(targetModel, localConfig, i++);
+            auto iterativeResult = _compiler->compileWsIterative(targetModel, localProperties, i++);
             auto tensor = std::move(iterativeResult.first);
             if (iterativeResult.second.has_value()) {
                 compatibilityDescriptor = std::move(iterativeResult.second);
@@ -230,8 +234,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         }
     } break;
     default:
-        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call: ",
-                       localConfig.get<SEPARATE_WEIGHTS_VERSION>());
+        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call: ", wsVersion);
         break;
     }
 
@@ -260,10 +263,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const Config& config) const {
+                                                 const std::map<std::string, std::string>& compilerProperties) const {
     OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "query");
 
-    return _compiler->query(model, config);
+    return _compiler->query(model, compilerProperties);
 }
 
 uint32_t PluginCompilerAdapter::get_version() const {
