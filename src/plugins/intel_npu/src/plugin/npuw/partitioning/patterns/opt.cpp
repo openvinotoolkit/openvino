@@ -2395,10 +2395,11 @@ void untangleConst(std::shared_ptr<ov::Model> model) {
         if (this_type == ov::element::i64 && is_single) {
             // Keep the first reader with the original const, but redirect
             // all others to use their individual instance
-            auto this_val = this_const->get_tensor_view();
+            // NB: copy the data - a get_tensor_view() does not own it and dangles if this_const is freed
             auto it = readers.begin();
             while (++it != readers.end()) {
-                auto new_const = std::make_shared<ov::op::v0::Constant>(this_val);
+                auto new_const =
+                    std::make_shared<ov::op::v0::Constant>(this_type, this_shape, this_const->get_data_ptr());
                 new_const->set_friendly_name(util::Unique<Untangled_Const>::name());
                 it->replace_source_output(new_const);
             }
