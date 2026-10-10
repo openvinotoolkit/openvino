@@ -290,7 +290,9 @@ def parse_devices(device_string):
     if device_string.find(":") != -1:
         hw_devices_str = device_string.partition(":")[-1]
         for hw_device in hw_devices_str.split(','):
-            if hw_device[0] == '-':
+            if not hw_device:
+                continue
+            if hw_device.startswith('-'):
                 hw_device = hw_device[1:]
             result.append(hw_device)
     return result
