@@ -429,7 +429,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"]
     defaults:
       run:
         shell: pwsh
@@ -494,6 +494,7 @@ jobs:
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Python API Tests -- numpy>=2.0.0
+        if: ${{ matrix.python-version != '3.15' && matrix.python-version != '3.15t' }} # numpy<2.1 has no Python 3.15 wheels
         shell: cmd
         run: |
           python3 -m pip uninstall -y numpy

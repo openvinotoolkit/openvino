@@ -262,9 +262,24 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
-      - name: Build additional Python wheels (3.11-3.14t)
+      - name: Setup Python 3.15t
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.15t"
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'false'
+          allow-prereleases: 'true'
+
+      - name: Setup Python 3.15
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.15"
+          set-pip-install-path: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Build additional Python wheels (3.11-3.15t)
         run: |
-          for py_version in "3.11" "3.12" "3.13" "3.14" "3.14t"
+          for py_version in "3.11" "3.12" "3.13" "3.14" "3.14t" "3.15" "3.15t"
           do
             echo "Building Python API and wheels for Python ${py_version}"
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
@@ -272,7 +287,7 @@ jobs:
 
             echo "Using Python executable at: ${python_exec_path}"
 
-            if [[ $py_version == "3.14t" ]]; then
+            if [[ $py_version == *t ]]; then
               gil_option="-DENABLE_GIL_PYTHON_API=OFF"
             else
               gil_option=""
@@ -442,7 +457,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.11', '3.12', '3.13', '3.14', '3.14t' ]
+        python-version: [ '3.11', '3.12', '3.13', '3.14', '3.14t', '3.15', '3.15t' ]
     with:
       runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
