@@ -331,3 +331,31 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_2)
         model_ref = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
     }
 }
+
+TEST(TransformationTests, MarkPrecisionSensitiveShapeOfSubgraphs_bf16_target_marks_with_bf16_key) {
+    auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{360, 640});
+    auto input_2 = std::make_shared<opset10::Parameter>(element::f32, Shape{720, 1280});
+    auto shapeof = std::make_shared<opset10::ShapeOf>(input_2);
+
+    auto convert_to_float = std::make_shared<opset10::Convert>(shapeof, element::f32);
+    auto const_denominator = opset10::Constant::create(element::f32, Shape{}, {2.0f});
+    auto div = std::make_shared<opset10::Divide>(convert_to_float, const_denominator);
+    auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
+
+    auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
+    auto model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>(element::bf16);
+    manager.run_passes(model);
+
+    for (const std::shared_ptr<Node>& node : {std::shared_ptr<Node>(convert_to_float),
+                                              std::shared_ptr<Node>(const_denominator),
+                                              std::shared_ptr<Node>(div),
+                                              std::shared_ptr<Node>(new_shape)}) {
+        EXPECT_TRUE(is_conversion_disabled(node, element::bf16))
+            << node->get_friendly_name() << " is not marked for the bf16 target";
+        EXPECT_FALSE(is_conversion_disabled(node, element::f16))
+            << node->get_friendly_name() << " must not gain an f16 mark from a bf16-targeted run";
+    }
+}

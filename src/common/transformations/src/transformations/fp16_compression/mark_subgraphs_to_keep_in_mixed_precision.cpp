@@ -4,7 +4,11 @@
 
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
+#include <limits>
+
 #include "itt.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -88,6 +92,16 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
     rt_info.erase("fq_path");
 }
 
+// Minimum positive normalized value representable in the target precision: eps constants that are
+// not greater than it would be flushed to zero (or denormalized) once the model is compressed.
+float min_normalized_value(const element::Type& target) {
+    if (target == element::f16)
+        return static_cast<float>(float16::from_bits(0x0400));
+    if (target == element::bf16)
+        return static_cast<float>(bfloat16::from_bits(0x0080));
+    return std::numeric_limits<float>::min();
+}
+
 // Marking continues to propagate through these ops.
 const std::shared_ptr<Node> propagate_through_ops =
     pattern::wrap_type<v0::Squeeze,
@@ -121,7 +135,7 @@ const std::shared_ptr<Node> propagate_through_ops =
 class PropagateUpMarkToKeepInMixedPrecision : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateUpMarkToKeepInMixedPrecision");
-    PropagateUpMarkToKeepInMixedPrecision() {
+    explicit PropagateUpMarkToKeepInMixedPrecision(const element::Type& target) {
         MATCHER_SCOPE(PropagateUpMarkToKeepInMixedPrecision);
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -130,7 +144,7 @@ public:
             for (const auto& output : node->outputs()) {
                 for (const auto& out_inputs : output.get_target_inputs()) {
                     if (out_inputs.get_element_type().is_real() &&
-                        is_conversion_disabled(out_inputs.get_node()->shared_from_this(), element::f16)) {
+                        is_conversion_disabled(out_inputs.get_node()->shared_from_this(), target)) {
                         has_marked_output = true;
                     }
                 }
@@ -148,7 +162,7 @@ public:
                     return false;
             }
 
-            disable_conversion(node, element::f16);
+            disable_conversion(node, target);
             return true;
         };
 
@@ -164,7 +178,7 @@ public:
 class PropagateDownMarkToKeepInMixedPrecision : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateDownMarkToKeepInMixedPrecision");
-    PropagateDownMarkToKeepInMixedPrecision() {
+    explicit PropagateDownMarkToKeepInMixedPrecision(const element::Type& target) {
         MATCHER_SCOPE(PropagateDownMarkToKeepInMixedPrecision);
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -182,12 +196,12 @@ public:
                 if (!in_node.get_element_type().is_real())
                     continue;
                 if (is_fq_path(in_node.get_node_shared_ptr())) {
-                    enable_conversion(node, element::f16);
+                    enable_conversion(node, target);
                     return true;
                 }
 
-                if (is_conversion_disabled(in_node.get_node_shared_ptr(), element::f16)) {
-                    disable_conversion(node, element::f16);
+                if (is_conversion_disabled(in_node.get_node_shared_ptr(), target)) {
+                    disable_conversion(node, target);
                     is_changed = true;
                     break;
                 }
@@ -250,7 +264,7 @@ class MarkExp : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MarkExp");
     // only exponent that go into ReduceOp should be marked as precision sensitive and kept in f32
-    MarkExp() {
+    explicit MarkExp(const element::Type& target) {
         MATCHER_SCOPE(MarkExp);
         auto exp_pattern = pattern::wrap_type<v0::Exp>();
 
@@ -262,7 +276,7 @@ public:
             if (!is_reduceop_path(node))
                 return false;
 
-            disable_conversion(node, element::f16);
+            disable_conversion(node, target);
             return true;
         };
         auto m = make_shared<pattern::Matcher>(exp_pattern, matcher_name);
@@ -274,7 +288,7 @@ class MarkRandomUniform : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MarkRandomUniform");
 
-    MarkRandomUniform() {
+    explicit MarkRandomUniform(const element::Type& target) {
         MATCHER_SCOPE(MarkRandomUniform);
         auto random_uniform_pattern = pattern::wrap_type<v8::RandomUniform>();
 
@@ -283,7 +297,7 @@ public:
             if (!node)
                 return false;
 
-            disable_conversion(node, element::f16);
+            disable_conversion(node, target);
             for (const auto& output : node->outputs()) {
                 auto target_inputs = output.get_target_inputs();
                 for (const auto& input : target_inputs) {
@@ -307,11 +321,11 @@ public:
 class MarkExpInReduceOpPath : public BackwardGraphRewrite {
 public:
     OPENVINO_RTTI("MarkExpInReduceOpPath", "0", BackwardGraphRewrite);
-    MarkExpInReduceOpPath() {
+    explicit MarkExpInReduceOpPath(const element::Type& target) {
         // marking of ReduceOp path is needed to mark only Exponents that go into ReduceSum/ReduceMean
         ADD_MATCHER_FOR_THIS(InitMarkReduceOpPath);
         ADD_MATCHER_FOR_THIS(PropagateMarkUpReduceOpPath);
-        ADD_MATCHER_FOR_THIS(MarkExp);
+        ADD_MATCHER_FOR_THIS(MarkExp, target);
     }
 };
 
@@ -324,7 +338,7 @@ public:
 class MarkDivWithEps : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MarkDivWithEps");
-    MarkDivWithEps() {
+    explicit MarkDivWithEps(const element::Type& target) {
         MATCHER_SCOPE(MarkDivWithEps);
 
         // to detect the following patterns where eps is used to prevent division by zero:
@@ -381,16 +395,17 @@ public:
             const auto eps_const = as_type_ptr<v0::Constant>(pattern_to_output.at(eps_const_pattern));
             if (!eps_const)
                 return false;
+            const auto min_normalized = min_normalized_value(target);
             if (eps_const->get_element_type() == element::f32) {
                 for (const auto& val : eps_const->get_vector<float>())
-                    if (val > static_cast<float>(float16_min_normalized))
+                    if (val > min_normalized)
                         return false;
             } else if (eps_const->get_element_type() == element::f16) {
                 for (const auto& val : eps_const->get_vector<float16>())
-                    if (val > float16_min_normalized)
+                    if (static_cast<float>(val) > min_normalized)
                         return false;
             }
-            disable_conversion(m.get_match_root(), element::f16);
+            disable_conversion(m.get_match_root(), target);
             return true;
         };
 
@@ -402,7 +417,7 @@ public:
 class PropagateDownDisableSensitivityForQuantized : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateDownDisableSensitivityForQuantized");
-    PropagateDownDisableSensitivityForQuantized() {
+    explicit PropagateDownDisableSensitivityForQuantized(const element::Type& target) {
         MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
 
         // through this nodes
@@ -448,7 +463,7 @@ public:
                 auto is_quantize = as_type_ptr<v0::FakeQuantize>(input_node);
                 if (is_quantize || is_fq_path(input_node)) {
                     mark_fq_path(node);
-                    enable_conversion(node, element::f16);
+                    enable_conversion(node, target);
                     is_changed = true;
                 }
             }
@@ -460,27 +475,30 @@ public:
     }
 };
 
+MarkSugraphsToKeepInMixedPrecision::MarkSugraphsToKeepInMixedPrecision(const element::Type& target)
+    : m_target(target) {}
+
 bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(MarkSugraphsToKeepInMixedPrecision);
 
     Manager manager(get_pass_config(), "MarkSugraphsToKeepInMixedPrecision");
     manager.set_per_pass_validation(false);
     // Mark root of Division with eps pattern to keep in FP32
-    REGISTER_PASS(manager, MarkFloatingPointRange)
-    REGISTER_PASS(manager, MarkDivWithEps)
-    REGISTER_PASS(manager, MarkExpInReduceOpPath)
-    REGISTER_PASS(manager, MarkRandomUniform)
-    REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
+    REGISTER_PASS(manager, MarkFloatingPointRange, m_target)
+    REGISTER_PASS(manager, MarkDivWithEps, m_target)
+    REGISTER_PASS(manager, MarkExpInReduceOpPath, m_target)
+    REGISTER_PASS(manager, MarkRandomUniform, m_target)
+    REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized, m_target)
 
     // both Up and Down propagations are needed.
     // Why both of them are needed is explained in comments in passes declarations.
-    REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
+    REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision, m_target)
 
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
-    ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
+    ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision, m_target)
 
     // Mark nodes in ShapeOf subgraphs to keep in FP32
-    REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
+    REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs, m_target)
     manager.run_passes(m);
 
     for (auto& node : m->get_ops()) {

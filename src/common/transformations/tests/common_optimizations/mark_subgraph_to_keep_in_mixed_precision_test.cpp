@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -22,6 +24,7 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -1384,4 +1387,112 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 
     model_ref = model->clone();
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false, true);
+}
+
+TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_bf16_target_marks_with_bf16_key) {
+    auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto exp_1 = make_shared<Exp>(input_1);
+    auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+    auto reduce_sum_1 = make_shared<ReduceSum>(exp_1, reduction_axes);
+    auto factor_const = Constant::create(element::f16, Shape{1}, {-1});
+    auto factor_const_decompressed = make_shared<Convert>(factor_const, element::f32);
+    auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
+    auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
+    auto model = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>(element::bf16);
+    manager.run_passes(model);
+
+    for (const auto& node : {static_pointer_cast<Node>(exp_1),
+                             static_pointer_cast<Node>(reduce_sum_1),
+                             static_pointer_cast<Node>(mul_1)}) {
+        EXPECT_TRUE(is_conversion_disabled(node, element::bf16))
+            << node->get_friendly_name() << " is not marked for the bf16 target";
+        EXPECT_FALSE(is_conversion_disabled(node, element::f16))
+            << node->get_friendly_name() << " is unexpectedly marked for the f16 target";
+    }
+    EXPECT_FALSE(is_conversion_disabled(matmul_1, element::bf16));
+}
+
+TEST(TransformationTests, MarkDivWithEps_f16_target_marks_f16_scale_eps) {
+    const float eps_value = 1.0e-5f;
+    auto input_1 = make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto input_2 = make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
+    auto add = make_shared<Add>(input_2, eps_const);
+    auto divide = make_shared<Divide>(input_1, add);
+    auto model = make_shared<Model>(OutputVector{divide}, ParameterVector{input_1, input_2});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    EXPECT_TRUE(is_conversion_disabled(divide, element::f16));
+    EXPECT_TRUE(is_conversion_disabled(add, element::f16));
+}
+
+TEST(TransformationTests, MarkDivWithEps_bf16_target_ignores_f16_scale_eps) {
+    const float eps_value = 1.0e-5f;
+    auto input_1 = make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto input_2 = make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
+    auto add = make_shared<Add>(input_2, eps_const);
+    auto divide = make_shared<Divide>(input_1, add);
+    auto model = make_shared<Model>(OutputVector{divide}, ParameterVector{input_1, input_2});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>(element::bf16);
+    manager.run_passes(model);
+
+    EXPECT_FALSE(is_conversion_disabled(divide, element::bf16))
+        << "eps = 1e-5 is representable in bf16, the division must not be kept in f32";
+    EXPECT_FALSE(is_conversion_disabled(add, element::bf16));
+    EXPECT_FALSE(is_conversion_disabled(divide, element::f16));
+}
+
+TEST(TransformationTests, MarkDivWithEps_bf16_target_marks_denormal_eps) {
+    const float eps_value = std::numeric_limits<float>::min() / 2.f;  // denormal in bf16 and f32
+    auto input_1 = make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto input_2 = make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
+    auto add = make_shared<Add>(input_2, eps_const);
+    auto divide = make_shared<Divide>(input_1, add);
+    auto model = make_shared<Model>(OutputVector{divide}, ParameterVector{input_1, input_2});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>(element::bf16);
+    manager.run_passes(model);
+
+    EXPECT_TRUE(is_conversion_disabled(divide, element::bf16));
+    EXPECT_TRUE(is_conversion_disabled(add, element::bf16));
+    EXPECT_TRUE(is_conversion_disabled(eps_const, element::bf16));
+}
+
+TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_bf16_target_marks_shapeof_subgraph) {
+    auto input_1 = make_shared<Parameter>(element::f32, Shape{360, 640});
+    auto input_2 = make_shared<Parameter>(element::f32, Shape{720, 1280});
+    auto shapeof = make_shared<opset10::ShapeOf>(input_2);
+
+    auto convert_to_float = make_shared<Convert>(shapeof, element::f32);
+    auto const_denominator = Constant::create(element::f32, Shape{}, {2.0f});
+    auto div = make_shared<Divide>(convert_to_float, const_denominator);
+    auto new_shape = make_shared<Convert>(div, element::i64);
+    auto reshape = make_shared<opset10::Reshape>(input_1, new_shape, false);
+    auto model = make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>(element::bf16);
+    manager.run_passes(model);
+
+    for (const shared_ptr<Node>& node : {shared_ptr<Node>(convert_to_float),
+                                         shared_ptr<Node>(const_denominator),
+                                         shared_ptr<Node>(div),
+                                         shared_ptr<Node>(new_shape)}) {
+        EXPECT_TRUE(is_conversion_disabled(node, element::bf16))
+            << node->get_friendly_name() << " is not marked for the bf16 target";
+        EXPECT_FALSE(is_conversion_disabled(node, element::f16))
+            << node->get_friendly_name() << " must not gain an f16 mark from a bf16-targeted run";
+    }
 }
