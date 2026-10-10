@@ -281,6 +281,11 @@ utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, doubl
             valueStr.erase(0, valueStr.find_first_not_of(" \t"));
             valueStr.erase(valueStr.find_last_not_of(" \t") + 1);
 
+            if (layerName.empty()) {
+                std::cerr << "Warning: Skipping entry with empty layer name: '" << pair << "'" << std::endl;
+                continue;
+            }
+
             try {
                 double value = std::stod(valueStr);
                 result[layerName] = value;
