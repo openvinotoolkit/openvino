@@ -30,6 +30,7 @@
 #include "scaled_dot_product_attention_inst.h"
 
 #include <cstddef>
+#include <type_traits>
 #include <vector>
 
 using namespace cldnn;
@@ -67,7 +68,7 @@ struct sdpa_test_params {
           : head_size(h_size), num_heads(n_heads), kv_num_heads(n_heads), sequence_length_q(seq_q), sequence_length_kv(seq_kv),
           batch(b), dynamic(true), use_scalar_scale_val(use_scale),
             scale_val(scale), use_scalar_attn_mask(use_mask), attn_mask_val(mask), bit_width(0), asymmetric(false), dt(dt){}
-    
+
     // constructor for quantization tests
     sdpa_test_params(int h_size, int q_heads, int kv_heads, int seq_q, int seq_kv, int b, int bits, bool asym, data_types dt = data_types::f16)
           : head_size(h_size), num_heads(q_heads), kv_num_heads(kv_heads), sequence_length_q(seq_q),
@@ -303,6 +304,7 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{64, 10, 77, 77, 1, true}, // two ranks mask
         sdpa_test_params{64, 10, 77, 77, 1, false}, // two ranks mask
         sdpa_test_params{64, 32, 128, 128, 2, true, 0.125f, false, 0.0f},  // scale_val only
+        sdpa_test_params{64, 32, 128, 128, 2, true, 0.125f, false, 0.0f, data_types::bf16},  // bf16 scale_val
         sdpa_test_params{64, 32, 128, 128, 2, false, 1.0f, true, 0.5f},     // attn_mask only
         sdpa_test_params{512, 8, 1, 1024, 2, true},
         sdpa_test_params{64, 32, 128, 128, 2, true, data_types::bf16},   // bf16 dynamic
@@ -826,11 +828,12 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
 // host-dequantized KV, so the two networks operate on identical effective KV
 // and any divergence isolates the kernel's dequant + attention math.
 // ---------------------------------------------------------------------------
+template <typename T>
 struct kv_quant_result {
     std::vector<int8_t> packed;            // quantized (INT4: two nibbles per byte)
-    std::vector<ov::float16> dequantized;  // (q - zp) * scale, full head_size
-    std::vector<ov::float16> scales;
-    std::vector<ov::float16> zero_points;
+    std::vector<T> dequantized;  // (q - zp) * scale, full head_size
+    std::vector<T> scales;
+    std::vector<T> zero_points;
 };
 
 enum class kv_quant_granularity {
@@ -866,14 +869,15 @@ static std::vector<T> load_bin_as(const std::string& path) {
 // provided_scale, when non-null, supplies the per-token scales ([batch, heads, seq])
 // instead of deriving (and randomizing) them; the zero-point is still derived for the asymmetric
 // case so it matches the given scale.
-static kv_quant_result quantize_kv_per_token(const std::vector<ov::float16>& src,
+template <typename T>
+static kv_quant_result<T> quantize_kv_per_token(const std::vector<T>& src,
                                                int batch,
                                                int seq,
                                                int heads,
                                                int head_size,
                                                int bit_width,
                                                bool seq_major = true,
-                                               const std::vector<ov::float16>* provided_scale = nullptr,
+                                               const std::vector<T>* provided_scale = nullptr,
                                                bool symmetric = false) {
     // Symmetric uses a signed range centered on zero (no zero-point); asymmetric int4 uses
     // unsigned nibbles [0, 15] with a zero-point.
@@ -882,12 +886,12 @@ static kv_quant_result quantize_kv_per_token(const std::vector<ov::float16>& src
     const int packed_hs = bit_width == 4 ? head_size / 2 : head_size;
     const size_t token_count = static_cast<size_t>(batch) * heads * seq;
 
-    kv_quant_result r;
+    kv_quant_result<T> r;
     r.packed.assign(static_cast<size_t>(batch) * seq * heads * packed_hs, 0);
-    r.dequantized.assign(static_cast<size_t>(batch) * seq * heads * head_size, ov::float16(0.0f));
-    r.scales.assign(token_count, ov::float16(0.0f));
+    r.dequantized.assign(static_cast<size_t>(batch) * seq * heads * head_size, T(0.0f));
+    r.scales.assign(token_count, T(0.0f));
     if (!symmetric)
-        r.zero_points.assign(token_count, ov::float16(0.0f));
+        r.zero_points.assign(token_count, T(0.0f));
 
     const auto elem_base = [&](int b, int s, int h) -> size_t {
         return seq_major ? ((static_cast<size_t>(b) * seq + s) * heads + h) * head_size : ((static_cast<size_t>(b) * heads + h) * seq + s) * head_size;
@@ -939,10 +943,10 @@ static kv_quant_result quantize_kv_per_token(const std::vector<ov::float16>& src
                 }
                 if (scale == 0.0f)
                     scale = 1.0f;  // degenerate (constant) token: avoid div-by-zero
-                r.scales[token] = ov::float16(scale);
+                r.scales[token] = T(scale);
                 if (!symmetric) {
                     // deq = (q - zp) * scale, so min_v maps to q_min: zp = q_min - min_v / scale.
-                    r.zero_points[token] = ov::float16(std::round(static_cast<float>(q_min) - min_v / scale));
+                    r.zero_points[token] = T(std::round(static_cast<float>(q_min) - min_v / scale));
                 }
             }
         }
@@ -962,7 +966,7 @@ static kv_quant_result quantize_kv_per_token(const std::vector<ov::float16>& src
                     const float v = static_cast<float>(src[base + d]);
                     int q = static_cast<int>(std::lround(v / scale + zp));
                     q = std::max(q_min, std::min(q_max, q));
-                    r.dequantized[base + d] = ov::float16((static_cast<float>(q) - zp) * scale);
+                    r.dequantized[base + d] = T((static_cast<float>(q) - zp) * scale);
                     pack_value(packed_base, d, q);
                 }
             }
@@ -973,26 +977,27 @@ static kv_quant_result quantize_kv_per_token(const std::vector<ov::float16>& src
 
 // Per-channel KV quantization: one scale/zp per (batch, head, channel), shared by all tokens.
 // The compression buffers are laid out as [batch, heads, 1, head_size].
-static kv_quant_result quantize_kv_per_channel(const std::vector<ov::float16>& src,
+template <typename T>
+static kv_quant_result<T> quantize_kv_per_channel(const std::vector<T>& src,
                                                int batch,
                                                int seq,
                                                int heads,
                                                int head_size,
                                                int bit_width,
                                                bool seq_major = true,
-                                               const std::vector<ov::float16>* provided_scale = nullptr,
+                                               const std::vector<T>* provided_scale = nullptr,
                                                bool symmetric = false) {
     const int q_min = symmetric ? -(bit_width == 4 ? 7 : 127) : (bit_width == 4 ? 0 : -128);
     const int q_max = symmetric ? (bit_width == 4 ? 7 : 127) : (bit_width == 4 ? 15 : 127);
     const int packed_hs = bit_width == 4 ? head_size / 2 : head_size;
     const size_t channel_count = static_cast<size_t>(batch) * heads * head_size;
 
-    kv_quant_result r;
+    kv_quant_result<T> r;
     r.packed.assign(static_cast<size_t>(batch) * seq * heads * packed_hs, 0);
-    r.dequantized.assign(static_cast<size_t>(batch) * seq * heads * head_size, ov::float16(0.0f));
-    r.scales.assign(channel_count, ov::float16(0.0f));
+    r.dequantized.assign(static_cast<size_t>(batch) * seq * heads * head_size, T(0.0f));
+    r.scales.assign(channel_count, T(0.0f));
     if (!symmetric)
-        r.zero_points.assign(channel_count, ov::float16(0.0f));
+        r.zero_points.assign(channel_count, T(0.0f));
 
     const auto elem_base = [&](int b, int s, int h) -> size_t {
         return seq_major ? ((static_cast<size_t>(b) * seq + s) * heads + h) * head_size
@@ -1041,10 +1046,10 @@ static kv_quant_result quantize_kv_per_channel(const std::vector<ov::float16>& s
                 if (scale == 0.0f)
                     scale = 1.0f;
 
-                r.scales[channel] = ov::float16(scale);
+                r.scales[channel] = T(scale);
                 if (!symmetric)
                     r.zero_points[channel] =
-                        ov::float16(std::round(static_cast<float>(q_min) - min_v / scale));
+                        T(std::round(static_cast<float>(q_min) - min_v / scale));
             }
         }
     }
@@ -1061,7 +1066,7 @@ static kv_quant_result quantize_kv_per_channel(const std::vector<ov::float16>& s
                     const float v = static_cast<float>(src[base + d]);
                     int q = static_cast<int>(std::lround(v / scale + zp));
                     q = std::max(q_min, std::min(q_max, q));
-                    r.dequantized[base + d] = ov::float16((static_cast<float>(q) - zp) * scale);
+                    r.dequantized[base + d] = T((static_cast<float>(q) - zp) * scale);
                     pack_value(packed_base, d, q);
                 }
             }
@@ -1074,14 +1079,15 @@ static kv_quant_result quantize_kv_per_channel(const std::vector<ov::float16>& s
 // Per-channel symmetric quantization that reproduces the GQA decomposition's write path.
 // INT4 values use a +8 storage bias and are exposed to SDPA as asymmetric u4 with zero point 8.
 // INT8 values retain their signed representation and are exposed as symmetric i8.
-static kv_quant_result quantize_kv_per_channel_gqa_decomp(const std::vector<ov::float16>& src,
+template <typename T>
+static kv_quant_result<T> quantize_kv_per_channel_gqa_decomp(const std::vector<T>& src,
                                                           int batch,
                                                           int seq,
                                                           int heads,
                                                           int head_size,
                                                           int bit_width,
                                                           bool seq_major = true,
-                                                          const std::vector<ov::float16>* provided_scale = nullptr,
+                                                          const std::vector<T>* provided_scale = nullptr,
                                                           bool symmetric = false) {
     OPENVINO_ASSERT(bit_width == 4 || bit_width == 8, "GQA decomposition supports only INT4 and INT8 KV caches");
     OPENVINO_ASSERT(symmetric, "GQA decomposition uses symmetric KV quantization");
@@ -1091,12 +1097,12 @@ static kv_quant_result quantize_kv_per_channel_gqa_decomp(const std::vector<ov::
     const int packed_hs = bit_width == 4 ? head_size / 2 : head_size;
     const size_t channel_count = static_cast<size_t>(batch) * heads * head_size;
 
-    kv_quant_result r;
+    kv_quant_result<T> r;
     r.packed.assign(static_cast<size_t>(batch) * seq * heads * packed_hs, 0);
-    r.dequantized.assign(static_cast<size_t>(batch) * seq * heads * head_size, ov::float16(0.0f));
-    r.scales.assign(channel_count, ov::float16(0.0f));
+    r.dequantized.assign(static_cast<size_t>(batch) * seq * heads * head_size, T(0.0f));
+    r.scales.assign(channel_count, T(0.0f));
     if (bit_width == 4)
-        r.zero_points.assign(channel_count, ov::float16(8.0f));
+        r.zero_points.assign(channel_count, T(8.0f));
 
     const auto elem_base = [&](int b, int s, int h) -> size_t {
         return seq_major ? ((static_cast<size_t>(b) * seq + s) * heads + h) * head_size
@@ -1131,7 +1137,7 @@ static kv_quant_result quantize_kv_per_channel_gqa_decomp(const std::vector<ov::
                 if (scale == 0.0f)
                     scale = 1.0f;
 
-                r.scales[channel] = ov::float16(scale);
+                r.scales[channel] = T(scale);
             }
         }
     }
@@ -1147,7 +1153,7 @@ static kv_quant_result quantize_kv_per_channel_gqa_decomp(const std::vector<ov::
                     const float v = static_cast<float>(src[base + d]);
                     int q = static_cast<int>(std::nearbyint(v / scale));
                     q = std::max(q_min, std::min(q_max, q));
-                    r.dequantized[base + d] = ov::float16(static_cast<float>(q) * scale);
+                    r.dequantized[base + d] = T(static_cast<float>(q) * scale);
                     if (bit_width == 4) {
                         const int nibble = q + 8;
                         auto& byte = r.packed[packed_base + d / 2];
@@ -1166,9 +1172,18 @@ static kv_quant_result quantize_kv_per_channel_gqa_decomp(const std::vector<ov::
     return r;
 }
 
+template <typename T>
 static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
                                         kv_quant_granularity granularity,
-                                        bool gqa_decomp = false) {
+                                        bool gqa_decomp = false,
+                                        const ov::element::Type& zp_et_in = ov::element::dynamic) {
+    // The compressed KV path has to work for f16 and bf16 Q/K/V as well. bf16 scales/zero-points are
+    // stored as raw ushorts, so the SDPA kernels have to decode them instead of using the storage type.
+    constexpr bool is_bf16 = std::is_same_v<T, ov::bfloat16>;
+    const data_types dt = is_bf16 ? data_types::bf16 : data_types::f16;
+    const ov::element::Type et = ov::element::from<T>();
+    const ov::element::Type zp_et = zp_et_in.is_dynamic() ? et : zp_et_in;
+    const bool zp_is_integral = zp_et == ov::element::i8 || zp_et == ov::element::u8;
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
@@ -1194,18 +1209,18 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     const int packed_head_size = bit_width == 4 ? head_size / 2 : head_size;
 
     // Q and original float K/V use [batch, heads, sequence, head_size].
-    auto q_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_q * q_num_heads * head_size, -1.0f, 1.0f);
-    auto k_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
-    auto v_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
+    auto q_data = rg.generate_random_1d<T>(static_cast<size_t>(batch) * seq_q * q_num_heads * head_size, -1.0f, 1.0f);
+    auto k_orig = rg.generate_random_1d<T>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
+    auto v_orig = rg.generate_random_1d<T>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
 
     const auto quantize_kv = [&]() {
         if (gqa_decomp) {
             OPENVINO_ASSERT(granularity == kv_quant_granularity::per_channel && !asymmetric,
                             "GQA decomposition requires symmetric per-channel quantization");
-            return &quantize_kv_per_channel_gqa_decomp;
+            return &quantize_kv_per_channel_gqa_decomp<T>;
         }
-        return granularity == kv_quant_granularity::per_channel ? quantize_kv_per_channel
-                                                                : quantize_kv_per_token;
+        return granularity == kv_quant_granularity::per_channel ? quantize_kv_per_channel<T>
+                                                                : quantize_kv_per_token<T>;
     }();
     auto k_q = quantize_kv(k_orig,
                                        batch,
@@ -1226,15 +1241,15 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
                                        nullptr,
                                        /*symmetric=*/!asymmetric);
 
-    const layout q_layout({batch, q_num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
-    const layout kv_deq_layout({batch, kv_num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+    const layout q_layout({batch, q_num_heads, seq_q, head_size}, dt, format::bfyx);
+    const layout kv_deq_layout({batch, kv_num_heads, seq_kv, head_size}, dt, format::bfyx);
     // INT4 stores two adjacent head-dimension values in each byte: [B, H, S, D/2].
     const layout kv_packed_layout({batch, kv_num_heads, seq_kv, packed_head_size}, data_types::i8, format::bfyx);
-    const layout comp_layout(granularity == kv_quant_granularity::per_channel
-                                 ? ov::PartialShape{batch, kv_num_heads, 1, head_size}
-                                 : ov::PartialShape{batch, kv_num_heads, seq_kv, 1},
-                             data_types::f16,
-                             format::bfyx);
+    const ov::PartialShape comp_shape = granularity == kv_quant_granularity::per_channel
+                                            ? ov::PartialShape{batch, kv_num_heads, 1, head_size}
+                                            : ov::PartialShape{batch, kv_num_heads, seq_kv, 1};
+    const layout comp_layout(comp_shape, dt, format::bfyx);
+    const layout zp_layout(comp_shape, zp_is_integral ? data_types::i8 : dt, format::bfyx);
 
     const ov::Shape expected_packed_shape = {static_cast<size_t>(batch),
                                              static_cast<size_t>(kv_num_heads),
@@ -1269,7 +1284,7 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
                                                  {},
                                                  false);
         topo.add(prim);
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, dt));
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1287,23 +1302,36 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         auto v_mem = engine.allocate_memory(kv_packed_layout);
         auto k_comp_mem = engine.allocate_memory(comp_layout);
         auto v_comp_mem = engine.allocate_memory(comp_layout);
-        auto k_zp_mem = has_storage_zero_point ? engine.allocate_memory(comp_layout) : nullptr;
-        auto v_zp_mem = has_storage_zero_point ? engine.allocate_memory(comp_layout) : nullptr;
+        auto k_zp_mem = has_storage_zero_point ? engine.allocate_memory(zp_layout) : nullptr;
+        auto v_zp_mem = has_storage_zero_point ? engine.allocate_memory(zp_layout) : nullptr;
         set_values(k_mem, k_q.packed);
         set_values(v_mem, v_q.packed);
         set_values(k_comp_mem, k_q.scales);
         set_values(v_comp_mem, v_q.scales);
         if (has_storage_zero_point) {
-            set_values(k_zp_mem, k_q.zero_points);
-            set_values(v_zp_mem, v_q.zero_points);
+            if (zp_is_integral) {
+                // The quantizer already rounds zero-points to whole numbers; only the storage type of the
+                // zp buffer differs, so converting back to int8 is lossless.
+                const auto to_int8_zp = [](const std::vector<T>& zps) {
+                    std::vector<int8_t> out(zps.size());
+                    for (size_t i = 0; i < zps.size(); ++i)
+                        out[i] = static_cast<int8_t>(std::lround(static_cast<float>(zps[i])));
+                    return out;
+                };
+                set_values(k_zp_mem, to_int8_zp(k_q.zero_points));
+                set_values(v_zp_mem, to_int8_zp(v_q.zero_points));
+            } else {
+                set_values(k_zp_mem, k_q.zero_points);
+                set_values(v_zp_mem, v_q.zero_points);
+            }
         }
 
         scaled_dot_product_attention::QuantizationAttributes qa;
         qa.quantization_type = has_storage_zero_point ? ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric
                                                      : ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
         qa.quantization_dt = bit_width == 4 ? (has_storage_zero_point ? ov::element::u4 : ov::element::i4) : ov::element::i8;
-        qa.scale_dt = ov::element::f16;
-        qa.zp_dt = ov::element::f16;
+        qa.scale_dt = et;
+        qa.zp_dt = zp_et;
         qa.group_sizes = granularity == kv_quant_granularity::per_channel
                              ? std::vector<uint64_t>{1, 1, UINT64_MAX, 1}
                              : std::vector<uint64_t>{1, 1, 1, UINT64_MAX};
@@ -1318,15 +1346,15 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         topo.add(input_layout("v_scale", comp_layout));
         std::vector<input_info> inputs = {input_info("q"), input_info("k"), input_info("v"), input_info("k_scale"), input_info("v_scale")};
         if (has_storage_zero_point) {
-            topo.add(input_layout("k_zp", comp_layout));
-            topo.add(input_layout("v_zp", comp_layout));
+            topo.add(input_layout("k_zp", zp_layout));
+            topo.add(input_layout("v_zp", zp_layout));
             inputs.emplace_back("k_zp");
             inputs.emplace_back("v_zp");
         }
 
         auto prim = scaled_dot_product_attention("sdpa", inputs, true, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true);
         topo.add(prim);
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, dt));
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1349,15 +1377,17 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     auto ref_mem = make_ref_output();
     auto opt_mem = make_opt_output();
 
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
 
     ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
     for (size_t i = 0; i < opt_ptr.size(); ++i) {
         ASSERT_FALSE(std::isnan(static_cast<float>(opt_ptr[i]))) << "NaN in compressed output at index " << i;
     }
     const float sim = cosineSimilarity(ref_ptr, opt_ptr);
-    ASSERT_GE(sim, 0.999f) << "bit_width=" << bit_width << ", asymmetric=" << asymmetric << " cosine similarity too low: " << sim;
+    // bf16 has a shorter mantissa, so allow a slightly lower similarity for it.
+    const float min_sim = is_bf16 ? 0.99f : 0.999f;
+    ASSERT_GE(sim, min_sim) << "bit_width=" << bit_width << ", asymmetric=" << asymmetric << " cosine similarity too low: " << sim;
 }
 
 struct sdpa_gpu_compressed_kv_test_base : public ::testing::TestWithParam<sdpa_test_params> {
@@ -1371,20 +1401,38 @@ struct sdpa_gpu_compressed_kv_test_base : public ::testing::TestWithParam<sdpa_t
 struct sdpa_gpu_compressed_kv_per_channel_test : public sdpa_gpu_compressed_kv_test_base {};
 
 TEST_P(sdpa_gpu_compressed_kv_per_channel_test, compare_with_gpu_dequantized_reference) {
-    run_compressed_kv_sdpa_test(GetParam(), kv_quant_granularity::per_channel);
+    run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel);
 }
 
 struct sdpa_gpu_compressed_kv_per_token_test : public sdpa_gpu_compressed_kv_test_base {};
 
 TEST_P(sdpa_gpu_compressed_kv_per_token_test, compare_with_gpu_dequantized_reference) {
-    run_compressed_kv_sdpa_test(GetParam(), kv_quant_granularity::per_token);
+    run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_token);
+}
+
+struct sdpa_gpu_compressed_kv_bf16_test : public sdpa_gpu_compressed_kv_test_base {};
+
+TEST_P(sdpa_gpu_compressed_kv_bf16_test, compare_with_gpu_dequantized_reference) {
+    run_compressed_kv_sdpa_test<ov::bfloat16>(GetParam(), kv_quant_granularity::per_token);
+}
+
+struct sdpa_gpu_compressed_kv_int4_bf16_per_token_test : public sdpa_gpu_compressed_kv_test_base {};
+
+TEST_P(sdpa_gpu_compressed_kv_int4_bf16_per_token_test, compare_with_gpu_dequantized_reference) {
+    run_compressed_kv_sdpa_test<ov::bfloat16>(GetParam(), kv_quant_granularity::per_token);
+}
+
+struct sdpa_gpu_compressed_kv_bf16_int8_zp_test : public sdpa_gpu_compressed_kv_test_base {};
+
+TEST_P(sdpa_gpu_compressed_kv_bf16_int8_zp_test, compare_with_gpu_dequantized_reference) {
+    run_compressed_kv_sdpa_test<ov::bfloat16>(GetParam(), kv_quant_granularity::per_token, /*gqa_decomp=*/false, ov::element::i8);
 }
 
 // Verify the INT4 and INT8 cache encodings produced by the GQA decomposition.
 struct sdpa_gpu_gqa_decomp_test : public sdpa_gpu_compressed_kv_test_base {};
 
 TEST_P(sdpa_gpu_gqa_decomp_test, compare_with_gpu_dequantized_reference) {
-    run_compressed_kv_sdpa_test(GetParam(), kv_quant_granularity::per_channel, /*gqa_decomp=*/true);
+    run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel, /*gqa_decomp=*/true);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_channel,
@@ -1418,6 +1466,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
                          sdpa_gpu_compressed_kv_per_token_test::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_bf16,
+                         sdpa_gpu_compressed_kv_bf16_test,
+                         ::testing::Values(sdpa_test_params{128, 40, 10, 512, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 1, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 40, 512, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 512, 512, 1, 8, true},
+                                           sdpa_test_params{128, 40, 10, 1, 512, 1, 8, true},
+                                           sdpa_test_params{128, 40, 40, 512, 512, 1, 8, true},
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
+                         sdpa_gpu_compressed_kv_bf16_test::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_int4_bf16_per_token,
+                         sdpa_gpu_compressed_kv_int4_bf16_per_token_test,
+                         ::testing::Values(sdpa_test_params{128, 40, 10, 512, 512, 1, 4, true},
+                                           sdpa_test_params{128, 40, 10, 1, 512, 1, 4, true},
+                                           sdpa_test_params{128, 40, 40, 512, 512, 1, 4, true},
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 4, true}),
+                         sdpa_gpu_compressed_kv_int4_bf16_per_token_test::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_bf16_int8_zp,
+                         sdpa_gpu_compressed_kv_bf16_int8_zp_test,
+                         ::testing::Values(sdpa_test_params{128, 40, 10, 512, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 1, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 40, 512, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 128, 128, 1, 8, true},
+                                           sdpa_test_params{128, 40, 10, 1, 512, 1, 8, true},
+                                           sdpa_test_params{128, 40, 40, 128, 128, 1, 8, true},
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
+                         sdpa_gpu_compressed_kv_bf16_int8_zp_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
                          sdpa_gpu_gqa_decomp_test,
