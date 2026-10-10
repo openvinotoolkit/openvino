@@ -190,7 +190,7 @@ Neural Network Compression Framework
 
 * Added support for the GroupedMatMul operation in data-free weight compression.
 
-* Updated ONNX dependency to version 1.22.0.
+* Updated ONNX dependency to version 1.23.1.
 
 OpenVINO Tokenizers
 +++++++++++++++++++
