@@ -186,6 +186,16 @@ static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOC
 static constexpr Property<size_t, PropertyMutability::RW> offload_ratio{"OFFLOAD_RATIO"};
 
 /**
+ * @brief Read-only property to get the PagedAttention block size used by the compiled model.
+ * Block size is device-specific (e.g., 16 for standard PA on GPU, 256 under XAttention)
+ * and is required for correct logical-to-physical block mapping when driving the PA graph directly.
+ * Returns 0 if the model does not use PagedAttention.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RO> paged_attention_block_size{
+    "GPU_PAGED_ATTENTION_BLOCK_SIZE"};
+
+/**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
 namespace memory_type {
