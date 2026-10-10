@@ -52,6 +52,14 @@ void scatter_update_inst::on_execute() {
     update_output_memory();
 }
 
+bool scatter_update_inst::is_inplace() const {
+    if (can_be_optimized() || _outputs.empty() || !_outputs[0] || input_memory_ptr() == nullptr) {
+        return false;
+    }
+    // with a different layout (format, data type, shape, padding) the copy is a conversion and must run
+    return _impl_params->get_input_layout(0) == _impl_params->get_output_layout() && _network.get_engine().is_the_same_buffer(output_memory(), input_memory());
+}
+
 void scatter_update_inst::update_output_memory() {
     if (!can_be_optimized() || _impl_params->is_dynamic()) {
         return;

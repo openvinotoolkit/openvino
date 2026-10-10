@@ -2417,3 +2417,63 @@ TEST(scatter_update_gpu_fp32, out_of_bounds_indices) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i;
     }
 }
+
+// A stateless KV cache can be bound as both the dictionary input and the output (same buffer). Then the
+// implementation skips the copy of the whole input to the output and only writes the updated rows. Checks the in-place
+// decision and the result with the same buffer, with separate buffers (the copy must run), and the same buffer again:
+// the decision is made per execution.
+TEST(scatter_update_gpu_fp16, kv_cache_rows_same_buffer_dynamic) {
+    auto& engine = get_test_engine();
+    const int64_t rows = 8, row_size = 4;
+
+    auto dictionary_dyn = layout{ov::PartialShape{1, 1, ov::Dimension::dynamic(), row_size}, data_types::f16, format::bfyx};
+    auto indices_dyn = layout{ov::PartialShape{ov::Dimension::dynamic()}, data_types::i32, format::bfyx};
+    auto updates_dyn = layout{ov::PartialShape{1, 1, ov::Dimension::dynamic(), row_size}, data_types::f16, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("cache", dictionary_dyn));
+    topology.add(input_layout("indices", indices_dyn));
+    topology.add(input_layout("updates", updates_dyn));
+    topology.add(scatter_update("scatter_update", input_info("cache"), input_info("indices"), input_info("updates"), 2));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    const auto cache_layout = layout{ov::PartialShape{1, 1, rows, row_size}, data_types::f16, format::bfyx};
+    auto indices = engine.allocate_memory({ov::PartialShape{1}, data_types::i32, format::bfyx});
+    auto updates = engine.allocate_memory({ov::PartialShape{1, 1, 1, row_size}, data_types::f16, format::bfyx});
+
+    std::vector<ov::float16> initial(rows * row_size);
+    for (size_t i = 0; i < initial.size(); ++i)
+        initial[i] = ov::float16(static_cast<float>(i));
+
+    for (const bool same_buffer : {true, false, true}) {
+        const int64_t row = same_buffer ? 5 : 2;
+        auto cache = engine.allocate_memory(cache_layout);
+        set_values(cache, initial);
+        set_values<int32_t>(indices, {static_cast<int32_t>(row)});
+        set_values(updates, {ov::float16(-1.f), ov::float16(-2.f), ov::float16(-3.f), ov::float16(-4.f)});
+
+        auto output = same_buffer ? cache : engine.allocate_memory(cache_layout);
+        network.set_input_data("cache", cache);
+        network.set_input_data("indices", indices);
+        network.set_input_data("updates", updates);
+        network.set_output_memory("scatter_update", output);
+        auto outputs = network.execute();
+
+        auto result = outputs.at("scatter_update").get_memory();
+        ASSERT_TRUE(engine.is_the_same_buffer(*output, *result));
+        ASSERT_EQ(same_buffer, engine.is_the_same_buffer(*cache, *result));
+        auto inst = std::static_pointer_cast<scatter_update_inst>(network.get_primitive("scatter_update"));
+        ASSERT_EQ(same_buffer, inst->is_inplace());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> result_ptr(result, get_test_stream());
+        for (int64_t r = 0; r < rows; ++r) {
+            for (int64_t c = 0; c < row_size; ++c) {
+                const float expected = r == row ? -1.f - static_cast<float>(c) : static_cast<float>(r * row_size + c);
+                ASSERT_EQ(expected, static_cast<float>(result_ptr[r * row_size + c]))
+                    << "row=" << r << " col=" << c << " same_buffer=" << same_buffer;
+            }
+        }
+    }
+}

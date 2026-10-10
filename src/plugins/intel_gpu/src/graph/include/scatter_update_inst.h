@@ -39,6 +39,10 @@ public:
     typed_primitive_inst(network& network, scatter_update_node const& desc);
     void update_output_memory() override;
 
+    // True if the data input and the output are the same buffer with the same layout, e.g. a stateless KV cache
+    // bound as both. The kernel then skips its initial copy of the whole input to the output.
+    bool is_inplace() const;
+
 private:
     void on_execute() override;
 };
