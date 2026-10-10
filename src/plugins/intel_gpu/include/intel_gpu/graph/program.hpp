@@ -66,6 +66,7 @@ public:
 
         void calc_processing_order_visit(program_node* node);
         void calc_processing_order(program& p);
+        void calculate_in_order_processing_order(program& p);
         int32_t get_processing_number(program_node* node) const {
             return get_processing_number(get_processing_iterator(*node));
         }
