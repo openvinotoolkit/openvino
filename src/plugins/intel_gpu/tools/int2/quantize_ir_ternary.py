@@ -53,6 +53,7 @@ def main():
     ap.add_argument("--in", dest="src", required=True)
     ap.add_argument("--out", dest="dst", required=True)
     ap.add_argument("--min-k", type=int, default=1024, help="skip tiny MatMuls")
+    ap.add_argument("--skip-n", type=int, default=0, help="keep MatMuls with this N dense (non-ternary lm_head)")
     args = ap.parse_args()
 
     core = ov.Core()
@@ -70,7 +71,7 @@ def main():
         if w.get_type_name() != "Constant":
             continue
         shape = list(w.get_output_shape(0))
-        if len(shape) != 2 or shape[1] % GROUP or shape[1] < args.min_k:
+        if len(shape) != 2 or shape[1] % GROUP or shape[1] < args.min_k or shape[0] == args.skip_n:
             continue
         targets.append((node, conv, w, shape))
 

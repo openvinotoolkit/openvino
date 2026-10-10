@@ -210,8 +210,9 @@ The tiles are hard-coded tables in `fully_connected_ternocl_int2.cpp`, filled fr
 TernOCL's benchmark sweeps (`bench.sh`, `sweep_midm.sh`):
 
 - **up-convert**: one set of tables for discrete Xe2 and one for integrated Xe2
-  (selected from the device type), with entries for the Bonsai 8B and 27B layer
-  shapes on discrete and the 27B shapes on integrated;
+  (selected from the device type). The decode GEMV (M = 1) has entries for the
+  layer shapes of Bonsai 1.7B / 4B / 8B / 27B and CAT-Q 32B on both (CAT-Q 1.7B
+  and 8B share the Bonsai shapes); the M-tiled GEMM is tuned on the 27B shapes;
 - **int8 prefill**: one table, with entries for the Bonsai 27B layer shapes,
   tuned on discrete Xe2;
 - any other shape uses a default tile per launch class: it runs correctly, but

@@ -75,7 +75,7 @@ strings bin/intel64/Release/libopenvino_intel_gpu_plugin.so | grep -c int2_fp16_
 
 cd src/plugins/intel_gpu/tools/int2
 cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=icpx -DOpenVINO_DIR=$OV_ROOT/build && cmake --build build
-ls build/   # paged_bench_llm_27b  paged_serve_llm_27b
+ls build/   # paged_bench_llm  paged_bench_llm_27b  paged_serve_llm_27b
 ```
 
 The tools link with an RPATH to this build. To compare two OpenVINO builds
@@ -199,6 +199,33 @@ On a multi-GPU host, `--gpus 0,1,...` (`GPUS=...`) splits the requests over one
 serving process per GPU; `--batch` is then per GPU.
 Full test set (1319 examples, thinking, up to 4096 generated tokens):
 `exact_match 0.970` (1279/1319). First 100: ~0.96-0.98 depending on the slice.
+
+### 5.3 Other ternary checkpoints (Bonsai 1.7B-8B, CAT-Q)
+
+The same impl serves any ternary checkpoint; nothing above is specific to the
+27B except the Hadamard rotation. For a Qwen3-family checkpoint, export the fp16
+IR and rewrite its weights:
+
+```bash
+./venv/bin/optimum-cli export openvino --model <hf-checkpoint> \
+    --task text-generation-with-past --weight-format fp16 <name>-fp16
+./venv/bin/python $TOOLS/quantize_ir_ternary.py --in <name>-fp16/openvino_model.xml \
+    --out <name>-u2/openvino_model.xml          # CAT-Q: add --skip-n 151936 (lm_head stays 16-bit)
+```
+
+`bench_ternary_llms.sh` runs batch-1 greedy decode on a list of IRs (Qwen3 ones
+on `paged_bench_llm`, 27B-class ones given as `<dir>:<embeddings.xml>` on
+`paged_bench_llm_27b`) and prints TTFT, decode tok/s and 256 tokens /
+(prefill + generation), averaged over reps 2..`REPS`:
+
+```bash
+$TOOLS/bench_ternary_llms.sh $WORK/bonsai17b-u2 $WORK/bonsai8b-u2 \
+    $WORK/bonsai27b-u2:$WORK/bonsai27b-fp16/openvino_text_embeddings_model.xml
+```
+
+Arc Pro B70 (end-to-end tok/s): Bonsai 1.7B 246, 4B 189, 8B 160, 27B 52.7,
+CAT-Q 1.7B 198, 8B 124, 32B 44.6. The small models are bound by host-side
+overhead, so the host CPU moves them by up to 1.6x; compare builds on one machine.
 
 ## 6. Knobs that matter
 
