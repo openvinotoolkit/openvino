@@ -125,14 +125,44 @@ static_assert(sizeof(Header) == 32,
               "this struct; readers and writers must be updated together.");
 
 /**
- * @brief Device/plugin that owns a ManifestEntry's section. Device catalog and collision rules follow later.
+ * @brief Device/plugin that owns a ManifestEntry's section - see #Devices for the catalog of assigned ids.
  * @note Paired with #SectionTag: a reader always compares `(device, tag)` together, never `tag` alone, so two
- * devices may reuse the same tag id for unrelated content.
+ * devices may reuse the same tag id for unrelated content. Conversely, a device needing content different from
+ * a Core tag's shared meaning writes that same tag id under its own id rather than inventing a new tag; a
+ * reader resolving such a tag looks under its own device first and falls back to #any_device_id.
  */
 using DeviceId = uint8_t;
 
+/**
+ * @brief Catalog of assigned #DeviceId values; never change or reuse a value once shipped.
+ * #sentinel_count auto-tracks the count and must stay last.
+ * @note Meta-plugins (Hetero, AUTO, AUTO-BATCH) deliberately have no id: they redirect to real devices rather
+ * than compute themselves, so the device owning a section is always the one that produced it.
+ */
+enum class Devices : DeviceId {
+    any = 0,  //!< See #any_device_id.
+    cpu = 1,  //!< See #cpu_device_id.
+    gpu = 2,  //!< See #gpu_device_id.
+    npu = 3,  //!< See #npu_device_id.
+    // Add new real devices above this line only, each with the next explicit value - never change or reuse an
+    // existing device's value.
+    sentinel_count,  // Not a real device id - always exactly one past the last real entry above.
+};
+
+/**
+ * @brief First #DeviceId of the sample/test bucket, kept clear of the #Devices range so a sample plugin can
+ * take an id without ever colliding with a real device.
+ */
+inline constexpr DeviceId sample_device_id_range_start = 100;
+static_assert(static_cast<DeviceId>(Devices::sentinel_count) <= sample_device_id_range_start,
+              "Too many real devices defined for sample_device_id_range_start - widen the boundary.");
+
 /** @brief Reserved #DeviceId for sections not tied to one specific device. */
-inline constexpr DeviceId any_device_id = 0;
+inline constexpr DeviceId any_device_id = static_cast<DeviceId>(Devices::any);
+
+inline constexpr DeviceId cpu_device_id = static_cast<DeviceId>(Devices::cpu);  //!< CPU plugin.
+inline constexpr DeviceId gpu_device_id = static_cast<DeviceId>(Devices::gpu);  //!< GPU plugin.
+inline constexpr DeviceId npu_device_id = static_cast<DeviceId>(Devices::npu);  //!< NPU plugin.
 
 /**
  * @brief Boundary in the 23-bit #SectionTag id space: Core ids are `< core_tag_id_range_end`;
@@ -227,6 +257,9 @@ enum class Tags : uint32_t {
     model_id = 1,              //!< See #model_id.
     model = 2,                 //!< See #model.
     runtime_requirements = 3,  //!< See #runtime_requirements_tag.
+    model_struct = 4,          //!< See #model_struct_tag.
+    weights = 5,               //!< See #weights_tag.
+    compiled_options = 6,      //!< See #compiled_options_tag.
     // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
     // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
@@ -237,6 +270,9 @@ static_assert(static_cast<uint32_t>(Tags::sentinel_count) <= core_tag_id_range_e
 inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!< Model identifier (e.g. a hash).
 inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!< The serialized compiled model itself.
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
+inline constexpr uint32_t model_struct = static_cast<uint32_t>(Tags::model_struct);
+inline constexpr uint32_t weights = static_cast<uint32_t>(Tags::weights);
+inline constexpr uint32_t compiled_options = static_cast<uint32_t>(Tags::compiled_options);
 
 /// Wire tag for #model_id - always inline-mode.
 inline constexpr SectionTag model_id_tag = SectionTag::make(model_id, /*is_inline=*/true);
@@ -252,6 +288,15 @@ inline constexpr SectionTag model_tag = SectionTag::make(model, /*is_inline=*/fa
  * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
 inline constexpr SectionTag runtime_requirements_tag = SectionTag::make(runtime_requirements, /*is_inline=*/false);
+
+/// Wire tag for #model_struct - always pointer-mode. Payload contract: CVS-196450.
+inline constexpr SectionTag model_struct_tag = SectionTag::make(model_struct, /*is_inline=*/false);
+
+/// Wire tag for #weights - always pointer-mode. Payload contract: CVS-196451.
+inline constexpr SectionTag weights_tag = SectionTag::make(weights, /*is_inline=*/false);
+
+/// Wire tag for #compiled_options - always pointer-mode. Payload contract: CVS-196452.
+inline constexpr SectionTag compiled_options_tag = SectionTag::make(compiled_options, /*is_inline=*/false);
 
 /**
  * @brief One fixed-size, 32-byte record of the manifest table (see #Header::manifest_offset).

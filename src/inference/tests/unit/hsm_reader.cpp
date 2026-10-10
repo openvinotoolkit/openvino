@@ -381,6 +381,33 @@ TEST(HsmReaderTest, section_accepts_any_enum_typed_tag_with_or_without_a_device)
     EXPECT_EQ(to_string(*shard), "plugin-shard");
 }
 
+TEST(HsmReaderTest, device_overrides_core_tag_by_reusing_it_under_its_own_device_id) {
+    // The device-id override convention - see the note on hsm::DeviceId: a device needing content different
+    // from a Core tag's shared meaning reuses that tag id under its own id instead of inventing a new tag.
+    const auto blob = make_container({
+        {make_pointer_entry(hsm::any_device_id, hsm::compiled_options_tag), "shared-options"},
+        {make_pointer_entry(hsm::npu_device_id, hsm::compiled_options_tag), "npu-options"},
+    });
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    // One tag id, two entries - they stay distinct because lookup is always by (device, tag), never tag alone.
+    const auto shared = reader->section(hsm::Tags::compiled_options);
+    ASSERT_TRUE(shared.has_value());
+    EXPECT_EQ(to_string(*shared), "shared-options");
+
+    const auto overridden = reader->section(hsm::npu_device_id, hsm::Tags::compiled_options);
+    ASSERT_TRUE(overridden.has_value());
+    EXPECT_EQ(to_string(*overridden), "npu-options");
+
+    EXPECT_EQ(reader->count(hsm::Tags::compiled_options), 1U);
+    EXPECT_EQ(reader->count(hsm::npu_device_id, hsm::Tags::compiled_options), 1U);
+
+    // A device that published no override of its own finds nothing under its id, and so falls back to the
+    // shared any_device_id entry - the resolution order every such lookup follows.
+    EXPECT_FALSE(reader->section(hsm::gpu_device_id, hsm::Tags::compiled_options).has_value());
+}
+
 TEST(HsmReaderTest, section_returns_only_the_first_of_several_matching_entries) {
     const auto shard_tag = hsm::SectionTag::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
