@@ -185,6 +185,7 @@ set(dev_api_headers
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/immediate_executor.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/istreams_executor.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/itask_executor.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/parallel_memcpy.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/thread_local.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/threading/thread_safe_containers.hpp
 )
