@@ -4,8 +4,11 @@
 
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 
+#include <string>
+
 #include "compiler_impl.hpp"
 #include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/compiler_selection.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "plugin_compiler_adapter.hpp"
 
@@ -54,10 +57,12 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
                            "the system.");
         }
 
-        // It is required to check if the device is compatible with the provided platform, as the driver compiler
-        // will be used.
+        // The driver compiles for the platform set by the user so a device from another one cannot be used.
         auto deviceName = device->getName();
-        if (!platform.empty() && deviceName != platform && deviceName != "AUTO_DETECT") {
+        const auto normalizedPlatform = ov::intel_npu::Platform::standardize(platform);
+        const auto normalizedDeviceName = ov::intel_npu::Platform::standardize(deviceName);
+        if (!normalizedPlatform.empty() && normalizedDeviceName != normalizedPlatform &&
+            normalizedDeviceName != ov::intel_npu::Platform::AUTO_DETECT) {
             OPENVINO_THROW("Could not find a valid NPU device for the provided configuration.");
         }
 
@@ -77,28 +82,37 @@ void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& com
     compilerType = resolvePreferPluginCompiler({}, nullptr, device, platform).second;
 }
 
-ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompilerTypeBasedOnPlatform(
-    std::string_view platform) const {
-    if (platform == ov::intel_npu::Platform::NPU4000 || platform == ov::intel_npu::Platform::NPU5010 ||
-        platform == ov::intel_npu::Platform::NPU5020 || platform == ov::intel_npu::Platform::NPU6010) {
-        return ov::intel_npu::CompilerType::PLUGIN;
-    }
-
-    return ov::intel_npu::CompilerType::DRIVER;
-}
-
 std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType>
 CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                     const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                                     const std::shared_ptr<intel_npu::IDevice>& device,
                                                     std::string_view platform) const {
-    const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
-    const bool onlineCompilation = device && (platform.empty() || device->getName() == platform);
+    const auto normalizedDevicePlatform =
+        device ? ov::intel_npu::Platform::standardize(device->getName()) : std::string{};
+    const auto normalizedTargetPlatform =
+        (platform.empty() || platform == ov::intel_npu::Platform::AUTO_DETECT)
+            ? normalizedDevicePlatform
+            : ov::intel_npu::Platform::standardize(platform);
+    const bool onlineCompilation = device && !normalizedTargetPlatform.empty() &&
+                                   normalizedTargetPlatform == normalizedDevicePlatform;
 
-    if (onlineCompilation &&
-        determineAppropriateCompilerTypeBasedOnPlatform(platform) == ov::intel_npu::CompilerType::DRIVER) {
-        return {nullptr, ov::intel_npu::CompilerType::DRIVER};
+    if (onlineCompilation) {
+#if defined(_WIN32) || defined(__CYGWIN__)
+        constexpr bool windowsDriver = true;
+#else
+        constexpr bool windowsDriver = false;
+#endif
+        std::optional<uint32_t> driverVersion;
+        if (normalizedTargetPlatform == ov::intel_npu::Platform::NPU3720) {
+            driverVersion = device->getDeviceProperties().driverVersion;
+        }
+
+        if (!isPluginCompilerPreferred(normalizedTargetPlatform, driverVersion, windowsDriver)) {
+            return {nullptr, ov::intel_npu::CompilerType::DRIVER};
+        }
     }
+
+    const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
 
     if (pluginCompilerPresence == PluginCompilerPresence::PRESENT) {
         // The actual compiler will be created in getCompiler().
