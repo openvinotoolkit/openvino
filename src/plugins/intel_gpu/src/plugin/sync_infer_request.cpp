@@ -946,7 +946,10 @@ void SyncInferRequest::allocate_states() {
         } else if (indirect_kv_cache) {
             m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second, m_context, m_shape_predictor, beam_axis, concat_axis));
         } else {
-            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor));
+            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second,
+                                                                          m_context,
+                                                                          m_shape_predictor,
+                                                                          network->get_program()));
         }
     }
 }
