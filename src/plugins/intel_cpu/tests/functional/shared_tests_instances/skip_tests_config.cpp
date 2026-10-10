@@ -490,7 +490,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
             std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
-            std::regex(R"(.*smoke_Snippets_FQDecomposition.*Swish.*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
             std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
             // Accuracy problem in dynamic MHA tests
@@ -517,6 +516,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)"),
             // Compressed weights are not supported
             std::regex(R"(smoke_MatMulSharedCompressedWeights.*)"),
+            std::regex(R"(smoke_MatMulGroupedWeightsDecompressionBRGEMM.*)"),
             std::regex(R"(smoke_Model_Distribution_MatMulSharedCompressedWeights.*)"),
             std::regex(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)"),
             // Issue: 170863
