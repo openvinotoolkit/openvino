@@ -4,6 +4,7 @@
 
 #include "fuse_hadamard_fc.hpp"
 
+#include <bitset>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -47,7 +48,7 @@ bool is_hadamard_1024(const std::shared_ptr<ov::op::v0::Constant>& c) {
     const float want = 1.0f / 32.0f;
     for (size_t i = 0; i < kBlock; i += 37) {
         for (size_t j = 0; j < kBlock; j += 41) {
-            const float sign = (__builtin_popcount(static_cast<unsigned>(i & j)) & 1) ? -1.0f : 1.0f;
+            const float sign = (std::bitset<32>(i & j).count() & 1) ? -1.0f : 1.0f;
             if (std::fabs(v[i * kBlock + j] - sign * want) > 1e-4f)
                 return false;
         }

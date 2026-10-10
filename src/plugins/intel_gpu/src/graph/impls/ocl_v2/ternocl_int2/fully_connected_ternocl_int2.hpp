@@ -76,6 +76,8 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
     TernoclInt2FCImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
 
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
+    std::unique_ptr<primitive_impl> create_impl(const kernel_impl_params& params) const override;
+    in_out_fmts_t query_formats(const program_node& node) const override;
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<fully_connected>());

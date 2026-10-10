@@ -25,6 +25,7 @@
 #    include "intel_gpu/runtime/memory.hpp"
 #    include "openvino/util/env_util.hpp"
 #    include "primitive_inst.h"
+#    include "registry/registry.hpp"
 #    include "reorder_inst.h"
 #    include "runtime/ocl/ocl_engine.hpp"
 #    include "runtime/ocl/ocl_kernel.hpp"
@@ -716,9 +717,33 @@ public:
     }
 };
 
+// A forced impl type (unit tests) skips validate() and takes the first OCL manager,
+// so FCs this impl rejects are handed to the next OCL FC manager.
+const ImplementationManager& stock_ocl_manager(const ImplementationManager& self, shape_types shape_type) {
+    for (const auto& m : ov::intel_gpu::Registry<fully_connected>::get_implementations()) {
+        if (m->get_impl_type() == impl_types::ocl && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type)
+            return *m;
+    }
+    OPENVINO_THROW("[GPU] ternocl int2: no OCL FullyConnected implementation to fall back to");
+}
+
 std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<fully_connected>());
+    if (!validate_impl(node))
+        return stock_ocl_manager(*this, get_shape_type(node)).create_impl(node, params);
     return fully_connected_ternocl_int2::create(static_cast<const fully_connected_node&>(node), params);
+}
+
+std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const kernel_impl_params& params) const {
+    if (params.input_layouts.size() < 2 || params.input_layouts[1].data_type != data_types::u2)
+        return stock_ocl_manager(*this, get_shape_type(params)).create_impl(params);
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+in_out_fmts_t TernoclInt2FCImplementationManager::query_formats(const program_node& node) const {
+    if (!validate_impl(node))
+        return stock_ocl_manager(*this, get_shape_type(node)).query_formats(node);
+    return ImplementationManager::query_formats(node);
 }
 
 }  // namespace ocl
