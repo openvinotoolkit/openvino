@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/util/validation_depth_guard.hpp"
 #include "openvino/reference/loop.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -32,6 +33,8 @@ bool Loop::visit_attributes(AttributeVisitor& visitor) {
 
 void Loop::validate_and_infer_types() {
     OV_OP_SCOPE(v5_Loop_validate_and_infer_types);
+
+    OV_VALIDATION_DEPTH_GUARD(this, "Loop");
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
 
