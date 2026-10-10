@@ -20,6 +20,15 @@ layout grid_sample_inst::calc_output_layout(const grid_sample_node& node, const 
 
     const auto grid_layout = impl_param.get_input_layout(1);
     const auto grid_sizes = grid_layout.get_dims();
+
+    // 5D (volumetric): data [N, C, D, H, W], grid [N, D_out, H_out, W_out, 3] -> out [N, C, D_out, H_out, W_out].
+    if (data_sizes.size() == 5) {
+        const auto& D_out = grid_sizes[1];
+        const auto& H_out = grid_sizes[2];
+        const auto& W_out = grid_sizes[3];
+        return {data_layout.data_type, data_layout.format, tensor(data_layout.format, {N, C, D_out, H_out, W_out})};
+    }
+
     const auto& H = grid_sizes[1];
     const auto& W = grid_sizes[2];
 

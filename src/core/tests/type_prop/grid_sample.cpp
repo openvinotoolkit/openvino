@@ -149,15 +149,67 @@ TEST(type_prop, grid_sample_dynamic_output_spatials) {
         << "The output shape of GridSample is incorrect";
 }
 
-TEST(type_prop, grid_sample_unsupported_grid_rank) {
+TEST(type_prop, grid_sample_5d_default_attributes) {
+    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 16, 16});
+    const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 4, 10, 10, 3});
+    const auto grid_sample = make_shared<op::v9::GridSample>(data, grid, op::v9::GridSample::Attributes{});
+
+    EXPECT_EQ(grid_sample->get_element_type(), data->get_element_type());
+    EXPECT_TRUE(grid_sample->get_output_partial_shape(0).same_scheme(PartialShape{1, 3, 4, 10, 10}))
+        << "The output shape of 5D GridSample is incorrect";
+}
+
+TEST(type_prop, grid_sample_5d_dynamic_spatials_and_symbols) {
+    auto data_pshape = PartialShape{{2, 4}, {1, 3}, 8, 16, 16};
+    auto data_symbols = set_shape_symbols(data_pshape);
+    const auto data = make_shared<op::v0::Parameter>(element::f32, data_pshape);
+
+    auto grid_pshape = PartialShape{{3, 8}, {4, 6}, {5, 7}, {2, 9}, 3};
+    auto grid_symbols = set_shape_symbols(grid_pshape);
+    const auto grid = make_shared<op::v0::Parameter>(element::f32, grid_pshape);
+
+    const auto grid_sample = make_shared<op::v9::GridSample>(data, grid, op::v9::GridSample::Attributes{});
+
+    const auto& out_shape = grid_sample->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape, (PartialShape{{3, 4}, {1, 3}, {4, 6}, {5, 7}, {2, 9}}));
+    EXPECT_THAT(get_shape_symbols(out_shape),
+                ElementsAre(grid_symbols[0], data_symbols[1], grid_symbols[1], grid_symbols[2], grid_symbols[3]));
+}
+
+TEST(type_prop, grid_sample_5d_dynamic_grid_rank) {
+    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 8, 16, 16});
+    const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto grid_sample = make_shared<op::v9::GridSample>(data, grid, op::v9::GridSample::Attributes{});
+
+    EXPECT_TRUE(grid_sample->get_output_partial_shape(0).same_scheme(
+        PartialShape{2, 3, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}))
+        << "The output shape of 5D GridSample is incorrect";
+}
+
+TEST(type_prop, grid_sample_5d_bicubic_is_rejected) {
+    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 16, 16});
+    const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 4, 10, 10, 3});
+    const auto attrs = op::v9::GridSample::Attributes{false,
+                                                      op::v9::GridSample::InterpolationMode::BICUBIC,
+                                                      op::v9::GridSample::PaddingMode::ZEROS};
+    EXPECT_THROW(op::v9::GridSample(data, grid, attrs), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, grid_sample_5d_incorrect_last_dim_in_grid) {
+    const auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 8, 16, 16});
+    const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 4, 10, 10, 2});
+    EXPECT_THROW(op::v9::GridSample(data, grid, op::v9::GridSample::Attributes{}), ov::NodeValidationFailure);
+}
+
+TEST(type_prop, grid_sample_mismatched_data_grid_rank) {
     const auto data = make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 3, 224, 224});
-    const auto grid = make_shared<op::v0::Parameter>(element::f64, PartialShape{1, 2, 3, 4, 5});
+    const auto grid = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 3, 4, 3});
     EXPECT_THROW(op::v9::GridSample(data, grid, op::v9::GridSample::Attributes{}), ov::NodeValidationFailure);
 }
 
 TEST(type_prop, grid_sample_unsupported_data_rank) {
-    const auto data = make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 3, 224, 224, 224});
-    const auto grid = make_shared<op::v0::Parameter>(element::f64, PartialShape{1, 5, 5, 2});
+    const auto data = make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 3, 16, 16, 16, 16});
+    const auto grid = make_shared<op::v0::Parameter>(element::f64, PartialShape{1, 5, 5, 5, 5, 3});
     EXPECT_THROW(op::v9::GridSample(data, grid, op::v9::GridSample::Attributes{}), ov::NodeValidationFailure);
 }
 
