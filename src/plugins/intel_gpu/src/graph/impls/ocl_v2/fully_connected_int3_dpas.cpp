@@ -265,6 +265,11 @@ GemmConfig get_v2_config(size_t sg_m) {
     return GemmConfig{true, true, v2_tile_m, sg_m, v2_nb};
 }
 
+// Scalar path with tile_m rows per subgroup, which decodes each weight granule once for all of them.
+GemmConfig get_scalar_config(size_t tile_m) {
+    return GemmConfig{false, false, tile_m, 1, 1};
+}
+
 // DPAS variant for a row count: tile_m 8 up to 8 rows, 16 up to 16 rows, otherwise v2 (sg_m 8 from 96 rows, 16 from
 // 192) if supported, else v1 32-row tiles with sg_m from get_dense_sg_m.
 GemmConfig get_dpas_config(const Int3FcInfo& info, gpu_arch arch, size_t rows) {
@@ -488,7 +493,7 @@ protected:
                 wgs.local = {simd, cfg.sg_m, 1};
             } else {
                 const size_t sg_k = get_scalar_sg_k(info);
-                wgs.global = {n_blocks * simd, dispatch_rows * sg_k, 1};
+                wgs.global = {n_blocks * simd, ceil_div(dispatch_rows, cfg.tile_m) * sg_k, 1};
                 wgs.local = {simd, sg_k, 1};
             }
 
@@ -508,11 +513,20 @@ private:
 };
 
 // GEMM variants, indexed like FullyConnectedInt3DpasImpl::gemms.
-enum class GemmVariant : uint8_t { scalar, v1_t8, v1_t16, v1_t32_sg1, v1_t32_sg2, v1_t32_sg4, v1_t32_sg8, v2_sg8, v2_sg16 };
+enum class GemmVariant : uint8_t { scalar, v1_t8, v1_t16, v1_t32_sg1, v1_t32_sg2, v1_t32_sg4, v1_t32_sg8, v2_sg8, v2_sg16, scalar_t8, scalar_t16 };
+
+// The DPAS variants use the SIMD16 forms of the matrix builtins, which IGC lowers only from Xe-HPC on. On Xe-HPG
+// (DG2) they compile without error to code that has no dpas at all, so those devices run the scalar variants.
+bool supports_simd16_dpas(gpu_arch arch) {
+    return arch >= gpu_arch::xe_hpc;
+}
 
 GemmVariant get_gemm_variant(const Int3FcInfo& info, gpu_arch arch, size_t rows) {
     if (rows < dpas_min_rows) {
         return GemmVariant::scalar;
+    }
+    if (!supports_simd16_dpas(arch)) {
+        return rows <= 8 ? GemmVariant::scalar_t8 : GemmVariant::scalar_t16;
     }
     const auto cfg = get_dpas_config(info, arch, rows);
     if (cfg.v2) {
@@ -544,7 +558,7 @@ public:
     // impl activates the quantizer and the variant for its row count. A dynamic impl activates every variant the FC
     // can use, so that they are all compiled with the model, and picks one per execution.
     Stage::Ptr quantize = make_stage<Int3FcQuantize>();
-    std::array<Stage::Ptr, 9> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
+    std::array<Stage::Ptr, 11> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
                                        make_stage<Int3FcGemm>("v1_t8", get_v1_config(8, 1)),
                                        make_stage<Int3FcGemm>("v1_t16", get_v1_config(16, 1)),
                                        make_stage<Int3FcGemm>("v1_t32_sg1", get_v1_config(32, 1)),
@@ -552,7 +566,9 @@ public:
                                        make_stage<Int3FcGemm>("v1_t32_sg4", get_v1_config(32, 4)),
                                        make_stage<Int3FcGemm>("v1_t32_sg8", get_v1_config(32, 8)),
                                        make_stage<Int3FcGemm>("v2_sg8", get_v2_config(8)),
-                                       make_stage<Int3FcGemm>("v2_sg16", get_v2_config(16))};
+                                       make_stage<Int3FcGemm>("v2_sg16", get_v2_config(16)),
+                                       make_stage<Int3FcGemm>("scalar_t8", get_scalar_config(8)),
+                                       make_stage<Int3FcGemm>("scalar_t16", get_scalar_config(16))};
 
     FullyConnectedInt3DpasImpl() : PrimitiveImplOCL(FullyConnectedInt3Dpas::get_type_info_static()) {}
     FullyConnectedInt3DpasImpl(const program_node& node, const RuntimeParams& params) : FullyConnectedInt3DpasImpl() {
