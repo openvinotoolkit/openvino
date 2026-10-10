@@ -45,7 +45,7 @@ graph {
     }
     attribute {
       name: "softcap"
-      f: 0.1
+      f: -1
       type: FLOAT
     }
     domain: "com.microsoft"
