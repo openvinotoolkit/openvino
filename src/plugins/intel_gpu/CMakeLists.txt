@@ -144,15 +144,15 @@ if(ENABLE_MLIR_FOR_GPU)
     add_compile_definitions(ENABLE_MLIR_FOR_GPU)
 endif()
 
-file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+set(PLUGIN_SOURCES ${GPU_PLUGIN_SOURCES})
 
 # MLIR sources are always excluded from the main plugin target. When
 # ENABLE_MLIR_FOR_GPU=ON they are built into a dedicated OBJECT library
 # (openvino_intel_gpu_mlir_obj) that has MLIR/Graph-Compiler include paths;
 # when OFF they must not be compiled at all.
 set(OV_GPU_MLIR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/transformations/mlir)
-file(GLOB_RECURSE GPU_MLIR_SOURCES ${OV_GPU_MLIR_DIR}/*.cpp)
-list(REMOVE_ITEM PLUGIN_SOURCES ${GPU_MLIR_SOURCES})
+set(GPU_MLIR_SOURCES ${GPU_PLUGIN_MLIR_SOURCES})
 
 # Fetches GraphCompiler, so it must run once rather than once per stack.
 if(ENABLE_MLIR_FOR_GPU)
