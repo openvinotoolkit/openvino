@@ -4,6 +4,8 @@
 
 #include "utils.hpp"
 
+#include <cstring>
+
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -45,6 +47,20 @@
 #include "translate_session.hpp"
 
 namespace ov::frontend::pytorch {
+
+std::shared_ptr<ov::op::v0::Constant> make_bfloat16_constant(const Shape& shape, const std::vector<float>& values) {
+    std::vector<uint16_t> rounded;
+    rounded.reserve(values.size());
+    for (float value : values) {
+        uint32_t bits;
+        std::memcpy(&bits, &value, sizeof(bits));
+        // Preserve PyTorch's round-to-nearest-even at constant arithmetic boundaries.
+        rounded.push_back((bits & 0x7fffffff) > 0x7f800000
+                              ? static_cast<uint16_t>((bits >> 16) | 0x0040)
+                              : static_cast<uint16_t>((bits + 0x7fff + ((bits >> 16) & 1)) >> 16));
+    }
+    return std::make_shared<ov::op::v0::Constant>(element::bf16, shape, rounded.data());
+}
 
 using namespace ov::op;
 

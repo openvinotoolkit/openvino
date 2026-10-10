@@ -327,3 +327,18 @@ class TestCatAlignTypesPT(PytorchLayerTest):
         self._test(self.create_model_param_last(in_types), ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"in_types": in_types}, trace_model=trace_model)
+
+
+class TestCatEmpty(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(2, 3, 4),)
+
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("dim", [0, 1, -1, -2])
+    def test_empty_rank_one(self, ie_device, precision, ir_version, dim):
+        class CatEmpty(torch.nn.Module):
+            def forward(self, value):
+                return torch.cat((torch.empty(0, dtype=torch.float64), value), dim=dim)
+
+        self._test(CatEmpty(), "aten::cat", ie_device, precision, ir_version, trace_model=True)
