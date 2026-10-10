@@ -181,13 +181,15 @@ ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<float>& val
 
 std::shared_ptr<ov::Model> make_paged_validation_model(size_t token_count = 1,
                                                        size_t physical_block_count = 2,
-                                                       const ov::element::Type& index_type = ov::element::i32) {
+                                                       const ov::element::Type& index_type = ov::element::i32,
+                                                       size_t state_size = 1) {
     auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     auto dt = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1});
-    auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1, 1});
+    auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1, state_size});
     auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1, 1});
-    auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1, 1});
-    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{physical_block_count, 1, 1, 1});
+    auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1, state_size});
+    auto state =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{physical_block_count, 1, 1, state_size});
     auto subsequences = std::make_shared<ov::op::v0::Parameter>(index_type, ov::Shape{2});
     auto blocks = std::make_shared<ov::op::v0::Parameter>(index_type, ov::Shape{physical_block_count});
     auto block_begins = std::make_shared<ov::op::v0::Parameter>(index_type, ov::Shape{2});
@@ -792,7 +794,7 @@ TEST(PagedSelectiveSSMFunctionalTest, AlignsComputationPrecisionAfterCpuLowering
     }
 }
 
-TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {
+TEST(PagedSelectiveSSMFunctionalTest, PortableExecutorRejectsMalformedMetadataBeforeExecution) {
     struct MetadataCase {
         const char* name;
         std::vector<int32_t> subsequences;
@@ -812,8 +814,21 @@ TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {
     };
 
     ov::Core core;
-    auto compiled_model =
-        core.compile_model(make_paged_validation_model(), "CPU", ov::hint::inference_precision(ov::element::f32));
+    // The portable executor validates metadata; the JIT trusts the runtime mapping.
+    // A large state selects the portable executor on both x86 and non-x86 hosts.
+    constexpr size_t state_size = 8192;
+    auto compiled_model = core.compile_model(make_paged_validation_model(1, 2, ov::element::i32, state_size),
+                                             "CPU",
+                                             ov::hint::inference_precision(ov::element::f32));
+    size_t matching_nodes = 0;
+    for (const auto& node : compiled_model.get_runtime_model()->get_ops()) {
+        const auto& info = node->get_rt_info();
+        if (info.at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "PagedSelectiveSSM") {
+            ASSERT_EQ(info.at(ov::exec_model_info::IMPL_TYPE).as<std::string>(), "ref_any_f32");
+            ++matching_nodes;
+        }
+    }
+    ASSERT_EQ(matching_nodes, 1U);
     for (const auto& test_case : cases) {
         SCOPED_TRACE(test_case.name);
         auto request = compiled_model.create_infer_request();
@@ -822,10 +837,12 @@ TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {
         };
         set_input(InputPort::A, make_f32_tensor({1}, {-0.2F}));
         set_input(InputPort::TimeStep, make_f32_tensor({1, 1}, {0.1F}));
-        set_input(InputPort::InputProjection, make_f32_tensor({1, 1, 1}, {0.2F}));
+        set_input(InputPort::InputProjection,
+                  make_f32_tensor({1, 1, state_size}, std::vector<float>(state_size, 0.2F)));
         set_input(InputPort::Input, make_f32_tensor({1, 1, 1}, {0.3F}));
-        set_input(InputPort::OutputProjection, make_f32_tensor({1, 1, 1}, {0.4F}));
-        set_input(InputPort::State, make_f32_tensor({2, 1, 1, 1}, {0.F, 0.F}));
+        set_input(InputPort::OutputProjection,
+                  make_f32_tensor({1, 1, state_size}, std::vector<float>(state_size, 0.4F)));
+        set_input(InputPort::State, make_f32_tensor({2, 1, 1, state_size}, std::vector<float>(2 * state_size, 0.F)));
         set_input(InputPort::SubsequenceBegins, make_index_tensor(test_case.subsequences, ov::element::i32));
         set_input(InputPort::BlockIndices, make_index_tensor(test_case.blocks, ov::element::i32));
         set_input(InputPort::BlockIndicesBegins, make_index_tensor(test_case.block_begins, ov::element::i32));
