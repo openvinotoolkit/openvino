@@ -55,6 +55,16 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
 
         LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> " << "Subgraph[" << subm_idx_to << "]/"
                               << port_idx_to);
+
+        const auto is_optimized_out = [&](std::size_t idx) {
+            const auto& desc = m_npuw_model->m_compiled_submodels[idx];
+            return !desc.compiled_model && !desc.replaced_by;
+        };
+        if (is_optimized_out(subm_idx_from) || is_optimized_out(subm_idx_to)) {
+            LOG_DEBUG("Skip: connection involves an optimized-out subgraph");
+            continue;
+        }
+
         NPUW_ASSERT(m_subrequests[subm_idx_from]);  // prod request is created
         NPUW_ASSERT(m_subrequests[subm_idx_to]);    // cons request is created
         NPUW_ASSERT(m_subrequests[subm_idx_from]._ptr != m_subrequests[subm_idx_to]._ptr);
