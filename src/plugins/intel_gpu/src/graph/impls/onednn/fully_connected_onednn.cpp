@@ -23,6 +23,22 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     static constexpr int COMMON = 0;
     static constexpr int PER_OC = 2;
 
+    // Group (IFM) axis is last for [N, groups] (transpose_b) and second-to-last for [groups, N].
+    static int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank) {
+        const auto& pshape = param_layout.get_partial_shape();
+        const auto rank = static_cast<int64_t>(pshape.size());
+        // 1D [N] holds only OC; point past it so get_dim() hits the padded 1 (one IFM group).
+        if (rank <= 1)
+            return rank;
+        const auto logical_rank = std::min<int64_t>(rank, std::max<int64_t>(2, static_cast<int64_t>(weights_rank)));
+        // Extra dims are either legacy trailing padding (all 1) or leading broadcast dims.
+        const bool trailing_padded = std::all_of(pshape.begin() + logical_rank, pshape.end(), [](const ov::Dimension& d) {
+            return d.is_static() && d.get_length() == 1;
+        });
+        const int64_t base = trailing_padded ? 0 : rank - logical_rank;
+        return std::max<int64_t>(0, base + (transpose_b_param ? logical_rank - 1 : logical_rank - 2));
+    }
+
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
 
 private:
@@ -217,6 +233,8 @@ public:
         ob << weights_rank;
         ob << has_bias;
         ob << is_compressed;
+        ob << prim->transpose_b_scale;
+        ob << prim->transpose_b_zp;
         ob << prim->dynamic_quantized_activation;
         ob << prim->dynamic_quantized_activation_zp;
         ob << prim->dynamic_quantized_precomputed_reduction;
@@ -244,6 +262,8 @@ public:
         size_t weights_rank = 2;
         bool has_bias = false;
         bool is_compressed = false;
+        bool transpose_b_scale = true;
+        bool transpose_b_zp = true;
         bool dynamic_quantized_activation;
         bool dynamic_quantized_activation_zp;
         bool dynamic_quantized_precomputed_reduction;
@@ -251,6 +271,8 @@ public:
         ib >> weights_rank;
         ib >> has_bias;
         ib >> is_compressed;
+        ib >> transpose_b_scale;
+        ib >> transpose_b_zp;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
         ib >> dynamic_quantized_precomputed_reduction;
@@ -262,7 +284,6 @@ public:
         auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(),
             [](ov::Dimension d) { return d.get_length() > 1; });
         weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
-        const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
 
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         const auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
@@ -277,7 +298,7 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
-            const auto ngroups = scale_layout.get_dim(ifm_dim_idx);
+            const auto ngroups = scale_layout.get_dim(get_ifm_dim_idx(scale_layout, transpose_b_scale, weight_rank));
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
             } else if (ngroups == 1) {
@@ -297,7 +318,7 @@ public:
                 if (dzp_layout.count() == 1) {
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    auto ngroups = dzp_layout.get_dim(ifm_dim_idx);
+                    auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, transpose_b_zp, weight_rank));
                     if (ngroups == 1) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
@@ -381,7 +402,8 @@ public:
                 // IFM (K) dimension position depends on weight layout orientation.
                 const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
                 const auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
-                const auto ngroups = scale_layout.get_dim(ifm_dim_idx);
+                const auto scale_ifm_dim_idx = get_ifm_dim_idx(scale_layout, prim->transpose_b_scale, weight_rank);
+                const auto ngroups = scale_layout.get_dim(scale_ifm_dim_idx);
                 group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
@@ -410,8 +432,7 @@ public:
                     auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
-                    auto dzp_ifm_dim_idx = prim->weights_transposed ? (dzp_rank - 1) : (dzp_rank - 2);
-                    auto ngroups = dzp_layout.get_dim(dzp_ifm_dim_idx);
+                    auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, prim->transpose_b_zp, weight_rank));
                     if (ngroups == 1 && dzp_rank <= 2) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
