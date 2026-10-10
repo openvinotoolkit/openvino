@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-10-22-32-01-339-38085592391",
+  "timestamp": "2026-10-10T22:32:01Z",
+  "run_id": "38085592391",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38085592391",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38105",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38105",
+  "author": "Daksha1611",
+  "category": "Network",
+  "title": "TensorFlow Layer Tests artifact upload fails with ENOTFOUND on Windows runner",
+  "signature": "Failed to CreateArtifact: Unable to make request: ENOTFOUND|Network",
+  "signature_hash": "4e9cf236bf92d555",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "All pytest tests passed/skipped; job failed only because the post-test artifact upload (TEST-tf2_fe.xml, TEST-tf_fe.xml) hit a DNS resolution failure (ENOTFOUND) against the GitHub Actions artifact service"
+    }
+  ],
+  "key_errors": [
+    "2026-10-10T22:23:32.4739599Z ##[error]Failed to CreateArtifact: Unable to make request: ENOTFOUND\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github"
+  ],
+  "root_cause": "The TensorFlow Layer Tests job on the Windows self-hosted runner completed all pytest cases successfully (visible as PASSED/SKIPPED in the log), but the subsequent actions/upload-artifact step failed with a DNS resolution error (ENOTFOUND) while trying to reach the GitHub Actions artifact-upload endpoint. This is a transient network/infrastructure issue on the self-hosted Windows runner's outbound connectivity to GitHub's backend services, not a defect in the test code or the PR's actual changes (tools/ovc/openvino/tools/ovc/cli_parser.py, tools/ovc/unit_tests/ovc/utils/cli_parser_test.py), which are unrelated to TensorFlow layer testing.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a runner-side DNS/network failure during artifact upload on GitHub-hosted infrastructure, unrelated to the test suite or PR code.",
+  "recommended_actions": [
+    "Re-run the failed job (TensorFlow Layer Tests) via remediate_transient_failure or the merge-queue rerun mechanism - all underlying tests already passed",
+    "If ENOTFOUND recurs frequently on Windows self-hosted runners, escalate to the CI infra team to check runner DNS/network configuration and GitHub Actions service connectivity",
+    "No code changes needed in the PR itself"
+  ],
+  "prevention_strategies": "Monitor the recurrence rate of ENOTFOUND artifact-upload failures across Windows runners; if the pattern count grows significantly, consider adding retry logic around upload-artifact steps or investigating runner network/DNS health proactively.",
+  "historical_context": "This exact signature (CreateArtifact ENOTFOUND, category Network) has been seen before on 2026-07-07 (PR #36738, run 28833044082) for the Python unit tests job. This is the second occurrence overall and the first on the TensorFlow Layer Tests job, confirming it is a job-agnostic, recurring self-hosted-runner connectivity issue rather than isolated to one test suite."
+}
