@@ -1,0 +1,152 @@
+name: 'NPU compiler metrics baseline'
+description: |
+  Keeps the NPU compiler metrics JSON of the last push to master in the GitHub Actions cache.
+  "restore" fetches it at the start of a job, falling back to the test-results artifact of the
+  newest successful earlier run when the cache entry has been evicted. "compare" reports the differences between the
+  restored baseline and the metrics of the current run, and on pushes to master refreshes the
+  cache. The comparison is report-only and never fails the job.
+inputs:
+  mode:
+    description: '"restore" or "compare"'
+    required: true
+  platform:
+    description: 'NPU platform, e.g. 3720'
+    required: true
+  model-scope:
+    description: 'Model scope of the run, e.g. precommit'
+    required: true
+  metrics-dir:
+    description: 'Directory holding TEST-npu_compiler_<platform>.json of the current run'
+    required: true
+  artifact-name:
+    description: 'Artifact of earlier runs that holds TEST-npu_compiler_<platform>.json; used when the cache has no baseline'
+    required: true
+  baseline-workflow:
+    description: 'Workflow file whose earlier runs are searched for the baseline artifact'
+    required: false
+    default: 'windows_vs2022_release.yml'
+  baseline-branch:
+    description: 'Branch of the runs searched for the baseline artifact'
+    required: false
+    default: 'master'
+  baseline-event:
+    description: 'Event of the runs searched for the baseline artifact'
+    required: false
+    default: 'push'
+  use-cache:
+    description: 'Try the Actions cache before the artifacts ("false" forces the artifact path, e.g. for testing)'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'Token used to list runs and download artifacts (needs actions: read)'
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: 'composite'
+  steps:
+    # Restored into its own directory so resets and artifact globs of the caller never touch it.
+    # The key never matches exactly (run_id), so the newest cache for this platform/scope is
+    # picked through restore-keys.
+    - name: Restore NPU compiler metrics baseline from cache
+      id: cache
+      if: inputs.mode == 'restore' && inputs.use-cache == 'true'
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ inputs.metrics-dir }}\npu_baseline
+        key: npu-models-baseline-${{ inputs.platform }}-${{ inputs.model-scope }}-${{ github.run_id }}
+        restore-keys: |
+          npu-models-baseline-${{ inputs.platform }}-${{ inputs.model-scope }}-
+
+    # The repo-wide cache quota is nearly full, so entries get evicted. Fall back to the
+    # metrics JSON that earlier runs uploaded in their test-results artifact, which is kept
+    # for the artifact retention period. The newest successful run that has the file wins.
+    - name: Restore NPU compiler metrics baseline from artifacts
+      if: inputs.mode == 'restore' && steps.cache.outputs.cache-matched-key == ''
+      continue-on-error: true
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+        WORKFLOW: ${{ inputs.baseline-workflow }}
+        BRANCH: ${{ inputs.baseline-branch }}
+        EVENT: ${{ inputs.baseline-event }}
+        ARTIFACT: ${{ inputs.artifact-name }}
+        FILE_NAME: TEST-npu_compiler_${{ inputs.platform }}.json
+        DEST: ${{ inputs.metrics-dir }}\npu_baseline
+      run: |
+        $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" }
+        $api = "https://api.github.com/repos/$env:REPO/actions"
+        $runsUrl = "$api/workflows/$env:WORKFLOW/runs?branch=$env:BRANCH&event=$env:EVENT&status=success&per_page=15"
+        $runs = (Invoke-RestMethod -Headers $headers -Uri $runsUrl).workflow_runs
+        Write-Host "Cache has no baseline; searching $($runs.Count) successful '$env:WORKFLOW' runs on '$env:BRANCH' ($env:EVENT) for artifact '$env:ARTIFACT'"
+
+        $tmp = Join-Path $env:RUNNER_TEMP "npu_baseline_artifact"
+        foreach ($run in $runs) {
+          if ($run.id -eq [long]$env:GITHUB_RUN_ID) { continue }
+          $artifacts = (Invoke-RestMethod -Headers $headers -Uri "$api/runs/$($run.id)/artifacts?name=$env:ARTIFACT").artifacts
+          $artifact = $artifacts | Where-Object { -not $_.expired } | Select-Object -First 1
+          if (-not $artifact) { continue }
+
+          # The archive URL redirects to a pre-signed storage URL, which must be fetched without the token.
+          # Invoke-WebRequest throws on the 302 when redirects are disabled, so use HttpClient.
+          $handler = [System.Net.Http.HttpClientHandler]::new()
+          $handler.AllowAutoRedirect = $false
+          $client = [System.Net.Http.HttpClient]::new($handler)
+          try {
+            $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Get, $artifact.archive_download_url)
+            $request.Headers.Authorization = [System.Net.Http.Headers.AuthenticationHeaderValue]::new("Bearer", $env:GH_TOKEN)
+            $request.Headers.UserAgent.ParseAdd("npu-metrics-baseline")
+            $response = $client.SendAsync($request).GetAwaiter().GetResult()
+            $location = $response.Headers.Location
+          } finally {
+            $client.Dispose()
+          }
+          if (-not $location) { Write-Host "Run $($run.id): no download location returned (HTTP $([int]$response.StatusCode))"; continue }
+
+          Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force $tmp | Out-Null
+          Invoke-WebRequest -Uri $location.AbsoluteUri -OutFile "$tmp.zip"
+          Expand-Archive "$tmp.zip" -DestinationPath $tmp -Force
+
+          $found = Get-ChildItem $tmp -Recurse -Filter $env:FILE_NAME | Select-Object -First 1
+          if ($found) {
+            New-Item -ItemType Directory -Force $env:DEST | Out-Null
+            Copy-Item $found.FullName $env:DEST
+            Write-Host "Baseline restored from artifact '$env:ARTIFACT' of run $($run.id) ($($run.html_url))"
+            return
+          }
+          Write-Host "Run $($run.id): artifact has no $env:FILE_NAME"
+        }
+        Write-Host "No run with a baseline artifact was found."
+
+    - name: Compare NPU compiler metrics with baseline
+      if: inputs.mode == 'compare'
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        $current = "${{ inputs.metrics-dir }}\TEST-npu_compiler_${{ inputs.platform }}.json"
+        if (Test-Path $current) {
+          python3 "${{ github.action_path }}\..\..\scripts\compare_npu_compiler_metrics.py" `
+            --baseline "${{ inputs.metrics-dir }}\npu_baseline\TEST-npu_compiler_${{ inputs.platform }}.json" `
+            --current $current `
+            --output "${{ inputs.metrics-dir }}\TEST-npu_compiler_diff_${{ inputs.platform }}.json" `
+            --title "NPU ${{ inputs.platform }} compiler metrics vs. last master run"
+        } else {
+          Write-Host "No metrics were produced by this run; nothing to compare."
+        }
+
+    # Only master pushes refresh the baseline; PRs and merge queue runs just read it.
+    # This replaces the restored file, so it must stay after the comparison above.
+    - name: Stage NPU compiler metrics baseline
+      if: inputs.mode == 'compare' && github.event_name == 'push' && github.ref_name == 'master'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force "${{ inputs.metrics-dir }}\npu_baseline" | Out-Null
+        Copy-Item "${{ inputs.metrics-dir }}\TEST-npu_compiler_${{ inputs.platform }}.json" "${{ inputs.metrics-dir }}\npu_baseline\" -ErrorAction Stop
+
+    - name: Save NPU compiler metrics baseline
+      if: inputs.mode == 'compare' && github.event_name == 'push' && github.ref_name == 'master'
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ inputs.metrics-dir }}\npu_baseline
+        key: npu-models-baseline-${{ inputs.platform }}-${{ inputs.model-scope }}-${{ github.run_id }}

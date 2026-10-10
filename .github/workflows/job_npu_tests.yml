@@ -28,7 +28,7 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
-  # OV_NPU_LOG_LEVEL: 'LOG_INFO'
+  OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
 jobs:
   NPU_Models_Tests:
@@ -79,6 +79,9 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
             .github/actions/install_ov_wheels/action.yml
+            .github/actions/npu_metrics_baseline/action.yml
+            .github/scripts/parse_npu_compiler_log.py
+            .github/scripts/compare_npu_compiler_metrics.py
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -99,6 +102,31 @@ jobs:
       - name: Install certifi and set SSL_CERT_FILE for model downloading
         run: python3 -m pip install certifi && echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
+      # The per-platform metrics JSON is built incrementally by every test step
+      # below, so make sure no stale file from a previous run on a self-hosted
+      # runner leaks into this one.
+      - name: Reset NPU compiler metrics files
+        run: Remove-Item "${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_*" -ErrorAction SilentlyContinue
+
+      # Metrics of the last push to master, used by the comparison step at the end of the job.
+      - name: Restore NPU compiler metrics baseline
+        uses: ./openvino/.github/actions/npu_metrics_baseline
+        with:
+          mode: restore
+          artifact-name: test-results-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
+          platform: ${{ matrix.npu-platform }}
+          model-scope: ${{ inputs.model-scope }}
+          metrics-dir: ${{ env.INSTALL_TEST_DIR }}
+
+      # Every test step below redirects pytest stdout/stderr into a per-suite log
+      # so that parse_npu_compiler_log.py can extract per-model compilation memory
+      # usage and compile time into the shared per-platform JSON file, keyed as
+      # platform -> framework -> test_type -> model -> metrics.
+      # NOTE (cmd.exe): the pytest exit code must be captured on its own line
+      # immediately after pytest - both `type` and `python3` reset %ERRORLEVEL%.
+      # `type` prints the captured log back to the Actions console (the redirect
+      # would otherwise hide the test output).
+
       # --- TensorFlow ---------------------------------------------------------
       - name: Install TF Models tests requirements
         if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).TF_FE.test
@@ -110,7 +138,17 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_convert_model.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_convert_model_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_convert_model_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --framework tensorflow ^
+            --test-type convert_model ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_convert_model_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       - name: TensorFlow Models Tests - NPU compile-only (read_model)
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).TF_FE.test) }}
@@ -118,7 +156,17 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_read_model.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_read_model_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_read_model_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --framework tensorflow ^
+            --test-type read_model ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_read_model_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       # --- JAX ----------------------------------------------------------------
       - name: Install JAX Models tests requirements
@@ -131,7 +179,17 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\jax\test_hf_transformers.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-jax_npu_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-jax_npu_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_jax_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_jax_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --framework jax ^
+            --test-type jax ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_jax_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       # --- PyTorch (runs after TF/JAX within the same leg) --------------------
       - name: Install PyTorch tests requirements
@@ -148,14 +206,37 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_npu_models.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_models_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_models_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_npu_models_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_npu_models_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --framework pytorch ^
+            --test-type pt_npu_models ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_npu_models_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
+
+      # Report-only comparison with the restored baseline. On pushes to master this also
+      # refreshes the baseline cache. Must run after all suites have written their metrics.
+      - name: Compare NPU compiler metrics with baseline
+        if: ${{ !cancelled() }}
+        uses: ./openvino/.github/actions/npu_metrics_baseline
+        with:
+          mode: compare
+          platform: ${{ matrix.npu-platform }}
+          model-scope: ${{ inputs.model-scope }}
+          metrics-dir: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ !cancelled() }}
+        if: ${{ always() && !cancelled() }}
         with:
           name: test-results-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
           path: |
             ${{ env.INSTALL_TEST_DIR }}\TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_*.log
+            ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_*.json
             ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_unsupported_ops_*.log
           if-no-files-found: 'error'
