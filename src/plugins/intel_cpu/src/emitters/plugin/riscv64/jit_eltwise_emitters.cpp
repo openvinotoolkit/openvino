@@ -243,6 +243,7 @@ void jit_ceil_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 
 void jit_ceil_emitter::register_table_entries() {
     push_arg_entry_of("one", 0x3f800000);
+    // RVV has no FP round-to-integer instruction, so this limit bounds the int32 round-trip.
     push_arg_entry_of("int32_limit", 0x4f000000);
 }
 
@@ -944,6 +945,7 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 void jit_floor_emitter::register_table_entries() {
     push_arg_entry_of("neg_one", 0xbf800000);
+    // RVV has no FP round-to-integer instruction, so this limit bounds the int32 round-trip.
     push_arg_entry_of("int32_limit", 0x4f000000);
 }
 
