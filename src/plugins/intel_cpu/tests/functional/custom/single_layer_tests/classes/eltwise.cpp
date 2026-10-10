@@ -128,6 +128,11 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     }
 }
 
+void EltwiseLayerCPUTest::validate() {
+    SubgraphBaseTest::validate();
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
+}
+
 void EltwiseLayerCPUTest::SetUp() {
     const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets] = this->GetParam();
     const auto& [_shapes, _eltwiseType, secondaryInputType, opType, _netType, _inType, _outType, _targetDevice,
@@ -325,7 +330,6 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const ov::element::Type_t& ele
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
 namespace Eltwise {

@@ -7,7 +7,6 @@
 #include "utils/fusing_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
-#include "internal_properties.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -45,13 +44,6 @@ const std::vector<ElementType>& modSnippetsNetTypes() {
     return netTypes;
 }
 
-const ov::AnyMap& modSnippetsConfig() {
-    static const ov::AnyMap config = {
-        {ov::intel_cpu::snippets_mode.name(), ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK},
-    };
-    return config;
-}
-
 const std::vector<ov::AnyMap>& config_infer_prc_f32() {
     static const std::vector<ov::AnyMap> additionalConfig = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
@@ -66,11 +58,21 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            const auto value = i == 0 ? -5 : 3;
-            inputs.insert({funcInput.get_node_shared_ptr(),
-                           ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                  targetInputStaticShapes[i],
-                                                                  ov::test::utils::InputGenerateData(value, 1))});
+            auto input = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            const auto fillInput = [i, size = input.get_size()](auto* data) {
+                for (size_t j = 0; j < size; ++j) {
+                    const bool negativeDivisor = j % 2 == 0;
+                    data[j] = i == 0 ? (negativeDivisor ? 5 : -5) : (negativeDivisor ? -3 : 3);
+                }
+            };
+            if (funcInput.get_element_type() == ov::element::i32) {
+                fillInput(input.data<int32_t>());
+            } else if (funcInput.get_element_type() == ov::element::f32) {
+                fillInput(input.data<float>());
+            } else {
+                FAIL() << "Unsupported MOD input precision: " << funcInput.get_element_type();
+            }
+            inputs.insert({funcInput.get_node_shared_ptr(), std::move(input)});
         }
     }
 };
@@ -92,7 +94,7 @@ const std::vector<std::vector<ov::Shape>>& modInputShapes() {
     return inputShapes;
 }
 
-auto makeModParams(const std::vector<ElementType>& netTypes, const ov::AnyMap& config) {
+auto makeModParams(const std::vector<ElementType>& netTypes, bool enforceSnippets) {
     return ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(static_shapes_to_test_representation(modInputShapes())),
@@ -103,14 +105,14 @@ auto makeModParams(const std::vector<ElementType>& netTypes, const ov::AnyMap& c
             ::testing::Values(ov::element::dynamic),
             ::testing::Values(ov::element::dynamic),
             ::testing::Values(ov::test::utils::DEVICE_CPU),
-            ::testing::Values(config)),
+            ::testing::Values(ov::AnyMap{})),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
         ::testing::Values(emptyFusingSpec),
-        ::testing::Values(false));
+        ::testing::Values(enforceSnippets));
 }
 
-const auto modParams = makeModParams(modNetTypes(), ov::AnyMap{});
-const auto modSnippetsParams = makeModParams(modSnippetsNetTypes(), modSnippetsConfig());
+const auto modParams = makeModParams(modNetTypes(), false);
+const auto modSnippetsParams = makeModParams(modSnippetsNetTypes(), true);
 
 TEST_P(EltwiseModNegativeCPUTest, CompareWithRefs) {
     run();
