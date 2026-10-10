@@ -100,55 +100,6 @@ static int get_feature_slice_size(const resample_params &params) {
     return static_cast<int>(16 * get_vec_size(params));
 }
 
-static bool is_asymmetric_simple_optimized_case(const resample_params& params) {
-    const auto& input = params.inputs[0];
-    const auto& output = params.outputs[0];
-
-    if (params.coordTransMode != CoordinateTransformationMode::ASYMMETRIC || params.nearestMode != NearestMode::SIMPLE) {
-        return false;
-    }
-
-    if (!is_integral_upsampling_ratio(output.X().v, input.X().v) ||
-        !is_integral_upsampling_ratio(output.Y().v, input.Y().v)) {
-        return false;
-    }
-
-    return input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v);
-}
-
-static bool is_tf_half_pixel_for_nn_floor_optimized_case(const resample_params& params) {
-    const auto& input = params.inputs[0];
-    const auto& output = params.outputs[0];
-
-    if (params.coordTransMode != CoordinateTransformationMode::TF_HALF_PIXEL_FOR_NN ||
-        params.nearestMode != NearestMode::FLOOR) {
-        return false;
-    }
-
-    if (!is_integral_upsampling_ratio(output.X().v, input.X().v) ||
-        !is_integral_upsampling_ratio(output.Y().v, input.Y().v)) {
-        return false;
-    }
-
-    return input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v);
-}
-
-static bool is_half_pixel_round_prefer_floor_optimized_case(const resample_params& params) {
-    const auto& input = params.inputs[0];
-    const auto& output = params.outputs[0];
-
-    if (params.coordTransMode != CoordinateTransformationMode::HALF_PIXEL ||
-        params.nearestMode != NearestMode::ROUND_PREFER_FLOOR) {
-        return false;
-    }
-
-    if (!is_integral_ratio(output.X().v, input.X().v) || !is_integral_ratio(output.Y().v, input.Y().v)) {
-        return false;
-    }
-
-    return input.Dimentions() != 5 || is_integral_ratio(output.Z().v, input.Z().v);
-}
-
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
     DispatchData dispatchData;
     auto in_layout = arg.inputs[0].GetLayout();
@@ -240,14 +191,16 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     }
 
     if (params.resampleType == ResampleType::NEAREST_NEIGHBOR) {
-        const auto optimized_nearest_case =
-            (params.coordTransMode == CoordinateTransformationMode::ASYMMETRIC && params.nearestMode == NearestMode::FLOOR) ||
-            is_asymmetric_simple_optimized_case(params) ||
-            is_tf_half_pixel_for_nn_floor_optimized_case(params) ||
-            is_half_pixel_round_prefer_floor_optimized_case(params);
-
+        // The NEAREST kernel now derives coordinates via get_original_coordinate()/
+        // get_nearest_val() (see resample_opt.cl), which correctly implements every
+        // CoordinateTransformationMode/NearestMode combination - not just a hardcoded
+        // floor(x * scale) asymmetric/floor shortcut. So, unlike before, there is no
+        // need to restrict this kernel to a handful of whitelisted mode combinations
+        // (doing so was an unnecessary performance regression: it forced common cases
+        // such as ALIGN_CORNERS nearest-neighbor resize onto the much slower reference
+        // kernel). Only the generic constraints below (no padding support, batch/feature
+        // must be preserved) apply.
         if (has_padding ||
-            !optimized_nearest_case ||
             input.Batch().v != output.Batch().v ||
             input.Feature().v != output.Feature().v) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);

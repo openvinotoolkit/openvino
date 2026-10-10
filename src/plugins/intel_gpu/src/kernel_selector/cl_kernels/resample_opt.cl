@@ -29,6 +29,23 @@
     #define TO_OUT_VEC_TYPE(x)          TO_OUTPUT_VECTOR_TYPE(x, VEC_SIZE)
 #endif
 
+inline int FUNC(get_nearest_val)(float num, bool is_downsample)
+{
+#if defined(NEAREST_ROUND_PREFER_FLOOR)
+    return (num == (int)num + 0.5f) ? (int)floor(num) : (int)round(num);
+#elif defined(NEAREST_ROUND_PREFER_CEIL)
+    return (int)round(num);
+#elif defined(NEAREST_FLOOR)
+    return (int)floor(num);
+#elif defined(NEAREST_CEIL)
+    return (int)ceil(num);
+#elif defined(NEAREST_SIMPLE)
+    return is_downsample ? (int)ceil(num) : (int)num;
+#else
+#error [clDNN resample_opt.cl]: nearest mode - not supported
+#endif
+}
+
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
     if (scale == 1.0f)
@@ -246,12 +263,26 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
 
 #ifdef SAMPLE_TYPE_NEAREST
+    // Coordinates that do not depend on out_x are computed once per work-item
+    // (still using the generic, coord-transform-mode-aware helpers so that all
+    // CoordinateTransformationMode/NearestMode combinations are handled
+    // correctly, not just a hardcoded floor(x * scale) asymmetric/floor case).
+    // NOTE: resample_opt.cl always uses the "legacy" scale convention
+    // (SCALES[i] == input_size / output_size), unlike resample_ref.cl's
+    // generic path. So, unlike the SCALES[i] < 1 check used there, a
+    // downsampling axis here is the one where SCALES[i] > 1.
+    const float iy_coord = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, INPUT0_SIZE_Y);
+    const int iy = clamp(FUNC_CALL(get_nearest_val)(iy_coord, SCALES[3] > 1.0f), 0, INPUT0_SIZE_Y - 1);
+#if OUTPUT_DIMS == 5
+    const float iz_coord = FUNC_CALL(get_original_coordinate)(z, SCALES[2], OUTPUT_SIZE_Z, INPUT0_SIZE_Z);
+    const int iz = clamp(FUNC_CALL(get_nearest_val)(iz_coord, SCALES[2] > 1.0f), 0, INPUT0_SIZE_Z - 1);
+#endif
+
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
-        const int ix = floor((x + out_x) * SCALES[4]);
-        const int iy = floor(y * SCALES[3]);
+        const float ix_coord = FUNC_CALL(get_original_coordinate)(x + out_x, SCALES[4], OUTPUT_SIZE_X, INPUT0_SIZE_X);
+        const int ix = clamp(FUNC_CALL(get_nearest_val)(ix_coord, SCALES[4] > 1.0f), 0, INPUT0_SIZE_X - 1);
 
 #if OUTPUT_DIMS == 5
-        const int iz = floor(z * SCALES[2]);
         in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iz, iy, ix));
 #else
         in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iy, ix));
