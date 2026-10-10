@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/convert_color_nv12.hpp"
+#include "shared_test_classes/single_op/convert_color_to_nv12.hpp"
 
 namespace ov {
 namespace test {
-TEST_P(ConvertColorNV12LayerTest, Inference) {
+TEST_P(ConvertColorToNV12LayerTest, Inference) {
     run();
 }
 }  // namespace test
