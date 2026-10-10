@@ -10,6 +10,8 @@
 #include <ostream>
 #include <sstream>
 
+#include "serialization.hpp"
+
 namespace {
 
 constexpr std::array<std::uint8_t, 8> ORC_FILE_MAGIC = {'N', 'P', 'U', 'W', 'O', 'R', 'C', '\0'};
@@ -493,4 +495,37 @@ std::optional<ov::npuw::orc::OrcHeader> ov::npuw::orc::is_orc(std::istream& stre
 
     restore();
     return OrcHeader{version, uuid};
+}
+
+ov::npuw::orc::TypeId ov::npuw::orc::peek_blob_id(std::istream& stream) {
+    const auto saved = stream.tellg();
+    const auto restore = [&] {
+        stream.clear();
+        stream.seekg(saved);
+    };
+    std::ignore = read_file_header(stream);
+    ov::npuw::orc::ScopedReadSection root(stream);
+    restore();
+    return root.header().type;
+}
+
+bool ov::npuw::orc::is_npuw_blob(std::istream& stream) {
+    auto is_npuw_s11n = [](std::istream& stream) {
+        const auto saved = stream.tellg();
+        const auto restore = [&] {
+            stream.clear();
+            stream.seekg(saved);
+        };
+
+        std::array<std::uint8_t, 6> magic{};
+        stream.read(reinterpret_cast<char*>(magic.data()), magic.size());
+        if (!stream.good() || magic != NPUW_SERIALIZATION_INDICATOR) {
+            restore();
+            return false;
+        }
+
+        restore();
+        return true;
+    };
+    return ov::npuw::orc::is_orc(stream) || is_npuw_s11n(stream);
 }

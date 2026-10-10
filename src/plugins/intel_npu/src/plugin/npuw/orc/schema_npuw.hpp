@@ -25,4 +25,8 @@ enum class WeightsBank : TypeId {
     ID = 300,
 };
 
+enum class GQAModel : TypeId {
+    ID = 400,
+};
+
 }  // namespace ov::npuw::orc::schema_npuw

@@ -44,10 +44,6 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-// GQA = 0x47,0x51,0x41 + CMO = 0x43,0x4d,0x4f
-const constexpr ov::npuw::s11n::IndicatorType NPUW_GQA_COMPILED_MODEL_INDICATOR =
-    {char{0x47}, char{0x51}, char{0x41}, char{0x43}, char{0x4d}, char{0x4f}};
-
 // FL2 = 0x46,0x4c,0x32 + CMO = 0x43,0x4d,0x4f
 const constexpr ov::npuw::s11n::IndicatorType NPUW_FLUX2_COMPILED_MODEL_INDICATOR =
     {char{0x46}, char{0x4c}, char{0x32}, char{0x43}, char{0x4d}, char{0x4f}};
@@ -158,8 +154,9 @@ struct WeightsContext {
     // NOTE: This constructor should only be used when exporting blobs.
     WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
-    // NOTE: This constructor is used on blob import to carry the resolved weight source
-    // (embedded weights, mmap'ed weights file, or model-backed constants cache).
+    // NOTE: This constructor is used on blob import to carry the resolved weight
+    // source (embedded weights, mmap'ed weights file, or model-backed constants
+    // cache).
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
@@ -184,7 +181,8 @@ struct WeightsContext {
 
 // Context for deserializing submodels with dynamic attention mechanisms
 // (Pyramid Attention, Host Flash Attention, etc.)
-// Provides plugin, device, and compiled model reference for proper deserialization
+// Provides plugin, device, and compiled model reference for proper
+// deserialization
 struct SubmodelDeserializeCtx {
     SubmodelDeserializeCtx(const std::shared_ptr<const ov::IPlugin>& _plugin,
                            const std::string& _device,

@@ -38,6 +38,10 @@ private:
 
 class GQACompiledModel final : public ov::npuw::ICompiledModel {
 public:
+    static constexpr ov::npuw::orc::TypeId kOrcType =
+        static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::GQAModel::ID);
+    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
     using CompiledModelFactory =
         std::function<std::shared_ptr<ov::npuw::ICompiledModel>(const std::shared_ptr<ov::Model>&,
                                                                 const std::shared_ptr<const ov::IPlugin>&,
