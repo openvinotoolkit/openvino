@@ -47,6 +47,18 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     return device_ptr == host_ptr;
 }
 
+std::shared_ptr<ov::ITensor> ensure_contiguous(const std::shared_ptr<ov::ITensor>& tensor) {
+    // skip remote tensors as RemoteTensorImpl always has default strides for its shape,
+    // and remote ROI tensors are copied via RemoteTensorImpl::copy_to with proper strides
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor) != nullptr || tensor->is_continuous()) {
+        return tensor;
+    }
+
+    auto packed = ov::make_tensor(tensor->get_element_type(), tensor->get_shape());
+    tensor->copy_to(packed);
+    return packed;
+}
+
 inline bool all_remote_buffers(const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     return std::all_of(tensors.begin(), tensors.end(), [](const ov::SoPtr<ov::ITensor>& tensor) {
         if (auto remote_ptr = std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(tensor._ptr)) {
@@ -371,7 +383,13 @@ void SyncInferRequest::enqueue() {
                 auto inputs = m_user_inputs.read();
                 user_tensor = inputs->at(port_idx);
             }
-            auto events = prepare_input(internal_name, port_idx, port, user_tensor);
+            // ensure user tensor is contiguous
+            const auto contiguous_tensor = ensure_contiguous(user_tensor.ptr);
+            const bool is_repacked = contiguous_tensor != user_tensor.ptr;
+            if (is_repacked) {
+                user_tensor = {contiguous_tensor, TensorOwner::PLUGIN};
+            }
+            auto events = prepare_input(internal_name, port_idx, port, user_tensor, is_repacked);
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         }
 
@@ -1003,7 +1021,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
 std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string& internal_name,
                                                                size_t input_idx,
                                                                const ov::Output<const ov::Node>& port,
-                                                               const TensorWrapper& user_tensor_wrapper) {
+                                                               const TensorWrapper& user_tensor_wrapper,
+                                                               bool blocking_upload) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
@@ -1143,7 +1162,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                 // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
                 // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
                 // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
-                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
+                // blocking_upload: finish the upload before returning, e.g. for a staging tensor from enqueue() that is freed afterwards
+                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem || blocking_upload);
             }
         } else if (is_generic_remote) {
             user_tensor->copy_to(device_tensor);
