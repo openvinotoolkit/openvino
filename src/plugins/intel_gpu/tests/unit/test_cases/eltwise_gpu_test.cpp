@@ -2927,6 +2927,82 @@ TEST(eltwise_gpu_int, div_gather_fusing) {
     }
 }
 
+TEST(eltwise_gpu_int, python_division) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{4, 1, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{4, 1, 1, 1}});
+
+    set_values(input1, {-5, 5, -5, 5});
+    set_values(input2, {2, -2, -2, 2});
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise",
+                         {input_info("input1"), input_info("input2")},
+                         eltwise_mode::div,
+                         std::vector<float>(0),
+                         data_types::i32,
+                         DEFAULT_BROADCAST_SPEC,
+                         true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<int32_t> expected = {-3, -3, 2, 2};
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_int, python_division_i16) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({data_types::i16, format::bfyx, tensor{4, 1, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::i16, format::bfyx, tensor{4, 1, 1, 1}});
+
+    set_values(input1, {int16_t(-5), int16_t(5), int16_t(-5), int16_t(5)});
+    set_values(input2, {int16_t(2), int16_t(-2), int16_t(-2), int16_t(2)});
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise",
+                         {input_info("input1"), input_info("input2")},
+                         eltwise_mode::div,
+                         std::vector<float>(0),
+                         data_types::i16,
+                         DEFAULT_BROADCAST_SPEC,
+                         true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<int16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<int16_t> expected = {int16_t(-3), int16_t(-3), 2, 2};
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
 TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
     // Same params as in eltwise_gpu_f32, sub_basic_in4x4x4x4 but using int types for first input.
     //

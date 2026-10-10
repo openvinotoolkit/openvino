@@ -138,6 +138,19 @@ Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params& params) con
         return Datatype::INT32;
     }
 
+    if (params.operations[0].mode == EltwiseMode::DIV && params.operations[0].m_pythondiv && !params.inputs.empty()) {
+        bool all_inputs_are_int16 = true;
+        for (const auto& input : params.inputs) {
+            if (input.GetDType() != Datatype::INT16) {
+                all_inputs_are_int16 = false;
+                break;
+            }
+        }
+        if (all_inputs_are_int16) {
+            return Datatype::INT16;
+        }
+    }
+
     Datatype types[] = {Datatype::F32, Datatype::BF16, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types) {
@@ -276,9 +289,25 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
         case EltwiseMode::MUL:
             op += input0_str + " * " + input1_str;
             break;
-        case EltwiseMode::DIV:
-            op += input0_str + " / " + input1_str;
+        case EltwiseMode::DIV: {
+            auto is_signed_integer_type = [](kernel_selector::Datatype type) {
+                return type == kernel_selector::Datatype::INT8 || type == kernel_selector::Datatype::INT16 || type == kernel_selector::Datatype::INT32 ||
+                       type == kernel_selector::Datatype::INT64;
+            };
+
+            if (ew.m_pythondiv && is_signed_integer_type(GetAccumulatorType(params))) {
+                op += "(" + input0_str + " / " + input1_str +
+                      ") - "
+                      "(((" +
+                      input0_str + " % " + input1_str +
+                      ") != 0 && "
+                      "((" +
+                      input0_str + " < 0) != (" + input1_str + " < 0))) ? 1 : 0)";
+            } else {
+                op += input0_str + " / " + input1_str;
+            }
             break;
+        }
         case EltwiseMode::MODULU:
         case EltwiseMode::MIN:
         case EltwiseMode::MAX: {
