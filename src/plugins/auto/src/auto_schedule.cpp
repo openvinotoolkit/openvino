@@ -16,6 +16,10 @@ namespace auto_plugin {
 bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
     {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        bool is_low_power_mode_active = false;
+        if (!m_context->m_low_power_device.empty()) {
+            is_low_power_mode_active = m_plugin->get_low_power_mode().value_or(false);
+        }
         // a recursive function to select other devices
         std::function<bool(std::string)> get_execution_devices;
         get_execution_devices = [&](const std::string& device_name) {
@@ -55,7 +59,15 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_compile_context[FALLBACKDEVICE].m_model_precision,
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
-                                        m_context->m_low_power_device);
+                                        m_context->m_low_power_device,
+                                        is_low_power_mode_active);
+            bool is_pinned_low_power_device =
+                is_low_power_mode_active &&
+                device_name_matches(m_compile_context[FALLBACKDEVICE].m_device_info.device_name,
+                                     m_context->m_low_power_device);
+            if (is_pinned_low_power_device) {
+                m_compile_context[FALLBACKDEVICE].m_meta_devices = {m_compile_context[FALLBACKDEVICE].m_device_info};
+            }
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -70,6 +82,11 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                 m_compile_context[ACTUALDEVICE].m_is_already = false;
                 LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
                 return true;
+            } else if (is_pinned_low_power_device) {
+                LOG_ERROR_TAG("Compiling model on user-specified low power device:%s failed during runtime "
+                              "fallback, AUTO will not fall back to another candidate device",
+                              m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
+                return false;
             } else {
                 // load failed or generate works failed, so reselect other devices
                 return get_execution_devices(m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
@@ -100,7 +117,18 @@ void AutoSchedule::init() {
                                 m_compile_context[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority,
                                 m_context->m_selection_policy,
-                                m_context->m_low_power_device);
+                                m_context->m_low_power_device,
+                                m_context->m_is_low_power_mode_active);
+    if (m_context->m_is_low_power_mode_active &&
+        device_name_matches(m_compile_context[ACTUALDEVICE].m_device_info.device_name, m_context->m_low_power_device)) {
+        m_context->m_startup_fallback = false;
+        m_context->m_runtime_fallback = false;
+        m_compile_context[FALLBACKDEVICE].m_is_enabled = false;
+        // Leaves try_to_compile_model() with no candidate to retry on failure.
+        m_compile_context[ACTUALDEVICE].m_meta_devices = {m_compile_context[ACTUALDEVICE].m_device_info};
+        LOG_INFO_TAG("Disable startup and runtime fallback for selected low power device:%s",
+                     m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
+    }
 
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
@@ -372,7 +400,8 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
                                                         context.m_model_precision,
                                                         m_context->m_model_priority,
                                                         m_context->m_selection_policy,
-                                                        m_context->m_low_power_device);
+                                                        m_context->m_low_power_device,
+                                                        m_context->m_is_low_power_mode_active);
     } catch (const ov::Exception&) {
         return;
     }
