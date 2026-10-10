@@ -88,7 +88,7 @@ namespace ov::intel_cpu {
 class ConvertConvolutionBias : public ConvertGemmBias<ConvMulAddFQBlock> {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertConvolutionBias");
-    ConvertConvolutionBias() : ConvertGemmBias("ConvertConvolutionBias") {}
+    ConvertConvolutionBias() : ConvertGemmBias("ConvertConvolutionBias", /* require_uniform_zero_point = */ true) {}
 };
 
 }  // namespace ov::intel_cpu
