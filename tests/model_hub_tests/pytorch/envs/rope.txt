@@ -1,1 +1,4 @@
 optimum-intel==1.27.0
+# Pinned so the RoPE test does not inherit transformers from earlier CI steps;
+# models capped below this version are marked `optimum_intel_legacy`.
+transformers==4.55.4

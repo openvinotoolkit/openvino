@@ -81,11 +81,12 @@ ref_diff_map = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
+	# transformers>=4.54 caches multi_query K and V as separate tensors per layer
 	"optimum-intel-internal-testing/tiny-random-GPTBigCodeModel" : {
-		"Assign" : -5,
+		"Assign" : -10,
 		"PagedAttentionExtension" : 5,
 		"Parameter" : 13,
-		"ReadValue" : -5,
+		"ReadValue" : -10,
 		"ScaledDotProductAttention" : -5,
 	},
 	"optimum-intel-internal-testing/tiny-random-GPTJModel" : {
@@ -539,11 +540,12 @@ ref_diff_map_optimizations = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
+	# transformers>=4.54 caches multi_query K and V as separate tensors per layer
 	"optimum-intel-internal-testing/tiny-random-GPTBigCodeModel" : {
-		"Assign" : -5,
+		"Assign" : -10,
 		"PagedAttentionExtension" : 5,
 		"Parameter" : 50,
-		"ReadValue" : -5,
+		"ReadValue" : -10,
 		"ScaledDotProductAttention" : -5,
 	},
 	"optimum-intel-internal-testing/tiny-random-GPTJModel" : {
