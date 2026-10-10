@@ -34,7 +34,7 @@ openvino/               <-- Main package/namespace
     └── myclass.py
 ```
 
-Now let's add it to your exisiting `PYTHONPATH` (replace `[your_path]` with correct path to the OpenVINO™ project):
+Now let's add it to your existing `PYTHONPATH` (replace `[your_path]` with correct path to the OpenVINO™ project):
 
     export PYTHONPATH=$PYTHONPATH:[your_path]/openvino/src/bindings/python/docs/examples/
 
