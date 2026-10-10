@@ -808,6 +808,206 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
     }
 }
 
+// A [1, 1, 1, K] mask holds one row shared by all queries. Before the fix, PREFETCH_MASK strode by the row
+// pitch per query and prefetched up to seq_len * seq_len * 2 bytes (~128 MB here) past the 16 KB mask, which
+// fails with CL_OUT_OF_RESOURCES wherever the GPU faults on unmapped addresses.
+TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
+    constexpr size_t heads = 1;
+    constexpr size_t seq_len = 8192;
+    constexpr size_t head_size = 128;
+
+    auto& engine = get_test_engine();
+    const auto& device_info = engine.get_device_info();
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "SDPA micro requires IMMAD support";
+    if (device_info.arch < cldnn::gpu_arch::xe_hpc)
+        GTEST_SKIP() << "PREFETCH_MASK is only emitted for arch >= xe_hpc";
+
+    const layout qkv_layout({1, heads, seq_len, head_size}, data_types::f16, format::bfyx);
+    const layout mask_layout({1, 1, 1, seq_len}, data_types::f16, format::bfyx);
+
+    topology topo;
+    topo.add(input_layout("q", qkv_layout));
+    topo.add(input_layout("k", qkv_layout));
+    topo.add(input_layout("v", qkv_layout));
+    topo.add(input_layout("mask", mask_layout));
+    topo.add(scaled_dot_product_attention("sdpa",
+                                          {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                          false,
+                                          -1,
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {},
+                                          false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+    auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+    std::string sdpa_info;
+    for (const auto& info : network->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention") {
+            sdpa_info = network->get_primitive_info(info.original_id);
+            break;
+        }
+    }
+    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
+        << "sdpa_micro was not selected; node description was:\n" << sdpa_info;
+
+    // The second half of the keys is masked out and has V = -1, so the exact output is 1 everywhere.
+    const size_t qkv_count = heads * seq_len * head_size;
+    std::vector<ov::float16> v_data(qkv_count);
+    std::vector<ov::float16> mask_data(seq_len);
+    for (size_t s = 0; s < seq_len; ++s) {
+        const bool masked = s >= seq_len / 2;
+        mask_data[s] = ov::float16(masked ? -65504.0f : 0.0f);
+        for (size_t h = 0; h < heads; ++h)
+            std::fill_n(v_data.begin() + (h * seq_len + s) * head_size, head_size, ov::float16(masked ? -1.0f : 1.0f));
+    }
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto q_mem = engine.allocate_memory(qkv_layout);
+    auto k_mem = engine.allocate_memory(qkv_layout);
+    auto v_mem = engine.allocate_memory(qkv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    set_values(q_mem, rg.generate_random_1d<ov::float16>(qkv_count, -1.0f, 1.0f));
+    set_values(k_mem, rg.generate_random_1d<ov::float16>(qkv_count, -1.0f, 1.0f));
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+
+    network->set_input_data("q", q_mem);
+    network->set_input_data("k", k_mem);
+    network->set_input_data("v", v_mem);
+    network->set_input_data("mask", mask_mem);
+    auto output = network->execute().at("sdpa").get_memory();
+
+    mem_lock<ov::float16, mem_lock_type::read> out(output, get_test_stream());
+    ASSERT_EQ(out.size(), qkv_count);
+    for (size_t i = 0; i < out.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(out[i]), 1.0f, 1e-2f) << "Mismatch at index " << i;
+    }
+}
+
+// Masks broadcast over keys: [1, H, Q, 1] (param false) and [1, H, 1, 1] (param true).
+class sdpa_micro_key_broadcast_mask_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(sdpa_micro_key_broadcast_mask_test, matches_reference) {
+    const bool broadcast_q = GetParam();
+    constexpr size_t heads = 8;
+    constexpr size_t seq_q = 100;
+    constexpr size_t seq_kv = 160;
+    constexpr size_t head_size = 128;
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "SDPA micro requires IMMAD support";
+
+    const ov::Shape q_shape{1, heads, seq_q, head_size};
+    const ov::Shape kv_shape{1, heads, seq_kv, head_size};
+    const ov::Shape mask_shape{1, heads, broadcast_q ? 1 : seq_q, 1};
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto q_data = rg.generate_random_1d<ov::float16>(ov::shape_size(q_shape), -1.0f, 1.0f);
+    const auto k_data = rg.generate_random_1d<ov::float16>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+    const auto v_data = rg.generate_random_1d<ov::float16>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+    // Distinct neighbouring values, so a mask read with a per-key stride changes the result.
+    std::vector<ov::float16> mask_data(ov::shape_size(mask_shape));
+    for (size_t i = 0; i < mask_data.size(); ++i)
+        mask_data[i] = ov::float16(-2.0f * static_cast<float>((i * 7) % 11));
+
+    const layout q_layout(q_shape, data_types::f16, format::bfyx);
+    const layout kv_layout(kv_shape, data_types::f16, format::bfyx);
+    const layout mask_layout(mask_shape, data_types::f16, format::bfyx);
+
+    topology topo;
+    topo.add(input_layout("q", q_layout));
+    topo.add(input_layout("k", kv_layout));
+    topo.add(input_layout("v", kv_layout));
+    topo.add(input_layout("mask", mask_layout));
+    topo.add(scaled_dot_product_attention("sdpa",
+                                          {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                          false,
+                                          -1,
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {},
+                                          false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+    auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+    std::string sdpa_info;
+    for (const auto& info : network->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention") {
+            sdpa_info = network->get_primitive_info(info.original_id);
+            break;
+        }
+    }
+    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
+        << "sdpa_micro was not selected; node description was:\n" << sdpa_info;
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+
+    network->set_input_data("q", q_mem);
+    network->set_input_data("k", k_mem);
+    network->set_input_data("v", v_mem);
+    network->set_input_data("mask", mask_mem);
+    auto output = network->execute().at("sdpa").get_memory();
+
+    auto to_float = [](const std::vector<ov::float16>& src) {
+        return std::vector<float>(src.begin(), src.end());
+    };
+    const auto q_ref = to_float(q_data);
+    const auto k_ref = to_float(k_data);
+    const auto v_ref = to_float(v_data);
+    const auto mask_ref = to_float(mask_data);
+    std::vector<float> expected(ov::shape_size(q_shape));
+    ov::reference::scaled_dot_product_attention<float, float>(q_ref.data(),
+                                                             k_ref.data(),
+                                                             v_ref.data(),
+                                                             mask_ref.data(),
+                                                             nullptr,
+                                                             nullptr,
+                                                             expected.data(),
+                                                             false,
+                                                             q_shape,
+                                                             kv_shape,
+                                                             kv_shape,
+                                                             mask_shape,
+                                                             {},
+                                                             q_shape);
+
+    mem_lock<ov::float16, mem_lock_type::read> out(output, get_test_stream());
+    ASSERT_EQ(out.size(), expected.size());
+    for (size_t i = 0; i < out.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(out[i]), expected[i], 5e-3f) << "Mismatch at index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_micro_key_broadcast_mask,
+                         sdpa_micro_key_broadcast_mask_test,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return std::string(info.param ? "mask_1_h_1_1" : "mask_1_h_q_1");
+                         });
 
 // ---------------------------------------------------------------------------
 // Compressed (int8 / int4) KV-cache SDPA tests.

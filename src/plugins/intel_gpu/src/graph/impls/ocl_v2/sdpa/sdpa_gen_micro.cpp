@@ -1523,11 +1523,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     }
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
-        jit.make("PREFETCH_MASK", 1);
+        const int disabled_prefetch = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_disable_prefetch(), 0);
+        if (!(disabled_prefetch & 1))
+            jit.make("PREFETCH_MASK", 1);
         const bool enable_kv_prefetch = (!config.is_paged_attention || m_is_prefill) && !is_byte_packed_int4;
-        jit.make("PREFETCH_K0", enable_kv_prefetch);
-        jit.make("PREFETCH_K", enable_kv_prefetch);
-        jit.make("PREFETCH_V", enable_kv_prefetch);
+        const bool enable_k_prefetch = enable_kv_prefetch && !(disabled_prefetch & 2);
+        jit.make("PREFETCH_K0", enable_k_prefetch);
+        jit.make("PREFETCH_K", enable_k_prefetch);
+        jit.make("PREFETCH_V", enable_kv_prefetch && !(disabled_prefetch & 4));
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
