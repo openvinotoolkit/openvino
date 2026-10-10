@@ -34,7 +34,18 @@ ov::Tensor ModelRange::generate_input(std::shared_ptr<ov::Node> node, size_t por
     const auto& inputMap = ov::test::utils::getInputMap();
     auto it = inputMap.find(node->get_type_info());
     if (it == inputMap.end()) {
-        throw std::runtime_error("Couln't find Operation in inputMap: " + std::string(node->get_type_name()));
+        // Fallback: use generic generator when specific op generator is not registered (e.g., BevPoolV2)
+        const auto elem_type = node->get_input_element_type(port);
+        const auto input_node = node->get_input_node_shared_ptr(port);
+        const auto range_id = get_range_id(input_node);
+
+        ov::test::utils::InputGenerateData gen_data = ov::test::utils::rangeByType.get_range(elem_type);
+        const auto range_it = node_ranges.find(range_id);
+        if (range_it != node_ranges.end() && range_it->second) {
+            gen_data = *range_it->second;
+        }
+
+        return ov::test::utils::create_and_fill_tensor(elem_type, targetShape, gen_data);
     }
 
     std::string range_id = get_range_id(node->get_input_node_shared_ptr(port));

@@ -65,6 +65,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/avg_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/batch_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/batch_to_space.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/bevpool_v2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bgr_to_nv12.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/binary_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bitwise_and.cpp
