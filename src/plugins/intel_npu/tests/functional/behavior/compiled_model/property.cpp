@@ -11,6 +11,7 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "intel_npu/common/compiler_selection.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/log.hpp"
 #include "zero_backend.hpp"
@@ -29,6 +30,24 @@ bool has_non_negative_numeric_suffix(const std::string& value) {
     return std::all_of(suffix.begin(), suffix.end(), [](const char ch) {
         return ch >= '0' && ch <= '9';
     });
+}
+
+ov::intel_npu::CompilerType getExpectedCompilerType(const std::string& platform,
+                                                    const std::shared_ptr<::intel_npu::IDevice>& device) {
+    const auto canonicalPlatform = ov::intel_npu::Platform::standardize(platform);
+#if defined(_WIN32) || defined(__CYGWIN__)
+    constexpr bool windowsDriver = true;
+#else
+    constexpr bool windowsDriver = false;
+#endif
+    std::optional<uint32_t> driverVersion;
+    if (canonicalPlatform == ov::intel_npu::Platform::NPU3720) {
+        driverVersion = device->getDeviceProperties().driverVersion;
+    }
+
+    return ::intel_npu::isPluginCompilerPreferred(canonicalPlatform, driverVersion, windowsDriver)
+               ? ov::intel_npu::CompilerType::PLUGIN
+               : ov::intel_npu::CompilerType::DRIVER;
 }
 
 // ExecutableNetwork Properties tests
@@ -296,16 +315,16 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
 
     auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto device = backend->getDevice();
+    ASSERT_NE(device, nullptr);
+    if (!device) {
+        return;
+    }
     auto platform = device->getName();
 
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
 
-    if (platform == ov::intel_npu::Platform::NPU3720 || platform == ov::intel_npu::Platform::AUTO_DETECT) {
-        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
-    } else {
-        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
-    }
+    ASSERT_EQ(compiler_type, getExpectedCompilerType(platform, device));
 
     OV_ASSERT_NO_THROW(
         compiled_model =
@@ -325,6 +344,10 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
 
     auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto device = backend->getDevice();
+    ASSERT_NE(device, nullptr);
+    if (!device) {
+        return;
+    }
     auto platform = device->getName();
 
     auto test_custom_compiler_type =
@@ -340,11 +363,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
 
-    if (platform == ov::intel_npu::Platform::NPU3720 || platform == ov::intel_npu::Platform::AUTO_DETECT) {
-        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
-    } else {
-        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
-    }
+    ASSERT_EQ(compiler_type, getExpectedCompilerType(platform, device));
 }
 
 TEST_P(CheckCompilerTypeProperty, CheckLogAfterSettingExtraConfigToGetProperty) {

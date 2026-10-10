@@ -9,6 +9,7 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "intel_npu/common/compiler_selection.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -20,6 +21,45 @@ namespace test {
 namespace behavior {
 
 using CrossCompilationParams = std::tuple<std::string, ov::AnyMap>;
+
+namespace {
+
+std::string getTargetPlatform(const ov::AnyMap& config) {
+    const auto platform = config.find(ov::intel_npu::platform.name());
+    return platform == config.end() ? std::string{} : platform->second.as<std::string>();
+}
+
+ov::intel_npu::CompilerType getExpectedCompilerType(const std::string& targetPlatform,
+                                                    const std::string& devicePlatform,
+                                                    const std::shared_ptr<::intel_npu::IDevice>& device) {
+    const auto canonicalDevicePlatform = ov::intel_npu::Platform::standardize(devicePlatform);
+    const auto canonicalTargetPlatform = ov::intel_npu::Platform::standardize(targetPlatform);
+    const auto resolvedTargetPlatform =
+        (targetPlatform.empty() || targetPlatform == ov::intel_npu::Platform::AUTO_DETECT)
+            ? canonicalDevicePlatform
+            : canonicalTargetPlatform;
+    const bool onlineCompilation = resolvedTargetPlatform == canonicalDevicePlatform;
+
+    if (!onlineCompilation) {
+        return ov::intel_npu::CompilerType::PLUGIN;
+    }
+
+#if defined(_WIN32) || defined(__CYGWIN__)
+    constexpr bool windowsDriver = true;
+#else
+    constexpr bool windowsDriver = false;
+#endif
+    std::optional<uint32_t> driverVersion;
+    if (resolvedTargetPlatform == ov::intel_npu::Platform::NPU3720) {
+        driverVersion = device->getDeviceProperties().driverVersion;
+    }
+
+    return ::intel_npu::isPluginCompilerPreferred(resolvedTargetPlatform, driverVersion, windowsDriver)
+               ? ov::intel_npu::CompilerType::PLUGIN
+               : ov::intel_npu::CompilerType::DRIVER;
+}
+
+}  // namespace
 
 class CrossCompilationNPU : public OVPluginTestBase, public testing::WithParamInterface<CrossCompilationParams> {
 public:
@@ -60,11 +100,17 @@ protected:
 
 TEST_P(CrossCompilationNPU, CrossCompilationTest) {
     auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
-    auto device_platform = backend->getDevice()->getName();
-    auto target_platform = config[ov::intel_npu::platform.name()].as<std::string>();
+    const auto device = backend->getDevice();
+    ASSERT_NE(device, nullptr);
+    if (!device) {
+        return;
+    }
+    auto device_platform = device->getName();
+    auto target_platform = getTargetPlatform(config);
 
-    if (device_platform == target_platform) {
-        GTEST_SKIP() << "Device platform matches target platform.";
+    if (target_platform.empty() ||
+        ov::intel_npu::Platform::standardize(device_platform) == ov::intel_npu::Platform::standardize(target_platform)) {
+        GTEST_SKIP() << "Target platform resolves to the online device platform.";
     }
 
     ov::CompiledModel compiledModel;
@@ -75,21 +121,22 @@ TEST_P(CrossCompilationNPU, CrossCompilationTest) {
         compiler_type =
             compiledModel.get_property(ov::intel_npu::compiler_type.name()).as<ov::intel_npu::CompilerType>());
 
-    if (target_platform == ov::intel_npu::Platform::AUTO_DETECT &&
-        (device_platform == ov::intel_npu::Platform::NPU3720 ||
-         device_platform == ov::intel_npu::Platform::AUTO_DETECT)) {
-        EXPECT_EQ(compiler_type, ov::intel_npu::CompilerType::DRIVER);
-    } else {
-        EXPECT_EQ(compiler_type, ov::intel_npu::CompilerType::PLUGIN);
-    }
+    EXPECT_EQ(compiler_type, getExpectedCompilerType(target_platform, device_platform, device));
 }
 
 TEST_P(CrossCompilationNPU, OnlineCompilationTest) {
     auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
-    auto device_platform = backend->getDevice()->getName();
-    auto target_platform = config[ov::intel_npu::platform.name()].as<std::string>();
+    const auto device = backend->getDevice();
+    ASSERT_NE(device, nullptr);
+    if (!device) {
+        return;
+    }
+    auto device_platform = device->getName();
+    auto target_platform = getTargetPlatform(config);
 
-    if (device_platform != target_platform && target_platform != ov::intel_npu::Platform::AUTO_DETECT) {
+    if (!target_platform.empty() && target_platform != ov::intel_npu::Platform::AUTO_DETECT &&
+        ov::intel_npu::Platform::standardize(device_platform) !=
+            ov::intel_npu::Platform::standardize(target_platform)) {
         GTEST_SKIP() << "Device platform does not match target platform.";
     }
 
@@ -101,18 +148,14 @@ TEST_P(CrossCompilationNPU, OnlineCompilationTest) {
         compiler_type =
             compiledModel.get_property(ov::intel_npu::compiler_type.name()).as<ov::intel_npu::CompilerType>());
 
-    if (target_platform == ov::intel_npu::Platform::NPU3720 ||
-        (target_platform == ov::intel_npu::Platform::AUTO_DETECT &&
-         (device_platform == ov::intel_npu::Platform::NPU3720 ||
-          device_platform == ov::intel_npu::Platform::AUTO_DETECT))) {
-        EXPECT_EQ(compiler_type, ov::intel_npu::CompilerType::DRIVER);
-    } else {
-        EXPECT_EQ(compiler_type, ov::intel_npu::CompilerType::PLUGIN);
-    }
+    EXPECT_EQ(compiler_type, getExpectedCompilerType(target_platform, device_platform, device));
 }
 
-const std::vector<ov::AnyMap> config = {{ov::intel_npu::platform(ov::intel_npu::Platform::AUTO_DETECT)},
+const std::vector<ov::AnyMap> config = {{},
+                                        {ov::intel_npu::platform(ov::intel_npu::Platform::AUTO_DETECT)},
                                         {ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
+                                        {ov::intel_npu::platform("NPU3720")},
+                                        {ov::intel_npu::platform("VPU3720")},
                                         {ov::intel_npu::platform(ov::intel_npu::Platform::NPU4000)},
                                         {ov::intel_npu::platform(ov::intel_npu::Platform::NPU5010)},
                                         {ov::intel_npu::platform(ov::intel_npu::Platform::NPU5020)},
