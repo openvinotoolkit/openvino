@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-10-19-28-00-000-38073966332",
+  "timestamp": "2026-10-10T19:28:00Z",
+  "run_id": "38073966332",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38073966332",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38105",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38105",
+  "author": "Daksha1611",
+  "category": "Infrastructure",
+  "title": "TensorFlow Layer Tests artifact upload fails - FinalizeArtifact returns HTML error page",
+  "signature": "artifact upload to blob storage failed html error page returned during finalizeartifact|Infrastructure",
+  "signature_hash": "841a57c639e28d01",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Upload Test Results step failed: FinalizeArtifact request to GitHub Actions blob storage returned an HTML error page instead of JSON, after 5 retries"
+    }
+  ],
+  "key_errors": [
+    "2026-10-10T18:56:01.2077183Z = 2114 passed, 111 skipped, 7 xfailed, 26 xpassed, 240 warnings in 522.38s (0:08:42) =",
+    "2026-10-10T18:56:02.5850322Z Finalizing artifact upload",
+    "2026-10-10T18:58:03.2609707Z Attempt 1 of 5 failed with error: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON. Retrying request in 3000 ms...",
+    "2026-10-10T19:06:34.0579713Z ##[error]Failed to FinalizeArtifact: Failed to make request after 5 attempts: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+  ],
+  "root_cause": "All TensorFlow layer tests passed (2114 passed, 0 failed). The job only failed in the 'Upload Test Results' step, where the upload-artifact action's FinalizeArtifact call to GitHub's Actions blob-storage backend received an HTML error page (an Azure/GitHub-hosted service error page) instead of the expected JSON response, on all 5 retry attempts over ~8.5 minutes. This is a transient GitHub Actions infrastructure/backend outage unrelated to the PR's code change (a small Python string-parsing fix in tools/ovc), matching a previously seen pattern (LLM accuracy iGPU run, 2026-09-04) where the same backend returned HTML instead of JSON during artifact finalization.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a GitHub Actions backend-side artifact service failure that occurs intermittently regardless of code changes.",
+  "recommended_actions": [
+    "Re-run the failed 'TensorFlow Layer Tests' job; the test suite itself passed and only the artifact upload step failed transiently.",
+    "No code changes required for PR #38105 - the failure is unrelated to the tools/ovc/openvino/tools/ovc/cli_parser.py change.",
+    "If this recurs frequently, consider adding a longer backoff/retry window to the upload-artifact action or reducing test-result artifact sizes to shorten the finalize window."
+  ],
+  "prevention_strategies": "Monitor GitHub Actions status page for artifact/blob-storage incidents when this error recurs; consider wrapping the Upload Test Results step with a few seconds of delay/retry at the workflow level if recurrence increases. No application-code changes can prevent this since it is an external service fault.",
+  "historical_context": "Same signature previously recorded on 2026-09-04 for an LLM accuracy iGPU tests run (PR #37898), also showing 'artifact blob storage returns HTML error page' during FinalizeArtifact. This is now a recurring (count=2) but infrequent infrastructure pattern, not clustered within a 12h window with the prior occurrence (over a month apart), so no Teams recurrence escalation is triggered this run."
+}
