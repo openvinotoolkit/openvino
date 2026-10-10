@@ -12,6 +12,7 @@
 #include <set>
 #include <stack>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -587,18 +588,29 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     }
 
     auto& eng = get_engine();
-    if (is_remote) {
-        _output_remote_mem_ptrs[id] = mem_new;
-    } else {
-        _output_remote_mem_ptrs.erase(id);
-    }
-
     // Remote outputs need a conservative chain because a runtime-skippable
     // permute may become executable after shape inference.
+    // Build before invalidation: the chain is filtered by the output's current buffer.
     auto& output_chains = is_remote ? _remote_output_chains : _output_chains;
     auto o_iter = output_chains.find(id);
     if (o_iter == output_chains.end()) {
         o_iter = output_chains.emplace(id, build_output_chain(p_inst, is_remote)).first;
+    }
+
+    if (is_remote && p_inst->is_dynamic()) {
+        const auto bound_it = _bound_user_output_memory.find(id);
+        if (bound_it == _bound_user_output_memory.end()) {
+            invalidate_ext_block_compute_nodes(id);
+        } else if (!eng.is_the_same_buffer(*bound_it->second, *mem_new) || bound_it->second->size() != mem_new->size()) {
+            release_user_output_memory(id);
+        }
+    }
+    if (is_remote) {
+        _output_remote_mem_ptrs[id] = mem_new;
+        _bound_user_output_memory[id] = mem_new;
+    } else {
+        _output_remote_mem_ptrs.erase(id);
+        _bound_user_output_memory.erase(id);
     }
 
     for (auto& prim : o_iter->second) {
@@ -659,6 +671,63 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
         return false;
     }
     return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
+}
+
+bool network::may_alias(const primitive_id& output_id, const primitive_id& input_id) const {
+    const auto output = find_primitive(output_id);
+    const auto input = find_primitive(input_id);
+    if (!output->is_output() || !input->is_input())
+        return false;
+
+    // Processing order doesn't serialize independent readers of the input with the writer on an out-of-order queue.
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order)
+        return false;
+
+    const auto input_pos_it = _exec_positions.find(input.get());
+    if (input_pos_it == _exec_positions.end())
+        return false;
+
+    // Walk back from the output to the primitives that actually write its buffer; none of them
+    // may be restricted from sharing a buffer with the input.
+    const auto input_uid = static_cast<uint32_t>(input->get_node().get_unique_id());
+    std::unordered_set<const primitive_inst*> visited;
+    std::stack<const primitive_inst*> pending;
+    pending.push(output.get());
+    while (!pending.empty()) {
+        const auto* inst = pending.top();
+        pending.pop();
+        if (!visited.insert(inst).second)
+            continue;
+        // A pure pass-through of the input is conservatively rejected.
+        if (inst == input.get())
+            return false;
+        if (inst->get_runtime_memory_dependencies().contains(input_uid))
+            return false;
+        // The input holds data from the start of execution, so anything running before it would
+        // overwrite data that its readers still need; restrictions only cover the range after it.
+        const auto pos_it = _exec_positions.find(inst);
+        if (pos_it == _exec_positions.end() || pos_it->second < input_pos_it->second)
+            return false;
+        const auto& node = inst->get_node();
+        if (!node.can_be_optimized() && !node.is_runtime_skippable())
+            continue;
+        // May borrow its buffer from a producer; if it still executes, it was already checked as a writer above.
+        const auto shape_deps = node.get_shape_infer_dependencies();
+        const auto& deps = inst->dependencies();
+        bool has_data_dep = false;
+        for (size_t i = 0; i < deps.size(); ++i) {
+            if (std::find(shape_deps.begin(), shape_deps.end(), i) != shape_deps.end())
+                continue;
+            // Restrictions are per node, so a buffer coming from a non-primary output can't be proven.
+            if (deps[i].second != 0)
+                return false;
+            pending.push(deps[i].first);
+            has_data_dep = true;
+        }
+        if (!has_data_dep)
+            return false;
+    }
+    return true;
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
@@ -859,8 +928,8 @@ void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) 
         cursor = dep;
     }
     // cursor is now the compute node — clear its output so it re-acquires from ext_block
-    if (!cursor->has_inner_networks() && !cursor->can_be_optimized()) {
-        cursor->clear_output_memory();
+    if (!cursor->is_input() && !cursor->has_inner_networks() && !cursor->can_be_optimized()) {
+        cursor->release_and_clear_output_memory();
         GPU_DEBUG_TRACE_DETAIL << "[double-buffer] cleared output memory on compute node " << cursor->id() << std::endl;
     }
 }
@@ -875,6 +944,8 @@ void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu
         }
         it->second = block;
     }
+    // Writers may still hold another request's memory; with unchanged shapes nothing else reallocates them.
+    invalidate_ext_block_compute_nodes(id);
 }
 
 void network::unregister_output_memory_block(const primitive_id& id) {
@@ -883,6 +954,27 @@ void network::unregister_output_memory_block(const primitive_id& id) {
         _output_memory_blocks.erase(it);
         invalidate_ext_block_compute_nodes(id);
     }
+}
+
+void network::release_user_output_memory(const primitive_id& id) {
+    auto bound_it = _bound_user_output_memory.find(id);
+    if (bound_it == _bound_user_output_memory.end())
+        return;
+    const auto bound = std::move(bound_it->second);
+    _bound_user_output_memory.erase(bound_it);
+
+    auto chain_it = _remote_output_chains.find(id);
+    if (chain_it != _remote_output_chains.end()) {
+        for (auto* prim : chain_it->second) {
+            // Only dynamic primitives re-acquire a cleared output; inputs keep their own binding.
+            if (!prim->is_dynamic() || prim->is_input() || prim->has_inner_networks())
+                continue;
+            if (prim->output_memory_ptr() && get_engine().is_the_same_buffer(*prim->output_memory_ptr(), *bound))
+                prim->clear_output_memory();
+        }
+    }
+    // Also covers a producer that borrowed the bound memory in realloc_outputs().
+    invalidate_ext_block_compute_nodes(id);
 }
 
 ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primitive_id& id) const {
@@ -900,6 +992,7 @@ void network::clear_output_memory_blocks() {
 
 void network::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
+    _exec_positions.emplace(inst.get(), _exec_order.size());
     _exec_order.push_back(inst);
 }
 

@@ -802,8 +802,7 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 }
 
 void program::prepare_memory_dependencies() {
-    if (!_config.get_enable_memory_pool())
-        return;
+    // Computed even without the memory pool: network::may_alias() relies on these restrictions.
     for (const auto& node : get_processing_order()) {
         node->add_memory_dependency(*node);
     }

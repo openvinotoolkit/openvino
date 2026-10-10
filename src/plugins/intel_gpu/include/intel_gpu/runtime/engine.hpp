@@ -98,7 +98,7 @@ public:
 #endif
 
     /// Checks whether two memory objects represents the same physical memory
-    virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) = 0;
+    virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) const = 0;
 
     bool check_allocatable(const layout& layout, allocation_type type);
 

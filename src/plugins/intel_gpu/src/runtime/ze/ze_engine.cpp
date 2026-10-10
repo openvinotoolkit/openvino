@@ -183,7 +183,7 @@ memory_ptr ze_engine::create_hostbuffer(const void* cpu_address, size_t data_siz
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
+bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) const {
     if (mem1.get_engine() != this || mem2.get_engine() != this)
         return false;
     if (mem1.get_allocation_type() != mem2.get_allocation_type())
