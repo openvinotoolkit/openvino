@@ -295,9 +295,12 @@ In this mode, the integrated compiler (``Compiler-In-Plugin``) is used when all 
 - The compiler supports the current platform ``or`` there is no platform detected (offline compilation)
 - Compatibility is maintained between the current compiler version and all drivers released for the platform ``or`` there is no platform detected (offline compilation)
 
-Note: On Meteor Lake (3720), when the property is set to ``PREFER_PLUGIN`` (by default), the plugin will fall back to ``Compiler-in-Driver`` because
-the compiler library integrated in the plugin may not be compatible with driver versions lower than v2565.
-Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler-in-Plugin``, but the blob will fail to execute on incompatible drivers.
+.. note::
+
+   On Linux, Meteor Lake (3720) uses ``Compiler-in-Plugin`` when the property is set to ``PREFER_PLUGIN`` (by default)
+   On Windows, the plugin falls back to ``Compiler-in-Driver`` for driver versions lower than v2565 or when the
+   driver version cannot be determined because the compiler library integrated in the plugin may not be compatible with those drivers.
+   Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler-in-Plugin``, but the blob will fail to execute on incompatible drivers.
 
 If any condition is not met, the plugin automatically falls back to using ``Compiler-In-Driver``.
 The compiler type used to compile a model can be queried from the resulting ``CompiledModel`` by reading the ``ov::intel_npu::compiler_type`` property.
@@ -348,7 +351,7 @@ Usage example:
    core.import_model(encrypted_blob_stream, "NPU", {ov::cache_encryption_callbacks(ov::EncryptionCallbacks{nullptr, ov::util::codec_xor})});
 
 .. note::
-    
+
    Force other encryption and decryption callbacks for compiled model below
 
 .. code-block::
