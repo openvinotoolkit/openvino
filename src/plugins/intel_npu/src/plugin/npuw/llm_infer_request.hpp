@@ -27,6 +27,7 @@ struct LLMTrimKVCacheTestAccess;
 struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
 struct LLMSwaCacheTestAccess;
+struct LLMNoPositionIdsTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -185,6 +186,7 @@ protected:
 
     bool m_first_run = true;
 
+    bool m_position_ids_present = true;
     int64_t m_first_position_id = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
@@ -238,6 +240,7 @@ protected:
     friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
+    friend struct ov::test::npuw::LLMNoPositionIdsTestAccess;
 };
 
 }  // namespace npuw

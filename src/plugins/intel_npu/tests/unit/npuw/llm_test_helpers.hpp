@@ -47,6 +47,19 @@ inline std::shared_ptr<ov::Model> build_llm_test_model() {
     return mb.build_llm(make_test_model_config());
 }
 
+/// Build an LLM test model with no position_ids input, mirroring models with NoPE
+/// such as granite-4.0-h-micro. An identity RoPE leaves setup_position_ids with
+/// no RoPE Range pattern, so the builder creates no position_ids Parameter and
+/// AddPositionIdsParam stays a no-op during compilation.
+inline std::shared_ptr<ov::Model> build_llm_test_model_without_position_ids() {
+    auto cfg = make_test_model_config();
+    cfg.rope = [](const ov::Output<ov::Node>& x, const std::string&) {
+        return x;
+    };
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 /// Build an LLM test model configured so that Attention::from() can unambiguously
 /// identify the past-KV dimension in the isolated attention function body.
 ///
