@@ -604,7 +604,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return data_type_traits::is_i8_u8(in_dt);
         };
 
-        auto fc_supports_fusings = [&](fully_connected_node& node) -> bool {
+        auto fc_supports_fusings = [&](fully_connected_node& node, const program_node& candidate) -> bool {
             auto& fused_prims = node.get_fused_primitives();
             if (std::any_of(fused_prims.begin(), fused_prims.end(), [](const fused_primitive_desc& f_desc) {
                     return f_desc.is_type<swiglu>();
@@ -614,6 +614,28 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
             if (lo.has_all_enabled_onednn_impls_optimization_attribute() &&
                 lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
+                auto candidate_fuse_params = candidate.get_fuse_params();
+                OPENVINO_ASSERT(candidate_fuse_params != nullptr);
+
+                size_t post_ops_count = candidate_fuse_params->ops_count();
+                for (const auto& fused_prim : fused_prims) {
+                    post_ops_count += fused_prim.f_param->ops_count();
+
+                    if (fused_prim.is_type<quantize>()) {
+                        const auto& quantize_params = fused_prim.get_typed_fuse_params<QuantizeFuseParams>();
+                        const bool uses_output_range = quantize_params->_per_tensor_output_range &&
+                                                       quantize_params->_out_lo < quantize_params->_out_hi;
+                        if (uses_output_range && !quantize_params->_need_clamp)
+                            post_ops_count++;
+                    }
+                }
+
+                static constexpr size_t max_post_ops = 32;
+                if (post_ops_count > max_post_ops) {
+                    GPU_DEBUG_TRACE_DETAIL << node.id() << " would exceed oneDNN post-op cap ("
+                                           << post_ops_count << "), skip fusing " << candidate.id() << std::endl;
+                    return false;
+                }
                 return true;
             }
             auto in_dt = node.get_input_layout(0).data_type;
@@ -867,7 +889,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             bool should_fuse = input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
 
-            should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
+            should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>(), activation_node);
 
             should_fuse |= input.is_type<gemm>() && gemm_supports_fusings(input.as<gemm>());
 
@@ -1014,7 +1036,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt() &&
+                           fc_supports_fusings(input_data.as<fully_connected>(), quantize_node);
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
@@ -1120,7 +1143,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<resample>()) ||
                                       (parents[i].first->is_type<space_to_depth>()) ||
                                       (parents[i].first->is_type<fully_connected>() &&
-                                       fc_supports_fusings(parents[i].first->as<fully_connected>())) ||
+                                       fc_supports_fusings(parents[i].first->as<fully_connected>(), node)) ||
                                       (parents[i].first->is_type<gemm>() &&
                                        gemm_supports_fusings(parents[i].first->as<gemm>())) ||
                                       (parents[i].first->is_type<batch_to_space>()) ||
