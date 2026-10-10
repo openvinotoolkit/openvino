@@ -212,6 +212,8 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     // figure out sdpa input number: QKV + attention_mask + scale, exclude: beam table, key compression scale/zp, value compression scale/zp
     config.input_num = get_data_inputs_num(*desc);
 
+    config.sliding_window = desc->sliding_window;
+
     return config;
 }
 
@@ -234,6 +236,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
         jit.make("IS_CAUSAL", desc->is_causal);
         jit.make("CAUSAL_MASK_LOWER_RIGHT", desc->causal_lower_right);
+        jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
         if (desc->has_sink_input) {
             jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
             jit.make("HAS_SINK_INPUT", 1);

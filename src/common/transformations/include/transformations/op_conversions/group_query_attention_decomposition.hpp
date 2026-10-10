@@ -39,7 +39,8 @@ protected:
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal,
-                                                const std::optional<CompressedKV>& compressed_kv);
+                                                int64_t local_window_size = -1,
+                                                const std::optional<CompressedKV>& compressed_kv = std::nullopt);
     virtual std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
         const ov::Output<ov::Node>& key,

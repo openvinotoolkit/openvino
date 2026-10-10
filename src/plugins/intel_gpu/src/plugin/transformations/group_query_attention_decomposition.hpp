@@ -22,6 +22,7 @@ protected:
                                         const ov::Output<ov::Node>& scale,
                                         const ov::Output<ov::Node>& sink,
                                         bool is_causal,
+                                        int64_t local_window_size,
                                         const std::optional<CompressedKV>& compressed_kv) override;
     std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
                                                   const ov::Output<ov::Node>& kv_len_scalar,

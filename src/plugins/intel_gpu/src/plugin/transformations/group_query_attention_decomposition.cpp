@@ -98,6 +98,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                                                       const ov::Output<ov::Node>& scale,
                                                                       const ov::Output<ov::Node>& sink,
                                                                       bool is_causal,
+                                                                      int64_t local_window_size,
                                                                       const std::optional<CompressedKV>& compressed_kv) {
     ov::OutputVector inputs{query,
                             compressed_kv ? compressed_kv->key : key,
@@ -119,11 +120,13 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
 
     const auto order = op::SDPA::default_order(query.get_partial_shape().rank().get_length());
     const auto alignment = is_causal ? op::SDPA::CausalMaskAlignment::LOWER_RIGHT : op::SDPA::CausalMaskAlignment::UPPER_LEFT;
+    // GQA's -1 sentinel for "no window" maps to SDPA's 0 = disabled.
+    const int64_t sdpa_window = (local_window_size >= 1) ? local_window_size : 0;
     std::shared_ptr<op::SDPA> sdpa;
     if (compressed_kv) {
-        sdpa = register_new_node<op::SDPA>(inputs, is_causal, order, order, order, order, m_quantization_attrs, ov::element::dynamic, alignment);
+        sdpa = register_new_node<op::SDPA>(inputs, is_causal, order, order, order, order, m_quantization_attrs, ov::element::dynamic, alignment, sdpa_window);
     } else {
-        sdpa = register_new_node<op::SDPA>(inputs, is_causal, order, order, order, order, ov::element::dynamic, alignment);
+        sdpa = register_new_node<op::SDPA>(inputs, is_causal, order, order, order, order, ov::element::dynamic, alignment, sdpa_window);
     }
     return sdpa;
 }
@@ -140,7 +143,10 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
                                                                                 bool sliding_window_cache,
                                                                                 float scale,
                                                                                 bool has_sink) {
-    if (causal && local_window_size == -1 && !sliding_window_cache && !external_bias.get_node() && scale == 0.0f && !has_sink) {
+    // The kernel applies the window natively via is_causal + sliding_window_size (see make_sdpa),
+    // so the explicit mask subgraph is unneeded whenever that path is reachable.
+    if (causal && !external_bias.get_node() && scale == 0.0f && !has_sink &&
+        (local_window_size == -1 || sliding_window_cache)) {
         return nullptr;
     }
 
