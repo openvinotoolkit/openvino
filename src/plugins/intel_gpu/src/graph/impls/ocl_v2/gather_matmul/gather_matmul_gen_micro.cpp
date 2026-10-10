@@ -413,7 +413,7 @@ KernelData GatherMatmulMicroGenerator::get_kernel_data(const kernel_impl_params&
     shim_options.useTileOps = true;
     shim_options.decorator = "gm";
 
-    kd.code->jit += generateShim(bgm_gemm, micro::HostLanguage::OpenCL_C, shim_options);
+    kd.code->jit += micro::generate_shim(bgm_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (bgm_gemm.grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }
