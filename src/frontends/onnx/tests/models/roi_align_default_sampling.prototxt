@@ -1,0 +1,55 @@
+ir_version: 8
+graph {
+  node {
+    input: "data"
+    input: "rois"
+    input: "batch"
+    output: "y"
+    op_type: "RoiAlign"
+    attribute { name: "output_height" i: 2 type: INT }
+    attribute { name: "output_width" i: 2 type: INT }
+  }
+  name: "g"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+            dim { dim_value: 1 }
+            dim { dim_value: 1 }
+            dim { dim_value: 4 }
+            dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  input {
+    name: "rois"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+            dim { dim_value: 4 }
+            dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  input {
+    name: "batch"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+            dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type { tensor_type { elem_type: 1 } }
+  }
+}
+opset_import { domain: "" version: 10 }
