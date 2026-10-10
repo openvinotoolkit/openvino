@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../graph_converter.hpp"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 // #include <openvino/op/add.hpp>
 // #include <openvino/op/divide.hpp>
 // #include <openvino/op/multiply.hpp>
@@ -103,7 +104,7 @@ public:
     BinaryEltwisePatternBase(NodeTypeInfo wrapped_type, const GraphConverter::Convertor& convertor, const std::set<element::Type>& element_types = {});
 };
 
-template <typename OVOp, typename LinalgOp>
+template <typename OVOp, linalg::ElementwiseKind Kind>
 class BinaryEltwisePattern : public BinaryEltwisePatternBase {
 public:
     BinaryEltwisePattern(const std::set<element::Type>& element_types = {});
@@ -111,7 +112,7 @@ public:
     BinaryEltwisePattern(const element::Type& element_type) : BinaryEltwisePattern(std::set<element::Type>{element_type}) {}
 };
 
-template <typename OVOp, typename LinalgOp>
+template <typename OVOp, linalg::ElementwiseKind Kind>
 class UnaryEltwisePattern : public MarkPattern {
 public:
     UnaryEltwisePattern();

@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <set>
@@ -26,6 +28,7 @@
 #include <vector>
 
 #include "cnpy.h"
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "gtest/gtest.h"
 #include "op_table.hpp"
@@ -323,5 +326,67 @@ std::vector<T> load_npy(const std::string& stem) {
     const T* begin = arr.data<T>();
     return std::vector<T>(begin, begin + arr.num_vals);
 }
+
+// cnpy::npz_t is a vector of pairs, so look the entry up by name.
+inline const cnpy::NpyArray& npz_array(const cnpy::npz_t& arrays, const std::string& name) {
+    const auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
+        return entry.first == name;
+    });
+    OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
+    return it->second;
+}
+
+// Normalized MSE, the acceptance metric for the accuracy fixtures: sum((a-e)^2) / sum(e^2).
+class Nmse {
+public:
+    void add(double actual, double expected) {
+        m_error += (actual - expected) * (actual - expected);
+        m_norm += expected * expected;
+        m_finite = m_finite && std::isfinite(actual);
+    }
+    bool all_finite() const {
+        return m_finite;
+    }
+    // Reference energy; a near-zero value means the fixture itself carries no signal.
+    double reference_norm() const {
+        return m_norm;
+    }
+    double value() const {
+        return m_error / m_norm;
+    }
+
+private:
+    double m_error = 0, m_norm = 0;
+    bool m_finite = true;
+};
+
+inline Nmse nmse(const float* actual, const float* expected, size_t count) {
+    Nmse result;
+    for (size_t i = 0; i < count; ++i)
+        result.add(actual[i], expected[i]);
+    return result;
+}
+
+inline void expect_nmse_below(const Nmse& metric, double limit, const std::string& context = {}) {
+    ASSERT_TRUE(metric.all_finite()) << context;
+    ASSERT_GT(metric.reference_norm(), 1e-12) << context;
+    EXPECT_LT(metric.value(), limit) << context;
+}
+
+// The GGUF bytes a reference npz stores as "model", written to a temporary file for its lifetime.
+struct TemporaryGguf {
+    std::string path =
+        (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
+    explicit TemporaryGguf(const cnpy::NpyArray& bytes) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(bytes.data<char>(), bytes.num_vals);
+        OPENVINO_ASSERT(file, "Cannot write ", path);
+    }
+    TemporaryGguf(const TemporaryGguf&) = delete;
+    TemporaryGguf& operator=(const TemporaryGguf&) = delete;
+    ~TemporaryGguf() {
+        std::filesystem::remove(path);
+    }
+};
 
 }  // namespace ov_gguf_test

@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -6,6 +5,7 @@
 #include "simulation/layer_validator.hpp"
 
 #include "result.hpp"
+#include "utils/logger.hpp"
 #include <sstream>
 
 LayerValidator::LayerValidator(const std::string& tag, const std::string& layer_name, IAccuracyMetric::Ptr metric)
@@ -13,6 +13,8 @@ LayerValidator::LayerValidator(const std::string& tag, const std::string& layer_
 }
 
 Result LayerValidator::operator()(const cv::Mat& lhs, const cv::Mat& rhs) {
+    // NB: Models with several outputs emit one metric line per layer - name the layer they belong to.
+    LOG_DEBUG() << "Model: " << m_tag << ", Layer: " << m_layer_name << ", Metric: " << m_metric->str() << std::endl;
     auto result = m_metric->compare(lhs, rhs);
     if (!result) {
         std::stringstream ss;

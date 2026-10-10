@@ -72,6 +72,12 @@
 namespace cldnn {
 namespace {
 
+bool requires_imad_isv4_padding_initialization(const layout& weights_layout) {
+    return (weights_layout.format == format::os_is_yx_osv16_isv4 ||
+            weights_layout.format == format::g_os_is_yx_osv16_isv4) &&
+           weights_layout.feature() % 4 != 0;
+}
+
 template <typename T>
 bool is_optimized_output_user(const T user) {
     if (user->can_be_optimized()) {
@@ -2863,15 +2869,17 @@ void primitive_inst::update_weights() {
         auto expected_layout = reorder_kernel_params->get_output_layout().clone_with_other_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
-        if (_reordered_weights_cache.has(expected_layout) &&
+        auto cached_weights_memory = _reordered_weights_cache.get(expected_layout);
+        if (cached_weights_memory &&
             // WA: for custom format, we need to check traits to know what it really represents
-            (expected_layout.format != cldnn::format::custom ||
-             expected_layout.format.traits() == _reordered_weights_cache.get(expected_layout)->get_layout().format.traits())) {
+            (expected_layout.format != cldnn::format::custom || expected_layout.format.traits() == cached_weights_memory->get_layout().format.traits()) &&
+            (!requires_imad_isv4_padding_initialization(expected_layout) ||
+             !engine.is_the_same_buffer(*cached_weights_memory, *original_weights_memory))) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
             return;
         }
-        if (original_layout.compatible(expected_layout)) {
+        if (original_layout.compatible(expected_layout) && !requires_imad_isv4_padding_initialization(expected_layout)) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reinterpret original weights memory from " << original_layout.to_short_string() << " to "
                                    << expected_layout.to_short_string() << std::endl;

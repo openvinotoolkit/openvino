@@ -41,9 +41,9 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
                          ov::op::util::is_constant(ng_inputs.at(2).get_node_shared_ptr()),
                          "Non-constant training_mode input is not supported.");
         const auto training_mode_values =
-            ov::as_type_ptr<v0::Constant>(ng_inputs.at(2).get_node_shared_ptr())->cast_vector<bool>();
+            ov::as_type_ptr<v0::Constant>(ng_inputs.at(2).get_node_shared_ptr())->cast_vector<int32_t>();
         CHECK_VALID_NODE(node, training_mode_values.size() == 1, "training_mode input must contain one element.");
-        training_mode = training_mode_values[0];
+        training_mode = training_mode_values[0] != 0;
     }
     return build_dropout(node, training_mode);
 }

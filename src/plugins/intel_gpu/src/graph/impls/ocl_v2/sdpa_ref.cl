@@ -336,6 +336,10 @@ KERNEL(sdpa_ref)(
         #endif
 
         const ACCUMULATOR_TYPE inv_sum = ACCUMULATOR_VAL_ONE / exp_sum;
+#if OUTPUT_TYPE_SIZE == 2 && OUTPUT_IS_FP
+        // Work around observed FP16 scratch normalization errors in unrolled code.
+        #pragma unroll 1
+#endif
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +

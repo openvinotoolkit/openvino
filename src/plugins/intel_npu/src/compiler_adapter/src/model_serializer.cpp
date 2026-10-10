@@ -713,10 +713,9 @@ std::string serializeConfig(const Config& originalConfig,
     // is made and the compiler keeps inheriting the plugin LOG_LEVEL exactly as before.
     std::optional<Config> configWithCompileLogLevel;
     if (originalConfig.has<COMPILE_LOG_LEVEL>()) {
-        std::ostringstream levelStr;
-        levelStr << originalConfig.get<COMPILE_LOG_LEVEL>();
         configWithCompileLogLevel = originalConfig;
-        configWithCompileLogLevel->update(ov::log::level.name(), levelStr.str());
+        configWithCompileLogLevel->update(ov::log::level.name(), originalConfig.get<COMPILE_LOG_LEVEL>());
+        configWithCompileLogLevel->remove(ov::intel_npu::compile_log_level.name());
     }
     const Config& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
 

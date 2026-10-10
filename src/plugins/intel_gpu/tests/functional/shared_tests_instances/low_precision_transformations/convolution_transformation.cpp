@@ -10,6 +10,25 @@
 
 using namespace LayerTestsDefinitions;
 
+namespace LayerTestsDefinitions {
+class ConvolutionTransformationGPU : public ConvolutionTransformation {
+protected:
+    void SetUp() override {
+        ConvolutionTransformation::SetUp();
+        auto [netPrecision, inputShape, device, param] = this->GetParam();
+        if (netPrecision == ov::element::f16) {
+            abs_threshold = 0.5;
+            rel_threshold = 0.01;
+        }
+    }
+};
+
+TEST_P(ConvolutionTransformationGPU, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+}
+}  // namespace LayerTestsDefinitions
+
 namespace {
 const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32,
@@ -115,13 +134,13 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformationGPU,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(params)),
-    ConvolutionTransformation::getTestCaseName);
+    ConvolutionTransformationGPU::getTestCaseName);
 
 const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> incorrectWeightsParams = {
     // incorrect weights

@@ -7,6 +7,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/plugin/usm_host_tensor.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -37,4 +38,21 @@ TEST(convert_and_copy_test, remote_tensor_fast_path_does_not_fall_through) {
     for (size_t i = 0; i < src_values.size(); ++i) {
         ASSERT_EQ(dst_ptr[i], src_values[i]);
     }
+}
+
+TEST(convert_and_copy_test, string_host_tensor_has_live_elements) {
+    auto& engine = get_test_engine();
+    if (!engine.use_unified_shared_memory()) {
+        GTEST_SKIP() << "GPU host tensor does not use USM on this device";
+    }
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto tensor = context->create_host_tensor(ov::element::string, ov::Shape{2});
+    ASSERT_TRUE(tensor);
+    ASSERT_FALSE(std::dynamic_pointer_cast<USMHostTensor>(tensor._ptr));
+    EXPECT_EQ(tensor->get_shape(), (ov::Shape{2}));
+    tensor->data<std::string>()[0] = std::string(64, 'A');
+    tensor->data<std::string>()[1] = "short";
+    EXPECT_EQ(tensor->data<std::string>()[0], std::string(64, 'A'));
+    EXPECT_EQ(tensor->data<std::string>()[1], "short");
+    tensor = {};
 }

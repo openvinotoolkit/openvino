@@ -623,7 +623,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
             // Invalidate its producer's current output lazily so realloc_outputs() can either borrow
             // the new remote destination or allocate separate producer memory with the final layout.
             auto producer = find_primitive(prim->dependencies().front().first->id());
-            if (producer->is_dynamic() && !producer->can_be_optimized() && !producer->has_inner_networks() &&
+            if (producer->is_dynamic() && mem_new && !producer->can_be_optimized() && !producer->has_inner_networks() &&
                 (!producer->output_memory_ptr() || !eng.is_the_same_buffer(*producer->output_memory_ptr(), *mem_new))) {
                 producer->request_output_reallocation();
             }

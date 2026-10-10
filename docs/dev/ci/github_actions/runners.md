@@ -93,10 +93,10 @@ Here is an example, a `GPU Tests` job that uses the `gpu` label and runs on any 
 ```yaml
   GPU:
     name: GPU Tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Docker, Smart_CI ]
     runs-on: [ self-hosted, gpu ]
     container:
-      image: ubuntu:20.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
       options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
       volumes:
         - /dev/dri:/dev/dri

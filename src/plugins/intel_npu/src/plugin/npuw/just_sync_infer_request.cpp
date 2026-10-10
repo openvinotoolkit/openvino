@@ -629,10 +629,35 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
         } else if (subm[subm_idx_from].replaced_by && !subm[subm_idx_to].replaced_by) {
             // A function call to normal subgraph connection:
             // - Take a tensor from the storage & assign it to the reader
+            // - If the tensor is not found in the storage, allocate it here & then assign it to the reader
             const auto& iport = m_subrequests[subm_idx_to]->get_compiled_model()->inputs()[port_idx_to];
-            const auto& tensor = m_funcall_result.at(LinkFrom{subm_idx_from, port_idx_from});
+            const auto from = LinkFrom{subm_idx_from, port_idx_from};
+
+            const auto tensor_iter = m_funcall_result.find(from);
+            TensorPtr tensor;
+
+            if (tensor_iter != m_funcall_result.end()) {
+                tensor = tensor_iter->second;
+            } else {
+                // This should only happen when the funcall output is also a models' global output
+                const auto model_port_iter = std::find(m_npuw_model->m_outputs_to_submodels_outputs.begin(),
+                                                       m_npuw_model->m_outputs_to_submodels_outputs.end(),
+                                                       from);
+                NPUW_ASSERT(model_port_iter != m_npuw_model->m_outputs_to_submodels_outputs.end());
+                const auto model_port_idx =
+                    std::distance(m_npuw_model->m_outputs_to_submodels_outputs.begin(), model_port_iter);
+                tensor = get_tensor(m_npuw_model->outputs().at(model_port_idx));
+
+                if (tensor) {
+                    m_funcall_result.emplace(from, tensor);
+                } else {
+                    OPENVINO_THROW("Failed to allocate tensor for Subgraph[", subm_idx_from, "]/", port_idx_from);
+                }
+            }
+
             subreqs[subm_idx_to]->set_tensor(iport, tensor);
             LOG_DEBUG("Set Subgraph[" << subm_idx_to << "]/" << iport << " to internal tensor");
+            continue;
         } else if (!subm[subm_idx_from].replaced_by && subm[subm_idx_to].replaced_by) {
             LOG_DEBUG("Skip: reader is a function call");
             continue;

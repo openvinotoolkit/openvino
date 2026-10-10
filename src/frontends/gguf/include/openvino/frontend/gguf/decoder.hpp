@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -41,6 +42,9 @@ struct RopeConfig {
     // matches the per-op translate_rope path -- otherwise it builds a NEOX table whose token axis is
     // 4x the data's and the rope Multiply fails the eltwise broadcast check.
     bool is_imrope = false;
+    // Per-axis frequency counts for temporal, height, width and extra positions.
+    // An all-zero value retains the legacy interleaved three-axis assignment.
+    std::array<int32_t, 4> sections{};
 };
 
 // Decoder interface consumed by the gguf frontend translators.
@@ -130,6 +134,12 @@ public:
     // rt_info so a downstream consumer (OpenVINO GenAI) can build the tokenizer without reopening
     // the .gguf. Empty when the decoder carries no tokenizer metadata.
     virtual const ov::AnyMap& get_tokenizer_config() const {
+        static const ov::AnyMap empty;
+        return empty;
+    }
+
+    // Full clip.* keys and resolved multimodal graph contracts. Values are serializable strings.
+    virtual const ov::AnyMap& get_mmproj_config() const {
         static const ov::AnyMap empty;
         return empty;
     }

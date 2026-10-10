@@ -53,15 +53,15 @@ describe("E2E testing for OpenVINO as an Electron dependency.", function () {
     });
   });
 
-  after((done) => {
-    exec("rm -rf demo-electron-app-project", (error) => {
-      if (error) {
-        console.error(`exec error: ${error}`);
-
-        return done(error);
-      }
-
-      done();
+  after(async () => {
+    // On Windows, Electron may still hold file handles right after exit and npm
+    // installs some read-only files, so `rm -rf` fails intermittently. fs.rm with
+    // force chmods read-only entries and maxRetries rides out transient locks.
+    await fs.promises.rm("demo-electron-app-project", {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 1000,
     });
   });
 });

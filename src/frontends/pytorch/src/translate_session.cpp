@@ -35,15 +35,19 @@ class AliasScope {
 public:
     explicit AliasScope(TranslateSession& session) : m_session(session) {
         m_aliases.swap(m_session.m_may_be_alias);
+        m_tuple_element_aliases.swap(m_session.m_tuple_element_aliases);
     }
 
     ~AliasScope() {
         m_aliases.swap(m_session.m_may_be_alias);
+        m_tuple_element_aliases.swap(m_session.m_tuple_element_aliases);
     }
 
 private:
     TranslateSession& m_session;
     decltype(TranslateSession::m_may_be_alias) m_aliases;
+    // Tensor ids are local to a graph, so tuple element aliases are scoped like other aliases.
+    decltype(TranslateSession::m_tuple_element_aliases) m_tuple_element_aliases;
 };
 
 // Helper to extract complex part element type from raw type
@@ -329,6 +333,19 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     }
                 }
 #endif
+                if (op_type == "<built-in function getitem>" && has_inputs && !m_may_be_alias.count(fw_tensor_id)) {
+                    // Elements of a tuple returned by an inlined subgraph may be views of its operands.
+                    if (const auto index_node = ov::util::get_constant_from_source(context.get_input(1))) {
+                        auto index = index_node->cast_vector<int64_t>().at(0);
+                        if (index < 0) {
+                            index += static_cast<int64_t>(get_list_as_outputs(context.get_input(0)).size());
+                        }
+                        const auto element_alias = m_tuple_element_aliases.find({first_input_id, index});
+                        if (element_alias != m_tuple_element_aliases.end()) {
+                            m_may_be_alias[fw_tensor_id] = element_alias->second;
+                        }
+                    }
+                }
                 (*tensor_map)[fw_tensor_id] = converted_outputs[i];
                 encode_tensor_name(converted_outputs[i], fw_tensor_id, {node->get_output_debug_name(i)});
             }
@@ -393,6 +410,23 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 }
             } else {
                 OPENVINO_DEBUG("Mutated tensor with id ", tensor_id, " doesn't exist in inputs, skipping.");
+            }
+        }
+        if (!external_tensor_map.empty() && !input_model) {
+            // Record declared outputs which are body inputs or their views, so a parent inlining the body keeps the
+            // alias.
+            m_body_output_aliases.clear();
+            for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
+                auto root = pytorch_model->output(i);
+                for (auto alias = m_may_be_alias.find(root);
+                     alias != m_may_be_alias.end() && alias->second.element_ids.empty() &&
+                     alias->second.base_id != root;
+                     alias = m_may_be_alias.find(root)) {
+                    root = alias->second.base_id;
+                }
+                if (param_names.count(root)) {
+                    m_body_output_aliases[i] = root;
+                }
             }
         }
         if (!external_tensor_map.empty()) {
@@ -659,7 +693,7 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
     }
 #endif
     // Create PtFrameworkNode representing unconverted backprop operation
-    return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true);
+    return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true, true);
 }
 
 }  // namespace ov::frontend::pytorch

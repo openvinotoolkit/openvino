@@ -63,22 +63,26 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     dnnl::memory::dims pad_r(prim->padding_end.begin(), prim->padding_end.end());
 
     if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
+        // Plain 1D descriptors have one spatial axis; grouped or blocked ones may
+        // retain a trailing singleton axis. Calculate padding in descriptor order.
+        const auto input_dims = input_md.get_dims();
+        const auto weights_dims = weights_md.get_dims();
+        const auto spatial_rank = input_dims.size() - 2;
+        auto auto_pad_stride = prim->stride;
+        auto auto_pad_dilation = prim->dilation;
+        auto_pad_stride.resize(spatial_rank, 1);
+        auto_pad_dilation.resize(spatial_rank, 1);
+        stride.resize(spatial_rank, 1);
+        dilation.resize(spatial_rank, 1);
+        pad_l.resize(spatial_rank, 0);
+        pad_r.resize(spatial_rank, 0);
+
         ov::op::v1::Convolution op;
-        op.set_dilations(prim->dilation);
-        op.set_strides(prim->stride);
+        op.set_dilations(auto_pad_dilation);
+        op.set_strides(auto_pad_stride);
         op.set_auto_pad(auto_pad);
-        const auto spatial_rank = input_layout.get_spatial_rank();
 
-        ov::PartialShape kernel;
-        for (int32_t i = static_cast<int32_t>(spatial_rank) - 1; i >= 0; i--) {
-            kernel.emplace_back(weights_layout.spatial(i));
-        }
-
-        ov::op::convolution::apply_auto_pad(&op,
-                                            input_layout.get_partial_shape(),
-                                            kernel,
-                                            pad_l.begin(),
-                                            pad_r.begin());
+        ov::op::convolution::apply_auto_pad(&op, ov::PartialShape(input_dims), ov::PartialShape(weights_dims), pad_l.begin(), pad_r.begin());
         for (size_t i = 0; i < dilation.size(); i++) {
             dilation[i]--;
         }

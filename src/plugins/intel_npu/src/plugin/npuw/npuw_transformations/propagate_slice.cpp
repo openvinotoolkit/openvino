@@ -769,6 +769,9 @@ public:
                 auto& map = m.get_pattern_value_map();
                 auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
                 auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(map[reshape].get_node_shared_ptr());
+                if (!slice_node || !reshape_node) {
+                    return false;
+                }
 
                 int64_t output_slice_axis = get_propagation_axis(slice_node, reshape_node);
                 if (output_slice_axis == -1) {

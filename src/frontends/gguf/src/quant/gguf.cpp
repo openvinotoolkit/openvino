@@ -95,10 +95,8 @@ TypeTraits type_traits(uint32_t type) {
     }
 }
 
-// Layout of the REPACKED tensors a quantized GGUF type is unpacked into: the element types and
-// shapes the gguf_fill_* functions write into quant_buf. Single source of truth for both the
-// pass-1 size reservation and the pass-2 view carving below, so the two cannot disagree about a
-// divisor. Returns nullopt for the non-quantized types, which are mmap views instead.
+// Repacked tensor types and shape divisors shared by validation and allocation.
+// Non-quantized tensors use mmap views instead.
 struct QuantLayout {
     ov::element::Type weight_type;  // element type of the repacked weight blob
     size_t weight_div;              // innermost-dim divisor of the weight shape (8 = u32-packed u4)
@@ -133,8 +131,9 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
     case GGUF_TYPE_Q4_K:
         return QuantLayout{ov::element::u32, 8, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_Q5_1:
-    case GGUF_TYPE_Q5_K:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, asymmetric};
+    case GGUF_TYPE_Q5_K:
+        return QuantLayout{ov::element::u8, 1, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_MXFP4:
         return QuantLayout{ov::element::f4e2m1, 1, ov::element::f8e8m0, 32, symmetric};
     default:
@@ -496,13 +495,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
     // Tensor data starts at the next `alignment`-aligned offset after the info section.
     uint64_t data_off = cur.offset() + ov::util::align_padding_size(alignment, cur.offset());
 
-    // Bytes the repacked (weight, scale, zero-point) tensors of a quantized tensor occupy in
-    // quant_buf, derived from its QuantLayout. Symmetric types have no zero-point; asymmetric
-    // ones use the element type selected by gguf_zero_point_type.
-    //
-    // Every dim comes straight from the file, so the element and byte counts go through the
-    // overflow-checked ov::util helpers: a wrapped product could otherwise under-size quant_buf
-    // while the fill functions still write the real, attacker-controlled shape into it.
+    // Validate file-controlled shapes before allocating repacked tensors.
     auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
         const ov::Shape shape = [&ti]() {
             ov::Shape s;
@@ -530,26 +523,12 @@ GGUFLoad get_gguf_data(const std::string& file) {
         return {bytes(ql.weight_type, weight_shape), bytes(ql.scale_type, scale_shape), z_bytes};
     };
 
-    // ---- Pass 1: size, and record, every tensor's slice of the repacked quantized data ----
-    std::vector<std::array<size_t, 3>> quant_bytes(infos.size(), {0, 0, 0});
-    size_t total_quant_bytes = 0;
-    for (size_t i = 0; i < infos.size(); ++i) {
-        const auto layout = quant_layout(infos[i].type);
-        if (!layout) {
-            continue;
-        }
-        quant_bytes[i] = quant_sizes(infos[i], *layout);
-        for (const size_t part : quant_bytes[i]) {
-            const bool overflow = ov::util::add_overflow(total_quant_bytes, part, total_quant_bytes);
-            OPENVINO_ASSERT(!overflow, "[load_gguf] total quantized buffer size overflows size_t");
+    for (const auto& info : infos) {
+        if (const auto layout = quant_layout(info.type)) {
+            quant_sizes(info, *layout);
         }
     }
 
-    // Single allocation for all repacked quantized data (IR-frontend AlignedBuffer pattern).
-    auto quant_buf = std::make_shared<ov::AlignedBuffer>(total_quant_bytes > 0 ? total_quant_bytes : 1);
-
-    // ---- Pass 2: materialize tensors, slicing into quant_buf for quantized ones ----
-    size_t quant_offset = 0;
     for (size_t idx = 0; idx < infos.size(); ++idx) {
         const TensorInfo& ti = infos[idx];
         GgufTensor tensor;
@@ -571,7 +550,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         // ne[0] % 256 == 0 for Q6_K). Without this, a crafted or truncated file's flooring
         // integer division below silently produces a `bsize` that disagrees with the
         // independently-flooring `scale_shape` computed in quant_sizes, letting fill_* write
-        // scales past the end of its (too-small) AlignedBuffer slice.
+        // scales past the end of its allocated tensor.
         OPENVINO_ASSERT(ti.dim[0] % tr.items_per_block == 0,
                         "[load_gguf] tensor '",
                         ti.name,
@@ -612,22 +591,12 @@ GGUFLoad get_gguf_data(const std::string& file) {
         ov::Shape scale_shape = shape;
         scale_shape.back() /= layout->group_size;
 
-        // Carve each repacked tensor out of the single quant_buf allocation, in the same order
-        // and with the same sizes pass 1 reserved for it.
-        char* buf_ptr = quant_buf->get_ptr<char>();
-        std::shared_ptr<void> so_buf(quant_buf);
-        size_t part = 0;
-        const auto carve = [&](const ov::element::Type& et, const ov::Shape& s) {
-            ov::Tensor view(et, s, static_cast<void*>(buf_ptr + quant_offset));
-            quant_offset += quant_bytes[idx][part++];
-            return ov::Tensor(view, so_buf);
-        };
-        ov::Tensor weights = carve(layout->weight_type, weight_shape);
-        ov::Tensor scales = carve(layout->scale_type, scale_shape);
+        // Independent buffers let replaced weights be freed without retaining the whole model.
+        ov::Tensor weights(layout->weight_type, weight_shape);
+        ov::Tensor scales(layout->scale_type, scale_shape);
         ov::Tensor zp;
         if (layout->asymmetric) {
-            // Preserve the native zero-point representation, including u8 for Q2_0.
-            zp = carve(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
+            zp = ov::Tensor(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
         }
 
         if (ti.type == GGUF_TYPE_MXFP4) {
@@ -649,7 +618,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
     }
 
-    return {std::move(metadata), std::move(arrays), std::move(qtype), std::move(mapped), std::move(quant_buf)};
+    return {std::move(metadata), std::move(arrays), std::move(qtype), std::move(mapped)};
 }
 
 std::map<std::string, GGUFMetaData> decoder_config_from_meta(
@@ -695,7 +664,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     }
     config["hidden_size"] = metadata_to_int(metadata, arch + ".embedding_length");
     config["max_position_embeddings"] = metadata_to_int_or(metadata, arch + ".context_length", 2048);
-    config["rms_norm_eps"] = metadata_to_float(metadata, arch + ".attention.layer_norm_rms_epsilon");
+    config["pooling_type"] = metadata_to_int_or(metadata, arch + ".pooling_type", 0);
+    config["causal_attention"] = metadata_to_bool_or(metadata, arch + ".attention.causal", true) ? 1 : 0;
+    config["rms_norm_eps"] = metadata_to_float(
+        metadata,
+        arch + (arch == "jais2" ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"));
     config["rope_freq_base"] = metadata_to_float_or(metadata, arch + ".rope.freq_base", 10000.0f);
     // Advisory: the dominant quant type of the file. Purely informational -- every weight carries
     // its own type in the tensor info, which is what the dequant path uses. Optional because
@@ -816,7 +789,8 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // absent (it does not reset to the global base first, unlike gemma2/gemma4/cohere2/etc.), so
     // gemma3 SWA layers rope at freq_base=10000 while global layers use 1000000. See
     // llama.cpp src/models/gemma3.cpp load_arch_hparams.
-    const float def_freq_base_swa = (arch == "gemma3") ? 10000.0f : std::get<float>(config["rope_freq_base"]);
+    const float def_freq_base_swa =
+        (arch == "gemma3" || arch == "plamo3") ? 10000.0f : std::get<float>(config["rope_freq_base"]);
     config["rope_freq_base_swa"] = metadata_to_float_or(metadata, arch + ".rope.freq_base_swa", def_freq_base_swa);
 
     // has_swa: true when the GGUF carries either a sliding_window_pattern or a
@@ -867,7 +841,10 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     } else {
         // No explicit pattern key. gemma3 defaults to period 6 (llama.cpp gemma3 load_arch_hparams
         // passes swa_period=6 to get_key_or_arr); gpt-oss and others default to 2.
-        config["swa_layer_pattern"] = arch == "gemma3" ? 6 : arch == "exaone4" ? 4 : 2;
+        config["swa_layer_pattern"] = arch == "gemma3"                              ? 6
+                                      : arch == "plamo3"                            ? 8
+                                      : (arch == "exaone4" || arch == "exaone-moe") ? 4
+                                                                                    : 2;
         config["swa_layer_flags"] = std::vector<int32_t>{};
     }
 
@@ -878,7 +855,10 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     config["moe_layer_step"] = metadata_to_int_or(metadata, arch + ".interleave_moe_layer_step", 1);
     config["expert_groups"] = metadata_to_int_or(metadata, arch + ".expert_group_count", 1);
     config["expert_groups_used"] = metadata_to_int_or(metadata, arch + ".expert_group_used_count", 1);
-    config["expert_gating_func"] = metadata_to_int_or(metadata, arch + ".expert_gating_func", 1);
+    auto expert_gating_func = metadata_to_int_or(metadata, arch + ".expert_gating_func", arch == "glm4moe" ? 2 : 1);
+    if (arch == "glm4moe" && expert_gating_func == 0)
+        expert_gating_func = 2;
+    config["expert_gating_func"] = expert_gating_func;
     config["expert_weights_norm"] = metadata_to_bool_or(metadata, arch + ".expert_weights_norm", false) ? 1 : 0;
 
     // Gemma2 attention soft-cap: tanh(QK^T * (1/cap)) * cap applied inside the attention.

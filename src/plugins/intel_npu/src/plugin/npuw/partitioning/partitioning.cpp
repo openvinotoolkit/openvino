@@ -1535,11 +1535,6 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         }
         return false;
     };
-    // Helper to check if a constant is MoE Gather indices (marked by GatherTo2DGather pass)
-    auto is_moe_gather_const = [](const CTPtr& const_node) -> bool {
-        const auto& rt_info = const_node->get_rt_info();
-        return rt_info.count("npuw_moe_gather_indices") > 0;
-    };
 
     auto check_and_mark = [&](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
         std::unordered_set<CTPtr> instances;
@@ -1553,9 +1548,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_BLOCK();
 
         bool is_tiny = ov::npuw::partitioning::traits::is_tiny_shape(proto_shape);
-        bool is_moe_gather = is_moe_gather_const(proto_node);
-        if (!is_tiny && !is_moe_gather) {
-            LOG_DEBUG("[CUT ] Not tiny shape and not MoE Gather indices - will be cut-off from the function");
+        if (!is_tiny) {
+            LOG_DEBUG("[CUT ] Not tiny shape - will be cut-off from the function");
             return;
         }
 
@@ -1574,11 +1568,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             return;
         }
 
-        if (is_moe_gather) {
-            LOG_DEBUG("[KEEP] MoE Gather indices constant - identical across all repeats");
-        } else {
-            LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
-        }
+        LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
         for (auto&& const_node : instances) {
             func_group.consts_to_keep.insert(const_node);
         }

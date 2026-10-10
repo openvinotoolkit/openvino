@@ -9,9 +9,9 @@
 
 #include "exceptions.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/util/native_stream.hpp"
 
 namespace ov::frontend::onnx::detail {
 TensorExternalData::TensorExternalData(const TensorProto& tensor) {
@@ -84,33 +84,21 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
     }
 
     uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset;
-    const auto get_now_buffer = [&]() {
-        std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
-        if (external_data_stream.fail()) {
-            throw error::invalid_external_data{*this};
-        }
-        // default value of m_offset is 0
+    auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
+
+    if (read_data_length > 0) {
+        util::NativeIfstream external_data_stream(full_path);
+        OPENVINO_ASSERT(!external_data_stream.fail(), "Failed to open external data file: ", full_path);
+
         external_data_stream.seekg(m_offset, std::ios::beg);
-
-        auto read_data = std::make_shared<ov::AlignedBuffer>(read_data_length);
         external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
-        external_data_stream.close();
-        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
-                                                                                      read_data->size(),
-                                                                                      read_data);
-    };
-    const auto get_lazy_buffer = [&]() {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto lazy = std::make_shared<LazyBuffer>(full_path, m_offset, read_data_length);
-        return std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
-            static_cast<char*>(lazy->get_reserved_ptr()),
-            lazy->size(),
-            lazy);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    };
-
-    constexpr size_t lazy_loading_threshold = 0x100000;  // 1MB
-    return read_data_length >= lazy_loading_threshold ? get_lazy_buffer() : get_now_buffer();
+        const auto read_valid =
+            external_data_stream && static_cast<size_t>(external_data_stream.gcount()) == read_data_length;
+        OPENVINO_ASSERT(read_valid, "Failed to read external data from ", full_path);
+    }
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
+                                                                                  read_data->size(),
+                                                                                  read_data);
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {
