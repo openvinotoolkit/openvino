@@ -3294,9 +3294,11 @@ bool primitive_inst::is_valid_fusion() const {
         if (!get_node().get_selected_impl()) {
             LOG_AND_RETURN_FALSE(_node);
         }
+        // ternocl_int2 folds its fused chain into the GEMM epilogue itself (see its validate_impl).
         if (!data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos) &&
-            (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos)) {
+            (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos) &&
+            (get_node().get_selected_impl()->get_kernel_name() != "ternocl_int2")) {
             LOG_AND_RETURN_FALSE(_node);
         }
     }

@@ -394,6 +394,9 @@ KERNEL(rope_opt)
 #ifdef ENABLE_GATHER
  const __global INPUT3_TYPE* gather,
 #endif
+#ifdef FUSE_RMS_NORM
+ const __global INPUT3_TYPE* gamma,
+#endif
  __global OUTPUT_TYPE* output) {
 #ifdef REVERSED_GWS
     const uint b = get_global_id(2);
@@ -475,6 +478,10 @@ uint cos_sin_p = p;
 
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
+#ifdef FUSE_RMS_NORM
+    __local float rms_partial[RMS_WORKERS];
+#endif
+
 #if VEC_SIZE == 1
     ACCUMULATOR_TYPE in1 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r]);
     ACCUMULATOR_TYPE in2 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
@@ -491,6 +498,30 @@ uint cos_sin_p = p;
 #else
     INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
     INPUT_VEC_TYPE in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);
+#ifdef FUSE_RMS_NORM
+    {
+        // Mirror rms_gpu_bfyx_opt.cl arithmetic so the fused path matches the standalone RMSNorm.
+        float partial = 0.0f;
+        unroll_for (uint i = 0; i < VEC_SIZE; ++i) {
+            partial += native_powr(convert_float(in1[i]), 2);
+            partial += native_powr(convert_float(in2[i]), 2);
+        }
+        rms_partial[get_local_id(2)] = partial;
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        float total = 0.0f;
+        unroll_for (uint i = 0; i < RMS_WORKERS; ++i) {
+            total += rms_partial[i];
+        }
+        const float scale = native_powr(sqrt(total / (float)ROTARY_NDIMS + RMS_EPSILON), -1);
+
+        unroll_for (uint i = 0; i < VEC_SIZE; ++i) {
+            in1[i] = (INPUT0_TYPE)(scale * convert_float(in1[i]) * convert_float(gamma[r + i]));
+            in2[i] = (INPUT0_TYPE)(scale * convert_float(in2[i]) *
+                                   convert_float(gamma[HALF_ROTARY_NDIMS + r + i]));
+        }
+    }
+#endif
     INPUT_VEC_TYPE cos1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
     INPUT_VEC_TYPE cos2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + COS_SIN_TABLE_OFFSET + r);
     INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);

@@ -50,6 +50,11 @@ size_t get_vec_size(const RuntimeParams& params) {
     return vec_size;
 }
 
+// The fused RMSNorm reduction relies on the non-reversed GWS layout, which is only used when VEC_SIZE > 1.
+bool fused_rms_enabled(const RuntimeParams& params) {
+    return params.typed_desc<rope>()->fuse_rms_norm && get_vec_size(params) > 1;
+}
+
 class RopeGenerator : public KernelGenerator {
 public:
     RopeGenerator() : KernelGenerator("rope_opt") {}
@@ -109,6 +114,12 @@ protected:
             }
         }
         jit.make("VEC_SIZE", get_vec_size(params));
+        if (fused_rms_enabled(params)) {
+            // One workgroup owns a whole head along gws[2], so the RMS reduction is workgroup-local.
+            jit.make("FUSE_RMS_NORM", true);
+            jit.make("RMS_EPSILON", desc->rms_epsilon);
+            jit.make("RMS_WORKERS", desc->config.rotary_ndims / (2 * get_vec_size(params)));
+        }
         if (in_l.data_type == ov::element::bf16) {
             jit.add(make_type_jit_constants("ACCUMULATOR", ov::element::f32));
         } else if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
@@ -136,6 +147,10 @@ protected:
 
         for (uint32_t i = 0; i < num_of_inputs; i++) {
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
+        }
+
+        if (fused_rms_enabled(params)) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, num_of_inputs});
         }
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -191,7 +206,10 @@ protected:
                 }
 
                 // We need to set the 1st local workgroup size as large as possible for better performance.
-                if (vec_size == 1) {
+                if (fused_rms_enabled(params)) {
+                    // Keep every work item of one head in a single workgroup for the RMS reduction.
+                    wgs.local = {1, 1, cfg.rotary_ndims / (2 * vec_size)};
+                } else if (vec_size == 1) {
                     auto get_max_lws = [](size_t gws, size_t max_workgroup_size) -> size_t {
                         size_t val = 1;
                         size_t lws = 1;

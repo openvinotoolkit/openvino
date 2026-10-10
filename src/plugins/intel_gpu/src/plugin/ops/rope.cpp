@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_ops/rotary_positional_embeddings.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/rope.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/permute.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
+#include "plugin/transformations/fuse_rms_rope.hpp"
 
 namespace ov {
 namespace op {
@@ -30,10 +32,16 @@ static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::
 
     OPENVINO_ASSERT(!config.is_interleaved || !config.output_trans0213, "[GPU] Unsupported ROPE parameters");
 
-    auto rope = cldnn::rope(layer_type_name_ID(op),
-                            inputs,
-                            config,
-                            gather_rank);
+    const auto& rt_info = op->get_rt_info();
+    const auto fused_rms = rt_info.find(fuse_rms_rope_epsilon_key);
+    const bool fuse_rms_norm = fused_rms != rt_info.end();
+    float rms_epsilon = 0.0f;
+    if (fuse_rms_norm) {
+        OPENVINO_ASSERT(inputs.size() == 4 && gather_rank == 0, "[GPU] Invalid fused RMSNorm and RoPE inputs");
+        rms_epsilon = fused_rms->second.as<float>();
+    }
+
+    auto rope = cldnn::rope(layer_type_name_ID(op), inputs, config, gather_rank, fuse_rms_norm, rms_epsilon);
 
     p.add_primitive(*op, rope);
 }

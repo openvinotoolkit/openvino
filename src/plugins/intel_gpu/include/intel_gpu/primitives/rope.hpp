@@ -23,17 +23,22 @@ struct rope : public primitive_base<rope> {
     rope(const primitive_id& id,
          const std::vector<input_info>& inputs,
          const RoPE::Config& config,
-         size_t gather_rank = 0)
+         size_t gather_rank = 0,
+         bool fuse_rms_norm = false,
+         float rms_epsilon = 0.0f)
         : primitive_base(id, inputs),
           config(config),
-          gather_rank(gather_rank) {
-            OPENVINO_ASSERT((!config.support_2d_rope
-                || (config.support_2d_rope && config.is_chatglm)),
-                "2D RoPE is currently only supported in Chatglm!");
-        }
+          gather_rank(gather_rank),
+          fuse_rms_norm(fuse_rms_norm),
+          rms_epsilon(rms_epsilon) {
+        OPENVINO_ASSERT((!config.support_2d_rope || (config.support_2d_rope && config.is_chatglm)), "2D RoPE is currently only supported in Chatglm!");
+    }
 
     RoPE::Config config;
     size_t gather_rank = 0;
+    // Set when a preceding per-head RMSNorm is folded into the RoPE kernel; input 3 is then gamma.
+    bool fuse_rms_norm = false;
+    float rms_epsilon = 0.0f;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -52,6 +57,8 @@ struct rope : public primitive_base<rope> {
         seed = hash_combine(seed, config.slice_start);
         seed = hash_combine(seed, config.slice_stop);
         seed = hash_combine(seed, gather_rank);
+        seed = hash_combine(seed, fuse_rms_norm);
+        seed = hash_combine(seed, rms_epsilon);
         return seed;
     }
 
@@ -62,21 +69,14 @@ struct rope : public primitive_base<rope> {
 
         auto rhs_casted = downcast<const rope>(rhs);
 
-        return config.gather_position_arg_id == rhs_casted.config.gather_position_arg_id &&
-               config.head_cnt == rhs_casted.config.head_cnt &&
-               config.head_size == rhs_casted.config.head_size &&
-               config.input_trans0213 == rhs_casted.config.input_trans0213 &&
-               config.is_chatglm == rhs_casted.config.is_chatglm &&
-               config.support_2d_rope == rhs_casted.config.support_2d_rope &&
-               config.output_trans0213 == rhs_casted.config.output_trans0213 &&
-               config.is_interleaved == rhs_casted.config.is_interleaved &&
-               config.is_qwen == rhs_casted.config.is_qwen &&
-               config.use_rope_cache == rhs_casted.config.use_rope_cache &&
-               config.is_ltx_video == rhs_casted.config.is_ltx_video &&
-               config.rotary_ndims == rhs_casted.config.rotary_ndims &&
-               config.slice_start == rhs_casted.config.slice_start &&
-               config.slice_stop == rhs_casted.config.slice_stop &&
-               gather_rank == rhs_casted.gather_rank;
+        return config.gather_position_arg_id == rhs_casted.config.gather_position_arg_id && config.head_cnt == rhs_casted.config.head_cnt &&
+               config.head_size == rhs_casted.config.head_size && config.input_trans0213 == rhs_casted.config.input_trans0213 &&
+               config.is_chatglm == rhs_casted.config.is_chatglm && config.support_2d_rope == rhs_casted.config.support_2d_rope &&
+               config.output_trans0213 == rhs_casted.config.output_trans0213 && config.is_interleaved == rhs_casted.config.is_interleaved &&
+               config.is_qwen == rhs_casted.config.is_qwen && config.use_rope_cache == rhs_casted.config.use_rope_cache &&
+               config.is_ltx_video == rhs_casted.config.is_ltx_video && config.rotary_ndims == rhs_casted.config.rotary_ndims &&
+               config.slice_start == rhs_casted.config.slice_start && config.slice_stop == rhs_casted.config.slice_stop &&
+               gather_rank == rhs_casted.gather_rank && fuse_rms_norm == rhs_casted.fuse_rms_norm && rms_epsilon == rhs_casted.rms_epsilon;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -97,6 +97,8 @@ struct rope : public primitive_base<rope> {
         ob << config.slice_start;
         ob << config.slice_stop;
         ob << gather_rank;
+        ob << fuse_rms_norm;
+        ob << rms_epsilon;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -117,6 +119,8 @@ struct rope : public primitive_base<rope> {
         ib >> config.slice_start;
         ib >> config.slice_stop;
         ib >> gather_rank;
+        ib >> fuse_rms_norm;
+        ib >> rms_epsilon;
     }
 };
 }  // namespace cldnn

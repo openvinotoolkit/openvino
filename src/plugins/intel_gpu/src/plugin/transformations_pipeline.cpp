@@ -7,22 +7,24 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <deque>
 #include <limits>
 #include <memory>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_set>
 #include <vector>
-#include <type_traits>
 
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
-#include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
@@ -30,29 +32,32 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
-#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/prelu.hpp"
+#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/recurrent_cell.hpp"
 #include "low_precision/reshape.hpp"
-#include "low_precision/prelu.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/variadic_split.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/core/shape.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_cell.hpp"
@@ -60,10 +65,9 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/reduce_max.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/ceiling.hpp"
-#include "openvino/op/clamp.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -71,13 +75,11 @@
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/paged_attention.hpp"
-#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -88,82 +90,80 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
-#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
-#include "plugin/transformations/fuse_moe_shared_expert.hpp"
-#include "transformations/common_optimizations/moe_op_fusion.hpp"
-#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_one_hot_non_const_values.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
+#include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
+#include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
+#include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
+#include "plugin/transformations/disable_fp16_comp_rms.hpp"
+#include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/dynamic_same_padding_fusion.hpp"
+#include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
+#include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_avg_down.hpp"
 #include "plugin/transformations/fuse_gated_mlp.hpp"
-#include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_grouped_depth_to_space.hpp"
+#include "plugin/transformations/fuse_hadamard_fc.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
+#include "plugin/transformations/fuse_moe_shared_expert.hpp"
+#include "plugin/transformations/fuse_rms_rope.hpp"
 #include "plugin/transformations/group_query_attention_decomposition.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
+#include "plugin/transformations/increase_rms_input_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
-#include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
-#include "plugin/transformations/stateless_kv_fusion.hpp"
-#include "intel_gpu/op/fully_connected.hpp"
-#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/remove_fq_before_dw_conv.hpp"
-#include "plugin/transformations/sink_reshape.hpp"
-#include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
-#include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
-#include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
-#include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
-#include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
-#include "plugin/transformations/disable_fp16_comp_rms.hpp"
+#include "plugin/transformations/sink_reshape.hpp"
+#include "plugin/transformations/stateless_kv_fusion.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
-#include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
-#include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
-#include "plugin/transformations/increase_rms_input_precision.hpp"
+#include "plugin/transformations/transpose_fusion.hpp"
+#include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/constants_reduce.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
-#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
-#include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/fold_rms_transposes.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
-#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/common_optimizations/constants_reduce.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/convert_precision.hpp"
@@ -173,8 +173,11 @@
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
-#include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "transformations/normalize_l2_decomposition.hpp"
+#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 #ifdef OV_GPU_MLIR_BACKEND_LINKED
 #    include "transformations/mlir/interface/convert.hpp"
 #endif  // OV_GPU_MLIR_BACKEND_LINKED
@@ -1650,6 +1653,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
+        if (ov::util::getenv_bool("OV_GPU_FUSE_RMS_ROPE")) {
+            manager.register_pass<ov::intel_gpu::FuseRMSRoPE>();
+        }
+
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
         if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
@@ -1753,11 +1760,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
         const bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
 
-        // mlp fusion is only supported for cldnn on high performant GPUis
-        bool fuse_mlp_swiglu = !config.get_use_onednn() &&
-                               !device_info.supports_immad &&
-                               device_info.execution_units_count >= 128 &&
-                               !disable_fc_swiglu_fusion;
+        // Ternary (u2) checkpoints on the TernOCL path run faster with gate/up merged into
+        // one FC followed by the SwiGLU primitive.
+        const bool ternocl_int2 = m_context->get_engine().runtime_type() == cldnn::runtime_types::ocl && !ov::util::getenv_bool("OV_TERNOCL_INT2_DISABLE");
+        bool has_u2_weights = false;
+        for (const auto& op : func->get_ops()) {
+            const auto c = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (c && c->get_element_type() == ov::element::u2) {
+                has_u2_weights = true;
+                break;
+            }
+        }
+        const bool int2_merge_mlp = ternocl_int2 && has_u2_weights;
+        // The 128-EU floor excludes the 64-EU integrated Xe2 part, where the
+        // merged int2 projection is still the faster path.
+        bool fuse_mlp_swiglu = (!config.get_use_onednn() || int2_merge_mlp) && (!device_info.supports_immad || int2_merge_mlp) &&
+                               (device_info.execution_units_count >= 128 || int2_merge_mlp) && !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
 
@@ -1769,6 +1787,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (device_info.arch != cldnn::gpu_arch::xe2 && (!config.get_enable_lora_operation() || device_info.supports_immad)) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
+        }
+        // After the horizontal fusion so a merged gate/up FC absorbs the shared
+        // rotation once. Only the TernOCL impl applies a fused rotation, so it stays in
+        // the graph without it; OV_TERNOCL_INT2_FUSE_HADAMARD=0 keeps it there too.
+        if (ternocl_int2 && ov::util::getenv_bool("OV_TERNOCL_INT2_FUSE_HADAMARD", true)) {
+            manager.register_pass<ov::intel_gpu::FuseHadamardIntoFC>();
         }
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
