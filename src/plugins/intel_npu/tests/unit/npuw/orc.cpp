@@ -6,6 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -131,6 +136,76 @@ TEST(OrcTest, RejectsTruncatedFile) {
     EXPECT_THROW(read_file(truncated), ov::Exception);
 }
 
+TEST(OrcTest, RejectsLeafSizeExceedingAvailableDataBeforeAllocation) {
+    SectionHeader header{TYPE_TEST,
+                         1u,
+                         static_cast<SectionFlags>(SectionFlag::LEAF),
+                         std::numeric_limits<std::size_t>::max()};
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(buffer);
+    writer & header;
+
+    auto reader = Stream::reader(buffer);
+    Section section;
+    EXPECT_THROW(reader & section, ov::Exception);
+    EXPECT_EQ(section.payload.capacity(), 0u);
+}
+
+TEST(OrcTest, RejectsContainerSizeExceedingAvailableDataBeforeAllocation) {
+    SectionHeader header{TYPE_TEST, 1u, 0u, std::numeric_limits<std::size_t>::max()};
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(buffer);
+    writer & header;
+
+    auto reader = Stream::reader(buffer);
+    Section section;
+    EXPECT_THROW(reader & section, ov::Exception);
+    EXPECT_TRUE(section.children.empty());
+}
+
+// A forged element count must not drive an unbounded vector::reserve()
+// before any element has actually been decoded.
+TEST(OrcTest, RejectsOversizedVectorCountBeforeReserve) {
+    const std::size_t forged_count = 0x10000000ULL;  // ~268M elements => multi-GB reserve<uint64_t> if unguarded
+    std::array<std::byte, sizeof(forged_count)> payload{};
+    std::memcpy(payload.data(), &forged_count, sizeof(forged_count));
+
+    auto reader = Stream::memory_reader(payload.data(), payload.size());
+    std::vector<std::uint64_t> decoded;
+    EXPECT_THROW(reader & decoded, ov::Exception);
+    EXPECT_EQ(decoded.capacity(), 0u);
+}
+
+// Same forged count, but through an istream-backed Stream::reader — the actual path
+// used by CompiledModel/LLMCompiledModel to decode embedded ParameterVector/NodeVector
+// metadata. The available-byte preflight must reject it before reserve().
+TEST(OrcTest, RejectsOversizedVectorCountViaIstreamReaderBeforeReserve) {
+    const std::size_t forged_count = 0x10000000ULL;  // ~268M elements, no element data follows
+    std::array<std::byte, sizeof(forged_count)> payload{};
+    std::memcpy(payload.data(), &forged_count, sizeof(forged_count));
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    buffer.write(reinterpret_cast<const char*>(payload.data()), payload.size());
+
+    auto reader = Stream::reader(buffer);
+    std::vector<std::uint64_t> decoded;
+    EXPECT_THROW(reader & decoded, ov::Exception);
+    EXPECT_EQ(decoded.capacity(), 0u);
+}
+
+TEST(OrcTest, AcceptsVectorCountMatchingAvailableElements) {
+    const std::size_t count = 1u;
+    const std::uint64_t element = 7u;
+    std::array<std::byte, sizeof(count) + sizeof(element)> payload{};
+    std::memcpy(payload.data(), &count, sizeof(count));
+    std::memcpy(payload.data() + sizeof(count), &element, sizeof(element));
+
+    auto reader = Stream::memory_reader(payload.data(), payload.size());
+    std::vector<std::uint64_t> decoded;
+    reader & decoded;
+    EXPECT_EQ(decoded, std::vector<std::uint64_t>({7u}));
+}
+
 TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     write_file_header(buffer, TEST_UUID);
@@ -163,6 +238,18 @@ TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
     EXPECT_EQ(child_meta.value, 7u);
     child.expect_end();
     root.expect_end();
+}
+
+TEST(OrcTest, RejectsScopedSectionSizeExceedingAvailableDataBeforeAllocation) {
+    SectionHeader header{TYPE_TEST,
+                         1u,
+                         static_cast<SectionFlags>(SectionFlag::LEAF),
+                         std::numeric_limits<std::size_t>::max()};
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(buffer);
+    writer & header;
+
+    EXPECT_THROW(ScopedReadSection section(buffer), ov::Exception);
 }
 
 TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {

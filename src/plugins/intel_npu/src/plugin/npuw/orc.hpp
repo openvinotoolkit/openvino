@@ -84,6 +84,7 @@ public:
     bool output() const;
     bool memory() const;
     std::size_t remaining() const;
+    void ensure_bytes_available(std::size_t size) const;
 
     // Dispatches to value.serialize(*this) when the type provides a member serialize,
     // otherwise falls back to the free-function serialize(stream, value) found via ADL.
@@ -148,7 +149,19 @@ void serialize(Stream& stream, std::vector<T>& value) {
     value.clear();
     std::size_t size = 0u;
     stream & size;
-    value.reserve(size);
+    // The element count comes straight off the wire and must not be trusted for a
+    // single up-front allocation: a small blob could otherwise force a
+    // multi-gigabyte reserve() before any element is actually decoded. For a
+    // For fixed-width element types, validate the exact byte count before allocating.
+    // Variable-width element types get no upfront reserve and grow incrementally,
+    // bounding allocation by what is actually decoded.
+    if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value) {
+        if (size > std::numeric_limits<std::size_t>::max() / sizeof(T)) {
+            OPENVINO_THROW("ORC vector byte size overflow");
+        }
+        stream.ensure_bytes_available(size * sizeof(T));
+        value.reserve(size);
+    }
     for (std::size_t idx = 0; idx < size; ++idx) {
         T element{};
         stream & element;
