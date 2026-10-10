@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
@@ -72,6 +73,7 @@ public:
         uint32_t deviceId;
         uint32_t subdeviceId;
         uint32_t numSlices;
+        std::optional<uint32_t> driverVersion = std::nullopt;
     };
 
     virtual std::string getName() const = 0;

@@ -227,5 +227,8 @@ bool ZeroDevice::validateCompatibilityDescriptor(const std::string& compatibilit
 }
 
 IDevice::DeviceProperties ZeroDevice::getDeviceProperties() const {
-    return {_device_properties.deviceId, _device_properties.subdeviceId, _device_properties.numSlices};
+    return {_device_properties.deviceId,
+            _device_properties.subdeviceId,
+            _device_properties.numSlices,
+            _initStructs->getDriverVersion()};
 }
