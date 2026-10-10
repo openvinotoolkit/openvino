@@ -461,6 +461,7 @@ void primitive_inst::update_shape() {
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
+    bool need_queue_finish = false;
     for (auto& i : get_node().get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= get_node().get_dependencies().size()) {
@@ -486,21 +487,23 @@ void primitive_inst::update_shape() {
                                                                                      : dep->get_node().get_preferred_impl_type() == impl_types::cpu)) {
             has_runtime_deps = true;
 
-            // Events may be not created for in-order queue, so take them for OOO queue only
-            if (queue_type == QueueTypes::out_of_order && dep->get_impl_params()->out_event) {
+            if (dep->get_impl_params()->out_event) {
                 dependencies_events.push_back(dep->get_impl_params()->out_event);
 
-                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
+                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer will wait event for dependency " << i << "\n";
+            } else if (queue_type != QueueTypes::out_of_order) {
+                need_queue_finish = true;
+                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer will finish queue for dependency " << i << "\n";
             }
         }
     }
 
     if (has_runtime_deps) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape_sync: " + id()));
-        GPU_DEBUG_TRACE_DETAIL << "runtime synchronization for " << id() << " shape inference\n";
-        if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
+        GPU_DEBUG_TRACE_DETAIL << "runtime synchronization(" << (need_queue_finish ? "finish" : "event") << ") for " << id() << " shape inference\n";
+        if (!need_queue_finish) {
             get_network().get_stream().wait_for_events(dependencies_events);
-        } else if (queue_type == QueueTypes::in_order) {
+        } else {
             get_network().get_stream().finish();
         }
     }
@@ -2650,7 +2653,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
       _can_be_optimized(node.can_be_optimized()),
       _can_share_buffer(node.can_share_buffer()),
       _is_constant(node.is_constant()),
-      _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
+      _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output() || node.is_shape_infer_dep()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
     auto& engine = network.get_engine();
