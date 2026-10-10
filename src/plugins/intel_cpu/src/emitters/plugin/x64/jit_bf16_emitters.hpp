@@ -107,14 +107,9 @@ private:
             auto aux = Vmm(to_reg_idx(aux_vec_idxs[0]));
             auto out = Xmm(to_reg_idx(out_vec_idxs[0]));
 
-            if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                h->uni_vandps(aux, in, table_val("rounding"));
-            } else {
-                h->uni_vmovups(aux, in);
-                h->uni_vandps(aux, aux, table_val("rounding"));
-            }
-
-            h->uni_vpsrld(aux, aux, 1);
+            h->uni_vpsrld(aux, in, 16);
+            h->uni_vandps(aux, aux, table_val("one"));
+            h->uni_vpaddd(aux, aux, table_val("even"));
             h->uni_vpaddd(aux, aux, in);
             h->uni_vpsrld(aux, aux, 16);
 
@@ -155,7 +150,6 @@ private:
             encode_fixup_selector(fixup_input_code_pinf_, fixup_output_code_copy_input_);
         push_arg_entry_of("one", 0x00000001, true);
         push_arg_entry_of("even", 0x00007fff, true);
-        push_arg_entry_of("rounding", 0x00010000, true);
         push_arg_entry_of("selector", selector_int32, true);
         push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
         push_arg_entry_of("bf16_max", 0x7F7F0000, true);

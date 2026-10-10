@@ -97,6 +97,12 @@ TEST(bfloat16, round_to_nearest_even) {
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x3F85);
 
+    // Just above the halfway point must round up.
+    fstring = "0  01111111  000 0000 1000 0000 0000 0001";
+    fvalue = ov::test::utils::bits_to_float(fstring);
+    bf_round = bfloat16::round_to_nearest_even(fvalue);
+    EXPECT_EQ(bf_round, 0x3F81);
+
     fstring = "0  01111111  111 1111 1000 0000 0000 0000";
     fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
