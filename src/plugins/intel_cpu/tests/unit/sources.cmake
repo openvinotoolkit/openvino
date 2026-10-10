@@ -21,6 +21,8 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/cpu_runtime_configurator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/enforce_precision.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/fake_quantize_tokenization_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/lowered/buffer_allocation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/mul_add_to_fma.cpp
     ${CMAKE_CURRENT_LIST_DIR}/streams_info/cpu_pinning_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/streams_info/enable_ht_test.cpp
@@ -211,6 +213,7 @@ set(CPU_UNIT_TESTS_ARM_SRCS
 set(CPU_UNIT_TESTS_AARCH64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/snipptes_mark_skipped.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/adjust_gemm_copy_b_loop_ports.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/buffer_allocation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/gemm_blocking.cpp
 )
 
