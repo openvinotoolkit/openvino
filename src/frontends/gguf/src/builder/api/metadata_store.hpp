@@ -14,9 +14,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 class GraphEmitter;
 
@@ -41,6 +39,4 @@ struct WeightStore {
 };
 
 }  // namespace detail
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

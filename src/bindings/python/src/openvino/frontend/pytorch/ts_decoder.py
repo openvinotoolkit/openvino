@@ -7,12 +7,11 @@
 import inspect
 import logging
 import typing
+from functools import lru_cache
 import torch
 
-from openvino.frontend.pytorch.py_pytorch_frontend import (
-    _FrontEndPytorchDecoder as Decoder,
-    _Type as DecoderType
-)
+from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
+from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
 from openvino import op, PartialShape, Type as OVType, OVAny
 from openvino.frontend.pytorch.utils import (
     ivalue_to_constant,
@@ -32,12 +31,18 @@ from openvino.frontend.pytorch.patch_functions import FunctionsPatcher
 log = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=None)
+def _parse_schema(schema_text: str):
+    """Parse a TorchScript schema string. Nodes of the same operator share one schema text."""
+    return torch._C.parse_schema(schema_text)
+
+
 # A marker for a special type of conversion extension that is inlined in Trampoline class
 class InlineConversionExtension:
     pass
 
 
-class TorchScriptPythonDecoder(Decoder):
+class TorchScriptPythonDecoder(TorchDecoderBase):
     def __init__(
         self,
         pt_module,
@@ -49,15 +54,16 @@ class TorchScriptPythonDecoder(Decoder):
         constant_cache=None,
         module_extensions=None,
         trace_kwargs=None,
+        getattr_cache=None,
     ):
         super().__init__()
-        # We store every decoder created by this decoder so that all them are
-        # not deleted until the first decoder is deleted
-        self.m_decoders = []
-        self._input_signature = None
         self._shared_memory = shared_memory
         self._input_is_list = False
         self.constant_cache = constant_cache if constant_cache is not None else dict()  # noqa: C408
+        # Resolving a prim::GetAttr chain walks the graph and the module tree. The same
+        # node is resolved once per consumer, so results are shared by all decoders of
+        # one module, like constant_cache.
+        self.getattr_cache = getattr_cache if getattr_cache is not None else dict()  # noqa: C408
         self.module_extensions = module_extensions
         self.config = None
         self.out_debug_name_overwrites = {}
@@ -95,6 +101,11 @@ class TorchScriptPythonDecoder(Decoder):
         self.pt_module = pt_module
         self.raw_inputs = list(self.graph_element.inputs())
         self.raw_outputs = list(self.graph_element.outputs())
+        # A Value's unique id never changes, so derive the id lists once instead of
+        # rebuilding them on every inputs()/outputs() call from the C++ side.
+        self._input_ids = [x.unique() for x in self.raw_inputs]
+        self._output_ids = [x.unique() for x in self.raw_outputs]
+        self._subgraphs = None
         if self._input_signature is not None:
             if "self" in self.raw_inputs[0].debugName():
                 self._input_signature.insert(0, "self")
@@ -205,16 +216,19 @@ class TorchScriptPythonDecoder(Decoder):
         self._input_signature = input_signature
         return f_model
 
+    def _value_from_getattr(self, getattr_node):
+        """Cached get_value_from_getattr for this decoder's module."""
+        cached = self.getattr_cache.get(getattr_node)
+        if cached is None:
+            cached = get_value_from_getattr(getattr_node, self.pt_module)
+            self.getattr_cache[getattr_node] = cached
+        return cached
+
     def inputs(self) -> list:
-        return [x.unique() for x in self.raw_inputs]
+        return self._input_ids
 
     def get_input_debug_name(self, index: int) -> str:
         return self._raw_input(index).debugName()
-
-    def get_input_signature_name(self, index: int) -> str:
-        if self._input_signature is not None and index < len(self._input_signature):
-            return self._input_signature[index]
-        return self.get_input_debug_name(index)
 
     def get_input_shape(self, index: int):
         raw_input = self._raw_input(index)
@@ -312,6 +326,7 @@ class TorchScriptPythonDecoder(Decoder):
                 shared_memory=self._shared_memory,
                 constant_cache=self.constant_cache,
                 module_extensions=self.module_extensions,
+                getattr_cache=self.getattr_cache,
             )
             self.m_decoders.append(decoder)
             node_visitor(decoder)
@@ -320,6 +335,12 @@ class TorchScriptPythonDecoder(Decoder):
         return "ts"
 
     def get_subgraphs(self) -> list:
+        # Called once per node by get_subgraph_size, and inlining below is not free.
+        if self._subgraphs is None:
+            self._subgraphs = self._collect_subgraphs()
+        return self._subgraphs
+
+    def _collect_subgraphs(self) -> list:
         if self.graph_element.kind() in ["prim::PythonOp", "prim::fork"]:
             if "Subgraph" in self.graph_element.attributeNames():
                 assert isinstance(
@@ -339,7 +360,7 @@ class TorchScriptPythonDecoder(Decoder):
         if self.graph_element.kind() == "prim::fork":
             in0 = self.raw_inputs[0]
             if in0.node().kind() == "prim::GetAttr":
-                module, _ = get_value_from_getattr(in0.node(), self.pt_module)
+                module, _ = self._value_from_getattr(in0.node())
         decoder = TorchScriptPythonDecoder(module,
                                            self.get_subgraphs()[index],
                                            alias_db=self.alias_db,
@@ -358,6 +379,8 @@ class TorchScriptPythonDecoder(Decoder):
             return trampoline, getattr(trampoline, "target_extension", None)
 
     def get_op_type(self) -> str:
+        if not isinstance(self.graph_element, torch.Node):
+            return "prim::Graph"
         if op_extension := self.get_op_extension():
             trampoline, target_extension = op_extension
             if isinstance(target_extension, ModuleExtension):
@@ -376,13 +399,21 @@ class TorchScriptPythonDecoder(Decoder):
                 # temporary name to custom graph. But providing conversion code
                 # as a callable `target` is more convenient.
                 return target
+        # lietorch group ops surface as opaque prim::PythonOp autograd functions
+        # report a dedicated op type so the frontend can route them to native ops
+        if self.graph_element.kind() == "prim::PythonOp":
+            fn_cls = getattr(self.graph_element.pyobj(), "__self__", None)
+            module = getattr(fn_cls, "__module__", "")
+            op_name = getattr(fn_cls, "__name__", "")
+            if (module == "lietorch" or module.startswith("lietorch.")) and op_name:
+                return "lietorch::" + op_name
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
         return self.graph_element.schema()
 
     def outputs(self) -> list:
-        return [x.unique() for x in self.raw_outputs]
+        return self._output_ids
 
     def _raw_output(self, index: int):
         return self.raw_outputs[index]
@@ -390,22 +421,9 @@ class TorchScriptPythonDecoder(Decoder):
     def _raw_input(self, index: int):
         return self.raw_inputs[index]
 
-    def num_of_outputs(self):
-        return len(self.raw_outputs)
-
-    def output(self, index: int):
-        return self.outputs()[index]
-
-    def mark_node(self, node):
-        name = self.get_op_type()
-        if "FrameworkNode" not in node.get_type_name():
-            name += "/" + node.get_type_name()
-        if self.graph_element.scopeName():
-            scope_name = self.graph_element.scopeName().split("/")[-1]
-            node.set_friendly_name(scope_name + "/" + name)
-        else:
-            node.set_friendly_name(name)
-        return node
+    def _node_name_prefix(self):
+        scope_name = self.graph_element.scopeName()
+        return scope_name.split("/")[-1] if scope_name else None
 
     def _add_name_to_const_and_cache(self, outputs, name, dtype=None):
         if len(outputs) == 1:
@@ -415,8 +433,7 @@ class TorchScriptPythonDecoder(Decoder):
         self.constant_cache[name] = (outputs, dtype)
 
     def try_decode_get_attr(self):
-        pt_value, name = get_value_from_getattr(
-            self.graph_element, self.pt_module)
+        pt_value, name = self._value_from_getattr(self.graph_element)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
         if isinstance(pt_value, torch.ScriptObject):
             # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase
@@ -545,24 +562,21 @@ class TorchScriptPythonDecoder(Decoder):
             else:
                 in_node = r_input.node()
                 if in_node.kind() == "prim::GetAttr":
-                    pt_value, _ = get_value_from_getattr(
-                        in_node, self.pt_module)
+                    pt_value, _ = self._value_from_getattr(in_node)
                     return pt_value is None
         return False
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
-        if self.get_op_type() in [
-            "aten::conv1d",
-            "aten::conv2d",
-            "aten::conv3d",
-            "aten::_convolution",
-            "aten::matmul",
-            "aten::clone",
-        ]:
-            # AliasDB::may_contain_alias sometimes return True for tensors produced
-            # by convolution or matmul, we have to workaround that
-            return False
         try:
+            schema_text = self.get_schema()
+            if schema_text != "(no schema)":
+                returns = _parse_schema(schema_text).returns
+                if out_index < len(returns):
+                    result = returns[out_index]
+                    # Container use can put independent tensors in AliasDb's wildcard set.
+                    # A tensor return without a schema alias annotation has fresh storage.
+                    if isinstance(result.type, torch.TensorType) and result.alias_info is None:
+                        return False
             return self.alias_db.may_contain_alias(
                 self._raw_input(in_index), self._raw_output(out_index)
             )
@@ -571,18 +585,6 @@ class TorchScriptPythonDecoder(Decoder):
             # while these indexes exist in node
             logging.debug("Failed to get alias information", exc_info=e)
             return False
-
-    def is_input_inlined(self, index):
-        return False
-
-    def get_inlined_input_decoder(self, index):
-        return None
-
-    def get_attribute(self, name):
-        return OVAny(None)
-
-    def get_named_input(self, name):
-        raise RuntimeError("There is no named inputs in TS graph")
 
     def get_rt_info(self):
         rt_info = {}

@@ -11,10 +11,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_hsv_to_rgb_op(const NodeContext& node) {
     default_op_checks(node, 1, {"HSVToRGB"});
@@ -34,7 +31,4 @@ OutputVector translate_hsv_to_rgb_op(const NodeContext& node) {
     return {new_images};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

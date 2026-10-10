@@ -16,9 +16,7 @@ namespace ONNX_NAMESPACE {
 class GraphProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 using ::ONNX_NAMESPACE::GraphProto;
 
 /// \brief A class which allows specifying InputEdge and OutputEdge by user-friendly ONNX
@@ -151,6 +149,4 @@ private:
     std::map<std::string, int> m_node_output_name_to_index;
     std::multimap<std::string, int> m_output_consumers_index;
 };
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

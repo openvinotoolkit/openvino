@@ -9,11 +9,7 @@
 #include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
     auto iou_threshold = node.get_attribute_value<float>("iou_threshold");
     auto score_threshold = node.get_attribute_value<float>("score_threshold");
@@ -32,8 +28,4 @@ ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
     return {nms->output(0)};
 }
 ONNX_OP("NMSRotated", OPSET_SINCE(1), ai_onnx::opset_1::nms_rotated, MMDEPLOY_DOMAIN);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

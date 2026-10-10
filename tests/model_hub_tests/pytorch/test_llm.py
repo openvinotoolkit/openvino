@@ -551,6 +551,14 @@ class TestLLMModel(TestTorchConvertModel):
             return self._infer_ov_model_export(ov_model, ie_device)
         return super().infer_ov_model(ov_model, inputs, ie_device)
 
+    def get_compile_config(self, ie_device):
+        config = super().get_compile_config(ie_device)
+        if ie_device == "CPU" and platform.machine() in ["aarch64", "arm64", "ARM64"]:
+            # ARM CPU defaults to FP16, whose accumulated rounding error in the KV cache
+            # can exceed this conversion test's tolerance against the FP32 reference.
+            config["INFERENCE_PRECISION_HINT"] = "f32"
+        return config
+
     def compare_results(self, fw_outputs, ov_outputs):
         if self.export_mode and isinstance(fw_outputs, (list, tuple)):
             # In export mode, only compare the first output (logits).
@@ -717,8 +725,12 @@ class TestLLMModel(TestTorchConvertModel):
         ("cohere_gptq", "shuyuej/aya-23-8B-GPTQ"),
         ("mbart_gptq", "Shivam098/opt-translation"),
         ("llama_awq", "TheBloke/open-llama-3b-v2-wizard-evol-instuct-v2-196k-AWQ"),
-        ("qwen3_compressed_tensors",
-         "cyankiwi/Qwen3.5-4B-AWQ-4bit"),  # repo name is misleading; config has quant_method=compressed-tensors
+        # repo name is misleading; config has quant_method=compressed-tensors
+        pytest.param("qwen3_compressed_tensors", "cyankiwi/Qwen3.5-4B-AWQ-4bit",
+                     marks=pytest.mark.xfail(
+                         reason="Multimodal checkpoint: transformers<5.8 drops its quantization_config in "
+                                "AutoModelForCausalLM (huggingface/transformers#45494); newer versions load it, "
+                                "but ignore-list names don't match, so linear_attn.in_proj_a/b are initialized randomly")),
     ])
     @pytest.mark.nightly
     def test_convert_model_nightly(self, name, type, ie_device):

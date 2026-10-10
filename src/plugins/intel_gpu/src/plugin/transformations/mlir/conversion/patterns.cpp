@@ -314,28 +314,28 @@ BinaryEltwisePatternBase::BinaryEltwisePatternBase(NodeTypeInfo wrapped_type,
                       OutputVector{any_input(), any_input()}),
                   convertor) {}
 
-template <typename OVOp, typename LinalgOp>
-BinaryEltwisePattern<OVOp, LinalgOp>::BinaryEltwisePattern(const std::set<element::Type>& element_types)
-    : BinaryEltwisePatternBase(OVOp::get_type_info_static(), ConvertBinaryEltwise<LinalgOp>(), element_types) {}
+template <typename OVOp, linalg::ElementwiseKind Kind>
+BinaryEltwisePattern<OVOp, Kind>::BinaryEltwisePattern(const std::set<element::Type>& element_types)
+    : BinaryEltwisePatternBase(OVOp::get_type_info_static(), ConvertBinaryEltwise<Kind>(), element_types) {}
 
 // Explicit template instantiations
 // TODO: add signed/unsigned integers support
-template class BinaryEltwisePattern<v1::Add, linalg::AddOp>;
-template class BinaryEltwisePattern<v1::Subtract, linalg::SubOp>;
-template class BinaryEltwisePattern<v1::Multiply, linalg::MulOp>;
-template class BinaryEltwisePattern<v1::Divide, linalg::DivOp>;
-template class BinaryEltwisePattern<v1::Power, linalg::PowFOp>;
+template class BinaryEltwisePattern<v1::Add, linalg::ElementwiseKind::add>;
+template class BinaryEltwisePattern<v1::Subtract, linalg::ElementwiseKind::sub>;
+template class BinaryEltwisePattern<v1::Multiply, linalg::ElementwiseKind::mul>;
+template class BinaryEltwisePattern<v1::Divide, linalg::ElementwiseKind::div>;
+template class BinaryEltwisePattern<v1::Power, linalg::ElementwiseKind::powf>;
 
-template <typename OVOp, typename LinalgOp>
-UnaryEltwisePattern<OVOp, LinalgOp>::UnaryEltwisePattern() : MarkPattern(wrap_type<OVOp>({any_input()}), ConvertUnaryEltwise<LinalgOp>()) {}
+template <typename OVOp, linalg::ElementwiseKind Kind>
+UnaryEltwisePattern<OVOp, Kind>::UnaryEltwisePattern() : MarkPattern(wrap_type<OVOp>({any_input()}), ConvertUnaryEltwise<Kind>()) {}
 
 // Explicit template instantiations
-template class UnaryEltwisePattern<v0::Abs, linalg::AbsOp>;
-template class UnaryEltwisePattern<v0::Ceiling, linalg::CeilOp>;
-template class UnaryEltwisePattern<v0::Exp, linalg::ExpOp>;
-template class UnaryEltwisePattern<v0::Log, linalg::LogOp>;
-template class UnaryEltwisePattern<v0::Negative, linalg::NegFOp>;
-template class UnaryEltwisePattern<v0::Sqrt, linalg::SqrtOp>;
-template class UnaryEltwisePattern<v0::Tanh, linalg::TanhOp>;
+template class UnaryEltwisePattern<v0::Abs, linalg::ElementwiseKind::abs>;
+template class UnaryEltwisePattern<v0::Ceiling, linalg::ElementwiseKind::ceil>;
+template class UnaryEltwisePattern<v0::Exp, linalg::ElementwiseKind::exp>;
+template class UnaryEltwisePattern<v0::Log, linalg::ElementwiseKind::log>;
+template class UnaryEltwisePattern<v0::Negative, linalg::ElementwiseKind::negf>;
+template class UnaryEltwisePattern<v0::Sqrt, linalg::ElementwiseKind::sqrt>;
+template class UnaryEltwisePattern<v0::Tanh, linalg::ElementwiseKind::tanh>;
 
 }  // namespace ov::intel_gpu::mlir

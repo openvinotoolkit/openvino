@@ -12,11 +12,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector reverse_sequence(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
 
@@ -47,8 +43,4 @@ ov::OutputVector reverse_sequence(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("ReverseSequence", OPSET_SINCE(1), ai_onnx::opset_1::reverse_sequence);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

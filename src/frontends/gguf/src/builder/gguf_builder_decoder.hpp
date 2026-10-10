@@ -9,9 +9,7 @@
 #include "gguf_graph.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // GgufDecoder implementation over a GgufGraph built natively from a .gguf file (no
 // llama.cpp / gguf dependency). It is the OpenVINO-side counterpart of llama.cpp's
@@ -48,6 +46,7 @@ public:
     std::vector<std::string> get_model_output_names() const override;
     const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const override;
     const ov::AnyMap& get_tokenizer_config() const override;
+    const ov::AnyMap& get_mmproj_config() const override;
 
 private:
     std::shared_ptr<GgufGraph> m_graph;
@@ -58,6 +57,4 @@ private:
     const GgufOp& node() const;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

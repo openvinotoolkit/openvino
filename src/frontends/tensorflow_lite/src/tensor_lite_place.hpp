@@ -12,9 +12,7 @@
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "place.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 class TensorLitePlace : public ov::frontend::tensorflow::TensorPlace {
 public:
@@ -71,6 +69,4 @@ protected:
     size_t m_data_size = 0;
 };
 
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

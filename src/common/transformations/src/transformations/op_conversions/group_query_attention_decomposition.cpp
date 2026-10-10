@@ -298,9 +298,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         present_v = V;
     }
 
+    const auto compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
+
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
-    if (kv_quantized) {
+    if (kv_quantized && !compressed_kv) {
         K = dequantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, T);
         V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
     }
@@ -310,7 +312,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
-    if (kv_num_heads_factor > 1) {
+    if (kv_num_heads_factor > 1 && !compressed_kv) {
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);
         const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
@@ -377,12 +379,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
             scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
         }
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, local_window_size);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, local_window_size, compressed_kv);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, local_window_size);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, local_window_size, compressed_kv);
     } else {
-        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, local_window_size);
+        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, local_window_size, compressed_kv);
     }
 
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
@@ -403,9 +405,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(
     const ov::Output<ov::Node>& scale,
     const ov::Output<ov::Node>& sink,
     bool is_causal,
-    [[maybe_unused]] int64_t local_window_size) {
-    // local_window_size is ignored by the reference v13::ScaledDotProductAttention op; plugin overrides may
-    // apply it when the underlying kernel supports SWA natively.
+    [[maybe_unused]] int64_t local_window_size,
+    [[maybe_unused]] const std::optional<CompressedKV>& compressed_kv) {
+    // local_window_size and compressed_kv are ignored by the reference v13::ScaledDotProductAttention op;
+    // plugin overrides may apply them when the underlying kernel supports SWA / compressed KV natively.
     if (sink.get_node()) {
         return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, is_causal);
     }

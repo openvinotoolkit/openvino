@@ -32,7 +32,7 @@ static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count)
 }
 
 ze_usm_resource import_dx_buffer(ze_engine* engine, shared_mem_params params) {
-    #ifndef WIN32
+    #ifndef _WIN32
         OPENVINO_THROW("[GPU] Importing D3D11 buffers is only supported on Windows");
     #else
         auto ctx = engine->get_context();

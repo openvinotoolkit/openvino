@@ -78,8 +78,13 @@ size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attentio
 // innermost dimension (head_size) of K/V layouts.  Any code that reads head_size
 // from K/V layouts must use the logical (un-halved) size from the query layout.
 bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
+    if (params.is_type<scaled_dot_product_attention>()) {
+        const auto& desc = params.typed_desc<scaled_dot_product_attention>();
+        return desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt);
+    }
+
     const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-    return ov::element::Type(kv_cache_dt).bitwidth() == 4;
+    return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
 std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) const {
@@ -238,6 +243,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
         jit.make("IS_INT4_COMPRESSED", desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params));
+        jit.make("IS_INT4_SIGNED", desc->is_kv_compressed && desc->quantization_attributes.quantization_dt == ov::element::i4);
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -316,6 +322,9 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
         jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
         jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_k_transpose_order)));
+        jit.make("Q_BATCH_NUM", q_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_q_transpose_order)));
+        jit.make("K_BATCH_NUM", k_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_k_transpose_order)));
+        jit.make("V_BATCH_NUM", v_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_v_transpose_order)));
 
         auto get_static_or_runtime_dim = [](int64_t dim, std::string runtime_dim, const char* dim_name) {
             if (dim < 0)

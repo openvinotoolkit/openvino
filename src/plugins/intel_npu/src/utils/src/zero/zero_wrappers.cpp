@@ -51,7 +51,7 @@ bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
     return true;
 }
 bool CommandQueueDesc::owner_tag_required() const {
-    return (_options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !_shared_common_queue;
+    return !_shared_common_queue;
 }
 void CommandQueueDesc::update_key() {
     uint64_t hash = zero_hashing::kFnvOffsetBasis64;
@@ -67,9 +67,7 @@ void CommandQueueDesc::update_key() {
 
     const bool use_owner_tag = owner_tag_required();
     if (use_owner_tag) {
-        OPENVINO_ASSERT(_owner_tag != nullptr,
-                        "owner_tag must not be null when ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC is set or "
-                        "shared_common_queue is disabled");
+        OPENVINO_ASSERT(_owner_tag != nullptr, "owner_tag must not be null when shared_common_queue is disabled");
         hash = zero_hashing::hash_combine64(hash, std::hash<const void*>{}(_owner_tag));
     }
 

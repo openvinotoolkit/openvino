@@ -2190,6 +2190,7 @@ void Partitioner::optimize(const std::string& func_name) {
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
         if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && !part_ctx.use_host_gather_quant) {
+            rewr.add_matcher<ov::npuw::patterns::opt::ConvertDQVocab>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
@@ -2321,6 +2322,27 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Convert parameters to f16 where required
         do_cvtf16(ctx);
+
+        // Add lazy Sub128 parameters while retaining the original sources when they are still shared.
+        for (const auto& shifted_and_source : ctx.closures_to_subtract_128) {
+            const auto& shifted_param = shifted_and_source.first;
+            const auto& source_param = shifted_and_source.second;
+            const auto source_idx = f._model->get_parameter_index(source_param);
+            NPUW_ASSERT(source_idx >= static_cast<int64_t>(f._param_offset));
+
+            new_params.push_back(shifted_param);
+            const auto source_closure_idx = source_idx - f._param_offset;
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                funcall._lazy_closure.push_back(funcall._lazy_closure[source_closure_idx].subtract_128());
+                funcall._closure.emplace_back();
+                funcall._is_lazy_unpack.push_back(false);
+            });
+
+            if (source_param->output(0).get_target_inputs().empty() && to_remove_idx.insert(source_idx).second) {
+                to_remove.push_back(source_param);
+            }
+        }
 
         // Host-side gather, pt 1. Add new parameters first
         if (ctx.params_to_gather) {

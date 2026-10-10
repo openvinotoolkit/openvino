@@ -9,9 +9,7 @@
 #include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/frontend/jax/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
+namespace ov::frontend::jax {
 
 class ConversionExtension : public ConversionExtensionBase {
 public:
@@ -33,6 +31,4 @@ private:
     ov::frontend::CreatorFunction m_converter;
 };
 
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax

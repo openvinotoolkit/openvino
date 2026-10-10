@@ -11,6 +11,7 @@ endif()
 ov_add_test_target(
         NAME ${TARGET_NAME}
         SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/cache_guard_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/cache_manager.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/compilation_context_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/compiled_model_test.cpp
@@ -25,6 +26,8 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_stream_info_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_config_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_manager_tests.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_format.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_reader.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/infer_request_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/iplugin_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/make_default_multi_threaded_test.cpp
@@ -41,6 +44,7 @@ ov_add_test_target(
         LINK_LIBRARIES
             unit_test_utils
         ADD_CLANG_FORMAT
+        TESTS_PER_SOURCE
         LABELS
             OV UNIT RUNTIME
         CHECK_SOURCES_LISTED

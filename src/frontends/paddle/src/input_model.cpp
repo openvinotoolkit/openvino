@@ -21,9 +21,7 @@
 #include "paddle_utils.hpp"
 #include "place.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
+namespace ov::frontend::paddle {
 
 using namespace ::paddle::framework::proto;
 
@@ -640,6 +638,4 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
     _impl->set_tensor_value(place, value);
 }
 
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle

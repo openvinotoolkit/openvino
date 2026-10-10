@@ -89,15 +89,7 @@ TransposeFusion::TransposeFusion(bool supports_immad) {
 }
 
 TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
-    auto is_fp_type = [](const ov::Output<ov::Node>& output) -> bool {
-        switch (output.get_element_type()) {
-        case ov::element::f16:
-        case ov::element::f32:
-            return true;
-        default:
-            return false;
-        }
-    };
+    auto is_supported_type = type_matches_any(op::SDPA::get_supported_precisions());
     auto not_transpose = [](const ov::Output<ov::Node>& output) -> bool {
         return ov::as_type_ptr<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr;
     };
@@ -110,15 +102,15 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
     auto transpose_q_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_k_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_v_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_q_m = wrap_type<ov::op::v1::Transpose>({input_q_m, transpose_q_order_m}, is_fp_type);
-    auto transpose_k_m = wrap_type<ov::op::v1::Transpose>({input_k_m, transpose_k_order_m}, is_fp_type);
-    auto transpose_v_m = wrap_type<ov::op::v1::Transpose>({input_v_m, transpose_v_order_m}, is_fp_type);
+    auto transpose_q_m = wrap_type<ov::op::v1::Transpose>({input_q_m, transpose_q_order_m}, is_supported_type);
+    auto transpose_k_m = wrap_type<ov::op::v1::Transpose>({input_k_m, transpose_k_order_m}, is_supported_type);
+    auto transpose_v_m = wrap_type<ov::op::v1::Transpose>({input_v_m, transpose_v_order_m}, is_supported_type);
 
     auto sdpa_m = wrap_type<ov::op::internal::VLSDPA>({transpose_q_m, transpose_k_m, transpose_v_m, input_cu_seqlens});
 
     // fuse output transpose into VLSDPA too
     auto transpose_o_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_o_m = wrap_type<ov::op::v1::Transpose>({sdpa_m, transpose_o_order_m}, is_fp_type);
+    auto transpose_o_m = wrap_type<ov::op::v1::Transpose>({sdpa_m, transpose_o_order_m}, is_supported_type);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -213,17 +205,9 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
 }
 
 TransposeSDPAMatcher::TransposeSDPAMatcher() {
-    auto is_fp_type = [](const ov::Output<ov::Node>& output) -> bool {
-        switch (output.get_element_type()) {
-        case ov::element::f16:
-        case ov::element::f32:
-            return true;
-        default:
-            return false;
-        }
-    };
-    auto not_transpose = [is_fp_type](const ov::Output<ov::Node>& output) -> bool {
-        return ov::as_type_ptr<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr && is_fp_type(output);
+    auto is_supported_type = type_matches_any(op::SDPA::get_supported_precisions());
+    auto not_transpose = [is_supported_type](const ov::Output<ov::Node>& output) -> bool {
+        return ov::as_type_ptr<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr && is_supported_type(output);
     };
 
     auto input_q_m = any_input(not_transpose);
@@ -234,9 +218,9 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     auto transpose_q_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_k_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_v_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_q_m = wrap_type<ov::op::v1::Transpose>({input_q_m, transpose_q_order_m}, is_fp_type);
-    auto transpose_k_m = wrap_type<ov::op::v1::Transpose>({input_k_m, transpose_k_order_m}, is_fp_type);
-    auto transpose_v_m = wrap_type<ov::op::v1::Transpose>({input_v_m, transpose_v_order_m}, is_fp_type);
+    auto transpose_q_m = wrap_type<ov::op::v1::Transpose>({input_q_m, transpose_q_order_m}, is_supported_type);
+    auto transpose_k_m = wrap_type<ov::op::v1::Transpose>({input_k_m, transpose_k_order_m}, is_supported_type);
+    auto transpose_v_m = wrap_type<ov::op::v1::Transpose>({input_v_m, transpose_v_order_m}, is_supported_type);
 
     auto sdpa_in_q = std::make_shared<Or>(OutputVector{input_q_m, transpose_q_m});
     auto sdpa_in_k = std::make_shared<Or>(OutputVector{input_k_m, transpose_k_m});

@@ -101,13 +101,14 @@ class TestLSTM(PytorchLayerTest):
     @pytest.mark.parametrize("batch_first", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_lstm(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first, ie_device, precision, ir_version):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.bidirectional = bidirectional
         self.batch_first = batch_first
-        self._test(aten_lstm(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first), "aten::lstm",
+        self._test(aten_lstm(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first).eval(), "aten::lstm",
                    ie_device, precision, ir_version, trace_model=True)
 
 
@@ -166,13 +167,14 @@ class TestGRU(PytorchLayerTest):
     @pytest.mark.parametrize("batch_first", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_gru(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first, ie_device, precision, ir_version):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.bidirectional = bidirectional
         self.batch_first = batch_first
-        self._test(aten_gru(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first), "aten::gru",
+        self._test(aten_gru(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first).eval(), "aten::gru",
                    ie_device, precision, ir_version, trace_model=True)
 
 
@@ -196,11 +198,12 @@ class TestRNN(PytorchLayerTest):
     @pytest.mark.parametrize("nonlinearity", ["tanh", "relu"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_rnn(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first, nonlinearity, ie_device, precision, ir_version):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.bidirectional = bidirectional
         self.batch_first = batch_first
-        self._test(aten_rnn(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first, nonlinearity), f"aten::rnn_{nonlinearity}",
+        self._test(aten_rnn(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first, nonlinearity).eval(), f"aten::rnn_{nonlinearity}",
                    ie_device, precision, ir_version, trace_model=True)
