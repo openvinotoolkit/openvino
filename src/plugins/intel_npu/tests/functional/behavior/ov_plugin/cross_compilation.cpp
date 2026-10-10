@@ -115,8 +115,7 @@ const std::vector<ov::AnyMap> config = {{ov::intel_npu::platform(ov::intel_npu::
                                         {ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
                                         {ov::intel_npu::platform(ov::intel_npu::Platform::NPU4000)},
                                         {ov::intel_npu::platform(ov::intel_npu::Platform::NPU5010)},
-                                        {ov::intel_npu::platform(ov::intel_npu::Platform::NPU5020)},
-                                        {ov::intel_npu::platform(ov::intel_npu::Platform::NPU6010)}};
+                                        {ov::intel_npu::platform(ov::intel_npu::Platform::NPU5020)}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          CrossCompilationNPU,
