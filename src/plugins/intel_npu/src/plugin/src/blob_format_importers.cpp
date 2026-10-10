@@ -4,6 +4,8 @@
 
 #include "blob_format_importers.hpp"
 
+#include <limits>
+
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/parser_factory.hpp"
@@ -345,11 +347,16 @@ private:
 
     std::optional<int> extract_batch_size() const override {
         const std::optional<int64_t> batch_size = m_metadata->get_batch_size();
-        if (batch_size.has_value()) {
-            m_logger.debug("Extracted batch size: %d", batch_size.value());
-            return std::make_optional<int>(static_cast<int>(batch_size.value()));
+        if (!batch_size.has_value()) {
+            return std::nullopt;
         }
-        return std::nullopt;
+        m_logger.debug("Extracted batch size: %lld", batch_size.value());
+        OPENVINO_ASSERT(batch_size.value() > 0 && batch_size.value() <= std::numeric_limits<int>::max(),
+                        "The batch size stored in the blob metadata is out of the supported range [1, ",
+                        std::numeric_limits<int>::max(),
+                        "]: ",
+                        batch_size.value());
+        return std::make_optional<int>(static_cast<int>(batch_size.value()));
     }
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
@@ -455,7 +462,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
                             extract_blob_type());
 
     m_graph->update_network_name(network_name);
-    if (m_batch_size.has_value() && m_batch_size.value() > 0) {
+    if (m_batch_size.has_value()) {
         // Initial batch setup for static cases
         m_graph->set_batch_size(m_batch_size.value());
     }
