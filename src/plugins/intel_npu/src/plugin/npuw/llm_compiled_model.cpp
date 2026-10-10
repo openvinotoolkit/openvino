@@ -1858,12 +1858,13 @@ void ov::npuw::LLMCompiledModel::validate_imported_kvcache_dim() const {
         for (const auto& port : ports) {
             // Check every alias, so get_any_name()'s choice can't hide a KV port.
             for (const auto& name : port.get_names()) {
+                const auto past_name = ov::npuw::util::present_to_past_key_values_name(name);
                 const bool is_key = ov::npuw::util::isPastKeyParam(name) ||
                                     ov::npuw::util::isPresentKeyValuesKey(name).has_value() ||
-                                    ov::npuw::util::isDQScaleOrZPKey(name);
+                                    ov::npuw::util::isDQScaleOrZPKey(past_name);
                 const bool is_value = ov::npuw::util::isPastValueParam(name) ||
                                       ov::npuw::util::isPresentKeyValuesValue(name).has_value() ||
-                                      ov::npuw::util::isDQScaleOrZPValue(name);
+                                      ov::npuw::util::isDQScaleOrZPValue(past_name);
                 if (!is_key && !is_value) {
                     continue;
                 }
