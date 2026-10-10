@@ -357,8 +357,9 @@ def _(
 @update_tensor.register(float)
 @update_tensor.register(int)
 @update_tensor.register(str)
+@update_tensor.register(bytes)
 def _(
-    inputs: Union[ScalarTypes, str],
+    inputs: Union[ScalarTypes, str, bytes],
     request: _InferRequestWrapper,
     key: Optional[ValidKeys] = None,
 ) -> None:
@@ -385,7 +386,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
             raise TypeError(f"Incompatible key type for input: {key}")
         # Copy numpy arrays to already allocated Tensors.
         # If value object has __array__ attribute, load it to Tensor using np.array
-        if isinstance(value, (np.ndarray, np.number, int, float, str)) or hasattr(value, "__array__"):
+        if isinstance(value, (np.ndarray, np.number, int, float, str, bytes)) or hasattr(value, "__array__"):
             update_tensor(value, request, key)
         elif isinstance(value, list):
             new_inputs[key] = Tensor(value)
