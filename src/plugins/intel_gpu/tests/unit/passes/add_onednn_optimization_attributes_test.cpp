@@ -218,6 +218,19 @@ static add_fusing_type residual_chain_fusing_type(cldnn::engine& engine, size_t 
     return onednn_add_fusing_helpers::get_add_fusing_type(last_node, cldnn_post_ops[0]);
 }
 
+// The degenerate end of the same construction. A chain of two puts conv1 one hop up, which makes
+// it conv2's own input, and is_direct_ancestor tests for equality before the first hop so it
+// answers yes here too. An in-place sum would then leave the convolution reading and writing one
+// buffer, so the addend has to arrive as a binary post-op instead.
+TEST(add_onednn_optimization_attributes, sum_post_op_refused_for_own_input) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ASSERT_EQ(residual_chain_fusing_type(engine, 2), add_fusing_type::binary_per_tensor);
+}
+
 // An attention residual reaches six hops back -- projection, reshape, attention, reshape, QKV
 // matmul, norm, block input -- and the walk must still find it. See the hop-by-hop listing on
 // max_ancestor_walk_depth in program_helpers.cpp.
