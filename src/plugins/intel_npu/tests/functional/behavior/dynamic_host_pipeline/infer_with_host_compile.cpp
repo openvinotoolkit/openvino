@@ -861,6 +861,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
         cfg[ov::intel_npu::shared_common_queue.name()] = sharedQueue;
         cfg[ov::hint::model_priority.name()] = ov::hint::Priority::LOW;
         cfg[ov::workload_type.name()] = ov::WorkloadType::DEFAULT;
+        cfg[ov::intel_npu::compile_log_level.name()] = ov::log::Level::TRACE;
 
         auto model = createModelByName(selectedModelName);
         ov::CompiledModel compiledModel;

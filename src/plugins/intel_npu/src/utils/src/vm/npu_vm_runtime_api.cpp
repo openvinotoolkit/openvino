@@ -5,7 +5,6 @@
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 
 #include <algorithm>
-#include <mutex>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -18,7 +17,6 @@ constexpr std::string_view VM_RUNTIME_NAME = "openvino_intel_npu_vm_runtime";
 
 std::string g_libName{MLIR_RUNTIME_NAME};
 bool g_instanceCreated{false};
-std::mutex g_instanceMutex;
 }  // namespace
 
 NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
@@ -60,15 +58,6 @@ void NPUVMRuntimeApi::initializeFromBlob(const void* data, size_t size) {
 
 void NPUVMRuntimeApi::initialize(std::string_view libName) {
     const std::string resolvedName{libName.empty() ? MLIR_RUNTIME_NAME : libName};
-    const char* path_env = std::getenv("USE_FIX_PATH");
-    if (path_env != nullptr) {
-        std::cout << "USE_FIX_PATH is set to: " << path_env << std::endl;
-        std::lock_guard<std::mutex> lock(g_instanceMutex);
-        std::cout << "Init lock(g_instanceMutex)." << std::endl;
-    } else {
-        std::cout << "USE_FIX_PATH is not set." << std::endl;
-    }
-    std::cout << "[3][NPU VM RUNTIME API] g_libName is: " << g_libName << std::endl;
     if (g_instanceCreated) {
         if (g_libName != resolvedName) {
             OPENVINO_THROW("NPUVMRuntimeApi is already initialized with '",
@@ -81,30 +70,11 @@ void NPUVMRuntimeApi::initialize(std::string_view libName) {
         return;
     }
     g_libName = resolvedName;
-    std::cout << "[4][NPU VM RUNTIME API] g_libName is: " << g_libName << std::endl;
 }
 
 const std::shared_ptr<NPUVMRuntimeApi>& NPUVMRuntimeApi::getInstance() {
-    // Function-local static: initialization is thread-safe in C++11+ and runs exactly once.
-    static std::shared_ptr<NPUVMRuntimeApi> instance = []() {
-        std::shared_ptr<NPUVMRuntimeApi> runtimeApi;
-        const char* path_env = std::getenv("USE_FIX_PATH");
-        if (path_env != nullptr) {
-            std::cout << "USE_FIX_PATH is set to: " << path_env << std::endl;
-            std::lock_guard<std::mutex> lock(g_instanceMutex);
-            std::cout << "Init lock(g_instanceMutex)." << std::endl;
-            // Explicitly construct with the selected library under the lock.
-            runtimeApi = std::make_shared<NPUVMRuntimeApi>(g_libName);
-        } else {
-            std::cout << "USE_FIX_PATH is not set." << std::endl;
-            // Default construction method.
-            runtimeApi = std::make_shared<NPUVMRuntimeApi>(g_libName);
-            std::cout << "fix compile issue." << std::endl;
-        }
-        g_instanceCreated = true;
-        return runtimeApi;
-    }();
-
+    static std::shared_ptr<NPUVMRuntimeApi> instance = std::make_shared<NPUVMRuntimeApi>(g_libName);
+    g_instanceCreated = true;
     return instance;
 }
 
