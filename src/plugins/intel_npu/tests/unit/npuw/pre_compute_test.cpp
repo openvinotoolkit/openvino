@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -368,6 +369,119 @@ TEST(PreComputeTest, LongRopeCosSinSerializationRoundTripEmpty) {
     EXPECT_EQ(dst.rotary_ndims, 0u);
     EXPECT_FALSE(dst.has_long);
     EXPECT_FALSE(dst.is_valid());
+}
+
+// Rotary_ndims sizes the cos/sin allocation while
+// inv_freq_short/inv_freq_long independently size writeCosSinRows' writes
+// (row width == 2 * inv_freq.size()). A blob whose serialized fields disagree must be
+// rejected by rebuild_tables() before it allocates undersized tensors and overflows them.
+TEST(PreComputeTest, RebuildTablesRejectsRotaryNdimsInconsistentWithShortFactors) {
+    ov::npuw::patterns::pre_compute::LongRopeCosSin tables;
+    tables.max_len = 1;
+    tables.rotary_ndims = 2;
+    tables.has_long = false;
+    tables.inv_freq_short = {1.0f, 2.0f};  // would make writeCosSinRows write 4 values, not 2
+
+    EXPECT_THROW(tables.rebuild_tables(), ov::AssertFailure);
+}
+
+TEST(PreComputeTest, RebuildTablesRejectsRotaryNdimsInconsistentWithLongFactors) {
+    ov::npuw::patterns::pre_compute::LongRopeCosSin tables;
+    tables.max_len = 1;
+    tables.rotary_ndims = 4;
+    tables.has_long = true;
+    tables.inv_freq_short = {0.5f, 0.25f};  // consistent: 2 * 2 == 4
+    tables.inv_freq_long = {0.1f, 0.05f, 0.2f};  // inconsistent: 2 * 3 != 4
+
+    EXPECT_THROW(tables.rebuild_tables(), ov::AssertFailure);
+}
+
+// The equality check must not rely on computing `2 * factor_size` directly: a factor_size
+// above SIZE_MAX/2 would wrap that multiplication, letting a forged rotary_ndims spoof a
+// match. A real std::vector this large cannot be constructed, so the boundary is tested
+// against the extracted helper with plain integers instead of an actual factor vector.
+TEST(PreComputeTest, RotaryNdimsMatchesFactorSizeRejectsFactorSizeThatWouldOverflowWhenDoubled) {
+    using ov::npuw::patterns::pre_compute::LongRopeCosSin;
+    constexpr size_t max = std::numeric_limits<size_t>::max();
+
+    const size_t oversized_factor_size = max / 2 + 1;         // 2 * this wraps to 0
+    const size_t spoofed_rotary_ndims = oversized_factor_size * 2;  // == 0, wrapped
+
+    EXPECT_FALSE(LongRopeCosSin::rotary_ndims_matches_factor_size(spoofed_rotary_ndims, oversized_factor_size));
+    // Unconditionally rejected regardless of what rotary_ndims claims to be.
+    EXPECT_FALSE(LongRopeCosSin::rotary_ndims_matches_factor_size(1234u, oversized_factor_size));
+}
+
+TEST(PreComputeTest, RotaryNdimsMatchesFactorSizeAcceptsLargestNonOverflowingFactorSize) {
+    using ov::npuw::patterns::pre_compute::LongRopeCosSin;
+    constexpr size_t max = std::numeric_limits<size_t>::max();
+
+    const size_t largest_safe_factor_size = max / 2;  // 2 * this is exactly representable
+
+    EXPECT_TRUE(
+        LongRopeCosSin::rotary_ndims_matches_factor_size(largest_safe_factor_size * 2, largest_safe_factor_size));
+    EXPECT_FALSE(LongRopeCosSin::rotary_ndims_matches_factor_size(1u, largest_safe_factor_size));
+}
+
+// The table-element-count check (regimes * max_len * rotary_ndims) is a separate
+// overflow guard from rotary_ndims_matches_factor_size, and it is only load-bearing for
+// has_long=true: `regimes * max_len` is computed in rebuild_tables() itself (regimes=2)
+// and wraps to a small value *before* ov::Tensor ever sees the true size, so its own
+// internal overflow-safe allocation check cannot catch this case (unlike has_long=false,
+// where regimes=1 keeps max_len unwrapped and Tensor's own check would already reject
+// it). rotary_ndims=2 keeps the factor vectors one element long, so no oversized
+// allocation is ever attempted - the assert must fire first.
+TEST(PreComputeTest, RebuildTablesRejectsMaxLenThatOverflowsTableElementCountWithLongRegime) {
+    using ov::npuw::patterns::pre_compute::LongRopeCosSin;
+    constexpr size_t max = std::numeric_limits<size_t>::max();
+
+    LongRopeCosSin tables;
+    tables.rotary_ndims = 2;
+    tables.has_long = true;
+    tables.inv_freq_short = {1.0f};  // consistent: 2 * 1 == rotary_ndims
+    tables.inv_freq_long = {2.0f};   // consistent: 2 * 1 == rotary_ndims
+    tables.max_len = max / 2 + 1;    // already overflows regimes(2) * max_len alone
+
+    EXPECT_THROW(tables.rebuild_tables(), ov::AssertFailure);
+}
+
+// Negative control mirroring the report: one short-factor element correctly produces a
+// two-element (duplicated) row and must be accepted.
+TEST(PreComputeTest, RebuildTablesAcceptsConsistentRotaryNdims) {
+    ov::npuw::patterns::pre_compute::LongRopeCosSin tables;
+    tables.max_len = 1;
+    tables.rotary_ndims = 2;
+    tables.has_long = false;
+    tables.inv_freq_short = {1.0f};
+
+    EXPECT_NO_THROW(tables.rebuild_tables());
+    ASSERT_TRUE(tables.is_valid());
+    EXPECT_EQ(tables.cos.get_shape(), (ov::Shape{1, 1, 2}));
+}
+
+// End-to-end via the production ORC deserialization path (LongRopeCosSin::serialize on
+// read calls rebuild_tables()), reproducing the report's exact malicious field values.
+TEST(PreComputeTest, LongRopeCosSinDeserializeRejectsInconsistentSerializedWidth) {
+    using ov::npuw::orc::Stream;
+
+    ov::npuw::patterns::pre_compute::LongRopeCosSin src;
+    src.max_len = 1;
+    src.rotary_ndims = 2;
+    src.has_long = false;
+    src.inv_freq_short = {1.0f, 2.0f};
+    src.inv_freq_long = {};
+
+    std::stringstream ss;
+    {
+        auto writer = Stream::writer(ss);
+        // src.rebuild_tables() would itself throw now, so write the raw fields directly
+        // to reproduce a blob forged by an attacker who bypassed the production writer.
+        writer & src.max_len & src.rotary_ndims & src.has_long & src.inv_freq_short & src.inv_freq_long;
+    }
+
+    ov::npuw::patterns::pre_compute::LongRopeCosSin dst;
+    auto reader = Stream::reader(ss);
+    EXPECT_THROW(reader & dst, ov::AssertFailure);
 }
 
 TEST(PreComputeTest, RopeCacheThrowsOnMismatchedFactorSizesInLongRopeV5) {

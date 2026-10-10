@@ -151,6 +151,13 @@ struct LongRopeCosSin {
     // frequency arrays. Used both at compile time and on blob import.
     void rebuild_tables();
 
+    // True iff rotary_ndims == 2 * factor_size, without letting an oversized factor_size
+    // wrap size_t during the multiplication - a forged blob could otherwise spoof a match
+    // for a factor vector no real allocation could ever hold. Exposed (rather than kept
+    // file-local in the .cpp) so this arithmetic can be unit-tested with plain integers,
+    // since a std::vector this large cannot actually be constructed.
+    static bool rotary_ndims_matches_factor_size(size_t rotary_ndims, size_t factor_size);
+
     // Dense, non-owning views over the first lut_len rows of the requested regime.
     // The backing tensors must outlive them. Non-const because NPUW's input binding
     // path reaches for a writable data pointer.
