@@ -199,6 +199,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Swish                                                   |24                      |24                              |                                |
 |                        |Tan                                                     |7                       |22, 7                           |                                |
 |                        |Tanh                                                    |1                       |13, 6, 1                        |                                |
+|                        |TensorScatter                                           |24                      |24                              |                                |
 |                        |TfIdfVectorizer                                         |                        |9                               |Supported through openvino_tokenizers|
 |                        |ThresholdedRelu                                         |10                      |22, 10                          |                                |
 |                        |Tile                                                    |1                       |13, 6, 1                        |                                |

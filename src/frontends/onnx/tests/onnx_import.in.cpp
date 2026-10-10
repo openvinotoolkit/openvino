@@ -8095,6 +8095,97 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_rotary_embedding_identity) {
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 
+// TensorScatter (ONNX opset-24) functional KV-cache update, `linear` mode without
+// `write_indices`. The update is appended starting at position 0, so the first
+// `sequence_length` rows of the cache are overwritten and the rest kept.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_linear) {
+    const auto model = convert_model("tensor_scatter_linear.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (1, 4, 2)
+    test_case.add_input<float>(Shape{1, 4, 2}, {10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f});
+    // update (1, 2, 2)
+    test_case.add_input<float>(Shape{1, 2, 2}, {100.f, 101.f, 200.f, 201.f});
+    // write_indices default to 0 -> positions 0 and 1 are overwritten.
+    test_case.add_expected_output<float>(Shape{1, 4, 2}, {100.f, 101.f, 200.f, 201.f, 14.f, 15.f, 16.f, 17.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) `linear` mode with per-batch `write_indices`.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_write_indices) {
+    const auto model = convert_model("tensor_scatter_write_indices.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (2, 4, 2)
+    test_case.add_input<float>(Shape{2, 4, 2},
+                               {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f});
+    // update (2, 2, 2)
+    test_case.add_input<float>(Shape{2, 2, 2}, {100.f, 101.f, 110.f, 111.f, 200.f, 201.f, 210.f, 211.f});
+    // write_indices (2,) -> batch 0 writes at [1,2], batch 1 writes at [2,3].
+    test_case.add_input<int64_t>(Shape{2}, {1, 2});
+    test_case.add_expected_output<float>(Shape{2, 4, 2},
+                                         {0.f,   1.f,   100.f, 101.f, 110.f, 111.f, 6.f,   7.f,
+                                          8.f,   9.f,   10.f,  11.f,  200.f, 201.f, 210.f, 211.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) `circular` mode: write positions wrap around
+// max_sequence_length. write_indices=[3], max_sequence_length=4, sequence_length=3
+// -> positions 3, 0, 1.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular) {
+    const auto model = convert_model("tensor_scatter_circular.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (1, 4, 2)
+    test_case.add_input<float>(Shape{1, 4, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f});
+    // update (1, 3, 2)
+    test_case.add_input<float>(Shape{1, 3, 2}, {100.f, 101.f, 110.f, 111.f, 120.f, 121.f});
+    // write_indices (1,)
+    test_case.add_input<int64_t>(Shape{1}, {3});
+    // pos3 = update0, pos0 = update1, pos1 = update2, pos2 unchanged.
+    test_case.add_expected_output<float>(Shape{1, 4, 2}, {110.f, 111.f, 120.f, 121.f, 4.f, 5.f, 100.f, 101.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// A large circular write index must be reduced before adding sequence offsets,
+// otherwise the int64 addition can overflow and wrap to the wrong cache position.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_large_write_index) {
+    if (s_device == "CPU") {
+        GTEST_SKIP() << "CPU FloorMod currently loses precision for large int64 operands";
+    }
+
+    const auto model = convert_model("tensor_scatter_circular_large_write_index.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // Cache length 3; (INT64_MAX - 1) % 3 == 0. The third sequence offset would
+    // overflow if added to the original write index before wrapping.
+    test_case.add_input<float>(Shape{1, 3, 1}, {10.f, 20.f, 30.f});
+    test_case.add_input<float>(Shape{1, 3, 1}, {100.f, 200.f, 300.f});
+    test_case.add_input<int64_t>(Shape{1}, {9223372036854775806LL});
+    test_case.add_expected_output<float>(Shape{1, 3, 1}, {100.f, 200.f, 300.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// TensorScatter (ONNX opset-24) with axis=-2 on a rank-4 KV-cache
+// (batch, num_heads, max_sequence_length, head_size). The sequence dimension is not
+// adjacent to batch, exercising the internal Transpose path. The write index depends
+// only on the batch sample, so all heads are updated at the same sequence position.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_axis_transpose) {
+    const auto model = convert_model("tensor_scatter_axis_transpose.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (1, 2, 3, 2)
+    test_case.add_input<float>(Shape{1, 2, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f});
+    // update (1, 2, 1, 2)
+    test_case.add_input<float>(Shape{1, 2, 1, 2}, {100.f, 101.f, 200.f, 201.f});
+    // write_indices (1,) -> sequence position 1 for every head.
+    test_case.add_input<int64_t>(Shape{1}, {1});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3, 2},
+        {0.f, 1.f, 100.f, 101.f, 4.f, 5.f, 6.f, 7.f, 200.f, 201.f, 10.f, 11.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_4d) {
     auto model = convert_model("attention_mha_4d.onnx");
     auto test_case = test::TestCase(model, s_device);

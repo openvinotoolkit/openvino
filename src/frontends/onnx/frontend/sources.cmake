@@ -217,6 +217,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/swish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tanh.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/tensor_scatter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/thresholded_relu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/topk.cpp
