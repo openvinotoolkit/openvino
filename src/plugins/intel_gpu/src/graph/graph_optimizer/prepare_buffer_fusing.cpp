@@ -211,7 +211,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             }
 
             for (const auto& fused_op : pred_params[idx].fused_desc) {
-                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*pred.first, fused_op);
+                auto add_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*pred.first, fused_op);
                 if (add_type == add_fusing_type::sum)
                     return false;
             }

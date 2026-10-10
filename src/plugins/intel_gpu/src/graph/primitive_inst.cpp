@@ -1247,6 +1247,23 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         return;
     }
 
+    if (actual_layouts.size() == 1 && get_node().get_preferred_impl_type() == impl_types::onednn) {
+        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
+        if (reused_eltwmem_idx != -1) {
+            const auto& eltw_inst = get_network().get_primitive(get_node().get_dependency(reused_eltwmem_idx).id());
+            auto eltw_mem = eltw_inst->output_memory_ptr();
+            if (eltw_mem && eltw_mem->get_mem_tracker() &&
+                eltw_mem->get_mem_tracker()->size() >= updated_layouts[0].get_linear_size() * dt_sizes_in_B[0]) {
+                if (_outputs[0]) {
+                    get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+                }
+                _outputs[0] = eltw_mem->get_engine()->reinterpret_buffer(*eltw_mem, updated_layouts[0]);
+                _max_output_layout_count[0] = eltw_mem->get_mem_tracker()->size() / dt_sizes_in_B[0];
+                return;
+            }
+        }
+    }
+
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
@@ -2692,7 +2709,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
             }
         }
 
-        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+        if (auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());

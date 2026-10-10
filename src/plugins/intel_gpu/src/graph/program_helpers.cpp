@@ -6,6 +6,8 @@
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "pooling_inst.h"
+#include "fully_connected_inst.h"
+#include "transformations/symbolic_transformations/utils.hpp"
 #include <algorithm>
 #include <utility>
 #include <vector>
@@ -73,12 +75,12 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     }
 }
 
-bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
+static bool is_full_tensor(const layout& l) {
     return l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
         || l.batch() > 1;
 }
 
-void onednn_add_fusing_helpers::for_eltwise(
+void onednn_eltwise_fusing_helpers::for_eltwise(
     const program_node& node, eltwise_mode mode,
     std::function<void(const program_node& p_node,
                     const fused_primitive_desc& desc)> func) {
@@ -147,7 +149,7 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     return false;
 }
 
-add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
+add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
         return add_fusing_type::not_supported;
@@ -185,13 +187,46 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     return add_fusing_type::binary_per_oc;
 }
 
-int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
+bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(const program_node& p_node, const fused_primitive_desc& desc) {
+    if (!desc.is_type<eltwise>() || desc.typed_desc<eltwise>()->mode != eltwise_mode::prod || !desc.has_outer_dep()
+        || !p_node.is_type<fully_connected>()) {
+        return false;
+    }
+
+    auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
+    auto p_layout = p_node.get_output_layout();
+    auto d_layout = dep_node.get_output_layout();
+
+    if (p_layout.is_dynamic() || d_layout.is_dynamic()) {
+        if (p_layout.data_type != d_layout.data_type || p_layout.format != d_layout.format
+            || p_layout.data_padding != d_layout.data_padding) {
+            return false;
+        }
+        const auto& p_pshape = p_layout.get_partial_shape();
+        const auto& d_pshape = d_layout.get_partial_shape();
+        if (p_pshape.rank().is_dynamic() || d_pshape.rank().is_dynamic() || p_pshape.size() != d_pshape.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < p_pshape.size(); ++i) {
+            if (!ov::symbol::util::dims_are_equal(p_pshape[i], d_pshape[i])) {
+                return false;
+            }
+        }
+    } else if (p_layout != d_layout || !is_full_tensor(p_layout)) {
+        return false;
+    }
+
+    return dep_node.get_users().size() == 1 && !dep_node.is_constant() && !p_node.is_output();
+}
+
+int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
     if (node.get_preferred_impl_type() == impl_types::onednn) {
         for (const auto& fused_op : node.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
-                // If it is first sum, reuse the buffer
-                auto fusing_type = get_add_fusing_type(node, fused_op);
-                if (fusing_type != add_fusing_type::sum)
+                auto mode = fused_op.typed_desc<eltwise>()->mode;
+                bool reuse_eligible = (mode == eltwise_mode::sum && get_add_fusing_type(node, fused_op) == add_fusing_type::sum) ||
+                                      (mode == eltwise_mode::prod && can_use_mul_inplace(node, fused_op));
+                if (!reuse_eligible)
                     continue;
                 if (!fused_op.has_outer_dep())
                     continue;
