@@ -11,6 +11,7 @@ import subprocess
 import json
 import time
 import sys
+import csv
 
 from typing import Any
 from pathlib import Path
@@ -235,22 +236,10 @@ def run_test_executable_extract_result(command):
 MODELID_RE = re.compile(r"\/?([^\/]+)\/(\w+)\/?[^\/]*\/((OV_)?(FP|INT)\d+(\/INT\d+)?[^\/]*)(\/\d+\/ov)?\/(.+).xml")
 
 
-def modelid_assume_info(modelid):
-    match = MODELID_RE.match(modelid.replace("\\", "/"))
-    if not match:
-        return None
-    model, fw, prec, _n1, _n2, _n3, _n4, model2 = match.groups()
-    if model == model2:
-        modelname = model
-    else:
-        modelname = f"{model}/{model2}"
-    framework = fw
-    precision = prec.replace("/", "-")
-    return modelname, framework, precision
-
-
 @dataclass
 class TestCase:
+    _main_fields = ["model_id", "model_path", "device"]
+
     model_id: str
     model_path: Path
     device: str
@@ -263,9 +252,65 @@ class TestCase:
     def original_model(self) -> str | None:
         return self.description.get("src_model_path")
 
+    @property
+    def model_name(self) -> str | None:
+        return self.description.get("topology_name")
+
+    @property
+    def framework(self) -> str | None:
+        return self.description.get("base_framework")
+
+    @property
+    def precision(self) -> str | None:
+        return self.description.get("weight_precision")
+
+    @staticmethod
+    def _read_description(model_path: Path) -> dict[str, str] | None:
+        description_path = model_path.parent / "description.txt"
+        description_text = None
+        try:
+            description_text = description_path.read_text()
+        except OSError:
+            pass
+        if not description_text:
+            description_path = model_path.parent.parent / "description.txt"
+            try:
+                description_text = description_path.read_text()
+            except OSError:
+                return None
+        return dict([
+            line.split(":", 1)
+            for line in description_text.splitlines()
+            if ":" in line
+        ])
+
+    @classmethod
+    def from_model_path(cls, model_id: str, model_path: Path, device: str):
+        model_descr = cls._read_description(model_path)
+        if model_descr is None:
+            raise Exception("TODO")
+        weights_path = model_path.with_suffix(".bin")
+        if not weights_path.is_file():
+            print(f"Warning: Test case {model_id} invalid: can't find weights file at {weights_path}")
+            raise Exception("TODO")
+        weights_size = weights_path.stat().st_size
+        return cls(
+            model_id=model_id,
+            model_path=model_path,
+            device=device,
+            description=model_descr,
+            weights_size=weights_size
+        )
+
+    def to_main_json(self):
+        return {
+            key: getattr(self, key)
+            for key in self._main_fields
+        }
+
 
 class TestSession:
-    def __init__(self, executable: Path, ir_cache_dirs: list[Path], devices: list[str], api=None, report_reference=False):
+    def __init__(self, executable: Path, ir_cache_dirs: list[Path], devices: list[str], api=None, report_reference=False, log_dir=None):
         self.executable = executable
         self.test_name = executable.stem.removeprefix("test_")
         self.ir_cache_dirs = ir_cache_dirs
@@ -277,6 +322,16 @@ class TestSession:
         self.report_metadata = None
         if self.report_api:
             self.detect_report_metadata()
+
+        # logging setup
+        self.log_dir: Path | None = log_dir
+        self.test_case_log = None
+        if self.log_dir:
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+            self.test_case_log_file = (self.log_dir / "test_cases.csv").open("w")
+            self.test_case_log = csv.DictWriter(
+                self.test_case_log_file, TestCase._main_fields)
+            self.test_case_log.writeheader()
 
     def get_test_info(self):
         result = run_test_executable_extract_result([str(self.executable), "--info"])
@@ -303,8 +358,6 @@ class TestSession:
         if not self.report_metadata:
             print("No job metadata found, no report will be made.")
             return
-        model_assumptions = modelid_assume_info(test.model_id)
-        modelname, framework, precision = model_assumptions or (test.model_id, "unknown", "unknown")
         test_report = []
         sample_names = result.get("samples", {}).keys() or self.test_info["samples"]
         for sname in sample_names:
@@ -315,11 +368,11 @@ class TestSession:
                 "status": "failed" if "error" in result else "passed",
                 "source": str(test.model_path),
                 "log": result.get("stderr", ""),
-                "model_name": modelname,
+                "model_name": test.model_name,
                 "model": test.model_id,
                 "device": result.get("device") or test.device,
-                "framework": framework,
-                "precision": precision,
+                "framework": test.framework,
+                "precision": test.precision,
                 "metrics": sample.as_dict(),
                 "cpu_family": CPU_FAMILY,
                 "model_size": test.weights_size,
@@ -336,7 +389,7 @@ class TestSession:
             self.report_metadata = {
                 "build_url": os.environ["BUILD_URL"],
                 "os": os.environ.get("os", "unknown"),
-                "commit_date": os.environ.get("commitDate", "2030-12-22T22:22:22.000Z"),
+                "commit_date": os.environ["commitDate"],
                 "branch": os.environ.get("sourceBranch", "unknown"),
                 "target_branch": os.environ.get("targetBranch", "unknown"),
                 "log_path": os.environ.get("SHARED_LOG_PATH", ""),
@@ -372,41 +425,14 @@ class TestSession:
                 for path in new_files
             )
 
-    def get_description(self, model_path: Path) -> dict[str, str] | None:
-        description_path = model_path.parent / "description.txt"
-        description_text = None
-        try:
-            description_text = description_path.read_text()
-        except OSError:
-            pass
-        if not description_text:
-            description_path = model_path.parent.parent / "description.txt"
-            try:
-                description_text = description_path.read_text()
-            except OSError:
-                return None
-        return dict([
-            line.split(":", 1)
-            for line in description_text.splitlines()
-            if ":" in line
-        ])
-
     def generate_test_cases(self):
         for ir_cache_dir in self.ir_cache_dirs:
             for (model_id, model_path) in self.scan_directory(ir_cache_dir):
-                weights_path = model_path.with_suffix(".bin")
-                if not weights_path.is_file():
-                    print(f"Warning: Test case {model_id} invalid: can't find weights file at {weights_path}")
-                    continue
-                weights_size = weights_path.stat().st_size
                 for device in self.devices:
-                    yield TestCase(
-                        model_id=model_id,
-                        model_path=model_path,
-                        device=device,
-                        description=self.get_description(model_path) or {},
-                        weights_size=weights_size,
-                    )
+                    try:
+                        yield TestCase.from_model_path(model_id, model_path, device)
+                    except Exception as ex:
+                        print(f"Warning: TestCase is not correct: {repr(ex)}")
 
     def run_test_case(self, test_case: TestCase):
         try:
@@ -417,8 +443,7 @@ class TestSession:
                 for _ in range(run_num)
             ]
             errors = ["error" in r for r in results]
-            if run_num > 1 and all(errors):
-                print("All attempts failed")
+            if all(errors):
                 return results[0]
             if run_num > 1 and any(errors):
                 print("Some attempts failed:", repr([r for r in results if "error" in r]))
@@ -427,7 +452,7 @@ class TestSession:
             print(f"  When running test an unexpected error happened: {ex}")
             return {"error": "unexpected error", "exception": ex}
 
-    def handle_test_result(self, test: TestCase, result):
+    def log_test_result(self, test: TestCase, result):
         base2_suffixes = ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]
 
         def _base2_human_readable(number):
@@ -460,11 +485,19 @@ class TestSession:
         sys.stdout.flush()
         sys.stderr.flush()
 
+    def log_test_case(self, test: TestCase):
+        if self.test_case_log is None:
+            return
+        self.test_case_log.writerow(test.to_main_json())
+        self.test_case_log_file.flush()
+
     def run(self):
         for test in self.generate_test_cases():
+            self.log_test_case(test)
             result = self.run_test_case(test)
-            self.api_push_test_result(test, result)
-            self.handle_test_result(test, result)
+            if self.api:
+                self.api_push_test_result(test, result)
+            self.log_test_result(test, result)
 
 
 if __name__ == "__main__":
@@ -482,6 +515,8 @@ if __name__ == "__main__":
     parser.add_argument("--api", help="API endpoint for results to upload")
     parser.add_argument("--upload-reference", "--reference", action="store_true",
                         help="This run will make new reference values")
+    parser.add_argument("--log-dir", type=Path, default=None,
+                        help="Path to directory to write logs to")
 
     args = parser.parse_args()
 
@@ -490,5 +525,6 @@ if __name__ == "__main__":
         args.ir_cache,
         [device.upper() for device in args.devices.split(",")],
         args.api,
-        args.upload_reference
+        args.upload_reference,
+        args.log_dir
     ).run()
