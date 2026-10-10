@@ -941,6 +941,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.prod.default", op::translate_prod_fx},
         {"aten.prod.dim_int", op::translate_prod_fx},
         {"aten.repeat.default", op::translate_repeat_fx},
+        {"aten.round.decimals", op::translate_round},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
         {"aten.select_scatter.default", op::translate_select_scatter_fx},
