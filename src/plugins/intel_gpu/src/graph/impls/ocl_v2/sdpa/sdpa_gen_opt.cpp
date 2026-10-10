@@ -152,8 +152,8 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
         jit.make("V_HEAD_SIZE_LEFTOVER", v_head_size % subgroup_size);
     }
-    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
-    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
+    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage, static_cast<size_t>(k_head_size)));
+    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage, static_cast<size_t>(k_head_size)));
 
     bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
     if (could_use_flashattn_v2) {
@@ -313,7 +313,14 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
 
             const size_t head_size_u = ensure_positive_dim(head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
-            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS);
+            auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+            auto k_head_size_u = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+                k_head_size_u = head_size_u;
+            }
+
+            const size_t sg_num_scale =
+                get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS, static_cast<size_t>(k_head_size_u));
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", sg_num_scale = " << sg_num_scale << "\n";

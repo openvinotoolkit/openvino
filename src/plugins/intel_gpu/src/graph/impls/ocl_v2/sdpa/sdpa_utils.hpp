@@ -42,11 +42,22 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
         return false;
     }
 
-    const auto& attn_mask_pshape =
-        params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK).get_partial_shape();
+    const auto& attn_mask_layout = params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK);
+    const auto& attn_mask_pshape = attn_mask_layout.get_partial_shape();
+
+    if (!attn_mask_pshape.rank().is_static()) {
+        return true;
+    }
 
     // Keep scalar and 1D placeholders out of the real attention-mask path.
-    return !attn_mask_pshape.rank().is_static() || attn_mask_pshape.rank().get_length() > 1;
+    // Note: such placeholders may get padded up to rank 4 (all dims equal to 1) by shape
+    // canonicalization performed elsewhere in the pipeline, so the original rank check alone
+    // is not sufficient - also treat a statically-known single-element tensor as a placeholder.
+    if (attn_mask_pshape.rank().get_length() <= 1) {
+        return false;
+    }
+
+    return !attn_mask_pshape.is_static() || attn_mask_layout.count() != 1;
 }
 
 inline size_t ensure_positive_dim(int64_t value,
