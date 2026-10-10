@@ -305,6 +305,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/test_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/test_utils.h
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/uniform_quantized_real_distribution.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/batch_replicated_branches_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/bcast_and_pad_zp_buffers_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/clamp_fp16_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_binary_conv_to_conv_test.cpp
@@ -361,6 +362,8 @@ set(GPU_UNIT_TESTS_SRCS
 )
 
 set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/bcast_and_pad_zp_buffers.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/bcast_and_pad_zp_buffers.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/binary_conv_to_conv.cpp

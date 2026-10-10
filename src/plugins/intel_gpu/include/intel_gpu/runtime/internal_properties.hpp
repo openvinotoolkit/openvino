@@ -201,6 +201,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_buff
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_memory_reuse{"GPU_DISABLE_MEMORY_REUSE"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> disable_post_ops_fusions{"GPU_DISABLE_POST_OPS_FUSIONS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_fc_fusion{"GPU_DISABLE_HORIZONTAL_FC_FUSION"};
+static constexpr Property<bool, ov::PropertyMutability::RW> enable_camera_replica_batch_fusion{"GPU_ENABLE_CAMERA_REPLICA_BATCH_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_gated_mlp_fusion{"GPU_DISABLE_GATED_MLP_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
