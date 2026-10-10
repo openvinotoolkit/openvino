@@ -14,7 +14,10 @@
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/tokenization_config.hpp"
-#include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
+#endif
 
 namespace ov {
 namespace test {
@@ -26,7 +29,9 @@ public:
         TransformationTestsF::SetUp();
 
         ov::snippets::pass::TokenizationConfig config(std::numeric_limits<size_t>::max());
+#if defined(OPENVINO_ARCH_ARM64)
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
+#endif
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
         manager.get_pass_config()->set_callback<ov::snippets::pass::TokenizeSnippets>(
@@ -92,13 +97,29 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_ConvolutionWithFakeQuantize)
                                                               FunctionHelper::makePrerequisitesOriginal(),
                                                               std::make_shared<ov::op::v1::Convolution>());
 
-    // X64 SnippetsMarkSkipped marks the Convolution-FQ chain as fused by the plugin, so FQ is not tokenized.
-    model_ref = FakeQuantizeFunction::getOperationAndFakeQuantize({{1, 3, 16, 16}},
+    // ARM64 and RISC-V64 tokenize FakeQuantize while keeping Convolution outside the subgraph.
+    const auto parameter = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 16, 16});
+    parameter->set_friendly_name("parameter");
+    const auto max_pool = std::make_shared<ov::op::v1::MaxPool>(parameter,
+                                                                Strides{1, 1},
+                                                                Shape{0, 0},
+                                                                Shape{0, 0},
+                                                                Shape{1, 1});
+    max_pool->set_friendly_name("maxPool");
+    const auto weights = ov::opset1::Constant::create(element::f32, Shape{3, 3, 1, 1}, {1.f});
+    const auto convolution = std::make_shared<ov::op::v1::Convolution>(max_pool,
+                                                                       weights,
+                                                                       Strides{1, 1},
+                                                                       CoordinateDiff{0, 0},
+                                                                       CoordinateDiff{0, 0},
+                                                                       Strides{1, 1});
+    convolution->set_friendly_name("Convolution");
+    const std::vector<std::shared_ptr<ov::Node>> prerequisites{parameter, max_pool, convolution};
+    model_ref = FakeQuantizeFunction::getSubgraphWithFakeQuantize({{1, 3, 16, 16}},
                                                                   element::f32,
                                                                   {{}, {}, {}, {}},
                                                                   true,
-                                                                  FunctionHelper::makePrerequisitesOriginal(),
-                                                                  std::make_shared<ov::op::v1::Convolution>());
+                                                                  prerequisites);
 }
 
 }  // namespace snippets
