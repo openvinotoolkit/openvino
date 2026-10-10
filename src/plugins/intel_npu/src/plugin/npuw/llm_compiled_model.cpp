@@ -1887,12 +1887,6 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
                 ov::npuw::util::matchLoRAMatMulAlphaString(name)) {
                 return false;  // adapter change is only detected after the caller sliced
             }
-            if (name == ov::npuw::LLMInferRequest::layer_names::inputs_embeds) {
-                return false;  // VLM is out of scope in v1
-            }
-            if (name == ov::npuw::LLMInferRequest::layer_names::token_type_ids) {
-                return false;  // token type ids are not routed through a continued prefill
-            }
         }
     }
     // The request-level API must carry position ids: the prefill submodel gains them
@@ -1902,18 +1896,18 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
              .has_value()) {
         return false;
     }
-    // Position ids must be the exact [batch, seq] sequence the runtime validation
-    // accepts: 3-D M-RoPE cannot be validated as a contiguous continuation. A
-    // read-only property must never throw, so a dynamic rank is treated as
-    // unsupported rather than queried through PartialShape::size(), which asserts
-    // a static rank.
+    // Position ids are either a [batch, seq] sequence or the 3-D M-RoPE layout, which
+    // the runtime validation and the chunk loop both handle. A read-only property must
+    // never throw, so a dynamic rank is treated as unsupported rather than queried
+    // through PartialShape::size(), which asserts a static rank.
     const auto position_ids_port =
         ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
     if (!position_ids_port.has_value()) {
         return false;
     }
     const auto& position_ids_rank = position_ids_port.value().get_partial_shape().rank();
-    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() != 2) {
+    if (position_ids_rank.is_dynamic() ||
+        (position_ids_rank.get_length() != 2 && position_ids_rank.get_length() != 3)) {
         return false;
     }
     return true;

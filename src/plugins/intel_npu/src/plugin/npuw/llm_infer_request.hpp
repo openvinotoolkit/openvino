@@ -122,9 +122,12 @@ protected:
     void prepare_for_continued_prefill(uint32_t keep,
                                        ov::SoPtr<ov::ITensor> input_ids,
                                        ov::SoPtr<ov::ITensor> attention_mask,
-                                       ov::SoPtr<ov::ITensor> position_ids);
-    // Validates the delta position ids as a sequence against the latched baseline
-    // and the delta length.
+                                       ov::SoPtr<ov::ITensor> position_ids,
+                                       ov::SoPtr<ov::ITensor> token_type_ids,
+                                       ov::SoPtr<ov::ITensor> visual_pos_masks,
+                                       ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
+    // Validates the delta position ids against the delta length and, for a
+    // [batch, seq] sequence, against the latched baseline.
     void validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids,
                                          uint32_t keep,
                                          uint32_t delta_len) const;
