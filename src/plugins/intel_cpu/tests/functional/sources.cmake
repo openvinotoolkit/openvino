@@ -611,6 +611,7 @@ set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/get_output_before_activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/integer_reduce_mean.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/lora_pattern.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/math_floor_f16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_const_transposes_extraction.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_multiply_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_squeeze_add.cpp

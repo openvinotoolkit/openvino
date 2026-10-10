@@ -174,6 +174,7 @@ set(FP16_COMPRESSION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_legacy_precision_attribute.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_floatpoint_range.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_math_before_floor_to_keep_f16_rounding.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp
 )
 

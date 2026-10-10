@@ -158,6 +158,7 @@ set(DECOMPOSITIONS_TESTS_SRCS
 
 set(FP16_COMPRESSION_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/fp16_compression/disable_bf16_comp_ltx_rope_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/fp16_compression/mark_math_before_floor_to_keep_f16_rounding_test.cpp
 )
 
 set(OFFLINE_TRANSFORMATIONS_TESTS_SRCS
