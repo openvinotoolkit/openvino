@@ -354,12 +354,20 @@ protected:
  */
 class MHAINT8MatMulFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAINT8MatMulFunction(const std::vector<PartialShape>& inputShapes)
-            : SnippetsFunctionBase(inputShapes) {
+    // `softmaxOutputHigh` is the upper bound of the FakeQuantize on the Softmax output. The default
+    // is a calibrated one, i.e. the largest probability actually observed, which is below 1.
+    // Passing 1.f instead gives the theoretical range of a softmax, which is what an export that
+    // does not calibrate that tensor produces -- and the only form on which SoftmaxDecomposition
+    // defers the normalization past MatMul1.
+    explicit MHAINT8MatMulFunction(const std::vector<PartialShape>& inputShapes, float softmaxOutputHigh = 0.820726f)
+        : SnippetsFunctionBase(inputShapes),
+          softmax_output_high(softmaxOutputHigh) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
+    const float softmax_output_high;
 };
 
 /* Graph:

@@ -815,8 +815,14 @@ std::shared_ptr<ov::Model> MHAINT8MatMulFunction::initOriginal() const {
                                                    {-35.0172004}, {34.7436294}, {-35.0172004}, {34.7436294});
     const auto add = std::make_shared<ov::op::v1::Add>(fq3, addParam);
     const auto softMax = std::make_shared<ov::op::v8::Softmax>(add, -1);
-    auto fq4 = ov::test::utils::make_fake_quantize(softMax, ov::element::f32, 256, {1},
-                                                   {0}, {0.820726}, {0}, {0.820726});
+    auto fq4 = ov::test::utils::make_fake_quantize(softMax,
+                                                   ov::element::f32,
+                                                   256,
+                                                   {1},
+                                                   {0},
+                                                   {softmax_output_high},
+                                                   {0},
+                                                   {softmax_output_high});
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(fq2, transpose2Const);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(fq4, transpose2, transA, transB);
     auto fq5 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},

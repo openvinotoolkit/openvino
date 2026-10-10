@@ -495,6 +495,13 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_sage_attn.name());
             }
+        } else if (key == ov::intel_cpu::snippets_defer_softmax_normalization.name()) {
+            try {
+                snippetsDeferSoftmaxNormalization = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::intel_cpu::snippets_defer_softmax_normalization.name());
+            }
         } else if (key == ov::enable_weightless.name()) {
             try {
                 enableWeightless = val.as<bool>();
