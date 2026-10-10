@@ -69,6 +69,7 @@ public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
         TestValues testValues = std::get<1>(GetParam());
+        setDequantizationOutPrecision(testValues.result.dequantizationAfter, precision);
 
         actualFunction = ov::builder::subgraph::ConcatFunction::getOriginalWithIntermediateReshape(
             precision,
@@ -114,7 +115,7 @@ TEST_P(ConcatWithIntermediateReshapeTransformation, CompareFunctions) {
 
 const std::vector<ov::element::Type> precisions = {
         ov::element::f32,
-        // ov::element::f16
+        ov::element::f16
 };
 
 const std::vector<TestValues> testValues = {

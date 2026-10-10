@@ -142,7 +142,7 @@ TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
 
 const std::vector<ov::element::Type> precisions = {
     ov::element::f32,
-    // ov::element::f16
+    ov::element::f16
 };
 
 const std::vector<std::string> additionalLayer = {
