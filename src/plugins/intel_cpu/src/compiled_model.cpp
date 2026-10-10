@@ -87,7 +87,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_loaded_from_cache(loaded_from_cache),
       m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
-    m_runtime_requirements = build_runtime_requirements();
+    m_runtime_requirements = build_runtime_requirements(m_cfg.inferencePrecision);
     const auto& core = m_plugin->get_core();
     OPENVINO_ASSERT(core, "Unable to get API version. Core is unavailable");
 
