@@ -205,6 +205,14 @@ void MoECompressedWeightsSubgraphTest::SetUp() {
         rel_threshold = 0.05f;
         abs_threshold = 0.05f;
         }
+    // Quantizing the activations adds a small noise on top of u3's 8-level weights,
+    // so such dynamic quantization path gets a slightly looser threshold.
+    const bool is_bf16 = itr != configuration.end() && itr->second == ov::element::bf16;
+    if (weights_precision == ov::element::u3 && !is_bf16 && decompression_group_size % 32 == 0 &&
+        (ov::with_cpu_x86_avx2_vnni() || ov::with_cpu_x86_avx512_core_vnni())) {
+        rel_threshold = 0.05f;
+        abs_threshold = 0.05f;
+    }
 
     if (moe_type == MoEType::MoE2GeMM) {
         ASSERT_TRUE(activation_type == MoEActivationType::SWISH) << "MoE2GeMM only supports SWISH activation";
