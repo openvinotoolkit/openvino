@@ -110,8 +110,7 @@ std::string PermuteTestsBase::ToString() const {
     for (size_t i = 0; i != input_shape.size(); i++) {
         result << input_shape[i] << ((i + 1 == input_shape.size()) ? "" : "x");
     }
-    result << "]"
-           << "_type_" << type;
+    result << "]" << "_type_" << type;
 
     result << "_axis";
 
@@ -259,10 +258,6 @@ const auto TestCases120 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(PermuteTests120, PermuteTests, TestCases120, PermuteTests::getTestCaseName);
 
-// 4D order used by the MoE expert-dict closure re-layout (DQMatMulGQiGather, see opt.cpp):
-// [E,OC,NSPLIT,G] -> [E,NSPLIT,OC,G], axis 0 (E) untouched. Covers the nibble-packed (i4,
-// requires G to be even), plain-byte (i8, representative of i8/f8e4m3/f8e5m2/f8e8m0), and
-// 2/4-byte (f16/f32) paths.
 const auto TestCases0213 = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i4, ov::element::Type_t::i8, ov::element::Type_t::f16,
                              ov::element::Type_t::f32}),
@@ -284,8 +279,6 @@ const auto TestCases0213 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(PermuteTests0213, PermuteTests, TestCases0213, PermuteTests::getTestCaseName);
 
-// Same order, but with G == 1 (matches the Sdict/scale closure shape) - i4 is excluded here
-// since the nibble-packed path requires an even G.
 const auto TestCases0213G1 = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::f16, ov::element::Type_t::f32}),
         ::details::ShapesIn({Tensors{input={3, 5, 7, 1};

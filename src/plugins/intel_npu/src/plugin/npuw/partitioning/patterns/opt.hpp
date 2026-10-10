@@ -119,26 +119,16 @@ public:
     explicit DQMatMulGQ2iP(Context::Ref ctx);
 };
 
+class DQMatMulGQ2iMoE : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQ2iMoE");
+    explicit DQMatMulGQ2iMoE(Context::Ref ctx);
+};
+
 class DQParMMGQ : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQParMMGQ");
     explicit DQParMMGQ(Context::Ref ctx);
-};
-
-// Re-layouts the per-expert group-quantized weight/scale dictionaries of a MoE
-// expert MatMul into an NPU compiler friendlier memory order. Handles both the
-// "device-routed" decode/generate case (Gather(ids) selects K experts out of E
-// before the usual GQ dequant+matmul chain) and the "host-routed" dense prefill
-// case (no Gather - all E experts run on every token, selection is applied by a
-// gating-weight Multiply further downstream). Both cases must be matched by the
-// SAME pass so the shared Wdict/Sdict closures get an identical transform in
-// every function that uses them - otherwise the weights bank would no longer
-// deduplicate them and would keep two physical copies of each expert weight.
-// See opt.cpp for the FROM/TO diagrams and Phase 2 (full decomposition) notes.
-class DQMatMulGQiGather : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQiGather");
-    explicit DQMatMulGQiGather(Context::Ref ctx);
 };
 
 void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx);
