@@ -805,10 +805,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false, true);
+        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
         manager.register_pass<ov::intel_gpu::FoldRMSTransposes>();
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
-        manager.register_pass<DisableFP16CompForDecomposedRMSPattern>();
         const bool fp16_activation_scaling_enabled =
             config.get_activations_scale_factor() > 0.f && infer_precision == ov::element::f16;
         // Gated residuals need FP32 protection only when FP16 activation scaling is enabled.
