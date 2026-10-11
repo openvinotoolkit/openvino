@@ -1,0 +1,60 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+from argparse import Namespace
+
+from openvino.tools.ovc.cli_parser import input_to_input_cut_info
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import extract_input_info_from_example
+from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+
+
+class FakeTensor:
+    # Stands in for a torch.Tensor: only .shape, .ndim and .dtype are read by
+    # extract_input_info_from_example, and "int" is a key pt_to_ov_type_map already
+    # maps without needing torch installed.
+    def __init__(self, shape):
+        self.shape = shape
+        self.ndim = len(shape)
+        self.dtype = "int"
+
+
+class FakeInputModel:
+    def __init__(self, example_input):
+        self._example_input = example_input
+        self._input_signature = None
+
+
+class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
+    def test_dict_example_input_matched_by_name_not_position(self):
+        # example_input's dict order ("attention_mask" first) does not match the
+        # order the user listed in 'input' ("input_ids" first). Matching by
+        # position would swap the two shapes.
+        args = Namespace()
+        args.input_model = FakeInputModel({
+            "attention_mask": FakeTensor((1, 4)),
+            "input_ids": FakeTensor((1, 8)),
+        })
+        args.example_input = None
+        args.dynamo = True
+        args.input = input_to_input_cut_info(["input_ids", "attention_mask"])
+
+        extract_input_info_from_example(args, args.input)
+
+        shapes_by_name = {inp.name: inp.shape for inp in args.input}
+        self.assertEqual(list(shapes_by_name["input_ids"]), [1, 8])
+        self.assertEqual(list(shapes_by_name["attention_mask"]), [1, 4])
+
+    def test_unnamed_example_input_still_matches_positionally(self):
+        # No names anywhere (example_input is a plain tuple, 'input' only carries
+        # shapes), so matching stays positional, same as before named matching
+        # was added.
+        args = Namespace()
+        args.input_model = FakeInputModel((FakeTensor((1, 4)), FakeTensor((1, 8))))
+        args.example_input = None
+        args.dynamo = True
+        args.input = input_to_input_cut_info([[1, 4], [1, 8]])
+
+        extract_input_info_from_example(args, args.input)
+
+        self.assertEqual(list(args.input[0].shape), [1, 4])
+        self.assertEqual(list(args.input[1].shape), [1, 8])

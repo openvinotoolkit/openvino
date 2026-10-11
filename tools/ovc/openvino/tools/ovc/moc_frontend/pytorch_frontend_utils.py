@@ -374,17 +374,23 @@ def extract_input_info_from_example(args, inputs):
         if len(inputs) == len(input_arg):
             # we can update input argument with info from examples
             new_input = []
+            # example_inputs is a dict, so input_arg's order follows its keys, which
+            # doesn't have to match the order names were listed in 'input'. Match
+            # named inputs by name instead of position so shapes/dtypes don't get
+            # swapped between inputs.
+            input_arg_by_name = {example.name: example for example in input_arg if example.name is not None}
             for i in range(len(input_arg)):
                 input_desc = args.input[i]
                 name = input_desc.name
                 dtype = input_desc.type
                 shape = input_desc.shape
+                example = input_arg_by_name.get(name, input_arg[i]) if name is not None else input_arg[i]
                 if name is None:
-                    name = input_arg[i].name
+                    name = example.name
                 if dtype is None:
-                    dtype = input_arg[i].type
+                    dtype = example.type
                 if shape is None:
-                    shape = input_arg[i].shape
+                    shape = example.shape
                 new_input.append(_InputCutInfo(name, shape, dtype, input_desc.value))
             input_arg = new_input
         else:
