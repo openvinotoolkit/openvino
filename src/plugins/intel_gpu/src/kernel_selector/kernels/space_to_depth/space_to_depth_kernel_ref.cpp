@@ -69,10 +69,19 @@ CommonDispatchData SpaceToDepthKernelRef::SetDefault(const space_to_depth_params
 JitConstants SpaceToDepthKernelRef::GetJitConstants(const space_to_depth_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
+    if (params.grouped) {
+        jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
+        jit.AddConstant(MakeJitConstant("GROUPED_SPACE_TO_DEPTH", true));
+        jit.AddConstant(MakeJitConstant("FACTOR_T", params.factor_t));
+        jit.AddConstant(MakeJitConstant("FACTOR_S", params.factor_s));
+        jit.AddConstant(MakeJitConstant("FACTOR_VOLUME", params.factor_t * params.factor_s * params.factor_s));
+        jit.AddConstant(
+            MakeJitConstant("GROUP_SIZE", params.inputs[0].Feature().v * params.factor_t * params.factor_s * params.factor_s / params.output_channels));
+    }
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", params.block_size));
-    if (params.depth_mode == SpaceToDepthMode::BLOCKS_FIRST) {
+    if (!params.grouped && params.depth_mode == SpaceToDepthMode::BLOCKS_FIRST) {
         jit.AddConstant(MakeJitConstant("BLOCKS_FIRST_MODE", true));
-    } else {
+    } else if (!params.grouped) {
         jit.AddConstant(MakeJitConstant("DEPTH_FIRST_MODE", true));
     }
 

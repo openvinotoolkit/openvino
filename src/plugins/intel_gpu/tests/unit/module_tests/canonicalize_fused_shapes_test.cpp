@@ -162,7 +162,7 @@ TEST(canonicalize_fused_peer_fold, unfoldable_higher_rank_peer_is_left_untouched
         std::make_shared<eltwise>("add", std::vector<input_info>{input_info("host"), input_info("peer")}, eltwise_mode::sum));
     fused.total_num_deps = 2;
     fused.outer_dep_start_idx = 1;
-    fused.output_layout = host;
+    fused.output_layouts = {host};
 
     kernel_impl_params params;
     params.prog = &prog;
