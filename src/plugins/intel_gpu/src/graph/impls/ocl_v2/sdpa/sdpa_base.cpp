@@ -421,13 +421,23 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
     };
 
     const auto attn_mask_idx = 3;
+    // An attention_mask input with an empty (rank 0) shape is just a placeholder (e.g. used when only a
+    // scalar attn_mask_val is provided, or no mask is used at all) and must remain scalar - do not extend
+    // it to a false higher-rank shape, otherwise it becomes indistinguishable from a real static mask.
     if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
         const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
-        updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
+        if (attn_mask_shape.size() != 0) {
+            updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
+        }
     }
 
     // For scale of 1D tensor or attention_mask of empty shape, use extend_shape_to_rank_from_end as before
-    for (auto& input_layout : updated_impl_params.input_layouts) {
+    for (size_t idx = 0; idx < updated_impl_params.input_layouts.size(); ++idx) {
+        if (idx == attn_mask_idx && updated_impl_params.input_layouts[idx].get_partial_shape().size() == 0) {
+            // Keep the placeholder attention_mask scalar.
+            continue;
+        }
+        auto& input_layout = updated_impl_params.input_layouts[idx];
         size_t input_rank = input_layout.get_partial_shape().size();
         input_layout.set_partial_shape(input_rank <= 1 ? extend_shape_to_rank_from_end(input_layout.get_partial_shape())
                                                        : extend_pshape_to_rank_in_num_heads_dim(input_layout.get_partial_shape()));

@@ -49,15 +49,13 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
         return true;
     }
 
-    // Keep scalar and 1D placeholders out of the real attention-mask path.
-    // Note: such placeholders may get padded up to rank 4 (all dims equal to 1) by shape
-    // canonicalization performed elsewhere in the pipeline, so the original rank check alone
-    // is not sufficient - also treat a statically-known single-element tensor as a placeholder.
-    if (attn_mask_pshape.rank().get_length() <= 1) {
-        return false;
-    }
-
-    return !attn_mask_pshape.is_static() || attn_mask_layout.count() != 1;
+    // Per SDPA specification, the attention mask is either empty (a placeholder, e.g. when only a scalar
+    // attn_mask_val is provided or no mask is used at all) or has rank 2 or more. Shape canonicalization
+    // (SDPABase::static_canonicalize_shapes) keeps such a placeholder's shape at rank 0 instead of padding
+    // it up to rank 4, so a plain rank check is sufficient here.
+    // Note: with this approach, a real static mask with shape [1,1,1,1] would be silently ignored, since it
+    // is indistinguishable from an empty placeholder in terms of rank/order - do not use this in that case.
+    return attn_mask_pshape.rank().get_length() > 1;
 }
 
 inline size_t ensure_positive_dim(int64_t value,
