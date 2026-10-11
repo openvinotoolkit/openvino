@@ -184,6 +184,9 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tags_have_fixed_mode) {
     static_assert(hsm::runtime_requirements_tag.id() == hsm::runtime_requirements, "runtime_requirements_tag id");
     static_assert(hsm::runtime_requirements_tag.is_pointer(), "runtime_requirements_tag must always be pointer-mode");
 
+    static_assert(hsm::weights_tag.id() == hsm::weights, "weights_tag id");
+    static_assert(hsm::weights_tag.is_pointer(), "weights_tag must always be pointer-mode");
+
     SUCCEED();
 }
 
@@ -198,6 +201,7 @@ TEST_F(HsmFormatLayoutCompatibilityTest, device_tags_cannot_collide_with_core_ta
                   "device tag ids must never fall below core_tag_id_range_end");
     static_assert(hsm::model_id < hsm::core_tag_id_range_end, "model_id must stay below core_tag_id_range_end");
     static_assert(hsm::model < hsm::core_tag_id_range_end, "model must stay below core_tag_id_range_end");
+    static_assert(hsm::weights < hsm::core_tag_id_range_end, "weights must stay below core_tag_id_range_end");
 
     SUCCEED();
 }
@@ -208,6 +212,7 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_values_are_pinned) {
     static_assert(static_cast<uint32_t>(hsm::Tags::model) == 2, "Tags::model value changed");
     static_assert(static_cast<uint32_t>(hsm::Tags::runtime_requirements) == 3,
                   "Tags::runtime_requirements value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::weights) == 4, "Tags::weights value changed");
 
     SUCCEED();
 }
