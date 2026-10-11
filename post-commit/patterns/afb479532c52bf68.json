@@ -4,16 +4,18 @@
   "signature_hash": "afb479532c52bf68",
   "title": "Windows build job terminated mid-build with unavailable job logs",
   "category": "Infrastructure",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-10-10T23:39:24Z",
-  "last_seen": "2026-10-10T23:39:24Z",
+  "last_seen": "2026-10-10T23:56:44Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/38092857471",
     "https://github.com/openvinotoolkit/openvino/actions/runs/38092857906"
   ],
   "affected_commits": [
     "f7ddd2e2421c85746425d3e124cd10470e012e56"
   ],
   "recent_timestamps": [
+    "2026-10-10T23:56:44Z",
     "2026-10-10T23:39:24Z"
   ]
 }

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-10-23-56-44-000-38092857471",
+  "timestamp": "2026-10-10T23:56:44Z",
+  "run_id": "38092857471",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38092857471",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "f7ddd2e2421c85746425d3e124cd10470e012e56",
+  "pr_number": "38105",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38105",
+  "author": "Daksha1611",
+  "category": "Infrastructure",
+  "title": "Windows build job terminated mid-build with unavailable job logs",
+  "signature": "Windows build job terminated during Cmake build step with no completion status and job logs unavailable (404)|Infrastructure",
+  "signature_hash": "afb479532c52bf68",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Conditional Compilation",
+      "conclusion": "failure",
+      "symptom": "Job stopped with all steps up through \"CMake configure - CC ON\" successful; step \"Cmake build - CC ON\" (#8) left in status in_progress with no conclusion when the job completed as failure 26 minutes later. All following steps (List bin files, Run with CC-ed runtime, etc.) remained pending. No log content is retrievable for this job (GitHub Actions log API returns HTTP 404 for job 114336760389)."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregator step \"Check status of all jobs\" exited 1 solely because the upstream Conditional Compilation job failed; this job has no independent root cause."
+    }
+  ],
+  "key_errors": [
+    "Job 114336760389 (Conditional Compilation): log download failed - pre-downloaded log file contains only '(log download failed)' and the GitHub Actions logs API returns HTTP 404 for this job ID. Last recorded step 'Cmake build - CC ON' (#8) is stuck at status=in_progress with started_at=2026-10-10T23:24:57Z while the job itself has completed_at=2026-10-10T23:50:57Z and conclusion=failure (a ~26 minute gap with no further step transitions recorded).",
+    "ci/gha_overall_status_windows_cc log:\n##[group]Run exit 1\nexit 1\n##[endgroup]\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Conditional Compilation build job (aks-win-16-cores-32gb-build runner) was terminated or crashed partway through the 'Cmake build - CC ON' compilation step (started at 23:24:57, job completed/failed at 23:50:57 - a ~26 minute gap with no further step transitions), and GitHub never persisted step-level or job-level logs for it (the logs API returns HTTP 404 for this job, same as every prior occurrence of this signature). This matches the previously recorded pattern of an abrupt AKS/self-hosted Windows build-runner failure (pod/VM eviction, disk/memory exhaustion, or lost connectivity during a heavy MSVC compile) rather than a code-level compile error. The triggering merge-queue commit (PR #38105, a small Python string-parsing fix in tools/ovc) is unrelated in scope to a C++ CMake build step and does not plausibly cause a runner-level crash with zero log output. The downstream 'ci/gha_overall_status_windows_cc' failure is purely a secondary aggregation effect and carries no independent diagnostic information.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a CI runner/infrastructure-level failure on the aks-win-16-cores-32gb-build self-hosted runner pool (runner aks-win-16-cores-32gb-build-xxdhs-runner-f2djw) with no retrievable logs to pinpoint an exact command or exit code.",
+  "recommended_actions": [
+    "Re-run the failed Windows Conditional Compilation workflow (manually, since this doctor only reports) to confirm whether the failure reproduces on a fresh runner instance.",
+    "Check AKS/self-hosted runner pool health and recent infrastructure events for the aks-win-16-cores-32gb-build runner group around 2026-10-10T23:24-23:51 UTC (disk space, memory pressure, node evictions, network blips).",
+    "Escalate to CI infrastructure maintainers that job logs for 114336760389 are completely unavailable (HTTP 404) - this is now the second occurrence of this exact signature within hours (previous: job 114332803709, run 38092857906) and warrants investigating the aks-win-16-cores-32gb-build pool itself for systemic instability.",
+    "If this recurs, consider adding a disk-space / memory usage diagnostic step before heavy Windows CMake build steps to capture resource state at failure time."
+  ],
+  "prevention_strategies": "Add resource-usage monitoring (disk space, memory) around long-running Windows CMake build steps so future runner-level failures leave diagnostic evidence even if GitHub's log capture fails. Consider configuring log retention/upload checks so that a job reporting 'failure' without any captured log output triggers an automatic infrastructure alert distinct from code-caused CI failures. Given this is a repeat occurrence of the same signature within the same day, raise the AKS Windows build-runner pool's reliability as a dedicated infrastructure investigation item rather than treating each occurrence as an isolated incident.",
+  "historical_context": "Exact match (same signature_hash afb479532c52bf68) to an investigation recorded earlier the same day for run 38092857906 (Windows Release build, job 114332803709), which also failed mid-'Cmake build' step with a stuck in_progress step and HTTP 404 logs on the same aks-win-16-cores-32gb-build runner pool, for the same commit f7ddd2e2421c85746425d3e124cd10470e012e56. This is now the 2nd occurrence of this signature; the recurrence across two different Windows build workflows (Release and Conditional Compilation) for the same commit within the same hour strongly suggests a transient but recurring instability in the aks-win-16-cores-32gb-build runner pool rather than two independent incidents."
+}
