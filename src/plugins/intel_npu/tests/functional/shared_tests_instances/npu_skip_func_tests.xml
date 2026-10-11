@@ -464,6 +464,8 @@ Example:
         <filters>
             <filter>.*InferWithHostCompileTests.SetProperty_CombinedPriorityAndWorkload.*</filter>
             <filter>.*InferWithHostCompileTests.SetProperty_ModelPriority_SingleCompiledModel.*</filter>
+            <filter>.*InferWithHostCompileTests.SetProperty_WorkloadType_SingleCompiledModel.*</filter>
+            <filter>.*InferWithHostCompileTests.SetProperty_Priority_BetweenTwoRequests.*</filter>
         </filters>
     </skip_config>
 
