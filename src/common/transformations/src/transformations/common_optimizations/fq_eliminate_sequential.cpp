@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/fq_eliminate_sequential.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
@@ -36,8 +38,30 @@ bool have_same_range(const std::shared_ptr<v0::FakeQuantize>& fq, size_t lhs, si
            ov::compare_constants(fq->get_input_node_shared_ptr(lhs), fq->get_input_node_shared_ptr(rhs));
 }
 
+bool has_ordered_range(const std::shared_ptr<v0::FakeQuantize>& fq) {
+    const auto low = ov::as_type_ptr<v0::Constant>(fq->get_input_node_shared_ptr(1));
+    const auto high = ov::as_type_ptr<v0::Constant>(fq->get_input_node_shared_ptr(2));
+    if (!low || !high) {
+        return false;
+    }
+    const auto low_values = low->cast_vector<float>();
+    const auto high_values = high->cast_vector<float>();
+    const bool low_is_scalar = low_values.size() == 1;
+    const bool high_is_scalar = high_values.size() == 1;
+    if (!low_is_scalar && !high_is_scalar && low->get_shape() != high->get_shape()) {
+        return false;
+    }
+    const auto size = std::max(low_values.size(), high_values.size());
+    for (size_t i = 0; i < size; ++i) {
+        if (!(low_values[low_is_scalar ? 0 : i] <= high_values[high_is_scalar ? 0 : i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool is_idempotent(const std::shared_ptr<v0::FakeQuantize>& fq) {
-    return have_same_range(fq, 1, 3) && have_same_range(fq, 2, 4);
+    return have_same_range(fq, 1, 3) && have_same_range(fq, 2, 4) && has_ordered_range(fq);
 }
 
 bool is_per_tensor(const std::shared_ptr<v0::FakeQuantize>& fq) {

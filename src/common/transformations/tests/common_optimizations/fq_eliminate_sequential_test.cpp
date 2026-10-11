@@ -94,6 +94,7 @@ const std::vector<SequentialFqParams> sequential_fq_params = {
     {{-17.819f, 4.900f, -17.819f, 4.900f}, 256, {-17.799f, 5.124f, -17.799f, 5.124f}, 256, false, "out_of_range"},
     {{0.0f, 2.0f, -1.0f, 1.0f}, 3, {0.0f, 2.0f, -1.0f, 1.0f}, 3, false, "identical_output_range_differs_from_input"},
     {{-1.0f, 1.0f, 0.0f, 255.0f}, 256, {-1.0f, 1.0f, 0.0f, 255.0f}, 256, false, "identical_integer_output_range"},
+    {{2.0f, 0.0f, 2.0f, 0.0f}, 256, {2.0f, 0.0f, 2.0f, 0.0f}, 256, false, "identical_inverted_range"},
 };
 
 INSTANTIATE_TEST_SUITE_P(SequentialFakeQuantize,
