@@ -67,7 +67,7 @@ struct RuntimeState {
     ov::SoPtr<ov::IAsyncInferRequest> base_pipeline_request;
 
     // Profiling handles, resolved once per level / per tile kind - never per call
-    ov::npuw::perf::ms_handles perf_pyramid_levels;
+    std::vector<ov::npuw::perf::metric_ptr> perf_pyramid_levels;
     ov::npuw::perf::metric_ptr perf_hfa_tile = nullptr;
     ov::npuw::perf::metric_ptr perf_hfa_final_tile = nullptr;
     ov::npuw::perf::metric_ptr perf_hfa_host_prep = nullptr;
@@ -129,15 +129,14 @@ ov::npuw::perf::metric_ptr pyramid_perf_handle(ov::npuw::v1::subgraphs::InferCon
     const auto* pyramid =
         ov::npuw::attn::get_compiled_pyramid(get_subgraph_pipeline(ctx, ctx.real_subgraph_idx).context);
     if (state.perf_pyramid_levels.empty()) {
-        state.perf_pyramid_levels.resize(pyramid ? pyramid->_compiled_models.size() : pyramid_id + 1u);
+        state.perf_pyramid_levels.resize(pyramid ? pyramid->_compiled_models.size() : pyramid_id + 1u, nullptr);
     }
-    auto* handle = state.perf_pyramid_levels.get(pyramid_id);
+    auto& handle = state.perf_pyramid_levels.at(pyramid_id);
     if (handle == nullptr) {
         auto& request = get_request(ctx);
         const std::size_t context_length = pyramid ? pyramid->get_context_length(pyramid_id) : 0u;
         handle = request.perf_handle(
             ov::npuw::perf::tags::pyramid(request.perf_submodel_tag(ctx.subgraph_idx), pyramid_id, context_length));
-        state.perf_pyramid_levels.set(pyramid_id, handle);
     }
     return handle;
 }
@@ -457,7 +456,7 @@ void prepare_pyramid(ov::npuw::v1::subgraphs::InferContext& ctx) {
     // Publish which level this subgraph's next run should be attributed to. The generic
     // subgraph timer in IBaseInferRequest::infer() reads it, so the breakdown does not
     // depend on which dispatch path unsafe_during() picks.
-    if (ov::npuw::perf::compiled_in && request.perf_enabled()) {
+    if (request.perf_enabled()) {
         request.set_perf_attribution(ctx.real_subgraph_idx, pyramid_perf_handle(ctx, state, pyramid_id));
     }
 }
@@ -1221,8 +1220,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // Tiles of one call all have the same shape, so a single handle per
                         // kind is enough. Resolved once, then read as a plain pointer.
                         auto& perf_request = get_request(ctx);
-                        if (ov::npuw::perf::compiled_in && perf_request.perf_enabled() &&
-                            state.perf_hfa_tile == nullptr) {
+                        if (perf_request.perf_enabled() && state.perf_hfa_tile == nullptr) {
                             const std::string submodel_tag = perf_request.perf_submodel_tag(ctx.subgraph_idx);
                             state.perf_hfa_tile =
                                 perf_request.perf_handle(ov::npuw::perf::tags::hfa_tile(submodel_tag, past_tile_size));

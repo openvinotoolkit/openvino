@@ -87,8 +87,9 @@ public:
         return needs_copy(idx);
     }
 
+    // Constant false in a non-debug-caps build, so the guarded paths fold away
     bool perf_enabled() const {
-        return m_perf_on;
+        return ov::npuw::perf::compiled_in && m_perf_on;
     }
 
     // Resolves (and caches) the profiling tag of a submodel. Attention sub-entries
@@ -237,11 +238,11 @@ protected:
 
     // Per-submodel profiling handles/tags, indexed by the _real_ submodel id (so all
     // calls of the same function body accumulate under a single entry). Built lazily.
-    ov::npuw::perf::tag_cache m_perf_submodel_tags;
-    ov::npuw::perf::tag_cache m_perf_device_tags;
-    ov::npuw::perf::ms_handles m_perf_submodel;
-    ov::npuw::perf::ms_handles m_perf_device;
-    ov::npuw::perf::ms_handles m_perf_attribution;
+    std::vector<std::string> m_perf_submodel_tags;
+    std::vector<std::string> m_perf_device_tags;
+    std::vector<ov::npuw::perf::metric_ptr> m_perf_submodel;
+    std::vector<ov::npuw::perf::metric_ptr> m_perf_device;
+    std::vector<ov::npuw::perf::metric_ptr> m_perf_attribution;
 
     ov::npuw::perf::metric_ptr perf_submodel_handle(std::size_t idx);
     ov::npuw::perf::metric_ptr perf_device_handle(std::size_t idx);

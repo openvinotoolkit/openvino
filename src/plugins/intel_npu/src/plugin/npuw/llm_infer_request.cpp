@@ -1751,8 +1751,7 @@ void ov::npuw::LLMInferRequest::infer() {
     // NB: num_stored_tokens cannot be used here - prepare_for_new_conversation() zeroes it
     // *during* the prefill, so at this point it still holds the previous conversation's value.
     // Snapshot only: all formatting happens once, at destruction.
-    if (ov::npuw::perf::compiled_in && m_llm_perf_on &&
-        position_ids->data<int64_t>()[0] == m_first_position_id) {
+    if (m_llm_perf_on && position_ids->data<int64_t>()[0] == m_first_position_id) {
         ov::npuw::perf::snapshot_and_reset_all(ov::npuw::perf::Scope::Execution);
     }
 

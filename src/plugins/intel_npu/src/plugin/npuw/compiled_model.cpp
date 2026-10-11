@@ -2207,7 +2207,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             OPENVINO_ASSERT(locked_model, "Failsafe factory: ov::Model was released before recompilation");
             ov::SoPtr<ov::ICompiledModel> compiled;
             // FIXME: Concurrent write access to the profile map, if compiled in parallel
-            m_profile["compile/" + device + profile_suffix].record([&]() {
+            m_profile.record("compile/" + device + profile_suffix, [&]() {
                 compiled = compile_submodel(locked_model, device);
             });
             return compiled;

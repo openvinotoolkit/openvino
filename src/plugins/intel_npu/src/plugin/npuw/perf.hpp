@@ -17,7 +17,6 @@
 #include <ostream>
 #include <string>
 #include <thread>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -28,8 +27,8 @@ namespace npuw {
 namespace perf {
 
 // Whether the instrumentation is compiled in at all. In a non-debug-caps build the
-// whole framework degrades to empty types with constexpr no-op methods, so neither
-// the profile members nor the call sites cost anything (see NoProfile/NoMetric below).
+// types stay (small per-object footprint), but the hot methods below fold to the
+// plain body at compile time. Call sites check only the runtime flag.
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
 constexpr bool compiled_in = true;
 #else
@@ -128,8 +127,10 @@ inline void print_label(std::ostream& os, const std::string& label, int width) {
     os << std::left << std::setw(std::max(10, width)) << label;
 }
 
+}  // namespace detail
+
 template <typename U>
-class Metric {
+class metric {
     using T = typename U::type_t;
 
 private:
@@ -144,18 +145,18 @@ public:
     using unit_t = U;
     using value_t = T;
 
-    Metric() = default;
-    Metric(Metric&& m)
+    metric() = default;
+    metric(metric&& m)
         : records(std::move(m.records)),
           vmin(m.vmin),
           vmax(m.vmax),
           total(m.total),
           name(std::move(m.name)),
           enabled(m.enabled) {}
-    Metric(const Metric&) = delete;
-    Metric& operator=(const Metric&) = delete;
+    metric(const metric&) = delete;
+    metric& operator=(const metric&) = delete;
 
-    explicit Metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
+    explicit metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
     void enable() {
         enabled = true;
@@ -218,8 +219,8 @@ public:
     }
 
     // Moves the collected samples out, leaving this metric live but empty
-    Metric take() {
-        Metric out(name, enabled);
+    metric take() {
+        metric out(name, enabled);
         out.records = std::move(records);
         out.vmin = vmin;
         out.vmax = vmax;
@@ -256,7 +257,7 @@ public:
         format_guard fmt(os);
 
         const char* units = U::name;
-        print_label(os, label.empty() ? std::string("<unnamed timer>") : label, width);
+        detail::print_label(os, label.empty() ? std::string("<unnamed timer>") : label, width);
         if (!enabled) {
             os << "[ disabled ]";
             return;
@@ -275,14 +276,14 @@ public:
         }
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const Metric<U>& m) {
+    friend std::ostream& operator<<(std::ostream& os, const metric<U>& m) {
         m.print(os, m.name);
         return os;
     }
 };
 
 template <typename U>
-class Counter {
+class counter {
 public:
     using unit_t = U;
     using T = typename U::type_t;
@@ -295,12 +296,12 @@ private:
     bool enabled = false;
 
 public:
-    Counter() = default;
-    Counter(Counter&& c) : total(c.total), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {}
-    Counter(const Counter&) = delete;
-    Counter& operator=(const Counter&) = delete;
+    counter() = default;
+    counter(counter&& c) : total(c.total), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {}
+    counter(const counter&) = delete;
+    counter& operator=(const counter&) = delete;
 
-    explicit Counter(const std::string& named, bool active = false) : name(named), enabled(active) {}
+    explicit counter(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
     void enable() {
         enabled = true;
@@ -314,7 +315,7 @@ public:
         return name;
     }
 
-    // NB: by value - see the note in Metric::operator+=
+    // NB: by value - see the note in metric::operator+=
     void operator+=(T t) {
         if (enabled) {
             total += t;
@@ -347,8 +348,8 @@ public:
         calls = 0;
     }
 
-    Counter take() {
-        Counter out(name, enabled);
+    counter take() {
+        counter out(name, enabled);
         out.total = total;
         out.calls = calls;
         reset();
@@ -359,7 +360,7 @@ public:
         format_guard fmt(os);
 
         const char* units = U::name;
-        print_label(os, label.empty() ? std::string("<unnamed counter>") : label, width);
+        detail::print_label(os, label.empty() ? std::string("<unnamed counter>") : label, width);
         if (!enabled) {
             os << "[ disabled ]";
             return;
@@ -367,93 +368,14 @@ public:
         os << "[ " << sum_f() << " " << units << " total in " << calls << " records ]";
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const Counter<U>& c) {
+    friend std::ostream& operator<<(std::ostream& os, const counter<U>& c) {
         c.print(os, c.name);
         return os;
     }
 };
 
-// Disabled-build counterparts. Empty types with constexpr no-op methods, so a
-// non-debug-caps build has neither storage nor call-site code.
-template <typename U>
-class NoMetric {
-public:
-    using unit_t = U;
-    using T = typename U::type_t;
-    using value_t = T;
-
-    constexpr NoMetric() = default;
-    constexpr explicit NoMetric(const std::string&, bool = false) {}
-
-    constexpr void enable() const noexcept {}
-    constexpr bool is_enabled() const noexcept {
-        return false;
-    }
-    constexpr void operator+=(T) const noexcept {}
-    constexpr void add(T) const noexcept {}
-    constexpr bool has_samples() const noexcept {
-        return false;
-    }
-    constexpr std::size_t count() const noexcept {
-        return 0u;
-    }
-    constexpr T sum() const noexcept {
-        return T(0);
-    }
-    constexpr float sum_f() const noexcept {
-        return 0.f;
-    }
-    constexpr void reset() const noexcept {}
-
-    template <typename F>
-    void record(F&& f) const {
-        f();
-    }
-};
-
-// Swallows any assignment - used for the fields of a compiled-out profile
-struct sink {
-    template <typename T>
-    constexpr const sink& operator=(T&&) const noexcept {
-        return *this;
-    }
-};
-
 template <class M>
-struct NoProfile {
-    using metric_t = M;
-
-    sink area;
-    sink report_on_die;
-    sink profile_scope;
-    sink children_overlap;
-
-    NoProfile() = default;
-    NoProfile(const NoProfile&) = delete;
-    NoProfile& operator=(const NoProfile&) = delete;
-
-    M& operator[](const std::string&) const {
-        static M dummy;
-        return dummy;
-    }
-    constexpr M* handle(const std::string&) const noexcept {
-        return nullptr;
-    }
-    template <typename F>
-    void record(const char*, F&& f) const {
-        f();
-    }
-    constexpr void reset() const noexcept {}
-    constexpr void snapshot_and_reset() const noexcept {}
-    constexpr void snapshot_and_reset(std::size_t) const noexcept {}
-    constexpr bool has_samples() const noexcept {
-        return false;
-    }
-    void report(std::ostream& = std::cout) const noexcept {}
-};
-
-template <class M>
-struct RealProfile : public IProfile {
+struct Profile : public IProfile {
     using metric_t = M;
 
     struct Snapshot {
@@ -479,14 +401,16 @@ struct RealProfile : public IProfile {
     // (async funcall pipelining) - then no residual row is meaningful there.
     bool children_overlap = false;
 
-    RealProfile() {
-        register_profile(this);
-        // A profile created mid-session (e.g. a lazily compiled generate variant) must
-        // still label its first run with the id everybody else is on
-        m_run_index = current_run_index();
+    Profile() {
+        if constexpr (compiled_in) {
+            register_profile(this);
+            // A profile created mid-session (e.g. a lazily compiled generate variant) must
+            // still label its first run with the id everybody else is on
+            m_run_index = current_run_index();
+        }
     }
-    RealProfile(const RealProfile&) = delete;
-    RealProfile& operator=(const RealProfile&) = delete;
+    Profile(const Profile&) = delete;
+    Profile& operator=(const Profile&) = delete;
 
     Scope scope() const override {
         return profile_scope;
@@ -501,18 +425,18 @@ struct RealProfile : public IProfile {
     // are stable across inserts and across reset(), so the handle stays valid for
     // the profile's lifetime.
     M* handle(const std::string& tag) {
-        if (!report_on_die) {
+        if (!enabled()) {
             return nullptr;
         }
         return &ensure(tag);
     }
 
     // Gated stage timing for call sites that cannot pre-resolve a handle. When the
-    // profile is disabled the body still runs, but no tag string is built and no
-    // map lookup happens.
-    template <typename F>
-    void record(const char* tag, F&& f) {
-        if (!report_on_die) {
+    // profile is disabled the body still runs and no map lookup happens. A tag that
+    // the caller builds (not a literal) is still built.
+    template <typename Tag, typename F>
+    void record(const Tag& tag, F&& f) {
+        if (!enabled()) {
             f();
             return;
         }
@@ -586,20 +510,27 @@ struct RealProfile : public IProfile {
         }
     }
 
-    ~RealProfile() {
-        unregister_profile(this);
-        if (report_on_die) {
-            try {
-                // avg() & others may throw exceptions if
-                // enabled behavior is broken
-                report();
-            } catch (...) {
+    ~Profile() {
+        if constexpr (compiled_in) {
+            unregister_profile(this);
+            if (report_on_die) {
+                try {
+                    // avg() & others may throw exceptions if
+                    // enabled behavior is broken
+                    report();
+                } catch (...) {
+                }
             }
         }
     }
 
 private:
     std::size_t m_run_index = 0u;
+
+    // Constant false in a non-debug-caps build, so the guarded paths fold away
+    bool enabled() const {
+        return compiled_in && report_on_die;
+    }
 #ifndef NDEBUG
     // I1: a profile is only ever written by the thread that executes the corresponding
     // subgraph. Caught here rather than by silent map corruption later.
@@ -706,7 +637,7 @@ private:
             const int indent = rows[i].indent + 1;
             if (overlap_hint && rows[i].indent == 0) {
                 os << pad(indent);
-                print_label(os, "(overlapped)", 44 - indent * 2);
+                detail::print_label(os, "(overlapped)", 44 - indent * 2);
                 os << "[ children run concurrently - residual is not meaningful ]" << std::endl;
                 return;
             }
@@ -714,11 +645,11 @@ private:
             const float tol = std::max(0.05f, 0.001f * std::fabs(rows[i].total));
             if (residual > tol) {
                 os << pad(indent);
-                print_label(os, "(unattributed)", 44 - indent * 2);
+                detail::print_label(os, "(unattributed)", 44 - indent * 2);
                 os << "[ total = " << residual << " ms ]" << std::endl;
             } else if (residual < -tol) {
                 os << pad(indent);
-                print_label(os, "(overlapped)", 44 - indent * 2);
+                detail::print_label(os, "(overlapped)", 44 - indent * 2);
                 os << "[ children overlap - residual is not meaningful ]" << std::endl;
             }
             // within tolerance: timing noise, nothing to report
@@ -750,99 +681,25 @@ private:
     }
 };
 
-// Per-index handle caches. Empty in a non-debug-caps build.
-template <class M>
-struct RealHandles {
-    std::vector<M*> v;
-
-    void resize(std::size_t n) {
-        v.assign(n, nullptr);
-    }
-    void clear() {
-        std::fill(v.begin(), v.end(), nullptr);
-    }
-    void set(std::size_t i, M* m) {
-        v[i] = m;
-    }
-    M* get(std::size_t i) const {
-        return v[i];
-    }
-    bool empty() const {
-        return v.empty();
-    }
-};
-
-template <class M>
-struct NoHandles {
-    constexpr void resize(std::size_t) const noexcept {}
-    constexpr void clear() const noexcept {}
-    constexpr void set(std::size_t, M*) const noexcept {}
-    constexpr M* get(std::size_t) const noexcept {
-        return nullptr;
-    }
-    constexpr bool empty() const noexcept {
-        return true;
-    }
-};
-
-// Per-index tag caches - a tag string is built at most once per index, never on
-// the measured path. Empty in a non-debug-caps build.
-struct RealTags {
-    std::vector<std::string> v;
-
-    void resize(std::size_t n) {
-        v.resize(n);
-    }
-    std::string& at(std::size_t i) {
-        return v[i];
-    }
-};
-
-struct NoTags {
-    constexpr void resize(std::size_t) const noexcept {}
-    std::string& at(std::size_t) const {
-        static std::string none;
-        return none;
-    }
-};
-
-}  // namespace detail
-
-template <typename U>
-using metric = std::conditional_t<compiled_in, detail::Metric<U>, detail::NoMetric<U>>;
-
-template <typename U>
-using counter = std::conditional_t<compiled_in, detail::Counter<U>, detail::NoMetric<U>>;
-
-template <class M>
-using Profile = std::conditional_t<compiled_in, detail::RealProfile<M>, detail::NoProfile<M>>;
-
-template <class M>
-using handles = std::conditional_t<compiled_in, detail::RealHandles<M>, detail::NoHandles<M>>;
-
-using tag_cache = std::conditional_t<compiled_in, detail::RealTags, detail::NoTags>;
-
 using ms_metric = metric<MSec>;
 using metric_ptr = ms_metric*;
-using ms_handles = handles<ms_metric>;
-
-namespace detail {
 
 // Allocation-free RAII timer. A null handle makes it inert: no clock is read at all,
-// which is the one predictable branch the disabled path is allowed to pay.
-class RealSample {
+// which is the one predictable branch the disabled path is allowed to pay. In a
+// non-debug-caps build it is always inert and the branch folds away.
+class sample {
 public:
-    explicit RealSample(ms_metric* m) noexcept
-        : m_metric(m),
-          m_start(m ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{}) {}
+    explicit sample(ms_metric* m) noexcept
+        : m_metric(compiled_in ? m : nullptr),
+          m_start(active() ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{}) {}
 
-    RealSample(const RealSample&) = delete;
-    RealSample& operator=(const RealSample&) = delete;
-    RealSample(RealSample&&) = delete;
-    RealSample& operator=(RealSample&&) = delete;
+    sample(const sample&) = delete;
+    sample& operator=(const sample&) = delete;
+    sample(sample&&) = delete;
+    sample& operator=(sample&&) = delete;
 
     float elapsed_ms() const noexcept {
-        if (!m_metric) {
+        if (!active()) {
             return 0.f;
         }
         if (m_stopped) {
@@ -857,7 +714,7 @@ public:
     // a body that throws unwinds past it, so a failed run adds no sample and the
     // record count stays "number of successful runs".
     float commit() noexcept {
-        if (!m_metric) {
+        if (!active()) {
             return 0.f;
         }
         if (!m_stopped) {
@@ -872,8 +729,8 @@ public:
         m_commit = false;
     }
 
-    ~RealSample() noexcept {
-        if (m_commit && m_metric) {
+    ~sample() noexcept {
+        if (m_commit && active()) {
             // Recording allocates; a failure here must not turn optional profiling
             // into a std::terminate out of a noexcept destructor.
             try {
@@ -884,34 +741,16 @@ public:
     }
 
 private:
+    bool active() const noexcept {
+        return compiled_in && m_metric != nullptr;
+    }
+
     ms_metric* m_metric = nullptr;
     std::chrono::steady_clock::time_point m_start;
     float m_elapsed = 0.f;
     bool m_stopped = false;
     bool m_commit = false;
 };
-
-class NoSample {
-public:
-    constexpr explicit NoSample(ms_metric*) noexcept {}
-
-    NoSample(const NoSample&) = delete;
-    NoSample& operator=(const NoSample&) = delete;
-    NoSample(NoSample&&) = delete;
-    NoSample& operator=(NoSample&&) = delete;
-
-    constexpr float elapsed_ms() const noexcept {
-        return 0.f;
-    }
-    constexpr float commit() const noexcept {
-        return 0.f;
-    }
-    constexpr void discard() const noexcept {}
-};
-
-}  // namespace detail
-
-using sample = std::conditional_t<compiled_in, detail::RealSample, detail::NoSample>;
 
 }  // namespace perf
 }  // namespace npuw

@@ -106,7 +106,7 @@ void ov::npuw::UnfoldInferRequest::infer() {
     using clock = std::chrono::steady_clock;
     // Note: in the async mode subrequests of one group run overlapped, so their individual
     // times overlap as well
-    const bool do_profile = ov::npuw::perf::compiled_in && m_perf_on;
+    const bool do_profile = perf_enabled();
     auto record = [&](std::size_t idx, clock::time_point started) {
         if (!do_profile) {
             return;
