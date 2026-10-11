@@ -126,19 +126,20 @@ RuntimeState& get_runtime_state(ov::npuw::v1::subgraphs::InferContext& ctx) {
 ov::npuw::perf::metric_ptr pyramid_perf_handle(ov::npuw::v1::subgraphs::InferContext& ctx,
                                                RuntimeState& state,
                                                std::size_t pyramid_id) {
+    auto& request = get_request(ctx);
+    if (!request.perf().execution.enabled()) {
+        return nullptr;
+    }
     const auto* pyramid =
         ov::npuw::attn::get_compiled_pyramid(get_subgraph_pipeline(ctx, ctx.real_subgraph_idx).context);
     if (state.perf_pyramid_levels.empty()) {
         state.perf_pyramid_levels.resize(pyramid ? pyramid->_compiled_models.size() : pyramid_id + 1u, nullptr);
     }
     auto& handle = state.perf_pyramid_levels.at(pyramid_id);
-    if (handle == nullptr) {
-        auto& request = get_request(ctx);
+    return request.perf().handle(handle, [&]() {
         const std::size_t context_length = pyramid ? pyramid->get_context_length(pyramid_id) : 0u;
-        handle = request.perf_handle(
-            ov::npuw::perf::tags::pyramid(request.perf_submodel_tag(ctx.subgraph_idx), pyramid_id, context_length));
-    }
-    return handle;
+        return ov::npuw::perf::tags::pyramid(request.perf_submodel_tag(ctx.subgraph_idx), pyramid_id, context_length);
+    });
 }
 
 BehaviorIO& get_behavior_io(RuntimeState& state,
@@ -456,9 +457,7 @@ void prepare_pyramid(ov::npuw::v1::subgraphs::InferContext& ctx) {
     // Publish which level this subgraph's next run should be attributed to. The generic
     // subgraph timer in IBaseInferRequest::infer() reads it, so the breakdown does not
     // depend on which dispatch path unsafe_during() picks.
-    if (request.perf_enabled()) {
-        request.set_perf_attribution(ctx.real_subgraph_idx, pyramid_perf_handle(ctx, state, pyramid_id));
-    }
+    request.set_perf_attribution(ctx.real_subgraph_idx, pyramid_perf_handle(ctx, state, pyramid_id));
 }
 
 void prepare_hfa(ov::npuw::v1::subgraphs::InferContext& ctx) {
@@ -1220,15 +1219,18 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // Tiles of one call all have the same shape, so a single handle per
                         // kind is enough. Resolved once, then read as a plain pointer.
                         auto& perf_request = get_request(ctx);
-                        if (perf_request.perf_enabled() && state.perf_hfa_tile == nullptr) {
-                            const std::string submodel_tag = perf_request.perf_submodel_tag(ctx.subgraph_idx);
-                            state.perf_hfa_tile =
-                                perf_request.perf_handle(ov::npuw::perf::tags::hfa_tile(submodel_tag, past_tile_size));
-                            state.perf_hfa_final_tile =
-                                perf_request.perf_handle(ov::npuw::perf::tags::hfa_final_tile(submodel_tag));
-                            state.perf_hfa_host_prep =
-                                perf_request.perf_handle(ov::npuw::perf::tags::hfa_host_prep(submodel_tag));
-                        }
+                        state.perf_hfa_tile = perf_request.perf().handle(state.perf_hfa_tile, [&]() {
+                            return ov::npuw::perf::tags::hfa_tile(perf_request.perf_submodel_tag(ctx.subgraph_idx),
+                                                                  past_tile_size);
+                        });
+                        state.perf_hfa_final_tile = perf_request.perf().handle(state.perf_hfa_final_tile, [&]() {
+                            return ov::npuw::perf::tags::hfa_final_tile(
+                                perf_request.perf_submodel_tag(ctx.subgraph_idx));
+                        });
+                        state.perf_hfa_host_prep = perf_request.perf().handle(state.perf_hfa_host_prep, [&]() {
+                            return ov::npuw::perf::tags::hfa_host_prep(
+                                perf_request.perf_submodel_tag(ctx.subgraph_idx));
+                        });
 
                         // For the fused hfa, the regular tile model has no mask input (6 inputs)
                         const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;

@@ -125,7 +125,6 @@ ov::npuw::batched::InferRequest::InferRequest(const std::shared_ptr<const ov::IC
       m_inner(std::move(inner_request)) {
     OPENVINO_ASSERT(m_inner != nullptr, "Batched element requires a non-null inner request");
 
-    m_profile.report_on_die = ov::npuw::profiling_enabled();
     m_profile.area = "batched/execution";
 
     // The stacked outputs are allocated through the compiled model's context when

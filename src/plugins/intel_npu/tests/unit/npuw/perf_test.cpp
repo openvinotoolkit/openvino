@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "perf.hpp"
+
 #include <gtest/gtest.h>
 
 #include <sstream>
@@ -9,7 +11,6 @@
 #include <string>
 #include <type_traits>
 
-#include "perf.hpp"
 #include "perf_tags.hpp"
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -19,21 +20,18 @@ namespace {
 namespace perf = ov::npuw::perf;
 
 using MS = perf::metric<perf::MSec>;
-using MB = perf::counter<perf::Bytes>;
+using MB = perf::metric<perf::Bytes>;
 
 constexpr auto npos = std::string::npos;
 
-// report_on_die doubles as the "enabled" marker. Tests want collection without the
-// destruction-time printout, so the flag is dropped before the profile dies.
 class ScopedProfile {
 public:
-    explicit ScopedProfile(const std::string& area = "test", perf::Scope scope = perf::Scope::Execution) {
+    explicit ScopedProfile(const std::string& area = "test", perf::Scope scope = perf::Scope::Execution)
+        : m_profile(scope, true) {
         m_profile.area = area;
-        m_profile.report_on_die = true;
-        m_profile.profile_scope = scope;
     }
     ~ScopedProfile() {
-        m_profile.report_on_die = false;
+        m_profile.enable(false);
     }
 
     perf::Profile<MS>* operator->() {
@@ -49,14 +47,14 @@ private:
 
 std::string to_string(const MS& m) {
     std::ostringstream os;
-    os << m;
+    m.print(os, "tag");
     return os.str();
 }
 
 }  // namespace
 
 TEST(NpuwPerfMetric, CollectsStatistics) {
-    MS m("tag", true);
+    MS m;
     m.add(1.0f);
     m.add(3.0f);
     m.add(2.0f);
@@ -70,23 +68,13 @@ TEST(NpuwPerfMetric, CollectsStatistics) {
     EXPECT_FLOAT_EQ(1.0f, m.samples()[0]);
 }
 
-TEST(NpuwPerfMetric, DisabledRecordsNothing) {
-    MS m("tag");
-    m.add(1.0f);
-    m += 2.0f;
-
-    EXPECT_FALSE(m.has_samples());
-    EXPECT_EQ(0u, m.count());
-    EXPECT_NE(npos, to_string(m).find("[ disabled ]"));
-}
-
 TEST(NpuwPerfMetric, EmptyPrintsNoData) {
-    MS m("tag", true);
+    MS m;
     EXPECT_NE(npos, to_string(m).find("[ no data ]"));
 }
 
 TEST(NpuwPerfMetric, MoveKeepsStatistics) {
-    MS src("tag", true);
+    MS src;
     src.add(1.0f);
     src.add(5.0f);
 
@@ -99,24 +87,14 @@ TEST(NpuwPerfMetric, MoveKeepsStatistics) {
 
 TEST(NpuwPerfMetric, MaxHandlesNegativeSamples) {
     // vmax must start at lowest(), not min() (which is the smallest _positive_ float)
-    MS m("tag", true);
+    MS m;
     m.add(-3.0f);
     m.add(-1.0f);
     EXPECT_NE(npos, to_string(m).find("-3..-1"));
 }
 
-TEST(NpuwPerfMetric, RecordRunsTheBodyWhenDisabled) {
-    MS m("tag");
-    bool ran = false;
-    m.record([&]() {
-        ran = true;
-    });
-    EXPECT_TRUE(ran);
-    EXPECT_FALSE(m.has_samples());
-}
-
-TEST(NpuwPerfMetric, CounterHasSamples) {
-    MB c("dev", true);
+TEST(NpuwPerfMetric, BytesHasSamples) {
+    MB c;
     EXPECT_FALSE(c.has_samples());
     c.add(1024u * 1024u);
     EXPECT_TRUE(c.has_samples());
@@ -151,7 +129,7 @@ TEST(NpuwPerfProfile, HandleIsStableAndUnique) {
 }
 
 TEST(NpuwPerfProfile, HandleIsNullWhenDisabled) {
-    perf::Profile<MS> p;  // report_on_die stays false
+    perf::Profile<MS> p(perf::Scope::Execution, false);
     p.area = "disabled";
     EXPECT_EQ(nullptr, p.handle("a"));
     EXPECT_FALSE(p.has_samples());
@@ -238,7 +216,7 @@ TEST(NpuwPerfProfile, RunIdIsSharedAcrossProfiles) {
 }
 
 TEST(NpuwPerfProfile, DisabledProfileDoesNotAllocateEntries) {
-    perf::Profile<MS> p;  // report_on_die stays false
+    perf::Profile<MS> p(perf::Scope::Execution, false);
     p.area = "disabled";
 
     bool ran = false;
@@ -354,6 +332,47 @@ TEST(NpuwPerfSample, NullHandleIsInert) {
     EXPECT_FLOAT_EQ(0.0f, s.commit());
 }
 
+TEST(NpuwPerfSample, MovingTransfersThePendingCommit) {
+    ScopedProfile p;
+    auto* a = p->handle("a");
+    {
+        perf::sample from(a);
+        perf::sample to(std::move(from));
+        EXPECT_FLOAT_EQ(0.0f, from.commit());
+        to.commit();
+    }
+    EXPECT_EQ(1u, a->count());
+}
+
+TEST(NpuwPerfProfile, AddIsGated) {
+    perf::Profile<MS> p(perf::Scope::Execution, false);
+    p.add("tag", 1.f);
+    EXPECT_TRUE(p.metrics.empty());
+    p.enable(true);
+    p.add("tag", 2.f);
+    EXPECT_EQ(1u, p.metrics.size());
+    EXPECT_FLOAT_EQ(2.f, p.metrics.at("tag").sum());
+    p.enable(false);
+}
+
+TEST(NpuwPerfProfile, LazyHandleBuildsTagOnlyOnceWhenEnabled) {
+    perf::Profile<MS> p(perf::Scope::Execution, false);
+    perf::metric_ptr cached = nullptr;
+    int calls = 0;
+    auto make_tag = [&]() {
+        ++calls;
+        return std::string("tag");
+    };
+    EXPECT_EQ(nullptr, p.handle_lazy(cached, make_tag));
+    EXPECT_EQ(0, calls);
+    p.enable(true);
+    auto* first = p.handle_lazy(cached, make_tag);
+    ASSERT_NE(nullptr, first);
+    EXPECT_EQ(first, p.handle_lazy(cached, make_tag));
+    EXPECT_EQ(1, calls);
+    p.enable(false);
+}
+
 TEST(NpuwPerfSample, ExceptionUnwindingRecordsNothing) {
     ScopedProfile p;
     auto* a = p->handle("a");
@@ -379,9 +398,9 @@ TEST(NpuwPerfSample, ExceptionUnwindingRecordsNothing) {
     EXPECT_EQ(1u, a->count());
 }
 
-TEST(NpuwPerfSample, IsNeitherCopyableNorMovable) {
+TEST(NpuwPerfSample, IsNotCopyableButMovable) {
     static_assert(!std::is_copy_constructible<perf::sample>::value, "sample must not be copyable");
-    static_assert(!std::is_move_constructible<perf::sample>::value, "sample must not be movable");
+    static_assert(std::is_move_constructible<perf::sample>::value, "sample must be movable");
     static_assert(!std::is_copy_assignable<perf::sample>::value, "sample must not be copy-assignable");
     static_assert(!std::is_move_assignable<perf::sample>::value, "sample must not be move-assignable");
     SUCCEED();

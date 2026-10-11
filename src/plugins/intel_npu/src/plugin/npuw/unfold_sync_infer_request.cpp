@@ -4,8 +4,6 @@
 
 #include "unfold_sync_infer_request.hpp"
 
-#include <chrono>
-
 #include "attn/attn_subgraph.hpp"
 #include "compiled_model.hpp"
 #include "logging.hpp"
@@ -93,7 +91,7 @@ void ov::npuw::UnfoldInferRequest::infer() {
     const bool do_async = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     // In the async mode subrequests of one group are in flight at once, so their
     // individual intervals genuinely overlap and no residual row is meaningful
-    m_profile.children_overlap = do_async;
+    m_perf.execution.children_overlap = do_async;
 
     auto prepare = [&](std::size_t idx) {
         if (idx >= m_subrequests.size()) {
@@ -103,34 +101,18 @@ void ov::npuw::UnfoldInferRequest::infer() {
         bind_global_results(idx, m_subrequests[idx]);
     };
 
-    using clock = std::chrono::steady_clock;
     // Note: in the async mode subrequests of one group run overlapped, so their individual
     // times overlap as well
-    const bool do_profile = perf_enabled();
-    auto record = [&](std::size_t idx, clock::time_point started) {
-        if (!do_profile) {
-            return;
-        }
-        const auto elapsed =
-            std::chrono::duration_cast<std::chrono::microseconds>(clock::now() - started).count() / 1000.0f;
-        if (auto* device = perf_device_handle(idx)) {
-            device->add(elapsed);
-        }
-        if (auto* submodel = perf_submodel_handle(idx)) {
-            submodel->add(elapsed);
-        }
-    };
-
     // A submitted subrequest pending its wait(): request + submodel id + submission time
     struct Pending {
         RqPtr rq;
         std::size_t idx;
-        clock::time_point started;
+        ov::npuw::perf::sample timer;
     };
     auto wait_and_clear = [&](std::vector<Pending>& pending) {
         for (auto&& p : pending) {
             p.rq->wait();
-            record(p.idx, p.started);
+            perf_record_unfold(p.idx, p.timer);
         }
         pending.clear();
     };
@@ -155,9 +137,9 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 wait_and_clear(previous_requests);
                 past_repl_id = this_repl_id;
             }
-            const auto started = do_profile ? clock::now() : clock::time_point{};
+            ov::npuw::perf::sample timer(perf_device_handle(idx));
             subr->start_async();
-            previous_requests.push_back(Pending{subr, idx, started});
+            previous_requests.push_back(Pending{subr, idx, std::move(timer)});
             prepare(idx + 1);
         }
         wait_and_clear(previous_requests);
@@ -169,11 +151,11 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 prepare(idx + 1);
                 continue;
             }
-            const auto started = do_profile ? clock::now() : clock::time_point{};
+            ov::npuw::perf::sample timer(perf_device_handle(idx));
             subr->start_async();
             prepare(idx + 1);
             subr->wait();
-            record(idx, started);
+            perf_record_unfold(idx, timer);
         }
     }  // (async)
 }

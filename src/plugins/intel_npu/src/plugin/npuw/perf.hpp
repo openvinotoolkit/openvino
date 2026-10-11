@@ -28,12 +28,16 @@ namespace perf {
 
 // Whether the instrumentation is compiled in at all. In a non-debug-caps build the
 // types stay (small per-object footprint), but the hot methods below fold to the
-// plain body at compile time. Call sites check only the runtime flag.
+// plain body at compile time. Helpers check the flag before resolving tags.
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
 constexpr bool compiled_in = true;
 #else
 constexpr bool compiled_in = false;
 #endif
+
+inline bool enabled_by_default() {
+    return compiled_in && ov::npuw::profiling_enabled();
+}
 
 class format_guard {
 public:
@@ -51,16 +55,6 @@ private:
     std::ios m_state;
     std::ostream& m_os;
 };
-
-// Templated on purpose: no std::function is constructed on the measured path.
-template <typename F>
-float ms_to_run(F&& body) {
-    namespace khr = std::chrono;
-    const auto s = khr::steady_clock::now();
-    body();
-    const auto f = khr::steady_clock::now();
-    return khr::duration_cast<khr::microseconds>(f - s).count() / 1000.0f;
-}
 
 // What a profile measures - decides whether a run boundary may drop its samples.
 enum class Scope {
@@ -105,11 +99,6 @@ struct MSec {
     constexpr static bool timing = true;
 
     using type_t = float;
-
-    template <typename F>
-    static type_t sample(F&& body) {
-        return ms_to_run(std::forward<F>(body));
-    }
 };
 
 struct Bytes {
@@ -138,44 +127,19 @@ private:
     T vmin = std::numeric_limits<T>::max();
     T vmax = std::numeric_limits<T>::lowest();
     T total = T(0);
-    std::string name;
-    bool enabled = false;
 
 public:
     using unit_t = U;
     using value_t = T;
 
     metric() = default;
-    metric(metric&& m)
-        : records(std::move(m.records)),
-          vmin(m.vmin),
-          vmax(m.vmax),
-          total(m.total),
-          name(std::move(m.name)),
-          enabled(m.enabled) {}
+    metric(metric&& m) : records(std::move(m.records)), vmin(m.vmin), vmax(m.vmax), total(m.total) {}
     metric(const metric&) = delete;
     metric& operator=(const metric&) = delete;
-
-    explicit metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
-
-    void enable() {
-        enabled = true;
-    }
-
-    bool is_enabled() const {
-        return enabled;
-    }
-
-    const std::string& tag() const {
-        return name;
-    }
 
     // NB: T is taken by value on purpose - an rvalue reference parameter breaks on MSVC,
     // which treats the functional cast float(x) as an lvalue (C2679).
     void operator+=(T t) {
-        if (!enabled) {
-            return;
-        }
         if (records.empty()) {
             records.reserve(64);
         }
@@ -203,7 +167,11 @@ public:
     }
 
     float sum_f() const {
-        return static_cast<float>(total);
+        if constexpr (U::timing) {
+            return static_cast<float>(total);
+        } else {
+            return static_cast<float>(total) / U::scaler;
+        }
     }
 
     // Test-only: inspect the collected samples before any formatting happens
@@ -220,7 +188,7 @@ public:
 
     // Moves the collected samples out, leaving this metric live but empty
     metric take() {
-        metric out(name, enabled);
+        metric out;
         out.records = std::move(records);
         out.vmin = vmin;
         out.vmax = vmax;
@@ -230,7 +198,6 @@ public:
     }
 
     float avg() const {
-        NPUW_ASSERT(enabled);
         if (records.empty()) {
             return 0.f;
         }
@@ -238,7 +205,6 @@ public:
     }
 
     T med() const {
-        NPUW_ASSERT(enabled);
         std::vector<T> cpy(records);
         std::nth_element(cpy.begin(), cpy.begin() + cpy.size() / 2, cpy.end());
         return cpy[cpy.size() / 2];
@@ -246,11 +212,11 @@ public:
 
     template <typename F>
     void record(F&& f) {
-        if (!enabled) {
-            f();
-        } else {
-            *this += U::sample(std::forward<F>(f));
-        }
+        static_assert(U::timing, "Only timing metrics can record a body");
+        const auto start = std::chrono::steady_clock::now();
+        f();
+        const auto elapsed = std::chrono::steady_clock::now() - start;
+        *this += std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() / 1000.0f;
     }
 
     void print(std::ostream& os, const std::string& label, int width = 44) const {
@@ -258,119 +224,22 @@ public:
 
         const char* units = U::name;
         detail::print_label(os, label.empty() ? std::string("<unnamed timer>") : label, width);
-        if (!enabled) {
-            os << "[ disabled ]";
-            return;
-        }
-        if (records.empty()) {
-            os << "[ no data ]";
-            return;
-        }
-        os << "[ avg = " << avg() << " " << units << ", med = " << med() << " " << units << " in " << vmin << ".."
-           << vmax << " " << units << " range over " << records.size() << " records"
-           << ", total = " << total << units << " ]";
-        if (ov::npuw::profiling_details()) {
-            for (std::size_t i = 0u; i < records.size(); i++) {
-                os << (i % 10 == 0 ? "\n      " : " ") << records[i];
+        if constexpr (U::timing) {
+            if (records.empty()) {
+                os << "[ no data ]";
+                return;
             }
+            os << "[ avg = " << avg() << " " << units << ", med = " << med() << " " << units << " in " << vmin << ".."
+               << vmax << " " << units << " range over " << records.size() << " records"
+               << ", total = " << total << units << " ]";
+            if (ov::npuw::profiling_details()) {
+                for (std::size_t i = 0u; i < records.size(); i++) {
+                    os << (i % 10 == 0 ? "\n      " : " ") << records[i];
+                }
+            }
+        } else {
+            os << "[ " << sum_f() << " " << units << " total in " << records.size() << " records ]";
         }
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const metric<U>& m) {
-        m.print(os, m.name);
-        return os;
-    }
-};
-
-template <typename U>
-class counter {
-public:
-    using unit_t = U;
-    using T = typename U::type_t;
-    using value_t = T;
-
-private:
-    T total = 0;
-    std::size_t calls = 0;
-    std::string name;
-    bool enabled = false;
-
-public:
-    counter() = default;
-    counter(counter&& c) : total(c.total), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {}
-    counter(const counter&) = delete;
-    counter& operator=(const counter&) = delete;
-
-    explicit counter(const std::string& named, bool active = false) : name(named), enabled(active) {}
-
-    void enable() {
-        enabled = true;
-    }
-
-    bool is_enabled() const {
-        return enabled;
-    }
-
-    const std::string& tag() const {
-        return name;
-    }
-
-    // NB: by value - see the note in metric::operator+=
-    void operator+=(T t) {
-        if (enabled) {
-            total += t;
-            calls++;
-        }
-    }
-
-    void add(T t) {
-        *this += t;
-    }
-
-    bool has_samples() const {
-        return calls != 0u;
-    }
-
-    std::size_t count() const {
-        return calls;
-    }
-
-    T sum() const {
-        return total;
-    }
-
-    float sum_f() const {
-        return static_cast<float>(total) / U::scaler;
-    }
-
-    void reset() {
-        total = 0;
-        calls = 0;
-    }
-
-    counter take() {
-        counter out(name, enabled);
-        out.total = total;
-        out.calls = calls;
-        reset();
-        return out;
-    }
-
-    void print(std::ostream& os, const std::string& label, int width = 44) const {
-        format_guard fmt(os);
-
-        const char* units = U::name;
-        detail::print_label(os, label.empty() ? std::string("<unnamed counter>") : label, width);
-        if (!enabled) {
-            os << "[ disabled ]";
-            return;
-        }
-        os << "[ " << sum_f() << " " << units << " total in " << calls << " records ]";
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const counter<U>& c) {
-        c.print(os, c.name);
-        return os;
     }
 };
 
@@ -395,13 +264,11 @@ struct Profile : public IProfile {
     std::map<std::string, M> metrics;
     std::vector<Snapshot> snapshots;
     std::string area;
-    bool report_on_die = false;
-    Scope profile_scope = Scope::Execution;
     // Set when sibling entries of the top level may genuinely overlap in time
     // (async funcall pipelining) - then no residual row is meaningful there.
     bool children_overlap = false;
 
-    Profile() {
+    explicit Profile(Scope scope = Scope::Execution, bool on = enabled_by_default()) : m_on(on), m_scope(scope) {
         if constexpr (compiled_in) {
             register_profile(this);
             // A profile created mid-session (e.g. a lazily compiled generate variant) must
@@ -412,12 +279,17 @@ struct Profile : public IProfile {
     Profile(const Profile&) = delete;
     Profile& operator=(const Profile&) = delete;
 
-    Scope scope() const override {
-        return profile_scope;
+    bool enabled() const {
+        return compiled_in && m_on;
     }
 
-    M& operator[](const std::string& tag) {
-        return ensure(tag);
+    // Set before first use; existing handles remain valid when disabling a profile.
+    void enable(bool on) {
+        m_on = on;
+    }
+
+    Scope scope() const override {
+        return m_scope;
     }
 
     // Resolves a tag ONCE. Returns nullptr when the profile is disabled, so callers
@@ -429,6 +301,36 @@ struct Profile : public IProfile {
             return nullptr;
         }
         return &ensure(tag);
+    }
+
+    template <typename F>
+    M* handle_lazy(M*& cache, F&& make_tag) {
+        if (!enabled()) {
+            return nullptr;
+        }
+        if (cache == nullptr) {
+            cache = &ensure(make_tag());
+        }
+        return cache;
+    }
+
+    void add(const std::string& tag, typename M::value_t value) {
+        if (enabled()) {
+            ensure(tag).add(value);
+        }
+    }
+
+    void register_boundary_owner(const void* owner) const {
+        if (enabled()) {
+            register_run_boundary_owner(owner);
+        }
+    }
+
+    template <typename F>
+    void snapshot_run_boundary(F&& is_first_position) const {
+        if (enabled() && is_first_position()) {
+            snapshot_and_reset_all(Scope::Execution);
+        }
     }
 
     // Gated stage timing for call sites that cannot pre-resolve a handle. When the
@@ -513,7 +415,7 @@ struct Profile : public IProfile {
     ~Profile() {
         if constexpr (compiled_in) {
             unregister_profile(this);
-            if (report_on_die) {
+            if (enabled()) {
                 try {
                     // avg() & others may throw exceptions if
                     // enabled behavior is broken
@@ -526,11 +428,8 @@ struct Profile : public IProfile {
 
 private:
     std::size_t m_run_index = 0u;
-
-    // Constant false in a non-debug-caps build, so the guarded paths fold away
-    bool enabled() const {
-        return compiled_in && report_on_die;
-    }
+    bool m_on;
+    Scope m_scope;
 #ifndef NDEBUG
     // I1: a profile is only ever written by the thread that executes the corresponding
     // subgraph. Caught here rather than by silent map corruption later.
@@ -539,7 +438,7 @@ private:
 
     void check_owner() const {
 #ifndef NDEBUG
-        if (profile_scope != Scope::Execution || !report_on_die) {
+        if (m_scope != Scope::Execution || !enabled()) {
             return;
         }
         const auto self = std::this_thread::get_id();
@@ -555,8 +454,7 @@ private:
         check_owner();
         auto iter = metrics.find(tag);
         if (iter == metrics.end()) {
-            // Use report_on_die as an "enabled" marker here
-            auto [new_iter, unused] = metrics.insert({tag, M(tag, report_on_die)});
+            auto [new_iter, unused] = metrics.emplace(tag, M{});
             return new_iter->second;
         }
         return iter->second;
@@ -682,6 +580,7 @@ private:
 };
 
 using ms_metric = metric<MSec>;
+using bytes_metric = metric<Bytes>;
 using metric_ptr = ms_metric*;
 
 // Allocation-free RAII timer. A null handle makes it inert: no clock is read at all,
@@ -695,7 +594,12 @@ public:
 
     sample(const sample&) = delete;
     sample& operator=(const sample&) = delete;
-    sample(sample&&) = delete;
+    sample(sample&& other) noexcept
+        : m_metric(std::exchange(other.m_metric, nullptr)),
+          m_start(other.m_start),
+          m_elapsed(other.m_elapsed),
+          m_stopped(other.m_stopped),
+          m_commit(std::exchange(other.m_commit, false)) {}
     sample& operator=(sample&&) = delete;
 
     float elapsed_ms() const noexcept {
@@ -750,6 +654,61 @@ private:
     float m_elapsed = 0.f;
     bool m_stopped = false;
     bool m_commit = false;
+};
+
+// Request-local profiles and handles. Slot ids are real (prototype) submodel ids.
+struct RequestPerf {
+    struct SubmodelSlot {
+        std::string tag;
+        metric_ptr self = nullptr;
+        metric_ptr device = nullptr;
+        metric_ptr attributed = nullptr;
+    };
+
+    Profile<ms_metric> execution{Scope::Execution};
+    Profile<bytes_metric> footprint{Scope::Lifetime};
+    std::vector<SubmodelSlot> slots;
+
+    explicit RequestPerf(std::size_t count) : slots(count) {}
+
+    void begin_run() {
+        if (!execution.enabled()) {
+            return;
+        }
+        for (auto& slot : slots) {
+            slot.attributed = nullptr;
+        }
+    }
+
+    template <typename F>
+    metric_ptr handle(metric_ptr& cache, F&& make_tag) {
+        return execution.handle_lazy(cache, std::forward<F>(make_tag));
+    }
+
+    void attribute(std::size_t real_idx, metric_ptr handle) {
+        if (execution.enabled()) {
+            slots.at(real_idx).attributed = handle;
+        }
+    }
+
+    template <typename F>
+    void add_submodel(std::size_t real_idx, float elapsed, F&& make_tag) {
+        if (!execution.enabled()) {
+            return;
+        }
+        auto& slot = slots.at(real_idx);
+        handle(slot.self, std::forward<F>(make_tag))->add(elapsed);
+        if (slot.attributed != nullptr) {
+            slot.attributed->add(elapsed);
+        }
+    }
+
+    template <typename F>
+    void add_footprint(const std::string& device, F&& bytes) {
+        if (footprint.enabled()) {
+            footprint.add(device, bytes());
+        }
+    }
 };
 
 }  // namespace perf
