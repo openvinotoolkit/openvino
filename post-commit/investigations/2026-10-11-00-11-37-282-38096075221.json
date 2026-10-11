@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-11-00-11-37-282-38096075221",
+  "timestamp": "2026-10-11T00:11:37Z",
+  "run_id": "38096075221",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38096075221",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "8fb839633478574cefd28d49e25747d7c830b5a6",
+  "pr_number": "38589",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38589",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows build job terminated mid-build with unavailable job logs",
+  "signature": "Windows build job terminated during Cmake build step with no completion status and job logs unavailable (404)|Infrastructure",
+  "signature_hash": "afb479532c52bf68",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Job stopped mid-build at step 'Setup ccache' (in_progress); all subsequent build/install/upload steps remained pending; job log download returns HTTP 404"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Overall status aggregator step 'Check status of all jobs' exits 1 because an upstream job (Build_And_Run_Collect_Mode) failed"
+    }
+  ],
+  "key_errors": [
+    "job-114342260966.log: (log download failed)",
+    "get_job_logs 114342260966: failed to get job logs: failed to download log content for job 114342260966: failed to download logs: HTTP 404",
+    "Build_And_Run_Collect_Mode step 'Setup ccache' (#7) status=in_progress with no completion timestamp; job conclusion=failure, started_at=2026-10-10T23:52:41Z, completed_at=2026-10-11T00:06:42Z (~14 min runtime)",
+    "ci/gha_overall_status_windows_cc log: 'Run exit 1' / '##[error]Process completed with exit code 1.'"
+  ],
+  "root_cause": "The Windows Conditional Compilation build job (Build_And_Run_Collect_Mode) on runner aks-win-32-cores-128gb-build-nfzzl-runner-tdlxb was terminated abruptly while the 'Setup ccache' step was still in_progress, before any CMake configure/build steps ran. No completion step, error step, or final log line was recorded, and the GitHub API now returns HTTP 404 when attempting to download this job's logs (consistent with runner/infrastructure-side termination rather than a code-level failure). The downstream overall-status aggregator job then correctly reports failure because an upstream required job did not complete successfully. This is the third occurrence of this exact signature within ~30 minutes (prior runs 38092857471 and 38092857906), all on Windows build jobs, strongly suggesting a transient runner/infrastructure issue (e.g., runner pre-emption, network blip to the Actions log service, or Azure-hosted runner instability) rather than a problem introduced by the merged commit (a Snippets/CPU RV64 Floor/Ceiling fix, PR #38589) which is unrelated to Windows CC build tooling.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a CI runner/infrastructure-side job termination with no code path to reproduce. If recurring, check Azure DevOps/aks-runners hosted-runner health dashboards and GitHub Actions status page for the affected time window (2026-10-10 23:39-00:11 UTC).",
+  "recommended_actions": [
+    "Re-run the failed Build_And_Run_Collect_Mode job (and downstream status check) manually since this is a transient infrastructure failure, not a code regression from PR #38589.",
+    "Check the aks-win-32-cores-128gb-build runner pool health/capacity for the time window 2026-10-10T23:39Z - 2026-10-11T00:11Z (3 occurrences in under 30 minutes).",
+    "If recurrence continues or increases, escalate to CI infrastructure maintainers to investigate the Windows self-hosted (aks-runners) pool for node evictions or Azure quota/capacity issues.",
+    "Consider adding a retry/resilience wrapper around the Windows CC build job if 404'd job logs recur, since it prevents full post-mortem log analysis."
+  ],
+  "prevention_strategies": "Add monitoring/alerting on Windows hosted-runner pool health (aks-win-32-cores-128gb-build) to detect node evictions or capacity exhaustion before they cause mid-build job terminations. Consider automatic retry-on-infrastructure-failure for CC build jobs when the job log is unavailable (404) and no error step was recorded, since this pattern reliably indicates a runner-side termination rather than a code defect.",
+  "historical_context": "Identical signature observed twice previously within the same incident window: run 38092857906 (2026-10-10T23:39:24Z, commit f7ddd2e2421c85746425d3e124cd10470e012e56) and run 38092857471 (2026-10-10T23:56:44Z, same commit). This run (38096075221, commit 8fb839633478574cefd28d49e25747d7c830b5a6) is the 3rd occurrence, confirming an ongoing Windows build-runner infrastructure issue rather than an isolated incident."
+}
