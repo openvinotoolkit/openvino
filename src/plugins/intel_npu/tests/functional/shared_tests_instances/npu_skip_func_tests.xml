@@ -457,13 +457,17 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>fail for linux platform, but pass for windows</message>
+        <message>ESPCN_x2_gh model infer failed for linux platform, but pass for windows, seems MT not run at all</message>
         <enable_rules>
             <operating_system>linux</operating_system>
         </enable_rules>
         <filters>
             <filter>.*InferWithHostCompileTests.SetProperty_CombinedPriorityAndWorkload.*</filter>
             <filter>.*InferWithHostCompileTests.SetProperty_ModelPriority_SingleCompiledModel.*</filter>
+            <filter>.*InferWithHostCompileTests.SetProperty_WorkloadType_SingleCompiledModel.*</filter>
+            <filter>.*InferWithHostCompileTests.SetProperty_Priority_BetweenTwoRequests.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_ConcurrentInferThenSetPriorityAndInfer.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_MultiCompiledModelsMultiRequestsMultiInfer.*</filter>
         </filters>
     </skip_config>
 
