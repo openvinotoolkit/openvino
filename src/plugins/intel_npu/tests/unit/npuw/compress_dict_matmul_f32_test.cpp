@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <set>
 
 #include "openvino/op/ops.hpp"
@@ -20,6 +21,17 @@
 namespace {
 
 using namespace ov;
+
+std::shared_ptr<ov::Model> mark_function_inputs(const std::shared_ptr<ov::Model>& model,
+                                                const ov::ParameterVector& inputs) {
+    ov::ParameterVector reordered = inputs;
+    for (const auto& param : model->get_parameters()) {
+        if (std::find(inputs.begin(), inputs.end(), param) == inputs.end()) {
+            reordered.push_back(param);
+        }
+    }
+    return std::make_shared<ov::Model>(model->get_results(), reordered);
+}
 
 struct MatMulModel {
     std::shared_ptr<ov::Model> model;
@@ -177,8 +189,8 @@ void expect_merged_closures(const ParallelMatMulModel& graph, const ov::npuw::pa
 
 TEST(CompressDictMatMulf32Test, NonClosureParamIsNotCompressed) {
     auto graph = make_model(element::f32);
-    ov::npuw::patterns::opt::Context ctx;
-    ctx.non_closure_params.insert(graph.weight);
+    graph.model = mark_function_inputs(graph.model, {graph.weight});
+    ov::npuw::patterns::opt::Context ctx(graph.model, 1);
 
     run_pass(graph, ctx);
 
@@ -190,7 +202,7 @@ TEST(CompressDictMatMulf32Test, NonClosureParamIsNotCompressed) {
 
 TEST(CompressDictMatMulf32Test, ClosureParamIsCompressed) {
     auto graph = make_model(element::f32);
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
 
     run_pass(graph, ctx);
 
@@ -199,8 +211,8 @@ TEST(CompressDictMatMulf32Test, ClosureParamIsCompressed) {
 
 TEST(CompressDictMatMulf32Test, OtherNonClosureParamDoesNotBlockClosure) {
     auto graph = make_model(element::f32);
-    ov::npuw::patterns::opt::Context ctx;
-    ctx.non_closure_params.insert(graph.act);
+    graph.model = mark_function_inputs(graph.model, {graph.act});
+    ov::npuw::patterns::opt::Context ctx(graph.model, 1);
 
     run_pass(graph, ctx);
 
@@ -209,7 +221,7 @@ TEST(CompressDictMatMulf32Test, OtherNonClosureParamDoesNotBlockClosure) {
 
 TEST(CompressDictMatMulf32Test, F16WeightIsNotTouched) {
     auto graph = make_model(element::f16);
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
 
     run_pass(graph, ctx);
 
@@ -221,8 +233,8 @@ TEST(CompressDictMatMulf32Test, F16WeightIsNotTouched) {
 
 TEST(HostGatherClosureTest, NonClosureVocabIsNotGathered) {
     auto graph = make_gather_model();
-    ov::npuw::patterns::opt::Context ctx;
-    ctx.non_closure_params.insert(graph.vocab);
+    graph.model = mark_function_inputs(graph.model, {graph.vocab});
+    ov::npuw::patterns::opt::Context ctx(graph.model, 1);
 
     run_host_gather(graph, ctx);
 
@@ -235,7 +247,7 @@ TEST(HostGatherClosureTest, NonClosureVocabIsNotGathered) {
 
 TEST(HostGatherClosureTest, ClosureVocabIsGathered) {
     auto graph = make_gather_model();
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
 
     run_host_gather(graph, ctx);
 
@@ -257,7 +269,7 @@ TEST(HostGatherClosureTest, ClosureVocabIsGathered) {
 
 TEST(DQParMMGQClosureTest, ClosuresAreMerged) {
     auto graph = make_parallel_matmul_model(2);
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
 
     run_parallel_matmul(graph, ctx);
 
@@ -266,8 +278,8 @@ TEST(DQParMMGQClosureTest, ClosuresAreMerged) {
 
 TEST(DQParMMGQClosureTest, NonClosureBranchIsNotMerged) {
     auto graph = make_parallel_matmul_model(2);
-    ov::npuw::patterns::opt::Context ctx;
-    ctx.non_closure_params.insert(graph.weights[1]);
+    graph.model = mark_function_inputs(graph.model, {graph.weights[1]});
+    ov::npuw::patterns::opt::Context ctx(graph.model, 1);
 
     run_parallel_matmul(graph, ctx);
 
@@ -280,11 +292,48 @@ TEST(DQParMMGQClosureTest, NonClosureBranchIsNotMerged) {
 
 TEST(DQParMMGQClosureTest, ClosureBranchesStillMergeWithOneNonClosure) {
     auto graph = make_parallel_matmul_model(3);
-    ov::npuw::patterns::opt::Context ctx;
-    ctx.non_closure_params.insert(graph.scales[2]);
+    graph.model = mark_function_inputs(graph.model, {graph.scales[2]});
+    ov::npuw::patterns::opt::Context ctx(graph.model, 1);
 
     run_parallel_matmul(graph, ctx);
 
     expect_merged_closures(graph, ctx);
     expect_original_branch(graph, 2);
+}
+
+TEST(ContextIsClosureTest, ZeroBaseTreatsAllAsClosures) {
+    auto param = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<op::v0::Result>(param)},
+                                             ov::ParameterVector{param});
+    ov::npuw::patterns::opt::Context ctx(model, 0);
+    EXPECT_TRUE(ctx.is_closure(param));
+}
+
+TEST(ContextIsClosureTest, InputsBeforeBaseAreNotClosures) {
+    auto first = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto second = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto third = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<op::v0::Result>(third)},
+                                             ov::ParameterVector{first, second, third});
+    ov::npuw::patterns::opt::Context ctx(model, 2);
+
+    EXPECT_FALSE(ctx.is_closure(first));
+    EXPECT_FALSE(ctx.is_closure(second));
+    EXPECT_TRUE(ctx.is_closure(third));
+}
+
+TEST(ContextIsClosureTest, ParameterNotInModelIsClosure) {
+    auto first = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto second = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<op::v0::Result>(second)},
+                                             ov::ParameterVector{first, second});
+    ov::npuw::patterns::opt::Context ctx(model, 2);
+
+    auto new_param = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+    EXPECT_TRUE(ctx.is_closure(new_param));
+}
+
+TEST(ContextIsClosureTest, ConstructorRejectsBaseAboveParamCount) {
+    auto graph = make_model(element::f32);
+    EXPECT_ANY_THROW(ov::npuw::patterns::opt::Context(graph.model, graph.model->get_parameters().size() + 1));
 }

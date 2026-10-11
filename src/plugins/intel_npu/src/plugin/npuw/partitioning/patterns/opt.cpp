@@ -28,6 +28,21 @@ bool is_subtract_128(const std::shared_ptr<ov::Node>& node) {
 
 }  // namespace
 
+Context::Context(std::shared_ptr<const ov::Model> model, std::size_t param_base_idx)
+    : model(std::move(model)),
+      param_base_idx(param_base_idx) {
+    NPUW_ASSERT(this->model);
+    NPUW_ASSERT(param_base_idx <= this->model->get_parameters().size());
+}
+
+bool Context::is_closure(const PPtr& param) const {
+    if (param_base_idx == 0) {
+        return true;
+    }
+    const auto idx = model->get_parameter_index(param);
+    return idx < 0 || static_cast<std::size_t>(idx) >= param_base_idx;
+}
+
 void Context::permute(const PPtr& orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
 

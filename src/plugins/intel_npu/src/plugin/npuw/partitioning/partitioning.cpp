@@ -1613,7 +1613,8 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::vector<CPtr> to_keep;
 
-    ov::npuw::patterns::opt::Context ctx;
+    // Before closure extraction, every Parameter is a function input.
+    ov::npuw::patterns::opt::Context ctx(model_group.front(), model_group.front()->get_parameters().size());
     ctx.mm_gate = cfg.get<::intel_npu::NPUW_MM_GATED>();
 
     ov::pass::GraphRewrite rewr;
@@ -2149,10 +2150,6 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
     auto& func_group = all_functions.at(func_name);
 
-    auto mark_non_closures = [&](ov::npuw::patterns::opt::Context& ctx) {
-        const auto& params = f._model->get_parameters();
-        ctx.non_closure_params.insert(params.begin(), params.begin() + static_cast<std::ptrdiff_t>(f._param_offset));
-    };
     auto do_permute = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_permute) {
             auto param_idx = f._model->get_parameter_index(p.first);
@@ -2178,8 +2175,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Regardless of DQ setting, run this first
     {
-        ov::npuw::patterns::opt::Context ctx;
-        mark_non_closures(ctx);
+        ov::npuw::patterns::opt::Context ctx(f._model, f._param_offset);
         ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
@@ -2473,8 +2469,7 @@ void Partitioner::optimize(const std::string& func_name) {
     LOG_BLOCK();
 
     // Run "dynamic quantization"
-    ov::npuw::patterns::opt::Context ctx;
-    mark_non_closures(ctx);
+    ov::npuw::patterns::opt::Context ctx(f._model, f._param_offset);
     ctx.is_spatial = f._spatial.has_value();
     ctx.mm_dq_full = cfg.get<::intel_npu::NPUW_DQ_FULL>();
 

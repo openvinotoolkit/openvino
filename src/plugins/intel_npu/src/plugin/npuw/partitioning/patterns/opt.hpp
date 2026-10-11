@@ -30,12 +30,12 @@ struct Context {
     using NPtr = std::shared_ptr<ov::Node>;
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
 
-    // Function body Parameters that are not closures (inputs from other subgraphs).
-    // Passes must not change them. Empty set = every Parameter is a closure.
-    std::set<PPtr> non_closure_params;
-    bool is_closure(const PPtr& param) const {
-        return non_closure_params.count(param) == 0;
-    }
+    // Parameters [0, param_base_idx) of model are function inputs, not closures.
+    // Passes must not change them.
+    const std::shared_ptr<const ov::Model> model;
+    const std::size_t param_base_idx;
+    Context(std::shared_ptr<const ov::Model> model, std::size_t param_base_idx);
+    bool is_closure(const PPtr& param) const;
 
     using Axes = std::vector<std::size_t>;
     std::map<PPtr, Axes> closures_to_permute;

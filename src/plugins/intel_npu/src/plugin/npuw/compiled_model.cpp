@@ -920,7 +920,8 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     }
 
     // Check NPUW_HOST_GATHER:QUANT based on the patterns (for tail vocab)
-    ov::npuw::patterns::opt::Context ctx;
+    // Before closure extraction, every Parameter is a function input.
+    ov::npuw::patterns::opt::Context ctx(model, model->get_parameters().size());
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Constant>>(std::ref(ctx), true);
     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Constant>>(std::ref(ctx), true);
