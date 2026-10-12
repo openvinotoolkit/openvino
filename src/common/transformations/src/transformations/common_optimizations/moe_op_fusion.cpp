@@ -110,10 +110,9 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         }
 
         auto hidden_states = pm.at(hidden_states_m);
-        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
-            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
-        }
-        const bool has_batch_dim = hidden_states.get_partial_shape().rank().get_length() == 3;
+        const auto& hidden_states_shape = hidden_states.get_partial_shape();
+        const bool has_batch_dim = hidden_states_shape.rank().get_length() == 3 &&
+                                   !(hidden_states_shape[1].is_static() && hidden_states_shape[1].get_length() == 1);
 
         auto routing = pm.at(routing_m);
         auto topk_indices = pm.at(topk_indices_m);
@@ -314,10 +313,9 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
         }
 
         auto hidden_states = pm.at(hidden_states_m);
-        if (!hidden_states.get_partial_shape().same_scheme(pm.at(end_reshape_m).get_partial_shape())) {
-            hidden_states = pm.at(unsqueeze_m).get_node_shared_ptr()->input_value(0);
-        }
-        const bool has_batch_dim = hidden_states.get_partial_shape().rank().get_length() == 3;
+        const auto& hidden_states_shape = hidden_states.get_partial_shape();
+        const bool has_batch_dim = hidden_states_shape.rank().get_length() == 3 &&
+                                   !(hidden_states_shape[1].is_static() && hidden_states_shape[1].get_length() == 1);
 
         // Bypass the [1,0] Transpose: moe_scatter_reduction expects tokens-major routing.
         // Order is enforced by the pattern (value_matches("1, 0")).

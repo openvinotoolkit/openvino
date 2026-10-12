@@ -413,7 +413,7 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
         op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
 
     // MOE op with compact routing
-    auto hidden_states = has_batch_dim && !restore_output_shape ? input->output(0) : experts_reshape->output(0);
+    auto hidden_states = input->output(0);
     ov::OutputVector moe_inputs = {hidden_states, routing, topk_indices, gate_w, up_w, down_w};
     ov::op::internal::MOE::Config config;
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
@@ -421,13 +421,14 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
     auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
 
     ov::Output<ov::Node> output = moe;
-    if (restore_output_shape) {
+    if (!has_batch_dim || restore_output_shape) {
+        const std::vector<int64_t> output_shape =
+            restore_output_shape
+                ? std::vector<int64_t>{-1, static_cast<int64_t>(batch), static_cast<int64_t>(hidden_size)}
+                : std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)};
         output = std::make_shared<op::v1::Reshape>(
             moe,
-            op::v0::Constant::create(
-                element::i64,
-                Shape{3},
-                std::vector<int64_t>{-1, static_cast<int64_t>(batch), static_cast<int64_t>(hidden_size)}),
+            op::v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
             true);
     }
     return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
@@ -597,7 +598,7 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_to_moe_reference_model(bool ha
         op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
     auto down_bias = op::v0::Constant::create(element::f32, Shape{number_of_experts, 1, hidden_size}, {1.0f});
 
-    auto hidden_states = has_batch_dim && !restore_output_shape ? input->output(0) : experts_reshape->output(0);
+    auto hidden_states = input->output(0);
     ov::OutputVector moe_inputs = {hidden_states, routing, topk_indices, gate_up_w, gate_up_bias, down_w, down_bias};
 
     ov::op::internal::MOE::Config config;
@@ -607,13 +608,14 @@ inline std::shared_ptr<ov::Model> build_2gemm_bgm_to_moe_reference_model(bool ha
 
     auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
     ov::Output<ov::Node> output = moe;
-    if (restore_output_shape) {
+    if (!has_batch_dim || restore_output_shape) {
+        const std::vector<int64_t> output_shape =
+            restore_output_shape
+                ? std::vector<int64_t>{-1, static_cast<int64_t>(batch), static_cast<int64_t>(hidden_size)}
+                : std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)};
         output = std::make_shared<op::v1::Reshape>(
             moe,
-            op::v0::Constant::create(
-                element::i64,
-                Shape{3},
-                std::vector<int64_t>{-1, static_cast<int64_t>(batch), static_cast<int64_t>(hidden_size)}),
+            op::v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
             true);
     }
     return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
