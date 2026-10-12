@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-12-15-14-04-000-38260834403",
+  "timestamp": "2026-10-12T15:14:04Z",
+  "run_id": "38260834403",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38260834403",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "commit_sha": "64242771c11615bb7edf8a7557b47c8c89119b2f",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "External Service",
+  "title": "LLM accuracy dGPU tests fail downloading Qwen2-0.5B-Instruct from HuggingFace Hub (429 rate limit)",
+  "signature": "huggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests: you have reached your api rate limit|External Service",
+  "signature_hash": "4dd69b5f0be10a15",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy dGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "pytest test_accuracy_conformance fails to download Qwen/Qwen2-0.5B-Instruct model files due to HuggingFace Hub 429 Too Many Requests."
+    }
+  ],
+  "key_errors": [
+    "File \"/__w/openvino/openvino/tests/llm/accuracy_conformance.py\", line 159, in setup_model\n    quantized_model = OVModelForCausalLM.from_pretrained(\n  File \"/venv/lib/python3.12/site-packages/optimum/intel/openvino/modeling_base.py\", line 656, in from_pretrained\n    return super().from_pretrained(\n  File \"/venv/lib/python3.12/site-packages/optimum/modeling_base.py\", line 341, in from_pretrained\n    all_files, _ = TasksManager.get_model_files(\n  File \"/venv/lib/python3.12/site-packages/huggingface_hub/hf_api.py\", line 3958, in list_repo_tree\n    for path_info in paginate(path=tree_url, headers=headers, params={\"recursive\": recursive, \"expand\": expand}):\n  File \"/venv/lib/python3.12/site-packages/huggingface_hub/utils/_http.py\", line 915, in hf_raise_for_status\n    raise _format(HfHubHTTPError, message, response) from e\nhuggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests: you have reached your 'api' rate limit.\nRetry after 26 seconds (0/3000 requests remaining in current 300s window).\nUrl: https://huggingface.co/api/models/Qwen/Qwen2-0.5B-Instruct/tree/c540970f9e29518b1d8f06ab8b24cba66ad77b6d?recursive=true&expand=false.\nWe had to rate limit you, you hit the quota of 3000 api requests per 5 minutes period.",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] - huggingface_hub.errors.HfHubHTTPError\nFAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT4-GPU] - huggingface_hub.errors.HfHubHTTPError\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The dGPU LLM accuracy test job calls optimum-intel's OVModelForCausalLM.from_pretrained, which in turn calls huggingface_hub's list_repo_tree/list_repo_files API to enumerate model files for Qwen/Qwen2-0.5B-Instruct before downloading. The shared CI HuggingFace Hub API token/IP has exhausted its quota of 3000 API requests per 5-minute window (team plan), causing the Hub to return HTTP 429. This is an external service (HuggingFace Hub) rate limit, not a code or configuration defect in openvino.",
+  "reproduction_steps": "Not reliably reproducible locally since it depends on the CI runner's shared HF Hub quota state at the time of the run. To reproduce the symptom: run `pytest tests/llm/accuracy_conformance.py::test_accuracy_conformance -k Qwen2-0.5B-Instruct` repeatedly in rapid succession (or with many parallel CI jobs sharing the same HF token) until the Hub's 3000 req/5min quota is exhausted; the same HfHubHTTPError 429 will surface.",
+  "recommended_actions": [
+    "Add automatic retry-with-backoff around HuggingFace Hub metadata/download calls in tests/llm/accuracy_conformance.py (huggingface_hub supports a built-in retry via HF_HUB_DOWNLOAD_RETRIES or wrapping from_pretrained in tenacity-style retry on HfHubHTTPError 429).",
+    "Use a local/mirrored model cache (pre-downloaded artifact or self-hosted HF cache proxy) for Qwen2-0.5B-Instruct and other frequently-used LLM accuracy test models to avoid hitting the Hub API on every run.",
+    "Check whether multiple concurrent post-commit/merge-queue runs share the same HF_TOKEN and are collectively exceeding the 3000 req/5min quota; consider per-job tokens or spacing out LLM accuracy jobs.",
+    "Re-run the failed job; this is a transient external rate limit, not expected to recur immediately once the quota window resets."
+  ],
+  "prevention_strategies": "Cache HuggingFace models (either via a shared read-through proxy/mirror inside the CI network, or via actions/cache keyed on model revision) so that `list_repo_files`/`list_repo_tree` and blob downloads are not re-issued against the public Hub API for every job run. Wrap Hub API calls used in LLM accuracy tests with exponential backoff retry on 429 responses, respecting the `Retry-After` header returned by the Hub.",
+  "historical_context": "No prior pattern recorded for this HuggingFace Hub 429 rate-limit signature in the post-commit knowledge base; this is the first occurrence. Other LLM/model-hub related entries recorded previously (e.g., PyTorch model hub HF Transformers NumPy version mismatch) are unrelated dependency issues, not Hub API rate limiting."
+}

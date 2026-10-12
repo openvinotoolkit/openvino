@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 31,
+  "total": 32,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -330,6 +330,17 @@
       "category": "Infrastructure",
       "signature_hash": "afb479532c52bf68",
       "commit_sha": "8fb839633478574cefd28d49e25747d7c830b5a6"
+    },
+    {
+      "investigation_id": "2026-10-12-15-14-04-000-38260834403",
+      "run_id": "38260834403",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38260834403",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-10-12T15:14:04Z",
+      "title": "LLM accuracy dGPU tests fail downloading Qwen2-0.5B-Instruct from HuggingFace Hub (429 rate limit)",
+      "category": "External Service",
+      "signature_hash": "4dd69b5f0be10a15",
+      "commit_sha": "64242771c11615bb7edf8a7557b47c8c89119b2f"
     }
   ]
 }

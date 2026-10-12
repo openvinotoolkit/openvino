@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "huggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests: you have reached your api rate limit|External Service",
+  "signature_hash": "4dd69b5f0be10a15",
+  "title": "LLM accuracy dGPU tests fail downloading Qwen2-0.5B-Instruct from HuggingFace Hub (429 rate limit)",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-10-12T15:14:04Z",
+  "last_seen": "2026-10-12T15:14:04Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/38260834403"
+  ],
+  "affected_commits": [
+    "64242771c11615bb7edf8a7557b47c8c89119b2f"
+  ],
+  "recent_timestamps": [
+    "2026-10-12T15:14:04Z"
+  ]
+}
