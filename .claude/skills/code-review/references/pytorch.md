@@ -17,6 +17,10 @@ passes, decoders, and conversion tests.
   `aten::add` and `aten.add.Tensor` may use shared translators or FX overrides.
   Check overload schemas, keyword arguments, omitted defaults, `None`, and
   inlined scalars/lists before sharing logic across capture paths or versions.
+- `context.input_is_none(i)` checks bounds and returns `true` when
+  `i >= context.get_input_size()`, as well as for an explicit `None`. It can
+  guard optional inputs without a separate range check; do not flag calls
+  beyond the input count as out-of-bounds access.
 - Distinguish capture specialization from conversion defects. Do not turn
   symbolic shape calculations into example-input constants, or reorder user
   inputs, parameters, buffers, and flattened container outputs.
