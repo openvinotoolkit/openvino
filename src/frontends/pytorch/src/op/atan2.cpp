@@ -21,8 +21,13 @@ OutputVector translate_atan2(const NodeContext& context) {
     // torch.atan2 returns the default floating point type for integer and boolean inputs
     const auto dtype = lhs.get_element_type();
     if (dtype.is_static() && !dtype.is_real()) {
-        lhs = context.mark_node(std::make_shared<v0::Convert>(lhs, element::f32));
-        rhs = context.mark_node(std::make_shared<v0::Convert>(rhs, element::f32));
+        auto float_type = element::f32;
+        const auto out_type = simplified_type_interpret(context.get_output_type(0));
+        if (out_type.is<element::Type>() && out_type.as<element::Type>().is_real()) {
+            float_type = out_type.as<element::Type>();
+        }
+        lhs = context.mark_node(std::make_shared<v0::Convert>(lhs, float_type));
+        rhs = context.mark_node(std::make_shared<v0::Convert>(rhs, float_type));
     }
 
     return common_translators::translate_atan2_util(context, lhs, rhs);
