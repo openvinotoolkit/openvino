@@ -381,7 +381,8 @@ bool is_present_kv_cache_output_name(const std::string& name) {
            ov::npuw::util::contains_ignore_case(name, "present.");
 }
 
-bool has_valid_gqa_op(const std::shared_ptr<const ov::Model>& model) {
+std::shared_ptr<ov::op::internal::GroupQueryAttention> find_valid_gqa_op(
+    const std::shared_ptr<const ov::Model>& model) {
     using ov::op::internal::GroupQueryAttention;
     using ov::op::internal::GroupQueryAttentionInputs;
     constexpr size_t mandatory_inputs = static_cast<size_t>(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH) + 1;
@@ -401,7 +402,32 @@ bool has_valid_gqa_op(const std::shared_ptr<const ov::Model>& model) {
             gqa->get_input_size() <= static_cast<size_t>(GroupQueryAttentionInputs::SIN_CACHE)) {
             continue;  // rotary requires the cos/sin cache inputs
         }
-        return true;
+        return gqa;
+    }
+    return nullptr;
+}
+
+// Forward data-flow reachability: true if `target` can be reached from `start` by following
+// output->target_input edges. Used to confirm a name-matched Parameter/Result is actually
+// wired to the model's GQA op, not just a same-named but unrelated tensor elsewhere in the
+// graph -- auto-dispatch must not trigger on name coincidence alone.
+bool reaches(const ov::Node* start, const ov::Node* target) {
+    std::unordered_set<const ov::Node*> visited;
+    std::vector<const ov::Node*> stack{start};
+    while (!stack.empty()) {
+        const auto* node = stack.back();
+        stack.pop_back();
+        if (node == target) {
+            return true;
+        }
+        if (!visited.insert(node).second) {
+            continue;
+        }
+        for (const auto& output : node->outputs()) {
+            for (const auto& input : output.get_target_inputs()) {
+                stack.push_back(input.get_node());
+            }
+        }
     }
     return false;
 }
@@ -419,9 +445,15 @@ bool ov::npuw::GQACompiledModel::supports(const std::shared_ptr<const ov::Model>
 
 ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     const std::shared_ptr<const ov::Model>& model) {
-    if (!has_valid_gqa_op(model)) {
+    auto gqa = find_valid_gqa_op(model);
+    if (!gqa) {
         return Case::Unknown;
     }
+
+    // Every name match below must also be wired (forward-reachable) to the GQA op itself --
+    // a model can coincidentally carry a same-named but unrelated Parameter/Result elsewhere
+    // in the graph, and name alone must not be enough evidence for auto-dispatch.
+    const auto* gqa_node = gqa.get();
 
     // V1 conveys RoPE position via an explicit `position_ids` input; V0 conveys it via
     // `past_seq_len`/`total_seq_len` with no `position_ids` input.
@@ -431,6 +463,9 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     bool has_past_kv_cache = false;
     for (const auto& parameter : model->get_parameters()) {
         const auto& name = parameter->get_friendly_name();
+        if (!reaches(parameter.get(), gqa_node)) {
+            continue;
+        }
         has_activation_input = has_activation_input || (name == "input_hidden_states" || name == "input_ids");
         has_position_ids = has_position_ids || (name == "position_ids");
         has_seq_len_signal = has_seq_len_signal || (name == "past_seq_len") || (name == "total_seq_len");
@@ -444,7 +479,7 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     bool has_present_kv_cache = false;
     for (const auto& result : model->get_results()) {
         const auto& name = result->get_friendly_name();
-        if (is_present_kv_cache_output_name(name)) {
+        if (is_present_kv_cache_output_name(name) && reaches(gqa_node, result.get())) {
             has_present_kv_cache = true;
             break;
         }

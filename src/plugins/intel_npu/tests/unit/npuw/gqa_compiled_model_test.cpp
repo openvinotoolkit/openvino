@@ -84,8 +84,15 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
                                                             int64_t kv_num_heads = 2,
                                                             bool do_rotary = true,
                                                             PositionSignal position_signal = PositionSignal::PositionIds) {
-    auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
+    // Shaped {1, num_heads, 16} (rather than a plain hidden-size vector) purely so it can be
+    // Unsqueeze'd below into the QUERY input's own {1, num_heads, 1, 16} shape without a
+    // volume mismatch -- identify_case() now requires this Parameter to actually be
+    // data-connected to the GQA op, not just present by name somewhere in the model.
+    auto input_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, static_cast<size_t>(num_heads), 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
+    auto query_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    auto query = std::make_shared<ov::op::v0::Unsqueeze>(input_hidden_states, query_axis);
 
     std::shared_ptr<ov::op::v0::Parameter> position_ids;
     if (position_signal == PositionSignal::PositionIds) {
@@ -93,8 +100,6 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
         position_ids->set_friendly_name("position_ids");
     }
 
-    auto query =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, static_cast<size_t>(num_heads), 1, 16});
     auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
                                                        ov::Shape{1, static_cast<size_t>(kv_num_heads), 1, 16});
     auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
@@ -117,21 +122,19 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
     auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
     auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
 
-    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
-        ov::OutputVector{query,
-                        key,
-                        value,
-                        past_key,
-                        past_value,
-                        seqlens_k,
-                        total_sequence_length,
-                        cos_cache,
-                        sin_cache},
-        num_heads,
-        kv_num_heads,
-        0.0f,
-        do_rotary,
-        false);
+    ov::OutputVector gqa_inputs{query, key, value, past_key, past_value, seqlens_k, total_sequence_length,
+                               cos_cache, sin_cache};
+    if (position_ids) {
+        // POSITION_IDS (input index 9) -- wiring it here (rather than leaving it a
+        // disconnected Parameter) is what identify_case() now requires as evidence.
+        gqa_inputs.push_back(position_ids);
+    }
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(gqa_inputs,
+                                                                       num_heads,
+                                                                       kv_num_heads,
+                                                                       0.0f,
+                                                                       do_rotary,
+                                                                       false);
 
     auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
     present_key->set_friendly_name("present_keys_0");
@@ -144,7 +147,7 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
         params.push_back(position_ids);
     }
     params.insert(params.end(),
-                 {query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache});
+                 {key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache});
     return std::make_shared<ov::Model>(results, params, "gqa_full_transformer_model");
 }
 
@@ -728,6 +731,60 @@ TEST(GQACompiledModelSupportsTest, ReturnsFalseForBareGqaOpWithoutSurroundingMod
 TEST(GQACompiledModelSupportsTest, ReturnsFalseWhenHeadCountsAreInconsistent) {
     // num_heads not evenly divisible by kv_num_heads: not a valid GQA grouping.
     EXPECT_FALSE(ov::npuw::GQACompiledModel::supports(build_full_gqa_transformer_model(5, 2)));
+}
+
+TEST(GQACompiledModelSupportsTest, ReturnsFalseForUnconnectedActivationAndPositionIds) {
+    // A generic decoder that merely happens to reuse the "input_hidden_states"/
+    // "position_ids" names for unrelated, disconnected tensors must not be mistaken for a
+    // GQA model: name matches alone are not enough evidence, the ports must actually be
+    // wired to the GQA op. Mirrors build_full_gqa_transformer_model()'s valid wiring, but
+    // input_hidden_states/position_ids are left as free-floating Parameters instead of
+    // feeding the GQA op.
+    auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
+    input_hidden_states->set_friendly_name("input_hidden_states");
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+    position_ids->set_friendly_name("position_ids");
+
+    auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
+    auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+    auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 8, 16});
+    past_key->set_friendly_name("past_keys_0");
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 8, 16});
+    past_value->set_friendly_name("past_values_0");
+    auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+    auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+        ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache,
+                        sin_cache},
+        4,
+        2,
+        0.0f,
+        true,
+        false);
+
+    auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
+    present_key->set_friendly_name("present_keys_0");
+    auto present_value = std::make_shared<ov::op::v0::Result>(gqa->output(2));
+    present_value->set_friendly_name("present_values_0");
+
+    ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)), present_key, present_value};
+    ov::ParameterVector params = {input_hidden_states,
+                                 position_ids,
+                                 query,
+                                 key,
+                                 value,
+                                 past_key,
+                                 past_value,
+                                 seqlens_k,
+                                 total_sequence_length,
+                                 cos_cache,
+                                 sin_cache};
+    auto model = std::make_shared<ov::Model>(results, params, "gqa_disconnected_ports");
+    EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::Unknown);
 }
 
 TEST(GQACompiledModelSupportsTest, ReturnsFalseWithoutPositionIds) {

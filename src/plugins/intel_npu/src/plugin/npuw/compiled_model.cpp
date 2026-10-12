@@ -323,21 +323,28 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto config = properties;
     config.erase(ov::cache_dir.name());
 
+    const bool flux2_requested = properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true;
+    const bool llm_requested = properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true;
+    const bool pa_requested = properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true;
+    const bool kokoro_requested = properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true;
+
     const bool gqa_explicitly_set = properties.count(use_gqa_key) > 0;
     const bool gqa_explicitly_disabled = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == false;
     const bool gqa_requested = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == true;
     // Auto-detect GQA models (GroupQueryAttention op present) so they take the
-    // GQACompiledModel route without requiring the NPUW_GQA property to be set,
-    // unless the caller has explicitly opted out via NPUW_GQA=NO.
-    const bool gqa_detected = !gqa_explicitly_disabled && ov::npuw::GQACompiledModel::supports(model);
+    // GQACompiledModel route without requiring the NPUW_GQA property to be set, unless the
+    // caller has explicitly opted out via NPUW_GQA=NO, or has explicitly requested a
+    // different NPUW front-end -- an explicit request must always win over auto-detection.
+    const bool gqa_detected = !gqa_explicitly_disabled && !flux2_requested && !llm_requested && !pa_requested &&
+                              !kokoro_requested && ov::npuw::GQACompiledModel::supports(model);
 
-    if (properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true) {
+    if (flux2_requested) {
         LOG_INFO("ov::npuw::Flux2CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::Flux2CompiledModel>(model, plugin, config);
     } else if (gqa_requested || gqa_detected) {
         LOG_INFO("ov::npuw::GQACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
-    } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+    } else if (llm_requested) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         auto llm_compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
         const auto scoring_tags = ov::npuw::batched::scoring_tags(config);
@@ -352,10 +359,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         } else {
             compiled_model = llm_compiled_model;
         }
-    } else if (properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true) {
+    } else if (pa_requested) {
         LOG_INFO("ov::npuw::PACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::PACompiledModel>(model, plugin, config);
-    } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
+    } else if (kokoro_requested) {
         LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
     } else {
