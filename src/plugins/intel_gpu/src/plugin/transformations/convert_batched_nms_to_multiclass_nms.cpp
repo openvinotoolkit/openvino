@@ -260,6 +260,20 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         auto class_ids_source = pattern_map.at(class_ids_source_m);
         const auto raw_scores = pattern_map.at(raw_scores_m);
 
+        const auto& source_boxes_shape = boxes_source.get_partial_shape();
+        const auto& source_scores_shape = raw_scores.get_partial_shape();
+        const auto& nms_boxes_shape = nms->get_input_partial_shape(0);
+        const auto& nms_scores_shape = nms->get_input_partial_shape(1);
+        if (nms_boxes_shape.rank().is_dynamic() || nms_scores_shape.rank().is_dynamic() ||
+            nms_boxes_shape.rank().get_length() != 3 || nms_scores_shape.rank().get_length() != 3 ||
+            nms_boxes_shape[0] != 1 || nms_boxes_shape[2] != 4 || nms_scores_shape[0] != 1 ||
+            nms_scores_shape[1] != 1 || !source_boxes_shape[0].compatible(source_scores_shape[0]) ||
+            !source_boxes_shape[0].compatible(nms_boxes_shape[1]) ||
+            !source_scores_shape[0].compatible(nms_scores_shape[2]) ||
+            !nms_boxes_shape[1].compatible(nms_scores_shape[2])) {
+            return false;
+        }
+
         const auto max_output_boxes = get_scalar_from_const_source<int64_t>(nms->input_value(2));
         const auto iou_threshold = get_scalar_from_const_source<float>(nms->input_value(3));
         const auto score_threshold = get_scalar_from_const_source<float>(nms->input_value(4));

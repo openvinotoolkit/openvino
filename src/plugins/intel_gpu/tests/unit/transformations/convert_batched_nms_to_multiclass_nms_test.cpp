@@ -33,7 +33,8 @@ std::shared_ptr<ov::Model> make_batched_nms_output_model(
     int32_t max_output_boxes = 2000,
     int64_t prefix_limit = 100,
     ov::op::v9::NonMaxSuppression::BoxEncodingType box_encoding = ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
-    bool sort_result_descending = true) {
+    bool sort_result_descending = true,
+    int32_t nms_batch = 1) {
     auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
     auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1});
     auto class_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
@@ -47,13 +48,21 @@ std::shared_ptr<ov::Model> make_batched_nms_output_model(
     auto offsets_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(offsets, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     auto shifted_boxes = std::make_shared<ov::op::v1::Add>(boxes, offsets_unsqueeze);
 
-    auto boxes_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1, -1, 4});
+    auto boxes_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {nms_batch, -1, 4});
     auto boxes_reshape = std::make_shared<ov::op::v1::Reshape>(shifted_boxes, boxes_shape, false);
-    auto scores_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(scores, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 1}));
+    ov::Output<ov::Node> nms_scores;
+    if (nms_batch == 1) {
+        nms_scores = std::make_shared<ov::op::v0::Unsqueeze>(
+            scores,
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 1}));
+    } else {
+        auto scores_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {nms_batch, 1, -1});
+        nms_scores = std::make_shared<ov::op::v1::Reshape>(scores, scores_shape, false);
+    }
 
     auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(
         boxes_reshape,
-        scores_unsqueeze,
+        nms_scores,
         ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {max_output_boxes}),
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f}),
         std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.7f}), ov::element::f32),
@@ -166,6 +175,34 @@ TEST(ConvertBatchedNmsToMulticlassNmsTest, KeepsUnsupportedNmsSemanticsUntouched
         EXPECT_EQ(get_op_count(model, ov::op::internal::MulticlassNmsIEInternal::get_type_info_static()), 0);
         EXPECT_EQ(get_op_count(model, ov::op::v9::NonMaxSuppression::get_type_info_static()), 1);
     }
+}
+
+TEST(ConvertBatchedNmsToMulticlassNmsTest, KeepsMultiBatchNmsUntouched) {
+    auto model = make_batched_nms_output_model(
+        2,
+        2000,
+        100,
+        ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
+        true,
+        2);
+
+    std::shared_ptr<ov::op::v9::NonMaxSuppression> nms;
+    for (const auto& node : model->get_ops()) {
+        nms = ov::as_type_ptr<ov::op::v9::NonMaxSuppression>(node);
+        if (nms) {
+            break;
+        }
+    }
+    ASSERT_NE(nms, nullptr);
+    EXPECT_EQ(nms->get_input_partial_shape(0), (ov::PartialShape{2, -1, 4}));
+    EXPECT_EQ(nms->get_input_partial_shape(1), (ov::PartialShape{2, 1, -1}));
+
+    ov::pass::Manager manager;
+    manager.register_pass<ConvertBatchedNmsToMulticlassNms>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(get_op_count(model, ov::op::internal::MulticlassNmsIEInternal::get_type_info_static()), 0);
+    EXPECT_EQ(get_op_count(model, ov::op::v9::NonMaxSuppression::get_type_info_static()), 1);
 }
 
 TEST(ConvertBatchedNmsToMulticlassNmsTest, KeepsGenericNmsGatherChainUntouched) {
