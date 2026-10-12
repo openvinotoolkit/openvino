@@ -414,3 +414,6 @@ IE_CPU.onnx_model_dft_inverse_length_provided_onesided
 IE_GPU.onnx_model_max_unpool_2d_opset9
 IE_GPU.onnx_model_max_unpool_2d_opset22
 IE_GPU.onnx_model_max_unpool
+
+# GPU: a fully static model cannot produce the runtime-sized (total_sequence_length) GQA output_qk
+IE_GPU.onnx_model_gqa_qk_output_static_cache
