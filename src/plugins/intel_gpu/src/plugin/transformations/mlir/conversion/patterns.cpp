@@ -89,9 +89,9 @@ GroupedMatMulPattern::GroupedMatMulPattern()
                       const auto& a_shape = node->get_input_partial_shape(0);
                       const auto& b_shape = node->get_input_partial_shape(1);
                       if (node->get_input_size() != 3 || a_shape.size() != 2 || b_shape.size() != 3) {
-                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name()
-                                                                                      << " — only the 2Dx3D case is supported, got mat_a " << a_shape
-                                                                                      << " x mat_b " << b_shape);
+                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected "
+                                                    << node->get_friendly_name() << " — only the 2Dx3D case is supported, got mat_a " << a_shape << " x mat_b "
+                                                    << b_shape);
                           return false;
                       }
 
