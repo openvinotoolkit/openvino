@@ -980,8 +980,8 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
 }
 
 bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::string& past_or_present) {
-    static std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
-    static std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
+    static const std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
+    static const std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
     const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
     return std::regex_match(input, regex_pattern);
 }
@@ -1042,7 +1042,6 @@ bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
     // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
     static const std::regex restored_pattern(
         R"((input_restored\.past_key_values\.(\d+)\.decoder\.(key|value))(present\.(\d+)\.decoder\.(key|value)))");
-    ;
     return std::regex_match(str, restored_pattern);
 }
 
@@ -1050,7 +1049,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::strin
     // Match only the single contiguous past key param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
     // Returns the layer index if matched.
-    std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
+    static const std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1063,7 +1062,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
     // Match only the single contiguous past value param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
     // Returns the layer index if matched.
-    std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
+    static const std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1073,7 +1072,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
 }
 
 std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str) {
-    std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.key)");
+    static const std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1083,7 +1082,7 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str)
 }
 
 std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& str) {
-    std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.value)");
+    static const std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.value)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());

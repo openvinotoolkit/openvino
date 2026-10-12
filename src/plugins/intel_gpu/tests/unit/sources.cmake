@@ -320,6 +320,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_rms_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_sin_gen_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/dynamic_quantize_fully_connected_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/dynamic_quantize_sharing_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/dynamic_same_padding_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/expand_broadcast_reshape_sdpa_fusion_test.cpp
