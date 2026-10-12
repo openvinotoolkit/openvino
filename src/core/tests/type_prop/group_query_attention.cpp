@@ -655,5 +655,51 @@ TEST(type_prop, group_query_attention_qk_norm_non_positive_epsilon_rejected) {
                     HasSubstr("finite qk_norm_epsilon > 0"));
 }
 
+namespace {
+std::shared_ptr<op::internal::GroupQueryAttention> make_gqa_with_qk_output(
+    op::internal::GroupQueryAttentionQKOutput qk_output,
+    bool sliding_window_cache = false) {
+    return std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(),
+                                                               6,
+                                                               2,
+                                                               1.0f,
+                                                               false,
+                                                               false,
+                                                               0,
+                                                               op::internal::GroupQueryAttentionQuantType::NONE,
+                                                               op::internal::GroupQueryAttentionQuantType::NONE,
+                                                               sliding_window_cache ? 4 : -1,
+                                                               sliding_window_cache,
+                                                               false,
+                                                               true,
+                                                               0.0f,
+                                                               1e-6f,
+                                                               qk_output);
+}
+}  // namespace
+
+TEST(type_prop, group_query_attention_qk_output_none_has_three_outputs) {
+    const auto op = make_gqa_with_qk_output(op::internal::GroupQueryAttentionQKOutput::NONE);
+    EXPECT_EQ(op->get_output_size(), 3);
+}
+
+TEST(type_prop, group_query_attention_qk_output_adds_scores_output) {
+    for (const auto mode : {op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX,
+                            op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX}) {
+        const auto op = make_gqa_with_qk_output(mode);
+        ASSERT_EQ(op->get_output_size(), 4);
+        EXPECT_EQ(op->get_qk_output(), mode);
+        EXPECT_EQ(op->get_output_element_type(3), element::f32);
+        EXPECT_EQ(op->get_output_partial_shape(3), (PartialShape{1, 6, 4, Dimension::dynamic()}));
+    }
+}
+
+TEST(type_prop, group_query_attention_qk_output_with_sliding_window_cache_rejected) {
+    OV_EXPECT_THROW(
+        std::ignore = make_gqa_with_qk_output(op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX, true),
+        ov::NodeValidationFailure,
+        HasSubstr("qk_output is not supported with sliding_window_cache"));
+}
+
 }  // namespace testing
 }  // namespace ov

@@ -18,6 +18,10 @@ std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQuantType& qu
     return s << as_string(quant_type);
 }
 
+std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQKOutput& qk_output) {
+    return s << as_string(qk_output);
+}
+
 }  // namespace ov::op::internal
 
 namespace ov {
@@ -34,6 +38,19 @@ EnumNames<op::internal::GroupQueryAttentionQuantType>::get() {
 }
 
 AttributeAdapter<op::internal::GroupQueryAttentionQuantType>::~AttributeAdapter() = default;
+
+template <>
+OPENVINO_API EnumNames<op::internal::GroupQueryAttentionQKOutput>&
+EnumNames<op::internal::GroupQueryAttentionQKOutput>::get() {
+    static auto enum_names = EnumNames<op::internal::GroupQueryAttentionQKOutput>(
+        "op::internal::GroupQueryAttentionQKOutput",
+        {{"NONE", op::internal::GroupQueryAttentionQKOutput::NONE},
+         {"BEFORE_SOFTMAX", op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX},
+         {"AFTER_SOFTMAX", op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX}});
+    return enum_names;
+}
+
+AttributeAdapter<op::internal::GroupQueryAttentionQKOutput>::~AttributeAdapter() = default;
 
 }  // namespace ov
 
@@ -53,7 +70,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          bool smooth_softmax,
                                          bool causal,
                                          float softcap,
-                                         float qk_norm_epsilon)
+                                         float qk_norm_epsilon,
+                                         GroupQueryAttentionQKOutput qk_output)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -68,7 +86,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_smooth_softmax(smooth_softmax),
       m_causal(causal),
       m_softcap(softcap),
-      m_qk_norm_epsilon(qk_norm_epsilon) {
+      m_qk_norm_epsilon(qk_norm_epsilon),
+      m_qk_output(qk_output) {
     constructor_validate_and_infer_types();
 }
 
@@ -298,6 +317,10 @@ void GroupQueryAttention::validate_and_infer_types() {
                           m_local_window_size);
     // causal=0 (bidirectional) is mutually exclusive with a sliding window, matching the ONNX Runtime
     // precondition (gqa_attention_base.h: causal_ || local_window_size_ == -1).
+    // ONNX Runtime CPU (the only provider of qk_output) rejects it with a windowed cache.
+    NODE_VALIDATION_CHECK(this,
+                          m_qk_output == GroupQueryAttentionQKOutput::NONE || !m_sliding_window_cache,
+                          "GroupQueryAttention: qk_output is not supported with sliding_window_cache.");
     NODE_VALIDATION_CHECK(this,
                           m_causal || m_local_window_size == -1,
                           "GroupQueryAttention: local_window_size requires causal=1, got causal=0 and "
@@ -385,6 +408,10 @@ void GroupQueryAttention::validate_and_infer_types() {
     for (auto&& port : {1, 2}) {
         set_output_type(port, kv_cache_type, kv_shape);
     }
+    if (m_qk_output != GroupQueryAttentionQKOutput::NONE) {
+        // The last dim is the runtime total_sequence_length.
+        set_output_type(3, q_type, PartialShape{batch_size, m_num_heads, sequence_len, Dimension::dynamic()});
+    }
 }
 
 bool GroupQueryAttention::is_shared_kv() const {
@@ -416,6 +443,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("local_window_size", m_local_window_size);
     visitor.on_attribute("num_heads", m_num_heads);
     visitor.on_attribute("qk_norm_epsilon", m_qk_norm_epsilon);
+    visitor.on_attribute("qk_output", m_qk_output);
     visitor.on_attribute("rotary_interleaved", m_rotary_interleaved);
     visitor.on_attribute("scale", m_scale);
     visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
@@ -442,7 +470,8 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_smooth_softmax,
                                                  m_causal,
                                                  m_softcap,
-                                                 m_qk_norm_epsilon);
+                                                 m_qk_norm_epsilon,
+                                                 m_qk_output);
 }
 
 }  // namespace ov::op::internal

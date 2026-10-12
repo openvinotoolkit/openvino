@@ -39,12 +39,13 @@ TEST(attributes, group_query_attention_attrs) {
                                                           /*smooth_softmax*/ true,
                                                           /*causal*/ true,
                                                           /*softcap*/ 50.0f,
-                                                          /*qk_norm_epsilon*/ 1e-5f);
+                                                          /*qk_norm_epsilon*/ 1e-5f,
+                                                          ov::op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX);
 
     NodeBuilder builder(op, args);
     const auto g_op = ov::as_type_ptr<GroupQueryAttention>(builder.create());
     ASSERT_NE(g_op, nullptr);
-    EXPECT_EQ(builder.get_value_map_size(), 14);
+    EXPECT_EQ(builder.get_value_map_size(), 15);
     EXPECT_EQ(g_op->get_num_heads(), op->get_num_heads());
     EXPECT_EQ(g_op->get_kv_num_heads(), op->get_kv_num_heads());
     EXPECT_EQ(g_op->get_scale(), op->get_scale());
@@ -53,5 +54,7 @@ TEST(attributes, group_query_attention_attrs) {
     EXPECT_EQ(g_op->get_causal(), op->get_causal());
     EXPECT_EQ(g_op->get_softcap(), op->get_softcap());
     EXPECT_EQ(g_op->get_qk_norm_epsilon(), op->get_qk_norm_epsilon());
+    EXPECT_EQ(g_op->get_qk_output(), op->get_qk_output());
+    EXPECT_EQ(g_op->get_output_size(), 4);
     EXPECT_EQ(g_op->get_output_partial_shape(0), op->get_output_partial_shape(0));
 }

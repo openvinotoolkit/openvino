@@ -36,8 +36,18 @@ enum class GroupQueryAttentionQuantType {
     PER_CHANNEL,
 };
 
+// Optional 4th output (ONNX qk_output): the attention scores before or after softmax.
+enum class GroupQueryAttentionQKOutput {
+    NONE,
+    BEFORE_SOFTMAX,
+    AFTER_SOFTMAX,
+};
+
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQuantType& quant_type);
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQKOutput& qk_output);
 
 }  // namespace ov::op::internal
 
@@ -53,6 +63,18 @@ public:
     ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::internal::GroupQueryAttentionQuantType>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<op::internal::GroupQueryAttentionQKOutput>
+    : public EnumAttributeAdapterBase<op::internal::GroupQueryAttentionQKOutput> {
+public:
+    AttributeAdapter(op::internal::GroupQueryAttentionQKOutput& value)
+        : EnumAttributeAdapterBase<op::internal::GroupQueryAttentionQKOutput>(value) {}
+
+    ~AttributeAdapter() override;
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::GroupQueryAttentionQKOutput>");
 };
 
 }  // namespace ov
@@ -79,7 +101,8 @@ public:
                         bool smooth_softmax = false,
                         bool causal = true,
                         float softcap = 0.0f,
-                        float qk_norm_epsilon = 1e-6f);
+                        float qk_norm_epsilon = 1e-6f,
+                        GroupQueryAttentionQKOutput qk_output = GroupQueryAttentionQKOutput::NONE);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -151,6 +174,11 @@ public:
     float get_qk_norm_epsilon() const {
         return m_qk_norm_epsilon;
     }
+    // When not NONE, output 3 holds the [B, num_heads, S, total_sequence_length] attention scores before softmax
+    // (scaled, soft-capped, plus attention_bias; masked positions are 0) or after it, as in ONNX Runtime.
+    GroupQueryAttentionQKOutput get_qk_output() const {
+        return m_qk_output;
+    }
 
 private:
     int64_t m_num_heads = 0;
@@ -167,6 +195,7 @@ private:
     bool m_causal = true;
     float m_softcap = 0.0f;
     float m_qk_norm_epsilon = 1e-6f;
+    GroupQueryAttentionQKOutput m_qk_output = GroupQueryAttentionQKOutput::NONE;
 };
 
 }  // namespace ov::op::internal
