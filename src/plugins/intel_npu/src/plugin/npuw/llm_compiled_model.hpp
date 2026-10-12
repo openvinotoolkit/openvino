@@ -85,7 +85,7 @@ public:
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
 
-private:
+protected:
     friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
@@ -111,6 +111,12 @@ private:
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
+
+    // Trust-boundary check for imported blobs: KVCacheDesc::dim and the V-transposed flags are read
+    // from the stream and select the axis used to subscript shape vectors in the KV-slice helpers.
+    // Reject them unless that axis is valid for every KV input/output of the restored prefill and
+    // generate models.
+    void validate_imported_kvcache_dim() const;
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;

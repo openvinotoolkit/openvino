@@ -231,13 +231,13 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const FilteredConfig& config) const {
+    const Config& config) const {
     return compile(model, config, false);
 }
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const FilteredConfig& config,
+    const Config& config,
     const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
@@ -270,7 +270,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     isOptionSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
-    FilteredConfig updatedConfig = config;
+    Config updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
                              MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
@@ -368,7 +368,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
 std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::compileWsOneShot(
     const std::shared_ptr<ov::Model>& model,
-    const FilteredConfig& config) const {
+    const Config& config) const {
     _logger.debug("compileWsOneShot start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -400,7 +400,7 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
                                                     isOptionSupportedByCompiler,
                                                     false,
                                                     true);
-    FilteredConfig updatedConfig = config;
+    Config updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
                              MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
@@ -481,10 +481,10 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIterative(
     const std::shared_ptr<ov::Model>& model,
-    const FilteredConfig& config,
+    const Config& config,
     size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    FilteredConfig updatedConfig = config;
+    Config updatedConfig = config;
     updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
     // Return the compatibility descriptor together with the compiled blob.
     return compile(model, updatedConfig, true);
@@ -544,8 +544,7 @@ uint32_t VCLCompilerImpl::get_version() const {
     return ZE_MAKE_VERSION(_compilerProperties.version.major, _compilerProperties.version.minor);
 }
 
-ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
-                                           const FilteredConfig& config) const {
+ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -565,7 +564,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    FilteredConfig updatedConfig = config;
+    Config updatedConfig = config;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName,
                                                     const std::optional<std::string>& optionValue = std::nullopt) {
         return is_option_supported(optionName, optionValue);
@@ -694,6 +693,30 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     }
 
     return supported;
+}
+
+namespace {
+// The cache key under which the compiler-in-plugin's option-support answers are stored.
+constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
+    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
+}  // namespace
+
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::optional<IDevice::DeviceProperties>& deviceProperties,
+                                        const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
+    auto vclLoader = VCLLoader::getInstance();
+    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+
+    auto compiler =
+        std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
+                                          deviceProperties,
+                                          ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
+
+    // Pairing the compiler with the library keeps the .so alive for as long as the compiler is. The
+    // compiler itself never learns that a library is involved.
+    auto vclLib = vclLoader->getLibrary();
+    OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
+
+    return ov::SoPtr<IVCLCompiler>(compiler, vclLib);
 }
 
 }  // namespace intel_npu

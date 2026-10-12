@@ -13,14 +13,11 @@
 
 namespace ov {
 
-namespace op {
-namespace util {
+namespace op::util {
 class FrameworkNode;
-}  // namespace util
-}  // namespace op
+}  // namespace op::util
 
-namespace frontend {
-namespace pytorch {
+namespace frontend::pytorch {
 
 const std::string pytorch_prefix = "[PyTorch Frontend] ";
 
@@ -228,6 +225,9 @@ std::pair<Output<Node>, Output<Node>> build_multi_head_attention(const NodeConte
                                                                  bool average_weights);
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
+
+// Decomposition of aten::meshgrid, indexing must be "ij" or "xy".
+OutputVector build_meshgrid(ov::pass::NodeRegistry& rg, OutputVector inputs, const std::string& indexing);
 
 bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const Output<Node>& data,
@@ -461,6 +461,5 @@ private:
     const std::string m_schema = "NONE";
 };
 
-}  // namespace pytorch
-}  // namespace frontend
+}  // namespace frontend::pytorch
 }  // namespace ov

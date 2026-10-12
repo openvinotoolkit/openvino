@@ -8,11 +8,7 @@
 #include "openvino/frontend/exception.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector depth_to_space(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     const auto& shape = data.get_partial_shape();
@@ -31,8 +27,4 @@ ov::OutputVector depth_to_space(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector{std::make_shared<v0::DepthToSpace>(data, ov_mode, block_size)};
 }
 ONNX_OP("DepthToSpace", OPSET_SINCE(1), ai_onnx::opset_1::depth_to_space);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

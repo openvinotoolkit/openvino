@@ -17,9 +17,7 @@
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Graph operations and shared decoder blocks. Operands use GGML order; shapes use OpenVINO order.
 class GGUF_FRONTEND_API GgufGraphContext {
@@ -74,6 +72,7 @@ public:
     void set_output(const GgufValue& logits);
     // Put the data output before auxiliary cache outputs registered by decoder blocks.
     void set_primary_output(const GgufValue& value);
+    void set_output(const GgufValue& value, const std::string& name);
     // Record the sliding window for normalization passes.
     void set_sliding_window(int64_t tokens);
     // Registers an overwritten state, automatically marking the update as a model output.
@@ -87,6 +86,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

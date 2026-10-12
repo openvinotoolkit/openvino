@@ -37,10 +37,7 @@ ov::op::PadMode get_pad_mode(std::string mode) {
 }  // namespace
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
@@ -127,7 +124,4 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Pad", OPSET_SINCE(11), ai_onnx::opset_11::pad);
 }  // namespace opset_11
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

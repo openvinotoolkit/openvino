@@ -456,6 +456,7 @@ void remove_redundant_reorders::run(program& p) {
             auto& node = node_ptr->as<reorder>();
 
             auto& input = node.input();
+            OPENVINO_ASSERT(node.get_output_layouts().size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
             auto output_layout = node.get_output_layout();
 
             if (!node.is_simple_reorder()) {
@@ -500,7 +501,7 @@ void remove_redundant_reorders::run(program& p) {
                     local_desc.f_param = node.get_fuse_params();
                     local_desc.total_num_deps = node.get_dependencies().size();
                     local_desc.input_layout = old_output_layout_of_input;
-                    local_desc.output_layout = output_layout;
+                    local_desc.output_layouts = {output_layout};
                     input.add_fused_primitive(local_desc);
                 }
 
@@ -667,7 +668,7 @@ void remove_redundant_reorders::run(program& p) {
             node->set_input_layout(local_desc.input_layout);
             local_desc.f_param = node->get_fuse_params();
             local_desc.outer_dep_start_idx = -1;
-            local_desc.output_layout = output_layout;
+            local_desc.output_layouts = {output_layout};
             input.add_fused_primitive(local_desc);
 
             // remove reorder node
@@ -790,15 +791,7 @@ void remove_redundant_reorders::run(program& p) {
     }
 
     // Recalculate processing order if it is not correct
-    bool is_correct = true;
-    for (auto* node : p.get_processing_order()) {
-        if (!p.get_processing_order().is_correct(node)) {
-            is_correct = false;
-            break;
-        }
-    }
-
-    if (!is_correct) {
+    if (!p.get_processing_order().is_correct()) {
         p.get_processing_order().calc_processing_order(p);
     }
 }

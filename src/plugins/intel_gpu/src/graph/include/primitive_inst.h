@@ -487,6 +487,7 @@ protected:
     bool try_bind_remote_permute_output(const layout& actual_layout);
     void realloc_if_needed(bool prev_execution_skipped = false);
     void realloc_outputs(bool prev_execution_skipped = false);
+    void realloc_outputs_for_stateless_kv();
     void realloc_intermediates();
 
     cldnn::network::ptr get_unfused_subgraph();

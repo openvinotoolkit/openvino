@@ -8,9 +8,7 @@
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 class TranslateSession;
 
@@ -150,6 +148,4 @@ private:
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::pytorch::NodeContext&)>;
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

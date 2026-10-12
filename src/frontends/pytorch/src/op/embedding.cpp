@@ -10,10 +10,7 @@
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_embedding(const NodeContext& context) {
     // aten::embedding(Tensor weight, Tensor indices, SymInt padding_idx=-1, bool scale_grad_by_freq=False, bool
@@ -70,7 +67,4 @@ OutputVector translate_embedding_ct(const NodeContext& context) {
     return {context.mark_node(std::make_shared<ov::op::v8::Gather>(table, indices, axis_0))};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

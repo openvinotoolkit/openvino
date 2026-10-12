@@ -51,11 +51,11 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-lin-x64-docker-4c16gb
+    runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -92,7 +92,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-lin-x64-build-16c32gb
+    runs-on: aks-linux-16-cores-32gb
     strategy:
       fail-fast: false
       matrix:

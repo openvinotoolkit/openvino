@@ -406,3 +406,14 @@ IE_CPU.onnx_model_instance_normalization
 IE_CPU.quant_dequant_pattern_axis
 IE_CPU/GRUSequenceOp.onnx_model_gru_reverse_mixed_seq_len_const
 IE_CPU/RNNSequenceOp.onnx_model_rnn_fwd_bias_initial_h_const
+
+# CVS-195972: CPU IRDFT does not zero-pad input with fewer bins than signal_size / 2 + 1 (reads uninitialized memory)
+IE_CPU.onnx_model_dft_inverse_length_provided_onesided
+
+# CVS-195973: GPU STFT returns nondeterministic wrong frames when frame_step/frame_length are runtime inputs
+IE_GPU.onnx_model_stft_runtime_frame_length
+
+# GPU: scatter ops with a rank-1 Constant input give wrong results for static shapes
+IE_GPU.onnx_model_max_unpool_2d_opset9
+IE_GPU.onnx_model_max_unpool_2d_opset22
+IE_GPU.onnx_model_max_unpool

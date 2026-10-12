@@ -11,11 +11,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     // Crop is an obsolete experimental ONNX operation.
     // Crops an image's spatial dimensions.
@@ -77,8 +73,4 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Crop", OPSET_SINCE(1), ai_onnx::opset_1::crop);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

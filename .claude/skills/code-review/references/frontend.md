@@ -4,9 +4,6 @@ Apply to changes under `src/frontends/`, frontend Python decoders and bindings
 under `src/bindings/python/src/openvino/frontend/` and
 `src/bindings/python/src/pyopenvino/frontend/`, and their conversion tests.
 
-For PyTorch translators, decoders, or conversion tests, also read the
-[PyTorch-specific guidance](pytorch.md).
-
 ## Review focus
 
 - Keep frontend code hardware- and plugin-agnostic. Conversion must preserve
@@ -37,6 +34,21 @@ For PyTorch translators, decoders, or conversion tests, also read the
   type information when runtime graph computation is required.
 - Check that user-visible frontend behavior has focused regression tests,
   including dynamic, boundary, and malformed-input cases where applicable.
+- Check that conversion tests actually run inference and compare the results
+  with expected values; a test that only prepares inputs and expected outputs
+  verifies nothing. Flag expected values that look like placeholders; they
+  should come from the framework or a trusted reference.
+- When a change lets inputs that had to be constants be runtime values, require
+  a positive test that feeds them at runtime and exercises output shapes that
+  depend on them, not only rejection tests.
+- Check that test tolerances fit the magnitude of the outputs. An absolute
+  tolerance that ignores the output scale can hide real errors or make the test
+  flaky.
+- When a change adds support for an operation or case, check the frontend's
+  expected-failure and skip lists for tests it now fixes. Newly passing strict
+  xfails fail CI.
+- Do not ask for frontend workarounds for plugin or reference-evaluator
+  limitations, such as a missing f64 kernel. Report them against the plugin.
 
 ## Graph efficiency
 
@@ -114,6 +126,12 @@ narrowing. If the diff demonstrably introduces overflow, incorrect indexing,
 a conversion failure, or material numerical error for a supported scenario,
 assess that failure by its practical impact. Higher severity requires evidence
 of such a failure, rather than the presence or absence of a 64-bit type alone.
+
+## Framework-specific guidance
+
+- ONNX frontend (`src/frontends/onnx/`): also apply [ONNX frontend review](onnx.md).
+- PyTorch translators, decoders, and conversion tests: also apply
+  [PyTorch frontend review](pytorch.md).
 
 ## Python decoders and bindings
 
