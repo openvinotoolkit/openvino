@@ -150,22 +150,15 @@ using DeviceId = uint8_t;
  * than compute themselves, so the device owning a section is always the one that produced it.
  */
 enum class Devices : DeviceId {
-    any = 0,  //!< See #any_device_id.
-    cpu = 1,  //!< See #cpu_device_id.
-    gpu = 2,  //!< See #gpu_device_id.
-    npu = 3,  //!< See #npu_device_id.
+    any = 0,              //!< See #any_device_id.
+    cpu = 1,              //!< See #cpu_device_id.
+    gpu = 2,              //!< See #gpu_device_id.
+    npu = 3,              //!< See #npu_device_id.
+    template_plugin = 4,  //!< See #template_device_id.
     // Add new real devices above this line only, each with the next explicit value - never change or reuse an
     // existing device's value.
     sentinel_count,  // Not a real device id - always exactly one past the last real entry above.
 };
-
-/**
- * @brief First #DeviceId of the sample/test bucket, kept clear of the #Devices range so a sample plugin can
- * take an id without ever colliding with a real device.
- */
-inline constexpr DeviceId sample_device_id_range_start = 100;
-static_assert(static_cast<DeviceId>(Devices::sentinel_count) <= sample_device_id_range_start,
-              "Too many real devices defined for sample_device_id_range_start - widen the boundary.");
 
 /** @brief Reserved #DeviceId for sections not tied to one specific device. */
 inline constexpr DeviceId any_device_id = static_cast<DeviceId>(Devices::any);
@@ -173,6 +166,9 @@ inline constexpr DeviceId any_device_id = static_cast<DeviceId>(Devices::any);
 inline constexpr DeviceId cpu_device_id = static_cast<DeviceId>(Devices::cpu);  //!< CPU plugin.
 inline constexpr DeviceId gpu_device_id = static_cast<DeviceId>(Devices::gpu);  //!< GPU plugin.
 inline constexpr DeviceId npu_device_id = static_cast<DeviceId>(Devices::npu);  //!< NPU plugin.
+
+/// TEMPLATE plugin.
+inline constexpr DeviceId template_device_id = static_cast<DeviceId>(Devices::template_plugin);
 
 /**
  * @brief Boundary in the 23-bit #SectionTag id space: Core ids are `< core_tag_id_range_end`;
