@@ -633,6 +633,7 @@ std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim
 
 }  // namespace
 
+// Apply DEVICE_ROUTED MoE transformations to models
 std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_generate_model_variants(
     const std::shared_ptr<ov::Model>& generate_model,
     const KVAxesPosition& axes,
@@ -1620,9 +1621,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_lm_head_compiled->serialize(model_stream, enc_ctx);
         }
 
-        // The chunked-prefill "other outputs" seq-dim table is keyed by prefill output ports, which
-        // can't travel directly. Store it by tensor name and rebuild against the deserialized
-        // prefill model on import.
+        // The chunked-prefill outputs' sequence-dimension table is keyed by model output ports,
+        // which cannot be serialized directly. Export it by tensor name instead, so it can be
+        // rebuilt against the restored prefill model on import.
         std::map<std::string, std::size_t> other_outs_seqdims;
         for (const auto& [port, seqdim] : m_prefill_other_outs_seqdims) {
             other_outs_seqdims.emplace(port.get_any_name(), seqdim);
@@ -1843,8 +1844,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
 
-        // Rebuild the chunked-prefill "other outputs" seq-dim table from tensor names against the
-        // restored prefill model - see the matching comment in serialize().
+        // Rebuild the chunked-prefill outputs' sequence dimension table by matching tensor names
+        // against the restored prefill model (see the matching comment in serialize()).
         std::map<std::string, std::size_t> other_outs_seqdims;
         stream & other_outs_seqdims;
         compiled->m_prefill_other_outs_seqdims.clear();

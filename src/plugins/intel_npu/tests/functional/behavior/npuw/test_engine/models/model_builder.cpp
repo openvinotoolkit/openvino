@@ -753,15 +753,16 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     if (!config.ffn) {
         if (config.num_experts > 0) {
             // Build the FFN from the config's MoE fields; moe_factory selects the topology (empty = GPT-OSS).
-            size_t moe_inter = config.moe_intermediate_size > 0
-                                   ? config.moe_intermediate_size
-                                   : config.intermediate_size;
-            size_t moe_k = config.num_experts_per_tok > 0
-                               ? config.num_experts_per_tok
-                               : std::min<size_t>(2, config.num_experts);
+            size_t moe_inter =
+                config.moe_intermediate_size > 0 ? config.moe_intermediate_size : config.intermediate_size;
+            size_t moe_k =
+                config.num_experts_per_tok > 0 ? config.num_experts_per_tok : std::min<size_t>(2, config.num_experts);
             OPENVINO_ASSERT(moe_k >= 1 && moe_k <= config.num_experts,
                             "Invalid MoE config: num_experts_per_tok (",
-                            moe_k, ") must be in [1, num_experts (", config.num_experts, ")]");
+                            moe_k,
+                            ") must be in [1, num_experts (",
+                            config.num_experts,
+                            ")]");
             if (!config.moe_factory) {
                 config.moe_factory = make_gptoss_moe_ffn;
             }
@@ -919,10 +920,20 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                                                    const ov::Output<ov::Node>& v_proj,
                                                    size_t /*layer*/) {
                 auto idx_str = std::to_string(attn_idx);
-                auto k_cache = make_kv_cache_concat(k_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
-                                                    make_cache_params_var_id("key", idx_str), prec);
-                auto v_cache = make_kv_cache_concat(v_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
-                                                    make_cache_params_var_id("value", idx_str), prec);
+                auto k_cache = make_kv_cache_concat(k_proj,
+                                                    seq_source,
+                                                    beam_idx_output,
+                                                    kv_heads,
+                                                    config.head_dim,
+                                                    make_cache_params_var_id("key", idx_str),
+                                                    prec);
+                auto v_cache = make_kv_cache_concat(v_proj,
+                                                    seq_source,
+                                                    beam_idx_output,
+                                                    kv_heads,
+                                                    config.head_dim,
+                                                    make_cache_params_var_id("value", idx_str),
+                                                    prec);
                 m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
                 m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
                 return std::pair{k_cache.concatenated, v_cache.concatenated};
@@ -995,10 +1006,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                 outputs.push_back(pooled_result->output(0));
             }
 
-            return std::make_shared<ov::Model>(
-                outputs,
-                m_sinks,
-                model_name);
+            return std::make_shared<ov::Model>(outputs, m_sinks, model_name);
         }
         return make_model(logits, "logits", model_name);
     }
