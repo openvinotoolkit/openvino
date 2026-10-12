@@ -11,6 +11,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace ov {
 namespace frontend {
@@ -48,62 +51,85 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         result_types.push_back(result->get_input_element_type(0));
     }
 
+    // Weights and the model's inputs keep their narrow type, so ConvertPrecision must leave them alone.
+    // Their consumers read them through a Convert to the same type: the model stays valid for
+    // ConvertPrecision, which then retargets that Convert to f32 like any other narrow Convert.
+    std::vector<std::shared_ptr<Node>> kept;
+    const auto read_through_convert = [](const Output<Node>& output) {
+        std::vector<Input<Node>> consumers;
+        for (const auto& input : output.get_target_inputs()) {
+            const auto consumer = input.get_node();
+            // A Result keeps reading the node directly, so the output keeps its type and tensor names.
+            if (ov::is_type<v0::Result>(consumer)) {
+                continue;
+            }
+            const auto convert = ov::as_type<v0::Convert>(consumer);
+            if (!convert || convert->get_destination_type() != element::f32) {
+                consumers.push_back(input);
+            }
+        }
+        if (consumers.empty()) {
+            return false;
+        }
+        const auto convert = std::make_shared<v0::Convert>(output, output.get_element_type());
+        for (auto& consumer : consumers) {
+            consumer.replace_source_output(convert);
+        }
+        return true;
+    };
     bool changed = false;
     for (const auto& node : model->get_ordered_ops()) {
-        if (const auto convert = ov::as_type_ptr<v0::Convert>(node)) {
-            if (is_narrow(convert->get_destination_type())) {
-                convert->set_destination_type(element::f32);
-                changed = true;
-            }
-        } else if (const auto constant = ov::as_type_ptr<v0::Constant>(node)) {
+        if (const auto constant = ov::as_type_ptr<v0::Constant>(node)) {
             if (!is_narrow(constant->get_element_type())) {
                 continue;
             }
-            std::vector<Input<Node>> consumers;
-            for (const auto& input : constant->output(0).get_target_inputs()) {
-                // A Result keeps reading the Constant, so the output keeps its type and tensor names.
-                if (ov::is_type<v0::Result>(input.get_node())) {
-                    continue;
-                }
-                const auto consumer = ov::as_type<v0::Convert>(input.get_node());
-                if (!consumer || consumer->get_destination_type() != element::f32) {
-                    consumers.push_back(input);
-                }
+            // Small Constants (scalars, eps, rotary tables) are left to ConvertPrecision, which folds them
+            // to f32; one that is only read by a Convert(f32) or a Result is already in its final form.
+            const auto& targets = constant->output(0).get_target_inputs();
+            const bool final_form = std::all_of(targets.begin(), targets.end(), [](const Input<Node>& target) {
+                const auto convert = ov::as_type<v0::Convert>(target.get_node());
+                return ov::is_type<v0::Result>(target.get_node()) ||
+                       (convert && convert->get_destination_type() == element::f32);
+            });
+            if (shape_size(constant->get_shape()) <= fold_to_f32_max_elements && !final_form) {
+                continue;
             }
-            if (consumers.empty()) {
-                continue;  // already in decompression form
-            }
-            std::shared_ptr<Node> replacement;
-            if (shape_size(constant->get_shape()) <= fold_to_f32_max_elements) {
-                replacement =
-                    std::make_shared<v0::Constant>(element::f32, constant->get_shape(), constant->cast_vector<float>());
-            } else {
-                replacement = std::make_shared<v0::Convert>(constant, element::f32);
-            }
-            for (auto& consumer : consumers) {
-                consumer.replace_source_output(replacement);
-            }
-            changed = true;
+            changed = read_through_convert(constant) || changed;
+            kept.push_back(constant);
         } else if (const auto param = ov::as_type_ptr<v0::Parameter>(node)) {
-            if (!is_narrow(param->get_element_type()) || is_side_channel(param)) {
+            if (!is_narrow(param->get_element_type())) {
                 continue;
             }
-            std::vector<Input<Node>> consumers;
-            for (const auto& input : param->output(0).get_target_inputs()) {
-                // A Result keeps reading the Parameter, so the output keeps its type and tensor names.
-                if (!ov::is_type<v0::Result>(input.get_node())) {
-                    consumers.push_back(input);
-                }
+            // Side-channel Parameters stay narrow all the way to their consumers.
+            if (!is_side_channel(param)) {
+                changed = read_through_convert(param) || changed;
             }
-            if (consumers.empty()) {
-                continue;
-            }
-            const auto convert = std::make_shared<v0::Convert>(param, element::f32);
-            for (auto& consumer : consumers) {
-                consumer.replace_source_output(convert);
-            }
-            changed = true;
+            kept.push_back(param);
         }
+    }
+
+    // Retype the rest of the graph, including the ops whose output type is an attribute (Range, Eye,
+    // RandomUniform, ...). The inputs are kept above and the outputs get their type back below.
+    for (const auto& node : kept) {
+        ov::enable_keep_const_precision(node);
+    }
+    // ConvertPrecision drops the Converts that become identities, merging their tensor names into their
+    // input; for a Convert that feeds a Result that would rename the model output. Keep those Converts.
+    std::vector<std::shared_ptr<Node>> output_converts;
+    for (const auto& result : model->get_results()) {
+        const auto convert = result->get_input_node_shared_ptr(0);
+        if (ov::is_type<v0::Convert>(convert) && !ov::pass::constant_folding_is_disabled(convert)) {
+            ov::pass::disable_constant_folding(convert);
+            output_converts.push_back(convert);
+        }
+    }
+    const precisions_map precisions{{element::bf16, element::f32}, {element::f16, element::f32}};
+    changed = ov::pass::ConvertPrecision(precisions).run_on_model(model) || changed;
+    for (const auto& node : kept) {
+        ov::disable_keep_const_precision(node);
+    }
+    for (const auto& convert : output_converts) {
+        ov::pass::enable_constant_folding(convert);
     }
     if (!changed) {
         return false;

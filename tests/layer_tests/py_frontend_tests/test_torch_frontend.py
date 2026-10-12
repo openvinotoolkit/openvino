@@ -3531,3 +3531,54 @@ def test_canonicalize_float_precision_keeps_passthrough_outputs():
     canonical = convert_with({"canonical_float_precision": OVAny(True)})
     assert [sorted(o.get_names()) for o in canonical.outputs] == [sorted(o.get_names()) for o in expected.outputs]
     assert [o.get_element_type() for o in canonical.outputs] == [Type.bf16] * 3
+
+
+class _Bf16Arange(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x) * torch.arange(64, dtype=torch.bfloat16)
+
+
+class _Bf16Eye(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x) @ torch.eye(64, dtype=torch.bfloat16)
+
+
+class _Bf16Bernoulli(torch.nn.Module):
+    """aten.bernoulli lowers to a RandomUniform in the input's dtype."""
+
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x) * torch.bernoulli(torch.full_like(x, 0.5))
+
+
+@pytest.mark.parametrize("module_cls", [_Bf16Arange, _Bf16Eye, _Bf16Bernoulli], ids=["range", "eye", "random_uniform"])
+def test_canonicalize_float_precision_attribute_typed_ops(module_cls):
+    """Ops whose output type is an attribute (Range, Eye, RandomUniform) are retyped along with the
+    rest of the graph instead of leaving a bf16 input next to an f32 one."""
+    from openvino import OVAny
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    with torch.no_grad():
+        ep = torch.export.export(module_cls().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
+    decoder = TorchFXPythonDecoder(ep.module(), rt_info={"canonical_float_precision": OVAny(True)})
+    fe = FrontEndManager().load_by_framework("pytorch")
+    ov_model = fe.convert(fe.load(decoder))
+
+    attribute_typed = {"Range", "Eye", "RandomUniform"}
+    assert attribute_typed & {op.get_type_name() for op in ov_model.get_ordered_ops()}
+    assert ov_model.outputs[0].get_element_type() == Type.bf16
+    narrow = [op.get_type_name() for op in ov_model.get_ordered_ops()
+              if op.get_type_name() not in ("Constant", "Parameter", "Result", "Convert")
+              and op.get_output_element_type(0) in (Type.bf16, Type.f16)]
+    assert not narrow, f"ops left in bf16: {narrow}"

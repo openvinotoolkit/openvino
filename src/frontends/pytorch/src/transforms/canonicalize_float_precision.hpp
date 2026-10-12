@@ -13,19 +13,19 @@ namespace pass {
 
 /**
  * @interface CanonicalizeFloatPrecision
- * @brief Rewrites a bf16/f16 graph into the canonical OV LLM form: f32 activations, weights kept narrow.
+ * @brief Rewrites a bf16/f16 model into the standard OpenVINO form: f32 activations, compressed weights.
  *
- * torch.compile hands a model over in its own dtype, so every activation, Convert and weight is bf16
- * (or f16). The CPU LLM fusions (MLPFusion, QKVProjFusion, FullyConnectedCompressed) are written for the
- * form ovc and optimum produce, where compute precision comes from INFERENCE_PRECISION_HINT:
+ * torch.compile hands a model over in its own dtype, so every activation and weight is bf16 (or f16).
+ * The standard OpenVINO form keeps the weights compressed behind a decompression Convert and computes in
+ * f32, leaving the execution precision to the INFERENCE_PRECISION_HINT property:
  *
  *     Constant(bf16) -> Convert(f32) -> MatMul(f32)
  *
- * The pass retargets narrow Converts to f32, puts large narrow Constants behind a Convert(f32) and folds
- * small ones (scalars, eps, rotary tables) to f32. Narrow Parameters get a Convert(f32) after them, except
- * the "__pa__" side-channel Parameters, whose KV-cache precision is set later. Results get a Convert back
- * to their original type, so the model's inputs and outputs keep their dtype. Converts that became
- * identities are removed.
+ * Large narrow Constants are put behind a Convert(f32) and kept narrow; small ones (scalars, eps, rotary
+ * tables) are folded to f32. The rest of the graph is retyped by ov::pass::ConvertPrecision, which also
+ * handles ops whose output type is an attribute (Range, Eye, RandomUniform, ...). The model's inputs and
+ * outputs keep their type, as do the "__pa__" side-channel Parameters, whose KV-cache precision is set
+ * later. Models with subgraph ops are left unchanged.
  *
  * The new Converts are not marked here: ov::pass::MarkCompressedFloatConstants, run after this pass,
  * marks them as decompression and disables constant folding on them and their Constants.
