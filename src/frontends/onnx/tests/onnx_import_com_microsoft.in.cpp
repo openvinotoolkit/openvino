@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
 #include <vector>
 
 // clang-format off
@@ -5561,15 +5562,112 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_present_type_is_f8e4m3)
     EXPECT_EQ(model->outputs()[2].get_element_type(), element::f8e4m3);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_unsupported_throws) {
-    // q_norm_weight/k_norm_weight (QK-Norm) inputs are not implemented and must be rejected.
+static std::vector<float> gqa_sink_query();
+
+// RoPE caches for gqa_qk_norm (head_size 16, base 10000): cos/sin of position * inv_freq, [rows, 8].
+static std::vector<float> gqa_qk_norm_rope_cache(size_t rows, bool is_sin) {
+    std::vector<float> cache;
+    for (size_t pos = 0; pos < rows; ++pos) {
+        for (size_t i = 0; i < 8; ++i) {
+            const float angle = static_cast<float>(pos) / std::pow(10000.0f, static_cast<float>(2 * i) / 16.0f);
+            cache.push_back(is_sin ? std::sin(angle) : std::cos(angle));
+        }
+    }
+    return cache;
+}
+
+// QK-Norm (q_norm_weight/k_norm_weight, qk_norm_epsilon = 1e-5) with packed QKV and RoPE: the new Q/K heads are
+// RMS-normalized before RoPE. Expected values: ORT GQA on the same inputs with Q/K pre-normalized (ORT CPU has no
+// QK-Norm kernel; this matches the CUDA semantics).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_prefill) {
+    const auto model = convert_model("com.microsoft/gqa_qk_norm.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{4, 8}, gqa_qk_norm_rope_cache(4, false));
+    test_case.add_input<float>(Shape{4, 8}, gqa_qk_norm_rope_cache(4, true));
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.204647f, -0.064037f, 0.294030f,  0.750198f,
+            -0.175318f, -0.048703f, -0.573363f, 1.317654f,  0.312172f,  -1.404098f, 0.909337f,  0.566280f,  0.364273f,
+            0.346892f,  0.030539f,  -0.671584f, -0.153659f, -0.148707f, 0.317910f,  0.735134f,  -0.266219f, -0.693562f,
+            -0.588130f, 0.961974f,  0.648947f,  -1.405899f, 0.877516f,  0.387456f,  0.123936f,  -0.006459f, 0.375071f,
+            -0.779010f, -1.155333f, 0.250027f,  0.893889f,  -0.118486f, -0.838760f, 0.491369f,  -0.023320f, 0.067260f,
+            -0.979102f, -1.114991f, -0.079658f, 0.405205f,  1.170673f,  0.051460f,  -0.308740f, 0.538963f,  -0.754140f,
+            0.001410f,  0.736677f,  0.142586f,  -0.775254f, -0.790615f, -0.230226f, -0.128570f, 0.023670f,  -1.213541f,
+            0.192464f,  0.152344f,  0.493062f,  -0.455727f, 0.392945f,  -0.044632f, -1.249879f, 0.233084f,  1.068248f,
+            -0.391639f, -1.160778f, -0.117471f, 0.034006f,  -0.602607f, -1.016575f, -0.816298f, -0.423137f, 0.200362f,
+            1.031485f,  -0.377530f, 0.046297f,  0.882835f,  -0.840033f, 0.161139f,  0.737706f,  0.077764f,  -0.713160f,
+            0.284474f,  -0.214861f, 0.395778f,  -0.684357f, -1.021520f, 0.130751f,  0.459669f,  0.888890f,  0.130982f,
+            -0.153601f, 0.334657f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            2.077571f,  -1.879617f, 1.704428f,  0.941264f,  1.296135f,  -0.889845f, -0.726965f, 0.356442f,
+            -1.316610f, 0.853328f,  -0.728800f, 0.788628f,  -1.527661f, 1.044347f,  0.491763f,  -0.466484f,
+            -0.245946f, 2.148291f,  -1.667101f, 1.956976f,  1.842385f,  1.207076f,  -1.813506f, 1.023705f,
+            -0.387978f, 0.723597f,  -1.977550f, -0.319341f, 0.063797f,  0.315899f,  -0.101428f, 0.163809f,
+            -1.214118f, -1.504665f, -0.712130f, -2.127227f, -0.729039f, -1.448440f, 1.444658f,  0.588938f,
+            1.021935f,  -1.092042f, 0.706862f,  -0.177798f, -1.273036f, -0.123885f, 1.208566f,  1.077567f,
+            0.687034f,  -0.865623f, -0.957480f, -3.774457f, 0.724519f,  -0.274241f, 1.706604f,  0.425226f,
+            -0.514190f, -1.311056f, 1.215784f,  0.721253f,  -0.338950f, 0.315340f,  0.462329f,  -0.410953f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Decode: only the new key is normalized; the past rows of present_key are passed through unchanged.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_decode) {
+    const auto model = convert_model("com.microsoft/gqa_qk_norm.onnx");
+
+    const auto data = gqa_sink_query();
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, std::vector<float>(data.begin() + 192, data.end()));
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(data.begin(), data.begin() + 64));
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(data.begin() + 64, data.begin() + 128));
+    test_case.add_input<int>(Shape{1, 1}, {4});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_input<float>(Shape{5, 8}, gqa_qk_norm_rope_cache(5, false));
+    test_case.add_input<float>(Shape{5, 8}, gqa_qk_norm_rope_cache(5, true));
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 32},
+        {
+            0.180732f, 0.166091f,  -1.092899f, 0.433461f, -0.785875f, -1.266359f, -1.627180f, 0.987866f,
+            0.516814f, -0.151132f, 0.443130f,  0.060590f, 0.132206f,  1.483993f,  -0.027208f, 0.096251f,
+            0.273264f, 0.286686f,  -0.201092f, 0.969175f, -0.080065f, -0.571854f, -0.650118f, 0.181871f,
+            0.819878f, -0.665653f, 1.252989f,  0.003249f, -0.021254f, 1.981680f,  -0.379394f, -0.118771f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, 0.803882f,  -0.414984f, -1.074072f, -3.795374f, 0.727872f,  -0.275237f, 1.706141f,  0.425356f,
+            0.300301f,  -1.515243f, 1.114122f,  0.601554f,  -0.331688f, 0.314471f,  0.464035f,  -0.410819f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_unpaired_throws) {
+    // ORT requires q_norm_weight and k_norm_weight together.
     try {
-        convert_model("com.microsoft/gqa_qk_norm.onnx");
-        FAIL() << "ONNX Importer did not reject unsupported QK-Norm inputs for GroupQueryAttention";
-    } catch (const ::ov::frontend::OpConversionFailure& e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr("QK-Norm"));
+        convert_model("com.microsoft/gqa_qk_norm_unpaired.onnx");
+        FAIL() << "ONNX Importer did not reject q_norm_weight without k_norm_weight for GroupQueryAttention";
     } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr("QK-Norm"));
+        EXPECT_THAT(e.what(), testing::HasSubstr("q_norm_weight and k_norm_weight must be provided together"));
     } catch (...) {
         FAIL() << "Unexpected exception type thrown";
     }

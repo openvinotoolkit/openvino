@@ -76,12 +76,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto softcap = softcap_attr > 0.0f ? softcap_attr : 0.0f;
     const auto smooth_softmax = node.get_attribute_value<int64_t>("smooth_softmax", 0);
     const auto qk_output = node.get_attribute_value<int64_t>("qk_output", 0);
-
-    // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
-    FRONT_END_OP_CONVERSION_CHECK(
-        !common::is_input_valid(onnx_op_inputs, 14) && !common::is_input_valid(onnx_op_inputs, 15),
-        "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
-        "supported.");
+    // QK-Norm (q_norm_weight/k_norm_weight, inputs 14/15) is forwarded as-is; the op validates the pairing.
+    const auto qk_norm_epsilon = node.get_attribute_value<float>("qk_norm_epsilon", 1e-6f);
 
     // Reject spec attributes whose semantics are not implemented by the OpenVINO decomposition.
     FRONT_END_OP_CONVERSION_CHECK(causal == 0 || causal == 1,
@@ -288,7 +284,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            sliding_window_cache != 0,
                                                            smooth_softmax == 1,
                                                            causal != 0,
-                                                           softcap)
+                                                           softcap,
+                                                           qk_norm_epsilon)
         ->outputs();
 }
 
