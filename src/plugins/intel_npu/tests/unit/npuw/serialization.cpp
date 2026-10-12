@@ -2673,4 +2673,94 @@ TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_file_shrunk_after_imp
     OV_EXPECT_THROW_HAS_SUBSTRING(res.eval(), ov::AssertFailure, "[NPU] ORC weight offset/size out of range");
 }
 
+// Import path used by NPUW_WEIGHTS_TENSOR: weights are an in-memory ov::Tensor, no weights_path and
+// no handle_provider in the context. read_weight() must keep the storage referenced and eval() must
+// view into it at `offset` without touching the file system - also after detach().
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_tensor_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    const auto type = ov::element::u4;
+    const ov::Shape shape{2, 8};  // 16 nibbles -> 8 packed bytes
+    const std::size_t offset = 8;
+    const auto packed_size = ov::util::get_memory_size(type, ov::shape_size(shape));
+
+    std::vector<uint8_t> payload(packed_size);
+    for (std::size_t i = 0; i < payload.size(); ++i) {
+        payload[i] = static_cast<uint8_t>(0x5Au + i);
+    }
+    auto constant = make_weightless_constant_from_bytes(type, shape, payload, offset);
+
+    ov::npuw::weights::LazyTensor var(constant);
+    ov::npuw::weights::LazyTensor res;
+
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    std::vector<uint8_t> file_bytes(offset, 0xCCu);
+    file_bytes.insert(file_bytes.end(), payload.begin(), payload.end());
+    file_bytes.insert(file_bytes.end(), 4, 0xDDu);
+
+    // Mirror make_import_weights_ctx(): wrap the user tensor as the type-erased keep-alive object.
+    auto weights_tensor = std::make_shared<ov::Tensor>(ov::element::u8, ov::Shape{file_bytes.size()});
+    std::memcpy(weights_tensor->data(), file_bytes.data(), file_bytes.size());
+    std::weak_ptr<ov::Tensor> weak_tensor = weights_tensor;
+    {
+        auto weights = std::make_shared<Weights>(static_cast<char*>(weights_tensor->data()),
+                                                 weights_tensor->get_byte_size(),
+                                                 weights_tensor);
+        weights_tensor.reset();  // only the context keeps it alive from now on
+
+        WeightsContext import_ctx(weights, "", {}, {});
+        ASSERT_NO_THROW(res.read_weight(import_ctx));
+    }  // context dropped - the LazyTensor must hold its own reference
+
+    EXPECT_FALSE(weak_tensor.expired());
+
+    ov::Tensor evaluated;
+    ASSERT_NO_THROW(evaluated = res.eval());
+    EXPECT_EQ(evaluated.get_element_type(), type);
+    EXPECT_EQ(evaluated.get_shape(), shape);
+    ASSERT_EQ(evaluated.get_byte_size(), packed_size);
+    EXPECT_EQ(std::memcmp(static_cast<const ov::Tensor&>(evaluated).data(), payload.data(), packed_size), 0);
+    expect_tensors_equal(var.eval(), evaluated);
+
+    const auto meta = res.eval_meta();
+    EXPECT_EQ(meta.type, type);
+    EXPECT_EQ(meta.shape, shape);
+
+    // Like the lazy-mmap path, the weight stays re-evaluable after detach().
+    res.detach();
+    ASSERT_NO_THROW(evaluated = res.eval());
+    EXPECT_EQ(std::memcmp(static_cast<const ov::Tensor&>(evaluated).data(), payload.data(), packed_size), 0);
+}
+
+// Same tensor-backed path, but the weight description does not fit the provided tensor.
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_tensor_offset_oob) {
+    using namespace ov::npuw::s11n;
+
+    const auto type = ov::element::u4;
+    const ov::Shape shape{2, 8};
+    const std::size_t offset = 8;
+    const auto packed_size = ov::util::get_memory_size(type, ov::shape_size(shape));
+
+    auto constant = make_weightless_constant_from_bytes(type, shape, std::vector<uint8_t>(packed_size, 0x5Au), offset);
+    ov::npuw::weights::LazyTensor var(constant);
+    ov::npuw::weights::LazyTensor res;
+
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    // Tensor holds only the filler, the weight itself would be out of bounds.
+    auto weights_tensor = std::make_shared<ov::Tensor>(ov::element::u8, ov::Shape{offset});
+    auto weights = std::make_shared<Weights>(static_cast<char*>(weights_tensor->data()),
+                                             weights_tensor->get_byte_size(),
+                                             weights_tensor);
+    WeightsContext import_ctx(weights, "", {}, {});
+    OV_EXPECT_THROW_HAS_SUBSTRING(res.read_weight(import_ctx),
+                                  ov::AssertFailure,
+                                  "[NPU] ORC weight offset/size out of range");
+}
+
 // TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on

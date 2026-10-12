@@ -73,11 +73,11 @@ class IPlugin;
 class ICompiledModel;
 template <class>
 class Output;
+class AlignedBuffer;
 template <class>
 class SharedBuffer;
 template <class>
 struct SoPtr;
-class MappedMemory;
 class Model;
 enum class CacheMode;
 namespace element {
@@ -126,7 +126,8 @@ public:
 };
 
 using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
-using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
+// Type-erased keep-alive: the shared object may be an ov::MappedMemory or a user-provided ov::Tensor.
+using Weights = ov::SharedBuffer<std::shared_ptr<void>>;
 using WeightsPtr = std::shared_ptr<Weights>;
 
 struct CompiledContext {
@@ -159,23 +160,28 @@ struct WeightsContext {
     WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
     // NOTE: This constructor is used on blob import to carry the resolved weight source
-    // (embedded weights, mmap'ed weights file, or model-backed constants cache).
+    // (user-provided weights tensor, mmap'ed weights file, or model-backed constants cache).
     WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
                    const BF16Cache& _bf16_consts,
-                   const ov::FileHandleProvider& _handle_provider = nullptr);
+                   const ov::FileHandleProvider& _handle_provider = nullptr,
+                   const std::shared_ptr<ov::AlignedBuffer>& _weights_buffer = nullptr);
 
     WeightsContext& operator=(const WeightsContext& other) = default;
 
     void reset() {
         weights = nullptr;
+        weights_buffer = nullptr;
         consts_cache.clear();
     }
 
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
     ov::npuw::s11n::WeightsPtr weights = nullptr;
+    // Set when NPUW_WEIGHTS_TENSOR is a view over an ov::AlignedBuffer (e.g. ov::read_tensor_data with mmap):
+    // lets every weight evict its own range of the caller's storage once it has been uploaded.
+    std::shared_ptr<ov::AlignedBuffer> weights_buffer = nullptr;
     std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;

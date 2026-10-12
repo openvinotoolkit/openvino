@@ -120,6 +120,11 @@ private:
     std::string m_weights_path;
     ov::FileHandleProvider m_handle_provider = nullptr;
     mutable ov::npuw::s11n::WeightsPtr m_mmaped_weights = nullptr;
+    // Weightless import from NPUW_WEIGHTS_TENSOR: caller-owned storage, viewed on eval() and never re-mapped.
+    ov::npuw::s11n::WeightsPtr m_provided_weights = nullptr;
+    // Buffer behind m_provided_weights when the caller's tensor is a view over one (e.g. mmap). Lets detach()
+    // evict exactly this weight's range once it has been uploaded, mirroring the per-weight mmap path.
+    std::shared_ptr<ov::AlignedBuffer> m_provided_buffer = nullptr;
     // FIXME: special case when a new Constant was added into the model,
     // then made into LazyTensor during folding. We need to keep a copy of it,
     // so during weightless deserialization we can access it.

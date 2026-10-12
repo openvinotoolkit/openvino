@@ -18,6 +18,8 @@
 
 namespace ov {
 
+class AlignedBuffer;
+
 /**
  * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
  * @param type Tensor element type
@@ -118,5 +120,30 @@ OPENVINO_RUNTIME_API std::optional<uint64_t> get_tensor_source_id(const ov::Tens
  * @param id The source ID to associate with the tensor.
  */
 OPENVINO_RUNTIME_API void set_tensor_source_id(ov::Tensor& tensor, uint64_t id);
+
+/**
+ * @brief Returns the memory buffer a tensor is a view of, if any.
+ *
+ * @details Tensors created as a view over an ov::AlignedBuffer (e.g. by ov::read_tensor_data with mmap enabled)
+ * expose that buffer here. Consumers can take shared ownership of the storage or manage its residency via
+ * ov::AlignedBuffer::hint_evict / hint_prefetch - e.g. by wrapping a sub-range into
+ * ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>> and evicting it once the data has been consumed.
+ *
+ * @param tensor OpenVINO Tensor to query.
+ *
+ * @return The backing buffer, or nullptr if the tensor is not a view over an ov::AlignedBuffer
+ *         (owning tensors, remote tensors, ROI tensors and plain host-pointer views).
+ */
+OPENVINO_RUNTIME_API std::shared_ptr<ov::AlignedBuffer> get_tensor_buffer(const ov::Tensor& tensor);
+
+/**
+ * @brief Associates the backing memory buffer with a tensor if the tensor implementation supports it.
+ *
+ * @note Does not change what the tensor points to; the buffer is expected to cover the tensor's data.
+ *
+ * @param tensor OpenVINO Tensor to set the buffer on.
+ * @param buffer The buffer backing the tensor's data.
+ */
+OPENVINO_RUNTIME_API void set_tensor_buffer(ov::Tensor& tensor, const std::shared_ptr<ov::AlignedBuffer>& buffer);
 
 }  // namespace ov

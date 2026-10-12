@@ -104,6 +104,13 @@ ov::Tensor Const::eval() const {
         return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
     }
 
+    // Weightless import case with caller-provided weights: view into the storage held alive by the caller.
+    if (m_provided_weights) {
+        NPUW_ASSERT(!m_read_from_bin &&
+                    "Trying to read weight from weights tensor, but the weight has been already deserialized!");
+        return ov::Tensor(m_cached_type, m_cached_shape, m_provided_weights->get_ptr(m_offset));
+    }
+
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
     return m_read_from_bin;
 }
@@ -114,7 +121,7 @@ LazyTensor::Meta Const::eval_meta() const {
     }
 
     // Weightless import case
-    if (!m_weights_path.empty() || m_handle_provider) {
+    if (!m_weights_path.empty() || m_handle_provider || m_provided_weights) {
         return {m_cached_shape, m_cached_type};
     }
 
@@ -147,16 +154,19 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             auto src_data = bf16_tensor.data<ov::bfloat16>();
             auto dst_data = m_read_from_bin.data<dst_type>();
             ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, m_read_from_bin.get_size());
-        } else {
+        } else if (!ctx.weights_path.empty() || ctx.handle_provider) {
             // Each LazyTensor will mmap the whole weights file on demand (in eval()).
             // It doesn't introduce extra allocation, however it allows to gradually 1 by 1
             // read mmaped CPU weights and allocate them on device without loading all the weights first.
             // Thus the memory consumption during import is greatly reduced but at the slight cost of performance.
-            NPUW_ASSERT(!ctx.weights_path.empty() || ctx.handle_provider);
             // Just save weights_path for the eval() to call the actual mmap.
             m_weights_path = ctx.weights_path;
             // Also save handle_provider if available
             m_handle_provider = ctx.handle_provider;
+        } else {
+            // Weights come from NPUW_WEIGHTS_TENSOR: nothing to re-map, just keep the storage referenced.
+            m_provided_weights = ctx.weights;
+            m_provided_buffer = ctx.weights_buffer;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
@@ -171,6 +181,23 @@ void Const::detach() {
     m_node.reset();
     m_read_from_bin = ov::Tensor();
     m_mmaped_weights.reset();
+    if (m_provided_weights && m_provided_buffer) {
+        // The weight has been uploaded - give this range of the caller's storage back to the OS
+        // (file-backed pages get dropped; a no-op for storage that cannot be evicted). Wrapping
+        // the range into a SharedBuffer resolves the offset against the root buffer, same as
+        // Constant eviction in constant folding. Without a descriptor the offset cannot be
+        // resolved, so skip rather than evict a wrong range.
+        ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>> range(
+            static_cast<char*>(m_provided_weights->get_ptr(m_offset)),
+            m_byte_size,
+            m_provided_buffer);
+        if (range.get_descriptor()) {
+            range.hint_evict();
+        }
+    }
+    // Drop our share of the caller's storage so it can be freed once the caller lets go of it too.
+    m_provided_weights.reset();
+    m_provided_buffer.reset();
 }
 
 std::size_t Concat::hash() const {
