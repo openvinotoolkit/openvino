@@ -564,10 +564,11 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
         const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
         const auto& lookup = request->get_tensor(lport);
 
+        const auto src_w_idx = static_cast<std::size_t>(quant_unpack_gather.src_w_idx);
         const auto& gport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.dst_idx];
         const auto& gather = request->get_tensor(gport);
 
-        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
+        const auto& wport = comp_model_desc.compiled_model->inputs()[src_w_idx];
         const auto& vocabw = request->get_tensor(wport);
 
         // Gather weight

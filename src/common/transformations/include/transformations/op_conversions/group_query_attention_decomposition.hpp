@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -23,6 +25,12 @@ public:
     GroupQueryAttentionDecomposition();
 
 protected:
+    struct CompressedKV {
+        ov::Output<ov::Node> key;
+        ov::Output<ov::Node> value;
+        ov::OutputVector quantization_inputs;
+    };
+
     ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node);
     virtual std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
                                                 const ov::Output<ov::Node>& key,
@@ -30,7 +38,16 @@ protected:
                                                 const ov::Output<ov::Node>& mask,
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
-                                                bool is_causal);
+                                                bool is_causal,
+                                                const std::optional<CompressedKV>& compressed_kv);
+    virtual std::optional<CompressedKV> prepare_compressed_kv(
+        const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+        const ov::Output<ov::Node>& key,
+        const ov::Output<ov::Node>& value,
+        const ov::Output<ov::Node>& key_scale,
+        const ov::Output<ov::Node>& value_scale) {
+        return std::nullopt;
+    }
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);

@@ -78,14 +78,14 @@ namespace {
 template <typename T>
 void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
                                            uint32_t num_stored_tokens,
-                                           uint32_t window_size) {
+                                           uint32_t window_size,
+                                           bool past_is_circular) {
     const uint32_t stored_tokens = num_stored_tokens;
     const uint32_t past_width = mask_view.past_width;
     const uint32_t row_dim = mask_view.row_dim;
     const uint32_t row_pad = mask_view.row_pad;
     const bool has_past_region = past_width > 0u;
     const bool is_past_saturated = has_past_region && stored_tokens >= past_width;
-    const uint32_t wrap_slot = is_past_saturated ? (stored_tokens % past_width) : 0u;
     const int64_t stored_tokens_i64 = static_cast<int64_t>(stored_tokens);
     const int64_t past_width_i64 = static_cast<int64_t>(past_width);
     const int64_t window_i64 = static_cast<int64_t>(window_size);
@@ -94,15 +94,20 @@ void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
     const T kAttend = T(0.0f);
     const T kMasked = T(std::numeric_limits<ov::float16>::lowest());
 
-    // Row columns = [past circular slots][current-chunk columns]
+    // Row columns = [past slots][current-chunk columns]
     //             = [0 .. past_width-1] [past_width .. past_width+row_dim-1].
     // past_width == 0 degenerates to current-chunk-only masking.
     //
-    // Past slot -> absolute token index:
-    //   unsaturated (stored_tokens < past_width): abs == slot, for slot < stored_tokens.
-    //   saturated (stored_tokens >= past_width), wrap_slot = stored_tokens % past_width:
-    //     [0, wrap_slot):          abs = (stored_tokens - wrap_slot) + slot
-    //     [wrap_slot, past_width): abs = (stored_tokens - wrap_slot) + slot - past_width
+    // Past slot -> absolute token index depends on the past buffer's physical layout, which
+    // must match past_is_circular:
+    //   unsaturated (stored_tokens < past_width), either layout: abs == slot, for slot < stored_tokens.
+    //   saturated (stored_tokens >= past_width):
+    //     circular layout, wrap_slot = stored_tokens % past_width:
+    //       [0, wrap_slot):          abs = (stored_tokens - wrap_slot) + slot
+    //       [wrap_slot, past_width): abs = (stored_tokens - wrap_slot) + slot - past_width
+    //     chronologically packed layout: shifting (not wrapping) keeps the buffer in order,
+    //     so there is no split -- a single range:
+    //       [0, past_width): abs = (stored_tokens - past_width) + slot
     //
     // Visibility: attend(abs) iff abs in [row_abs_pos - window_size + 1, row_abs_pos] (causal +
     // window). Current-chunk equivalent: local_c in [max(row_pad, row-window_size+1), row].
@@ -142,15 +147,27 @@ void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
     };
 
     // Visible slot ranges in the past region for one row. A saturated ring wraps into at most
-    // two contiguous ranges (returned as a fixed-size array to avoid a per-row allocation).
+    // two contiguous ranges; a saturated chronologically-packed buffer never wraps (returned
+    // as a fixed-size array either way to avoid a per-row allocation).
     auto compute_visible_past_slots = [&](int64_t min_visible_abs_pos,
                                           int64_t max_visible_abs_pos) -> std::array<VisibleRange, 2> {
         if (!has_past_region) {
             return {kEmptyRange, kEmptyRange};
         }
+        if (is_past_saturated && !past_is_circular) {
+            // Chronologically packed buffer: shifting keeps it in order, so the whole past
+            // region is one contiguous range: abs = (stored_tokens - past_width) + slot.
+            const int64_t base_abs = stored_tokens_i64 - past_width_i64;
+            return {compute_visible_range(min_visible_abs_pos - base_abs,
+                                          max_visible_abs_pos - base_abs,
+                                          0,
+                                          past_width_i64 - 1),
+                    kEmptyRange};
+        }
         if (is_past_saturated) {
             // Saturated ring: at most two contiguous slot ranges can be visible,
             // one in [wrap_slot, past_width) and one in [0, wrap_slot).
+            const uint32_t wrap_slot = stored_tokens % past_width;
             const int64_t ring_base_abs = stored_tokens_i64 - static_cast<int64_t>(wrap_slot);
             const int64_t older_segment_bias = ring_base_abs - past_width_i64;  // abs = older_segment_bias + slot
 
@@ -216,16 +233,17 @@ void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
 void ov::npuw::util::fill_causal_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
                                                      uint32_t num_stored_tokens,
                                                      uint32_t num_new_tokens,
-                                                     uint32_t window_size) {
+                                                     uint32_t window_size,
+                                                     bool past_is_circular) {
     const auto mask_view = get_mask_view(mask_tensor, num_new_tokens, "fill_causal_sliding_window_mask");
     OPENVINO_ASSERT(window_size > 0, "fill_causal_sliding_window_mask: window_size must be > 0");
 
     switch (mask_view.element_type) {
     case ov::element::f32:
-        fill_causal_sliding_window_mask_typed<float>(mask_view, num_stored_tokens, window_size);
+        fill_causal_sliding_window_mask_typed<float>(mask_view, num_stored_tokens, window_size, past_is_circular);
         break;
     case ov::element::f16:
-        fill_causal_sliding_window_mask_typed<ov::float16>(mask_view, num_stored_tokens, window_size);
+        fill_causal_sliding_window_mask_typed<ov::float16>(mask_view, num_stored_tokens, window_size, past_is_circular);
         break;
     default:
         OPENVINO_THROW("fill_causal_sliding_window_mask: unsupported mask element type ", mask_view.element_type);
@@ -325,13 +343,14 @@ void ov::npuw::util::fill_sliding_window_attention_mask(
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
     uint32_t num_stored_tokens,
     uint32_t num_new_tokens,
-    uint32_t window_size) {
+    uint32_t window_size,
+    bool past_is_circular) {
     const auto mask_it = in_ports.find(ov::npuw::util::kSlidingWindowAttentionMaskParamName);
     if (mask_it == in_ports.end()) {
         return;
     }
     auto mask_tensor = request->get_tensor(mask_it->second);
-    fill_causal_sliding_window_mask(mask_tensor, num_stored_tokens, num_new_tokens, window_size);
+    fill_causal_sliding_window_mask(mask_tensor, num_stored_tokens, num_new_tokens, window_size, past_is_circular);
 
     const auto token_type_ids_it = in_ports.find(ov::npuw::util::kTokenTypeIdsParamName);
     if (token_type_ids_it != in_ports.end()) {
@@ -402,11 +421,13 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
                                                                          << " old token(s), capacity=" << capacity);
         auto whole_tmp =
             ov::npuw::util::allocMem(dst_tensor->get_element_type(), dst_tensor->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(whole_tmp._ptr && "CPU buffer allocation for KV shift failed — check memory availability");
         dst_tensor->copy_to(whole_tmp._ptr);  // single bulk contiguous transfer
 
         auto old_tail_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, old_valid - keep, old_valid);
         auto shift_tmp =
             ov::npuw::util::allocMem(dst_tensor->get_element_type(), old_tail_cpu->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(shift_tmp._ptr && "CPU buffer allocation for KV shift failed — check memory availability");
         old_tail_cpu->copy_to(shift_tmp._ptr);  // isolate surviving tail before front overwrite
         auto dst_front_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, 0u, keep);
         ov::npuw::util::copy_tensor_by_dim(shift_tmp, dst_front_cpu, dst_kv_dim, dst_kv_dim);
@@ -420,6 +441,7 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
             ov::npuw::util::copy_tensor_by_dim(src_slice, dst_back_cpu, src_kv_dim, dst_kv_dim);
         }
 
+        NPUW_ASSERT(dst_tensor._ptr && "destination KV tensor is null — caller must supply a valid tensor");
         whole_tmp->copy_to(dst_tensor._ptr);  // single bulk contiguous transfer back
         return;
     }
@@ -431,6 +453,7 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
                   << keep << " of " << old_valid << " old token(s), dim=" << dst_kv_dim << ", capacity=" << capacity);
         auto old_tail = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, old_valid - keep, old_valid);
         auto tmp = ov::npuw::util::allocMem(dst_tensor->get_element_type(), old_tail->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(tmp._ptr && "CPU buffer allocation for KV shift failed — check memory availability");
         old_tail->copy_to(tmp._ptr);
         auto dst_front = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, 0u, keep);
         ov::npuw::util::copy_tensor_by_dim(tmp, dst_front, dst_kv_dim, dst_kv_dim);

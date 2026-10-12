@@ -1,7 +1,7 @@
 ---
 description: |
-  Shared custom safe-output job for the CI Doctor MQ workflow.
-  Sends a CI failure investigation summary to Microsoft Teams.
+  Shared custom safe-output job for the CI Doctor workflows (Merge Queue and
+  Post-Commit). Sends a CI failure investigation summary to Microsoft Teams.
 safe-outputs:
   jobs:
     notify-teams:
@@ -11,12 +11,16 @@ safe-outputs:
       permissions:
         contents: read
       inputs:
+        source:
+          description: "Which CI Doctor produced this notification: 'merge_queue' for the Merge Queue investigator or 'post_commit' for the Post-Commit investigator. Controls the badge shown in the Teams card ([MQ] / [PC]) and the uploaded statistics artifact name."
+          required: true
+          type: string
         title:
           description: "Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers."
           required: true
           type: string
         failed_workflow:
-          description: "Name of the GitHub Actions workflow that failed (as reported by `get_workflow_run`, e.g. 'Linux (Ubuntu 22.04, Python 3.11)'). Do NOT pass the CI Doctor MQ workflow name."
+          description: "Name of the GitHub Actions workflow that failed (as reported by `get_workflow_run`, e.g. 'Linux (Ubuntu 22.04, Python 3.11)'). Do NOT pass the CI Doctor workflow's own name."
           required: true
           type: string
         pipeline_url:
@@ -28,12 +32,12 @@ safe-outputs:
           required: true
           type: string
         pr_number:
-          description: "Pull request number if the failure is associated with a PR in the merge queue. Omit otherwise."
+          description: "Pull request number if the failure is associated with a PR (e.g. a merge-queue PR). Omit otherwise."
           required: false
           type: string
           default: "not_found"
         pr_url:
-          description: "Pull request URL if the failure is associated with a PR in the merge queue. Omit otherwise."
+          description: "Pull request URL if the failure is associated with a PR (e.g. a merge-queue PR). Omit otherwise."
           required: false
           type: string
           default: "not_found"
@@ -43,15 +47,15 @@ safe-outputs:
           type: string
           default: "not_found"
         db_entries:
-          description: "Total number of unique entries currently in the CI Doctor MQ investigation database (count of distinct investigation files under /tmp/gh-aw/repo-memory/default/mq/investigations/, including the one created by this run). Report as a non-negative integer encoded as a string."
+          description: "Total number of unique entries currently in this CI Doctor's investigation database (count of distinct investigation files under the doctor's own investigations directory, `/tmp/gh-aw/repo-memory/default/<slug>/investigations/` where `<slug>` is `mq` for Merge Queue or `post-commit` for Post-Commit, including the one created by this run). Report as a non-negative integer encoded as a string."
           required: true
           type: string
         occurrence_count:
-          description: "How many times this same issue has been recorded in the CI Doctor MQ database, including the current investigation. Compute by matching the current failure signature (normalized error message + failure category, job-agnostic) against prior investigation/pattern files under /tmp/gh-aw/repo-memory/default/mq/. Must be >= 1. Report as a positive integer encoded as a string."
+          description: "How many times this same issue has been recorded in this CI Doctor's database, including the current investigation. Compute by matching the current failure signature (normalized error message + failure category, job-agnostic) against prior investigation/pattern files under the doctor's own store, `/tmp/gh-aw/repo-memory/default/<slug>/` (`<slug>` = `mq` or `post-commit`). Must be >= 1. Report as a positive integer encoded as a string."
           required: true
           type: string
         statistics:
-          description: "Markdown-formatted statistics summary of the CI Doctor MQ pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under /tmp/gh-aw/repo-memory/default/mq/investigations/ and /tmp/gh-aw/repo-memory/default/mq/patterns/. Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML)."
+          description: "Markdown-formatted statistics summary of this CI Doctor's pattern database, uploaded as the statistics workflow artifact (NOT rendered in the Teams card). Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under the doctor's own store, `/tmp/gh-aw/repo-memory/default/<slug>/investigations/` and `/tmp/gh-aw/repo-memory/default/<slug>/patterns/` (`<slug>` = `mq` or `post-commit`). Keep concise (top 20 patterns max)."
           required: true
           type: string
         statistics_json:
@@ -69,6 +73,7 @@ safe-outputs:
           with:
             python-version: '3.13'
         - name: Send Teams notification
+          id: notify
           env:
             TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
             RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
@@ -80,14 +85,15 @@ safe-outputs:
           if: always()
           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
           with:
-            name: ci-doctor-mq-statistics
-            path: ${{ runner.temp }}/ci-doctor-mq-stats
+            name: ${{ steps.notify.outputs.artifact_name || 'ci-doctor-mq-statistics' }}
+            path: ${{ steps.notify.outputs.stats_dir || format('{0}/ci-doctor-mq-statistics', runner.temp) }}
             if-no-files-found: ignore
             retention-days: 90
 ---
 
-# CI Doctor MQ — Teams Notification Job
+# CI Doctor — Teams Notification Job
 
 Shared definition of the `notify-teams` custom safe-output job used by the
-CI Doctor Merge Queue workflow. Import it via `imports:` in the consuming
-workflow's frontmatter.
+CI Doctor Merge Queue and CI Doctor Post-Commit workflows. Import it via
+`imports:` in the consuming workflow's frontmatter, and pass `source` to select
+the correct badge and statistics artifact name.

@@ -44,7 +44,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
-        const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+        const size_t k_axis = weight_shape.size() - (m_fc->get_transpose_b() ? 1 : 2);
+        const size_t innermost_size = weight_shape[k_axis].get_length();
 
         const bool has_wzp = m_fc->get_input_size() > 4;
         auto optional_w_zp = has_wzp ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
@@ -61,8 +62,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const bool is_zp_scalar = has_static_wzp && ov::shape_size(m_fc->get_input_shape(4)) == 1;
-            const size_t wei_zp_group_size = is_zp_scalar ? innermost_size : innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
-            const size_t wei_scale_group_size = innermost_size / weight_scale_shape[weight_scale_shape.size() - 1].get_length();
+            const size_t wei_zp_group_size = is_zp_scalar ? innermost_size : innermost_size / weight_zp_shape[k_axis].get_length();
+            const size_t wei_scale_group_size = innermost_size / weight_scale_shape[k_axis].get_length();
             const size_t required_group_size = std::min(wei_zp_group_size, wei_scale_group_size);
             if (adj_group_size > required_group_size) {
                 GPU_DEBUG_LOG << "Dynamic quantization: adjusting group_size " << adj_group_size

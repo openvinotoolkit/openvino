@@ -252,6 +252,9 @@ TEST_P(MatmulWeightsDecompression, Inference) {
                  abs_threshold_f16] = GetParam();
     // Sub-byte parameter weights need the non-transposed FC path which requires XMX
     if (param_weights && weights_precision.bitwidth() < 8) {
+        if (weights_precision.bitwidth() < 4) {
+            GTEST_SKIP() << "Compressed FC is not yet supported for parameter weights smaller than 4 bits.";
+        }
         if (transpose_weights) {
             GTEST_SKIP() << "Sub-byte parameter weights with transposed layout need runtime transpose, which GPU can't do";
         }

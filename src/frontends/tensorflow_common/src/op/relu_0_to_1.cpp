@@ -5,10 +5,7 @@
 #include "common_op_table.hpp"
 #include "openvino/op/clamp.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_relu_0_to_1_op(const NodeContext& node) {
     default_op_checks(node, 1, {});
 
@@ -17,7 +14,4 @@ OutputVector translate_relu_0_to_1_op(const NodeContext& node) {
     set_node_name(node.get_name(), res);
     return res->outputs();
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op
