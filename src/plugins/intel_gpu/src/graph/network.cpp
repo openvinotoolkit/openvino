@@ -701,6 +701,8 @@ bool network::may_alias(const primitive_id& output_id, const primitive_id& input
         // A pure pass-through of the input is conservatively rejected.
         if (inst == input.get())
             return false;
+        // Relies on oooq_memory_dependencies to mark primitives that must not share memory with the input.
+        // Known gap: that pass skips the first non-constant node in processing order (usually an input). Will be fixed later.
         if (inst->get_runtime_memory_dependencies().contains(input_uid))
             return false;
         // The input holds data from the start of execution, so anything running before it would

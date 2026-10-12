@@ -1260,8 +1260,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
             const bool is_igpu = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu;
             const bool overlap_unsupported = is_igpu && !can_use_caller_output_memory(user_tensor, user_tensor_wrapper.actual_size);
             // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
+            // Non-contiguous views stay on the copy path, so stride handling lives in one place.
             const bool can_share_user_usm_host =
-                is_igpu && !convert_needed && !overlap_unsupported &&
+                is_igpu && !convert_needed && !overlap_unsupported && user_tensor->is_continuous() &&
                 engine.detect_usm_allocation_type(user_tensor->data()) == cldnn::allocation_type::usm_host &&
                 can_use_usm_host(engine, total_output_bytes);
             const bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
