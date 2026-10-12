@@ -318,6 +318,40 @@ TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_afte
     plugin->unregister_priority(2, result.unique_name);
 }
 
+// Regression for try_to_compile_model(): the configured low_power_device is a standing override
+// that is force-selected even when it is not part of the configured device priorities (see
+// SelectDeviceWithLowPowerDevicePrecedenceTest::lowPowerDeviceSelectedEvenWhenNotInCandidateList).
+// If that forced device fails to compile, try_to_compile_model() used to reselect with the same
+// low_power_device argument, which forced the very same failing device back in and recursed on it
+// forever instead of falling back to the configured device priorities.
+TEST_F(AutoDynamicDeviceSelectionTest, low_power_device_failure_falls_back_instead_of_looping_forever) {
+    // GPU.1 is never part of the configured priorities ("GPU.0,CPU" from SetUp()), so it can only
+    // be selected through the low_power_device override.
+    config.insert(ov::intel_auto::low_power_device("GPU.1"));
+    ON_CALL(*plugin, get_low_power_mode()).WillByDefault(Return(true));
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              _))
+        .Times(1)
+        .WillOnce(ov::Throw("mock compile failure on GPU.1"));
+    // once GPU.1 is excluded, compilation must fall back to the configured device priorities (GPU.0)
+    // instead of forcing GPU.1 again and recursing forever.
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              _))
+        .Times(1)
+        .WillOnce(Return(mockExeNetworkActual));
+    EXPECT_CALL(*mockIExeNetActual.get(), create_infer_request()).WillRepeatedly([this]() {
+        return mockIExeNetActual->ICompiledModel::create_infer_request();
+    });
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 1);
+}
+
 // Reproduces schedule_dynamic_task()'s queueing path: while one dynamic inference is still
 // being dispatched (the execution gate is busy), a second inference started concurrently must
 // be queued in m_gate_pending_tasks and only dispatched once release_execution_slot() picks it

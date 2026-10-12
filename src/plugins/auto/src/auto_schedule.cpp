@@ -15,6 +15,7 @@ namespace ov {
 namespace auto_plugin {
 bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
     if (m_context->m_dynamic_device_selection) {
+        check_and_disable_if_low_power_device_failed(cur_dev_name);
         bool can_retry = false;
         {
             std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
@@ -55,6 +56,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             } else {
                 real_device_name = device_name;
             }
+            check_and_disable_if_low_power_device_failed(real_device_name);
             const auto current_device_iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>
                                              (real_device_name, m_context->m_device_priorities);
             if (current_device_iter != m_context->m_device_priorities.end()) {
@@ -79,7 +81,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_compile_context[FALLBACKDEVICE].m_model_precision,
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
-                                        m_context->m_low_power_device);
+                                        (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -101,6 +103,14 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
         };
 
         return get_execution_devices(cur_dev_name);
+    }
+}
+
+void AutoSchedule::check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) {
+    if (m_context->m_low_power_device && m_context->m_low_power_device->device_name == failed_device_name) {
+        m_context->m_low_power_device_unavailable = true;
+        LOG_WARNING_TAG("low_power_device:%s failed, excluding it from future selection",
+                        failed_device_name.c_str());
     }
 }
 
@@ -131,7 +141,7 @@ void AutoSchedule::init() {
                                 m_compile_context[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority,
                                 m_context->m_selection_policy,
-                                m_context->m_low_power_device);
+                                (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
 
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
@@ -389,6 +399,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     if (context.m_is_load_success || cur_dev_is_cpu) {
         return;
     }
+    check_and_disable_if_low_power_device_failed(device);
     // need to recompile model, unregister it's priority
     // there maybe potential issue.
     // for example they are dGPU, NPU, iGPU, customer want to compile model with
@@ -410,7 +421,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
                                                         context.m_model_precision,
                                                         m_context->m_model_priority,
                                                         m_context->m_selection_policy,
-                                                        m_context->m_low_power_device);
+                                                        (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
     } catch (const ov::Exception&) {
         return;
     }
@@ -632,7 +643,7 @@ DeviceInformation AutoSchedule::select_dynamic_device() {
                                         m_context->m_model_precision,
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
-                                        m_context->m_low_power_device);
+                                        (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
     }
     // select_device registers the picked device under the model priority, only the registration done when the model
     // was compiled must survive, so the transient one added by this per inference selection is dropped right away

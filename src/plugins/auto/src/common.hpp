@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -233,6 +234,7 @@ public:
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
     std::optional<DeviceInformation>               m_low_power_device;
+    std::atomic<bool>                              m_low_power_device_unavailable = false;
     // re-select the target device for every incoming inference, turned on by the resource aware selection properties
     bool                                           m_dynamic_device_selection = false;
     // hold the resource of static variable to avoid the unexpected destruction.

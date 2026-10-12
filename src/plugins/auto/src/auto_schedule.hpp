@@ -46,6 +46,8 @@ private:
      * @note device is updated in place when the compilation falls back to another candidate device.
      */
     bool ensure_device_ready(DeviceInformation& device);
+    // disables the configured low_power_device override if it matches the failed device
+    void check_and_disable_if_low_power_device_failed(const std::string& failed_device_name);
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;
