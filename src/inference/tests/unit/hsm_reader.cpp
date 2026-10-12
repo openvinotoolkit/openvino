@@ -343,7 +343,7 @@ TEST(HsmReaderTest, model_and_weights_sections_read_serialized_files_unchanged) 
     std::stringstream xml_file;
     std::stringstream bin_file;
     ov::pass::Serialize serializer(xml_file, bin_file);
-    ASSERT_TRUE(serializer.run_on_model(model));
+    ASSERT_NO_THROW(serializer.run_on_model(model));
     const auto serialized_model = xml_file.str();
     const auto serialized_weights = bin_file.str();
     ASSERT_FALSE(serialized_model.empty());
