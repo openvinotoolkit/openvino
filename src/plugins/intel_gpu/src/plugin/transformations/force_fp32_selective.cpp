@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -17,6 +18,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
@@ -92,6 +94,37 @@ bool matches_name(const std::vector<std::string>& forced_names, const std::strin
     return false;
 }
 
+bool has_fp16_output(const std::shared_ptr<ov::Node>& node) {
+    for (const auto& output : node->outputs()) {
+        if (output.get_element_type() == ov::element::f16)
+            return true;
+    }
+    return false;
+}
+
+using OriginalOutputTypes = std::unordered_map<ov::Node*, ov::element::TypeVector>;
+
+OriginalOutputTypes record_output_types(const std::shared_ptr<ov::Model>& model,
+                                       const std::unordered_set<ov::Node*>& f32_region) {
+    OriginalOutputTypes original_types;
+    for (const auto& node : model->get_ops()) {
+        if (!f32_region.count(node.get()))
+            continue;
+        auto& types = original_types[node.get()];
+        for (const auto& output : node->outputs())
+            types.push_back(output.get_element_type());
+    }
+    return original_types;
+}
+
+bool is_fp32_region_output(const ov::Output<ov::Node>& output, const OriginalOutputTypes& original_types) {
+    const auto it = original_types.find(output.get_node());
+    if (it == original_types.end())
+        return false;
+    const auto type = it->second.at(output.get_index());
+    return type == ov::element::f16 || type == ov::element::f32;
+}
+
 // Phase 1: Seed Collection — identify ops that match the user filter
 std::unordered_set<ov::Node*> collect_seeds(
     const std::shared_ptr<ov::Model>& model,
@@ -111,12 +144,11 @@ std::unordered_set<ov::Node*> collect_seeds(
         if (!type_match || !name_match)
             continue;
 
-        // Skip already-f32, Placeholder, and Result/Parameter boundary ops
-        const auto et = node->get_output_element_type(0);
-        if (et == ov::element::f32)
+        // Model boundaries keep their original types; outputless nodes are not seeds.
+        if (ov::is_type<ov::op::v0::Parameter>(node) || ov::is_type<ov::op::v0::Result>(node) ||
+            !has_fp16_output(node)) {
             continue;
-        if (et != ov::element::f16)
-            continue;
+        }
         if (node_name.find("Placeholder") != std::string::npos)
             continue;
 
@@ -149,8 +181,7 @@ void expand_region(const std::shared_ptr<ov::Model>& model,
             if (!is_passthrough_op(node_type))
                 continue;
 
-            const auto et = node->get_output_element_type(0);
-            if (et != ov::element::f16)
+            if (!has_fp16_output(node))
                 continue;
 
             // Check: does this node have at least one f32-region neighbor?
@@ -186,71 +217,91 @@ void expand_region(const std::shared_ptr<ov::Model>& model,
                   << " (rounds=" << expansion_rounds << ")" << std::endl;
 }
 
+// Bypass only floating-point Convert chains connecting two region nodes.
+ov::Output<ov::Node> find_region_source(ov::Output<ov::Node> source,
+                                       const OriginalOutputTypes& original_types) {
+    const auto original_source = source;
+    while (!original_types.count(source.get_node())) {
+        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source.get_node_shared_ptr());
+        if (!convert)
+            return original_source;
+
+        const auto source_type = convert->get_input_element_type(0);
+        const auto destination_type = convert->get_destination_type();
+        if ((source_type != ov::element::f16 && source_type != ov::element::f32) ||
+            (destination_type != ov::element::f16 && destination_type != ov::element::f32)) {
+            return original_source;
+        }
+        source = convert->input_value(0);
+    }
+
+    if (!is_fp32_region_output(source, original_types))
+        return original_source;
+
+    return source;
+}
+
 // Phase 3a: Input Promotion — insert f16->f32 boundary Converts at region
 // entry points and force output type to f32.
 std::tuple<bool, int, size_t> promote_inputs(
     const std::shared_ptr<ov::Model>& model,
-    const std::unordered_set<ov::Node*>& f32_region) {
+    const OriginalOutputTypes& original_types) {
     bool changed = false;
     int forced_count = 0;
     size_t global_convert_idx = 0;
     const auto desired_et = ov::element::f32;
 
-    // Pass 1: Insert f16->f32 Converts on all f16 inputs of region nodes.
-    // Must run BEFORE set_output_type so that region-internal edges still
-    // show their original f16 type and get Converts inserted.
-    for (const auto& node : model->get_ops()) {
-        if (!f32_region.count(node.get()))
+    const auto ordered_ops = model->get_ordered_ops();
+
+    // Pass 1: Connect region nodes directly; convert only external f16 inputs.
+    for (const auto& node : ordered_ops) {
+        if (!original_types.count(node.get()))
             continue;
 
         for (const auto& input : node->inputs()) {
-            const auto& incoming_output = input.get_source_output();
-            const auto& incoming_node = incoming_output.get_node_shared_ptr();
+            const auto incoming_output = input.get_source_output();
             const auto input_et = incoming_output.get_element_type();
+            if (input_et != ov::element::f16 && input_et != desired_et)
+                continue;
+
+            const auto region_source = find_region_source(incoming_output, original_types);
+            if (is_fp32_region_output(region_source, original_types)) {
+                if (region_source != incoming_output)
+                    input.replace_source_output(region_source);
+                continue;
+            }
 
             if (input_et == desired_et)
                 continue;
-            if (input_et != ov::element::f16)
-                continue;
 
+            const auto incoming_node = incoming_output.get_node_shared_ptr();
             // Skip Placeholder inputs
             if (incoming_node->get_friendly_name().find("Placeholder") != std::string::npos ||
                 incoming_node->get_type_info().name == std::string("gpu_opset::Placeholder")) {
                 continue;
             }
 
-            // Insert Convert f16->f32.
-            // If incoming node is already a single-use Convert, replace it
-            // directly to avoid Convert(Convert(x)) chains.
-            auto in_convert = ov::as_type_ptr<ov::op::v0::Convert>(incoming_node);
-            if (in_convert && in_convert->get_users().size() == 1) {
-                auto convert = std::make_shared<ov::op::v0::Convert>(
-                    incoming_node->input_value(0), desired_et);
-                convert->set_friendly_name(
-                    in_convert->get_friendly_name() + "_increase_precision_" +
-                    std::to_string(global_convert_idx));
-                ov::copy_runtime_info(incoming_node, convert);
-                ov::replace_node(incoming_node, convert);
-            } else {
-                auto convert = std::make_shared<ov::op::v0::Convert>(incoming_output, desired_et);
-                convert->set_friendly_name(
-                    incoming_node->get_friendly_name() + "_increase_precision_" +
-                    std::to_string(global_convert_idx));
-                ov::copy_runtime_info(incoming_node, convert);
-                input.replace_source_output(convert);
-            }
+            // Change this edge only, preserving external Converts and their users.
+            auto convert = std::make_shared<ov::op::v0::Convert>(incoming_output, desired_et);
+            convert->set_friendly_name(
+                incoming_node->get_friendly_name() + "_increase_precision_" +
+                std::to_string(global_convert_idx));
+            ov::copy_runtime_info(incoming_node, convert);
+            input.replace_source_output(convert);
             global_convert_idx++;
         }
     }
 
     // Pass 2: Update explicit precision attributes, force output types to f32, and log.
-    for (const auto& node : model->get_ops()) {
-        if (!f32_region.count(node.get()))
+    for (const auto& node : ordered_ops) {
+        if (!original_types.count(node.get()))
             continue;
 
         promote_precision_attributes(node);
-        if (node->get_output_element_type(0) != desired_et) {
-            node->set_output_type(0, desired_et, node->get_output_partial_shape(0));
+        const auto& types = original_types.at(node.get());
+        for (size_t port = 0; port < types.size(); port++) {
+            if (types[port] == ov::element::f16)
+                node->set_output_type(port, desired_et, node->get_output_partial_shape(port));
         }
 
         forced_count++;
@@ -266,31 +317,37 @@ std::tuple<bool, int, size_t> promote_inputs(
 // Done separately after all promotions so that region-internal edges are never
 // accidentally restored.
 void restore_outputs(const std::shared_ptr<ov::Model>& model,
-                     const std::unordered_set<ov::Node*>& f32_region,
+                     const OriginalOutputTypes& original_types,
                      size_t& global_convert_idx) {
     const auto desired_et = ov::element::f32;
 
     for (const auto& node : model->get_ops()) {
-        if (!f32_region.count(node.get()))
+        if (!original_types.count(node.get()))
             continue;
 
-        const auto current_et = node->get_output_element_type(0);
-        if (current_et != desired_et)
-            continue;
-
+        const auto& types = original_types.at(node.get());
         for (const auto& output : node->outputs()) {
+            const auto original_type = types.at(output.get_index());
+            if (original_type != ov::element::f16 || output.get_element_type() != desired_et)
+                continue;
             std::vector<ov::Input<ov::Node>> outside_consumers;
             for (const auto& target_input : output.get_target_inputs()) {
-                if (!f32_region.count(target_input.get_node())) {
+                if (!original_types.count(target_input.get_node())) {
                     outside_consumers.push_back(target_input);
                 }
             }
             for (auto& target_input : outside_consumers) {
-                auto convert = std::make_shared<ov::op::v0::Convert>(output, ov::element::f16);
+                const auto existing_convert = ov::as_type<ov::op::v0::Convert>(target_input.get_node());
+                if (existing_convert && existing_convert->get_destination_type() == original_type)
+                    continue;
+
+                auto convert = std::make_shared<ov::op::v0::Convert>(output, original_type);
                 convert->set_friendly_name(
                     target_input.get_node()->shared_from_this()->get_friendly_name() +
                     "_restore_precision_" + std::to_string(global_convert_idx));
                 ov::copy_runtime_info(node, convert);
+                if (ov::is_type<ov::op::v0::Result>(target_input.get_node()))
+                    convert->output(0).set_names(output.get_names());
                 target_input.replace_source_output(convert);
                 global_convert_idx++;
             }
@@ -316,11 +373,13 @@ bool ForceFP32Selective::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Phase 2: Region Expansion
     expand_region(model, f32_region);
 
+    const auto original_types = record_output_types(model, f32_region);
+
     // Phase 3a: Input Promotion
-    auto [changed, forced_count, convert_idx] = promote_inputs(model, f32_region);
+    auto [changed, forced_count, convert_idx] = promote_inputs(model, original_types);
 
     // Phase 3b: Output Restore
-    restore_outputs(model, f32_region, convert_idx);
+    restore_outputs(model, original_types, convert_idx);
 
     GPU_DEBUG_LOG << "[ForceFP32Selective] Done. Region=" << f32_region.size()
                   << "  Forced=" << forced_count << std::endl;
