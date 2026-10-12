@@ -263,6 +263,29 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     uint b0_kv = b0 / KV_GROUP_SIZE;
 #endif
+#if !IS_PAGED_ATTENTION
+    // Q/K/V batch may be broadcast (the output batch is their numpy broadcast): wrap the batch index by their own batch size.
+    // The flags are compile-time, so the modulo is dropped when no broadcast is needed.
+#if BROADCAST_Q_BATCH
+    const uint b1_q = b1 % QRY_D0;
+#else
+    const uint b1_q = b1;
+#endif
+#if BROADCAST_K_BATCH
+    const uint b1_k = b1 % KEY_D0;
+#else
+    const uint b1_k = b1;
+#endif
+#if BROADCAST_V_BATCH
+    const uint b1_v = b1 % VAL_D0;
+#else
+    const uint b1_v = b1;
+#endif
+#else
+    const uint b1_q = b1;
+    const uint b1_k = b1;
+    const uint b1_v = b1;
+#endif
 
 #if IS_PAGED_ATTENTION
     uint wg_j0 = subsequence_query_block_idx;
@@ -465,9 +488,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #else
     /* KEY_OFF/VAL_OFF and offsets address the physical byte-backed layouts. */
-    K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
-    Q += (QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET);
-    V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
+    K += KEY_OFF(b1_k, b0_kv, 0, 0) + INPUT1_OFFSET;
+    Q += (QRY_OFF(b1_q, b0, 0, 0) + INPUT0_OFFSET);
+    V += VAL_OFF(b1_v, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #if WITH_ATTN_MASK
     uint ldmsk = MSK_S2;
@@ -476,22 +499,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if KEY_SCALES
-    K_scales += KEY_COMP_OFF(b1, b0_kv, 0, 0);
+    K_scales += KEY_COMP_OFF(b1_k, b0_kv, 0, 0);
 #endif
 #if KEY_SCALES == QUANTIZE_COMMON
     float k_scale = convert_float(*K_scales);
 #endif
 #if KEY_ZERO_POINTS
-    K_zp += KEY_COMP_OFF(b1, b0_kv, 0, 0) / KEY_ZP_ELEMENTS_PER_BYTE;
+    K_zp += KEY_COMP_OFF(b1_k, b0_kv, 0, 0) / KEY_ZP_ELEMENTS_PER_BYTE;
 #endif
 #if VAL_SCALES
-    V_scales += VAL_COMP_OFF(b1, b0_kv, 0, 0);
+    V_scales += VAL_COMP_OFF(b1_v, b0_kv, 0, 0);
 #endif
 #if VAL_SCALES == QUANTIZE_COMMON
     float v_scale = convert_float(*V_scales);
 #endif
 #if VAL_ZERO_POINTS
-    V_zp += VAL_COMP_OFF(b1, b0_kv, 0, 0) / VAL_ZP_ELEMENTS_PER_BYTE;
+    V_zp += VAL_COMP_OFF(b1_v, b0_kv, 0, 0) / VAL_ZP_ELEMENTS_PER_BYTE;
 #endif
 
     __builtin_assume_aligned(K, K_ALIGN);
