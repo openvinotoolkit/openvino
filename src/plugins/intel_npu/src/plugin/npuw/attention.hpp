@@ -69,7 +69,10 @@ struct Attention {
 void patch_broadcast_constants(const std::shared_ptr<ov::Model>& model, size_t target_length);
 
 // Preserve inferred K/V sequence dimensions when reshaping an attention context.
-void patch_reshape_constants(const std::shared_ptr<ov::Model>& model, size_t full_context_length);
+void patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
+                             const std::map<std::string, size_t>& past_key_sequence_dims,
+                             const std::map<std::string, size_t>& past_value_sequence_dims,
+                             size_t full_context_length);
 
 }  // namespace function
 

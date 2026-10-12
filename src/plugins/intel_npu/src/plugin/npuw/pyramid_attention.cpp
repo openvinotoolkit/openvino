@@ -386,13 +386,27 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
         LOG_DEBUG("  Concat nodes shrunk successfully for model[" << model_idx << "]");
 
-        // Apply the same pre-reshape patching + reshape sequence as the non-block path:
+        // Apply the same pre-reshape patching as the non-block path:
         //   1. patch_broadcast_constants — fix Broadcast shape constants referencing full_context_length
-        //   2. patch_reshape_constants  — infer K/V Reshape sequence dimensions
-        //   3. reshape(new_shapes)      — apply mask shape update and propagate all shapes
+        //   2. patch_reshape_constants  — use the K/V Concat sequence dimensions
+        //   3. set_partial_shape        — apply the mask shape update
         //   4. validate_nodes_and_infer_types
+        const auto key_concat = ov::as_type_ptr<ov::op::v0::Concat>(shrunk_key);
+        const auto value_concat = ov::as_type_ptr<ov::op::v0::Concat>(shrunk_value);
+        const auto key_sequence_dim =
+            static_cast<size_t>(ov::util::try_normalize_axis(key_concat->get_axis(),
+                                                             key_concat->get_output_partial_shape(0).rank(),
+                                                             *key_concat));
+        const auto value_sequence_dim =
+            static_cast<size_t>(ov::util::try_normalize_axis(value_concat->get_axis(),
+                                                             value_concat->get_output_partial_shape(0).rank(),
+                                                             *value_concat));
         ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
-        ov::npuw::function::patch_reshape_constants(cloned_model, full_context_length);
+        // Block mode has no contiguous parameter names; the patcher only uses the map values.
+        ov::npuw::function::patch_reshape_constants(cloned_model,
+                                                    {{"", key_sequence_dim}},
+                                                    {{"", value_sequence_dim}},
+                                                    full_context_length);
 
         // Directly set partial shape on the Parameter node — bypasses reshape() name/pointer
         // lookup entirely. reshape(Output<Node>) can silently miss, reshape(string) uses
@@ -514,8 +528,15 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     }
 
     // Apply pre-reshape patching using helper functions
+    if (past_key_sequence_dims.empty() || past_value_sequence_dims.empty()) {
+        LOG_WARN("Missing K/V sequence dimensions for pyramid model " << model_idx);
+        return std::nullopt;
+    }
     ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
-    ov::npuw::function::patch_reshape_constants(cloned_model, full_context_length);
+    ov::npuw::function::patch_reshape_constants(cloned_model,
+                                                past_key_sequence_dims,
+                                                past_value_sequence_dims,
+                                                full_context_length);
 
     cloned_model->reshape(new_shapes);
     cloned_model->validate_nodes_and_infer_types();
