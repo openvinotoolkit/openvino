@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 293,
+  "total": 294,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2862,6 +2862,15 @@
       "category": "Network",
       "signature_hash": "4e9cf236bf92d555",
       "pr_number": "38105"
+    },
+    {
+      "investigation_id": "2026-10-12-03-33-58-847-38196468912",
+      "run_id": "38196468912",
+      "timestamp": "2026-10-12T03:33:58Z",
+      "title": "Windows build fails to finalize developer package artifact upload with ENOTFOUND",
+      "category": "Network",
+      "signature_hash": "ea6d2a0367089b27",
+      "pr_number": "38464"
     }
   ]
 }

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-12-03-33-58-847-38196468912",
+  "timestamp": "2026-10-12T03:33:58Z",
+  "run_id": "38196468912",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38196468912",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38464",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38464",
+  "author": "xufang-lisa",
+  "category": "Network",
+  "title": "Windows build fails to finalize developer package artifact upload with ENOTFOUND",
+  "signature": "Failed to FinalizeArtifact: Unable to make request: ENOTFOUND|Network",
+  "signature_hash": "ea6d2a0367089b27",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Step 'Upload OpenVINO developer package' failed after a successful blob upload because the action could not resolve a GitHub Actions service hostname when finalizing the artifact (DNS resolution failure, ENOTFOUND)."
+    }
+  ],
+  "key_errors": [
+    "2026-10-12T03:23:24.9948244Z Uploaded bytes 118935260\n2026-10-12T03:23:25.0735581Z Finished uploading artifact content to blob storage!\n2026-10-12T03:23:25.0739957Z SHA256 digest of uploaded artifact is 3f489ff646643c1d7805e5f2123f4dc4e9387671e4b0bec148c8d38e341719b3\n2026-10-12T03:23:25.0751583Z Finalizing artifact upload\n2026-10-12T03:23:25.1549308Z ##[error]Failed to FinalizeArtifact: Unable to make request: ENOTFOUND\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github"
+  ],
+  "root_cause": "The 'Build / Build' job (self-hosted Windows runner, aks-win-16-cores-32gb-build) completed the full build and successfully streamed the 118MB developer_package.zip to Azure blob storage, but the subsequent FinalizeArtifact API call (actions/toolkit artifact client, used by the ababushk/upload-artifact action) failed with a DNS resolution error (ENOTFOUND) when contacting the GitHub Actions results service. This is a transient self-hosted-runner networking/DNS blip, not a problem with the PR's change (which only touches cmake/dependencies.cmake, a one-line comment addition). The job otherwise completed every build/install/test-packaging step successfully before this single network hiccup aborted the step.",
+  "reproduction_steps": "N/A - this is a transient infrastructure/network failure during artifact finalization on a self-hosted runner; it is not reproducible by re-running the build locally. Re-running the failed job (or the whole run) on a healthy runner is expected to succeed, since the build itself completed without error.",
+  "recommended_actions": [
+    "Re-run the failed 'Build / Build' job (the automated remediation path handles this).",
+    "If ENOTFOUND recurs frequently for this runner pool, check aks-win-16-cores-32gb-build DNS/outbound-network health and GitHub Actions service status.",
+    "Consider adding retry/backoff around FinalizeArtifact calls in the ababushk/upload-artifact fork if this keeps recurring."
+  ],
+  "prevention_strategies": "No code change is needed for this specific failure since it is infra/network-related. To reduce blast radius of transient FinalizeArtifact failures, consider wrapping the upload-artifact step with a short retry (e.g., via a composite action) for 'Unable to make request: ENOTFOUND'/'ECONNREFUSED' style errors, and monitor the aks-win-16-cores-32gb-build runner pool for recurring DNS failures.",
+  "historical_context": "Related prior FinalizeArtifact/CreateArtifact ENOTFOUND failures are recorded in patterns 6b6a229047392a0f (Build / Build specific, 1 occurrence, first seen 2026-07-01), 4e9cf236bf92d555 (CreateArtifact ENOTFOUND, Network, 2 occurrences), 272cc033ad86cee8 and 669fb8e126e09420 (CreateArtifact ENOTFOUND variants), and 0c33a04c2cbe783c (FinalizeArtifact ECONNREFUSED, Network, 2 occurrences). All were resolved by re-running the affected job; none required a code fix."
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "Failed to FinalizeArtifact: Unable to make request: ENOTFOUND|Network",
+  "signature_hash": "ea6d2a0367089b27",
+  "title": "Windows build fails to finalize developer package artifact upload with ENOTFOUND",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-10-12T03:33:58Z",
+  "last_seen": "2026-10-12T03:33:58Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/38196468912"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38464"
+  ],
+  "recent_timestamps": [
+    "2026-10-12T03:33:58Z"
+  ],
+  "rerun_search_string": "Failed to FinalizeArtifact Unable to make request ENOTFOUND"
+}
