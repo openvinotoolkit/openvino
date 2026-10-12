@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "intel_gpu/op/fully_connected.hpp"
@@ -76,12 +77,33 @@ public:
     }
 };
 
+class ValidationProbe : public ov::op::Op {
+public:
+    OPENVINO_OP("ValidationProbe", "test");
+
+    explicit ValidationProbe(const ov::Output<ov::Node>& input) : Op({input}) {
+        validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        validation_count++;
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return std::make_shared<ValidationProbe>(inputs.at(0));
+    }
+
+    size_t validation_count = 0;
+};
+
 }  // namespace force_fp32_selective_test
 
 namespace {
 
 using force_fp32_selective_test::MixedOutputOp;
 using force_fp32_selective_test::OutputlessSink;
+using force_fp32_selective_test::ValidationProbe;
 
 void force_selected(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
@@ -98,6 +120,79 @@ size_t count_converts(const std::shared_ptr<ov::Model>& model) {
             count++;
     }
     return count;
+}
+
+using FilterCase = std::tuple<std::vector<std::string>, std::vector<std::string>, unsigned int>;
+
+class ForceFP32SelectiveFilters : public testing::TestWithParam<FilterCase> {};
+
+TEST_P(ForceFP32SelectiveFilters, PreservesMatchingRulesAndNoOpGraphs) {
+    const auto& [types, names, expected_mask] = GetParam();
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+    auto alpha = std::make_shared<ov::op::v0::Relu>(input);
+    auto beta = std::make_shared<ov::op::v0::Relu>(input);
+    auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-5, ov::element::f16);
+    alpha->set_friendly_name("block_alpha");
+    beta->set_friendly_name("block_beta");
+    rms->set_friendly_name("block_alpha_rms");
+    const ov::NodeVector nodes{alpha, beta, rms};
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{alpha, beta, rms}, ov::ParameterVector{input});
+    const auto original_ops = model->get_ops();
+    ov::intel_gpu::ForceFP32Selective pass(types, names);
+
+    EXPECT_EQ(pass.run_on_model(model), expected_mask != 0u);
+    model->validate_nodes_and_infer_types();
+
+    for (size_t port = 0; port < nodes.size(); port++) {
+        EXPECT_EQ(nodes[port]->get_output_element_type(0),
+                  (expected_mask & (1u << port)) ? ov::element::f32 : ov::element::f16);
+        EXPECT_EQ(model->get_output_element_type(port), ov::element::f16);
+    }
+    if (expected_mask == 0u) {
+        EXPECT_EQ(count_converts(model), 0u);
+        EXPECT_EQ(model->get_ops().size(), original_ops.size());
+        for (size_t port = 0; port < nodes.size(); port++) {
+            EXPECT_EQ(nodes[port]->input_value(0).get_node_shared_ptr(), input);
+            EXPECT_EQ(model->get_results()[port]->input_value(0).get_node_shared_ptr(), nodes[port]);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    MatchingRules,
+    ForceFP32SelectiveFilters,
+    testing::Values(FilterCase{{}, {}, 0u},
+                    FilterCase{{"Relu"}, {}, 3u},
+                    FilterCase{{}, {"alpha"}, 5u},
+                    FilterCase{{"Relu"}, {"alpha"}, 1u},
+                    FilterCase{{"Relu", "RMS"}, {}, 7u},
+                    FilterCase{{}, {"alpha", "beta"}, 7u},
+                    FilterCase{{"RMS", "Relu"}, {"beta", "missing"}, 2u},
+                    FilterCase{{"AbsentOp"}, {}, 0u},
+                    FilterCase{{}, {"absent_name"}, 0u},
+                    FilterCase{{"Relu"}, {"rms"}, 0u}));
+
+TEST(ForceFP32Selective, DefaultManagerValidatesWithoutExplicitValidatePass) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+    auto selected = std::make_shared<ov::op::internal::RMS>(input, 1e-5, ov::element::f16);
+    auto other = std::make_shared<ValidationProbe>(selected);
+    selected->set_friendly_name("selected");
+    other->set_friendly_name("other");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{other}, ov::ParameterVector{input});
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::ForceFP32Selective>(std::vector<std::string>{},
+                                                          std::vector<std::string>{"selected"});
+
+    const auto validation_count = other->validation_count;
+    manager.run_passes(model);
+
+    EXPECT_GT(other->validation_count, validation_count);
+    EXPECT_EQ(selected->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(selected->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(other->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(other->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(model->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(count_converts(model), 2u);
 }
 
 TEST(ForceFP32Selective, OrdinaryNodeWithPlaceholderInNameIsPromoted) {

@@ -1979,7 +1979,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!forced_types.empty() || !forced_names.empty()) {
             ov::pass::Manager fp32_manager;
             fp32_manager.register_pass<ov::intel_gpu::ForceFP32Selective>(forced_types, forced_names);
-            fp32_manager.register_pass<ov::pass::Validate>();
             fp32_manager.run_passes(func);
         }
     }
