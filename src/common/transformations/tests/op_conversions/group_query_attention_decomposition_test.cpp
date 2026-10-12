@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -330,11 +331,15 @@ TEST(GroupQueryAttentionOpValidation, allows_static_multi_token_windowed_cache) 
     EXPECT_NO_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true));
 }
 
-TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one) {
-    // The decomposition uses a scalar past length and assumes batch == 1.
-    OV_EXPECT_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ -1, /*swc*/ false),
+TEST(GroupQueryAttentionOpValidation, allows_static_batch_greater_than_one) {
+    EXPECT_NO_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ -1, /*swc*/ false));
+}
+
+TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one_with_windowed_cache) {
+    // The windowed cache's rolling arithmetic is single-batch.
+    OV_EXPECT_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ 2, /*swc*/ true),
                     ov::NodeValidationFailure,
-                    testing::HasSubstr("batch_size == 1"));
+                    testing::HasSubstr("sliding_window_cache is only supported for batch_size == 1"));
 }
 
 TEST(GroupQueryAttentionOpValidation, allows_dynamic_sequence_with_windowed_cache) {
@@ -766,6 +771,53 @@ TEST(GroupQueryAttentionValues, qk_output_uses_explicit_attention_scores) {
             EXPECT_TRUE(is_type<op::v8::Softmax>(source)) << source;
         } else {
             EXPECT_TRUE(is_type<op::v1::Select>(source)) << source;
+        }
+    }
+}
+
+namespace {
+// Decomposes a decode GQA with the given batch / past and counts the ops matching the predicate.
+size_t count_decomposed_ops(const Dimension& batch,
+                            const Dimension& past,
+                            const std::function<bool(const std::shared_ptr<ov::Node>&)>& predicate) {
+    const auto gqa = make_gqa_op(batch, 1, past, /*window*/ -1, /*swc*/ false);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    ParameterVector params;
+    for (const auto& in : gqa->input_values())
+        params.push_back(as_type_ptr<op::v0::Parameter>(in.get_node_shared_ptr()));
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+    size_t count = 0;
+    for (const auto& op : model->get_ordered_ops())
+        count += predicate(op) ? 1 : 0;
+    return count;
+}
+
+bool is_batched_gather(const std::shared_ptr<ov::Node>& op) {
+    const auto gather = as_type_ptr<op::v8::Gather>(op);
+    return gather && gather->get_batch_dims() == 1;
+}
+
+bool is_scatter_update(const std::shared_ptr<ov::Node>& op) {
+    return is_type<op::v3::ScatterUpdate>(op);
+}
+}  // namespace
+
+// A static batch of 1 keeps the scalar-length graph (ScatterUpdate / Slice + Concat, which plugins and the NPU compiler
+// pattern-match); any other batch assembles each batch's rows with one batched Gather over [past, new] per K/V.
+TEST(GroupQueryAttentionValues, batch_one_keeps_scalar_cache_update) {
+    for (const auto& past : {Dimension(8), Dimension::dynamic()})
+        EXPECT_EQ(count_decomposed_ops(1, past, is_batched_gather), 0u) << past;
+    EXPECT_EQ(count_decomposed_ops(1, 8, is_scatter_update), 2u);
+}
+
+TEST(GroupQueryAttentionValues, batched_cache_update_is_per_batch) {
+    for (const auto& batch : {Dimension(2), Dimension::dynamic()}) {
+        for (const auto& past : {Dimension(8), Dimension::dynamic()}) {
+            EXPECT_EQ(count_decomposed_ops(batch, past, is_batched_gather), 2u) << batch << " " << past;
+            EXPECT_EQ(count_decomposed_ops(batch, past, is_scatter_update), 0u) << batch << " " << past;
         }
     }
 }

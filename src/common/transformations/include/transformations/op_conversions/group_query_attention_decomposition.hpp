@@ -103,6 +103,19 @@ protected:
                                                           bool sliding_window_cache,
                                                           float scale,
                                                           bool has_sink);
+    // Additive [B, 1, S, kv_len] mask for a batch with per-batch lengths (batch not statically 1). total and past
+    // are [B, 1, 1] (total = seqlens_k + 1, past = causal offset of the first query). Keys at or beyond a batch's
+    // total are masked (right-padded prompts), then the causal / sliding-window rules apply per batch, matching
+    // ONNX Runtime's per-batch visible length. attention_bias [B or 1, N or 1, S, >= kv_len] is added on top.
+    std::shared_ptr<ov::Node> make_batched_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
+                                                          const ov::Output<ov::Node>& kv_len_scalar,
+                                                          const ov::Output<ov::Node>& kv_len_1d,
+                                                          const ov::Output<ov::Node>& past,
+                                                          const ov::Output<ov::Node>& total,
+                                                          const ov::element::Type& compute_type,
+                                                          bool causal,
+                                                          int64_t local_window_size,
+                                                          const ov::Output<ov::Node>& external_bias);
     // Reshape a flat KV-cache dequant scale so it broadcasts against a [B, kv_num_heads, S, head_size] tensor:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,

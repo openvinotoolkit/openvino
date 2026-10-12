@@ -336,15 +336,14 @@ void GroupQueryAttention::validate_and_infer_types() {
     // sequence_length > 1 takes the identical staging branch a dynamic sequence_length resolving to the same
     // runtime value would, so it is not rejected here.
 
-    // The decomposition derives a scalar past length (past_seqlen = total - current) and assumes a single
-    // batch entry ("Only consider batch is 1"). A statically known batch_size > 1 is rejected here; a dynamic
-    // batch resolving to > 1 fails at inference (seqlens_k cannot be reshaped to the single past length), so it
-    // never produces silently wrong results.
-    if (batch_size.is_static()) {
+    // Any batch size is supported with per-batch seqlens_k, except the windowed cache (single-batch rolling
+    // arithmetic): a statically known batch_size > 1 is rejected there; a dynamic batch resolving to > 1 fails at
+    // inference (seqlens_k cannot be reshaped to the single past length), so it never produces silently wrong results.
+    if (m_sliding_window_cache && batch_size.is_static()) {
         NODE_VALIDATION_CHECK(this,
                               batch_size.get_length() == 1,
-                              "GroupQueryAttention is only supported for batch_size == 1 when the batch dimension is "
-                              "statically known, got batch_size = ",
+                              "GroupQueryAttention sliding_window_cache is only supported for batch_size == 1, got "
+                              "batch_size = ",
                               batch_size.get_length(),
                               ".");
     }
