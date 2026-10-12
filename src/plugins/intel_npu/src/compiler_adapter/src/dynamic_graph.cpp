@@ -71,8 +71,11 @@ void DynamicGraph::prepare_metadata() {
     _metadata.outputs.clear();
     for (uint32_t i = 0; i < _engineProperties.numOfGraphArgs; ++i) {
         // TODO: follow graph ext to support Optional metadata for weightless model
-        ze_graph_argument_properties_3_t arg;
-        ze_graph_argument_metadata_t meta;
+        ze_graph_argument_properties_3_t arg = {};
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
+        ze_graph_argument_metadata_t meta = {};
+        meta.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_METADATA;
+
         std::array<int64_t, ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE> upperBound = {};
         if (npuVMRuntimeGetMetadata(_engine, i, &arg, &meta, upperBound.data()) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to get VM runtime metadata");
@@ -96,17 +99,15 @@ void DynamicGraph::prepare_metadata() {
 }
 
 void DynamicGraph::initialize_engine(const Config& config) {
-    if (!_engineInitialized) {
-        create_execution_engine(config);
-        prepare_metadata();
-        _engineInitialized = true;
-        _metadata.numberOfSubgraphs = _engineProperties.numOfSubGraphs;
+    create_execution_engine(config);
+    prepare_metadata();
+    _metadata.numberOfSubgraphs = _engineProperties.numOfSubGraphs;
+    _metadataInitialized.store(true, std::memory_order_release);
 
-        _logger.debug("num of subgraphs: %d inputs: %d outputs: %d",
-                      _engineProperties.numOfSubGraphs,
-                      _metadata.inputs.size(),
-                      _metadata.outputs.size());
-    }
+    _logger.debug("num of subgraphs: %d inputs: %d outputs: %d",
+                  _engineProperties.numOfSubGraphs,
+                  _metadata.inputs.size(),
+                  _metadata.outputs.size());
 
     if (_logger.level() >= ov::log::Level::DEBUG) {
         _logger.debug("Dump metadata info from blob");
@@ -131,17 +132,12 @@ void DynamicGraph::initialize_engine(const Config& config) {
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
-                           const Config& config,
                            BlobType blobType)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
       _blobType(blobType),
-      _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
+      _logger("DynamicGraph", Logger::global().level()) {
     _logger.info("Create DynamicGraph");
-    // Metadata comes from the VM runtime parsing the blob; unlike a regular Graph, it is not prefetched by the
-    // compiler/parser and must be available before plugin builds a dummy ov::Model for the CompiledModel.
-    // This is CPU-side parsing only - no L0/device setup.
-    initialize_engine(config);
 }
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream) const {
@@ -197,6 +193,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
 }
 
 const NetworkMetadata& DynamicGraph::get_metadata() const {
+    OPENVINO_ASSERT(_metadataInitialized.load(std::memory_order_acquire),
+                    "DynamicGraph metadata is not initialized yet. The graph must be initialized first.");
     return _metadata;
 }
 
@@ -210,95 +208,97 @@ CommandQueueDesc DynamicGraph::get_command_queue_desc() const {
 }
 
 void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
-    if (_zeroInitStruct == nullptr) {
-        return;
-    }
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the workload type must be applied directly on it.
     if (_commandQueue && zeWorkloadType.has_value()) {
         // When shared common queue is disabled, workload type is set per command queue.
         // Update the existing queue if it has already been created.
         _commandQueue->setWorkloadType(zeWorkloadType.value());
         _workloadType = workloadType;
-
         return;
     }
 
-    if (_commandQueueDesc.workload() == zeWorkloadType) {
-        return;
-    }
-    _commandQueueDesc.set_workload(zeWorkloadType);
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setWorkload(zeWorkloadType);
 }
 
 void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
-    if (_zeroInitStruct == nullptr) {
-        return;
-    }
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
-    if (_commandQueueDesc.priority() == zeModelPriority) {
-        return;
-    }
-    _commandQueueDesc.set_priority(zeModelPriority);
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the priority must be applied on it (directly, or by recreating it on legacy drivers).
     if (_commandQueue) {
+        if (_zeroInitStruct->isCommandQueueSetPrioritySupported()) {
+            _commandQueue->setPriority(zeModelPriority);
+            return;
+        }
+
+        // Legacy behavior: Create new command queue if setPriority is not supported.
         // When shared common queue is disabled, workload type is set per command queue.
         // Recreate the queue with the new priority while preserving the current workload type.
         if (_workloadType.has_value()) {
             auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(_workloadType.value());
-            _commandQueueDesc.set_workload(zeWorkloadType);
+            _commandQueueDesc.setWorkload(zeWorkloadType);
             _workloadType = std::nullopt;  // Clear the cached workload type after applying it to the new queue
         }
 
+        _commandQueueDesc.setPriority(zeModelPriority);
         _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
     }
+
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setPriority(zeModelPriority);
 }
 
 void* DynamicGraph::get_handle() const {
     return _engine;
 }
 
-void DynamicGraph::initialize_impl(const Config& config) {
+void DynamicGraph::initialize_impl(const Config& runtimeConfig) {
     _logger.debug("Graph initialize start");
-
-    if (!_engineInitialized) {
-        // initialize VM execution engine, metadata, input&output descriptors
-        initialize_engine(config);
-    }
 
     if (!_zeroInitStruct) {
         _logger.warning("Zero device is not available, skip graph initialize!");
         return;
     }
 
-    _logger.debug("Graph initialize without graph handle");
+    // initialize VM execution engine, metadata, input&output descriptors
+    initialize_engine(runtimeConfig);
 
     uint32_t commandQueueOptions = 0;
-    if (config.get<TURBO>()) {
+    if (runtimeConfig.get<TURBO>()) {
         OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
                         "Turbo is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
-    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (runtimeConfig.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                         "Running inferences sequentially is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
-    bool sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
+    bool sharedCommonQueue = runtimeConfig.get<SHARED_COMMON_QUEUE>();
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
-        _commandQueueDesc = CommandQueueDesc{
-            zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-            config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
-            commandQueueOptions,
-            this,
-            sharedCommonQueue};
+        _commandQueueDesc = CommandQueueDesc{zeroUtils::toZeQueuePriority(runtimeConfig.get<MODEL_PRIORITY>()),
+                                             runtimeConfig.has<WORKLOAD_TYPE>()
+                                                 ? zeroUtils::toZeQueueWorkloadType(runtimeConfig.get<WORKLOAD_TYPE>())
+                                                 : std::nullopt,
+                                             commandQueueOptions,
+                                             this,
+                                             sharedCommonQueue};
 
         if (!use_npu_vm_runtime_v2_api(_apiVersion) && sharedCommonQueue == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
@@ -312,7 +312,7 @@ void DynamicGraph::initialize_impl(const Config& config) {
     _init_completed.store(true, std::memory_order_release);
 }
 
-bool DynamicGraph::release_blob(const Config& config) {
+bool DynamicGraph::release_blob() {
     _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
 }
@@ -322,17 +322,14 @@ uint32_t DynamicGraph::get_unique_id() {
 }
 
 void DynamicGraph::set_last_submitted_id(uint32_t id_index) {
-    _lastSubmittedId = id_index;
+    OPENVINO_THROW("Setting last submitted ID is not supported for DynamicGraph");
 }
 
 uint32_t DynamicGraph::get_last_submitted_id() const {
-    return _lastSubmittedId;
+    OPENVINO_THROW("Getting last submitted ID is not supported for DynamicGraph");
 }
 
 DynamicGraph::~DynamicGraph() {
-    if (!_lastSubmittedEvent.empty()) {
-        _lastSubmittedEvent.clear();
-    }
     if (_engine != nullptr) {
         npuVMRuntimeDestroy(_engine);
         _engine = nullptr;
