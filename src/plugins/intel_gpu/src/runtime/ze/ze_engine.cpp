@@ -112,11 +112,14 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
     memory::ptr reinterpret_memory = nullptr;
     if (memory_capabilities::is_usm_type(memory.get_allocation_type())
         || memory.get_allocation_type() == allocation_type::cl_mem) {
-        reinterpret_memory = std::make_shared<ze::gpu_usm>(this,
+        const auto& src = reinterpret_cast<const ze::gpu_usm&>(memory);
+        auto usm_memory = std::make_shared<ze::gpu_usm>(this,
                                      new_layout,
-                                     reinterpret_cast<const ze::gpu_usm&>(memory).get_resource(),
+                                     src.get_resource(),
                                      memory.get_allocation_type(),
                                      memory.get_mem_tracker());
+        usm_memory->set_parent_resource(src.get_owning_resource());
+        reinterpret_memory = usm_memory;
     } else if (new_layout.format.is_image_2d()) {
         reinterpret_memory = std::make_shared<ze::gpu_image2d>(this,
                                      new_layout,
