@@ -959,7 +959,7 @@ struct ConvertFrom3BitPrecision;
     const size_t bit = 3 * i;
     const size_t byte = bit >> 3;
     const size_t shift = bit & 7U;
-    uint16_t bits = static_cast<uint16_t>(src[byte]);
+    auto bits = static_cast<uint16_t>(src[byte]);
     if (shift + 3U > 8U) {
         bits |= static_cast<uint16_t>(src[byte + 1]) << 8U;
     }

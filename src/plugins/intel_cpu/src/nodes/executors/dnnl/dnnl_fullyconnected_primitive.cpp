@@ -211,7 +211,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     // U3 requires dqGroupSize to be a multiple of 32 because the 32 bits for vnni dot product
     // are corresponding to 32 elements in IC dimension, which is because u3 repack assures
     // each of the 3 bits of an element be loaded to 3 different vector registers.
-    if (weightsDesc->getPrecision() == ov::element::u3 && dqGroupSize % 32) {
+    if (weightsDesc->getPrecision() == ov::element::u3 && (dqGroupSize % 32) != 0U) {
         return false;
     }
 

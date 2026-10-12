@@ -87,8 +87,12 @@ static std::pair<size_t, dnnl::memory::data_type> u3DynQuantParams(bool is_u3_we
                                                                    const VectorDims& zp_shape) {
     constexpr size_t default_group_size = 32;
     const auto disabled = std::make_pair(size_t{0}, dnnl::memory::data_type::f32);
-    if (!is_u3_weights ||
-        !any_of(zp_precision, ov::element::u8, ov::element::u2, ov::element::u3, ov::element::u4, ov::element::dynamic)) {
+    if (!is_u3_weights || !any_of(zp_precision,
+                                  ov::element::u8,
+                                  ov::element::u2,
+                                  ov::element::u3,
+                                  ov::element::u4,
+                                  ov::element::dynamic)) {
         return disabled;
     }
     if (K < default_group_size) {
@@ -307,12 +311,7 @@ bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfi
     // For compressed (int) weights, require AVX2
     if ((config.descs.count(ARG_WEI) != 0U) && !config.descs.at(ARG_WEI)->empty()) {
         const auto wei_prc = config.descs.at(ARG_WEI)->getPrecision();
-        if (any_of(wei_prc,
-                   ov::element::u8,
-                   ov::element::i8,
-                   ov::element::u4,
-                   ov::element::i4,
-                   ov::element::u3)) {
+        if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3)) {
             if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
                 return false;
             }
@@ -377,21 +376,20 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    const auto [src_dyn_quant_group_size, zp_dt] =
-        u3DynQuantParams(weights_precision == ov::element::u3,
-                         src_precision,
-                         zp_precision,
-                         static_cast<size_t>(K),
-                         scale_shape,
-                         zp_shape);
+    const auto [src_dyn_quant_group_size, zp_dt] = u3DynQuantParams(weights_precision == ov::element::u3,
+                                                                    src_precision,
+                                                                    zp_precision,
+                                                                    static_cast<size_t>(K),
+                                                                    scale_shape,
+                                                                    zp_shape);
 
     InnerProductKey key{src_md,
-                       weights_md,
-                       makeBiasMd(N, memory.at(ARG_BIAS)),
-                       scale_shape,
-                       zp_shape,
-                       zp_dt,
-                       src_dyn_quant_group_size};
+                        weights_md,
+                        makeBiasMd(N, memory.at(ARG_BIAS)),
+                        scale_shape,
+                        zp_shape,
+                        zp_dt,
+                        src_dyn_quant_group_size};
 
     const auto& eng = context->getEngine();
     const auto threadPool = context->getThreadPool();
