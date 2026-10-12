@@ -26,7 +26,8 @@ enum class GroupQueryAttentionInputs : size_t {
     HEAD_SINK = 11,             // Head sink (optional, required if smooth_softmax=1)
     K_SCALE = 12,               // Quantization scale for K (optional, required if kv_cache_bit_width != 0)
     V_SCALE = 13,               // Quantization scale for V (optional, required if kv_cache_bit_width != 0)
-    // Positions 14-15 are reserved (QK-Norm, not supported)
+    Q_NORM_WEIGHT = 14,         // Per-head Q RMSNorm weight [head_size] (optional, paired with K_NORM_WEIGHT)
+    K_NORM_WEIGHT = 15,         // Per-head K RMSNorm weight [head_size] (optional, paired with Q_NORM_WEIGHT)
 };
 
 enum class GroupQueryAttentionQuantType {
@@ -77,7 +78,8 @@ public:
                         bool sliding_window_cache = false,
                         bool smooth_softmax = false,
                         bool causal = true,
-                        float softcap = 0.0f);
+                        float softcap = 0.0f,
+                        float qk_norm_epsilon = 1e-6f);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -143,6 +145,12 @@ public:
     float get_softcap() const {
         return m_softcap;
     }
+    // QK-Norm (Qwen3/Gemma3-style): when q_norm_weight/k_norm_weight are present, the new Q and K heads are
+    // RMS-normalized over head_size before RoPE: x * rsqrt(mean(x^2) + qk_norm_epsilon) * weight.
+    bool has_qk_norm() const;
+    float get_qk_norm_epsilon() const {
+        return m_qk_norm_epsilon;
+    }
 
 private:
     int64_t m_num_heads = 0;
@@ -158,6 +166,7 @@ private:
     bool m_smooth_softmax = false;
     bool m_causal = true;
     float m_softcap = 0.0f;
+    float m_qk_norm_epsilon = 1e-6f;
 };
 
 }  // namespace ov::op::internal

@@ -5,6 +5,7 @@
 #include "openvino/op/group_query_attention.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
@@ -51,7 +52,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          bool sliding_window_cache,
                                          bool smooth_softmax,
                                          bool causal,
-                                         float softcap)
+                                         float softcap,
+                                         float qk_norm_epsilon)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -65,7 +67,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_sliding_window_cache(sliding_window_cache),
       m_smooth_softmax(smooth_softmax),
       m_causal(causal),
-      m_softcap(softcap) {
+      m_softcap(softcap),
+      m_qk_norm_epsilon(qk_norm_epsilon) {
     constructor_validate_and_infer_types();
 }
 
@@ -111,6 +114,10 @@ void GroupQueryAttention::validate_and_infer_types() {
             return "k_scale";
         case GroupQueryAttentionInputs::V_SCALE:
             return "v_scale";
+        case GroupQueryAttentionInputs::Q_NORM_WEIGHT:
+            return "q_norm_weight";
+        case GroupQueryAttentionInputs::K_NORM_WEIGHT:
+            return "k_norm_weight";
         }
         return "unknown";
     };
@@ -212,6 +219,40 @@ void GroupQueryAttention::validate_and_infer_types() {
     }
 
     const auto q_shape = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
+    // QK-Norm weights (ONNX spec shape [head_size], type T) must be provided together, as in ONNX Runtime.
+    check_input(GroupQueryAttentionInputs::Q_NORM_WEIGHT, {1}, float_types, false);
+    check_input(GroupQueryAttentionInputs::K_NORM_WEIGHT, {1}, float_types, false);
+    const auto k_norm_pos = static_cast<size_t>(GroupQueryAttentionInputs::K_NORM_WEIGHT);
+    NODE_VALIDATION_CHECK(this,
+                          has_qk_norm() == (k_norm_pos < get_input_size() &&
+                                            !ov::util::is_empty_constant_tensor(input_value(k_norm_pos))),
+                          "GroupQueryAttention: q_norm_weight and k_norm_weight must be provided together.");
+    if (has_qk_norm()) {
+        NODE_VALIDATION_CHECK(this,
+                              std::isfinite(m_qk_norm_epsilon) && m_qk_norm_epsilon > 0.0f,
+                              "GroupQueryAttention expects a finite qk_norm_epsilon > 0, got: ",
+                              m_qk_norm_epsilon);
+        for (const auto input : {GroupQueryAttentionInputs::Q_NORM_WEIGHT, GroupQueryAttentionInputs::K_NORM_WEIGHT}) {
+            const auto pos = static_cast<size_t>(input);
+            const auto& weight_ps = get_input_partial_shape(pos);
+            NODE_VALIDATION_CHECK(
+                this,
+                weight_ps.rank().is_dynamic() || q_shape.rank().is_dynamic() || weight_ps[0].compatible(q_shape[3]),
+                "GroupQueryAttention: ",
+                input_name(input),
+                " must have head_size (",
+                q_shape.rank().is_static() ? q_shape[3] : Dimension::dynamic(),
+                ") elements, got shape ",
+                weight_ps);
+            NODE_VALIDATION_CHECK(this,
+                                  get_input_element_type(pos).compatible(
+                                      get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::QUERY))),
+                                  "GroupQueryAttention: ",
+                                  input_name(input),
+                                  " element type must match query, got ",
+                                  get_input_element_type(pos));
+        }
+    }
     const auto past_k_shape = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
 
     const auto& q_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
@@ -360,6 +401,11 @@ bool GroupQueryAttention::has_independent_kv_length() const {
     return !packed_qkv && key_ps.rank().is_static() && key_ps.rank().get_length() == 4 && key_ps[2].is_dynamic();
 }
 
+bool GroupQueryAttention::has_qk_norm() const {
+    const auto pos = static_cast<size_t>(GroupQueryAttentionInputs::Q_NORM_WEIGHT);
+    return pos < get_input_size() && !ov::util::is_empty_constant_tensor(input_value(pos));
+}
+
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GroupQueryAttention_visit_attributes);
     visitor.on_attribute("causal", m_causal);
@@ -369,6 +415,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("kv_num_heads", m_kv_num_heads);
     visitor.on_attribute("local_window_size", m_local_window_size);
     visitor.on_attribute("num_heads", m_num_heads);
+    visitor.on_attribute("qk_norm_epsilon", m_qk_norm_epsilon);
     visitor.on_attribute("rotary_interleaved", m_rotary_interleaved);
     visitor.on_attribute("scale", m_scale);
     visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
@@ -394,7 +441,8 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_sliding_window_cache,
                                                  m_smooth_softmax,
                                                  m_causal,
-                                                 m_softcap);
+                                                 m_softcap,
+                                                 m_qk_norm_epsilon);
 }
 
 }  // namespace ov::op::internal

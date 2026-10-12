@@ -564,5 +564,96 @@ TEST(type_prop, group_query_attention_softcap_nan_rejected) {
                     HasSubstr("expects softcap >= 0"));
 }
 
+namespace {
+// Valid base args (head_size 8) with optional inputs 7-13 empty and QK-Norm weights at 14/15.
+ov::OutputVector make_gqa_args_with_qk_norm(const ov::PartialShape& q_weight_shape,
+                                            const ov::PartialShape& k_weight_shape,
+                                            const element::Type& weight_type = element::f32,
+                                            bool with_k_weight = true) {
+    auto args = make_valid_gqa_args();
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    args.resize(14, empty);
+    args.push_back(std::make_shared<op::v0::Parameter>(weight_type, q_weight_shape));
+    args.push_back(with_k_weight ? std::make_shared<op::v0::Parameter>(weight_type, k_weight_shape)->output(0)
+                                 : empty->output(0));
+    return args;
+}
+
+std::shared_ptr<op::internal::GroupQueryAttention> make_gqa_with_qk_norm(const ov::OutputVector& args,
+                                                                         float epsilon = 1e-6f) {
+    return std::make_shared<op::internal::GroupQueryAttention>(args,
+                                                               6,
+                                                               2,
+                                                               1.0f,
+                                                               false,
+                                                               false,
+                                                               0,
+                                                               op::internal::GroupQueryAttentionQuantType::NONE,
+                                                               op::internal::GroupQueryAttentionQuantType::NONE,
+                                                               -1,
+                                                               false,
+                                                               false,
+                                                               true,
+                                                               0.0f,
+                                                               epsilon);
+}
+}  // namespace
+
+TEST(type_prop, group_query_attention_qk_norm_valid) {
+    const auto op = make_gqa_with_qk_norm(make_gqa_args_with_qk_norm(PartialShape{8}, PartialShape{8}), 1e-5f);
+    EXPECT_TRUE(op->has_qk_norm());
+    EXPECT_EQ(op->get_qk_norm_epsilon(), 1e-5f);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_qk_norm_absent_by_default) {
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
+    EXPECT_FALSE(op->has_qk_norm());
+    EXPECT_EQ(op->get_qk_norm_epsilon(), 1e-6f);
+}
+
+TEST(type_prop, group_query_attention_qk_norm_dynamic_weight_valid) {
+    OV_ASSERT_NO_THROW(std::ignore = make_gqa_with_qk_norm(
+                           make_gqa_args_with_qk_norm(PartialShape::dynamic(1), PartialShape::dynamic())));
+}
+
+TEST(type_prop, group_query_attention_qk_norm_unpaired_rejected) {
+    const auto args = make_gqa_args_with_qk_norm(PartialShape{8}, PartialShape{8}, element::f32, false);
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_qk_norm(args),
+                    ov::NodeValidationFailure,
+                    HasSubstr("q_norm_weight and k_norm_weight must be provided together"));
+}
+
+TEST(type_prop, group_query_attention_qk_norm_wrong_length_rejected) {
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_qk_norm(make_gqa_args_with_qk_norm(PartialShape{8}, PartialShape{4})),
+                    ov::NodeValidationFailure,
+                    HasSubstr("k_norm_weight must have head_size (8) elements"));
+}
+
+TEST(type_prop, group_query_attention_qk_norm_wrong_rank_rejected) {
+    OV_EXPECT_THROW(
+        std::ignore = make_gqa_with_qk_norm(make_gqa_args_with_qk_norm(PartialShape{1, 8}, PartialShape{8})),
+        ov::NodeValidationFailure,
+        HasSubstr("Rank of `q_norm_weight` input is not compatible"));
+}
+
+TEST(type_prop, group_query_attention_qk_norm_type_mismatch_rejected) {
+    OV_EXPECT_THROW(
+        std::ignore = make_gqa_with_qk_norm(make_gqa_args_with_qk_norm(PartialShape{8}, PartialShape{8}, element::f16)),
+        ov::NodeValidationFailure,
+        HasSubstr("q_norm_weight element type must match query"));
+}
+
+TEST(type_prop, group_query_attention_qk_norm_non_positive_epsilon_rejected) {
+    const auto args = make_gqa_args_with_qk_norm(PartialShape{8}, PartialShape{8});
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_qk_norm(args, 0.0f),
+                    ov::NodeValidationFailure,
+                    HasSubstr("finite qk_norm_epsilon > 0"));
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_qk_norm(args, std::numeric_limits<float>::infinity()),
+                    ov::NodeValidationFailure,
+                    HasSubstr("finite qk_norm_epsilon > 0"));
+}
+
 }  // namespace testing
 }  // namespace ov
