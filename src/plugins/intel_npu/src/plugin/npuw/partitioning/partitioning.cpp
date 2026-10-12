@@ -896,6 +896,19 @@ void Partitioner::identifySubgraphs() {
             } else {
                 LOG_VERB("Completely optimize out group " << this_group_idx);
                 group.sg._optimized_out = true;
+                // The group's outputs are constant, but its inputs need not be: e.g. a ShapeOf
+                // of another group's output reads it through a real Parameter, and a link to
+                // that group was registered for it above. There is no subrequest to connect
+                // such a link to at runtime, so it goes away together with the Parameters.
+                for (auto link_iter = subgraph_ptr_links.begin(); link_iter != subgraph_ptr_links.end();) {
+                    if (link_iter->first.first == this_group_idx) {
+                        LOG_VERB("Drop the link from group " << link_iter->second.first << " to the eliminated group");
+                        link_iter = subgraph_ptr_links.erase(link_iter);
+                    } else {
+                        ++link_iter;
+                    }
+                }
+                group.sg._parameters.clear();
                 if (!group.repeated_id.empty()) {
                     // The group was an instance of a repeated block but has no model anymore,
                     // so it can't become a function call. Detach it from its family here, where

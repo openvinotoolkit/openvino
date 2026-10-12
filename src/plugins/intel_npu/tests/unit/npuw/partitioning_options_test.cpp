@@ -422,7 +422,12 @@ struct ShapeConsumerModel {
     std::vector<bool> eliminated;
 };
 
-ShapeConsumerModel build_shape_consumer_model(unsigned eliminated_mask) {
+// A model with three independent "shape -> consumer" chains:
+//     input_i -> [Abs (producer_i) ->] [ShapeOf (shape_i) ->] Gather (gather_i) -> Add +1 (consumer_i) -> Result
+// Chains selected by `eliminated_mask` go through ShapeOf, so their Gather output is a bound
+// constant and the group holding it is optimized out. With `with_producer`, every chain starts
+// with an Abs, so the shape computation reads another group's output rather than a model input.
+ShapeConsumerModel build_shape_consumer_model(unsigned eliminated_mask, bool with_producer = false) {
     ShapeConsumerModel built;
     ov::ParameterVector inputs;
     ov::ResultVector results;
@@ -433,8 +438,13 @@ ShapeConsumerModel build_shape_consumer_model(unsigned eliminated_mask) {
                                                              eliminated ? ov::Shape{2, 3} : ov::Shape{2});
         input->set_friendly_name("input_" + suffix);
         std::shared_ptr<ov::Node> shape = input;
+        if (with_producer) {
+            shape = std::make_shared<ov::op::v0::Abs>(shape);
+            shape->set_friendly_name("producer_" + suffix);
+        }
         if (eliminated) {
-            shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
+            shape = std::make_shared<ov::op::v3::ShapeOf>(shape, ov::element::i64);
+            shape->set_friendly_name("shape_" + suffix);
         }
         auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
         auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
@@ -578,6 +588,113 @@ TEST_P(EliminatedSubgraphTest, ExcludesEliminatedInstancesFromFunctions) {
 INSTANTIATE_TEST_SUITE_P(Partitioning,
                          EliminatedSubgraphTest,
                          ::testing::Combine(::testing::Bool(), ::testing::Bool(), ::testing::Range(0u, 8u)));
+
+// Plan for the `with_producer` model: producers and consumers are plain groups, the shape
+// groups form a repeated block. An eliminated shape group holds ShapeOf and Gather, so its
+// input layer reads the producer's output and gets a real Parameter and a link for it.
+void write_producer_shape_consumer_plan(const std::filesystem::path& plan_path, const std::vector<bool>& eliminated) {
+    std::ofstream plan(plan_path);
+    ASSERT_TRUE(plan.is_open());
+    auto write_group = [&plan](const std::string& input,
+                               const std::string& output,
+                               const std::vector<std::string>& layers,
+                               const std::string& family) {
+        plan << "<group gflops=\"0\"";
+        if (!family.empty()) {
+            plan << " repeated=\"" << family << "\"";
+        }
+        plan << "><input name=\"" << input << "\"/><output name=\"" << output << "\"/>";
+        for (const auto& layer : layers) {
+            plan << "<layer name=\"" << layer << "\"/>";
+        }
+        plan << "</group>";
+    };
+    plan << "<ensemble gflops=\"0\"><partitioning>";
+    for (unsigned i = 0; i < 3; ++i) {
+        const auto producer = "producer_" + std::to_string(i);
+        write_group(producer, producer, {producer}, "");
+    }
+    for (unsigned i = 0; i < 3; ++i) {
+        const auto shape = "shape_" + std::to_string(i);
+        const auto gather = "gather_" + std::to_string(i);
+        if (eliminated[i]) {
+            write_group(shape, gather, {shape, gather}, "shape_family");
+        } else {
+            write_group(gather, gather, {gather}, "shape_family");
+        }
+    }
+    for (unsigned i = 0; i < 3; ++i) {
+        const auto consumer = "consumer_" + std::to_string(i);
+        write_group(consumer, consumer, {consumer}, "");
+    }
+    plan << "</partitioning><repeated><block id=\"shape_family\"><match>";
+    for (unsigned i = 0; i < 3; ++i) {
+        plan << "<layer name=\"gather_" << i << "\"/>";
+    }
+    plan << "</match>";
+    if (std::count(eliminated.begin(), eliminated.end(), true) > 0) {
+        plan << "<match>";
+        for (unsigned i = 0; i < 3; ++i) {
+            if (eliminated[i]) {
+                plan << "<layer name=\"shape_" << i << "\"/>";
+            }
+        }
+        plan << "</match>";
+    }
+    plan << "</block></repeated></ensemble>";
+    ASSERT_TRUE(plan.good());
+}
+
+class EliminatedSubgraphWithProducerTest : public EliminatedSubgraphTestBase<unsigned> {};
+
+// An eliminated group may still read another group's output: its outputs are constant, but
+// its input is a real Parameter, and a link between the two groups was registered for it.
+// The runtime has no subrequest to connect such a link to, so both must go with the group.
+TEST_P(EliminatedSubgraphWithProducerTest, DropsLinksAndParametersOfEliminatedInstances) {
+    const auto eliminated_mask = GetParam();
+    const auto built = build_shape_consumer_model(eliminated_mask, /*with_producer=*/true);
+    write_producer_shape_consumer_plan(plan_path, built.eliminated);
+
+    auto cfg = make_cfg({{"NPUW_PLAN", plan_path.string()}, {"NPUW_FOLD", "YES"}});
+    auto partitioning = ov::npuw::getPartitioning(built.model, cfg);
+
+    ASSERT_EQ(partitioning.subgraphs.size(), 9u);
+    unsigned live_shapes = 0;
+    for (unsigned i = 0; i < 3; ++i) {
+        const bool eliminated = built.eliminated[i];
+        const auto& producer = partitioning.subgraphs[i];
+        const auto& shape = partitioning.subgraphs[i + 3];
+        const auto& consumer = partitioning.subgraphs[i + 6];
+
+        EXPECT_FALSE(producer._optimized_out);
+        EXPECT_EQ(producer._parameters.size(), 1u);
+        EXPECT_EQ(producer._results.size(), 1u);  // stays even if its only reader was eliminated
+
+        EXPECT_EQ(shape._optimized_out, eliminated);
+        if (eliminated) {
+            EXPECT_TRUE(shape._parameters.empty());
+            EXPECT_TRUE(shape._results.empty());
+            EXPECT_TRUE(shape._repeated_id.empty());
+            EXPECT_TRUE(shape._funcall.empty());
+        } else {
+            ++live_shapes;
+            EXPECT_FALSE(shape._funcall.empty());
+            EXPECT_EQ(evaluate_subgraph(partitioning, shape, 5), 5);
+        }
+
+        EXPECT_FALSE(consumer._optimized_out);
+        EXPECT_EQ(consumer._parameters.size(), eliminated ? 0u : 1u);
+        EXPECT_EQ(evaluate_subgraph(partitioning, consumer, 5), eliminated ? 3 : 6);
+    }
+    // Live chains keep their producer -> shape and shape -> consumer links, eliminated ones have none
+    ASSERT_EQ(partitioning.input_to_prev_output.size(), 2u * live_shapes);
+    for (const auto& link : partitioning.input_to_prev_output) {
+        EXPECT_FALSE(partitioning.subgraphs.at(link.first.first)._optimized_out);
+        EXPECT_FALSE(partitioning.subgraphs.at(link.second.first)._optimized_out);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Partitioning, EliminatedSubgraphWithProducerTest, ::testing::Range(0u, 8u));
 
 class EliminatedProducerRepeatedConsumerTest : public EliminatedSubgraphTestBase<unsigned> {};
 
