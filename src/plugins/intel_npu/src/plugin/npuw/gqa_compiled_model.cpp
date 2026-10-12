@@ -363,6 +363,19 @@ std::optional<std::string> find_total_sequence_length_param_name(const std::shar
     return std::nullopt;
 }
 
+// Single detector for every present_key/present_value KV-cache naming scheme this wrapper
+// supports (underscore style, e.g. "present_key_0", and HuggingFace-ONNX dot style, e.g.
+// "present.0.key"). Used by both identify_case() (auto-dispatch gate) and
+// find_dynamic_kv_cache_output_axes() (per-output trimming setup) so a model accepted by
+// one is always recognized by the other -- previously identify_case() alone also matched
+// bare "present." names, so such a model got dispatched into GQA but its present outputs
+// were silently never registered for trimming.
+bool is_present_kv_cache_output_name(const std::string& name) {
+    return ov::npuw::util::contains_ignore_case(name, "present_key") ||
+           ov::npuw::util::contains_ignore_case(name, "present_value") ||
+           ov::npuw::util::contains_ignore_case(name, "present.");
+}
+
 bool has_valid_gqa_op(const std::shared_ptr<const ov::Model>& model) {
     using ov::op::internal::GroupQueryAttention;
     using ov::op::internal::GroupQueryAttentionInputs;
@@ -426,8 +439,7 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     bool has_present_kv_cache = false;
     for (const auto& result : model->get_results()) {
         const auto& name = result->get_friendly_name();
-        if (util::contains_ignore_case(name, "present_key") || util::contains_ignore_case(name, "present_value") ||
-            util::contains_ignore_case(name, "present.")) {
+        if (is_present_kv_cache_output_name(name)) {
             has_present_kv_cache = true;
             break;
         }
@@ -484,8 +496,7 @@ std::unordered_map<std::string, size_t> ov::npuw::GQACompiledModel::find_dynamic
         // translate_session.cpp), so pattern-match against the part before the first '/'.
         const auto slash_pos = full_name.find('/');
         const auto bare_name = slash_pos == std::string::npos ? full_name : full_name.substr(0, slash_pos);
-        if (!ov::npuw::util::contains_ignore_case(bare_name, "present_key") &&
-            !ov::npuw::util::contains_ignore_case(bare_name, "present_value")) {
+        if (!is_present_kv_cache_output_name(bare_name)) {
             continue;
         }
         const auto& shape = output.get_partial_shape();

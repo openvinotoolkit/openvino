@@ -1211,6 +1211,32 @@ TEST(GQACompiledModelPresentAxisTest, MatchesSinkPortSuffixedFriendlyName) {
     EXPECT_EQ(axes.at("present_keys_0/sink_port_0"), 2u);
 }
 
+TEST(GQACompiledModelPresentAxisTest, MatchesDotStylePresentNamingScheme) {
+    // Regression test: identify_case() accepts HuggingFace-ONNX dot-style present naming
+    // (e.g. "present.0.key") via a bare "present." match, but find_dynamic_kv_cache_output_axes()
+    // used to only match "present_key"/"present_value" -- so a model using dot-style naming got
+    // auto-dispatched into GQA yet its present outputs were never registered for trimming,
+    // and get_tensor() silently returned the full static (e.g. 8192-row) inner tensor instead.
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    for (const auto& result : model->get_results()) {
+        if (result->get_friendly_name() == "present_keys_0") {
+            result->set_friendly_name("present.0.key");
+        } else if (result->get_friendly_name() == "present_values_0") {
+            result->set_friendly_name("present.0.value");
+        }
+    }
+    std::vector<ov::Output<const ov::Node>> outputs;
+    for (const auto& result : model->get_results()) {
+        std::shared_ptr<const ov::Node> node = result;
+        outputs.emplace_back(node, 0);
+    }
+    auto axes = ov::npuw::GQACompiledModel::find_dynamic_kv_cache_output_axes(outputs);
+    ASSERT_EQ(axes.count("present.0.key"), 1u);
+    ASSERT_EQ(axes.count("present.0.value"), 1u);
+    EXPECT_EQ(axes.at("present.0.key"), 2u);
+    EXPECT_EQ(axes.at("present.0.value"), 2u);
+}
+
 TEST(GQACompiledModelPresentToPastNameTest, StripsSinkPortSuffixAndSwapsPresentForPast) {
     EXPECT_EQ(ov::npuw::GQAInferRequest::present_to_past_name("present_keys_0/sink_port_0"), "past_keys_0");
     EXPECT_EQ(ov::npuw::GQAInferRequest::present_to_past_name("present_values_3"), "past_values_3");
