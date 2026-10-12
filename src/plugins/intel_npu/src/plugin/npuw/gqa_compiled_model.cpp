@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
@@ -266,7 +267,7 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                                                                               const ov::AnyMap& properties) {
     auto [prepared_properties, stage] = with_gqa_defaults(model, properties);
 
-    static std::size_t mcount = 0u;
+    static std::atomic<std::size_t> mcount{0u};
 
     model->set_friendly_name(model->get_friendly_name() + "_gqa_" +
                              (stage == GQAModelStage::PREFILL    ? "prefill"
