@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #ifdef GPU_DEBUG_CONFIG
@@ -245,11 +245,10 @@ ov::Output<ov::Node> find_fp32_source(ov::Output<ov::Node> source,
 
 // Phase 3a: Input Promotion — insert f16->f32 boundary Converts at region
 // entry points and force output type to f32.
-std::tuple<bool, int, size_t> promote_inputs(
+std::pair<bool, size_t> promote_inputs(
     const std::shared_ptr<ov::Model>& model,
     const OriginalOutputTypes& original_types) {
     bool changed = false;
-    int forced_count = 0;
     size_t global_convert_idx = 0;
     const auto desired_et = ov::element::f32;
 
@@ -290,7 +289,7 @@ std::tuple<bool, int, size_t> promote_inputs(
         }
     }
 
-    // Pass 2: Update explicit precision attributes, force output types to f32, and log.
+    // Pass 2: Update explicit precision attributes and force FP16 outputs to f32.
     for (const auto& node : ordered_ops) {
         if (!original_types.count(node.get()))
             continue;
@@ -302,13 +301,10 @@ std::tuple<bool, int, size_t> promote_inputs(
                 node->set_output_type(port, desired_et, node->get_output_partial_shape(port));
         }
 
-        forced_count++;
         changed = true;
-        GPU_DEBUG_LOG << "[ForceFP32Selective] FORCED: type=" << node->get_type_name()
-                      << "  name=" << node->get_friendly_name() << std::endl;
     }
 
-    return {changed, forced_count, global_convert_idx};
+    return {changed, global_convert_idx};
 }
 
 // Phase 3b: Output Restore — insert f32->f16 Converts at region exit points.
@@ -353,6 +349,40 @@ void restore_outputs(const std::shared_ptr<ov::Model>& model,
     }
 }
 
+// Report graph output transitions, excluding nodes disconnected by edge rewiring.
+// This log does not describe the precision of the eventual GPU kernel.
+void log_promoted_outputs(const std::shared_ptr<ov::Model>& model,
+                          const OriginalOutputTypes& original_types) {
+    if (ExecutionConfig::get_verbose() < static_cast<int>(LogLevel::LOG))
+        return;
+
+    size_t forced_count = 0;
+    size_t forced_output_count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto it = original_types.find(node.get());
+        if (it == original_types.end())
+            continue;
+
+        bool node_promoted = false;
+        for (const auto& output : node->outputs()) {
+            const auto port = output.get_index();
+            if (it->second.at(port) != ov::element::f16 || output.get_element_type() != ov::element::f32)
+                continue;
+
+            node_promoted = true;
+            forced_output_count++;
+            GPU_DEBUG_LOG << "[ForceFP32Selective] FORCED: type=" << node->get_type_name()
+                          << "  name=" << node->get_friendly_name()
+                          << "  output=" << port << " f16->f32" << std::endl;
+        }
+        if (node_promoted)
+            forced_count++;
+    }
+
+    GPU_DEBUG_LOG << "[ForceFP32Selective] Done. Region=" << original_types.size()
+                  << "  Forced=" << forced_count << "  Outputs=" << forced_output_count << std::endl;
+}
+
 }  // namespace
 
 bool ForceFP32Selective::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -370,13 +400,12 @@ bool ForceFP32Selective::run_on_model(const std::shared_ptr<ov::Model>& model) {
     const auto original_types = record_output_types(model, f32_region);
 
     // Phase 3a: Input Promotion
-    auto [changed, forced_count, convert_idx] = promote_inputs(model, original_types);
+    auto [changed, convert_idx] = promote_inputs(model, original_types);
 
     // Phase 3b: Output Restore
     restore_outputs(model, original_types, convert_idx);
 
-    GPU_DEBUG_LOG << "[ForceFP32Selective] Done. Region=" << f32_region.size()
-                  << "  Forced=" << forced_count << std::endl;
+    log_promoted_outputs(model, original_types);
 
     return changed;
 }
