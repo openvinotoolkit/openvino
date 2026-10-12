@@ -15,6 +15,7 @@
 #include <openvino/op/exp.hpp>
 #include <openvino/op/floor.hpp>
 #include <openvino/op/gather.hpp>
+#include <openvino/op/grouped_matmul.hpp>
 #include <openvino/op/log.hpp>
 #include <openvino/op/matmul.hpp>
 #include <openvino/op/multiply.hpp>
@@ -42,6 +43,7 @@
 #include "../common/converters/concat.hpp"
 #include "../common/converters/floor.hpp"
 #include "../common/converters/gather.hpp"
+#include "../common/converters/grouped_matmul.hpp"
 #include "../common/converters/matmul.hpp"
 #include "../common/converters/reduce.hpp"
 #include "../common/converters/relu.hpp"
@@ -68,6 +70,40 @@ ConcatPattern::ConcatPattern() : MarkPattern(wrap_type<v0::Concat>(), ConvertCon
 FloorPattern::FloorPattern() : MarkPattern(wrap_type<v0::Floor>({any_input()}), ConvertFloor()) {}
 
 GatherPattern::GatherPattern() : MarkPattern(wrap_type<v8::Gather>({any_input(), any_input(), any_input()}), ConvertGather()) {}
+
+// linalgx.grouped_matmul covers the 2Dx3D (MoE forward pass) case of GroupedMatMul-17 only:
+// its lhs must be rank 2.
+GroupedMatMulPattern::GroupedMatMulPattern()
+    : MarkPattern(wrap_type<v17::GroupedMatMul>([](const Output<Node>& output) {
+                      auto node = ov::as_type_ptr<v17::GroupedMatMul>(output.get_node_shared_ptr());
+                      if (!node || has_dynamic_rank(node)) {
+                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << output.get_node()->get_friendly_name() << " — dynamic rank");
+                          return false;
+                      }
+                      if (!output.get_element_type().is_real()) {
+                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name() << " — non-float element type "
+                                                                                      << output.get_element_type());
+                          return false;
+                      }
+
+                      const auto& a_shape = node->get_input_partial_shape(0);
+                      const auto& b_shape = node->get_input_partial_shape(1);
+                      if (node->get_input_size() != 3 || a_shape.size() != 2 || b_shape.size() != 3) {
+                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name()
+                                                                                      << " — only the 2Dx3D case is supported, got mat_a " << a_shape
+                                                                                      << " x mat_b " << b_shape);
+                          return false;
+                      }
+
+                      const auto& offsets_shape = node->get_input_partial_shape(2);
+                      if (offsets_shape.size() != 1 || !are_equal_dimensions(offsets_shape[0], b_shape[0])) {
+                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name() << " — offsets " << offsets_shape
+                                                                                      << " does not hold one entry per expert (" << b_shape[0] << ")");
+                          return false;
+                      }
+                      return true;
+                  }),
+                  ConvertGroupedMatMul()) {}
 
 MatMulPattern::MatMulPattern()
     : MarkPattern(wrap_type<v0::MatMul>({any_input(), any_input()},
