@@ -37,8 +37,9 @@ KVCache::KVCache(const Output<Node>& past,
                  int64_t gather_axis,
                  const ov::element::Type output_type)
     : KVCache({past, new_token_data, beam_idx}, past_variable, true, false, concat_axis, gather_axis, output_type) {
-    if (m_indirect)
+    if (m_indirect) {
         set_output_size(2);
+    }
     validate_and_infer_types();
 }
 
@@ -70,8 +71,9 @@ KVCache::KVCache(const Output<Node>& past,
                  int64_t gather_axis,
                  const ov::element::Type output_type)
     : KVCache({past, new_token_data, beam_idx, past_seq_len}, past_variable, true, true, concat_axis, gather_axis, output_type) {
-    if (m_indirect)
+    if (m_indirect) {
         set_output_size(2);
+    }
     validate_and_infer_types();
 }
 
@@ -127,8 +129,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_variable,
                                          m_concat_axis,
                                          m_output_type);
-
-    } else if (new_args.size() == 3) {
+    }
+    if (new_args.size() == 3) {
         if (m_trim) {
             return std::make_shared<KVCache>(new_args.at(0),
                                              new_args.at(1),
@@ -136,16 +138,10 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                              m_variable,
                                              m_concat_axis,
                                              m_output_type);
-        } else {
-            return std::make_shared<KVCache>(new_args.at(0),
-                                             new_args.at(1),
-                                             new_args.at(2),
-                                             m_variable,
-                                             m_concat_axis,
-                                             m_gather_axis,
-                                             m_output_type);
         }
-    } else if (new_args.size() == 4) {
+        return std::make_shared<KVCache>(new_args.at(0), new_args.at(1), new_args.at(2), m_variable, m_concat_axis, m_gather_axis, m_output_type);
+    }
+    if (new_args.size() == 4) {
         return std::make_shared<KVCache>(new_args.at(0),
                                          new_args.at(1),
                                          new_args.at(2),
@@ -154,7 +150,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_concat_axis,
                                          m_gather_axis,
                                          m_output_type);
-    } else if (new_args.size() == 5) {
+    }
+    if (new_args.size() == 5) {
         return std::make_shared<KVCache>(new_args.at(0),
                                          new_args.at(1),
                                          new_args.at(2),
@@ -163,9 +160,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_variable,
                                          m_concat_axis,
                                          m_output_type);
-    } else {
-        OPENVINO_ASSERT(false);
     }
+    OPENVINO_ASSERT(false);
 }
 
 std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<ov::PartialShape>& input_shapes) {
@@ -214,8 +210,9 @@ KVCacheCompressed::KVCacheCompressed(const OutputVector& inputs,
     m_variable = past_variable;
     size_t output_size = 3;
     if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
-        quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
+        quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         output_size++; // add zp output
+    }
 
     set_output_size(output_size);
     validate_and_infer_types();
@@ -228,8 +225,9 @@ void KVCacheCompressed::validate_and_infer_types() {
     input_shapes.push_back(get_input_partial_shape(compress_input_offset + 0));
 
     if (m_quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
-        m_quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
+        m_quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         input_shapes.push_back(get_input_partial_shape(compress_input_offset + 1));
+    }
 
     auto shapes = shape_infer(this, input_shapes);
 

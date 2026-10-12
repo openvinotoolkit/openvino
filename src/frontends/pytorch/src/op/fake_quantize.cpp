@@ -16,10 +16,7 @@
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -88,7 +85,4 @@ OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& conte
         std::make_shared<v0::FakeQuantize>(input_node, bound_low, bound_high, bound_low, bound_high, levels))};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

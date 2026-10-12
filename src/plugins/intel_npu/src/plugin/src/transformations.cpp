@@ -4,6 +4,7 @@
 
 #include "transformations.hpp"
 
+#include <algorithm>
 #include <map>
 #include <sstream>
 
@@ -13,6 +14,37 @@
 #include "openvino/op/result.hpp"
 
 namespace intel_npu {
+
+bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>& model,
+                                         ov::intel_npu::CompilerType compilerType,
+                                         bool compilationModeSet,
+                                         bool dynamicShapeToStatic) {
+    if (compilerType != ov::intel_npu::CompilerType::PLUGIN || compilationModeSet || dynamicShapeToStatic) {
+        return false;
+    }
+
+    // HostCompile supports dynamic dimensions only; a single dynamic-rank input rules the model out.
+    const auto hasStaticRank = [](const auto& port) {
+        return port.get_partial_shape().rank().is_static();
+    };
+
+    // Any dynamic dimension other than batch, bounded or unbounded, makes the model a HostCompile model: HostCompile
+    // sizes dynamic buffers at run time from the bound tensor or the predicted output shape. A dynamic batch alone is
+    // not supported well by HostCompile yet, so such models are left to plugin batching.
+    const auto isDynamicPort = [](const auto& port) {
+        return batch_helpers::hasOtherDynamicDims(port.get_partial_shape());
+    };
+
+    // Only the inputs decide: shape inference does not reach the outputs of some models, which then look fully
+    // dynamic even though the model is a HostCompile one.
+    const auto& modelInputs = model->inputs();
+    if (!std::all_of(modelInputs.begin(), modelInputs.end(), hasStaticRank)) {
+        return false;
+    }
+
+    return std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicPort);
+}
+
 namespace batch_helpers {
 
 bool hasOtherDynamicDims(const ov::PartialShape& shape) {
@@ -185,8 +217,8 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model,
 
 std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     std::shared_ptr<const ov::Model> model,
-    FilteredConfig& localConfig,
     const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
+    std::optional<ov::intel_npu::BatchMode> batchMode,
     std::optional<ov::Dimension>& originalBatch,
     Logger logger) {
     // Keep the original model for all no-op/early-return paths.
@@ -194,26 +226,24 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     auto resultModel = std::const_pointer_cast<ov::Model>(model);
     auto successfullyDebatched = false;
 
-    auto batchModeIsAvailable = localConfig.isAvailable(ov::intel_npu::batch_mode.name());
-    ov::intel_npu::BatchMode batchMode;
+    auto batchModeIsAvailable = batchMode.has_value();
+    ov::intel_npu::BatchMode effectiveBatchMode =
+        batchModeIsAvailable ? batchMode.value() : ov::intel_npu::BatchMode::AUTO;
+
     if (batchModeIsAvailable) {
-        batchMode = localConfig.get<BATCH_MODE>();
-        const auto isAutoOrPluginBatch =
-            (batchMode == ov::intel_npu::BatchMode::PLUGIN || batchMode == ov::intel_npu::BatchMode::AUTO);
+        const auto isAutoOrPluginBatch = (effectiveBatchMode == ov::intel_npu::BatchMode::PLUGIN ||
+                                          effectiveBatchMode == ov::intel_npu::BatchMode::AUTO);
 
         if (!isAutoOrPluginBatch) {
             return {resultModel, successfullyDebatched};
         }
-    } else {
-        // If the compiler doesn't support BATCH_MODE, we can still try using batching
-        batchMode = ov::intel_npu::BatchMode::AUTO;
     }
 
     try {
         const auto pluginBatchingIsSupported = validateModelBatch(model, logger);
 
         if (!pluginBatchingIsSupported) {
-            if (batchModeIsAvailable && batchMode == ov::intel_npu::BatchMode::AUTO) {
+            if (batchModeIsAvailable && effectiveBatchMode == ov::intel_npu::BatchMode::AUTO) {
                 logger.info("Batching will be handled by compiler.");
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
@@ -248,12 +278,12 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     } catch (const std::exception& ex) {
         // If plugin-side transformation failed, keep the original model and drop the clone
         resultModel = std::const_pointer_cast<ov::Model>(model);
-        if (batchMode == ov::intel_npu::BatchMode::AUTO) {
+        if (effectiveBatchMode == ov::intel_npu::BatchMode::AUTO) {
             logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                         ex.what());
             if (batchModeIsAvailable) {
                 // If we failed to handle batching on the plugin side, we should reset the batch mode to default
-                // COMPILER But only if the batch mode is available, otherwise we might be running on older compiler
+                // COMPILER but only if the batch mode is available, otherwise we might be running on an older compiler
                 // which doesn't support batch mode at all
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }

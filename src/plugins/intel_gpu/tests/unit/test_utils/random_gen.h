@@ -6,6 +6,7 @@
 #include <random>
 #include <stdexcept>
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 
 // NOTE: Needed only for possibly imported type (always_false).
 #include <type_traits>
@@ -94,6 +95,19 @@ namespace rnd_generators
         static output_type convert(const calc_type value)
         {
             return ov::float16(value);
+        }
+    };
+
+    template <>
+    struct number_caps<ov::bfloat16> : number_caps<float>
+    {
+        using output_type = ov::bfloat16;
+
+        static constexpr unsigned significand_bits = 7; // Number of stored bits of significand part of BF16.
+
+        static output_type convert(const calc_type value)
+        {
+            return ov::bfloat16(value);
         }
     };
 

@@ -28,7 +28,9 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_attention.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_causal_conv1d.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_gated_delta_net.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/rms_norm.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/node_util.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/slice_plan.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset10_decl.hpp
@@ -51,7 +53,6 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/aligned_buffer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/compute_hash.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/itensor.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/lazy_buffer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/shared_buffer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/string_aligned_buffer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/xml_util/constant_writer.hpp

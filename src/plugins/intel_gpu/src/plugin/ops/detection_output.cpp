@@ -20,9 +20,9 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
     auto it = CodeNameToType.find(str);
     if (it != CodeNameToType.end()) {
         return it->second;
-    } else {
-        OPENVINO_THROW("Unknown Prior-Box code type: ", str);
     }
+    OPENVINO_THROW("Unknown Prior-Box code type: ", str);
+
     return cldnn::prior_box_code_type::corner;
 }
 
@@ -51,8 +51,8 @@ static void CreateCommonDetectionOutputOp(ProgramBuilder& p,
     float objectness_score          = attrs.objectness_score;
 
     cldnn::prior_box_code_type cldnnCodeType = PriorBoxCodeFromString(code_type);
-    int32_t prior_info_size = normalized != 0 ? 4 : 5;
-    int32_t prior_coordinates_offset = normalized != 0 ? 0 : 1;
+    int32_t prior_info_size = static_cast<int>(normalized) != 0 ? 4 : 5;
+    int32_t prior_coordinates_offset = static_cast<int>(normalized) != 0 ? 0 : 1;
 
     auto detectionPrim = cldnn::detection_output(layerName,
                                                  inputs,

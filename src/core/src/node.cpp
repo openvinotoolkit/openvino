@@ -596,21 +596,23 @@ ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
     return {this, input_index};
 }
 
-ov::Output<ov::Node> ov::Node::output(size_t output_index) {
+void ov::Node::on_output_access(size_t output_index) {}
+
+void ov::Node::validate_output_index(size_t output_index) const {
     // All nodes will have at least 1 output
     if (output_index > 0 && output_index >= m_outputs.size()) {
         OPENVINO_THROW(node_idx_out_of_range_txt);
     }
+}
 
+ov::Output<ov::Node> ov::Node::output(size_t output_index) {
+    on_output_access(output_index);
+    validate_output_index(output_index);
     return {this, output_index};
 }
 
 ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
-    // All nodes will have at least 1 output
-    if (output_index > 0 && output_index >= m_outputs.size()) {
-        OPENVINO_THROW(node_idx_out_of_range_txt);
-    }
-
+    validate_output_index(output_index);
     return Output<const Node>(this, output_index);
 }
 

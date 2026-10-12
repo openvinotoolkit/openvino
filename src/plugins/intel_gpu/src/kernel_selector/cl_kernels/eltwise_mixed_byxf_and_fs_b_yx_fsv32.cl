@@ -34,25 +34,25 @@ KERNEL(eltwise_mixed_byxf_and_fs_b_yx_fsv32)(
 
     UNIT_TYPE2 in1;
     UNIT_TYPE2 in2;
-    UNIT_TYPE2 out;
+    MAKE_VECTOR_TYPE(UNIT_COMPUTE_TYPE, 2) out;
 
     in1 = UNIT_BLOCK_READ2(input0,input_0_offset);
     in2 = UNIT_BLOCK_READ2(input1,input_1_offset);
 
     {
-        const UNIT_TYPE tmp_input_0 = in1.s0;
-        const UNIT_TYPE tmp_input_1 = in2.s0;
+        const UNIT_COMPUTE_TYPE tmp_input_0 = DECODE_UNIT_COMPUTE_TYPE(in1.s0);
+        const UNIT_COMPUTE_TYPE tmp_input_1 = DECODE_UNIT_COMPUTE_TYPE(in2.s0);
         OPERATION0;
         out.s0 = tmp0;
     }
     {
-        const UNIT_TYPE tmp_input_0 = in1.s1;
-        const UNIT_TYPE tmp_input_1 = in2.s1;
+        const UNIT_COMPUTE_TYPE tmp_input_0 = DECODE_UNIT_COMPUTE_TYPE(in1.s1);
+        const UNIT_COMPUTE_TYPE tmp_input_1 = DECODE_UNIT_COMPUTE_TYPE(in2.s1);
         OPERATION0;
         out.s1 = tmp0;
     }
 
     out = ACTIVATION(out, ACTIVATION_PARAMS);
 
-    UNIT_BLOCK_WRITE2(output,output_offset,out);
+    UNIT_BLOCK_WRITE2(output,output_offset, TO_UNIT_VECTOR_TYPE(out, 2));
 }

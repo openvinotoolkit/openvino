@@ -10,6 +10,8 @@
 #include <mutex>
 #include <unordered_map>
 
+#include "openvino/core/except.hpp"
+
 namespace intel_npu {
 
 class ZeroInitStructsHolder;
@@ -23,6 +25,14 @@ class ZeroMem;
  * allocation/import/look-up is intentionally mediated by zero_mem helper APIs.
  */
 struct ZeroMemPool {
+    void clear() {
+        std::scoped_lock lock(mem_pool_mutex, mem_pool_deleter_mutex);
+        if (!notify_mem_pool.empty()) {
+            OPENVINO_THROW("Zero memory notification pool is not empty during pool cleanup");
+        }
+        mem_pool.clear();
+    }
+
     // Tracks Level Zero allocations and imported memory by allocation ID without extending their lifetime.
     std::unordered_map<uint64_t, std::weak_ptr<ZeroMem>> mem_pool;
     // Signals completion of asynchronous pool entry removal before a standard allocation is imported again.

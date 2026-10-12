@@ -28,7 +28,7 @@ public:
     }
 
     void write_to_stream(std::ostream& stream) const;
-    void write_to_slog() const;
+    void write_to_slog(bool adaptive_latency_unit = false) const;
 
     double median_or_percentile = 0;
     double avg = 0;

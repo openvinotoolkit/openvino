@@ -5,7 +5,6 @@
 #include "repack_matmul_weights.hpp"
 
 #include <memory>
-#include <optional>
 #include <utility>
 
 #include "cpu_memory.h"
@@ -44,7 +43,7 @@ DnnlMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const Br
     return MemoryDescUtils::convertToDnnlMemoryDesc(get_dst_cpu_desc(shape, brgemm_config));
 }
 
-std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::repack(
+RepackMatMulWeights::RepackedMatMulWeights RepackMatMulWeights::repack(
     const std::shared_ptr<ov::Node>& consumer,
     const RepackMatMulWeights::MatMulWeightsSource& source,
     const MemoryPtr& orig_src_mem_ptr) {
@@ -52,9 +51,7 @@ std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::r
     OPENVINO_ASSERT(brgemm_cpu != nullptr, "Expected one consumer - BrgemmCPU");
 
     const auto& brgemm_config = brgemm_cpu->get_config();
-    if (!brgemm_config.are_wei_constant()) {
-        return std::nullopt;
-    }
+    OPENVINO_ASSERT(brgemm_config.are_wei_constant(), "Expected constant weights for compile-time repacking");
 
     const auto& eng = m_context->getEngine();
     const auto src_mem_desc = get_src_desc(source, brgemm_config);

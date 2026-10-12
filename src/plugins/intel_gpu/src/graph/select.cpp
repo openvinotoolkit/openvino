@@ -77,7 +77,7 @@ std::string select_inst::to_string(select_node const& node) {
 }
 
 select_inst::typed_primitive_inst(network& network, select_node const& node) : parent(network, node) {
-    auto& deps = node.get_dependencies();
+    const auto& deps = node.get_dependencies();
 
     auto dep0_out_layout = deps[0].first->get_output_layout();
     auto dep1_out_layout = deps[1].first->get_output_layout();
@@ -85,8 +85,9 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
 
     if (dep0_out_layout.is_dynamic() ||
         dep1_out_layout.is_dynamic() ||
-        dep2_out_layout.is_dynamic())
+        dep2_out_layout.is_dynamic()) {
         return;
+    }
 
     CLDNN_ERROR_LESS_THAN(node.id(),
                                 "Number of inputs",
@@ -135,7 +136,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
 
                     CLDNN_ERROR_BOOL(node.id(),
                                         "Sizes equal or broadcast is possible",
-                                        !(current_dim == output_tensor.raw[d] || current_dim == 1),
+                                        current_dim != output_tensor.raw[d] && current_dim != 1,
                                         "Invalid input shapes");
                 }
             }

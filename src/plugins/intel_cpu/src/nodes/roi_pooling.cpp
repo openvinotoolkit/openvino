@@ -575,11 +575,11 @@ class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor 
 public:
     explicit ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
-        } else if (mayiuse(cpu::x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>>(jpp);
-        } else if (mayiuse(cpu::x64::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>>(jpp);
         } else {
             OPENVINO_THROW("Can't create jit RoiPooling kernel");
@@ -616,6 +616,10 @@ private:
         const auto& jpp = roi_pooling_kernel->jpp_;
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
+
+        if (MB <= 0 || cb_work <= 0 || jpp.oh <= 0 || jpp.ow <= 0) {
+            return;
+        }
 
         int real_rois = 0;
         for (; real_rois < MB; real_rois++) {
@@ -761,6 +765,10 @@ public:
                           const CpuParallelPtr& cpuParallel) {
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
+
+        if (MB <= 0 || cb_work <= 0 || jpp.oh <= 0 || jpp.ow <= 0) {
+            return;
+        }
 
         int real_rois = 0;
         for (; real_rois < MB; real_rois++) {
@@ -1022,7 +1030,7 @@ template <typename T>
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::makeExecutor(
     const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(cpu::x64::sse41)) {
+    if (ov::with_cpu_x86_sse42()) {
         return std::make_shared<ROIPoolingJitExecutor<T>>(jpp);
     }
 #endif

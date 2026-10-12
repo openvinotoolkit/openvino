@@ -277,7 +277,7 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        for (auto& mapping : input_primitive_maps) {
+        for (const auto& mapping : input_primitive_maps) {
             auto found = std::any_of(input.begin(), input.end(), [&](const input_info& info) {
                 return info.pid == mapping.external_id.pid;
             });

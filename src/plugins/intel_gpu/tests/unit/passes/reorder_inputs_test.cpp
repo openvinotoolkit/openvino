@@ -22,6 +22,8 @@
 #include "concatenation_inst.h"
 #include "fully_connected_inst.h"
 #include "mvn_inst.h"
+#include "reduce_inst.h"
+#include "resample_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -510,6 +512,83 @@ TEST(reorder_inputs, mvn_expected_plain_format) {
     ASSERT_EQ(mvn_node.get_input_layouts()[0].format, format::bfyx);
     ASSERT_EQ(mvn_node.get_output_layout().format, format::bfyx);
 }
+
+// Across-channels MVN has no optimized blocked-layout kernel: the bfyx opt kernel is planar-only and
+// the fsv16/fsv32 kernels implement WITHIN_CHANNELS only. The OCL MVN impl must therefore report no
+// support for non-planar layouts on an across-channels MVN, so layout_optimizer::is_format_supported
+// (via has_impl_for) rejects the blocked format, a reorder to planar bfyx is inserted, and the fast
+// bfyx opt kernel runs instead of falling back to the slow reference (mvn_gpu_ref) kernel.
+// Reduction over axis 1 (channel) makes an MVN across-channels; axes={1,2} mirrors DialogSeparator.
+TEST(reorder_inputs, mvn_across_channels_rejects_blocked_layout) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    const ov::PartialShape shape{1, 256, 60, 60};
+    const ov::PartialShape dyn_shape = ov::PartialShape::dynamic(4);
+
+    auto build = [&](const std::vector<int64_t>& axes, const ov::PartialShape& in_shape) {
+        topology topology;
+        topology.add(input_layout("input", layout{in_shape, data_types::f16, format::bfyx}));
+        topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, axes));
+        return program::build_program(engine, topology, config, false, true);
+    };
+
+    auto supports = [](program::ptr prog, format::type fmt) {
+        auto& node = prog->get_node("mvn");
+        return test_format<bool>(node, fmt, [](program_node& n) { return n.type()->has_impl_for(n); });
+    };
+
+    // Across-channels (axes include channel axis 1): blocked layouts must be rejected, planar allowed.
+    auto across = build({1, 2, 3}, shape);
+    ASSERT_TRUE(across->get_node("mvn").as<mvn>().get_primitive()->across_channels());
+    EXPECT_FALSE(supports(across, format::b_fs_yx_fsv16));
+    EXPECT_FALSE(supports(across, format::b_fs_yx_fsv32));
+    EXPECT_FALSE(supports(across, format::byxf));
+    EXPECT_TRUE(supports(across, format::bfyx));
+
+    // Within-channels (spatial-only reduction): the fsv16/fsv32 opt kernels support this mode, so the
+    // blocked layout must remain supported (no unnecessary reorder-to-planar; preserves the fast path).
+    auto within = build({2, 3}, shape);
+    ASSERT_FALSE(within->get_node("mvn").as<mvn>().get_primitive()->across_channels());
+    EXPECT_TRUE(supports(within, format::b_fs_yx_fsv16));
+    EXPECT_TRUE(supports(within, format::bfyx));
+
+    // Dynamic shapes: the rejection must apply for dynamic across-channels MVN too. A dynamic node can
+    // still be assigned a blocked layout (e.g. inherited from an fsv16-producing dynamic convolution),
+    // and across-channels + blocked selects the slow mvn_gpu_ref kernel just like the static case, so
+    // the across_channels() check must precede the dynamic-shape early-return. Within-channels dynamic
+    // keeps deferring to the dynamic-shape format list (blocked stays supported).
+    auto across_dyn = build({1, 2, 3}, dyn_shape);
+    EXPECT_FALSE(supports(across_dyn, format::b_fs_yx_fsv16));
+    EXPECT_FALSE(supports(across_dyn, format::b_fs_yx_fsv32));
+    EXPECT_TRUE(supports(across_dyn, format::bfyx));
+
+    auto within_dyn = build({2, 3}, dyn_shape);
+    EXPECT_TRUE(supports(within_dyn, format::b_fs_yx_fsv16));
+
+    // Aligned MVN (PR #36649): a last-axis LayerNorm (axes={3}) reduces a strict subset of the spatial
+    // axes, so requires_alignment() holds and the impl flattens the normalized axes into the innermost
+    // dimension. That reinterpretation is only valid for planar or single feature-blocked layouts, so
+    // byxf (feature innermost) must be rejected - otherwise the GPU normalizes over the wrong physical
+    // axis and silently returns incorrect results in f16. This is the case none of the branches above
+    // reach: it passes the across_channels() and requires_alignment() gates and exercises the
+    // block_sizes logic itself.
+    auto last_axis = build({3}, shape);
+    ASSERT_FALSE(last_axis->get_node("mvn").as<mvn>().get_primitive()->across_channels());
+    EXPECT_FALSE(supports(last_axis, format::byxf));
+    EXPECT_TRUE(supports(last_axis, format::bfyx));
+    // Single feature-blocked layout with a channel count divisible by the block size stays supported
+    // (the flatten_axis=1 special case), and the channel axis is not normalized.
+    EXPECT_TRUE(supports(last_axis, format::b_fs_yx_fsv16));
+
+    // Same aligned case, but the channel count is not divisible by the fsv16 block size, so the
+    // flattening would cross block padding: must be rejected.
+    auto last_axis_unaligned = build({3}, ov::PartialShape{1, 8, 64, 64});
+    EXPECT_FALSE(supports(last_axis_unaligned, format::b_fs_yx_fsv16));
+    EXPECT_TRUE(supports(last_axis_unaligned, format::bfyx));
+}
 // TODO Not yet implemented
 //TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
 //    auto& engine = get_test_engine();
@@ -592,6 +671,87 @@ TEST(reorder_inputs, dynamic_conv_chain_no_throw) {
     program::ptr prog = nullptr;
     OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
     ASSERT_NE(prog, nullptr);
+}
+
+TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
+    // Topology:
+    //
+    // input -> Resample -> Reshape (Unsqueeze) --+
+    //                                            +-> Concat -> Reduce -> Convolution
+    // skip -------------> Reshape (Unsqueeze) ---+
+    // The downstream format lookup must treat the rank-changing Reshape as an intrinsic plain-format
+    // boundary instead of querying its Resample dependency's preferred format and re-entering the same lookup.
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {512, 384, 1, 1}});
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(input_layout("input", layout{{1, 384, 20, 20}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("skip", layout{{1, 384, 40, 40}, data_types::f16, format::bfyx}));
+    topology.add(resample("resample",
+                          input_info("input"),
+                          std::vector<int64_t>{},
+                          std::vector<float>{2.0f, 2.0f},
+                          std::vector<int64_t>{2, 3},
+                          std::vector<size_t>{0, 0, 0, 0},
+                          std::vector<size_t>{0, 0, 0, 0},
+                          0,
+                          -0.75f,
+                          resample::InterpolateOp::InterpolateMode::NEAREST,
+                          resample::InterpolateOp::ShapeCalcMode::SCALES,
+                          resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC,
+                          resample::InterpolateOp::NearestMode::SIMPLE));
+    topology.add(reshape("reshape",
+                         input_info("resample"),
+                         false,
+                         {1},
+                         {1, 1, 384, 40, 40},
+                         reshape::reshape_mode::unsqueeze));
+    topology.add(reshape("skip_reshape",
+                         input_info("skip"),
+                         false,
+                         {1},
+                         {1, 1, 384, 40, 40},
+                         reshape::reshape_mode::unsqueeze));
+    topology.add(concatenation("concat", {input_info("reshape"), input_info("skip_reshape")}, 0));
+    topology.add(reduce("reduce", input_info("concat"), reduce_mode::sum, {0}, false));
+    topology.add(convolution("output", input_info("reduce"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(reorder("sink", input_info("output"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config, false, true));
+    ASSERT_NE(prog, nullptr);
+
+    program_wrapper::apply_opt_pass<mark_nodes>(*prog);
+    ASSERT_TRUE(prog->is_new_shape_infer());
+    ASSERT_FALSE(prog->get_node("resample").is_dynamic());
+    ASSERT_TRUE(prog->get_node("reshape").is_in_data_flow());
+    ASSERT_NE(prog->get_node("reshape").get_input_layout(0).get_rank(),
+              prog->get_node("reshape").get_output_layout().get_rank());
+    OV_ASSERT_NO_THROW(prog->get_layout_optimizer().get_preferred_format(prog->get_node("resample")));
+
+    reorder_factory rf;
+    OV_ASSERT_NO_THROW(program_wrapper::apply_opt_pass<reorder_inputs>(*prog, rf));
+
+    ASSERT_EQ(prog->get_node("resample").get_output_layout().format, format::bfyx);
+    ASSERT_EQ(prog->get_node("reshape").get_input_layout(0).format, format::bfyx);
+    ASSERT_EQ(prog->get_node("reshape").get_output_layout().format, format::bfzyx);
+    ASSERT_EQ(prog->get_node("reduce").get_output_layout().format, format::bfyx);
+
+    auto blocked_prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(blocked_prog, nullptr);
+    program_wrapper::apply_opt_pass<mark_nodes>(*blocked_prog);
+    blocked_prog->get_layout_optimizer().set_implementation_forcing(
+        ov::intel_gpu::ImplForcingMap{{"output", {format::b_fs_yx_fsv16, ""}}});
+
+    // Reshape is a non-recursive plain-format boundary, not a traversal stop. The blocked consumer
+    // after it must still prevent the Resample from being forced to a plain format.
+    ASSERT_EQ(blocked_prog->get_layout_optimizer().get_preferred_format(blocked_prog->get_node("resample")),
+              format::any);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

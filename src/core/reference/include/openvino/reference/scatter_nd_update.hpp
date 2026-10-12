@@ -99,6 +99,7 @@ void scatterNdUpdate(
             if (c < 0) {
                 c += static_cast<indicesType>(dataShape[j]);
             }
+            OPENVINO_ASSERT(c >= 0 && static_cast<size_t>(c) < dataShape[j], "Index is out of bounds");
             j++;
         }
 

@@ -24,11 +24,8 @@ static size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe2:
-    case gpu_arch::xe3:
-        return 16;
     default:
-        return 8;
+        return 16;
     }
 }
 
@@ -138,8 +135,9 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     }
 
     auto slm_size = moe_gemm.getSetting("slm_size");
-    if (slm_size > 0)
+    if (slm_size > 0) {
         jit.make("USE_SLM", 1);
+    }
 
     const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
     if (enable_silu_mul && m_type == MoE3GemmMicroKernelType::MLP_GATE) {
@@ -178,7 +176,7 @@ static micro::Type convert_type(ov::element::Type t) {
 
 std::mutex MoE3GemmMicroGenerator::mtx;
 std::unordered_map<MoE3GemmMicroGenerator::GemmCacheKey, micro::Package, MoE3GemmMicroGenerator::GemmCacheKeyHash> MoE3GemmMicroGenerator::s_gemm_cache;
-void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, MoE3GemmMicroKernelType type) noexcept {
+void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, MoE3GemmMicroKernelType type) {
     std::lock_guard<std::mutex> l(mtx);
 
     int wei_idx, scale_idx, zp_idx;
@@ -398,8 +396,9 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // gate output
         {
             const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
-            if (enable_silu_mul)
+            if (enable_silu_mul) {
                 args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_UP_OUTPUT});
+            }
         }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS});            // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT});   // input_offset_per_expert
@@ -407,8 +406,9 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});                 // scale
-        if (!is_weight_symmetric_quantized)
+        if (!is_weight_symmetric_quantized) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});  // zp
+        }
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
@@ -420,8 +420,9 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});                 // scale
-        if (!is_weight_symmetric_quantized)
+        if (!is_weight_symmetric_quantized) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});  // zp
+        }
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // intermediate_mem[6]
@@ -433,8 +434,9 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});                 // scale
-        if (!is_weight_symmetric_quantized)
+        if (!is_weight_symmetric_quantized) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});  // zp
+        }
         break;
     default:
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");

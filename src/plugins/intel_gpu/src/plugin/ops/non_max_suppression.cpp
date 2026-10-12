@@ -53,8 +53,9 @@ static void apply_optional_inputs(const std::shared_ptr<ov::Node>& op, cldnn::no
 }
 
 static void add_nms_gather_if_needed(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const std::string& nms_name, size_t num_outputs) {
-    if (!op->get_output_partial_shape(0).is_dynamic())
+    if (!op->get_output_partial_shape(0).is_dynamic()) {
         return;
+    }
 
     auto gather_name = nms_name + "_NMSGather";
     std::vector<cldnn::input_info> gather_inputs = {
@@ -95,7 +96,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                     reordered_inputs[0],
                     reordered_inputs[1],
                     0,
-                    op->m_center_point_box,
+                    op->m_center_point_box != 0,
                     op->m_sort_result_descending,
                     "", "", "", "", "", "", num_outputs);
 
@@ -157,7 +158,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                     reordered_inputs[0],
                     reordered_inputs[1],
                     static_cast<int>(outputIndices),
-                    op->m_center_point_box,
+                    op->m_center_point_box != 0,
                     op->m_sort_result_descending,
                     "", "", "", "", "", "");
 

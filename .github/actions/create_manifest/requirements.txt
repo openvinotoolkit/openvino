@@ -1,2 +1,5 @@
-GitPython~=3.1.43
-pyyaml~=6.0.1
+gitdb==4.0.12
+GitPython==3.1.59
+packaging==26.3
+PyYAML==6.0.3
+smmap==5.0.3

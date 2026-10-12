@@ -8,6 +8,7 @@ import shutil
 import tempfile
 
 import pytest
+import torch
 from huggingface_hub import snapshot_download
 from optimum.intel.openvino import (OVModelForCausalLM,
                                     OVWeightQuantizationConfig)
@@ -106,7 +107,8 @@ def setup_model(model_id):
     # Download original model from a Hugging Face snapshot to get a stable, canonical on-disk layout
     # (once cached, subsequent `from_pretrained(..., local_files_only=True)` calls are fully offline)
     model_cached = snapshot_download(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
+    # transformers>=5 defaults to dtype="auto" (config dtype, e.g. bf16), while GT references were calibrated in fp32
+    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True, dtype=torch.float32)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
     # Cache original model for reuse in repeated test runs and potential future tests
@@ -142,7 +144,7 @@ def setup_model(model_id):
     int8_model_path = get_model_path(model_id, PREC_INT8)
     if not os.path.exists(int8_model_path):
         logger.info(f'Creating INT8 OpenVINO model: {int8_model_path}')
-        ov_model = OVModelForCausalLM.from_pretrained(model_cached, local_files_only=True, load_in_8bit=True)
+        ov_model = OVModelForCausalLM.from_pretrained(model_id, local_files_only=True, load_in_8bit=True)
         ov_model.save_pretrained(int8_model_path)
         tokenizer.save_pretrained(int8_model_path)
         del ov_model
@@ -155,7 +157,7 @@ def setup_model(model_id):
         logger.info(f'Creating INT4 OpenVINO model: {int4_model_path}')
         quantization_config = OVWeightQuantizationConfig(bits=4, ratio=0.8)
         quantized_model = OVModelForCausalLM.from_pretrained(
-            model_cached,
+            model_id,
             local_files_only=True,
             quantization_config=quantization_config,
         )
@@ -231,7 +233,7 @@ def test_accuracy_conformance(model_id, precision, device):
     print(f"Testing model: {model_path}, precision: {precision}, device: {actual_device}")
     target_model = load_model(task, model_path, actual_device, ov_config, hf, use_genai, dont_use_llamacpp)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
 
     use_chat_template = tokenizer is not None and tokenizer.chat_template is not None
 
@@ -253,6 +255,6 @@ def test_accuracy_conformance(model_id, precision, device):
 
     threshold = get_threshold(model_id, device, precision)
 
-    abs_metric_diff = abs(expected_reference - metric)
+    metric_drop = expected_reference - metric
     print(f"Metric: {metric}, Expected: {expected_reference}, Model: {model_id}, Precision: {precision}")
-    assert abs_metric_diff <= threshold, f"Metric difference {abs_metric_diff} exceeds threshold {threshold}"
+    assert metric_drop <= threshold, f"Metric drop {metric_drop} exceeds threshold {threshold}"

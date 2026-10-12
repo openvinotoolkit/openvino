@@ -27,26 +27,26 @@ Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
 
 std::shared_ptr<IGraph> Parser::parse(
     const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
+    const Config& config,
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const std::optional<std::vector<ov::Tensor>>& initBlobs,
-    const std::optional<std::string>& compatibilityDescriptor) const {
+    const std::optional<std::string>& compatibilityDescriptor,
+    const std::optional<BlobType>& blobType) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
 
-    // Detect blob format
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
-    std::string header;
-    if (size >= 20) {
-        header.assign(static_cast<const char*>(data), 20);
-    } else {
-        header.assign(static_cast<const char*>(data), size);
-    }
-    if (header.find("llvm") != std::string::npos || header.find("NPUByte\x00") != std::string::npos) {
+    if (blobType.has_value() && (blobType.value() == BlobType::LLVM || blobType.value() == BlobType::BYTECODE)) {
+        OPENVINO_ASSERT(
+            config.get<ALLOW_BYTECODE>(),
+            "The blob declares a payload that runs in-process on the host VM runtime instead of being parsed by the "
+            "NPU driver, and NPU_ALLOW_BYTECODE is disabled, so only native NPU device blobs are accepted.");
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(data, size);
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, config);
+        auto dynamicGraph = std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, blobType.value());
+        dynamicGraph->initialize(config);  // load metadata
+        return dynamicGraph;
     }
 
     GraphDescriptor mainGraphDesc;
@@ -72,7 +72,6 @@ std::shared_ptr<IGraph> Parser::parse(
                                        mainGraphDesc,
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
-                                       config,
                                        compatibilityDescriptor,
                                        blobIsPersistent);
     }
@@ -103,8 +102,8 @@ std::shared_ptr<IGraph> Parser::parse(
                                              std::move(initNetworkMetadata),
                                              initBlobs,
                                              std::move(weightsSource),
-                                             config,
-                                             blobIsPersistent);
+                                             blobIsPersistent,
+                                             compatibilityDescriptor);
 }
 
 }  // namespace intel_npu

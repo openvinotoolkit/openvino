@@ -6,18 +6,14 @@
 #include <memory>
 #include <vector>
 
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_TRI zeroes out elements outside a triangular region of a square matrix. The region is
 // selected by the decoder-provided "tri_type" attribute (ggml_tri_type, mapped to a plain int):
@@ -48,10 +44,18 @@ OutputVector translate_tri(const NodeContext& context) {
         for (size_t col = 0; col < n; ++col) {
             bool keep = false;
             switch (tri_type) {
-            case 0: keep = col >= row; break;  // UPPER_DIAG
-            case 1: keep = col > row;  break;  // UPPER
-            case 2: keep = col <= row; break;  // LOWER_DIAG
-            case 3: keep = col < row;  break;  // LOWER
+            case 0:
+                keep = col >= row;
+                break;  // UPPER_DIAG
+            case 1:
+                keep = col > row;
+                break;  // UPPER
+            case 2:
+                keep = col <= row;
+                break;  // LOWER_DIAG
+            case 3:
+                keep = col < row;
+                break;  // LOWER
             default:
                 FRONT_END_GENERAL_CHECK(false, "translate_tri: invalid tri_type ", tri_type);
             }
@@ -59,16 +63,11 @@ OutputVector translate_tri(const NodeContext& context) {
         }
     }
     // Build the mask in the node's own type, or an f16 input gets promoted to f32 by the Multiply.
-    auto keep_mask = ov::op::v0::Constant::create(context.get_attribute<ov::element::Type>("output_type"),
-                                                  ov::Shape{1, 1, n, n},
-                                                  mask);
+    auto keep_mask = ov::op::v0::Constant::create(x.get_element_type(), ov::Shape{1, 1, n, n}, mask);
 
     auto res = std::make_shared<ov::op::v1::Multiply>(x, keep_mask);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

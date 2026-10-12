@@ -12,6 +12,8 @@
 #include <cstring>
 #include <oneapi/dnnl/dnnl.hpp>
 
+#include "openvino/core/visibility.hpp"
+
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif

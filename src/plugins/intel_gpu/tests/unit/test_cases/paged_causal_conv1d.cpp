@@ -26,6 +26,7 @@ struct paged_causal_conv1d_test_params {
     ov::element::Type precision;
     bool with_bias;
     bool is_caching_test = false;
+    bool padded_input = false;
 };
 
 struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_causal_conv1d_test_params> {
@@ -51,6 +52,19 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
     template <typename T>
     void load_input(cldnn::memory::ptr mem, const std::vector<T>& input_data) {
         set_values(mem, input_data);
+    }
+
+    template <typename T>
+    void load_padded_input(cldnn::memory::ptr mem, const std::vector<T>& input_data, int32_t tokens, int32_t hidden_size) {
+        cldnn::mem_lock<T, mem_lock_type::write> data(mem, get_test_stream());
+        std::fill(data.begin(), data.end(), T{});
+        const auto& layout = mem->get_layout();
+        for (int32_t token = 0; token < tokens; token++) {
+            for (int32_t hidden = 0; hidden < hidden_size; hidden++) {
+                const auto offset = layout.get_linear_offset(tensor(batch(token), feature(hidden), spatial(0, 0, 0, 0)));
+                data[offset] = input_data[static_cast<size_t>(token) * hidden_size + hidden];
+            }
+        }
     }
 
     static paging_desc make_paging_desc(int32_t tokens, int32_t num_sequences) {
@@ -254,7 +268,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
 
         const auto page = make_paging_desc(p.tokens, p.num_sequences);
 
-        const layout input_layout({p.tokens, p.hidden_size}, data_type, format::bfyx);
+        const auto input_padding = p.padded_input ? padding({0, 3}, {0, 5}) : padding{};
+        const layout input_layout({p.tokens, p.hidden_size}, data_type, format::bfyx, input_padding);
         const layout state_layout({page.num_blocks, p.hidden_size, p.kernel_size}, data_type, format::bfyx);
         const layout weight_layout({p.hidden_size, 1, p.kernel_size}, data_type, format::bfyx);
         const layout bias_layout({p.with_bias ? p.hidden_size : 0}, data_type, format::bfyx);
@@ -298,7 +313,10 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                       p.kernel_size,
                       ref_output);
 
-        load_input(input_mem, input_embeds);
+        if (p.padded_input)
+            load_padded_input(input_mem, input_embeds, p.tokens, p.hidden_size);
+        else
+            load_input(input_mem, input_embeds);
         load_input(state_mem, conv_state_table);
         load_input(weight_mem, conv_weight);
         if (!conv_bias.empty()) {
@@ -321,18 +339,17 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                                     cache_interval_layout,
                                     data_type);
 
-        auto [out_mem, net] =
-            run_network(topo,
-                        input_mem,
-                        state_mem,
-                        weight_mem,
-                        bias_mem,
-                        subseq_mem,
-                        block_idx_mem,
-                        block_idx_begins_mem,
-                        past_lens_mem,
-                        cache_interval_mem,
-                        p.is_caching_test);
+        auto [out_mem, net] = run_network(topo,
+                                          input_mem,
+                                          state_mem,
+                                          weight_mem,
+                                          bias_mem,
+                                          subseq_mem,
+                                          block_idx_mem,
+                                          block_idx_begins_mem,
+                                          past_lens_mem,
+                                          cache_interval_mem,
+                                          p.is_caching_test);
 
         ASSERT_TRUE(out_mem != nullptr);
         ASSERT_EQ(out_mem->count(), ref_output.size());
@@ -373,7 +390,7 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
         const auto& p = info.param;
         return "paged_causal_conv1d_gpu_test_" + p.precision.to_string() + "_tokens_" + std::to_string(p.tokens) + "_seq_" + std::to_string(p.num_sequences) +
                "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" + std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias") +
-               (p.is_caching_test ? "_cached" : "");
+               (p.is_caching_test ? "_cached" : "") + (p.padded_input ? "_padded_input" : "");
     }
 };
 
@@ -390,7 +407,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_causal_conv1d_gpu_test,
                                            paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f32, true},
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, false},
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, false},
-                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true, true}),
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true, true},
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true, false, true},
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true, false, true}),
                          paged_causal_conv1d_gpu_test::PrintToStringParamName);
 
 }  // namespace

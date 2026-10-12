@@ -49,6 +49,8 @@ private:
     template <typename T>
     struct RoPEExecutorInterleaved;
     template <typename T>
+    struct RoPEExecutorLtxVideo;
+    template <typename T>
     struct RoPEExecutorChatGLM;
     template <typename T>
     struct RoPEExecutorQwen;

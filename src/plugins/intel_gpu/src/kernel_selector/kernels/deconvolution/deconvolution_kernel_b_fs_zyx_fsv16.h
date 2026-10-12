@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "deconvolution_kernel_base.h"
 #include <vector>
+
+#include "deconvolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -22,21 +23,17 @@ public:
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
-        if (p.outputs[0].Dimentions() == 4)
+        if (p.outputs[0].Dimentions() == 4) {
             return WeightsLayout::is_os_yx_isv16_osv16;
-        else
-            return WeightsLayout::is_os_zyx_isv16_osv16;
+        }
+        return WeightsLayout::is_os_zyx_isv16_osv16;
     }
     bool Validate(const Params& p) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::ELTWISE,
-            FusedOpType::QUANTIZE
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::ELTWISE, FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

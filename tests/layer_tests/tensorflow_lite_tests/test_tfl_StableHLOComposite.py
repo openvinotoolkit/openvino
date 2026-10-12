@@ -17,11 +17,34 @@ test_params = [
     {'shape': [1, 4, 8, 16], 'epsilon': 1e-6},
 ]
 
+quantization_params = {
+    'input_scale': 0.25,
+    'input_zero_point': 3,
+    'gamma_scale': 0.01,
+    'gamma_zero_point': -7,
+}
+
 
 def _make_gamma(last_dim, seed=123):
     """Generate deterministic non-trivial gamma weights for testing."""
     rng = np.random.default_rng(seed)
     return rng.uniform(0.5, 2.0, [last_dim]).astype(np.float32)
+
+
+def _make_quantization(scale, zero_point):
+    quantization = schema_fb.QuantizationParametersT()
+    quantization.scale = [float(scale)]
+    quantization.zeroPoint = [int(zero_point)]
+    quantization.quantizedDimension = 0
+    return quantization
+
+
+def _quantize(data, scale, zero_point):
+    return np.rint(data / scale + zero_point).astype(np.int16)
+
+
+def _dequantize(data, scale, zero_point):
+    return (data.astype(np.float32) - zero_point) * scale
 
 
 def _build_rms_norm_decomposition_subgraph(input_shape, last_dim, model_buffers, opcode_index):
@@ -104,7 +127,7 @@ def _build_rms_norm_decomposition_subgraph(input_shape, last_dim, model_buffers,
     return sg, eps_buf_idx
 
 
-def build_stablehlo_composite_rms_norm_model(input_shape, epsilon, composite_name="odml.rms_norm"):
+def build_stablehlo_composite_rms_norm_model(input_shape, epsilon, composite_name="odml.rms_norm", quantized=False):
     """Build a TFLite flatbuffer model with a STABLEHLO_COMPOSITE op.
 
     ``composite_name`` selects the dispatch path in the frontend:
@@ -122,6 +145,12 @@ def build_stablehlo_composite_rms_norm_model(input_shape, epsilon, composite_nam
     """
     last_dim = input_shape[-1]
     gamma_data = _make_gamma(last_dim)
+    if quantized:
+        gamma_data = _quantize(
+            gamma_data,
+            quantization_params['gamma_scale'],
+            quantization_params['gamma_zero_point'],
+        )
 
     model = schema_fb.ModelT()
     model.version = 3
@@ -160,16 +189,26 @@ def build_stablehlo_composite_rms_norm_model(input_shape, epsilon, composite_nam
     # Tensor 0: input
     t_input = schema_fb.TensorT()
     t_input.shape = list(input_shape)
-    t_input.type = schema_fb.TensorType.FLOAT32
+    t_input.type = schema_fb.TensorType.INT16 if quantized else schema_fb.TensorType.FLOAT32
     t_input.buffer = 1
     t_input.name = b"Input"
+    if quantized:
+        t_input.quantization = _make_quantization(
+            quantization_params['input_scale'],
+            quantization_params['input_zero_point'],
+        )
 
     # Tensor 1: gamma (constant, non-trivial values to verify correct wiring)
     t_gamma = schema_fb.TensorT()
     t_gamma.shape = [last_dim]
-    t_gamma.type = schema_fb.TensorType.FLOAT32
+    t_gamma.type = schema_fb.TensorType.INT16 if quantized else schema_fb.TensorType.FLOAT32
     t_gamma.buffer = 2
     t_gamma.name = b"gamma"
+    if quantized:
+        t_gamma.quantization = _make_quantization(
+            quantization_params['gamma_scale'],
+            quantization_params['gamma_zero_point'],
+        )
 
     # Tensor 2: output
     t_output = schema_fb.TensorT()
@@ -237,12 +276,12 @@ class TestTFLiteStableHLOCompositeRmsNorm:
     decomposition subgraph carried in the TFLite model).
     """
 
-    def _run(self, composite_name, params, ie_device, precision, temp_dir, model_filename):
+    def _run(self, composite_name, params, ie_device, precision, temp_dir, model_filename, quantized=False):
         shape = params['shape']
         epsilon = params['epsilon']
 
         # Build and write the TFLite model
-        model_obj = build_stablehlo_composite_rms_norm_model(shape, epsilon, composite_name)
+        model_obj = build_stablehlo_composite_rms_norm_model(shape, epsilon, composite_name, quantized)
         model_path = os.path.join(temp_dir, model_filename)
         fb_utils.write_model(model_obj, model_path)
 
@@ -280,15 +319,33 @@ class TestTFLiteStableHLOCompositeRmsNorm:
 
         # Generate random input
         rng = np.random.default_rng(42)
-        input_data = rng.uniform(-1.0, 1.0, shape).astype(np.float32)
         gamma = _make_gamma(shape[-1])
+        if quantized:
+            input_data = rng.integers(-32, 33, shape, dtype=np.int16)
+            reference_input = _dequantize(
+                input_data,
+                quantization_params['input_scale'],
+                quantization_params['input_zero_point'],
+            )
+            gamma = _dequantize(
+                _quantize(
+                    gamma,
+                    quantization_params['gamma_scale'],
+                    quantization_params['gamma_zero_point'],
+                ),
+                quantization_params['gamma_scale'],
+                quantization_params['gamma_zero_point'],
+            )
+        else:
+            input_data = rng.uniform(-1.0, 1.0, shape).astype(np.float32)
+            reference_input = input_data
 
         # Run OV inference
         result = compiled_model([input_data])
         ov_output = result[compiled_model.output(0)]
 
         # Compute reference
-        expected = rms_norm_reference(input_data, gamma, epsilon)
+        expected = rms_norm_reference(reference_input, gamma, epsilon)
 
         # Compare
         custom_eps = 1e-4 if precision == 'FP32' else 5e-2
@@ -309,6 +366,20 @@ class TestTFLiteStableHLOCompositeRmsNorm:
             precision=precision,
             temp_dir=temp_dir,
             model_filename='stablehlo_composite_rms_norm.tflite',
+        )
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_stablehlo_composite_rms_norm_quantized(self, ie_device, precision, temp_dir):
+        """Exercise dequantization of dynamic int16 data and constant int16 gamma."""
+        self._run(
+            composite_name="odml.rms_norm",
+            params={'shape': [2, 16], 'epsilon': 1e-6},
+            ie_device=ie_device,
+            precision=precision,
+            temp_dir=temp_dir,
+            model_filename='stablehlo_composite_rms_norm_quantized.tflite',
+            quantized=True,
         )
 
     @pytest.mark.parametrize("params", test_params)

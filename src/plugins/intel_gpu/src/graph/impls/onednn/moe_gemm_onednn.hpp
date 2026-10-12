@@ -34,8 +34,9 @@ struct MoEGemmImplementationManager : public ImplementationManager {
         OPENVINO_ASSERT(node.is_type<moe_gemm>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
         static const std::vector<format> supported_fmts = {
             format::bfyx,
@@ -134,8 +135,9 @@ struct MoEGemmImplementationManager : public ImplementationManager {
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-            if (node.get_dependency(idx).is_constant())
+            if (node.get_dependency(idx).is_constant()) {
                 continue;
+            }
 
             size_t out_rank = node.get_output_layout().get_rank();
             auto target_format = format::get_default_format(out_rank);
@@ -173,11 +175,7 @@ struct MoEGemmImplementationManager : public ImplementationManager {
             const auto& scale_shape = params.input_layouts[moe_cfg.weight_scale_idx].get_shape();
             auto num_scale_groups = (scale_shape.size() >= 3) ? scale_shape[2] : 1;
             moe_cfg.weight_group_size = (num_scale_groups == 1) ? -1 : static_cast<int32_t>(k / num_scale_groups);
-            if (static_cast<int32_t>(params.input_layouts.size()) > moe_cfg.weight_zp_idx) {
-                moe_cfg.is_weight_symmetric_quantized = false;
-            } else {
-                moe_cfg.is_weight_symmetric_quantized = true;
-            }
+            moe_cfg.is_weight_symmetric_quantized = static_cast<int32_t>(params.input_layouts.size()) <= moe_cfg.weight_zp_idx;
         }
         moe_cfg.has_batch_dim = desc->has_batch_dim;
         return moe_cfg;

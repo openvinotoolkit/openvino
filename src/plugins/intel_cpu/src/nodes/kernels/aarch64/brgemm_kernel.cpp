@@ -1,5 +1,4 @@
 // Copyright (C) 2018-2026 Intel Corporation
-// Copyright (C) 2024 FUJITSU LIMITED
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -172,7 +171,7 @@ size_t BrgemmKernel::get_scratch_b_size() const {
 }
 
 void BrgemmKernel::init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel) {
-    brgemm_t brgDesc;
+    brgemm_desc_t brgDesc;
     const cpu_isa_t isa = getSupportedSveIsa();
     if (isa == cpu_isa_t::isa_undef) {
         THROW_ERROR("requires ARM SVE support");

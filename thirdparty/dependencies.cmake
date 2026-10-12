@@ -120,6 +120,14 @@ if(ENABLE_INTEL_GPU)
     endif()
 
     if(TARGET OpenCL::OpenCL)
+        if(APPLE)
+            add_subdirectory(thirdparty/ocl/cl_headers
+                             thirdparty/ocl/cl_headers
+                             EXCLUDE_FROM_ALL)
+            list(APPEND opencl_cpp_include_dirs
+                "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocl/clhpp_headers/include")
+        endif()
+
         # try to find CL/opencl.hpp
         find_file(OpenCL_HPP
                   NAMES CL/opencl.hpp OpenCL/opencl.hpp
@@ -153,6 +161,12 @@ if(ENABLE_INTEL_GPU)
     get_target_property(opencl_target OpenCL::OpenCL ALIASED_TARGET)
     if(NOT TARGET ${opencl_target})
         set(opencl_target OpenCL::OpenCL)
+    endif()
+
+    if(APPLE)
+        target_include_directories(${opencl_target} INTERFACE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/thirdparty/ocl/cl_headers>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocl/clhpp_headers/include>)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -373,43 +387,25 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        # try to find newer version first (major is changed)
-        # see https://protobuf.dev/support/version-support/ and
-        # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 5.26.0 QUIET CONFIG)
-        if(NOT Protobuf_FOUND)
-            find_package(Protobuf 4.22.0 QUIET CONFIG)
+        # only protobuf's own CONFIG package propagates Abseil, which protobuf 22 and newer requires
+        find_package(Protobuf REQUIRED CONFIG)
+        # protobuf release number is the minor component: release 26 is 5.26, release 33 is 6.33.
+        # it cannot be checked by find_package, whose version argument requires an exact major match
+        if(Protobuf_VERSION_MINOR VERSION_LESS 26)
+            message(FATAL_ERROR "Protobuf 26 (5.26) or newer is required, but ${Protobuf_VERSION} is found")
         endif()
-        if(Protobuf_FOUND)
-            # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
-            set(protobuf_config CONFIG)
-        else()
-            if(OV_VCPKG_BUILD)
-                set(protobuf_config CONFIG)
-            endif()
-            # otherwise, fallback to existing default
-            find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
-        endif()
+        # exported into OpenVINOConfig.cmake for static build
+        set(protobuf_config CONFIG)
 
-        # with newer protobuf versions (4.22 and newer), we use CONFIG first
-        # so, the Protobuf_PROTOC_EXECUTABLE variable must be checked explicitly,
-        # because it's not used in this case (oppositely to MODULE case)
-        if(Protobuf_VERSION VERSION_GREATER_EQUAL 22 AND DEFINED Protobuf_PROTOC_EXECUTABLE)
+        # CONFIG mode does not set Protobuf_PROTOC_EXECUTABLE,
+        # so an explicitly provided one (e.g. host protoc when cross-compiling) wins
+        if(DEFINED Protobuf_PROTOC_EXECUTABLE)
             set(PROTOC_EXECUTABLE ${Protobuf_PROTOC_EXECUTABLE})
         else()
             set(PROTOC_EXECUTABLE protobuf::protoc)
         endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
-        # protobuf fails to build with -fsanitize=thread by clang
-        if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
-            foreach(proto_target protoc libprotobuf libprotobuf-lite)
-                if(TARGET ${proto_target})
-                    target_compile_options(${proto_target} PRIVATE -fno-sanitize=thread)
-                    target_link_options(${proto_target} PRIVATE -fno-sanitize=thread)
-                endif()
-            endforeach()
-        endif()
     endif()
 
     # forward additional variables used in the other places
@@ -417,24 +413,24 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
 
     # set public / interface compile options
     function(_ov_fix_protobuf_warnings target_name)
-        set(link_type PUBLIC)
-        if(ENABLE_SYSTEM_PROTOBUF)
-            set(link_type INTERFACE)
-        endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
-            get_target_property(original_name ${target_name} ALIASED_TARGET)
-            if(TARGET ${original_name})
-                # during build protobuf's cmake creates aliased targets
-                set(target_name ${original_name})
+        if(TARGET ${target_name})
+            set(link_type PUBLIC)
+            if(ENABLE_SYSTEM_PROTOBUF)
+                set(link_type INTERFACE)
             endif()
-            target_compile_options(${target_name} ${link_type} -Wno-undef)
+            if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+                get_target_property(original_name ${target_name} ALIASED_TARGET)
+                if(TARGET ${original_name})
+                    # during build protobuf's cmake creates aliased targets
+                    set(target_name ${original_name})
+                endif()
+                target_compile_options(${target_name} ${link_type} -Wno-undef)
+            endif()
         endif()
     endfunction()
 
     _ov_fix_protobuf_warnings(protobuf::libprotobuf)
-    if(TARGET protobuf::libprotobuf-lite)
-        _ov_fix_protobuf_warnings(protobuf::libprotobuf-lite)
-    endif()
+    _ov_fix_protobuf_warnings(protobuf::libprotobuf-lite)
 endif()
 
 #
@@ -571,7 +567,7 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.16.2 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.22.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'

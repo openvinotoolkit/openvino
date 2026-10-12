@@ -44,12 +44,12 @@ struct condition : public primitive_base<condition> {
 
         void save(BinaryOutputBuffer& ob) const {
             ob << input_map.size();
-            for (auto& input_pair : input_map) {
+            for (const auto& input_pair : input_map) {
                 ob << input_pair.first;
                 ob << input_pair.second;
             }
             ob << output_map.size();
-            for (auto& output_pair : output_map) {
+            for (const auto& output_pair : output_map) {
                 ob << output_pair.first;
                 ob << output_pair.second;
             }

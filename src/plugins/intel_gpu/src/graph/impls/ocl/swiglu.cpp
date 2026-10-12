@@ -65,7 +65,8 @@ namespace detail {
 attach_swiglu_impl::attach_swiglu_impl() {
     auto types = {
         data_types::f32,
-        data_types::f16
+        data_types::f16,
+        data_types::bf16
     };
 
     auto formats = {

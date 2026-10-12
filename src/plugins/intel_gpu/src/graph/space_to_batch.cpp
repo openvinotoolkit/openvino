@@ -24,8 +24,9 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, 
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
 
-    if (impl_param.has_fused_primitives())
+    if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
+    }
 
     const size_t spatial_num = format::spatial_num(input_format);
 
@@ -33,29 +34,35 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, 
     const auto& pads_begin = desc->pads_begin;
     const auto& pads_end = desc->pads_end;
 
-    if (block_shape.batch[0] != 1)
+    if (block_shape.batch[0] != 1) {
         CLDNN_ERROR_MESSAGE(desc->id,
             "block_shape[0] is expected to be 1. Actual block_shape[0] is " +
             std::to_string(block_shape.batch[0]));
+    }
 
-    if (pads_begin.batch[0] != 0)
+    if (pads_begin.batch[0] != 0) {
         CLDNN_ERROR_MESSAGE(desc->id,
             "pads_begin[0] is expected to be 0. Actual pads_begin[0] is " +
             std::to_string(pads_begin.batch[0]));
+    }
 
-    if (pads_end.batch[0] != 0)
+    if (pads_end.batch[0] != 0) {
         CLDNN_ERROR_MESSAGE(desc->id,
             "pads_end[0] is expected to be 0. Actual pads_end[0] is " +
             std::to_string(pads_end.batch[0]));
+    }
 
-    if ((input_layout.feature() + pads_begin.feature[0] + pads_end.feature[0]) % block_shape.feature[0] != 0)
+    if ((input_layout.feature() + pads_begin.feature[0] + pads_end.feature[0]) % block_shape.feature[0] != 0) {
             CLDNN_ERROR_MESSAGE(desc->id,
                 "Input feature shape after padding must be divisible by block_shape");
+    }
 
-    for (size_t i = 0; i < spatial_num; ++i)
-        if ((input_layout.spatial(i) + pads_begin.spatial[i] + pads_end.spatial[i]) % block_shape.spatial[i] != 0)
+    for (size_t i = 0; i < spatial_num; ++i) {
+        if ((input_layout.spatial(i) + pads_begin.spatial[i] + pads_end.spatial[i]) % block_shape.spatial[i] != 0) {
             CLDNN_ERROR_MESSAGE(desc->id,
                 "Input spatial shapes after padding must be divisible by block_shape");
+        }
+    }
 
     return layout{output_type, input_format, desc->out_size};
 }
@@ -77,7 +84,7 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
     auto input0_size = input0_shape.size();
     auto input0_format = input0_layout.format;
 
-    auto& constant_mem = impl_param.memory_deps;
+    const auto& constant_mem = impl_param.memory_deps;
     auto block_data = desc->block_shape;
     auto begin_data = desc->pads_begin;
     auto end_data = desc->pads_end;
@@ -107,9 +114,9 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
         auto begin_sizes = tensor_to_vec(begin_data, input0_format);
         auto end_sizes = tensor_to_vec(end_data, input0_format);
 
-        auto block_values = static_cast<void*>(block_sizes.data());
-        auto begin_values = static_cast<void*>(begin_sizes.data());
-        auto end_values = static_cast<void*>(end_sizes.data());
+        auto* block_values = static_cast<void*>(block_sizes.data());
+        auto* begin_values = static_cast<void*>(begin_sizes.data());
+        auto* end_values = static_cast<void*>(end_sizes.data());
 
         auto block_tensor = make_tensor({ block_shape, data_types::i32, input0_format }, block_values);
         auto begin_tensor = make_tensor({ begin_shape, data_types::i32, input0_format }, begin_values);
@@ -141,8 +148,9 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
     }
 
     auto output_type = desc->output_data_types[0].value_or(input0_layout.data_type);
-    if (impl_param.has_fused_primitives())
+    if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
+    }
 
     return { layout{output_shapes[0], output_type, input0_layout.format} };
 }

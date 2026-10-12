@@ -69,13 +69,15 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         auto past_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past).get_node_shared_ptr());
         auto present_node = ov::as_type_ptr<ov::op::v6::Assign>(pattern_map.at(present).get_node_shared_ptr());
 
-        if (past_node->get_variable_id() != present_node->get_variable_id())
+        if (past_node->get_variable_id() != present_node->get_variable_id()) {
             return false;
+        }
 
         // TODO: Support conversion internally
         if (ov::is_type<ov::opset8::Gather>(concat_past_input)) {
-            if (!concat_node || concat_node->get_output_element_type(0) != past_node->get_output_element_type(0))
+            if (!concat_node || concat_node->get_output_element_type(0) != past_node->get_output_element_type(0)) {
                 return false;
+            }
         }
 
         auto variable = past_node->get_variable();
@@ -103,13 +105,12 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         const auto adjust_axis_to_positive = [&new_read_value_node](auto axis) ->std::optional<uint64_t> {
             if (axis >= 0) {
                 return static_cast<uint64_t>(axis);
-            } else {
-                const auto input_rank = new_read_value_node->get_output_partial_shape(0).rank();
-                if (input_rank.is_static()) {
-                    const auto adjusted_axis = input_rank.get_interval().get_min_val() + axis;
-                    if (adjusted_axis >= 0) {
-                        return static_cast<uint64_t>(adjusted_axis);
-                    }
+            }
+            const auto input_rank = new_read_value_node->get_output_partial_shape(0).rank();
+            if (input_rank.is_static()) {
+                const auto adjusted_axis = input_rank.get_interval().get_min_val() + axis;
+                if (adjusted_axis >= 0) {
+                    return static_cast<uint64_t>(adjusted_axis);
                 }
             }
             return std::nullopt;
@@ -123,8 +124,9 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             // StridedSlice uses multi-dim for end tensor, extract only the slice dim
             if (has_strided_slice) {
                 const auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_node->input_value(0).get_node_shared_ptr());
-                if (!strided_slice)
+                if (!strided_slice) {
                     return false;
+                }
                 const auto begin_mask = strided_slice->get_begin_mask();
                 const auto end_mask = strided_slice->get_end_mask();
                 // begin/end mask should be the same and only last element is 0 (being sliced)

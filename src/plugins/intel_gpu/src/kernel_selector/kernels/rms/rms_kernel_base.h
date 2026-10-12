@@ -14,6 +14,7 @@ struct rms_params : public base_params {
     rms_params() : base_params(KernelType::RMS) {}
     float epsilon = 0.0f;
     int32_t ov_input_rank = -1;
+    int64_t axis = -1;
     bool elementwise_affine = true;
 };
 
@@ -40,6 +41,8 @@ protected:
     bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const rms_params& params) const;
+    static Tensor::DataChannelName GetNormalizationAxis(const rms_params& params);
+    static const char* GetNormalizationAxisName(Tensor::DataChannelName axis);
     KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetAccumulatorType(const rms_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

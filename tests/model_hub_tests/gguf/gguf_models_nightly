@@ -1,0 +1,36 @@
+# List of larger models (roughly 7B-30B parameters) used to verify the GGUF frontend converts,
+# compiles, and runs two state-carrying forward steps correctly for each supported architecture
+# that has no small (<=4B) checkpoint available.
+#
+# Format: arch,repo_id,filename[,mark,reason]
+#   arch     - architecture name (matches src/frontends/gguf/docs/supported_models.md)
+#   repo_id  - Hugging Face Hub repo hosting the .gguf file
+#   filename - the specific .gguf file to download from that repo
+#   mark     - optional: "skip" or "xfail"
+#   reason   - required if mark is set
+#
+# See src/frontends/gguf/docs/supported_models.md for the full architecture list and the
+# checkpoints this project validates them against.
+#
+# Runner sizing: these convert + compile in-process, so the driving cost is the peak
+# resident memory recorded in that document's memory table (the largest entry kept here,
+# muse-glimmer, peaks around 37 GiB) -- hence the 16-core/64 GiB nightly runner.
+olmoe,allenai/OLMoE-1B-7B-0924-Instruct-GGUF,olmoe-1b-7b-0924-instruct-q4_0.gguf
+qwen3-q1_0,prism-ml/Bonsai-8B-gguf,Bonsai-8B-Q1_0.gguf
+qwen35-bonsai-q1_0,prism-ml/Bonsai-27B-gguf,Bonsai-27B-Q1_0.gguf
+muse-glimmer,unsloth/Muse-Glimmer-30B-GGUF,Muse-Glimmer-30B-UD-Q4_K_XL.gguf
+qwen35-bonsai,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-Q2_g64.gguf
+ernie4_5-moe,bartowski/baidu_ERNIE-4.5-21B-A3B-PT-GGUF,baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf
+bailingmoe2,bartowski/inclusionAI_Ling-mini-2.0-GGUF,inclusionAI_Ling-mini-2.0-Q4_K_M.gguf
+mellum,bartowski/Mellum2-12B-A2.5B-Instruct-GGUF,Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+devstral-small,bartowski/mistralai_Devstral-Small-2507-GGUF,mistralai_Devstral-Small-2507-Q4_K_M.gguf
+devstral-small2,bartowski/mistralai_Devstral-Small-2-24B-Instruct-2512-GGUF,mistralai_Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf
+deepseek2-ocr,aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf,DeepSeek-OCR-2-Q4_K_M.gguf
+gpt-oss,unsloth/gpt-oss-20b-GGUF,gpt-oss-20b-Q4_K_M.gguf,skip,"Needs ~120 GiB peak anonymous RAM to convert and compile; the largest CI runner is 64 GiB"
+hunyuan-moe,unsloth/Hunyuan-A13B-Instruct-GGUF,Hunyuan-A13B-Instruct-Q2_K.gguf,skip,"80B MoE checkpoint requires a dedicated runner; file alone is 27.4 GiB"
+glm4moe,mradermacher/ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative-i1-GGUF,ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf,skip,"Pruned GLM-4.5-Air checkpoint requires a dedicated runner; file alone is 21.7 GiB"
+exaone-moe,mradermacher/K-EXAONE-236B-A23B-GGUF,K-EXAONE-236B-A23B.Q2_K.gguf,skip,"236B MoE checkpoint exceeds the 64 GiB nightly runner; file alone is 80.6 GiB"
+minimax-m2,mradermacher/MiniMax-M2.1-REAP-50-i1-GGUF,MiniMax-M2.1-REAP-50.i1-Q2_K.gguf,skip,"Pruned MiniMax-M2.1 checkpoint requires a dedicated runner; file alone is 39.6 GiB"
+jais2,mradermacher/JAIS2-IT-0.3-GGUF,JAIS2-IT-0.3.Q4_K_M.gguf
+nemotron_h,bartowski/nvidia_Nemotron-H-8B-Reasoning-128K-GGUF,nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf
+mamba2-2.7b,Nicholas55555/mamba2-2.7b-Q8_0-GGUF,mamba2-2.7b-q8_0.gguf

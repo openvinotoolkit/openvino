@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/loop.hpp"
+
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
@@ -10,30 +11,24 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/less.hpp"
-#include "openvino/op/loop.hpp"
 #include "openvino/op/slice.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ov::test::utils;
 
 namespace ov {
 namespace test {
 
-enum LOOP_IN_TYPE {
-    INVARIANT,
-    MERGED
-};
+enum LOOP_IN_TYPE { INVARIANT, MERGED };
 
-using LoopParams = typename std::tuple<
-        InputLayerType,                                                    // TripCount is a constant?
-        int64_t,                                                           // TripCount, -1 means infinity
-        bool,                                                              // Execution condition
-        std::vector<InputShape>,                                           // InputShapes
-        std::vector<LOOP_IN_TYPE>,                                         // Type
-        ElementType>;                                                      // Input element type
+using LoopParams = typename std::tuple<InputLayerType,             // TripCount is a constant?
+                                       int64_t,                    // TripCount, -1 means infinity
+                                       bool,                       // Execution condition
+                                       std::vector<InputShape>,    // InputShapes
+                                       std::vector<LOOP_IN_TYPE>,  // Type
+                                       ElementType>;               // Input element type
 
-
-class LoopLayerCPUTest : public testing::WithParamInterface<LoopParams>,
-                         virtual public SubgraphBaseTest {
+class LoopLayerCPUTest : public testing::WithParamInterface<LoopParams>, virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LoopParams>& obj) {
         const auto& [trip_count_type, trip_count, exec_cond, shapes, types, netType] = obj.param;
@@ -54,7 +49,7 @@ public:
         result << "exec_cond=" << exec_cond << "_";
         result << "netType=" << netType;
         return result.str();
-}
+    }
 
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -68,7 +63,8 @@ protected:
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = 1;
             in_data.range = 10;
-            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), funcInput.get_shape(), in_data);
+            ov::Tensor tensor =
+                ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), funcInput.get_shape(), in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
             i++;
         }
@@ -80,7 +76,9 @@ protected:
             in_data.start_from = 0;
             in_data.range = 15;
             in_data.resolution = 32768;
-            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                        targetInputStaticShapes[i],
+                                                                        in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -98,7 +96,7 @@ protected:
         // Body parameters
         const std::vector<ov::PartialShape> body_params_shapes(shapes.size(), ov::PartialShape::dynamic());
         ov::ParameterVector body_params;
-        for (const auto &pshape : body_params_shapes) {
+        for (const auto& pshape : body_params_shapes) {
             body_params.emplace_back(std::make_shared<ov::op::v0::Parameter>(netType, pshape));
         }
 
@@ -123,8 +121,7 @@ protected:
             Zo = std::make_shared<ov::op::v1::Add>(body_params[i], Zo);
         }
 
-        auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, Zo},
-                                                       body_params);
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, Zo}, body_params);
 
         auto loop = std::make_shared<ov::op::v5::Loop>(trip_count_input, exec_condition);
         loop->set_function(body);
@@ -175,8 +172,8 @@ protected:
         }
         // Body parameters
         const std::vector<ov::PartialShape> body_params_shapes(shapes.size(), ov::PartialShape::dynamic());
-        ov::ParameterVector body_params = { std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{}) };
-        for (const auto &pshape : body_params_shapes) {
+        ov::ParameterVector body_params = {std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{})};
+        for (const auto& pshape : body_params_shapes) {
             body_params.emplace_back(std::make_shared<ov::op::v0::Parameter>(inType, pshape));
         }
 
@@ -215,7 +212,7 @@ protected:
 
         auto result0 = std::make_shared<ov::op::v0::Result>(out0);
         auto result1 = std::make_shared<ov::op::v0::Result>(out1);
-        function = std::make_shared<ov::Model>(ov::ResultVector{ result0, result1 }, params, "loop");
+        function = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, params, "loop");
     }
 };
 
@@ -243,7 +240,7 @@ protected:
         // Body parameters
         const std::vector<ov::PartialShape> body_params_shapes(shapes.size(), ov::PartialShape::dynamic());
         ov::ParameterVector body_params;
-        for (const auto &pshape : body_params_shapes) {
+        for (const auto& pshape : body_params_shapes) {
             body_params.emplace_back(std::make_shared<ov::op::v0::Parameter>(inType, pshape));
         }
 
@@ -374,10 +371,12 @@ class StaticLoopDynamicSubgraphCPUTest : public SubgraphBaseTest {
         auto body_condition_const = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
         // Body parameters
-        ov::ParameterVector body_params = {std::make_shared<ov::op::v0::Parameter>(netType, ov::PartialShape{25, 1, -1})};
+        ov::ParameterVector body_params = {
+            std::make_shared<ov::op::v0::Parameter>(netType, ov::PartialShape{25, 1, -1})};
 
         // Body
-        auto broadcast_target_shape = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{25, 1, 256});
+        auto broadcast_target_shape =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{25, 1, 256});
         auto broadcast_axis_mapping = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 0);
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(body_params[0], broadcast_target_shape);
         auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, broadcast}, body_params);
@@ -411,7 +410,9 @@ class StaticLoopDynamicSubgraphCPUTest : public SubgraphBaseTest {
                 in_data.start_from = 0;
                 in_data.range = 2560;
                 in_data.resolution = 256;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -454,6 +455,124 @@ protected:
     }
 };
 
+using LoopZeroIterationsParams = typename std::tuple<int64_t,  // TripCount
+                                                     bool,     // Execution condition
+                                                     bool>;    // Static shapes
+
+// Loop which may not execute its body at all: either the trip count is zero or the initial execution
+// condition is false. A loop carried dependency output (a body output which is connected back to a merged
+// input) keeps the initial value of that merged input in such a case, so both its shape and its data have
+// to be taken from the corresponding node input. Otherwise the output shape is nullified to zeros and the
+// following eltwise fails on shape infer.
+//
+// With static shapes and a constant execution condition the node itself is fully static, exercising
+// TensorIterator::execute() instead of executeDynamicImpl().
+//
+//    Parameter(input)   Parameter or Constant(exec_cond)
+//        |             \                 /
+//        |              Loop(trip_count, exec_cond)   body: Add(body_param, 1.f) --+
+//        |                    |                                 ^                 |
+//        |                    |                                 +--- back edge ---+
+//        +-------- Add -------+
+//                   |
+//                 Result
+class LoopZeroIterationsCPUTest : public testing::WithParamInterface<LoopZeroIterationsParams>,
+                                  virtual public SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<LoopZeroIterationsParams>& obj) {
+        const auto& [trip_count, exec_cond, static_shapes] = obj.param;
+        std::ostringstream result;
+        result << "trip_count=" << trip_count << "_exec_cond=" << exec_cond << "_static_shapes=" << static_shapes;
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        const auto& [trip_count, exec_cond, static_shapes] = this->GetParam();
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        // the body is executed only if both the trip count and the execution condition allow it
+        executed_iterations = exec_cond ? trip_count : 0;
+
+        if (static_shapes) {
+            init_input_shapes({{{2, 3, 4}, {{2, 3, 4}}}});
+        } else {
+            InputShape input_shape = {{-1, -1, -1}, {{2, 3, 4}, {1, 5, 5}}};  // infer more than once
+            InputShape exec_cond_shape = {{1}, {{1}, {1}}};
+            init_input_shapes({input_shape, exec_cond_shape});
+        }
+
+        auto input = std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes[0]);
+        ov::ParameterVector params = {input};
+
+        // a constant execution condition (with static shapes) keeps the node static; a parameter one
+        // keeps the loop output shape dynamic
+        ov::Output<ov::Node> exec_condition;
+        if (static_shapes) {
+            exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, exec_cond);
+        } else {
+            auto exec_condition_param =
+                std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, inputDynamicShapes[1]);
+            params.push_back(exec_condition_param);
+            exec_condition = exec_condition_param;
+        }
+        auto trip_count_input = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, trip_count);
+
+        // Body: the loop carried value is incremented by 1 on each iteration
+        auto body_param = std::make_shared<ov::op::v0::Parameter>(netType, ov::PartialShape{-1, -1, -1});
+        auto body_condition_const = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
+        auto increment = std::make_shared<ov::op::v0::Constant>(netType, ov::Shape{1}, std::vector<float>{1.f});
+        auto body_add = std::make_shared<ov::op::v1::Add>(body_param, increment);
+        auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, body_add},
+                                                ov::ParameterVector{body_param});
+
+        auto loop = std::make_shared<ov::op::v5::Loop>(trip_count_input, exec_condition);
+        loop->set_function(body);
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
+        loop->set_merged_input(body_param, input, body_add);
+        auto loop_out = loop->get_iter_value(body_add, -1);
+
+        // the consumer of the loop output is the actual victim of a wrong output shape
+        auto add = std::make_shared<ov::op::v1::Add>(loop_out, input);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, params, "loop_zero_iterations");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        const auto& [trip_count, exec_cond, static_shapes] = this->GetParam();
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 10;
+        inputs.insert({funcInputs[0].get_node_shared_ptr(),
+                       ov::test::utils::create_and_fill_tensor(netType, targetInputStaticShapes[0], in_data)});
+
+        if (!static_shapes) {
+            ov::Tensor exec_cond_tensor(ov::element::boolean, targetInputStaticShapes[1]);
+            *exec_cond_tensor.data<bool>() = exec_cond;
+            inputs.insert({funcInputs[1].get_node_shared_ptr(), exec_cond_tensor});
+        }
+    }
+
+    // the reference implementation of Loop does not support zero iterations at all (it throws), so the
+    // expected values are calculated here: out = (input + executed_iterations) + input
+    std::vector<ov::Tensor> calculate_refs() override {
+        const auto& input = inputs.at(function->get_parameters().front());
+        ov::Tensor expected(input.get_element_type(), input.get_shape());
+
+        const auto* src = input.data<float>();
+        auto* dst = expected.data<float>();
+        for (size_t i = 0; i < input.get_size(); i++) {
+            dst[i] = src[i] + (src[i] + static_cast<float>(executed_iterations));
+        }
+
+        return {expected};
+    }
+
+    const ElementType netType = ov::element::f32;
+    int64_t executed_iterations = 0;
+};
 
 TEST_P(LoopLayerCPUTest, CompareWithRefs) {
     run();
@@ -483,218 +602,218 @@ TEST_F(LoopZeroDimBackEdgeCPUTest, smoke_ZeroDimBackEdgeNoCrash) {
     EXPECT_EQ(output_shape, expected_shape);
 }
 
+TEST_P(LoopZeroIterationsCPUTest, CompareWithRefs) {
+    run();
+}
+
 namespace {
 
-const std::vector<ElementType> inputPrecisions = {
-        ElementType::f32,
-        ElementType::bf16,
-        ElementType::i8
-};
+const std::vector<ElementType> inputPrecisions = {ElementType::f32, ElementType::bf16, ElementType::i8};
 
-std::vector<InputLayerType> trip_count_type { InputLayerType::CONSTANT, InputLayerType::PARAMETER };
-std::vector<int64_t> trip_count { 0, 1, 5 };
-std::vector<bool> exec_cond { true, false };
+std::vector<InputLayerType> trip_count_type{InputLayerType::CONSTANT, InputLayerType::PARAMETER};
+std::vector<int64_t> trip_count{0, 1, 5};
+std::vector<bool> exec_cond{true, false};
 
 // dim[axis] = 1 because loop supports concatenation only with stride = part_size = 1
 // the first loop suit test is with output concatenation
 std::vector<std::vector<InputShape>> inputs = {
-    {  //first test suit
-        {   //dynamic shape for first input
-            {-1, 1, -1},
-            { // target static shapes
-                {10, 1, 10},
-                {1, 1, 1},
-                {1, 1, 1},
-                {5, 1, 3}
-            }
-        },
-        {   //dynamic shape for second input
-            {-1, -1, -1},
-            { // target static shapes
-                {1, 1, 1},
-                {5, 1, 2},
-                {5, 1, 2},
-                {5, 1, 3}
-            }
-        },
-        {   //dynamic shape for third input
-            {-1, 1, -1},
-            { // target static shapes
-                {10, 1, 10},
-                {5, 1, 2},
-                {5, 1, 2},
-                {5, 1, 3}
-            }
-        }
-    },
+    { // first test suit
+     {// dynamic shape for first input
+      {-1, 1, -1},
+      {// target static shapes
+       {10, 1, 10},
+       {1, 1, 1},
+       {1, 1, 1},
+       {5, 1, 3}}},
+     {// dynamic shape for second input
+      {-1, -1, -1},
+      {// target static shapes
+       {1, 1, 1},
+       {5, 1, 2},
+       {5, 1, 2},
+       {5, 1, 3}}},
+     {// dynamic shape for third input
+      {-1, 1, -1},
+      {// target static shapes
+       {10, 1, 10},
+       {5, 1, 2},
+       {5, 1, 2},
+       {5, 1, 3}}}},
 
-    {  //second test suit
-        {   //dynamic shape for first input
-            {{1, 10}, 1, {1, 10}},
-            { // target static shapes
-                {8, 1, 8},
-                {1, 1, 1},
-                {1, 1, 1},
-                {1, 1, 1}
-            }
-        },
-        {   //dynamic shape for second input
-            {{1, 8}, 1, {1, 8}},
-            { // target static shapes
-                {8, 1, 8},
-                {1, 1, 1},
-                {1, 1, 1},
-                {5, 1, 3}
-            }
-        },
-        {   //dynamic shape for third input
-            {{1, 10}, -1, {1, 10}},
-            { // target static shapes
-                {8, 1, 8},
-                {1, 1, 1},
-                {1, 1, 1},
-                {5, 1, 3}
-            }
-        }
-    },
+    { // second test suit
+     {// dynamic shape for first input
+      {{1, 10}, 1, {1, 10}},
+      {// target static shapes
+       {8, 1, 8},
+       {1, 1, 1},
+       {1, 1, 1},
+       {1, 1, 1}}},
+     {// dynamic shape for second input
+      {{1, 8}, 1, {1, 8}},
+      {// target static shapes
+       {8, 1, 8},
+       {1, 1, 1},
+       {1, 1, 1},
+       {5, 1, 3}}},
+     {// dynamic shape for third input
+      {{1, 10}, -1, {1, 10}},
+      {// target static shapes
+       {8, 1, 8},
+       {1, 1, 1},
+       {1, 1, 1},
+       {5, 1, 3}}}},
 };
-std::vector<LOOP_IN_TYPE> types = {
-        LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::MERGED
-};
+std::vector<LOOP_IN_TYPE> types = {LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::INVARIANT, LOOP_IN_TYPE::MERGED};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LoopForCommon, LoopLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(trip_count_type),
-                                 ::testing::ValuesIn(trip_count),
-                                 ::testing::ValuesIn(exec_cond),
-                                 ::testing::ValuesIn(inputs),
-                                 ::testing::Values(types),
-                                 ::testing::ValuesIn(inputPrecisions)),
+INSTANTIATE_TEST_SUITE_P(smoke_LoopForCommon,
+                         LoopLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(trip_count_type),
+                                            ::testing::ValuesIn(trip_count),
+                                            ::testing::ValuesIn(exec_cond),
+                                            ::testing::ValuesIn(inputs),
+                                            ::testing::Values(types),
+                                            ::testing::ValuesIn(inputPrecisions)),
                          LoopLayerCPUTest::getTestCaseName);
 
-std::vector<std::vector<InputShape>> inputs_2 = {
-    {  //first test suit
-        {   //dynamic shape
-            {-1, -1},
-            { // target static shapes
-                {10, 10},
-                {1, 1},
-                {1, 1},
-                {5, 3}
-            }
-        },
-    },
+std::vector<std::vector<InputShape>> inputs_2 = {{
+                                                     // first test suit
+                                                     {// dynamic shape
+                                                      {-1, -1},
+                                                      {// target static shapes
+                                                       {10, 10},
+                                                       {1, 1},
+                                                       {1, 1},
+                                                       {5, 3}}},
+                                                 },
 
-    {  //second test suit
-        {   //dynamic shape
-            {{1, 10}, {1, 10}},
-            { // target static shapes
-                {5, 2},
-                {2, 5},
-                {5, 5},
-                {5, 5}
-            }
-        },
-    }
-};
+                                                 {
+                                                     // second test suit
+                                                     {// dynamic shape
+                                                      {{1, 10}, {1, 10}},
+                                                      {// target static shapes
+                                                       {5, 2},
+                                                       {2, 5},
+                                                       {5, 5},
+                                                       {5, 5}}},
+                                                 }};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LoopWhileCommon, LoopWhileLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Values(trip_count_type[0]),
-                                 ::testing::Values(-1),
-                                 ::testing::Values(true),
-                                 ::testing::ValuesIn(inputs_2),
-                                 ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
-                                 ::testing::ValuesIn(inputPrecisions)),
+INSTANTIATE_TEST_SUITE_P(smoke_LoopWhileCommon,
+                         LoopWhileLayerCPUTest,
+                         ::testing::Combine(::testing::Values(trip_count_type[0]),
+                                            ::testing::Values(-1),
+                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(inputs_2),
+                                            ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
+                                            ::testing::ValuesIn(inputPrecisions)),
                          LoopWhileLayerCPUTest::getTestCaseName);
 
 std::vector<std::vector<InputShape>> inputs_3 = {
-        {  // first test suit
-            {
-                {-1, -1, -1},
-                { // target static shapes
-                     {10, 1, 10},
-                     {1, 10, 1},
-                     {1, 10, 1},
-                     {2, 2, 2},
-                }
-            },
-        },
-        {  // second test suit
-            {
-                {{0, 10}, {0, 10}, {0, 10}},
-                { // target static shapes
-                     {10, 5, 10},
-                     {1, 10, 1},
-                     {1, 10, 1},
-                     {2, 1, 2},
-                }
-            },
-        },
+    {
+        // first test suit
+        {{-1, -1, -1},
+         {
+             // target static shapes
+             {10, 1, 10},
+             {1, 10, 1},
+             {1, 10, 1},
+             {2, 2, 2},
+         }},
+    },
+    {
+        // second test suit
+        {{{0, 10}, {0, 10}, {0, 10}},
+         {
+             // target static shapes
+             {10, 5, 10},
+             {1, 10, 1},
+             {1, 10, 1},
+             {2, 1, 2},
+         }},
+    },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LoopForDiffShapesConcat, LoopForDiffShapesLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(trip_count_type),
-                                 ::testing::ValuesIn(trip_count),
-                                 ::testing::ValuesIn(exec_cond),
-                                 ::testing::ValuesIn(inputs_3),
-                                 ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
-                                 ::testing::ValuesIn(inputPrecisions)),
+INSTANTIATE_TEST_SUITE_P(smoke_LoopForDiffShapesConcat,
+                         LoopForDiffShapesLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(trip_count_type),
+                                            ::testing::ValuesIn(trip_count),
+                                            ::testing::ValuesIn(exec_cond),
+                                            ::testing::ValuesIn(inputs_3),
+                                            ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
+                                            ::testing::ValuesIn(inputPrecisions)),
                          LoopLayerCPUTest::getTestCaseName);
 
 std::vector<std::vector<InputShape>> inputs_4 = {
-        {  // first test suit
-            {  // first input
-                {-1, 10, 10},
-                { // target static shapes
-                    {10, 10, 10},
-                    {5, 10, 10},
-                    {5, 10, 10},
-                    {8, 10, 10},
-                }
-            },
-            {  // second input
-                {-1, 10, 10},
-                { // target static shapes
-                    {0, 10, 10},
-                    {0, 10, 10},
-                    {0, 10, 10},
-                    {0, 10, 10},
-                }
-            },
-        },
-        {  // second test suit
-            {  // first input
-                {{0, 10}, 10, 10},
-                { // target static shapes
-                    {10, 10, 10},
-                    {5, 10, 10},
-                    {5, 10, 10},
-                    {8, 10, 10},
-                }
-            },
-            {  // second input
-                {-1, 10, 10},
-                { // target static shapes
-                    {0, 10, 10},
-                    {0, 10, 10},
-                    {0, 10, 10},
-                    {0, 10, 10},
-                }
-            },
-        },
+    {
+        // first test suit
+        {// first input
+         {-1, 10, 10},
+         {
+             // target static shapes
+             {10, 10, 10},
+             {5, 10, 10},
+             {5, 10, 10},
+             {8, 10, 10},
+         }},
+        {// second input
+         {-1, 10, 10},
+         {
+             // target static shapes
+             {0, 10, 10},
+             {0, 10, 10},
+             {0, 10, 10},
+             {0, 10, 10},
+         }},
+    },
+    {
+        // second test suit
+        {// first input
+         {{0, 10}, 10, 10},
+         {
+             // target static shapes
+             {10, 10, 10},
+             {5, 10, 10},
+             {5, 10, 10},
+             {8, 10, 10},
+         }},
+        {// second input
+         {-1, 10, 10},
+         {
+             // target static shapes
+             {0, 10, 10},
+             {0, 10, 10},
+             {0, 10, 10},
+             {0, 10, 10},
+         }},
+    },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LoopForConcat, LoopForConcatLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(trip_count_type),
-                                 ::testing::ValuesIn(trip_count),
-                                 ::testing::ValuesIn(exec_cond),
-                                 ::testing::ValuesIn(inputs_4),
-                                 ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
-                                 ::testing::ValuesIn(inputPrecisions)),
+INSTANTIATE_TEST_SUITE_P(smoke_LoopForConcat,
+                         LoopForConcatLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(trip_count_type),
+                                            ::testing::ValuesIn(trip_count),
+                                            ::testing::ValuesIn(exec_cond),
+                                            ::testing::ValuesIn(inputs_4),
+                                            ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
+                                            ::testing::ValuesIn(inputPrecisions)),
                          LoopLayerCPUTest::getTestCaseName);
+
+// trip_count == 0 and exec_cond == false both lead to zero iterations, exec_cond == true with a non zero
+// trip count is the control case where the body is really executed. Dynamic shapes drive executeDynamicImpl().
+INSTANTIATE_TEST_SUITE_P(smoke_LoopZeroIterations,
+                         LoopZeroIterationsCPUTest,
+                         ::testing::Combine(::testing::Values(static_cast<int64_t>(0), static_cast<int64_t>(3)),
+                                            ::testing::Values(false, true),
+                                            ::testing::Values(false)),
+                         LoopZeroIterationsCPUTest::getTestCaseName);
+
+// zero trip count with a constant exec_cond and static shapes keeps the node static, exercising execute()
+// instead of executeDynamicImpl()
+INSTANTIATE_TEST_SUITE_P(smoke_LoopZeroIterationsStatic,
+                         LoopZeroIterationsCPUTest,
+                         ::testing::Combine(::testing::Values(static_cast<int64_t>(0)),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true)),
+                         LoopZeroIterationsCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

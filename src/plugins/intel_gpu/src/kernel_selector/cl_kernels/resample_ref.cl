@@ -5,7 +5,7 @@
 #include "include/fetch_utils.cl"
 
 #ifdef RTE_OUTPUT
-    #define TO_OUTPUT_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
+    #define TO_OUTPUT_COMPUTE_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
 #endif
 
 inline int FUNC(get_nearest_val)(float num, bool is_downsample)
@@ -25,20 +25,49 @@ inline int FUNC(get_nearest_val)(float num, bool is_downsample)
 #endif
 }
 
+inline float FUNC(ref_divide)(float numerator, float denominator)
+{
+    volatile float numerator_value = numerator;
+    volatile float denominator_value = denominator;
+    volatile float quotient = numerator_value / denominator_value;
+    volatile float residual = numerator_value - quotient * denominator_value;
+    return quotient + residual / denominator_value;
+}
+
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
     if (scale == 1.0f)
         return num;
 #if defined(COORD_TRANS_MODE_HALF_PIXEL)
+#if RESAMPLE_USE_LEGACY_SCALE == 1
     return (num + 0.5f) * scale - 0.5f;
+#else
+    return FUNC_CALL(ref_divide)(num + 0.5f, scale) - 0.5f;
+#endif
 #elif defined(COORD_TRANS_MODE_PYTORCH_HALF_PIXEL)
+#if RESAMPLE_USE_LEGACY_SCALE == 1
     return (length_resized > 1) ? (num + 0.5f) * scale - 0.5f : 0.f;
+#else
+    return (length_resized > 1) ? FUNC_CALL(ref_divide)(num + 0.5f, scale) - 0.5f : 0.f;
+#endif
 #elif defined(COORD_TRANS_MODE_ASYMMETRIC)
+#if RESAMPLE_USE_LEGACY_SCALE == 1
     return num * scale;
+#else
+    return FUNC_CALL(ref_divide)(num, scale);
+#endif
 #elif defined(COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN)
+#if RESAMPLE_USE_LEGACY_SCALE == 1
     return (num + 0.5f) * scale;
+#else
+    return FUNC_CALL(ref_divide)(num + 0.5f, scale);
+#endif
 #elif defined(COORD_TRANS_MODE_ALIGN_CORNERS)
-    return (length_resized != 1) ? num * (length_original - 1) / (length_resized - 1) : 0.f;
+    if (length_resized == 1)
+        return 0.f;
+    if (num == 0.f || num == (float)(length_resized - 1))
+        return num == 0.f ? 0.f : (float)(length_original - 1);
+    return FUNC_CALL(ref_divide)((float)((int)num * (length_original - 1)), (float)(length_resized - 1));
 #else
 #error [clDNN resample_ref.cl]: coordinate transformation mode - not supported
 #endif
@@ -46,11 +75,54 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 
 inline void FUNC(get_cubic_coeff)(float* cubic_coef, float coord, float coef)
 {
+    // NOTE: The multiply-then-add/sub sequences below (e.g. "coef * x0 - 5.0f * coef")
+    // must be evaluated with separate rounding steps (as-if FP_CONTRACT/mad were OFF)
+    // to match the reference implementation bit-for-bit. Instead of disabling
+    // FP_CONTRACT/"-cl-mad-enable" for the whole translation unit (which would also
+    // block FMA/mad fusion for unrelated, perf-sensitive code), we locally block
+    // fusion only for these specific multiplications by routing *both* operands of
+    // every add/sub whose left- or right-hand side is itself a multiplication
+    // through a volatile temporary. This forces each multiplication to be
+    // rounded/stored (single rounding step) before it is combined with the
+    // following add/sub, regardless of which operand the compiler would have
+    // otherwise chosen to fuse.
     float abs_num = fabs(coord);
-    cubic_coef[0] = coef * (abs_num - 1.0) * (abs_num - 1.0) * abs_num;
-    cubic_coef[1] = ((coef + 2.0) * abs_num - (coef + 3.0)) * abs_num * abs_num + 1.0;
-    cubic_coef[2] = (((-coef - 2.0) * abs_num + (2.0 * coef + 3.0)) * abs_num - coef) * abs_num;
-    cubic_coef[3] = -coef * abs_num * abs_num * (abs_num - 1.0);
+    float x0 = abs_num + 1.0f;
+    float x1 = abs_num;
+    float x2 = 1.0f - abs_num;
+    float x3 = 2.0f - abs_num;
+
+    volatile float t0_m1 = coef * x0;
+    volatile float t0_c1 = 5.0f * coef;
+    float t0 = t0_m1 - t0_c1;
+    volatile float t0_m2 = t0 * x0;
+    volatile float t0_c2 = 8.0f * coef;
+    t0 = t0_m2 + t0_c2;
+    volatile float t0_m3 = t0 * x0;
+    volatile float t0_c3 = 4.0f * coef;
+    cubic_coef[0] = t0_m3 - t0_c3;
+
+    volatile float t1_m1 = (coef + 2.0f) * x1;
+    float t1 = t1_m1 - (coef + 3.0f);
+    t1 = t1 * x1;
+    volatile float t1_m2 = t1 * x1;
+    cubic_coef[1] = t1_m2 + 1.0f;
+
+    volatile float t2_m1 = (coef + 2.0f) * x2;
+    float t2 = t2_m1 - (coef + 3.0f);
+    t2 = t2 * x2;
+    volatile float t2_m2 = t2 * x2;
+    cubic_coef[2] = t2_m2 + 1.0f;
+
+    volatile float t3_m1 = coef * x3;
+    volatile float t3_c1 = 5.0f * coef;
+    float t3 = t3_m1 - t3_c1;
+    volatile float t3_m2 = t3 * x3;
+    volatile float t3_c2 = 8.0f * coef;
+    t3 = t3_m2 + t3_c2;
+    volatile float t3_m3 = t3 * x3;
+    volatile float t3_c3 = 4.0f * coef;
+    cubic_coef[3] = t3_m3 - t3_c3;
 }
 
 #define TRIANGLE_COEFF(x) (ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(x)))
@@ -80,18 +152,28 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     out_coords[1] = ((int)get_global_id(2) * PACK_SIZE) % OUTPUT_FEATURE_NUM;
     out_coords[0] = ((int)get_global_id(2) * PACK_SIZE) / OUTPUT_FEATURE_NUM;
     int in_coords[5];
+    int safe_in_coords[5];
     bool isOutOfBounds = false;
+#if RESAMPLE_FAST_NEAREST == 1
+    safe_in_coords[4] = (int)floor(out_coords[4] * SCALES[4]);
+    safe_in_coords[3] = (int)floor(out_coords[3] * SCALES[3]);
+    safe_in_coords[2] = (int)floor(out_coords[2] * SCALES[2]);
+    safe_in_coords[1] = out_coords[1];
+    safe_in_coords[0] = out_coords[0];
+#else
     unroll_for (int i = 0; i < 5; ++i) {
         const float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] +  PADS_END[i]);
-        const int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] > 1) - PADS_BEGIN[i];
-        in_coords[i] = max(-PADS_BEGIN[0], min(nearest_pixel, in_size[i] + PADS_END[i] - 1));
+        const int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] < 1) - PADS_BEGIN[i];
+        in_coords[i] = max(-PADS_BEGIN[i], min(nearest_pixel, in_size[i] + PADS_END[i] - 1));
+        safe_in_coords[i] = clamp(in_coords[i], 0, in_size[i] - 1);
 #if PADDING_USED == 1
         if (in_coords[i] < 0 || in_coords[i] >= in_size[i])
             isOutOfBounds = true;
 #endif
     }
+#endif
 
-    uint input_idx = FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], 0, in_coords[2], in_coords[3], in_coords[4]);
+    uint input_idx = FUNC_CALL(get_input_index)(safe_in_coords[0], safe_in_coords[1], 0, safe_in_coords[2], safe_in_coords[3], safe_in_coords[4]);
     uint output_idx = FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4]);
 
     in_pack_t interp_val_pack = ((const __global in_pack_t*)(input + input_idx))[0];
@@ -100,7 +182,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         INPUT0_TYPE interp_val = interp_val_pack[pi];
 #if PADDING_USED == 1
         if (isOutOfBounds)
-            interp_val = INPUT0_VAL_ZERO;
+            interp_val = TO_INPUT0_TYPE(INPUT0_VAL_ZERO);
 #endif
     #if HAS_FUSED_OPS
         #define batch (out_coords[0])
@@ -116,7 +198,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         #undef oy
         #undef ox
     #else // HAS_FUSED_OPS
-        res[pi] = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+        res[pi] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
     #endif // HAS_FUSED_OPS
     }
     ((__global out_pack_t*)(output + output_idx))[0] = res;
@@ -134,20 +216,30 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     out_coords[1] = (int)get_global_id(2) % OUTPUT_FEATURE_NUM;
     out_coords[0] = (int)get_global_id(2) / OUTPUT_FEATURE_NUM;
     int in_coords[5];
+    int safe_in_coords[5];
     bool isOutOfBounds = false;
+#if RESAMPLE_FAST_NEAREST == 1
+    safe_in_coords[4] = (int)floor(out_coords[4] * SCALES[4]);
+    safe_in_coords[3] = (int)floor(out_coords[3] * SCALES[3]);
+    safe_in_coords[2] = (int)floor(out_coords[2] * SCALES[2]);
+    safe_in_coords[1] = out_coords[1];
+    safe_in_coords[0] = out_coords[0];
+#else
     unroll_for (int i = 0; i < 5; ++i) {
         const float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
-        int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] > 1) - PADS_BEGIN[i];
+        int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] < 1) - PADS_BEGIN[i];
         in_coords[i] = max(-PADS_BEGIN[i], min(nearest_pixel, in_size[i] + PADS_END[i] - 1));
+        safe_in_coords[i] = clamp(in_coords[i], 0, in_size[i] - 1);
 #if PADDING_USED == 1
         if (in_coords[i] < 0 || in_coords[i] >= in_size[i])
             isOutOfBounds = true;
 #endif
     }
-    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], 0, in_coords[2], in_coords[3], in_coords[4])];
+#endif
+    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(safe_in_coords[0], safe_in_coords[1], 0, safe_in_coords[2], safe_in_coords[3], safe_in_coords[4])];
 #if PADDING_USED == 1
     if (isOutOfBounds)
-        interp_val = INPUT0_VAL_ZERO;
+        interp_val = TO_INPUT0_TYPE(INPUT0_VAL_ZERO);
 #endif
 #if HAS_FUSED_OPS
     #define batch (out_coords[0])
@@ -163,7 +255,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     #undef oy
     #undef ox
 #else // HAS_FUSED_OPS
-    OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+    OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(DECODE_INPUT0_COMPUTE_TYPE(interp_val)), ACTIVATION_PARAMS));
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_CUBIC) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
@@ -182,12 +274,38 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     float cubic_coeff[5][4];
     unroll_for (int i = 0; i < 5; ++i) {
         float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
+    #if SHAPE_CALC_MODE_SIZES && PADDING_USED == 1 && defined(COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN)
+        // Only re-derive the coordinate when the axis is actually being resized
+        // (SCALES[i] != 1.0f). get_original_coordinate() has its own early-out
+        // for unit scale (returns "num" as-is); axes that are only padded but not
+        // resized (e.g. explicit sizes matching the padded input size) must keep
+        // that behavior, otherwise an incorrect half-pixel shift would be applied.
+        if (SCALES[i] != 1.0f) {
+            if ((PADS_BEGIN[i] == 0) != (PADS_END[i] == 0)) {
+                // Split into separate statements (with a volatile intermediate)
+                // so the final "- PADS_BEGIN[i]" is not fused by the compiler
+                // with the preceding multiplication into a single FMA, which
+                // would change rounding relative to the reference.
+                volatile float scaled = ((float)out_coords[i] + 0.5f) / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
+                orig_coord = scaled - PADS_BEGIN[i];
+            } else if (PADS_BEGIN[i] != 0 && PADS_END[i] != 0) {
+                volatile float inv_scale = 1.0f / SCALES[i];
+                volatile float scaled = ((float)out_coords[i] + 0.5f) * inv_scale;
+                orig_coord = scaled - PADS_BEGIN[i];
+            }
+        }
+    #elif SHAPE_CALC_MODE_SIZES && PADDING_USED == 1 && defined(COORD_TRANS_MODE_ASYMMETRIC)
+        if (SCALES[i] != 1.0f) {
+            volatile float scaled = (float)out_coords[i] / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
+            orig_coord = scaled - PADS_BEGIN[i];
+        }
+    #endif
         in_coords[i] = floor(orig_coord);
         orig_coord = (orig_coord - in_coords[i]) * AXES_USED[i];
         FUNC_CALL(get_cubic_coeff)(cubic_coeff[i], orig_coord, CUBE_COEFF);
     }
 
-    INPUT0_TYPE interp_val = INPUT0_VAL_ZERO;
+    ACCUMULATOR_TYPE interp_val = ACCUMULATOR_VAL_ZERO;
     int index[5];
     unroll_for (index[0] = 0; index[0] <= 3; ++index[0]) {
         unroll_for (index[1] = 0; index[1] <= 3; ++index[1]) {
@@ -208,7 +326,11 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #if PADDING_USED == 1
                         if (!isOutOfBounds)
 #endif
-                            interp_val += coeff_prod * input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], 0, coords_sum[2], coords_sum[3], coords_sum[4])];
+                        {
+                            interp_val = fma((ACCUMULATOR_TYPE)coeff_prod,
+                                             (ACCUMULATOR_TYPE)DECODE_INPUT0_COMPUTE_TYPE(input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], 0, coords_sum[2], coords_sum[3], coords_sum[4])]),
+                                             interp_val);
+                        }
                     }
                 }
             }
@@ -229,7 +351,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     #undef oy
     #undef ox
 #else // HAS_FUSED_OPS
-    OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+    OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_LINEAR_ONNX) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
@@ -272,17 +394,17 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
 
     unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
-        INPUT0_TYPE top_left = tlOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)];
-        INPUT0_TYPE top_right = trOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)];
-        INPUT0_TYPE bottom_left = blOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)];
-        INPUT0_TYPE bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)];
+        INPUT0_COMPUTE_TYPE top_left = tlOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)]);
+        INPUT0_COMPUTE_TYPE top_right = trOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)]);
+        INPUT0_COMPUTE_TYPE bottom_left = blOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)]);
+        INPUT0_COMPUTE_TYPE bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)]);
 
 #else
     unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
-        INPUT0_TYPE top_left = input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)];
-        INPUT0_TYPE top_right = input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)];
-        INPUT0_TYPE bottom_left = input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)];
-        INPUT0_TYPE bottom_right = input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)];
+        INPUT0_COMPUTE_TYPE top_left = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)]);
+        INPUT0_COMPUTE_TYPE top_right = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)]);
+        INPUT0_COMPUTE_TYPE bottom_left = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)]);
+        INPUT0_COMPUTE_TYPE bottom_right = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)]);
 #endif
 
         ACCUMULATOR_TYPE interp_val = TO_ACCUMULATOR_TYPE(dx2 * dy2 * top_left) +
@@ -296,7 +418,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         #undef OF_ID
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
         output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
@@ -353,23 +475,23 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     bool FrontBottomLOutOfBounds = in_z2 < 0 || in_z2 >= in_size[2] || in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
     bool FrontBottomROutOfBounds = in_z2 < 0 || in_z2 >= in_size[2] || in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
 
-    OUTPUT_TYPE x111 = BackTopLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)];
-    OUTPUT_TYPE x211 = BackTopROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)];
-    OUTPUT_TYPE x121 = BackBottomLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)];
-    OUTPUT_TYPE x221 = BackBottomROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)];
-    OUTPUT_TYPE x112 = FrontTopLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)];
-    OUTPUT_TYPE x212 = FrontTopROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)];
-    OUTPUT_TYPE x122 = FrontBottomLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)];
-    OUTPUT_TYPE x222 = FrontBottomROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)];
+    OUTPUT_COMPUTE_TYPE x111 = BackTopLOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x211 = BackTopROutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x121 = BackBottomLOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x221 = BackBottomROutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x112 = FrontTopLOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x212 = FrontTopROutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x122 = FrontBottomLOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x222 = FrontBottomROutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)]);
 #else
-    OUTPUT_TYPE x111 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)];
-    OUTPUT_TYPE x211 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)];
-    OUTPUT_TYPE x121 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)];
-    OUTPUT_TYPE x221 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)];
-    OUTPUT_TYPE x112 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)];
-    OUTPUT_TYPE x212 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)];
-    OUTPUT_TYPE x122 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)];
-    OUTPUT_TYPE x222 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)];
+    OUTPUT_COMPUTE_TYPE x111 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x211 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x121 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x221 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x112 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x212 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x122 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x222 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)]);
 #endif
 
     ACCUMULATOR_TYPE interp_val = dx2 * dy2 * dz2 * x111 + dx1 * dy2 * dz2 * x211;
@@ -383,7 +505,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         #undef OF_ID
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
     output[OUTPUT_GET_INDEX(batch, feature, oz, oy, ox)] = res;
 #endif // #if OUTPUT_DIMS == 5
@@ -410,10 +532,10 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     const ACCUMULATOR_TYPE dy = TO_ACCUMULATOR_TYPE(iy - top_y_index);
 
     unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
-        INPUT0_TYPE top_left = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, left_x_index)];
-        INPUT0_TYPE top_right = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, right_x_index)];
-        INPUT0_TYPE bottom_left = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, left_x_index)];
-        INPUT0_TYPE bottom_right = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, right_x_index)];
+        INPUT0_COMPUTE_TYPE top_left = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, top_y_index, left_x_index)]);
+        INPUT0_COMPUTE_TYPE top_right = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, top_y_index, right_x_index)]);
+        INPUT0_COMPUTE_TYPE bottom_left = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, left_x_index)]);
+        INPUT0_COMPUTE_TYPE bottom_right = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, right_x_index)]);
 
         ACCUMULATOR_TYPE top = TO_ACCUMULATOR_TYPE(top_left) + (TO_ACCUMULATOR_TYPE(top_right) - TO_ACCUMULATOR_TYPE(top_left)) * dx;
         ACCUMULATOR_TYPE bottom = TO_ACCUMULATOR_TYPE(bottom_left) + (TO_ACCUMULATOR_TYPE(bottom_right) - TO_ACCUMULATOR_TYPE(bottom_left)) * dx;
@@ -426,7 +548,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         #undef OF_ID
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
         output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
@@ -499,11 +621,11 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     ACCUMULATOR_TYPE sum[fp_max] = {0};
     ACCUMULATOR_TYPE wsum[fp_max] = {0};
 
-    unroll_for(int b = b_init; b < b_max; b++) {
-        unroll_for(int f = f_init; f < f_max; f++) {
-            unroll_for(int z = z_init; z < z_max; z++) {
-                unroll_for(int y = y_init; y < y_max; y++) {
-                    unroll_for(int x = x_init; x < x_max; x++) {
+    for (int b = b_init; b < b_max; b++) {
+        for (int f = f_init; f < f_max; f++) {
+            for (int z = z_init; z < z_max; z++) {
+                for (int y = y_init; y < y_max; y++) {
+                    for (int x = x_init; x < x_max; x++) {
                         unroll_for(int fp = 0; fp < fp_max; fp++) {
 #if PADDING_USED == 1
                             bool isOutOfBounds = b < 0 || f < 0 || z < 0 || y < 0 || x < 0 ||
@@ -534,7 +656,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #if PADDING_USED == 1
                                 if (!isOutOfBounds)
 #endif
-                                    sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, 0, z, y, x)]);
+                                    sum[fp] += w * TO_ACCUMULATOR_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, 0, z, y, x)]));
                             }
                         }
                     }
@@ -550,7 +672,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         #undef OF_ID
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
         output[FUNC_CALL(get_output_index)(batch, feature + f, 0, oz, oy, ox)] = res;
     }

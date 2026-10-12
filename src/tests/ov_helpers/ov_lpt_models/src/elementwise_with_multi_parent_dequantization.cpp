@@ -13,9 +13,7 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ov::Model> ElementwiseWithMultiParentDequantizationFunction::get(
-    const ov::element::Type precision,
     const ov::Shape& inputShape,
-    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ov::element::Type& precision1,
     const ov::builder::subgraph::DequantizationOperations& dequantization1,
     const ov::element::Type& precision2,
@@ -30,8 +28,8 @@ std::shared_ptr<ov::Model> ElementwiseWithMultiParentDequantizationFunction::get
 
     const std::shared_ptr<ov::Node> parent1 = dequantization1.empty() ? multiply1 : makeDequantization(multiply1, dequantization1);
 
-    const auto input2_1 = std::make_shared<ov::opset1::Parameter>(precision1, inputShape);
-    const auto input2_2 = std::make_shared<ov::opset1::Parameter>(precision1, ov::Shape({ inputShape[0], inputShape[1], 1, 1 }));
+    const auto input2_1 = std::make_shared<ov::opset1::Parameter>(precision2, inputShape);
+    const auto input2_2 = std::make_shared<ov::opset1::Parameter>(precision2, ov::Shape({ inputShape[0], inputShape[1], 1, 1 }));
     const std::shared_ptr<ov::Node> multiply2 = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
         ov::opset1::Multiply(ov::op::TemporaryReplaceOutputType(input2_1, ov::element::f32).get(),
                              ov::op::TemporaryReplaceOutputType(input2_2, ov::element::f32).get()),

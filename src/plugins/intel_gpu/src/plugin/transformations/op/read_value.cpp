@@ -139,9 +139,8 @@ std::shared_ptr<Node> ReadValues::clone_with_new_inputs(const ov::OutputVector& 
 
     if (!new_args.empty()) {
         return std::make_shared<ReadValues>(new_args, m_variable, m_internal_states_infos);
-    } else {
-        return std::make_shared<ReadValues>(m_variable, m_internal_states_infos);
     }
+    return std::make_shared<ReadValues>(m_variable, m_internal_states_infos);
 }
 
 std::vector<ov::op::util::VariableInfo> ReadValues::get_all_internal_states_info() const {

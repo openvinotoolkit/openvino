@@ -32,11 +32,13 @@ static std::vector<format> supported_dynamic_fmts = {
 static std::vector<ov::element::Type_t> supported_in_types = {
     ov::element::f32,
     ov::element::f16,
+    ov::element::bf16,
 };
 
 static std::vector<ov::element::Type_t> supported_out_types = {
     ov::element::f32,
     ov::element::f16,
+    ov::element::bf16,
     ov::element::i8,
     ov::element::u8,
 };
@@ -53,10 +55,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<softm
                 if (!one_of(in_layout.data_type, supported_in_types))
                     return false;
 
-                if (!one_of(out_layout.data_type, supported_out_types))
-                    return false;
-
-                return true;
+                return one_of(out_layout.data_type, supported_out_types);
         })
         OV_GPU_CREATE_INSTANCE_OCL(ocl::SoftmaxImplementationManager, shape_types::dynamic_shape,
             [](const program_node& node) {
@@ -68,10 +67,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<softm
                 if (!one_of(in_layout.data_type, supported_in_types))
                     return false;
 
-                if (!one_of(out_layout.data_type, supported_out_types))
-                    return false;
-
-                return true;
+                return one_of(out_layout.data_type, supported_out_types);
         })
     };
 

@@ -198,8 +198,9 @@ struct Pad {
 
     static size_t NumPadOffsetsPerDim() { return 2; /*pad_before/pad_after*/}
     size_t Total(bool is_runtime = false) const {
-        if (!is_runtime)
+        if (!is_runtime) {
             OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
+        }
         return before + after;
     }
 };
@@ -490,8 +491,9 @@ protected:
         size_t channel = static_cast<size_t>(channelName);
 
         for (auto& entry : channelArr) {
-            if (entry.first == l)
+            if (entry.first == l) {
                 return entry.second[channel];
+            }
         }
 
         return -1;
@@ -510,9 +512,10 @@ protected:
                          std::end(channelArr),
                          [&](typename std::tuple_element<0, ArrayT>::type entry) { return entry.first == l; });
 
-        if (entry == channelArr.end())
+        if (entry == channelArr.end()) {
             throw std::invalid_argument("Failed to get channels count for layout " +
                                         std::to_string(static_cast<uint32_t>(l)));
+        }
 
         return std::accumulate(entry->second.begin(), entry->second.end(), 0U, [](uint32_t count, int v) {
             return count + ((v != -1) ? 1 : 0);

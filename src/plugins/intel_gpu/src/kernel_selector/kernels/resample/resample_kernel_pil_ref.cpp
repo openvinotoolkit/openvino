@@ -120,7 +120,7 @@ std::size_t GetLastRow(const resample_params& params) {
 }
 
 DataTensor GetIntermediateBufferSize(const resample_params& params) {
-    auto& output = params.outputs[0];
+    const auto& output = params.outputs[0];
     auto layout = output.GetLayout();
     auto ybox_first = GetFirstRow(params);
     auto ybox_last = GetLastRow(params);
@@ -129,7 +129,7 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
     OPENVINO_ASSERT(channelIndex >= 0, "Invalid layout channel index");
 
     dims[channelIndex] = ybox_last - ybox_first;
-    DataTensor result{dims, Datatype::F16, layout};
+    DataTensor result{dims, params.inputs[0].GetDType(), layout};
     return result;
 }
 
@@ -138,8 +138,10 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
 ParamsKey ResampleKernelPilRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
@@ -170,7 +172,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleHorizontal: {
-        auto& output = NeedVerticalPass(arg) ? GetIntermediateBufferSize(arg) : arg.outputs[0];
+        const auto& output = NeedVerticalPass(arg) ? GetIntermediateBufferSize(arg) : arg.outputs[0];
         auto in_layout = arg.inputs[0].GetLayout();
         auto out_layout = arg.outputs[0].GetLayout();
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
@@ -187,7 +189,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleVertical: {
-        auto& output = arg.outputs[0];
+        const auto& output = arg.outputs[0];
         auto in_layout = arg.inputs[0].GetLayout();
         auto out_layout = arg.outputs[0].GetLayout();
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
@@ -410,7 +412,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
             } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 6) {
                 idx_order = {"b", "f", "w", "z", "y", "x"};
             }
-            FusedOpsConfiguration conf = {"", idx_order, "ss", GetAccumulatorType(params), 1};
+            FusedOpsConfiguration conf = {"", idx_order, "resample_result", params.inputs[0].GetDType(), 1};
             jit_constants.Merge(MakeFusedOpsJitConstants(params, {conf}));
         }
     }
@@ -421,15 +423,17 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
 KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
     const resample_params& resample_parameters = static_cast<const resample_params&>(params);
     KernelData kd = KernelData::Default<resample_params>(params, GetKernelsNum(resample_parameters));
-    kd.internalBufferDataType = Datatype::F16;
+    kd.internalBufferDataType = resample_parameters.inputs[0].GetDType();
     int i = 0;
     for (ResampleKernelPilRef::KernelId id = eCalcHorizontalCoefficients; id < eEnd; ++id) {
         if (!NeedHorizontalPass(resample_parameters) &&
-            (id == eCalcHorizontalCoefficients || id == eResampleHorizontal))
+            (id == eCalcHorizontalCoefficients || id == eResampleHorizontal)) {
             continue;
+        }
         if (!NeedVerticalPass(resample_parameters) &&
-            (id == eCalcVerticalCoefficients || id == eResampleVertical))
+            (id == eCalcVerticalCoefficients || id == eResampleVertical)) {
             continue;
+        }
         auto& kernel = kd.kernels[i++];
         const auto entryPoint = GetEntryPoint(kernelName, resample_parameters.layerID, params, i);
         auto jitConstants = GetJitConstantsForKernel(id, resample_parameters);

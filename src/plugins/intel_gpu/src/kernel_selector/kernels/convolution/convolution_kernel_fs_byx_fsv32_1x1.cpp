@@ -57,8 +57,9 @@ DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_1x1::get_required_device_featur
 ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption ConvolutionKernel_fs_byx_fsv32_1x1::GetAutoTuneOptions(
     const Params& arg,
     int autoTuneIndex) const {
-    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size()))
+    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size())) {
         return autoTuneOptions[autoTuneIndex];
+    }
 
     const convolution_params& cp = static_cast<const convolution_params&>(arg);
 
@@ -127,21 +128,25 @@ KernelsPriority ConvolutionKernel_fs_byx_fsv32_1x1::GetKernelsPriority(const Par
 }
 
 bool ConvolutionKernel_fs_byx_fsv32_1x1::Validate(const Params& p) const {
-    if (!ConvolutionKernelBase::Validate(p))
+    if (!ConvolutionKernelBase::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
-    if (cp.filterSize.x != 1 || cp.filterSize.y != 1)
+    if (cp.filterSize.x != 1 || cp.filterSize.y != 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Output feature padding must be multiple of fsv to keep block alignment
-    if (cp.outputs[0].Feature().pad.before % fsv != 0)
+    if (cp.outputs[0].Feature().pad.before % fsv != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Input feature padding must be multiple of fsv to keep block alignment
-    if (cp.inputs[0].Feature().pad.before % fsv != 0)
+    if (cp.inputs[0].Feature().pad.before % fsv != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
