@@ -32,6 +32,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/tanh.hpp"
@@ -713,4 +714,58 @@ TEST(GroupQueryAttentionValues, qk_norm_fuses_to_rms_f32) {
 
 TEST(GroupQueryAttentionValues, qk_norm_fuses_to_rms_f16) {
     check_qk_norm_fuses_to_rms(element::f16);
+}
+
+namespace {
+std::shared_ptr<Model> make_qk_output_gqa_model(op::internal::GroupQueryAttentionQKOutput qk_output) {
+    const auto f32 = element::f32;
+    const auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, NUM_HEADS, -1, HEAD_SIZE});
+    const auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto past_k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto past_v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    const auto total = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto gqa = std::make_shared<GroupQueryAttention>(OutputVector{q, k, v, past_k, past_v, seqlens, total},
+                                                           NUM_HEADS,
+                                                           KV_NUM_HEADS,
+                                                           0.0f,
+                                                           false,
+                                                           false,
+                                                           0,
+                                                           op::internal::GroupQueryAttentionQuantType::NONE,
+                                                           op::internal::GroupQueryAttentionQuantType::NONE,
+                                                           -1,
+                                                           false,
+                                                           false,
+                                                           true,
+                                                           0.0f,
+                                                           1e-6f,
+                                                           qk_output);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    return std::make_shared<Model>(results, ParameterVector{q, k, v, past_k, past_v, seqlens, total});
+}
+}  // namespace
+
+// qk_output takes the explicit attention chain (one Q*K^T MatMul shared by the attention and the scores output,
+// no SDPA, no KV replication) and exposes the scores sliced to total_sequence_length columns.
+TEST(GroupQueryAttentionValues, qk_output_uses_explicit_attention_scores) {
+    for (const auto mode : {op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX,
+                            op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX}) {
+        auto model = make_qk_output_gqa_model(mode);
+        decompose(model);
+        EXPECT_EQ(count_ops_of_type<op::v13::ScaledDotProductAttention>(model), 0u);
+        EXPECT_EQ(count_ops_of_type<op::v0::MatMul>(model), 2u);
+        ASSERT_EQ(model->get_results().size(), 4u);
+        const auto scores = model->get_results()[3]->get_input_node_shared_ptr(0);
+        ASSERT_TRUE(is_type<op::v8::Slice>(scores)) << scores;
+        const auto source = scores->get_input_node_shared_ptr(0);
+        if (mode == op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX) {
+            EXPECT_TRUE(is_type<op::v8::Softmax>(source)) << source;
+        } else {
+            EXPECT_TRUE(is_type<op::v1::Select>(source)) << source;
+        }
+    }
 }

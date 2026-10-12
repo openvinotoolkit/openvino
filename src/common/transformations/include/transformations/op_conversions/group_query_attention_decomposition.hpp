@@ -41,17 +41,20 @@ protected:
                                                 bool is_causal,
                                                 int64_t local_window_size = -1,
                                                 const std::optional<CompressedKV>& compressed_kv = std::nullopt);
-    // Explicit attention for softcap > 0 (SDPA cannot soft-cap the logits):
-    // softmax(softcap * tanh(scale * Q * K^T / softcap) + mask [, sink]) * V. key/value keep kv_num_heads heads;
-    // query heads are grouped onto them by MatMul broadcasting, so the KV cache is never replicated.
-    std::shared_ptr<ov::Node> make_softcap_attention(const ov::Output<ov::Node>& query,
-                                                     const ov::Output<ov::Node>& key,
-                                                     const ov::Output<ov::Node>& value,
-                                                     const ov::Output<ov::Node>& mask,
-                                                     const ov::Output<ov::Node>& scale,
-                                                     const ov::Output<ov::Node>& sink,
-                                                     float softcap,
-                                                     int64_t kv_num_heads);
+    // Explicit attention for softcap > 0 or a qk_output request (SDPA can neither soft-cap nor expose the scores):
+    // softmax(cap(scale * Q * K^T) + mask [, sink]) * V, cap(x) = softcap * tanh(x / softcap) or x when softcap is 0.
+    // key/value keep kv_num_heads heads; query heads are grouped onto them by MatMul broadcasting, so the KV cache is
+    // never replicated. Returns {attention [B, N, S, D]} plus, when qk_output is set, the [B, N, S, L] scores taken
+    // from the same chain: the logits with masked positions zeroed (BEFORE_SOFTMAX) or the probabilities (AFTER).
+    ov::OutputVector make_explicit_attention(const ov::Output<ov::Node>& query,
+                                             const ov::Output<ov::Node>& key,
+                                             const ov::Output<ov::Node>& value,
+                                             const ov::Output<ov::Node>& mask,
+                                             const ov::Output<ov::Node>& scale,
+                                             const ov::Output<ov::Node>& sink,
+                                             float softcap,
+                                             int64_t kv_num_heads,
+                                             ov::op::internal::GroupQueryAttentionQKOutput qk_output);
 
     // QK-Norm: per-head RMSNorm over head_size, x * rsqrt(mean(x^2) + epsilon) * weight, computed in f32 like
     // ONNX Runtime and cast back to the input type. The base emits the primitive chain RMSFusion recognizes;
