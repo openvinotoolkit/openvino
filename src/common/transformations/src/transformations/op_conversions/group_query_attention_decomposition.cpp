@@ -27,6 +27,7 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -40,8 +41,10 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -91,7 +94,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto local_window_size = node->get_local_window_size();
     const auto smooth_softmax = node->get_smooth_softmax();
     const auto causal = node->get_causal();
-    // TODO: add softcap support
+    const auto softcap = node->get_softcap();
+    const bool use_softcap = softcap > 0.0f;
 
     const auto has_input = [&](const GQAInputs input_pos) {
         const auto pos = static_cast<size_t>(input_pos);
@@ -142,6 +146,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const bool shared_kv = node->is_shared_kv();
+    // A separate key/value with a dynamic length may resolve to 0 at runtime (ORT shared KV), so its own length
+    // drives the cache arithmetic: the past keeps total - S_kv rows while the causal offset stays total - S_q.
+    const bool independent_kv_len = node->has_independent_kv_length();
+    const auto kv_seqlen = independent_kv_len ? get_dimensions(register_new_node<v3::ShapeOf>(K), {2}) : nullptr;
     const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
     const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
 
@@ -171,14 +180,26 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
         const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
-        K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+        // Shared KV has no new keys: the past keys were already rotated when they were appended.
+        if (independent_kv_len) {
+            // The new keys sit at the same positions as the queries; take only the first S_kv rows (all of them
+            // unless S_kv resolves to 0 at runtime).
+            const auto cos_k = register_new_node<v8::Slice>(cos, zero, kv_seqlen, one, zero);
+            const auto sin_k = register_new_node<v8::Slice>(sin, zero, kv_seqlen, one, zero);
+            K = rotaryEmbedding(K, cos_k, sin_k, rotary_interleaved);
+        } else if (!shared_kv) {
+            K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+        }
     }
-    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
+    // A static past is a preallocated max-length buffer written in place. A zero-capacity past (an absent ONNX
+    // past or an empty cache) has nothing to write into, so it grows by concatenation instead.
+    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static() &&
+                                 past_key.get_partial_shape()[2].get_length() > 0;
 
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
     // verbatim (no re-rounding of past tokens). Matches ONNX Runtime MLAS/CUDA semantics.
-    if (kv_quantized) {
+    if (kv_quantized && !shared_kv) {
         K = quantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, kv_cache_type);
         V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
     }
@@ -192,7 +213,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> bias_col_offset = zero;
     ov::Output<ov::Node> present_k, present_v;
 
-    if (node->get_sliding_window_cache()) {
+    if (shared_kv) {
+        // Shared KV (ORT kv_sequence_length == 0): attend to the past buffer as is (zero copy) and return it
+        // unchanged as present. Rows at or beyond `total` are hidden by the explicit mask (causal offset
+        // total - S_q via mask_past_seqlen), so no Slice of the cache is needed.
+        K = past_key;
+        V = past_value;
+        present_k = past_key;
+        present_v = past_value;
+    } else if (node->get_sliding_window_cache()) {
         // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
         // row counts before/after appending the S new tokens (see windowed_cache_end).
         const auto capacity = get_dimensions(past_key.get_node_shared_ptr(), {2});
@@ -290,15 +319,22 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
         };
-        past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
-        past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
+        const ov::Output<ov::Node> kept_past = independent_kv_len
+                                                   ? register_new_node<v1::Subtract>(seqlens_1d, kv_seqlen)->output(0)
+                                                   : past_seqlen->output(0);
+        past_key = register_new_node<v8::Slice>(past_key, zero, kept_past, one, two);
+        past_value = register_new_node<v8::Slice>(past_value, zero, kept_past, one, two);
         K = construct_kv_cache(past_key, K);
         V = construct_kv_cache(past_value, V);
         present_k = K;
         present_v = V;
     }
 
-    const auto compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
+    // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
+    std::optional<CompressedKV> compressed_kv;
+    if (!use_softcap) {
+        compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
+    }
 
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
@@ -312,7 +348,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
-    if (kv_num_heads_factor > 1 && !compressed_kv) {
+    // The softcap chain groups query heads per KV head itself (no KV replication), see make_softcap_attention.
+    if (kv_num_heads_factor > 1 && !compressed_kv && !use_softcap) {
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);
         const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
@@ -334,18 +371,34 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
     const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
     const bool has_sink = has_head_sink || smooth_softmax;
-    const auto mask = make_attention_mask(curr_seqlen_scalar,
-                                          concat_kv_len_scalar,
-                                          concat_kv_len,
-                                          mask_past_seqlen,
-                                          T,
-                                          causal,
-                                          local_window_size,
-                                          external_bias,
-                                          bias_col_offset,
-                                          node->get_sliding_window_cache(),
-                                          scale,
-                                          has_sink);
+    // The softcap chain has no is_causal fallback, and shared KV must hide the past rows beyond `total`, so both
+    // always take the explicit (base) mask; overrides may otherwise drop it in favor of SDPA's causal flag.
+    const bool explicit_mask = use_softcap || shared_kv;
+    const auto mask = explicit_mask
+                          ? GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
+                                                                                  concat_kv_len_scalar,
+                                                                                  concat_kv_len,
+                                                                                  mask_past_seqlen,
+                                                                                  T,
+                                                                                  causal,
+                                                                                  local_window_size,
+                                                                                  external_bias,
+                                                                                  bias_col_offset,
+                                                                                  node->get_sliding_window_cache(),
+                                                                                  scale,
+                                                                                  has_sink)
+                          : make_attention_mask(curr_seqlen_scalar,
+                                                concat_kv_len_scalar,
+                                                concat_kv_len,
+                                                mask_past_seqlen,
+                                                T,
+                                                causal,
+                                                local_window_size,
+                                                external_bias,
+                                                bias_col_offset,
+                                                node->get_sliding_window_cache(),
+                                                scale,
+                                                has_sink);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
@@ -368,18 +421,22 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         }
     }
 
-    std::shared_ptr<ov::Node> qga_output;
-    if (sink.get_node_shared_ptr()) {
-        // SDPA's 6-input form requires an explicit scale; use the op scale or the default 1/sqrt(head_size).
-        ov::Output<ov::Node> scale_node;
+    // Explicit scale: the op scale or the default 1/sqrt(head_size).
+    const auto make_scale_node = [&]() -> ov::Output<ov::Node> {
         if (scale != 0.0f) {
-            scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        } else {
-            const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
-            const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
-            scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
+            return register_new_node(v0::Constant::create(T, Shape{}, {scale}));
         }
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, compressed_kv);
+        const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
+        const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
+        return register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
+    };
+
+    std::shared_ptr<ov::Node> qga_output;
+    if (use_softcap) {
+        qga_output = make_softcap_attention(Q, K, V, mask, make_scale_node(), sink, softcap, kv_num_heads);
+    } else if (sink.get_node_shared_ptr()) {
+        // SDPA's 6-input form requires an explicit scale.
+        qga_output = make_sdpa(Q, K, V, mask, make_scale_node(), sink, false, compressed_kv);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
         qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, compressed_kv);
@@ -415,6 +472,78 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(
         return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, is_causal);
     }
     return register_new_node<v13::ScaledDotProductAttention>(query, key, value, is_causal);
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_softcap_attention(
+    const ov::Output<ov::Node>& query,
+    const ov::Output<ov::Node>& key,
+    const ov::Output<ov::Node>& value,
+    const ov::Output<ov::Node>& mask,
+    const ov::Output<ov::Node>& scale,
+    const ov::Output<ov::Node>& sink,
+    float softcap,
+    int64_t kv_num_heads) {
+    // SDPA has no hook between Q*K^T and softmax, so softcap uses the explicit chain in ONNX Runtime order
+    // (gqa_attention_base.h): scale -> softcap * tanh(x / softcap) -> + bias/mask -> softmax (+ sink) -> * V.
+    const auto T = query.get_element_type();
+    // Grouped-query attention without replicating K/V: view Q [B, N, S, D] as [B, Nkv, G, S, D] (query head
+    // h = kv * G + g, matching ORT) and let MatMul broadcast it against K/V viewed as [B, Nkv, 1, L, D]. The
+    // reshapes are free views of contiguous tensors; scores are taken back to [B, N, S, L] for the mask/softmax.
+    const auto q_shape = register_new_node<v3::ShapeOf>(query);
+    const auto k_shape = register_new_node<v3::ShapeOf>(key);
+    const auto batch = get_dimensions(q_shape, {0});
+    const auto num_heads = get_dimensions(q_shape, {1});
+    const auto q_len_head = get_dimensions(q_shape, {2, 3});
+    const auto kv_len = get_dimensions(k_shape, {2});
+    const auto kv_heads = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads}));
+    const auto minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+    const auto axis_2 = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const auto grouped_q_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, kv_heads, minus_one, q_len_head}, 0);
+    const auto grouped_q = register_new_node<v1::Reshape>(query, grouped_q_shape, false);
+    const auto grouped_k = register_new_node<v0::Unsqueeze>(key, axis_2);
+    const auto grouped_v = register_new_node<v0::Unsqueeze>(value, axis_2);
+    const auto grouped_scores = register_new_node<v0::MatMul>(grouped_q, grouped_k, false, true);
+    const auto scores_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, num_heads, get_dimensions(q_shape, {2}), kv_len}, 0);
+    const auto scores = register_new_node<v1::Reshape>(grouped_scores, scores_shape, false);
+    const auto inv_cap = register_new_node(v0::Constant::create(T, Shape{}, {1.0f / softcap}));
+    const auto cap = register_new_node(v0::Constant::create(T, Shape{}, {softcap}));
+    const auto scaled = register_new_node<v1::Multiply>(scores, register_new_node<v1::Multiply>(scale, inv_cap));
+    std::shared_ptr<ov::Node> logits = register_new_node<v1::Multiply>(register_new_node<v0::Tanh>(scaled), cap);
+    logits = register_new_node<v1::Add>(logits, mask);
+    if (T != ov::element::f32) {
+        // The mask fills with the type's finite lowest(); keep lowest() + logit from overflowing to -inf in
+        // reduced precision, so a fully-masked row cannot softmax to NaN.
+        const auto lowest = T == ov::element::f16 ? static_cast<float>(std::numeric_limits<ov::float16>::lowest())
+                                                  : static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        logits = register_new_node<v1::Maximum>(logits, register_new_node(v0::Constant::create(T, Shape{}, {lowest})));
+    }
+
+    std::shared_ptr<ov::Node> probs;
+    if (sink.get_node()) {
+        // Append the per-head sink as one extra logit column, softmax over it, then drop it.
+        const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+        const auto three = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
+        const auto logits_shape = register_new_node<v3::ShapeOf>(logits);
+        const auto sink_shape =
+            register_new_node<v0::Concat>(ov::NodeVector{get_dimensions(logits_shape, {0, 1, 2}), one}, 0);
+        const auto sink_col = register_new_node<v3::Broadcast>(sink, sink_shape);
+        const auto with_sink = register_new_node<v0::Concat>(ov::OutputVector{logits, sink_col}, 3);
+        probs = register_new_node<v8::Softmax>(with_sink, -1);
+        probs = register_new_node<v8::Slice>(probs, zero, minus_one, one, three);
+    } else {
+        probs = register_new_node<v8::Softmax>(logits, -1);
+    }
+    const auto grouped_probs_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, kv_heads, minus_one, get_dimensions(q_shape, {2}), kv_len},
+                                      0);
+    const auto grouped_probs = register_new_node<v1::Reshape>(probs, grouped_probs_shape, false);
+    const auto grouped_out = register_new_node<v0::MatMul>(grouped_probs, grouped_v);
+    // [B, Nkv, G, S, D] -> [B, N, S, D]
+    const auto out_shape = register_new_node<v0::Concat>(ov::NodeVector{batch, num_heads, q_len_head}, 0);
+    return register_new_node<v1::Reshape>(grouped_out, out_shape, false);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_cache_end(
@@ -506,8 +635,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     const auto typed_zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
     // Finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN. The magnitude must
     // match the compute type so it does not overflow to -inf when narrowed: f16 and bf16 have far smaller
-    // ranges than f32. (The core op currently restricts the activation type to {f32, f16}, so bf16 is not
-    // yet reachable here, but keep an explicit branch so a future bf16 activation stays finite.)
+    // ranges than f32.
     std::shared_ptr<ov::Node> minus_inf;
     if (compute_type == ov::element::f16)
         minus_inf = register_new_node(
