@@ -1004,10 +1004,19 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
         // buffer -- not what the caller set. Hand back the exact user-owned tensor
         // instead; there is nothing to allocate on our side for the dynamic shape.
         auto it = m_dynamic_kv_cache_tensors.find(name);
-        OPENVINO_ASSERT(it != m_dynamic_kv_cache_tensors.end(),
-                        "GQA KV-cache '",
-                        name,
-                        "' has a dynamic max_seq_len; set_tensor() must be called before get_tensor()");
+        if (it == m_dynamic_kv_cache_tensors.end()) {
+            // get_tensor() was called before set_tensor() for this port -- this is a
+            // legitimate pattern for IO-binding-style callers that query/allocate the
+            // outer request's tensors up front. There's no user tensor yet, so allocate
+            // a private one shaped/typed like the inner request's static-capacity
+            // buffer; a later set_tensor() call simply replaces this entry.
+            const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
+            auto private_tensor =
+                ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor->get_element_type(), inner_tensor->get_shape()));
+            it = m_dynamic_kv_cache_tensors.emplace(name, private_tensor).first;
+            GQA_TRACE(
+                "    -> no set_tensor() yet, allocated private fallback tensor, shape=" << private_tensor->get_shape());
+        }
         GQA_TRACE("    -> returning previously set_tensor()'d user tensor, shape=" << it->second->get_shape());
         return it->second;
     }
