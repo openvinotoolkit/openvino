@@ -1353,6 +1353,10 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
             new_const = change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::f16>(constant);
         } else if (from == ov::element::f16 && to == ov::element::f32) {
             new_const = change_constant_precision<ov::element::Type_t::f16, ov::element::Type_t::f32>(constant);
+        } else if (from == ov::element::f32 && to == ov::element::bf16) {
+            new_const = change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::bf16>(constant);
+        } else if (from == ov::element::f16 && to == ov::element::bf16) {
+            new_const = change_constant_precision<ov::element::Type_t::f16, ov::element::Type_t::bf16>(constant);
         } else if (from == ov::element::boolean && to == ov::element::u8) {
             new_const = change_constant_precision<ov::element::Type_t::boolean, ov::element::Type_t::u8>(constant);
         } else if (from == ov::element::boolean && to == ov::element::i32) {
