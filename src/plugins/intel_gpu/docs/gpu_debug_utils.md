@@ -138,7 +138,7 @@ Region nodes connect directly where possible. FP16/FP32 Convert chains can be by
 
 ### Supported scope and limits
 
-Graph tests cover ordinary data operations, Split, TopK, Convert, internal RMS, GPU FullyConnected/FullyConnectedCompressed, Gemm, IndirectSDPA, and TypeRelaxed precision overrides. The pass updates recognized FP16 output precision attributes as well as output descriptors. These tests do not establish FP32 kernel support for every operation.
+The unit suite covers filtering, internal RMS and GPU FullyConnected precision attributes, TypeRelaxed overrides, mixed output types, internal and shared Convert edges, pass-through expansion, Placeholder inputs, and changed-output logs. Selected arithmetic graphs are also evaluated to check rounding and preservation of unselected branches. The pass updates recognized FP16 output precision attributes as well as output descriptors; these tests do not establish GPU kernel execution precision.
 
 Constant data, shared state (`ReadValue`/`Assign` and caches), and `Loop`/`If` boundaries are not fully supported. The pass does not recursively select operations inside subgraph bodies. Constant, state, and subgraph operations are excluded from precision attribute updates, but are not all excluded by the initial filters; avoid selecting them until coordinated type handling is implemented. Separate calculation attributes such as `RMSNorm::compute_type` are not updated.
 
