@@ -886,6 +886,28 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
     }
 }
 
+TEST_F(GQACompiledModelTest, RejectsDynamicAttentionBiasAxisThatIsNotTheCapacityAxis) {
+    // Regression test for review comment AlexanderKalistratov#4246980391 on PR
+    // openvinotoolkit/openvino#38304: GroupQueryAttentionDecomposition always reads the
+    // external attention_bias as [1, num_heads, curr_query_len, max_kv_len] -- the
+    // KV-cache-capacity dimension is always the LAST axis, never the query-length axis.
+    // A model whose attention_bias instead leaves axis 2 (query length) dynamic, with
+    // axis 3 (max_kv) static, must be rejected rather than have its query-length axis
+    // silently pinned to the full static capacity.
+    auto model = build_gqa_model_with_dynamic_attention_bias(/*dynamic_kv_cache=*/true);
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "attention_mask") {
+            // [1, 1, dynamic (query length), 8] -- dynamic axis moved off the last
+            // position, which is now statically 8 (not the KV-cache capacity axis).
+            parameter->set_partial_shape(ov::PartialShape{1, 1, ov::Dimension::dynamic(), 8});
+        }
+    }
+    model->validate_nodes_and_infer_types();
+
+    RecordingFactory recorder;
+    EXPECT_THROW(create_compiled_model(model, {}, recorder), ov::Exception);
+}
+
 namespace {
 // A minimal, fully working fake "inner" compiled model / infer request pair, used to
 // exercise GQAInferRequest::set_tensor()/get_tensor() end-to-end (as opposed to

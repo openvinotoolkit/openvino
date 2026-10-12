@@ -68,6 +68,25 @@ std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::sh
             continue;  // not fed directly by a Parameter; nothing we can reshape here
         }
         if (auto axis = resolve_dynamic_axis(bias_parameter)) {
+            // GroupQueryAttentionDecomposition consumes this input as
+            // [1, num_heads, curr_query_len, max_kv_len] (see its has_bias branch) -- the
+            // KV-cache-capacity dimension is always the LAST axis (max_kv_len), never the
+            // query-length axis. A naive "whichever single axis is dynamic" pick is wrong
+            // if a model instead leaves the query-length axis dynamic (e.g. a
+            // speculative-decode model with query_len > 1): pinning that axis to the full
+            // KV-cache capacity would silently corrupt the bias shape instead of raising a
+            // clear error.
+            const auto last_axis = bias_parameter->get_partial_shape().size() - 1;
+            OPENVINO_ASSERT(*axis == last_axis,
+                            "GQA attention-bias parameter '",
+                            bias_parameter->get_friendly_name(),
+                            "' has its dynamic dimension at axis ",
+                            *axis,
+                            ", but GroupQueryAttentionDecomposition always reads the KV-cache capacity from "
+                            "the last axis (",
+                            last_axis,
+                            ") of [1, num_heads, curr, max_kv]. Refusing to pin a non-capacity axis to the "
+                            "static context length.");
             result.emplace(bias_parameter->get_friendly_name(), *axis);
         }
     }
