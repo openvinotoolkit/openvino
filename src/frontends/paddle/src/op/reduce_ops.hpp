@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 
 template <typename T>
 NamedOutputs reduce_ops(const NodeContext& node) {
@@ -66,7 +63,4 @@ NamedOutputs reduce_ops(const NodeContext& node) {
     return node.default_single_output_mapping({result}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

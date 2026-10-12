@@ -575,7 +575,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, float_type_mismatch_among_query_key_value
                                        "same element type."));
 }
 
-TEST_F(TypePropPagedGatedDeltaNetTest, i64_integer_inputs) {
+TEST_F(TypePropPagedGatedDeltaNetTest, i64_integer_inputs_rejected) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 8});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 4, 16});
@@ -588,21 +588,19 @@ TEST_F(TypePropPagedGatedDeltaNetTest, i64_integer_inputs) {
     const auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
     const auto cache_interval = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
 
-    const auto op = make_op(OutputVector{query,
-                                         key,
-                                         value,
-                                         state,
-                                         gate,
-                                         beta,
-                                         subsequence_begins,
-                                         la_block_indices,
-                                         la_block_indices_begins,
-                                         processed_tokens,
-                                         cache_interval});
-
-    EXPECT_EQ(op->get_output_size(), 1);
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{10, 4, 16}));
+    OV_EXPECT_THROW(std::ignore = make_op(OutputVector{query,
+                                                       key,
+                                                       value,
+                                                       state,
+                                                       gate,
+                                                       beta,
+                                                       subsequence_begins,
+                                                       la_block_indices,
+                                                       la_block_indices_begins,
+                                                       processed_tokens,
+                                                       cache_interval}),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Integer inputs must have i32 element type"));
 }
 
 TEST_F(TypePropPagedGatedDeltaNetTest, subsequence_begins_incompatible_rank) {
@@ -658,7 +656,7 @@ TEST_F(TypePropPagedGatedDeltaNetTest, subsequence_begins_incompatible_type) {
                                                        processed_tokens,
                                                        cache_interval}),
                     NodeValidationFailure,
-                    testing::HasSubstr("Integer inputs must have i32 or i64 element type"));
+                    testing::HasSubstr("Integer inputs must have i32 element type"));
 }
 
 TEST_F(TypePropPagedGatedDeltaNetTest, q_l2norm_eps_incompatible_negative) {

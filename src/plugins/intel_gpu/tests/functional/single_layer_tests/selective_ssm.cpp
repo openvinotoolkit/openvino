@@ -102,11 +102,11 @@ std::pair<std::vector<float>, std::vector<float>> paged_reference(const std::vec
                                                                   const std::vector<float>& x,
                                                                   const std::vector<float>& C,
                                                                   std::vector<float> state,
-                                                                  const std::vector<int64_t>& subsequence_begins,
-                                                                  const std::vector<int64_t>& block_indices,
-                                                                  const std::vector<int64_t>& block_indices_begins,
-                                                                  const std::vector<int64_t>& processed_tokens,
-                                                                  const std::vector<int64_t>& cache_intervals,
+                                                                  const std::vector<int32_t>& subsequence_begins,
+                                                                  const std::vector<int32_t>& block_indices,
+                                                                  const std::vector<int32_t>& block_indices_begins,
+                                                                  const std::vector<int32_t>& processed_tokens,
+                                                                  const std::vector<int32_t>& cache_intervals,
                                                                   int32_t num_heads,
                                                                   int32_t num_groups,
                                                                   int32_t head_dim,
@@ -300,14 +300,14 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
 }
 
 TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
-    constexpr int64_t max_plugin_metadata = std::numeric_limits<int32_t>::max();
+    constexpr int32_t max_plugin_metadata = std::numeric_limits<int32_t>::max();
 
     struct PagedCase {
-        std::vector<int64_t> subsequences;
-        std::vector<int64_t> blocks;
-        std::vector<int64_t> block_begins;
-        std::vector<int64_t> processed;
-        std::vector<int64_t> intervals;
+        std::vector<int32_t> subsequences;
+        std::vector<int32_t> blocks;
+        std::vector<int32_t> block_begins;
+        std::vector<int32_t> processed;
+        std::vector<int32_t> intervals;
         size_t state_blocks;
         size_t num_heads;
         size_t num_groups;
@@ -322,7 +322,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
     auto C_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1});
     auto state_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1, -1});
     const auto index_param = [] {
-        return std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+        return std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
     };
     auto subsequence_param = index_param();
     auto blocks_param = index_param();
@@ -369,8 +369,8 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
         SCOPED_TRACE(device);
         auto compiled_model = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32));
         auto request = compiled_model.create_infer_request();
-        const auto set_index_input = [&request](size_t index, const std::vector<int64_t>& values) {
-            request.set_input_tensor(index, make_tensor<int64_t>(ov::element::i64, {values.size()}, values));
+        const auto set_index_input = [&request](size_t index, const std::vector<int32_t>& values) {
+            request.set_input_tensor(index, make_tensor<int32_t>(ov::element::i32, {values.size()}, values));
         };
         for (const auto& test_case : cases) {
             const auto tokens = static_cast<size_t>(test_case.subsequences.back());
@@ -485,7 +485,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMChainedStateMutation) {
     auto C_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, num_groups, state_size});
     auto state_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{state_blocks, num_heads, head_dim, state_size});
     const auto index_param = [](size_t size) {
-        return std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{size});
+        return std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{size});
     };
     auto subsequence_param = index_param(2);
     auto blocks_param = index_param(2);
@@ -533,11 +533,11 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMChainedStateMutation) {
     auto x = make_values(tokens * num_heads * head_dim, 0.013f);
     auto C = make_values(tokens * num_groups * state_size, 0.011f);
     auto state = make_values(state_blocks * num_heads * head_dim * state_size, 0.007f);
-    const std::vector<int64_t> subsequences{0, tokens};
-    const std::vector<int64_t> blocks{0, 0};
-    const std::vector<int64_t> block_begins{0, 2};
-    const std::vector<int64_t> processed{0};
-    const std::vector<int64_t> intervals{tokens};
+    const std::vector<int32_t> subsequences{0, tokens};
+    const std::vector<int32_t> blocks{0, 0};
+    const std::vector<int32_t> block_begins{0, 2};
+    const std::vector<int32_t> processed{0};
+    const std::vector<int32_t> intervals{tokens};
     const auto first_expected =
         paged_reference(A, dt, B, x, C, state, subsequences, blocks, block_begins, processed, intervals, num_heads, num_groups, head_dim, state_size);
     const auto second_expected = paged_reference(A,
@@ -569,11 +569,11 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMChainedStateMutation) {
         request.set_input_tensor(3, make_tensor<float>(ov::element::f32, {tokens, num_heads, head_dim}, x));
         request.set_input_tensor(4, make_tensor<float>(ov::element::f32, {tokens, num_groups, state_size}, C));
         request.set_input_tensor(5, state_tensor);
-        request.set_input_tensor(6, make_tensor<int64_t>(ov::element::i64, {subsequences.size()}, subsequences));
-        request.set_input_tensor(7, make_tensor<int64_t>(ov::element::i64, {blocks.size()}, blocks));
-        request.set_input_tensor(8, make_tensor<int64_t>(ov::element::i64, {block_begins.size()}, block_begins));
-        request.set_input_tensor(9, make_tensor<int64_t>(ov::element::i64, {processed.size()}, processed));
-        request.set_input_tensor(10, make_tensor<int64_t>(ov::element::i64, {intervals.size()}, intervals));
+        request.set_input_tensor(6, make_tensor<int32_t>(ov::element::i32, {subsequences.size()}, subsequences));
+        request.set_input_tensor(7, make_tensor<int32_t>(ov::element::i32, {blocks.size()}, blocks));
+        request.set_input_tensor(8, make_tensor<int32_t>(ov::element::i32, {block_begins.size()}, block_begins));
+        request.set_input_tensor(9, make_tensor<int32_t>(ov::element::i32, {processed.size()}, processed));
+        request.set_input_tensor(10, make_tensor<int32_t>(ov::element::i32, {intervals.size()}, intervals));
         request.infer();
 
         expect_tensor_near(request.get_output_tensor(0), second_expected.first);

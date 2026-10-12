@@ -84,9 +84,11 @@ private:
     const Vmm vmm_src1 = Vmm(1);
     const Vmm vmm_cos = Vmm(2);
     const Vmm vmm_sin = Vmm(3);
-    const Vmm vmm_dst0 = Vmm(4);
-    const Vmm vmm_dst1 = Vmm(5);
-    const Vmm vmm_idx = Vmm(7);
+    const Vmm vmm_cos1 = Vmm(4);
+    const Vmm vmm_sin1 = Vmm(5);
+    const Vmm vmm_dst0 = Vmm(6);
+    const Vmm vmm_dst1 = Vmm(7);
+    const Vmm vmm_idx = Vmm(8);
     const Xbyak::Reg64 reg_src = r8;
     const Xbyak::Reg64 reg_cos = r10;
     const Xbyak::Reg64 reg_sin = r11;
@@ -95,7 +97,7 @@ private:
 
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
     const std::vector<size_t> pool_aux_gpr_idxs = {static_cast<size_t>(rax.getIdx()), static_cast<size_t>(r9.getIdx())};
-    const std::vector<size_t> pool_aux_vmm_idxs = {6};
+    const std::vector<size_t> pool_aux_vmm_idxs = {9};
 };
 
 #endif

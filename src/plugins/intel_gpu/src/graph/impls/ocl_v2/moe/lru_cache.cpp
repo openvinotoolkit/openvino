@@ -11,14 +11,16 @@ LRUCache::LRUCache(size_t max_total_experts) : m_max_total_experts(max_total_exp
 }
 
 void LRUCache::move_to_end(std::list<Node>::iterator it) {
-    if (std::next(it) == m_list.end())
+    if (std::next(it) == m_list.end()) {
         return;
+    }
     m_list.splice(m_list.end(), m_list, it);
 }
 
 void LRUCache::evict_one_unlocked() {
-    if (m_list.empty())
+    if (m_list.empty()) {
         return;
+    }
 
     auto& oldest = m_list.front();
 

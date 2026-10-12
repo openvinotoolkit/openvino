@@ -103,12 +103,14 @@ struct activation_impl : public typed_primitive_impl<activation> {
         const auto* params = instance.get_impl_params();
 
         std::vector<memory::ptr> input_mem_ptrs;
-        for (size_t i = 0; i < instance.dependencies().size(); i++)
+        for (size_t i = 0; i < instance.dependencies().size(); i++) {
             input_mem_ptrs.push_back(instance.dep_memory_ptr(i));
+        }
 
         // TODO: consider to re-implement lock/unlock in more exception-safetest way
-        for (size_t i = 0; i < input_mem_ptrs.size(); i++)
+        for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+        }
 
         // Most of the evaluate functions expect same data type for all inputs, so we need to convert params from float
         auto param_a = static_cast<typename ov::element_type_traits<DT>::value_type>(additional_params.a);
@@ -122,8 +124,9 @@ struct activation_impl : public typed_primitive_impl<activation> {
                 input_host_tensors.push_back(ov::Tensor(input_dt, {}, &param_a));
             }
         } else if (activation_function == activation_func::swish) {
-            if (additional_params.a != 1.0f)
+            if (additional_params.a != 1.0f) {
                 input_host_tensors.push_back(ov::Tensor(input_dt, {}, &param_a));
+            }
         }
 
         auto output_mem_ptr = instance.output_memory_ptr();
@@ -134,8 +137,9 @@ struct activation_impl : public typed_primitive_impl<activation> {
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
                         "[GPU] Couldn't execute activation primitive with id ", instance.id());
 
-        for (size_t i = 0; i < input_mem_ptrs.size(); i++)
+        for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
             input_mem_ptrs[i]->unlock(stream);
+        }
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, activation_inst& instance) override {
