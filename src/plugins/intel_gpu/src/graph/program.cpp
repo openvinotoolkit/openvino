@@ -1495,6 +1495,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t dynamic_batch_onednn_conv_count = 0;
     bool has_sdpa = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
+    // Dynamic reorder and JIT pitch handling for this optimization support rank <= 4 only.
+    bool has_rank_gt4_data_flow = false;
 
     // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
     // For dynamic batches, this approach is inefficient.
@@ -1527,6 +1529,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 #endif
     for (const auto& node : get_processing_order()) {
         auto &prim = *node;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (prim.is_in_data_flow() && prim.get_output_layout().get_partial_shape().size() > 4) {
+            has_rank_gt4_data_flow = true;
+        }
+#endif
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
@@ -1776,6 +1783,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
     constexpr size_t max_byxf_onednn_conv_count = 5;
     bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
+        && !has_rank_gt4_data_flow
         && (total_non_byxf_onednn_conv_whitelist_layers == 0 ||
             (has_sdpa && dynamic_batch_onednn_conv_count <= max_byxf_onednn_conv_count));
     if (should_use_byxf_onednn_conv)
