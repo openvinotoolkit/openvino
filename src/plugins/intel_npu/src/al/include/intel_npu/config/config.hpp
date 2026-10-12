@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cassert>
+#include <cctype>
 #include <chrono>
 #include <functional>
 #include <iomanip>
@@ -70,8 +71,57 @@ TYPE_PRINTER(std::size_t)
 // OptionParser
 //
 
+namespace details {
+
+template <typename T, typename = void>
+struct IsIStreamable : std::false_type {};
+
 template <typename T>
-struct OptionParser;
+struct IsIStreamable<T, std::void_t<decltype(std::declval<std::istream&>() >> std::declval<T&>())>> : std::true_type {};
+
+// NB: detecting `operator<<` instead would be useless for unscoped enums, since those promote to their
+// underlying integral type and therefore always match one of the built-in `operator<<` overloads.
+template <typename T, typename = void>
+struct HasStringifyEnum : std::false_type {};
+
+template <typename T>
+struct HasStringifyEnum<T, std::void_t<decltype(stringifyEnum(std::declval<const T&>()))>> : std::true_type {};
+
+// `operator>>` stops at the first character it can't consume, so a successfully parsed prefix alone is not
+// enough to accept a value. Returns false when anything besides trailing whitespace is left in the stream.
+inline bool isFullyConsumed(std::istream& stream) {
+    for (auto next = stream.peek(); next != std::istream::traits_type::eof(); next = stream.peek()) {
+        if (!std::isspace(static_cast<unsigned char>(next))) {
+            return false;
+        }
+        stream.ignore();
+    }
+
+    return true;
+}
+
+}  // namespace details
+
+// Default parser, relies on the `operator>>` declared for the value type. All the `ov::` property enums and
+// wrappers provide one, so enum options usually don't need any parsing code of their own. Specialize this
+// template or override `parse()` inside the option for types which have no such operator.
+template <typename T>
+struct OptionParser {
+    static T parse(std::string_view val) {
+        static_assert(details::IsIStreamable<T>::value,
+                      "No `operator>>` is available for the option type, please provide either an `OptionParser` "
+                      "specialization or a `parse()` implementation inside the option");
+
+        std::istringstream stream{std::string(val)};
+        T res{};
+        stream >> res;
+        OPENVINO_ASSERT(!stream.fail(), "Value '", val, "' is not a valid option value");
+        // Reject values whose prefix alone is valid, e.g. "PLUGIN garbage" for an enum option
+        OPENVINO_ASSERT(details::isFullyConsumed(stream), "Value '", val, "' is not a valid option value");
+
+        return res;
+    }
+};
 
 template <>
 struct OptionParser<std::string> final {
@@ -110,16 +160,6 @@ struct OptionParser<double> final {
     static double parse(std::string_view val);
 };
 
-template <>
-struct OptionParser<ov::log::Level> final {
-    static ov::log::Level parse(std::string_view val);
-};
-
-template <>
-struct OptionParser<ov::hint::ExecutionMode> final {
-    static ov::hint::ExecutionMode parse(std::string_view val);
-};
-
 void splitAndApply(const std::string& str, char delim, std::function<void(std::string_view)> callback);
 
 template <typename T>
@@ -153,10 +193,11 @@ struct OptionParser<std::map<K, V>> final {
 template <typename Rep, typename Period>
 struct OptionParser<std::chrono::duration<Rep, Period>> final {
     static std::chrono::duration<Rep, Period> parse(std::string_view val) {
-        std::istringstream stream(val.data());
+        std::istringstream stream{std::string(val)};
 
         Rep count{};
-        if (stream >> count) {
+        // Anything left in the stream means the value is malformed, e.g. "12oops"
+        if (stream >> count && details::isFullyConsumed(stream)) {
             OPENVINO_ASSERT(count >= 0,
                             "Value '",
                             count,
@@ -164,7 +205,7 @@ struct OptionParser<std::chrono::duration<Rep, Period>> final {
             return std::chrono::duration<Rep, Period>(count);
         }
 
-        OPENVINO_THROW("Can't parse '", val.data(), "' as time duration");
+        OPENVINO_THROW("Can't parse '", val, "' as time duration");
     }
 };
 
@@ -178,7 +219,8 @@ struct OptionPrinter final {
         std::stringstream ss;
         if constexpr (std::is_floating_point_v<std::decay_t<T>>) {
             ss << std::fixed << std::setprecision(2) << val;
-        } else if constexpr (std::is_enum_v<std::decay_t<T>>) {
+        } else if constexpr (std::is_enum_v<std::decay_t<T>> && details::HasStringifyEnum<std::decay_t<T>>::value) {
+            // A `stringifyEnum` overload wins over an `operator<<`, enums are expected to provide either of the two
             ss << stringifyEnum(val);
         } else {
             ss << val;
@@ -219,16 +261,6 @@ struct OptionPrinter<std::chrono::duration<Rep, Period>> final {
     }
 };
 
-template <>
-struct OptionPrinter<ov::log::Level> final {
-    static std::string toString(ov::log::Level val);
-};
-
-template <>
-struct OptionPrinter<ov::hint::ExecutionMode> final {
-    static std::string toString(ov::hint::ExecutionMode val);
-};
-
 //
 // OptionMode
 //
@@ -260,6 +292,7 @@ struct OptionBase {
         static_assert(TypePrinter<T>::hasName(),
                       "Options type is not a standard type, please add `getTypeName()` to your option");
     }
+
     // Overload this to provide environment variable support.
     static std::string_view envVar() {
         return "";
@@ -287,26 +320,6 @@ struct OptionBase {
     // Overload this to provide more specific implementation.
     static OptionMode mode() {
         return OptionMode::Both;
-    }
-
-    // Overload this for public options.
-    static bool isPublic() {
-        return false;
-    }
-
-    // Overload this for read-only options (metrics)
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RW;
-    }
-
-    static bool isValueSupported(std::string_view val) {
-        try {
-            (void)ActualOpt::parse(val);
-            return true;
-        } catch (...) {
-            // failed to parse, return false below
-        }
-        return false;
     }
 
     static std::string toString(const ValueType& val) {
@@ -370,28 +383,40 @@ struct OptionConcept final {
     std::string_view (*key)() = nullptr;
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
-    bool (*isPublic)() = nullptr;
-    ov::PropertyMutability (*mutability)() = nullptr;
-    bool (*isValueSupportedImpl)(std::string_view val) =
-        nullptr;  // better make this private, but won't be able to use aggregate initialization anymore in
-                  // "makeOptionModel"
-    std::shared_ptr<OptionValue> (*validateAndParseFromString)(std::string_view val) = nullptr;
-    std::shared_ptr<OptionValue> (*validateAndParseFromAny)(const ov::Any& val) = nullptr;
-    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt;
-    bool isValueSupported(std::string_view val) {
-        if (customValueCheckerOpt.has_value()) {
-            return customValueCheckerOpt.value()(val);
-        }
-        return isValueSupportedImpl(val);
-    }
+    std::shared_ptr<OptionValue> (*validateAndParse)(const ov::Any& val) = nullptr;
 };
 
+// `ov::Any::as<std::string>()` is lenient where the option parsers are not: it yields an empty string both
+// for an empty `ov::Any` and for a payload whose type provides neither `operator<<` nor an
+// `ov::util::Write` specialization (its `print()` is then a no-op). Parsers which accept an empty spelling as
+// "nothing to parse" (`std::string`, `std::vector`, `std::map`) would silently turn such a payload into an
+// empty option value, so reject it here instead. An empty spelling is only let through when it really was
+// given as a string.
+inline std::string stringifyForParsing(const ov::Any& val) {
+    OPENVINO_ASSERT(!val.empty(), "No value was provided");
+
+    auto valAsString = val.as<std::string>();
+    OPENVINO_ASSERT(!valAsString.empty() || val.is<std::string>(),
+                    "Value of type '",
+                    val.type_info().name(),
+                    "' can't be converted to a string");
+
+    return valAsString;
+}
+
 template <class Opt>
-std::shared_ptr<OptionValue> validateAndParseFromString(std::string_view val) {
+std::shared_ptr<OptionValue> validateAndParse(const ov::Any& val) {
     using ValueType = typename Opt::ValueType;
 
     try {
-        auto parsedVal = Opt::parse(val);
+        // Only a payload which already has the option's exact type is taken as is. Everything else - the string
+        // spellings coming from `update()` as well as any other type - is routed through the option's own
+        // parser, so that string based and `ov::Any` based updates accept exactly the same values and any
+        // custom `parse()` is honored. `ov::Any::as<ValueType>()` would otherwise perform an unchecked
+        // arithmetic conversion (e.g. -2.0f silently wrapping around into a `uint32_t`, which then passes the
+        // option validation) or re-parse a string on its own, through `operator>>`, bypassing the option
+        // entirely. For options which are themselves strings the parser is an identity conversion.
+        auto parsedVal = val.is<ValueType>() ? val.as<ValueType>() : Opt::parse(stringifyForParsing(val));
         Opt::validateValue(parsedVal);
         return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
     } catch (const std::exception& e) {
@@ -400,30 +425,8 @@ std::shared_ptr<OptionValue> validateAndParseFromString(std::string_view val) {
 }
 
 template <class Opt>
-std::shared_ptr<OptionValue> validateAndParseFromAny(const ov::Any& val) {
-    using ValueType = typename Opt::ValueType;
-
-    try {
-        auto parsedVal = val.as<ValueType>();
-        Opt::validateValue(parsedVal);
-        return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
-    } catch (const std::exception& e) {
-        OPENVINO_THROW("Failed to parse '", Opt::key().data(), "' option : ", e.what());
-    }
-}
-
-template <class Opt>
-OptionConcept makeOptionModel(
-    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt) {
-    return {&Opt::key,
-            &Opt::envVar,
-            &Opt::mode,
-            &Opt::isPublic,
-            &Opt::mutability,
-            &Opt::isValueSupported,
-            &validateAndParseFromString<Opt>,
-            &validateAndParseFromAny<Opt>,
-            std::move(customValueCheckerOpt)};
+OptionConcept makeOptionModel() {
+    return {&Opt::key, &Opt::envVar, &Opt::mode, &validateAndParse<Opt>};
 }
 
 }  // namespace details
@@ -435,15 +438,11 @@ OptionConcept makeOptionModel(
 class OptionsDesc final {
 public:
     template <class Opt>
-    void add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt);
+    void add();
 
     bool has(std::string_view key) const;
 
     void reset();
-
-    std::vector<std::string> getSupported(bool includePrivate = false) const;
-    std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
-    std::string getSupportedAsString(bool includePrivate = false) const;
 
     details::OptionConcept get(std::string_view key) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
@@ -455,9 +454,9 @@ private:
 };
 
 template <class Opt>
-void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt) {
+void OptionsDesc::add() {
     OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
-    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>(std::move(customValueCheckerOpt))});
+    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
         OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
@@ -472,45 +471,137 @@ void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> custo
 // Config
 //
 
-class Config {
+class Config final {
 public:
     using ConfigMap = std::map<std::string, std::string>;
-    using ImplMap = std::unordered_map<std::string_view, std::shared_ptr<details::OptionValue>>;
 
+    /**
+     * @brief Constructs a configuration bound to the given options descriptor.
+     * @param desc Descriptor holding the set of options accepted by this configuration. Must not be null.
+     */
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
+    /**
+     * @brief Parses and stores all the given key/value pairs, overwriting previously set values.
+     * @param options Map of option keys to their string representation.
+     */
     void update(const ConfigMap& options);
-    void updateAny(const ov::AnyMap& options);
 
-    void update(std::string_view key, std::string_view value);
-    void updateAny(std::string_view key, const ov::Any& value);
+    /**
+     * @brief Parses and stores a single option value, overwriting a previously set one.
+     * @param key The key of the option to set.
+     * @param value The value to set, in its native "ov::Any" representation.
+     */
+    void update(std::string_view key, const ov::Any& value);
 
+    /**
+     * @brief Sets the options for which an associated environment variable is defined and exported.
+     * Values which cannot be parsed are ignored and only reported as warnings.
+     */
     void parseEnvVars();
 
+    /**
+     * @brief Checks if a value has been set for the given option.
+     * @tparam Opt The option to check.
+     * @return True if a value was set, false if only the default value (if any) is available.
+     */
     template <class Opt>
     bool has() const;
 
-    bool has(std::string key) const;
-    void remove(std::string key);
+    /**
+     * @brief Checks if a value has been set for the option identified by the given key.
+     * @param key The key of the option to check.
+     * @return True if a value was set, false if only the default value (if any) is available.
+     */
+    bool has(std::string_view key) const;
 
+    /**
+     * @brief Erases the value set for the given option key. Does nothing if no value was set.
+     * @param key The key of the option to erase.
+     */
+    void remove(std::string_view key);
+
+    /**
+     * @brief Removes all compile-time and internal compiler configuration entries.
+     * This is used when a compiler type is not explicitly selected and the config must be reset
+     * to a runtime-only state.
+     */
+    void removeCompileTimeConfigs();
+
+    /**
+     * @brief Retrieves the value of the given option, falling back to its default value if none was set.
+     * @tparam Opt The option to retrieve.
+     * @return The option's value.
+     * @throws ov::Exception If no value was set and the option has no default value.
+     */
     template <class Opt>
     typename Opt::ValueType get() const;
 
+    /**
+     * @brief Retrieves the value of the given option as a string, using the same fallback rules as "get".
+     * @tparam Opt The option to retrieve.
+     * @return The string representation of the option's value.
+     */
     template <class Opt>
     typename std::string getString() const;
 
+    /**
+     * @brief Restores the configuration from a string previously produced by "toString".
+     * @param str A space-separated sequence of KEY="VALUE" entries.
+     */
     void fromString(const std::string& str);
 
     // Returns a string with all config keys which have set values
     std::string toString() const;
 
-    virtual ~Config() = default;
+    /**
+     * @brief Checks if a specific option exists in the configuration's descriptor.
+     * @param key The key of the option to check.
+     * @return True if the option exists, false otherwise.
+     */
+    bool hasOpt(std::string_view key) const;
 
-protected:
-    std::shared_ptr<const OptionsDesc> _desc;
-    ImplMap _impl;
+    /**
+     * @brief Retrieves the OptionBase concept associated with a specific option. Used to check option details.
+     * @param key The key of the option to retrieve.
+     * @return The `OptionConcept` object representing the option's details.
+     */
+    details::OptionConcept getOpt(std::string_view key) const;
+
+    /**
+     * @brief Adds or updates an internal configuration value for compiler-specific needs.
+     * @param key The key of the internal configuration to add or update.
+     * @param value The value to set for the internal configuration.
+     */
+    void addOrUpdateInternal(std::string key, std::string value);
+
+    /**
+     * @brief Checks if an internal compiler configuration exists.
+     * @param key The key of the internal configuration to check.
+     * @return True if the internal configuration exists, false otherwise.
+     */
+    bool hasInternal(std::string_view key) const;
+
+    /**
+     * @brief Retrieves an internal configuration value by its key.
+     * @param key The key of the internal configuration to retrieve.
+     * @return The value associated with the specified internal configuration key.
+     */
+    std::string getInternal(std::string_view key) const;
+
+    /**
+     * @brief Generates a compiler configuration string for options supported by the current compiler.
+     * @param isSupported Predicate used to filter compile-time and internal compiler options.
+     * @return A string containing the supported configuration keys and values.
+     */
+    std::string toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const;
 
 private:
+    std::shared_ptr<const OptionsDesc> _desc;
+    std::unordered_map<std::string_view, std::shared_ptr<details::OptionValue>> _impl;
+
+    ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
+
     Logger _log{Logger::global().clone("Config")};
 };
 
@@ -567,11 +658,5 @@ typename std::string Config::getString() const {
 
     return Opt::toString(value);
 }
-
-//
-// envVarStrToBool
-//
-
-bool envVarStrToBool(const char* varName, const char* varValue);
 
 }  // namespace intel_npu
