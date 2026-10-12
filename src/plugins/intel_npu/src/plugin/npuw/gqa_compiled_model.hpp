@@ -75,6 +75,10 @@ private:
     // Names currently aliased directly onto the inner request's own tensor (no
     // trimming needed) rather than a private buffer; never set_shape() these.
     mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_aliased;
+    // Present-output names the caller explicitly set_tensor()'d (IO-binding style):
+    // forwarded straight to the inner request's own port, so refresh_present_tensors_locked()
+    // must not republish a separately-trimmed copy under this name afterwards.
+    mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_externally_set;
 
     ov::SoPtr<ov::ITensor> get_present_tensor_locked(const std::string& name) const;
     // Reads the live value of the Parameter feeding the GQA op's TOTAL_SEQUENCE_LENGTH

@@ -966,6 +966,58 @@ TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTenso
     ASSERT_NO_THROW(request->infer());
 }
 
+TEST_F(GQACompiledModelTest, SetTensorOnDynamicPresentOutputIsHonoredByGetTensorAfterInfer) {
+    // Regression test for a bug where present_* outputs (not tracked by
+    // m_dynamic_kv_cache_axes, which only covers inputs) fell through to the generic
+    // "forward as-is" branch: the caller's tensor got bound to the inner request's port
+    // (fine, matches real IO-binding usage), but refresh_present_tensors_locked() would
+    // then still republish its own *separately-trimmed* tensor under the same name once
+    // past_len < capacity -- silently diverging from the exact tensor object the caller
+    // set and keeps reading from.
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+        model,
+        m_plugin,
+        ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+        fake_inner_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+
+    ov::Output<const ov::Node> past_key_port, present_key_port;
+    for (const auto& input : compiled->inputs()) {
+        if (input.get_node()->get_friendly_name() == "past_keys_0") {
+            past_key_port = input;
+        }
+    }
+    for (const auto& output : compiled->outputs()) {
+        if (output.get_node()->get_friendly_name() == "present_keys_0") {
+            present_key_port = output;
+        }
+    }
+    ASSERT_TRUE(past_key_port.get_node());
+    ASSERT_TRUE(present_key_port.get_node());
+
+    // A short past tensor (4 of 16 capacity) would normally make
+    // refresh_present_tensors_locked() trim the present output down to a fresh,
+    // separately-allocated buffer.
+    auto short_past = make_f16_kv_cache_tensor({1, 2, 4, 16}, /*start_val=*/0.f);
+    request->set_tensor(past_key_port, short_past);
+
+    // The caller IO-binds the present output to its own full-capacity buffer, as real
+    // apps do.
+    auto caller_present = make_f16_kv_cache_tensor({1, 2, 16, 16}, /*start_val=*/0.f);
+    ASSERT_NO_THROW(request->set_tensor(present_key_port, caller_present));
+
+    ASSERT_NO_THROW(request->infer());
+
+    // get_tensor() must keep returning the exact same tensor object the caller set --
+    // not a separate, internally-trimmed copy.
+    auto returned = request->get_tensor(present_key_port);
+    EXPECT_EQ(returned._ptr.get(), caller_present._ptr.get());
+}
+
 TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis2LeftAligned) {
     // [N=1, H=2, S, E=3]: src has S1=2, dst has capacity S2=4.
     auto src = make_kv_cache_tensor({1, 2, 2, 3}, 0.f);

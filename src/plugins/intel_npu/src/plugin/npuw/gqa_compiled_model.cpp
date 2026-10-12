@@ -980,6 +980,15 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         if (port_it == outer_outputs.end()) {
             continue;
         }
+        if (m_dynamic_kv_cache_output_externally_set.count(name) != 0) {
+            // The caller explicitly set_tensor()'d this present output (IO-binding style):
+            // it was forwarded straight onto the inner request's own port, so the NPU
+            // already wrote the full-capacity result directly into the caller's buffer.
+            // Leave it alone here -- do NOT republish a separately-trimmed copy under
+            // this name, or get_tensor() would start returning a different tensor object
+            // than the one the caller owns and keeps reading from.
+            continue;
+        }
         const auto inner_tensor = m_inner_request->get_tensor(map_port_locked(*port_it));
         const auto capacity = inner_tensor->get_shape().at(axis);
 
@@ -1105,6 +1114,26 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
 
     const auto& name = port.get_node()->get_friendly_name();
     GQA_TRACE("GQAInferRequest::set_tensor(port='" << name << "', shape=" << tensor->get_shape() << ")");
+
+    // present_* outputs are NOT a dynamic-axis *input*, so without special handling here
+    // they'd fall through to the "forward as-is" branch below: the caller-supplied tensor
+    // gets bound directly onto the inner request's static (full-capacity) port -- real
+    // IO-binding callers rely on exactly this to get zero-copy access to the NPU's own
+    // output buffer. The bug was that refresh_present_tensors_locked() would then still
+    // unconditionally publish its own *trimmed* copy under this name once valid_len <
+    // capacity, so a later get_tensor() would silently return a different tensor object
+    // than the one the caller passed to set_tensor() -- the caller's writes/reads through
+    // their own tensor would diverge from what get_tensor() reports. Forward the tensor as
+    // before (preserving the zero-copy contract), but remember that this port is now
+    // externally owned so refresh_present_tensors_locked() leaves it alone and get_tensor()
+    // keeps returning the exact tensor the caller set.
+    if (m_compiled_model->m_dynamic_kv_cache_output_axes.count(name) != 0) {
+        GQA_TRACE("    -> dynamic-axis present output, forwarding to inner request and marking externally owned");
+        m_inner_request->set_tensor(map_port_locked(port), tensor);
+        m_dynamic_kv_cache_output_tensors[name] = tensor;
+        m_dynamic_kv_cache_output_externally_set.insert(name);
+        return;
+    }
 
     const auto& dynamic_axes = m_compiled_model->m_dynamic_kv_cache_axes;
     auto it = dynamic_axes.find(name);
