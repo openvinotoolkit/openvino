@@ -1,6 +1,5 @@
 # Versions from the passing GGUF GenAI acceptance run 38267616413.
 pytest==9.1.1
-pillow==12.3.0
 numpy==2.4.6
 sentencepiece==0.2.2
 gguf==0.19.0

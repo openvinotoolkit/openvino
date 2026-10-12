@@ -106,15 +106,20 @@ jobs:
           apt-get update
           apt-get install -y ffmpeg
           python3 -m pip install -r "${PIP_CONSTRAINT}"
+          python3 -m pip install pillow==12.3.0
           python3 -m pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu
           python3 -m pip wheel --no-build-isolation --no-deps --wheel-dir "${INSTALL_DIR}/wheels" "${GENAI_DIR}/thirdparty/openvino_tokenizers"
           python3 -m pip install --no-deps "${INSTALL_DIR}"/wheels/openvino_tokenizers-*.whl
           python3 - <<'PY' > "${INSTALL_DIR}/runtime-constraints.txt"
           import importlib.metadata as m
-          for package in ('openvino', 'openvino-tokenizers'):
+          import os
+          from pathlib import Path
+          print(Path(os.environ['PIP_CONSTRAINT']).read_text(), end='')
+          for package in ('openvino', 'openvino-tokenizers', 'pillow'):
               print(package + '==' + m.version(package))
           PY
           python3 -m pip install -c "${INSTALL_DIR}/runtime-constraints.txt" 'optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@dd4ed1a86f9c2abf34d8dce777da5b592765b644'
+          echo "PIP_CONSTRAINT=${INSTALL_DIR}/runtime-constraints.txt" >> "$GITHUB_ENV"
 
       - name: Build pinned GenAI against same-run OpenVINO
         id: build_genai

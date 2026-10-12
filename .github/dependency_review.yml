@@ -21,7 +21,6 @@ fail-on-scopes:
 license-check: true
 vulnerability-check: true
 allow-dependencies-licenses:
-  - 'pkg:pypi/pillow@12.3.0' # MIT-CMU terms already in licensing/third-party-programs.txt; https://github.com/python-pillow/Pillow/blob/12.3.0/LICENSE
   - 'pkg:pypi/PyGithub@2.2.0'
   - 'pkg:pypi/psycopg2-binary'
   - 'pkg:pypi/pytz@2026.3.post1' # MIT license, but dependency review flags it as MIT AND ZPL-2.1: https://github.com/stub42/pytz/blob/release_2026.3.post1/LICENSE.txt
