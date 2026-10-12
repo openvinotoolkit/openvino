@@ -1481,3 +1481,51 @@ KERNEL(pa_tt_bounds)(
 }
 #undef TT_BOUNDS_WG
 #endif
+
+#ifdef SDPA_STAGE_MICRO_SPLITK_FINAL
+// Combines split-K partial results of the MIXED-stage micro SDPA kernels (sdpa_micro.cl, PA_MICRO_SPLITK).
+// splitk_stats:   [token][HEADS_NUM][np_max][2] = {m2 (max in log2 domain), l (sum of exp2(s - m2))}
+// splitk_tmp_out: [token][np_max][HEADS_NUM * V_HEAD_SIZE] normalized partial outputs (half)
+// Subsequences with NP == 1 were written directly to the output by the micro kernel.
+REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
+KERNEL(pa_sdpa_micro_splitk_finalization)(
+    const __global INPUT3_TYPE* past_lens,
+    const __global INPUT6_TYPE* subsequence_begins,
+    __global OUTPUT_TYPE* output,
+    const __global float* splitk_stats,
+    const __global half* splitk_tmp_out,
+    const uint subsequences_num,
+    const uint np_max,
+    const uint part_align) {
+    const uint tok = get_global_id(0);
+    const uint head_idx = get_global_id(1);
+    const uint hd_idx = get_global_id(2);
+
+    uint subseq = 0;
+    while (subseq + 1 < subsequences_num && (uint)subsequence_begins[subseq + 1] <= tok)
+        subseq++;
+
+    const int past_len = past_lens[subseq];
+    /* Same partitioning as sdpa_micro.cl (PA_MICRO_SPLITK) */
+    const int align = (int)part_align;
+    const int part = max(align, ((past_len + (int)np_max - 1) / (int)np_max + align - 1) / align * align);
+    const int np = np_max > 1 ? max(1, (past_len + part - 1) / part) : 1;
+    if (np <= 1)
+        return;
+
+    const uint st_base = (tok * HEADS_NUM + head_idx) * np_max * 2;
+    float m_max = -INFINITY;
+    for (int p = 0; p < np; p++)
+        m_max = fmax(m_max, splitk_stats[st_base + p * 2]);
+
+    float acc = 0.0f;
+    float denom = 0.0f;
+    for (int p = 0; p < np; p++) {
+        const float w = splitk_stats[st_base + p * 2 + 1] * native_exp2(splitk_stats[st_base + p * 2] - m_max);
+        const uint o_off = (tok * np_max + p) * (HEADS_NUM * V_HEAD_SIZE) + head_idx * V_HEAD_SIZE + hd_idx;
+        acc += w * convert_float(splitk_tmp_out[o_off]);
+        denom += w;
+    }
+    output[tok * (HEADS_NUM * V_HEAD_SIZE) + head_idx * V_HEAD_SIZE + hd_idx] = TO_OUTPUT_TYPE(acc / denom);
+}
+#endif

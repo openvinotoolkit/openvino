@@ -1230,6 +1230,10 @@ inline bool micro_fold_value_scales_into_output(const kernel_impl_params& params
     return ps[2].get_length() == 1 && ps[3].get_length() > 1;
 }
 
+bool SDPAMicroGenerator::use_splitk(const kernel_impl_params& params) const {
+    return !m_is_prefill && !m_is_gqa_single_token && pa_micro_splitk_supported(params);
+}
+
 JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
     auto jit = make_base_jit_constants(params);
     sdpa_configuration config;
@@ -1363,6 +1367,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("A_ALIGN", micro::alignment_for_ld(static_cast<int>(lda)));
 
     jit.make("IS_PREFILL", m_is_prefill);
+    if (config.is_paged_attention && use_splitk(params)) {
+        jit.make("PA_MICRO_SPLITK", 1);
+    }
     jit.make("IS_GQA_SINGLE_TOKEN", m_is_gqa_single_token);
     jit.make("TRANSPOSE_K", false);
     jit.make("TRANSPOSE_V", micro_is_v_transposed(params));
@@ -1697,6 +1704,10 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         if (pa_micro_uses_tt_bounds(*desc)) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // tt_bounds
         }
+        if (use_splitk(params)) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<size_t>(PaMicroSplitKBuffer::STATS)});    // splitk_stats
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<size_t>(PaMicroSplitKBuffer::TMP_OUT)});  // splitk_tmp_out
+        }
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q
@@ -1739,7 +1750,9 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 }
 
 DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+    const bool is_prefill = m_is_prefill;
+    const bool is_gqa_single_token = m_is_gqa_single_token;
+    return DispatchDataFunc{[is_prefill, is_gqa_single_token](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
@@ -1777,6 +1790,12 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             if (params.is_type<paged_attention>()) {
                 wgs.global[1] *= head_num;
                 wgs.global[2] *= 1;
+                if (!is_prefill && !is_gqa_single_token && rt_params != nullptr) {
+                    auto* pa_rt_params = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+                    if (pa_rt_params->stage == PagedAttentionStage::MIXED && pa_rt_params->micro_splitk_partitions > 1) {
+                        wgs.global[2] *= pa_rt_params->micro_splitk_partitions;
+                    }
+                }
             } else {
                 wgs.global[1] *= head_num;
                 wgs.global[2] *= out_ps[0].get_length();
