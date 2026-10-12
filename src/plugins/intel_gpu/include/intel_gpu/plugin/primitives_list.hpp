@@ -58,6 +58,7 @@ REGISTER_FACTORY(v0, Sinh);
 REGISTER_FACTORY(v0, Sign);
 REGISTER_FACTORY(v0, SquaredDifference);
 REGISTER_FACTORY(v0, SpaceToDepth);
+REGISTER_FACTORY(internal, GroupedSpaceToDepth);
 REGISTER_FACTORY(v0, Squeeze);
 REGISTER_FACTORY(v0, ShapeOf);
 REGISTER_FACTORY(v0, ShuffleChannels);

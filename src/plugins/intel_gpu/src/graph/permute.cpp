@@ -62,7 +62,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
         output_type = impl_param.get_output_element_type();
         for (const auto& desc : impl_param.fused_desc) {
             if (desc.is_type<reorder>()) {
-                output_fmt = desc.output_layout.format;
+                output_fmt = desc.get_output_layout().format;
             }
         }
     }
