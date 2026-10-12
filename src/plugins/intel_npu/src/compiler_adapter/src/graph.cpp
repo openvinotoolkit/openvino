@@ -47,51 +47,56 @@ CommandQueueDesc Graph::get_command_queue_desc() const {
 }
 
 void Graph::set_workload_type(const ov::WorkloadType workloadType) {
-    if (_zeroInitStruct == nullptr) {
-        return;
-    }
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the workload type must be applied directly on it.
     if (_commandQueue && zeWorkloadType.has_value()) {
         // When shared common queue is disabled, workload type is set per command queue.
         // Update the existing queue if it has already been created.
         _commandQueue->setWorkloadType(zeWorkloadType.value());
         _workloadType = workloadType;
-
         return;
     }
 
-    if (_commandQueueDesc.workload() == zeWorkloadType) {
-        return;
-    }
-    _commandQueueDesc.set_workload(zeWorkloadType);
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setWorkload(zeWorkloadType);
 }
 
 void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
-    if (_zeroInitStruct == nullptr) {
-        return;
-    }
+    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeModelPriority = zeroUtils::toZeQueuePriority(modelPriority);
-    if (_commandQueueDesc.priority() == zeModelPriority) {
-        return;
-    }
-    _commandQueueDesc.set_priority(zeModelPriority);
 
+    // If the graph already holds a command queue, that queue is the one used for execution,
+    // so the priority must be applied on it (directly, or by recreating it on legacy drivers).
     if (_commandQueue) {
+        if (_zeroInitStruct->isCommandQueueSetPrioritySupported()) {
+            _commandQueue->setPriority(zeModelPriority);
+            return;
+        }
+
+        // Legacy behavior: Create new command queue if setPriority is not supported.
         // When shared common queue is disabled, workload type is set per command queue.
         // Recreate the queue with the new priority while preserving the current workload type.
         if (_workloadType.has_value()) {
             auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(_workloadType.value());
-            _commandQueueDesc.set_workload(zeWorkloadType);
+            _commandQueueDesc.setWorkload(zeWorkloadType);
             _workloadType = std::nullopt;  // Clear the cached workload type after applying it to the new queue
         }
 
+        _commandQueueDesc.setPriority(zeModelPriority);
         _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
     }
+
+    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
+    // since it will be used to create the command queue later.
+    _commandQueueDesc.setPriority(zeModelPriority);
 }
 
 void* Graph::get_handle() const {

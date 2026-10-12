@@ -118,6 +118,16 @@ struct Header {
     static const Header& view(const void* data) noexcept {
         return *reinterpret_cast<const Header*>(data);
     }
+
+    /**
+     * @brief Non-owning view of the header at the start of an HSM container buffer - reinterprets the bytes
+     * in place, no copy.
+     * @note Debug-asserts if @p data is too small for a Header; still the caller's responsibility in Release.
+     */
+    static const Header& view(ov::util::MemoryView data) noexcept {
+        OPENVINO_DEBUG_ASSERT(data.size() >= sizeof(Header));
+        return view(data.data());
+    }
 };
 #pragma pack(pop)
 static_assert(sizeof(Header) == 32,
@@ -193,6 +203,28 @@ struct SectionTag {
     /// Inverse of #make_device_tag(): recovers the device-local id (`id() - core_tag_id_range_end`).
     constexpr uint32_t device_local_id() const noexcept {
         return id() - core_tag_id_range_end;
+    }
+};
+
+/**
+ * @brief #SectionTag plus its 4 reserved bytes (#ManifestEntry::tag_reserved). Implicitly convertible
+ * from a bare #SectionTag (reserved bytes default to zero), so existing #IWriter::add_section() callers
+ * are unaffected - only a caller whose `(device, tag)` pair redefines #ManifestEntry::tag_reserved's
+ * meaning needs to construct one explicitly.
+ * @note Never part of `(device, tag)` dispatch - see #SectionTag's unknown-tag rule; opaque sub-dispatch
+ * data for the handler that already owns the pair, nothing more.
+ */
+struct SectionTagReserved {
+    SectionTag tag;
+    std::array<uint8_t, 4> bytes;
+
+    constexpr SectionTagReserved(SectionTag tag, std::array<uint8_t, 4> bytes = {}) noexcept : tag(tag), bytes(bytes) {}
+
+    constexpr bool is_inline() const noexcept {
+        return tag.is_inline();
+    }
+    constexpr bool is_pointer() const noexcept {
+        return tag.is_pointer();
     }
 };
 
