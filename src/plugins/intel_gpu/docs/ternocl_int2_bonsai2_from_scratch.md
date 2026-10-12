@@ -238,7 +238,7 @@ On/off values are `1`/`0`, `true`/`false`, `on`/`off` or `yes`/`no`.
 | `GPU_TERNOCL_INT2_INT8_PREFILL` | 0 | `1`: prompts and batches (M > 8) on the int2 x int8 DPAS kernel (activations quantized to int8 per 128-group); same weights, GSM8K within the standard error of the default |
 | `GPU_DISABLE_TERNOCL_INT2` | 0 | `1`: use the stock OpenVINO FC kernels instead of TernOCL (the Hadamard rotation then runs as graph ops and the gate/up merge follows the stock heuristic) |
 | `GPU_DISABLE_HADAMARD_FC_FUSION` | 0 | debug-caps builds only; `1` leaves the Hadamard rotation as separate graph ops (slower) |
-| `GPU_DISABLE_RMS_ROPE_FUSION` | 0 | debug-caps builds only; `1` keeps the per-head Q/K RMSNorm as its own kernel instead of folding it into RoPE |
+| `GPU_DISABLE_RMS_ROPE_FUSION` | 0 | debug-caps builds only; `1` keeps the per-head Q/K RMSNorm as its own kernel instead of folding it into RoPE. No effect on Bonsai 2 27B, whose heads are only partly rotated |
 | `BENCH_MAX_LEN` (bench tools) | 512 | context the bench reserves; prompt + new tokens must fit |
 
 With `-DENABLE_DEBUG_CAPS=ON`, `OV_VERBOSE=3` logs which FCs the TernOCL impl
