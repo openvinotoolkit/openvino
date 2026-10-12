@@ -330,7 +330,7 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         ov::op::util::MulticlassNmsBase::Attributes attrs;
         attrs.sort_result_type = ov::op::util::MulticlassNmsBase::SortResultType::SCORE;
         attrs.sort_result_across_batch = false;
-        attrs.output_type = nms->get_output_element_type(0);
+        attrs.output_type = squeeze->get_output_element_type(0);
         attrs.iou_threshold = *iou_threshold;
         attrs.score_threshold = std::nextafter(*score_threshold, std::numeric_limits<float>::infinity());
         attrs.nms_top_k = static_cast<int>(*max_output_boxes);

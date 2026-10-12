@@ -23,6 +23,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -34,7 +35,8 @@ std::shared_ptr<ov::Model> make_batched_nms_output_model(
     int64_t prefix_limit = 100,
     ov::op::v9::NonMaxSuppression::BoxEncodingType box_encoding = ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
     bool sort_result_descending = true,
-    int32_t nms_batch = 1) {
+    int32_t nms_batch = 1,
+    bool use_internal_nms_with_convert = false) {
     auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
     auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1});
     auto class_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
@@ -60,17 +62,31 @@ std::shared_ptr<ov::Model> make_batched_nms_output_model(
         nms_scores = std::make_shared<ov::op::v1::Reshape>(scores, scores_shape, false);
     }
 
-    auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(
-        boxes_reshape,
-        nms_scores,
-        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {max_output_boxes}),
-        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f}),
-        std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.7f}), ov::element::f32),
-        box_encoding,
-        sort_result_descending,
-        ov::element::i64);
+    ov::Output<ov::Node> nms_output;
+    if (use_internal_nms_with_convert) {
+        auto nms_internal = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(
+            boxes_reshape,
+            nms_scores,
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {max_output_boxes}),
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f}),
+            std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.7f}), ov::element::f32),
+            0,
+            sort_result_descending,
+            ov::element::i32);
+        nms_output = std::make_shared<ov::op::v0::Convert>(nms_internal, ov::element::i64);
+    } else {
+        nms_output = std::make_shared<ov::op::v9::NonMaxSuppression>(
+            boxes_reshape,
+            nms_scores,
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {max_output_boxes}),
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f}),
+            std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.7f}), ov::element::f32),
+            box_encoding,
+            sort_result_descending,
+            ov::element::i64);
+    }
 
-    auto gather = std::make_shared<ov::op::v8::Gather>(nms,
+    auto gather = std::make_shared<ov::op::v8::Gather>(nms_output,
                                                        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {gather_column}),
                                                        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(gather, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
@@ -225,4 +241,33 @@ TEST(ConvertBatchedNmsToMulticlassNmsTest, KeepsGenericNmsGatherChainUntouched) 
 
     EXPECT_EQ(multiclass_nms_count, 0);
     EXPECT_EQ(nms_count, 1);
+}
+
+TEST(ConvertBatchedNmsToMulticlassNmsTest, PreservesOutputPrecisionWithConvertedInternalNMS) {
+    auto model = make_batched_nms_output_model(
+        2,
+        2000,
+        100,
+        ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
+        true,
+        1,
+        true);
+
+    EXPECT_EQ(model->get_results().front()->get_input_element_type(0), ov::element::i64);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ConvertBatchedNmsToMulticlassNms>();
+    manager.run_passes(model);
+
+    std::shared_ptr<ov::op::internal::MulticlassNmsIEInternal> multiclass_nms;
+    for (const auto& node : model->get_ops()) {
+        if (const auto nms = ov::as_type_ptr<ov::op::internal::MulticlassNmsIEInternal>(node)) {
+            multiclass_nms = nms;
+            break;
+        }
+    }
+
+    ASSERT_NE(multiclass_nms, nullptr);
+    EXPECT_EQ(multiclass_nms->get_attrs().output_type, ov::element::i64);
+    EXPECT_EQ(model->get_results().front()->get_input_element_type(0), ov::element::i64);
 }
