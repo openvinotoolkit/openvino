@@ -346,10 +346,7 @@ struct EltwiseEmitter {
 template <>
 struct EltwiseEmitter<jit_divide_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<jit_divide_emitter>(ctx.host,
-                                                           ctx.host_isa,
-                                                           ctx.opData.pythondiv,
-                                                           ctx.exec_prc);
+        ctx.emitter = std::make_shared<jit_divide_emitter>(ctx.host, ctx.host_isa, ctx.opData.pythondiv, ctx.exec_prc);
     }
 };
 
