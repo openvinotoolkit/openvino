@@ -154,7 +154,7 @@ Output<Node> try_constfold(const Output<Node>& x);
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
-/// rief Rounds toward zero, keeping infinities and NaN. Integer inputs are returned unchanged.
+/// \brief Rounds toward zero, keeping infinities and NaN. Integer inputs are returned unchanged.
 Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x);
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
