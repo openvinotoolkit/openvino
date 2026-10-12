@@ -330,6 +330,39 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::make_compi
 
 namespace {
 
+// Walks back from `node`'s single input along pass-through ops (e.g. Convert) until it
+// reaches a Parameter, or gives up (nullptr) if the chain branches or dead-ends on
+// something else. Used to resolve the Parameter feeding a GQA op's input of interest.
+std::shared_ptr<ov::op::v0::Parameter> trace_back_to_parameter(std::shared_ptr<ov::Node> node) {
+    while (node && !ov::is_type<ov::op::v0::Parameter>(node)) {
+        if (node->get_input_size() != 1) {
+            return nullptr;
+        }
+        node = node->input_value(0).get_node_shared_ptr();
+    }
+    return ov::as_type_ptr<ov::op::v0::Parameter>(node);
+}
+
+// Resolves the Parameter feeding the model's GroupQueryAttention op's
+// TOTAL_SEQUENCE_LENGTH input, if any -- used to compute an accurate present_key/
+// present_value length (past length grown by the newly appended tokens) at infer()
+// time instead of just mirroring past_key/past_value's own (stale) length.
+std::optional<std::string> find_total_sequence_length_param_name(const std::shared_ptr<const ov::Model>& model) {
+    using ov::op::internal::GroupQueryAttention;
+    using ov::op::internal::GroupQueryAttentionInputs;
+    constexpr size_t total_seq_len_idx = static_cast<size_t>(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH);
+    for (const auto& node : model->get_ordered_ops()) {
+        auto gqa = ov::as_type_ptr<GroupQueryAttention>(node);
+        if (!gqa || gqa->get_input_size() <= total_seq_len_idx) {
+            continue;
+        }
+        if (auto param = trace_back_to_parameter(gqa->input_value(total_seq_len_idx).get_node_shared_ptr())) {
+            return param->get_friendly_name();
+        }
+    }
+    return std::nullopt;
+}
+
 bool has_valid_gqa_op(const std::shared_ptr<const ov::Model>& model) {
     using ov::op::internal::GroupQueryAttention;
     using ov::op::internal::GroupQueryAttentionInputs;
@@ -550,6 +583,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
       m_dynamic_kv_cache_axes(std::move(prepared.dynamic_kv_cache_axes)) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
+    m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
 }
 
 // Used by import_model() only: wraps an already-deserialized inner compiled model
@@ -566,6 +600,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
       m_dynamic_kv_cache_axes(std::move(dynamic_kv_cache_axes)) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
+    m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
 }
 
 // NB: We hand-roll port serialization here instead of serializing the outer carcass as a real
@@ -892,6 +927,30 @@ void ov::npuw::GQAInferRequest::infer() {
     refresh_present_tensors_locked();
 }
 
+// Reads the live value of the Parameter feeding the GQA op's TOTAL_SEQUENCE_LENGTH
+// input (resolved once at compile time, see find_total_sequence_length_param_name()),
+// straight from the *inner* request's own tensor. Returns nullopt if no such Parameter
+// could be resolved, its port isn't found, or its tensor isn't a readable scalar.
+std::optional<size_t> ov::npuw::GQAInferRequest::read_total_sequence_length_locked() const {
+    const auto& param_name = m_compiled_model->m_total_seq_len_param_name;
+    if (!param_name) {
+        return std::nullopt;
+    }
+    const auto& outer_inputs = m_compiled_model->inputs();
+    auto port_it = std::find_if(outer_inputs.begin(), outer_inputs.end(), [&](const auto& input) {
+        return input.get_node()->get_friendly_name() == *param_name;
+    });
+    if (port_it == outer_inputs.end()) {
+        return std::nullopt;
+    }
+    const auto& tensor = m_inner_request->get_tensor(map_port_locked(*port_it));
+    auto value = ov::npuw::read_scalar_int_tensor(tensor);
+    if (!value || *value < 0) {
+        return std::nullopt;
+    }
+    return static_cast<size_t>(*value);
+}
+
 // Refreshes the outer-facing tensors for dynamic present_key/present_value outputs
 // right after infer() completes. The inner request's own tensor for such an output is
 // the full-capacity static buffer (e.g. 2048) with new K/V scattered in-place at
@@ -925,13 +984,19 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         const auto capacity = inner_tensor->get_shape().at(axis);
 
         // NB: Poor mans' output shape inference here.
-        // Resolve this output's shape length: mirror the corresponding past_key/value
-        // input's own set length verbatim; otherwise fall back to the full buffer.
+        // Present length is past_len "grown" by the newly appended tokens, i.e.
+        // max(past_len, total_sequence_length) -- not just the past_key/value input's
+        // own (now-stale) length, which would silently drop the rows this infer() call
+        // just appended. total_sequence_length is read from the Parameter feeding the
+        // GQA op's TOTAL_SEQUENCE_LENGTH input (resolved once at compile time); if that
+        // couldn't be resolved or isn't readable, fall back to past_len alone.
         size_t valid_len = capacity;
         if (auto past_name = ov::npuw::GQAInferRequest::present_to_past_name(name)) {
             auto past_it = m_dynamic_kv_cache_tensors.find(*past_name);
             if (past_it != m_dynamic_kv_cache_tensors.end()) {
-                valid_len = std::min<size_t>(capacity, past_it->second->get_shape().at(axis));
+                const auto past_len = past_it->second->get_shape().at(axis);
+                const auto total_len = read_total_sequence_length_locked().value_or(past_len);
+                valid_len = std::min<size_t>(capacity, std::max<size_t>(past_len, total_len));
             }
         }
 

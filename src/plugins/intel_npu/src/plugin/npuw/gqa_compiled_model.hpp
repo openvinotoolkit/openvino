@@ -66,6 +66,9 @@ private:
     mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_aliased;
 
     ov::SoPtr<ov::ITensor> get_present_tensor_locked(const std::string& name) const;
+    // Reads the live value of the Parameter feeding the GQA op's TOTAL_SEQUENCE_LENGTH
+    // input, if one was resolved at compile time; see gqa_compiled_model.cpp.
+    std::optional<size_t> read_total_sequence_length_locked() const;
     void refresh_present_tensors_locked() const;
     // Copies each dynamic-axis input's user-owned tensor into the inner request's
     // static buffer, right before infer() (not inside set_tensor(), since the caller
@@ -184,6 +187,14 @@ private:
     // the (already round-tripped) outer output ports on both the compile and import
     // paths, so there's no need to grow the wire format for it.
     std::unordered_map<std::string, size_t> m_dynamic_kv_cache_output_axes;
+    // Friendly name of the Parameter feeding the GroupQueryAttention op's
+    // TOTAL_SEQUENCE_LENGTH input, if one can be traced back from it (nullopt
+    // otherwise). Like m_dynamic_kv_cache_output_axes, this is re-derived from
+    // m_outer_model on both the compile and import paths rather than serialized.
+    // Used to compute an accurate present_key/present_value length (past length
+    // "grown" by the newly appended tokens) instead of just mirroring past_key/
+    // past_value's own length, which misses the rows appended by the current step.
+    std::optional<std::string> m_total_seq_len_param_name;
 };
 
 }  // namespace ov::npuw
