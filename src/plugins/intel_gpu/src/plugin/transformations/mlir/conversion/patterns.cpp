@@ -37,6 +37,7 @@
 #include <openvino/op/tanh.hpp>
 #include <openvino/op/transpose.hpp>
 #include <openvino/op/unsqueeze.hpp>
+#include <ov_ops/grouped_matmul_compressed.hpp>
 #include <ov_ops/rms.hpp>
 
 #include "../common/converters/binary_eltwise.hpp"
@@ -80,9 +81,16 @@ GroupedMatMulPattern::GroupedMatMulPattern()
                           OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << output.get_node()->get_friendly_name() << " — dynamic rank");
                           return false;
                       }
-                      if (!output.get_element_type().is_real()) {
-                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name() << " — non-float element type "
-                                                                                      << output.get_element_type());
+                      // Low-precision variants are not supported yet. wrap_type also matches subclasses,
+                      // so GroupedMatMulCompressed has to be rejected explicitly.
+                      if (ov::is_type<ov::op::internal::GroupedMatMulCompressed>(node)) {
+                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name() << " — compressed weights");
+                          return false;
+                      }
+                      if (!output.get_element_type().is_real() || !node->get_input_element_type(0).is_real() || !node->get_input_element_type(1).is_real()) {
+                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected "
+                                                    << node->get_friendly_name() << " — non-float element type, got mat_a " << node->get_input_element_type(0)
+                                                    << " x mat_b " << node->get_input_element_type(1) << " -> " << output.get_element_type());
                           return false;
                       }
 
