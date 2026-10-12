@@ -277,7 +277,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> bias_col_offset = zero;
     ov::Output<ov::Node> present_k, present_v;
 
-    if (shared_kv) {
+    if (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0) {
+        // With no past tokens, the current K/V already are the complete present cache.
+        present_k = K;
+        present_v = V;
+    } else if (shared_kv) {
         // Shared KV (ORT kv_sequence_length == 0): attend to the past buffer as is (zero copy) and return it
         // unchanged as present. Rows at or beyond `total` are hidden by the explicit mask (causal offset
         // total - S_q via mask_past_seqlen), so no Slice of the cache is needed.
