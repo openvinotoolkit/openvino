@@ -52,7 +52,10 @@ size_t get_vec_size(const RuntimeParams& params) {
 
 // The fused RMSNorm reduction relies on the non-reversed GWS layout, which is only used when VEC_SIZE > 1.
 bool fused_rms_enabled(const RuntimeParams& params) {
-    return params.typed_desc<rope>()->fuse_rms_norm && get_vec_size(params) > 1;
+    if (!params.typed_desc<rope>()->fuse_rms_norm)
+        return false;
+    OPENVINO_ASSERT(get_vec_size(params) > 1, "[GPU] rope: a fused RMSNorm needs the vectorized RoPE kernel");
+    return true;
 }
 
 class RopeGenerator : public KernelGenerator {

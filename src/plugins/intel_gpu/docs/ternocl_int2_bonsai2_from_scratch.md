@@ -229,18 +229,21 @@ overhead, so the host CPU moves them by up to 1.6x; compare builds on one machin
 
 ## 6. Knobs that matter
 
-On/off variables take `1` or `0` (also `true`/`false`, `on`/`off`); any other
-value is rejected with an error.
+GPU plugin options (`options.inl`); each can be passed as a compile property or
+set through the environment as `OV_<NAME>`, e.g. `OV_GPU_TERNOCL_INT2_INT8_PREFILL=1`.
+On/off values are `1`/`0`, `true`/`false`, `on`/`off` or `yes`/`no`.
 
-| Variable | Default | Effect |
+| Option | Default | Effect |
 |---|---|---|
-| `OV_TERNOCL_INT2_FUSE_HADAMARD` | 1 | fuse the Hadamard rotation into the FC; `0` leaves it as separate graph ops (debug fallback, slower) |
-| `OV_TERNOCL_INT2_INT8_PREFILL` | 0 | `1`: prompts and batches (M > 8) on the int2 x int8 DPAS kernel (activations quantized to int8 per 128-group); same weights, GSM8K within the standard error of the default |
-| `OV_TERNOCL_INT2_DISABLE` | 0 | `1`: use the stock OpenVINO FC kernels instead of TernOCL (the Hadamard rotation then runs as graph ops and the gate/up merge follows the stock heuristic) |
-| `OV_TERNOCL_INT2_DEBUG` | 0 | `1`: which FCs the TernOCL impl accepted and why others were rejected |
-| `OV_TERNOCL_INT2_CFG_DEBUG` | 0 | `1`: every OpenCL program built and the tile chosen per (shape, M class) |
-| `OV_TERNOCL_HADAMARD_DEBUG` | 0 | `1`: trace the rotation fusion per FC (expect "fused 257 input rotations") |
-| `BENCH_MAX_LEN` | 512 | context the bench reserves; prompt + new tokens must fit |
+| `GPU_TERNOCL_INT2_INT8_PREFILL` | 0 | `1`: prompts and batches (M > 8) on the int2 x int8 DPAS kernel (activations quantized to int8 per 128-group); same weights, GSM8K within the standard error of the default |
+| `GPU_DISABLE_TERNOCL_INT2` | 0 | `1`: use the stock OpenVINO FC kernels instead of TernOCL (the Hadamard rotation then runs as graph ops and the gate/up merge follows the stock heuristic) |
+| `GPU_DISABLE_HADAMARD_FC_FUSION` | 0 | debug-caps builds only; `1` leaves the Hadamard rotation as separate graph ops (slower) |
+| `GPU_DISABLE_RMS_ROPE_FUSION` | 0 | debug-caps builds only; `1` keeps the per-head Q/K RMSNorm as its own kernel instead of folding it into RoPE |
+| `BENCH_MAX_LEN` (bench tools) | 512 | context the bench reserves; prompt + new tokens must fit |
+
+With `-DENABLE_DEBUG_CAPS=ON`, `OV_VERBOSE=3` logs which FCs the TernOCL impl
+accepts and how many rotations were fused ("fused 257 input rotations"), and
+`OV_VERBOSE=4` adds every rejection reason and every OpenCL program it builds.
 
 ## 7. Troubleshooting
 

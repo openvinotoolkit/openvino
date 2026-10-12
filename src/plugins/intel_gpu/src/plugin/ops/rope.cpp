@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/rope.hpp"
-
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/permute.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/primitives/rope.hpp"
+#include "intel_gpu/primitives/permute.hpp"
 #include "plugin/transformations/fuse_rms_rope.hpp"
 
 namespace ov {
@@ -41,7 +40,12 @@ static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::
         rms_epsilon = fused_rms->second.as<float>();
     }
 
-    auto rope = cldnn::rope(layer_type_name_ID(op), inputs, config, gather_rank, fuse_rms_norm, rms_epsilon);
+    auto rope = cldnn::rope(layer_type_name_ID(op),
+                            inputs,
+                            config,
+                            gather_rank,
+                            fuse_rms_norm,
+                            rms_epsilon);
 
     p.add_primitive(*op, rope);
 }

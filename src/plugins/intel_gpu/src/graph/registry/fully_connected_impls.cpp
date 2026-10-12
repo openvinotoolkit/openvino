@@ -29,16 +29,18 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
 
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::dynamic_shape)
-            OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::static_shape)
-                OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::static_shape)
-                    OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape, ocl_supports_weights_layout)
-                        OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::dynamic_shape, [](const program_node& node) {
-                            if (node.can_use(impl_types::onednn))
-                                return false;
-                            if (!ocl_supports_weights_layout(node))
-                                return false;
-                            return node.get_output_pshape().size() <= 3;
-                        })};
+        OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::static_shape)
+        OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape, ocl_supports_weights_layout)
+        OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::dynamic_shape,
+            [](const program_node& node) {
+                if (node.can_use(impl_types::onednn))
+                    return false;
+                if (!ocl_supports_weights_layout(node))
+                    return false;
+                return node.get_output_pshape().size() <= 3;
+        })
+    };
 
     return impls;
 }

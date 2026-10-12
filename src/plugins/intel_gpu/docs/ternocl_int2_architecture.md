@@ -28,7 +28,7 @@ same packed weights:
 | Family | Source | Math | Used for |
 |---|---|---|---|
 | **int2 x f16 up-convert** | `int2_fp16_upcvt/int2_fp16_upcvt.cl` | 2-bit weights dequantized to fp16 in registers (group scale folded in with integer ops), fp16 DPAS, fp32 accumulation, native fp16 activations | all M (default) |
-| **int2 x int8 DPAS** | `int2_via_int2_x_int8_dpas/int2_int8_dpas.cl` | activations quantized to int8 per (row, 128-group), native s8 x s2 DPAS on the 2-bit codes, int32 accumulation, per-group rescale | M > 8 with `OV_TERNOCL_INT2_INT8_PREFILL=1` (off by default) |
+| **int2 x int8 DPAS** | `int2_via_int2_x_int8_dpas/int2_int8_dpas.cl` | activations quantized to int8 per (row, 128-group), native s8 x s2 DPAS on the 2-bit codes, int32 accumulation, per-group rescale | M > 8 with `GPU_TERNOCL_INT2_INT8_PREFILL` (off by default) |
 
 Both share the epilogue (`common/epilogue.clh`); rotated-basis checkpoints add
 the input transform `hadamard/hadamard_fwht.cl` in front of either.
@@ -40,7 +40,7 @@ the input transform `hadamard/hadamard_fwht.cl` in front of either.
 | `impls/ocl_v2/CMakeLists.txt` | Embeds the TernOCL sources (up-convert, int2 x int8, FWHT, epilogue) as chunked string literals at configure time |
 | `thirdparty/TernOCL` | Submodule: [TernOCL](https://github.com/libxsmm/TernOCL) kernels, drivers, validation, tuning scripts |
 | `plugin/transformations/fuse_hadamard_fc.cpp` | Folds the graph-level rotation of rotated-basis checkpoints into the FC (section 7) |
-| `plugin/transformations/fuse_rms_rope.cpp` | Optional fold of the per-head Q/K RMSNorm into RoPE (`OV_GPU_FUSE_RMS_ROPE=1`) |
+| `plugin/transformations/fuse_rms_rope.cpp` | Folds the per-head Q/K RMSNorm into RoPE (on by default; `GPU_DISABLE_RMS_ROPE_FUSION` in debug-caps builds) |
 | `registry/fully_connected_impls.cpp` | Priority relative to oneDNN/OpenCL |
 | `primitive_inst.cpp` | Lets `ternocl_int2` keep its fused chain under dynamic shapes (section 4) |
 
@@ -59,6 +59,8 @@ holds; anything else falls through to the existing paths unchanged:
 
 - weights are a constant `u2` `[N, K]` with `K % 128 == 0` and `N % 16 == 0`
   (one lane per output column; the kernels clip partial tiles, so N is not padded)
+- the zero point is the scalar 1 (`decompression_zero_point_scalar`), i.e. the
+  codes {0, 1, 2} are the ternary values {-1, 0, +1}
 - activations are `f16`, a plain row-major `[M, K]` matrix without padding
   (`format::bfyx`); the output is `f16` or `f32`, row-major `[M, N]` without padding
 - the fused chain maps onto one epilogue (`ternocl_int2_postop()`):
@@ -71,8 +73,7 @@ holds; anything else falls through to the existing paths unchanged:
 | constant bias (same type as the output), nothing fused | GatedDeltaNet `in_proj_a` | 3 |
 | `logistic` | GatedDeltaNet `in_proj_b` | 4 |
 
-  and the eltwise operand is `f16`. `OV_TERNOCL_INT2_FOLD_GATES=bias|sigmoid|none`
-  narrows the bias/sigmoid folds (default: both).
+  and the eltwise operand is `f16`.
 
 A node whose primitive carries a Hadamard input transform (section 7) is
 rejected with an error rather than falling through, because no other
@@ -121,7 +122,7 @@ flowchart TD
     B --> C{"hadamard_block?"}
     C -->|yes| D["hadamard_fwht_1024: y = H(s*x)/32<br/>into a per-node scratch"]
     C -->|no| E
-    D --> E{"M > 8 and<br/>OV_TERNOCL_INT2_INT8_PREFILL?"}
+    D --> E{"M > 8 and<br/>GPU_TERNOCL_INT2_INT8_PREFILL?"}
     E -->|no| F["up-convert: pick launch class from M<br/>(build program on first use)"]
     F --> G["int2_fp16_upcvt_gemm / _gemm_mt<br/>(A, B, S, C, Other, Bias, M, N, K)"]
     E -->|yes| H["quant_a: SA = 127 / absmax<br/>per (row, 128-group)"]
@@ -166,7 +167,7 @@ clamp) on the fp32 accumulator before the store.
 | `int2_fp16_upcvt_gemm` | GEMV, M <= 8 | `SGM` rows per sub-group (1/2/4/8), `NSG_N` sub-groups along N (work-group width `WGN = 16*NSG_N`), `LS` local k-slicing through SLM, `U` k-steps loaded ahead |
 | `int2_fp16_upcvt_gemm_mt` | M > 8 | sub-group tile `MT_M x MT_N`, work-group `WG_M x WG_N` sub-groups, 256 GRF; B dequantized once per 16 columns and reused for all `MT_M/8` DPAS row blocks; 2D block I/O clips at the matrix edge so any M works |
 
-### 5.2 int2 x int8 DPAS (`int2_int8_dpas.cl`, `OV_TERNOCL_INT2_INT8_PREFILL=1`)
+### 5.2 int2 x int8 DPAS (`int2_int8_dpas.cl`, `GPU_TERNOCL_INT2_INT8_PREFILL`)
 
 The weights are never unpacked: the 2-bit codes go straight into the s8 x s2
 DPAS (`intel_sub_group_i8_i2_matrix_mad_k32`). Per 128-group `g` along K:
@@ -204,7 +205,7 @@ launch class and build its kernels on first use:
 | 1, 2, <= 4, <= 8 | up-convert GEMV, `SGM` = 1/2/4/8 | `gemv_tile(K, N)`: exact (K, N) entries, separate table for the integrated GPU |
 | 9..16, 17..32, 33..63 | up-convert M-tiled | `mt_tile()`: one tile per M band and output width class (N <= 8192, < 65536, >= 65536), per GPU class |
 | >= 64 | up-convert M-tiled | `mt_tile()`: exact (K, N) entries, per GPU class |
-| > 8, with `OV_TERNOCL_INT2_INT8_PREFILL=1` | `quant_a` + `int2_int8_gemm_mt` | `int8_tile()`: exact (K, N) entries per M band (<= 16, <= 32, < 64, >= 64), default tile per band |
+| > 8, with `GPU_TERNOCL_INT2_INT8_PREFILL` | `quant_a` + `int2_int8_gemm_mt` | `int8_tile()`: exact (K, N) entries per M band (<= 16, <= 32, < 64, >= 64), default tile per band |
 
 The tiles are hard-coded tables in `fully_connected_ternocl_int2.cpp`, filled from
 TernOCL's benchmark sweeps (`bench.sh`, `sweep_midm.sh`):
@@ -218,10 +219,8 @@ TernOCL's benchmark sweeps (`bench.sh`, `sweep_midm.sh`):
 - any other shape uses a default tile per launch class: it runs correctly, but
   is not tuned.
 
-Overrides for sweeps: `OV_TERNOCL_INT2_GEMV="wgn,ls,u"`,
-`OV_TERNOCL_INT2_MID="mt_m,mt_n,wg_m,wg_n"` (M < 64),
-`OV_TERNOCL_INT2_MT="..."` (M >= 64), `OV_TERNOCL_INT2_INT8_MT="..."` (int8
-prefill); `OV_TERNOCL_INT2_CFG_DEBUG=1` prints every built program and chosen tile.
+New entries come from TernOCL's sweeps, which tune each tile on the standalone
+kernels. With debug caps, `OV_VERBOSE=4` prints every built program and the tile chosen.
 
 ---
 
@@ -242,5 +241,5 @@ primitive (part of its hash and serialization). At execution the impl runs
 `hadamard_fwht_1024` into a per-node scratch and points the GEMM at it.
 The pass is registered only on the OpenCL runtime with TernOCL enabled, since no
 other implementation applies a fused rotation; otherwise (and with
-`OV_TERNOCL_INT2_FUSE_HADAMARD=0`) the rotation stays in the graph.
-`OV_TERNOCL_HADAMARD_DEBUG=1` traces the match.
+`GPU_DISABLE_HADAMARD_FC_FUSION` in debug-caps builds) the rotation stays in the graph.
+`OV_VERBOSE=4` traces the match per FC.

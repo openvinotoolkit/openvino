@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <cstdlib>
-#include <iostream>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,7 +14,7 @@
 #include "eltwise_inst.h"
 #include "fully_connected_inst.h"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
-#include "openvino/util/env_util.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "registry/implementation_manager.hpp"
 
 namespace cldnn {
@@ -25,32 +24,12 @@ namespace ocl {
 constexpr size_t kTernoclGroupSize = 128;
 constexpr size_t kTernoclPackFactor = 16;
 
-// OV_TERNOCL_INT2_FOLD_GATES=bias|sigmoid|none selects which GatedDeltaNet gate
-// epilogues are folded; bit 0 is the bias, bit 1 the sigmoid.
-inline int ternocl_int2_fold_gates() {
-    static const int v = [] {
-        const char* e = std::getenv("OV_TERNOCL_INT2_FOLD_GATES");
-        if (e == nullptr)
-            return 3;
-        const std::string s(e);
-        if (s == "none" || s == "0")
-            return 0;
-        if (s == "bias")
-            return 1;
-        if (s == "sigmoid")
-            return 2;
-        return 3;
-    }();
-    return v;
-}
-
 // Epilogue the kernel runs for a fused chain: 0 none, 1 silu(acc)*other,
 // 2 acc+other, 3 acc+bias, 4 sigmoid(acc); -1 when there is no single-pass
 // equivalent. `other_dep` receives the dependency index of the eltwise operand.
 inline int ternocl_int2_postop(const std::vector<fused_primitive_desc>& fused, bool has_bias, size_t* other_dep = nullptr) {
-    const int fold_gates = ternocl_int2_fold_gates();
     if (fused.empty())
-        return has_bias ? ((fold_gates & 1) ? 3 : -1) : 0;
+        return has_bias ? 3 : 0;
     if (has_bias)
         return -1;
     const auto act0 = std::dynamic_pointer_cast<const activation>(fused[0].desc);
@@ -61,7 +40,7 @@ inline int ternocl_int2_postop(const std::vector<fused_primitive_desc>& fused, b
         return 1;
     if (fused.size() == 1 && elt_last && elt_last->mode == eltwise_mode::sum)
         return 2;
-    if (fused.size() == 1 && act0 && act0->activation_function == activation_func::logistic && (fold_gates & 2))
+    if (fused.size() == 1 && act0 && act0->activation_function == activation_func::logistic)
         return 4;
     return -1;
 }
@@ -83,20 +62,22 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         assert(node.is_type<fully_connected>());
         const auto& fc_node = node.as<fully_connected>();
         const auto& fc_prim = fc_node.get_primitive();
-        const bool dbg = ov::util::getenv_bool("OV_TERNOCL_INT2_DEBUG");
-        if (ov::util::getenv_bool("OV_TERNOCL_INT2_DISABLE"))
+        if (node.get_program().get_config().get_disable_ternocl_int2())
             return false;
-#define TERNOCL_REJECT(reason)                                                                           \
-    do {                                                                                                 \
-        if (dbg)                                                                                         \
-            std::cerr << "[ternocl-int2] reject: " << (reason) << " node=" << fc_node.id() << std::endl; \
-        /* a fused Hadamard input exists only here; another impl would ignore it */                      \
-        OPENVINO_ASSERT(fc_prim->hadamard_block == 0,                                                    \
-                        "[GPU] ternocl int2: ",                                                          \
-                        fc_node.id(),                                                                    \
-                        " carries a Hadamard input transform but the TernOCL impl rejected it: ",        \
-                        (reason));                                                                       \
-        return false;                                                                                    \
+        // The kernels use SIMD16 DPAS and 2D block loads.
+        const auto& device_info = node.get_program().get_engine().get_device_info();
+        if (device_info.arch < gpu_arch::xe2 || !device_info.supports_immad)
+            return false;
+#define TERNOCL_REJECT(reason)                                                                                 \
+    do {                                                                                                       \
+        GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] reject " << fc_node.id() << ": " << (reason) << std::endl; \
+        /* a fused Hadamard input exists only here; another impl would ignore it */                            \
+        OPENVINO_ASSERT(fc_prim->hadamard_block == 0,                                                          \
+                        "[GPU] ternocl int2: ",                                                                \
+                        fc_node.id(),                                                                          \
+                        " carries a Hadamard input transform but the TernOCL impl rejected it: ",              \
+                        (reason));                                                                             \
+        return false;                                                                                          \
     } while (0)
 
         if (!fc_prim->compressed_weights)
@@ -105,6 +86,9 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
             TERNOCL_REJECT("weights are not u2");
         if (!fc_node.weights().is_type<data>())
             TERNOCL_REJECT("weights are not a constant");
+        // Ternary {-1, 0, +1} arrives as u2 codes {0, 1, 2} with a scalar zero point of 1.
+        if (!fc_prim->decompression_zero_point_scalar.has_value() || std::lround(fc_prim->decompression_zero_point_scalar.value()) != 1)
+            TERNOCL_REJECT("zero point is not the scalar 1");
 
         const auto& in_layout = fc_node.get_input_layout(0);
         const auto& out_layout = fc_node.get_output_layout(0);
@@ -150,15 +134,7 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         if (fc_prim->hadamard_block != 0 && (fc_prim->hadamard_block != 1024 || K % 1024 != 0))
             TERNOCL_REJECT("hadamard block must be 1024 and divide K");
 
-        // OV_TERNOCL_INT2_ONLY_N=6144,24576 restricts the impl to the listed output widths (bisecting aid).
-        if (const char* only = std::getenv("OV_TERNOCL_INT2_ONLY_N")) {
-            const std::string want = "," + std::string(only) + ",";
-            if (want.find("," + std::to_string(N) + ",") == std::string::npos)
-                TERNOCL_REJECT("N not in OV_TERNOCL_INT2_ONLY_N");
-        }
-
-        if (dbg)
-            std::cerr << "[ternocl-int2] accepted " << fc_node.id() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] accept " << fc_node.id() << std::endl;
         return true;
 #undef TERNOCL_REJECT
     }

@@ -4,9 +4,7 @@
 
 #include "fuse_rms_rope.hpp"
 
-#include <cstdlib>
-#include <iostream>
-
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape.hpp"
@@ -18,7 +16,6 @@
 namespace ov::intel_gpu {
 
 bool FuseRMSRoPE::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    const bool trace = std::getenv("OV_GPU_DEBUG_RMS_ROPE") != nullptr;
     size_t fused = 0;
 
     for (const auto& node : model->get_ordered_ops()) {
@@ -27,16 +24,6 @@ bool FuseRMSRoPE::run_on_model(const std::shared_ptr<ov::Model>& model) {
             continue;
 
         const auto& config = rope->get_config();
-
-        if (trace && rope->get_friendly_name().find(".layers.0.") != std::string::npos) {
-            const auto producer = rope->get_input_node_shared_ptr(0);
-            std::cerr << "[rms_rope] candidate " << rope->get_friendly_name() << " inputs=" << rope->get_input_size()
-                      << " type=" << rope->get_input_element_type(0) << " shape=" << rope->get_input_partial_shape(0)
-                      << " producer=" << producer->get_type_name() << " producer_consumers=" << producer->output(0).get_target_inputs().size()
-                      << " rotary_ndims=" << config.rotary_ndims << " slice=" << config.slice_start << ':' << config.slice_stop
-                      << " gather_arg=" << config.gather_position_arg_id << " in_trans=" << config.input_trans0213 << " out_trans=" << config.output_trans0213
-                      << " interleaved=" << config.is_interleaved << std::endl;
-        }
 
         if (rope->get_input_size() != 3 || config.gather_position_arg_id != 0 || config.is_qwen || config.is_chatglm || config.is_ltx_video ||
             config.is_interleaved || config.output_trans0213 || config.slice_start != 0 || config.slice_stop != 0 ||
@@ -49,7 +36,9 @@ bool FuseRMSRoPE::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (rope_shape.rank().is_dynamic() || rope_shape.rank().get_length() != 4 || !rope_shape[3].is_static())
             continue;
         const auto head_size = static_cast<size_t>(rope_shape[3].get_length());
-        if (head_size != config.rotary_ndims || head_size % 2 != 0)
+        // rope_opt reduces the head only on its 16-wide f16 path: f16 cos/sin and head_size % 32 == 0.
+        if (head_size != config.rotary_ndims || head_size % 32 != 0 || rope->get_input_element_type(1) != ov::element::f16 ||
+            rope->get_input_element_type(2) != ov::element::f16)
             continue;
 
         // The RMSNorm either feeds RoPE directly (transpose already absorbed) or through a single view.
@@ -88,11 +77,10 @@ bool FuseRMSRoPE::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
         ov::replace_node(rope, fused_rope);
         ++fused;
+        GPU_DEBUG_TRACE_DETAIL << "[rms_rope] fused into " << fused_rope->get_friendly_name() << std::endl;
     }
 
-    if (trace)
-        std::cerr << "[rms_rope] fused=" << fused << std::endl;
-
+    GPU_DEBUG_TRACE << "[rms_rope] fused " << fused << " RMSNorm + RoPE pairs" << std::endl;
     return fused > 0;
 }
 

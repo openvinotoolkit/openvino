@@ -21,9 +21,9 @@
 
 #    include "data_inst.h"
 #    include "fully_connected_inst.h"
+#    include "intel_gpu/runtime/debug_configuration.hpp"
 #    include "intel_gpu/runtime/kernel_args.hpp"
 #    include "intel_gpu/runtime/memory.hpp"
-#    include "openvino/util/env_util.hpp"
 #    include "primitive_inst.h"
 #    include "registry/registry.hpp"
 #    include "reorder_inst.h"
@@ -54,34 +54,6 @@ void pack_weights(const uint8_t* src, uint32_t* dst, size_t N, size_t K, int32_t
     }
 }
 
-// The zero point carries whatever precision the model used, so read it by type.
-float read_scalar(const memory::ptr& mem, stream& s) {
-    switch (mem->get_layout().data_type) {
-    case data_types::f16: {
-        mem_lock<uint16_t, mem_lock_type::read> l{mem, s};
-        return static_cast<float>(ov::float16::from_bits(l.data()[0]));
-    }
-    case data_types::f32: {
-        mem_lock<float, mem_lock_type::read> l{mem, s};
-        return l.data()[0];
-    }
-    case data_types::u8: {
-        mem_lock<uint8_t, mem_lock_type::read> l{mem, s};
-        return static_cast<float>(l.data()[0]);
-    }
-    case data_types::i8: {
-        mem_lock<int8_t, mem_lock_type::read> l{mem, s};
-        return static_cast<float>(l.data()[0]);
-    }
-    case data_types::u2: {
-        mem_lock<uint8_t, mem_lock_type::read> l{mem, s};
-        return static_cast<float>(read_u2(l.data(), 0));
-    }
-    default:
-        OPENVINO_THROW("[GPU] ternocl int2: unsupported zero point type ", mem->get_layout().data_type);
-    }
-}
-
 // Constant inputs may be fed through a reorder inserted by the graph optimizer;
 // only the data node behind it can be read at compile time.
 const program_node* const_source(const program_node* node) {
@@ -105,23 +77,7 @@ struct MtTile {
     int mt_m, mt_n, wg_m, wg_n;
 };
 
-bool env_ints(const char* name, int* v, int n) {
-    const char* e = std::getenv(name);
-    if (e == nullptr)
-        return false;
-    std::stringstream ss(e);
-    for (int i = 0; i < n; ++i) {
-        if (!(ss >> v[i]))
-            return false;
-        ss.ignore(1, ',');
-    }
-    return true;
-}
-
 GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
-    GemvTile t{0, 0, 0};
-    if (env_ints("OV_TERNOCL_INT2_GEMV", &t.wgn, 3))  // "wgn,ls,u" for sweeps
-        return t;
     struct Entry {
         size_t k, n;
         GemvTile t;
@@ -200,10 +156,7 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
 }
 
 MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
-    MtTile t{0, 0, 0, 0};
     if (M < 64) {
-        if (env_ints("OV_TERNOCL_INT2_MID", &t.mt_m, 4))  // "mt_m,mt_n,wg_m,wg_n"
-            return t;
         // Sweep at M = 12 / 20 / 32 / 48 over the 27B shapes; the winners group
         // by output width (narrow N <= 8192, head N >= 65536).
         const int band = M <= 16 ? 0 : (M <= 32 ? 1 : 2);
@@ -217,8 +170,6 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
             return N <= 8192 ? i_narrow[band] : (N >= 65536 ? i_head[band] : i_wide[band]);
         return N <= 8192 ? narrow[band] : (N >= 65536 ? head[band] : wide[band]);
     }
-    if (env_ints("OV_TERNOCL_INT2_MT", &t.mt_m, 4))
-        return t;
     struct Entry {
         size_t k, n;
         MtTile t;
@@ -260,18 +211,8 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
     return MtTile{64, 32, 4, 4};
 }
 
-// OV_TERNOCL_INT2_INT8_PREFILL=1: M > 8 runs the int2 x int8 DPAS GEMM on the same packed
-// weights, quantizing the activations to int8 per (row, 128-group) inside the GEMM.
-bool int8_prefill_enabled() {
-    static const bool on = ov::util::getenv_bool("OV_TERNOCL_INT2_INT8_PREFILL");
-    return on;
-}
-
 // Arc Pro B70 sweep of the 27B shapes, per M band (<= 16, <= 32, < 64, >= 64).
 MtTile int8_tile(size_t K, size_t N, size_t M) {
-    MtTile t{0, 0, 0, 0};
-    if (env_ints("OV_TERNOCL_INT2_INT8_MT", &t.mt_m, 4))  // "mt_m,mt_n,wg_m,wg_n" for sweeps
-        return t;
     const int band = M <= 16 ? 0 : (M <= 32 ? 1 : (M < 64 ? 2 : 3));
     struct Entry {
         size_t k, n;
@@ -311,8 +252,7 @@ cl::Program get_program(const ocl_engine& engine, const char* src, const std::st
     } catch (const cl::Error&) {
         OPENVINO_THROW("[GPU] ternocl int2: kernel build failed (", opts, "):\n", prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(engine.get_cl_device()));
     }
-    if (ov::util::getenv_bool("OV_TERNOCL_INT2_CFG_DEBUG"))
-        std::cerr << "[ternocl-int2] built " << opts << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] built " << opts << std::endl;
     return cache->emplace(key, prog).first->second;
 }
 
@@ -369,6 +309,8 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
     bool _out_f32 = false;
     size_t _had_block = 0;
     bool _integrated = false;
+    // GPU_TERNOCL_INT2_INT8_PREFILL: M > 8 on the int2 x int8 DPAS GEMM (activations quantized per 128-group).
+    bool _int8 = false;
 
     // GEMV for M = 1, 2, <= 4, <= 8; M-tiled for M <= 16, <= 32, < 64, >= 64.
     struct Launch {
@@ -393,7 +335,8 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
                                  int postop,
                                  size_t other_dep,
                                  bool out_f32,
-                                 size_t had_block)
+                                 size_t had_block,
+                                 bool int8)
         : parent("ternocl_int2"),
           _engine(&engine),
           _own(std::move(own)),
@@ -403,7 +346,8 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
           _other_dep(other_dep),
           _out_f32(out_f32),
           _had_block(had_block),
-          _integrated(engine.get_device_info().dev_type == device_type::integrated_gpu) {}
+          _integrated(engine.get_device_info().dev_type == device_type::integrated_gpu),
+          _int8(int8) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         // Shares the kernel handles like the stock OCL impls: OpenVINO clones
@@ -428,7 +372,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         std::vector<BufferDescriptor> descs;
         if (_had_block != 0)
             descs.emplace_back(M * _K, ov::element::f16);
-        if (int8_prefill_enabled() && M > 8)
+        if (_int8 && M > 8)
             descs.emplace_back((_K / kTernoclGroupSize) * ((M + 31) & ~size_t{31}), ov::element::f16);
         return descs;
     }
@@ -465,8 +409,7 @@ protected:
                     " -DWG_N=" + std::to_string(l.t.wg_n) + " -cl-intel-256-GRF-per-thread";
             l.k = make_kernel(*_engine, get_program(*_engine, kTernoclUpcvtSource, opts + epi_opts()), "int2_fp16_upcvt_gemm_mt");
         }
-        if (ov::util::getenv_bool("OV_TERNOCL_INT2_CFG_DEBUG"))
-            std::cerr << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << ": " << opts << epi_opts() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << ": " << opts << epi_opts() << std::endl;
         return l;
     }
 
@@ -481,8 +424,7 @@ protected:
         const auto prog = get_program(*_engine, kTernoclInt8Source, opts);
         l.quant = make_kernel(*_engine, prog, "quant_a");
         l.gemm = make_kernel(*_engine, prog, "int2_int8_gemm_mt");
-        if (ov::util::getenv_bool("OV_TERNOCL_INT2_CFG_DEBUG"))
-            std::cerr << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << " int8: " << opts << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << " int8: " << opts << std::endl;
         return l;
     }
 
@@ -590,7 +532,7 @@ protected:
             in = rotated;
         }
 
-        if (M > 8 && int8_prefill_enabled())
+        if (M > 8 && _int8)
             return execute_int8(instance, *pk, in, deps, M);
 
         auto& l = get_launch(M);
@@ -637,7 +579,7 @@ public:
         auto& prog = arg.get_program();
         auto& engine = prog.get_engine();
         auto& stream = prog.get_stream();
-        const bool dbg = ov::util::getenv_bool("OV_TERNOCL_INT2_DEBUG");
+        const bool int8 = prog.get_config().get_ternocl_int2_int8_prefill();
 
         const auto wei_shape = arg.weights().get_output_layout(false).get_shape();
         const size_t N = wei_shape[0];
@@ -672,14 +614,8 @@ public:
         if (!packed_already(own)) {
             // Dependencies are input, weights, [bias], scale, [zero point].
             const size_t scale_dep_idx = desc->bias.is_valid() ? 3 : 2;
-            int32_t zp = 0;
-            if (desc->decompression_zero_point_scalar.has_value()) {
-                zp = static_cast<int32_t>(std::lround(desc->decompression_zero_point_scalar.value()));
-            } else if (desc->decompression_zero_point.is_valid()) {
-                const auto* zp_node = const_source(&arg.get_dependency(scale_dep_idx + 1));
-                OPENVINO_ASSERT(zp_node != nullptr, "[GPU] ternocl int2: zero point is not constant");
-                zp = static_cast<int32_t>(std::lround(read_scalar(zp_node->as<data>().get_attached_memory_ptr(), stream)));
-            }
+            // validate_impl() admits only the scalar zero point 1.
+            const auto zp = static_cast<int32_t>(std::lround(desc->decompression_zero_point_scalar.value()));
 
             const size_t packed_bytes = N * K / 4;
             OPENVINO_ASSERT(wei_mem->size() >= packed_bytes,
@@ -745,12 +681,18 @@ public:
             std::lock_guard<std::mutex> lock(ternocl_packed_mutex());
             ternocl_packed_cache().try_emplace(key, own);
         }
-        if (dbg) {
-            std::cerr << "[ternocl-int2] create " << arg.id() << " N=" << N << " K=" << K << " postop=" << postop << " out_f32=" << out_f32
-                      << " hadamard=" << desc->hadamard_block << std::endl;
-        }
+        GPU_DEBUG_TRACE << "[ternocl-int2] create " << arg.id() << " N=" << N << " K=" << K << " postop=" << postop << " out_f32=" << out_f32
+                        << " hadamard=" << desc->hadamard_block << " int8_prefill=" << int8 << std::endl;
 
-        return std::make_unique<fully_connected_ternocl_int2>(downcast<const ocl_engine>(engine), own, N, K, postop, other_dep, out_f32, desc->hadamard_block);
+        return std::make_unique<fully_connected_ternocl_int2>(downcast<const ocl_engine>(engine),
+                                                              own,
+                                                              N,
+                                                              K,
+                                                              postop,
+                                                              other_dep,
+                                                              out_f32,
+                                                              desc->hadamard_block,
+                                                              int8);
     }
 };
 
