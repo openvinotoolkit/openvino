@@ -148,11 +148,13 @@ public:
             for (size_t fi = 0; fi < updated_impl_params.fused_desc.size(); fi++) {
                 auto& fd = updated_impl_params.fused_desc[fi];
                 // Extend fused op output_layout rank to match the restored output rank
-                auto fd_out_pshape = fd.output_layout.get_partial_shape();
+                auto fd_out_pshape = fd.get_output_layout().get_partial_shape();
                 if (fd_out_pshape.size() < output_pshape.size()) {
                     fd_out_pshape.insert(fd_out_pshape.begin() + prim->axis, ov::Dimension(1));
-                    fd.output_layout.set_partial_shape(fd_out_pshape);
-                    fd.output_layout.format = format::adjust_to_rank(fd.output_layout.format, fd_out_pshape.size());
+                    auto fd_output_layout = fd.get_output_layout();
+                    fd_output_layout.set_partial_shape(fd_out_pshape);
+                    fd_output_layout.format = format::adjust_to_rank(fd.get_output_layout().format, fd_out_pshape.size());
+                    fd.set_output_layout(fd_output_layout);
                 }
 
                 // Extend all fused op peer dependency tensor ranks (quantize has multiple: in_lo, in_hi, out_lo, out_hi)
