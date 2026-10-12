@@ -312,6 +312,10 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::CanonicalizeFloatPrecision>();
         // Marks the Converts the canonicalization added.
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
+        // Keep the decompression marks but let the decompression Converts be constant-folded again, which is the
+        // state of a model read from IR (the no-folding flag is not serialized). The plugin then decides which
+        // Converts to keep, as it does for IR models; this caller compiles straight from memory.
+        manager.register_pass<ov::pass::EnableDecompressionConvertConstantFolding>();
         manager.run_passes(model);
     }
 

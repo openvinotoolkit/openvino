@@ -3582,3 +3582,64 @@ def test_canonicalize_float_precision_attribute_typed_ops(module_cls):
               if op.get_type_name() not in ("Constant", "Parameter", "Result", "Convert")
               and op.get_output_element_type(0) in (Type.bf16, Type.f16)]
     assert not narrow, f"ops left in bf16: {narrow}"
+
+
+class _Bf16LinearBiasThenAdd(torch.nn.Module):
+    """A biased Linear followed by a constant Add: FC -> Add(bias) -> Add(const) on CPU."""
+
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 2048, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x) + torch.arange(2048, dtype=torch.bfloat16) / 2048
+
+
+def _convert_canonical(module, example):
+    from openvino import OVAny
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    with torch.no_grad():
+        ep = torch.export.export(module.eval(), (example,))
+    decoder = TorchFXPythonDecoder(ep.module(), rt_info={"canonical_float_precision": OVAny(True)})
+    fe = FrontEndManager().load_by_framework("pytorch")
+    return fe.convert(fe.load(decoder))
+
+
+def test_canonicalize_float_precision_matches_ir_state(tmp_path):
+    """The in-memory model carries the same rt_info as the model read back from IR, so a plugin
+    compiling it from memory sees what it sees for an IR model."""
+    from openvino import Core, serialize
+
+    ov_model = _convert_canonical(_Bf16LinearBiasThenAdd(), torch.randn(2, 64, dtype=torch.bfloat16))
+    xml_path, bin_path = str(tmp_path / "model.xml"), str(tmp_path / "model.bin")
+    serialize(ov_model, xml_path, bin_path)
+    reloaded = Core().read_model(xml_path)
+
+    def convert_marks(model):
+        return sorted(sorted(op.get_rt_info().keys()) for op in model.get_ordered_ops()
+                      if op.get_type_name() == "Convert" and op.input_value(0).get_node().get_type_name() == "Constant")
+
+    assert convert_marks(ov_model) == convert_marks(reloaded)
+    assert ["decompression_0"] in convert_marks(ov_model)
+
+
+def test_canonicalize_float_precision_bias_then_add_on_cpu():
+    """FC -> Add(bias) -> Add(const) compiled from memory keeps the bias."""
+    import copy
+    from openvino import Core, Tensor, Shape
+
+    torch.manual_seed(0)
+    module = _Bf16LinearBiasThenAdd()
+    x = torch.randn(2, 64, dtype=torch.bfloat16)
+    ov_model = _convert_canonical(module, x)
+
+    linear = copy.deepcopy(module.linear).double()
+    with torch.no_grad():
+        expected = (linear(x.double()) + torch.arange(2048, dtype=torch.float64) / 2048).numpy()
+    tensor = Tensor(Type.bf16, Shape([2, 64]))
+    tensor.data[...] = x.view(torch.int16).numpy().view(np.float16)
+    result = Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})([tensor])[0]
+    result = (result.view(np.uint16).astype(np.uint32) << 16).view(np.float32)
+    # A dropped bias shows up as an error of the bias magnitude (~0.125); bf16 rounding alone stays below 0.02.
+    assert np.abs(result - expected).max() < 0.05
