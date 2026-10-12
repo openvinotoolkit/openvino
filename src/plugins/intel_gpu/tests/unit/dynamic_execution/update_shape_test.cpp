@@ -573,7 +573,8 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
 
     // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
     // as the wrong buffer count. token_type_ids no longer forces the non-micro path in MIXED.
+    // micro: 4 base + 2 split-K buffers (splitk_stats, splitk_tmp_out); f16 adds no scores/sink/RKV.
     const bool micro_layout = engine.get_device_info().supports_immad;
-    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 4u : 7u);
+    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 6u : 7u);
 }
 }  // update_shape_test
