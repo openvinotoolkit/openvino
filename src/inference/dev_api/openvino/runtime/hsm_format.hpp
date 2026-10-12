@@ -146,8 +146,9 @@ using DeviceId = uint8_t;
 /**
  * @brief Catalog of assigned #DeviceId values; never change or reuse a value once shipped.
  * #sentinel_count auto-tracks the count and must stay last.
- * @note Meta-plugins (Hetero, AUTO, AUTO-BATCH) deliberately have no id: they redirect to real devices rather
- * than compute themselves, so the device owning a section is always the one that produced it.
+ * @note A plugin gets an id here if it emits a blob of its own - including TEMPLATE, and HETERO, whose
+ * `export_model()` writes its own container around the submodel blobs it embeds. AUTO, MULTI and AUTO-BATCH
+ * have no id: their `export_model()` is not implemented, so they never own a section.
  */
 enum class Devices : DeviceId {
     any = 0,              //!< See #any_device_id.
@@ -155,6 +156,7 @@ enum class Devices : DeviceId {
     gpu = 2,              //!< See #gpu_device_id.
     npu = 3,              //!< See #npu_device_id.
     template_plugin = 4,  //!< See #template_device_id.
+    hetero = 5,           //!< See #hetero_device_id.
     // Add new real devices above this line only, each with the next explicit value - never change or reuse an
     // existing device's value.
     sentinel_count,  // Not a real device id - always exactly one past the last real entry above.
@@ -169,6 +171,9 @@ inline constexpr DeviceId npu_device_id = static_cast<DeviceId>(Devices::npu);  
 
 /// TEMPLATE plugin.
 inline constexpr DeviceId template_device_id = static_cast<DeviceId>(Devices::template_plugin);
+
+/// HETERO plugin - the one meta-plugin with an id; see the #Devices note for why.
+inline constexpr DeviceId hetero_device_id = static_cast<DeviceId>(Devices::hetero);
 
 /**
  * @brief Boundary in the 23-bit #SectionTag id space: Core ids are `< core_tag_id_range_end`;

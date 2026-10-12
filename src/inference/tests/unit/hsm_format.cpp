@@ -138,11 +138,12 @@ constexpr std::array<uint32_t, 5> k_core_tag_ids{hsm::model_id,
                                                  hsm::compiled_options};
 
 // Every assigned device id, pinned the same way as k_core_tag_ids.
-constexpr std::array<hsm::DeviceId, 5> k_device_ids{hsm::any_device_id,
+constexpr std::array<hsm::DeviceId, 6> k_device_ids{hsm::any_device_id,
                                                     hsm::cpu_device_id,
                                                     hsm::gpu_device_id,
                                                     hsm::npu_device_id,
-                                                    hsm::template_device_id};
+                                                    hsm::template_device_id,
+                                                    hsm::hetero_device_id};
 
 }  // namespace
 
@@ -268,6 +269,7 @@ TEST_F(HsmFormatLayoutCompatibilityTest, device_values_are_pinned_and_cannot_be_
     static_assert(static_cast<hsm::DeviceId>(hsm::Devices::npu) == 3, "Devices::npu value changed");
     static_assert(static_cast<hsm::DeviceId>(hsm::Devices::template_plugin) == 4,
                   "Devices::template_plugin value changed");
+    static_assert(static_cast<hsm::DeviceId>(hsm::Devices::hetero) == 5, "Devices::hetero value changed");
     static_assert(k_device_ids.size() == static_cast<size_t>(hsm::Devices::sentinel_count),
                   "a device was added to Devices but not listed in k_device_ids");
 
