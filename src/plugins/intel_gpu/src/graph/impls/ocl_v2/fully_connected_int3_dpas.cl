@@ -222,6 +222,10 @@ KERNEL(quantize_input)(
 #else
 #   error "fully_connected_int3_dpas.cl - DPAS_V2 needs TILE_M of 8, 16 or 32"
 #endif
+// The DPAS accumulators start at the bits of 1.5 * 2^23, so that a group's int32 sum s reads as the float
+// 1.5 * 2^23 + s exactly while |s| < 2^22 (GROUP_SIZE * 128 * 7 at most), which saves its int-to-float conversion.
+// The offset is taken off with the per-row zero-point term.
+#define V2_ACC_BIAS (GROUP_SIZE * 128 * 7 < (1 << 22))
 #if DECOMPRESSION_ZP_TERM
 #   define V2_WEI_ZP ((float)(DECOMPRESSION_ZP_VALUE))
 #else
@@ -451,12 +455,16 @@ KERNEL(fc)(
             unroll_for (uint j = 0; j < V2_NB; ++j)
                 bs[j] = (gi % 2 == 0) ? bs_pair[j].s0 : bs_pair[j].s1;
 
-            // Per row: x = activation scale, y = zp * scale * sum, so each output
-            // element costs one convert and two fma.
+            // Per row: x = activation scale, y = scale * (zp * sum + accumulator offset), so each output
+            // element costs two fma.
             float2 sv[V2_RB];
             unroll_for (uint r = 0; r < V2_RB; ++r) {
                 sv[r] = (gi % 2 == 0) ? sv_pair[r].s01 : sv_pair[r].s23;
+#if V2_ACC_BIAS
+                sv[r].y = sv[r].x * fma(sv[r].y, V2_WEI_ZP, 12582912.0f);
+#else
                 sv[r].y *= sv[r].x * V2_WEI_ZP;
+#endif
             }
 
             ushort a_all[CHUNKS_PER_GROUP / 2][TILE_M * 2];
@@ -467,7 +475,7 @@ KERNEL(fc)(
             int8 acc[M_BLOCKS][V2_NB];
             unroll_for (uint mb = 0; mb < M_BLOCKS; ++mb)
                 unroll_for (uint j = 0; j < V2_NB; ++j)
-                    acc[mb][j] = (int8)(0);
+                    acc[mb][j] = (int8)(V2_ACC_BIAS ? 0x4B400000 : 0);
 
             // The next chunk's weights are read from SLM before the current DPAS.
             int4 w_next[V2_NB];
@@ -499,7 +507,11 @@ KERNEL(fc)(
                     const float as  = sub_group_broadcast(sv[r / 16].x, r % 16);
                     const float azs = sub_group_broadcast(sv[r / 16].y, r % 16);
                     unroll_for (uint j = 0; j < V2_NB; ++j) {
+#if V2_ACC_BIAS
+                        const float part = fma(as_float(acc[mb][j][t]), as, -azs);
+#else
                         const float part = fma((float)acc[mb][j][t], as, -azs);
+#endif
                         acc_f[j][r] = fma(part, bs[j], acc_f[j][r]);
                     }
                 }
@@ -856,6 +868,7 @@ KERNEL(fc)(
 #undef V2_RB
 #undef V2_A_READ
 #undef V2_WEI_ZP
+#undef V2_ACC_BIAS
 #undef V2_SCALE_VEC
 #endif
 
