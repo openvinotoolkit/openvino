@@ -896,11 +896,16 @@ void emit_powf(x64::jit_generator_t* h,
         const Address& source = h->ptr[h->rsp + h->rbx + i * sizeof(float)];
         h->uni_vmovss(xmm0, source);
         h->uni_vmovss(xmm1, h->ptr[h->rsp + h->rbx + vlen + i * sizeof(float)]);
-        // All live vector registers are spilled; avoid AVX-to-SSE transitions in libm.
+        // Wide-vector code may leave dirty upper state, while powf may use legacy SSE.
+        // Clear that state to avoid an AVX-to-SSE transition penalty on each scalar call.
+        // All live vector registers are already spilled; xmm0/xmm1 scalar arguments are preserved.
         h->uni_vzeroupper();
         h->call(h->rbp);
         if (isa == x64::sse41) {
-            // libm may use AVX internally; clear upper state before returning to legacy SSE.
+            // libm selects its ISA independently of this emitter and may use AVX internally.
+            // Clear upper state again before the SSE41 emitter resumes legacy-SSE stores/restores;
+            // the scalar result in xmm0 is preserved. AVX2/AVX512 emitters resume with VEX/EVEX
+            // instructions, so they do not need this extra cleanup.
             h->uni_vzeroupper();
         }
         h->uni_vmovss(source, xmm0);
