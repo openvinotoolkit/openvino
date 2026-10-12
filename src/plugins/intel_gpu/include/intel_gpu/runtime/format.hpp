@@ -165,6 +165,11 @@ struct format {
         os_is_yx_osv32_isv2,                          ///< format used only for fully connected weights compressed for i4
         os_is_zyx_osv64_isv16,
         os_is_yx_osv64_isv2,                          ///< format used only for fully connected weights compressed for i4
+        os_is_yx_osv16_isv32,                         ///< format used only for fully connected weights compressed for u3.
+                                                      ///< Not a plain element blocking: within each 16x32 block the three
+                                                      ///< uint32 words of an output channel's u3 stream are stored at word
+                                                      ///< L, 16 + L, 32 + L. Generic offset math does not apply, see
+                                                      ///< reorder_weights_int3.cl for the exact layout.
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution

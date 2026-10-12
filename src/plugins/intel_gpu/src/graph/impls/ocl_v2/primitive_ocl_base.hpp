@@ -208,9 +208,11 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         const auto current_flags = instance.get_impl_params()->flags.to_ulong();
         constexpr size_t mask_args = (1 << cldnn::ExecutionFlags::ARG_UPDATE_REQUIRED) | (1 << cldnn::ExecutionFlags::IMPL_CHANGED);
         constexpr size_t mask_dispatch = (1 << cldnn::ExecutionFlags::SHAPE_CHANGED);
+        // Pending updates are kept until the stage runs: a stage skipped by get_stages_execution_order, or an impl
+        // swapped in without a shape change (async compilation), must still refresh before its next execution.
         for (auto& stage : _stages) {
-            stage->kd.need_args_update = (current_flags & mask_args) != 0;
-            stage->kd.need_dispatch_data_update = (current_flags & mask_dispatch) != 0;
+            stage->kd.need_args_update |= (current_flags & mask_args) != 0;
+            stage->kd.need_dispatch_data_update |= (current_flags & mask_dispatch) != 0;
         }
     }
 
@@ -315,8 +317,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
+        // sub_kernel_idx indexes get_kernels_source(), i.e. the activated stages
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
-            _stages[sub_kernel_idx]->kernel = kernel;
+            _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }
 
