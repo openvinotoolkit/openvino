@@ -20,6 +20,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <optional>
 
 #include "openvino/core/except.hpp"
@@ -288,6 +289,29 @@ inline constexpr uint32_t compiled_options = static_cast<uint32_t>(Tags::compile
 
 /// Wire tag for #model_id - always inline-mode.
 inline constexpr SectionTag model_id_tag = SectionTag::make(model_id, /*is_inline=*/true);
+
+/**
+ * @brief Byte view of @p id, e.g. for #IWriter::add_section()'s view overload on a #model_id_tag section.
+ * @param id Borrowed, never copied - the returned view stays valid only as long as @p id does.
+ */
+inline ov::util::MemoryView encode_model_id(const uint64_t& id) noexcept {
+    return {reinterpret_cast<const std::byte*>(&id), sizeof(id)};
+}
+
+/**
+ * @brief Recovers the id written by #encode_model_id().
+ * @param section Inline payload, which always reads back as the full-width slot zero-filled past the bytes
+ * actually written - so a fixed `sizeof(uint64_t)` is read here, never @p section's own length.
+ * @return `std::nullopt` if @p section is too short to hold an id.
+ */
+inline std::optional<uint64_t> decode_model_id(ov::util::MemoryView section) noexcept {
+    uint64_t id = 0;
+    if (section.size() < sizeof(id)) {
+        return std::nullopt;
+    }
+    std::memcpy(&id, section.data(), sizeof(id));
+    return id;
+}
 
 /// Wire tag for #model - always pointer-mode.
 inline constexpr SectionTag model_tag = SectionTag::make(model, /*is_inline=*/false);
