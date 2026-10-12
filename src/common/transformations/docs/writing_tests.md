@@ -29,6 +29,8 @@ Or run a single test:
 ./bin/ov_transformations_tests --gtest_filter="YourTestName"
 ```
 
+New test files are not picked up automatically: list the `.cpp` in [tests/sources.cmake](../tests/sources.cmake).
+
 ## Quick checklist
 
 1. Base class: `TransformationTestsF` (not `TransformationTests`)

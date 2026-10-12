@@ -15,10 +15,9 @@
 
 namespace ov::frontend::gguf {
 
-enum class Maturity { Experimental, Verified };
 enum class RegistrationMode { Add, Replace };
 
-// Shared by built-in and external registration; promotion preserves the factory and builder.
+// Shared by built-in and external registration.
 struct GGUF_FRONTEND_API ArchitectureDefinition {
     using BuilderFactory = std::function<std::shared_ptr<ModelBuilder>(const BuildContext&)>;
     using MatchFn = std::function<bool(const GgufMetadata&)>;
@@ -27,7 +26,6 @@ struct GGUF_FRONTEND_API ArchitectureDefinition {
     std::string architecture;  // Required general.architecture, e.g. "clip".
     BuilderFactory factory;
     MatchFn match;  // Optional additional constraint within this architecture.
-    Maturity maturity = Maturity::Experimental;
 
     bool matches(const GgufMetadata& metadata) const;
 };
@@ -36,8 +34,7 @@ struct GGUF_FRONTEND_API ArchitectureDefinition {
 using DecoderOptionsFn = std::function<DecoderOptions(const GgufMetadata&)>;
 GGUF_FRONTEND_API ArchitectureDefinition make_decoder_architecture(std::string architecture,
                                                                    RopeMode rope,
-                                                                   DecoderOptionsFn options = {},
-                                                                   Maturity maturity = Maturity::Experimental);
+                                                                   DecoderOptionsFn options = {});
 
 class GGUF_FRONTEND_API ArchitectureExtension : public ov::Extension {
 public:
@@ -45,7 +42,7 @@ public:
     using Ptr = std::shared_ptr<ArchitectureExtension>;
 
     explicit ArchitectureExtension(ArchitectureDefinition definition, RegistrationMode mode = RegistrationMode::Add);
-    ArchitectureExtension(std::string architecture, RopeMode rope, Maturity maturity = Maturity::Experimental);
+    ArchitectureExtension(std::string architecture, RopeMode rope);
     ~ArchitectureExtension() override;
 
     const ArchitectureDefinition& definition() const {
@@ -54,6 +51,9 @@ public:
     RegistrationMode registration_mode() const {
         return m_mode;
     }
+
+protected:
+    explicit ArchitectureExtension(RegistrationMode mode);
 
 private:
     ArchitectureDefinition m_definition;

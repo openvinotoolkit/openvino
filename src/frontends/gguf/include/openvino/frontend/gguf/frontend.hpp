@@ -39,10 +39,16 @@ public:
     ///   registers `ov::frontend::gguf::pass::GGUFMakeStateful` (or its own variant) here; without one
     ///   the frontend converts to a stateless graph.
     /// - `ov::frontend::gguf::ArchitectureExtension` — registers decoder or custom-family builders
-    ///   without rebuilding the frontend. See docs/porting_a_llama_cpp_model.md.
-    /// - `ov::frontend::TelemetryExtension` — receives error / event callbacks.
+    ///   before load(), without rebuilding the frontend. See docs/extensions.md.
+    /// - `ov::frontend::gguf::ProjectorExtension` — registers one mmproj branch before load().
+    /// - `ov::frontend::gguf::GenAIExtension` — creates stateful decoder caches during normalization
+    ///   and adapts the normalized model to GenAI IO before convert() returns.
+    /// - `ov::frontend::TelemetryExtension` — stored; callbacks are not currently invoked.
     /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is recursively registered.
     /// - `ov::BaseOpExtension` — recursively registers attached op-level extensions.
+    ///
+    /// Conversion and transformation extensions must be registered before convert().
+    /// Registrations affect only this frontend instance.
     ///
     /// \param extension Extension to register.
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;

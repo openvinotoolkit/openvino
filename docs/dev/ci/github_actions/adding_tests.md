@@ -91,14 +91,14 @@ An example dedicated job for a single set of tests from [`ubuntu_22.yml`](./../.
 ```yaml
 NVIDIA_Plugin:
   name: NVIDIA plugin
-  needs: [ Build, Smart_CI ]
-  timeout-minutes: 15
+  needs: [ Docker, Build, Smart_CI ]
+  timeout-minutes: 30
   defaults:
     run:
       shell: bash
   runs-on: aks-linux-16-cores-32gb
   container:
-    image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_nvidia }}
     volumes:
       - /mount:/mount
       - /home/runner/secrets/:/secrets:ro
@@ -115,7 +115,7 @@ NVIDIA_Plugin:
     OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
     NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
     DEBIAN_FRONTEND: 'noninteractive'
-    SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+    SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_Release
   if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
   steps:

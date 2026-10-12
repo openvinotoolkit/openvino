@@ -1,5 +1,5 @@
-# GGUF per-architecture conversion fixtures -- see gen_arch_fixtures.py (generator, run offline) and
-# test_arch_conversion.cpp (consumer).  Generated from llama.cpp 476c01efe88aad7880a8132d5d3a415f2ca75139 at seed 1.
+# GGUF per-architecture conversion fixtures -- see gen_arch_fixtures.py (generator) and
+# test_arch_conversion.cpp (consumer).  Generated from llama.cpp 86a9c79f866799eb0e7e89c03578ccfbcc5d808e at seed 1.
 #
 # One line per fixture:
 #   <file> <data_bytes> <expectation>
@@ -57,7 +57,7 @@ hunyuan_vl-dense.gguf.hdr 4732800 reject
 hy_v3-moe.gguf.hdr 11815360 reject
 internlm2-dense.gguf.hdr 4730752 reject
 jais-dense.gguf.hdr 4745856 reject
-jais2-dense.gguf.hdr 3956480 broken
+jais2-dense.gguf.hdr 3956480 convert
 jamba-dense.gguf.hdr 6061856 reject
 kimi-linear-moe.gguf.hdr 2833984 reject
 lfm2-dense.gguf.hdr 4731520 reject
@@ -98,7 +98,7 @@ qwen2moe-moe.gguf.hdr 9455872 reject
 qwen2vl-dense.gguf.hdr 4731264 reject
 qwen3-dense.gguf.hdr 4733824 convert
 qwen35-dense.gguf.hdr 5271040 convert
-qwen35moe-moe.gguf.hdr 9995904 reject
+qwen35moe-moe.gguf.hdr 9995904 convert
 qwen3moe-moe.gguf.hdr 7096192 convert
 qwen3next-moe.gguf.hdr 11044416 reject
 qwen3vl-dense.gguf.hdr 4733824 reject

@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
-#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
@@ -46,8 +45,7 @@ protected:
         allocator = std::make_shared<::intel_npu::vcl_allocator_2>();
 
         try {
-            std::string ov_lib_dir = ov::test::utils::getOpenvinoLibDirectory();
-            functions = ::intel_npu::VCLLoader::getInstance(ov_lib_dir)->sharedFunctions();
+            functions = ::intel_npu::VCLLoader::getInstance()->sharedFunctions();
         } catch (const std::exception&) {
             GTEST_SKIP() << "Couldn't load compiler library";
         }

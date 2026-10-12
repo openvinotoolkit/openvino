@@ -46,6 +46,7 @@
 #include "pass/prune_orphaned_parameters.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/optimize_strided_slice.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "utils.hpp"
@@ -290,6 +291,14 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         }
     }
 
+    // The architecture and projector metadata select what the GenAI adapters change, including
+    // adapters registered as transformation extensions.
+    if (builder)
+        resulting_model->get_rt_info()["gguf_architecture"] = builder->get_attribute("architecture");
+    if (!gguf_model_decoder->get_mmproj_config().empty()) {
+        resulting_model->get_rt_info()["gguf_mmproj"] = gguf_model_decoder->get_mmproj_config();
+    }
+
     if (builder) {
         resulting_model = resulting_model->clone();
     }
@@ -368,6 +377,9 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     // StateManagementPattern, which admits no Convert between the KV-cache Concat and SDPA, and so
     // silently disables the PagedAttention backend for every GGUF model.
     manager.register_pass<ov::pass::EliminateConvert>();
+    // ggml VIEWs of disjoint ranges of one tensor (fused q/k/v, z/beta/alpha) become Slices; as one
+    // VariadicSplit the plugins can run them in place instead of as one copy kernel each.
+    manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
 
     // Fuse a standalone Loop-based Gated Delta Net recurrence here (not in a plugin, which can't
     // remove a Parameter without violating its I/O port-count invariant), only for models with a

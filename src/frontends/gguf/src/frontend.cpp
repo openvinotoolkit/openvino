@@ -19,6 +19,8 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/extension/architecture.hpp"
+#include "openvino/frontend/gguf/extension/genai.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "translate_session.hpp"
 
@@ -44,6 +46,7 @@ struct FrontEnd::Impl {
     // Transformation extensions run in the normalization stage. A caller uses these to swap the
     // default (stateless) SetRows lowering for an alternative (e.g. a backend stateful lowering).
     std::vector<DecoderTransformationExtension::Ptr> transformation_extensions;
+    std::shared_ptr<GenAIExtension> genai_extension;
     TelemetryExtension::Ptr telemetry;
     // Per-instance catalog: runtime registrations do not affect other frontends.
     ArchRegistry arch_registry;
@@ -89,8 +92,19 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
             auto graph = gguf_model->m_builder(ops);
             conversion_input = std::make_shared<gguf::InputModel>(std::make_shared<GgufBuilderDecoder>(graph));
         }
-        TranslateSession translate_session(conversion_input, ops, m_impl->transformation_extensions);
+        auto transformations = m_impl->transformation_extensions;
+        if (m_impl->genai_extension) {
+            transformations.push_back(std::make_shared<DecoderTransformationExtension>(pass::GGUFMakeStateful()));
+        }
+        TranslateSession translate_session(conversion_input, ops, transformations);
         converted_model = translate_session.get_converted_model();
+    }
+    if (m_impl->genai_extension) {
+        pass::AdaptToGenAI adapter(m_impl->genai_extension->m_mode);
+        FRONT_END_GENERAL_CHECK(adapter.run_on_model(converted_model),
+                                "GenAIExtension requires a GGUF decoder with adaptable inputs");
+        m_impl->genai_extension->m_embedding_model = adapter.get_embedding_model();
+        m_impl->genai_extension->m_per_layer_embedding_model = adapter.get_per_layer_embedding_model();
     }
     return converted_model;
 }
@@ -111,6 +125,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);
+    } else if (const auto& genai = std::dynamic_pointer_cast<GenAIExtension>(extension)) {
+        FRONT_END_GENERAL_CHECK(!m_impl->genai_extension, "GenAIExtension is already registered");
+        m_impl->genai_extension = genai;
     } else if (const auto& transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_impl->transformation_extensions.push_back(transformation);
     } else if (const auto& arch_ext = std::dynamic_pointer_cast<ArchitectureExtension>(extension)) {

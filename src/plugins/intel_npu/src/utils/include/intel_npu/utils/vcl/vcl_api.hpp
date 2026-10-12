@@ -86,7 +86,7 @@ public:
     void operator=(const VCLLoader&) = delete;
     void operator=(VCLLoader&&) = delete;
 
-    static const std::shared_ptr<const VCLLoader> getInstance(const std::string& library_dir = std::string());
+    static const std::shared_ptr<const VCLLoader> getInstance();
 
     /**
      * @brief The function table, sharing this loader's lifetime.

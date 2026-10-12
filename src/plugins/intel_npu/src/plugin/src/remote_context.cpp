@@ -91,6 +91,9 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
+    if (type == ov::element::string) {
+        return ov::IRemoteContext::create_host_tensor(type, shape);
+    }
     return {std::make_shared<ZeroHostTensor>(get_this_shared_ptr(),
                                              _init_structs,
                                              type,
