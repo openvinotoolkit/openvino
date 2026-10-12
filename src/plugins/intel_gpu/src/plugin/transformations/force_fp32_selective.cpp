@@ -139,10 +139,9 @@ std::unordered_set<ov::Node*> collect_seeds(
         const std::string node_type = node->get_type_name();
         const std::string node_name = node->get_friendly_name();
 
-        bool type_match = !has_types || matches_type(forced_types, node_type);
-        bool name_match = !has_names || matches_name(forced_names, node_name);
-
-        if (!type_match || !name_match)
+        if (has_types && !matches_type(forced_types, node_type))
+            continue;
+        if (has_names && !matches_name(forced_names, node_name))
             continue;
 
         // GPU Placeholder represents an absent optional input, not a computation.
@@ -280,9 +279,6 @@ std::tuple<bool, int, size_t> promote_inputs(
                 continue;
             }
 
-            if (input_et == desired_et)
-                continue;
-
             // Change this edge only, preserving external Converts and their users.
             auto convert = std::make_shared<ov::op::v0::Convert>(incoming_output, desired_et);
             convert->set_friendly_name(
@@ -360,17 +356,13 @@ void restore_outputs(const std::shared_ptr<ov::Model>& model,
 }  // namespace
 
 bool ForceFP32Selective::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    const bool has_types = !m_forced_types.empty();
-    const bool has_names = !m_forced_names.empty();
-
-    if (!has_types && !has_names) {
+    if (m_forced_types.empty() && m_forced_names.empty())
         return false;
-    }
-
-
 
     // Phase 1: Seed Collection
     auto f32_region = collect_seeds(model, m_forced_types, m_forced_names);
+    if (f32_region.empty())
+        return false;
 
     // Phase 2: Region Expansion
     expand_region(model, f32_region);
