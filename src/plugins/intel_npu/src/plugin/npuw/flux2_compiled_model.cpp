@@ -37,6 +37,78 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     }
 }
 
+// NPU_COMPILATION_MODE_PARAMS is a space-separated list; append (don't overwrite) so the
+// per-submodel precision hints, arch tuning, and user-provided params all coexist.
+void append_compilation_mode_param(ov::AnyMap& config, const std::string& param) {
+    if (param.empty()) {
+        return;
+    }
+    const auto key = std::string(::intel_npu::COMPILATION_MODE_PARAMS::key());
+    if (auto it = config.find(key); it != config.end() && !it->second.as<std::string>().empty()) {
+        config[key] = it->second.as<std::string>() + " " + param;
+    } else {
+        config[key] = param;
+    }
+}
+
+struct NPUDesc {
+    std::string arch;
+    int64_t max_tiles = -1;
+};
+
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+    if (!plugin || !plugin->get_core()) {
+        return std::nullopt;
+    }
+    std::vector<std::string> all_devices;
+    try {
+        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("Flux2CompiledModel: failed to query NPU capabilities: " << ex.what());
+        return std::nullopt;
+    }
+    if (all_devices.empty()) {
+        return std::nullopt;
+    }
+    NPUDesc desc;
+    desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+    desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+    return std::make_optional(std::move(desc));
+}
+
+// Architecture-aware NPU tile configuration
+void set_max_tiles_based_on_arch(ov::AnyMap& config, const std::optional<NPUDesc>& npudesc) {
+    if (!npudesc.has_value()) {
+        return;
+    }
+    LOG_DEBUG("Flux2CompiledModel: NPU arch " << npudesc->arch << ", max tiles " << npudesc->max_tiles);
+
+    // Platform parameter has a higher priority than deviceID.
+    const std::string npu_platform = (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT)
+                                         ? ov::intel_npu::Platform::standardize(npudesc->arch)
+                                         : npudesc->arch;
+
+    bool set_npu_tiles = false;
+    std::string arch_added_compilation_param;
+    if (npu_platform == ov::intel_npu::Platform::NPU3720) {
+        // Keep baseline settings.
+    } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
+        set_npu_tiles = true;
+        arch_added_compilation_param = "optimization-level=3";
+    } else if (npu_platform == ov::intel_npu::Platform::NPU5010 || npu_platform == ov::intel_npu::Platform::NPU5020) {
+        set_npu_tiles = true;
+    } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+        arch_added_compilation_param = "performance-hint-override=latency";
+    } else {
+        LOG_WARN("Flux2CompiledModel: unknown NPU platform " << npu_platform << ". Default config will be used.");
+    }
+
+    if (set_npu_tiles && npudesc->max_tiles > 0) {
+        config[std::string(ov::intel_npu::tiles.name())] = npudesc->max_tiles;
+    }
+    append_compilation_mode_param(config, arch_added_compilation_param);
+}
+
 // Flux.2-klein pipeline submodels. Each is compiled separately (with NPUW_FLUX2:YES)
 // and needs its own NPUW configuration - see submodel_config().
 enum class Flux2Submodel { TEXT_ENCODER, TRANSFORMER, VAE_DECODER, VAE_ENCODER, UNKNOWN };
@@ -137,7 +209,9 @@ Flux2Submodel detect_submodel(const std::shared_ptr<ov::Model>& model) {
 }
 
 // Build the effective config: NPU device base < per-submodel defaults < user properties.
-ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
+ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model,
+                               const std::shared_ptr<const ov::IPlugin>& plugin,
+                               const ov::AnyMap& properties) {
     const auto role = detect_submodel(model);
     if (role == Flux2Submodel::UNKNOWN) {
         LOG_WARN("Flux2CompiledModel could not identify the Flux.2-klein submodel; "
@@ -155,8 +229,19 @@ ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model, const ov
         {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "NO"},
     };
     merge_config_with(config, submodel_config(role));
-    // User-provided properties take precedence over the defaults above.
-    merge_config_with(config, properties);
+    // Compile newer NPU generations across all tiles (mirrors LLMCompiledModel).
+    set_max_tiles_based_on_arch(config, extract_npu_descriptor(plugin));
+
+    // User-provided properties take precedence over the defaults above, except
+    // NPU_COMPILATION_MODE_PARAMS which is appended so the per-submodel precision
+    // hints above are preserved rather than overwritten.
+    ov::AnyMap user_props = properties;
+    const auto cmp_key = std::string(::intel_npu::COMPILATION_MODE_PARAMS::key());
+    if (auto it = user_props.find(cmp_key); it != user_props.end()) {
+        append_compilation_mode_param(config, it->second.as<std::string>());
+        user_props.erase(it);
+    }
+    merge_config_with(config, user_props);
     return config;
 }
 
@@ -164,8 +249,9 @@ ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model, const ov
 
 ov::npuw::Flux2CompiledModel::PreparedState ov::npuw::Flux2CompiledModel::prepare(
     const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
-    auto prepared_properties = with_flux2_defaults(model, properties);
+    auto prepared_properties = with_flux2_defaults(model, plugin, properties);
     model->set_friendly_name(model->get_friendly_name() + "_flux2");
 
     if (cfg_get<::intel_npu::NPUW_PLAN>(prepared_properties).empty()) {
@@ -190,7 +276,7 @@ ov::npuw::Flux2CompiledModel::Flux2CompiledModel(const std::shared_ptr<ov::Model
                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
                                                  const ov::AnyMap& properties,
                                                  CompiledModelFactory factory)
-    : Flux2CompiledModel(prepare(model, properties), plugin, std::move(factory)) {}
+    : Flux2CompiledModel(prepare(model, plugin, properties), plugin, std::move(factory)) {}
 
 ov::npuw::Flux2CompiledModel::Flux2CompiledModel(PreparedState prepared,
                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
