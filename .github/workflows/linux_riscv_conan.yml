@@ -1,4 +1,4 @@
-name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
+name: Linux RISC-V with Conan (Ubuntu 24.04, Python 3.12)
 on:
   workflow_dispatch:
     inputs:
@@ -75,7 +75,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_22_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -87,7 +87,7 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_22_04_riscv
+            ov_build/ubuntu_24_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -101,7 +101,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_riscv }}
       volumes:
         - /mount:/mount
     env:
@@ -112,8 +112,8 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
+      CONAN_USER_HOME: /mount/caches/ccache/ubuntu24_riscv64_master_release/.conan
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu24_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
