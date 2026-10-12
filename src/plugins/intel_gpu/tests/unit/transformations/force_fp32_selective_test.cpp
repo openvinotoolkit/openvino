@@ -14,6 +14,7 @@
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/gemm.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
@@ -97,6 +98,62 @@ size_t count_converts(const std::shared_ptr<ov::Model>& model) {
             count++;
     }
     return count;
+}
+
+TEST(ForceFP32Selective, OrdinaryNodeWithPlaceholderInNameIsPromoted) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+    auto selected = std::make_shared<ov::op::v0::Relu>(input);
+    selected->set_friendly_name("selected_Placeholder_layer");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{selected}, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    EXPECT_EQ(selected->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(selected->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(selected->get_friendly_name(), "selected_Placeholder_layer");
+    EXPECT_EQ(model->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(count_converts(model), 2u);
+}
+
+TEST(ForceFP32Selective, OrdinaryInputWithPlaceholderInNameIsConverted) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+    auto producer = std::make_shared<ov::op::v0::Relu>(input);
+    auto selected = std::make_shared<ov::op::v0::Relu>(producer);
+    producer->set_friendly_name("Placeholder_producer");
+    selected->set_friendly_name("selected");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{selected}, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    auto promote = ov::as_type_ptr<ov::op::v0::Convert>(selected->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(promote, nullptr);
+    EXPECT_EQ(promote->input_value(0).get_node_shared_ptr(), producer);
+    EXPECT_EQ(promote->get_destination_type(), ov::element::f32);
+    EXPECT_EQ(producer->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(selected->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(count_converts(model), 2u);
+}
+
+TEST(ForceFP32Selective, RenamedPlaceholderRemainsAnAbsentOptionalInput) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+    auto weights = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{2, 4}, {1});
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto selected = std::make_shared<ov::intel_gpu::op::FullyConnected>(input,
+                                                                      weights,
+                                                                      no_bias,
+                                                                      ov::element::f16);
+    no_bias->set_friendly_name("selected_optional_input");
+    selected->set_friendly_name("selected_fc");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{selected}, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    EXPECT_EQ(selected->input_value(2).get_node_shared_ptr(), no_bias);
+    EXPECT_EQ(no_bias->get_output_element_type(0), ov::element::dynamic);
+    EXPECT_EQ(no_bias->get_friendly_name(), "selected_optional_input");
+    EXPECT_EQ(selected->get_input_element_type(2), ov::element::dynamic);
+    EXPECT_EQ(selected->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(count_converts(model), 3u);
 }
 
 TEST(ForceFP32Selective, SplitPromotesAndRestoresEveryFP16Output) {
