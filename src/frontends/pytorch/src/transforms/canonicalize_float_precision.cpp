@@ -23,8 +23,9 @@ namespace pass {
 namespace {
 namespace v0 = ov::op::v0;
 
-// Narrow Constants up to this many elements (scalars, eps, rotary tables) are
-// folded to f32 instead of kept behind a decompression Convert.
+// Narrow Constants up to this many elements (scalars, eps, rotary tables) are folded to f32 instead of
+// kept behind a decompression Convert. A size heuristic, not part of the decompression form itself:
+// the f32 copy of such a Constant costs next to nothing.
 constexpr size_t fold_to_f32_max_elements = 1024;
 
 bool is_narrow(const element::Type& type) {
@@ -149,29 +150,6 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         source.get_tensor().set_names({});
         convert->output(0).get_tensor().set_names(names);
         results[i]->input(0).replace_source_output(convert);
-    }
-
-    // Converts that used to bridge a narrow island and an f32 one are now
-    // identities; drop them so they don't sit between ops the fusions match.
-    for (const auto& node : model->get_ordered_ops()) {
-        const auto convert = ov::as_type_ptr<v0::Convert>(node);
-        if (!convert) {
-            continue;
-        }
-        const auto source = convert->input_value(0);
-        if (source.get_element_type() != convert->get_destination_type()) {
-            continue;
-        }
-        const auto targets = convert->output(0).get_target_inputs();
-        const bool feeds_result = std::any_of(targets.begin(), targets.end(), [](const Input<Node>& target) {
-            return ov::is_type<v0::Result>(target.get_node());
-        });
-        if (feeds_result) {
-            continue;
-        }
-        for (auto target : targets) {
-            target.replace_source_output(source);
-        }
     }
 
     model->validate_nodes_and_infer_types();
