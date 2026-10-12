@@ -619,9 +619,9 @@ TEST(PyramidAttentionTest, ProcessPyramidModelI8IncludesDQParamsInAttentionInput
     ASSERT_TRUE(result.has_value());
 
     // Per layer: 2 KV params (key + value)
-    //          + 3 DQ params (key_scale, key_zp for asymmetric key; value_scale for symmetric value)
-    //          = 5 attention inputs
-    EXPECT_EQ(result->attention._inputs.size(), 5u)
+    //          + 2 DQ params (key_scale, value_scale; both symmetric by default, so no zero-points)
+    //          = 4 attention inputs
+    EXPECT_EQ(result->attention._inputs.size(), 4u)
         << "Attention inputs must include DQ scale/zp parameters so pyramid runtime can view/slice them";
 }
 
@@ -675,9 +675,9 @@ TEST(PyramidAttentionTest, FromI8ModelIncludesDQParamsInCompiledAttentionInfos) 
     ASSERT_TRUE(pyramid.has_value());
     EXPECT_EQ(pyramid->num_models(), 2u);
 
-    // Each model's attention should have 5 inputs (2 KV + 3 DQ)
+    // Each model's attention should have 4 inputs (2 KV + 2 DQ scales)
     for (size_t i = 0; i < pyramid->num_models(); ++i) {
-        EXPECT_EQ(pyramid->_attentions[i]._inputs.size(), 5u)
+        EXPECT_EQ(pyramid->_attentions[i]._inputs.size(), 4u)
             << "Pyramid model " << i << " attention must include DQ params";
     }
 }

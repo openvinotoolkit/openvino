@@ -260,8 +260,9 @@ ov::AnyMap make_kv_precision_props(const ov::element::Type kv_type) {
 
 void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model,
                                  const ov::element::Type kv_type,
-                                 const bool ignore_quant_aux_ports = false) {
-    // Key cache: asymmetric quantization -> value tensor + scale (f32) + zero_point (same as quant type).
+                                 const bool ignore_quant_aux_ports = false,
+                                 const bool asymmetric_key = false) {
+    // Key cache: symmetric by default -> value tensor + scale (f32); asymmetric_key adds zero_point.
     // Value cache: symmetric quantization -> value tensor (i4) + scale (f32), no zero_point.
     const bool is_quantized = is_quantized_kv_type(kv_type);
 
@@ -346,8 +347,9 @@ void expect_kv_cache_input_types(const std::shared_ptr<ov::Model>& model,
     }
 
     if (is_quantized) {
-        EXPECT_TRUE(found_key_scale_input) << "Asymmetric quantized KV key-cache must expose scale input";
-        EXPECT_TRUE(found_key_zp_input) << "Asymmetric quantized KV key-cache must expose zero-point input";
+        EXPECT_TRUE(found_key_scale_input) << "Symmetric quantized KV key-cache must expose scale input";
+        EXPECT_EQ(found_key_zp_input, asymmetric_key)
+            << "Quantized KV key-cache zero-point input presence must match key quantization type";
         EXPECT_TRUE(found_value_scale_input) << "Symmetric quantized KV value-cache must expose scale input";
         EXPECT_FALSE(found_value_zp_input) << "Symmetric quantized KV value-cache must not expose zero-point input";
     } else if (!is_quantized) {
@@ -445,8 +447,9 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
     }
 
     if (is_quantized) {
-        EXPECT_TRUE(found_present_key_scale) << "Asymmetric quantized KV key-cache must expose present scale output";
-        EXPECT_TRUE(found_present_key_zp) << "Asymmetric quantized KV key-cache must expose present zero-point output";
+        EXPECT_TRUE(found_present_key_scale) << "Symmetric quantized KV key-cache must expose present scale output";
+        EXPECT_FALSE(found_present_key_zp)
+            << "Symmetric quantized KV key-cache must not expose present zero-point output";
         EXPECT_TRUE(found_present_value_scale) << "Symmetric quantized KV value-cache must expose present scale output";
         EXPECT_FALSE(found_present_value_zp)
             << "Symmetric quantized KV value-cache must not expose present zero-point output";
@@ -1039,7 +1042,8 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, ClearChunkPrefillZeroFillsQuantizedAux
 TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_DefaultConfig) {
     // Default configuration should use symmetric for both key and value with BY_TOKEN granularity
     RecordingFactory recorder;
-    ASSERT_NO_THROW(create_compiled_model({}, recorder));
+    ov::AnyMap props = {{ov::hint::kv_cache_precision.name(), ov::element::i8}};
+    ASSERT_NO_THROW(create_compiled_model(props, recorder));
 
     const auto& generate = require_sub_model_containing(recorder, "_kv");
     expect_kv_cache_input_types(generate.model, ov::element::i8);
@@ -1068,7 +1072,7 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_Asymme
 
     const auto& generate = require_sub_model_containing(recorder, "_kv");
     // Asymmetric key should have scale AND zero-point
-    expect_kv_cache_input_types(generate.model, ov::element::i8);
+    expect_kv_cache_input_types(generate.model, ov::element::i8, false, true);
 }
 
 TEST_F(ConvertKVCacheToPrecisionPassTest, KVCacheCompressionConfigParsing_InvalidFormat) {
