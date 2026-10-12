@@ -13,9 +13,14 @@
 
 #ifdef GPU_DEBUG_CONFIG
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "plugin/transformations/utils.hpp"
@@ -24,6 +29,44 @@ namespace ov {
 namespace intel_gpu {
 
 namespace {
+
+// Update explicit precision attributes as well as the inferred output descriptor.
+// Otherwise validation can restore an operation's original f16 output type.
+class FP32AttributeVisitor : public ov::AttributeVisitor {
+public:
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        if (name == "output_type" || name == "destination_type" || name == "out_type") {
+            if (auto* type = ov::as_type<ov::AttributeAdapter<ov::element::Type>>(&adapter)) {
+                if (type->get() == "f16")
+                    type->set("f32");
+            } else if (auto* type = ov::as_type<ov::AttributeAdapter<ov::element::Type_t>>(&adapter)) {
+                if (type->get() == "f16")
+                    type->set("f32");
+            }
+        } else if (name == "input_data_types" || name == "output_data_types") {
+            if (auto* types = ov::as_type<ov::AttributeAdapter<ov::element::TypeVector>>(&adapter)) {
+                auto value = types->get();
+                std::replace(value.begin(), value.end(), ov::element::f16, ov::element::f32);
+                types->set(value);
+            }
+        }
+    }
+
+    // Do not recurse into nested attributes or subgraphs.
+    void on_adapter(const std::string&, ov::VisitorAdapter&) override {}
+};
+
+void promote_precision_attributes(const std::shared_ptr<ov::Node>& node) {
+    // Constants, model boundaries, and shared state require coordinated conversion.
+    if (ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Parameter>(node) ||
+        ov::is_type<ov::op::v0::Result>(node) || ov::is_type<ov::op::util::MultiSubGraphOp>(node) ||
+        dynamic_cast<ov::op::util::VariableExtension*>(node.get())) {
+        return;
+    }
+
+    FP32AttributeVisitor visitor;
+    node->visit_attributes(visitor);
+}
 
 // Pass-through ops: no arithmetic, just data movement.
 // These are automatically absorbed into f32 regions when connected to f32 ops,
@@ -200,11 +243,12 @@ std::tuple<bool, int, size_t> promote_inputs(
         }
     }
 
-    // Pass 2: Force output types to f32 and log.
+    // Pass 2: Update explicit precision attributes, force output types to f32, and log.
     for (const auto& node : model->get_ops()) {
         if (!f32_region.count(node.get()))
             continue;
 
+        promote_precision_attributes(node);
         if (node->get_output_element_type(0) != desired_et) {
             node->set_output_type(0, desired_et, node->get_output_partial_shape(0));
         }
