@@ -20,7 +20,7 @@ namespace {
 
 enum class FakePluginTag : uint32_t { shard = 0 };
 
-constexpr hsm::DeviceId fake_device_id = 7;
+constexpr hsm::DeviceId fake_device_id = 200;
 
 struct EntrySpec {
     hsm::ManifestEntry entry;
@@ -384,9 +384,11 @@ TEST(HsmReaderTest, section_accepts_any_enum_typed_tag_with_or_without_a_device)
 TEST(HsmReaderTest, device_overrides_core_tag_by_reusing_it_under_its_own_device_id) {
     // The device-id override convention - see the note on hsm::DeviceId: a device needing content different
     // from a Core tag's shared meaning reuses that tag id under its own id instead of inventing a new tag.
+    constexpr hsm::DeviceId other_device_id = 201;
+
     const auto blob = make_container({
         {make_pointer_entry(hsm::any_device_id, hsm::compiled_options_tag), "shared-options"},
-        {make_pointer_entry(hsm::npu_device_id, hsm::compiled_options_tag), "npu-options"},
+        {make_pointer_entry(fake_device_id, hsm::compiled_options_tag), "device-options"},
     });
     const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
@@ -396,16 +398,16 @@ TEST(HsmReaderTest, device_overrides_core_tag_by_reusing_it_under_its_own_device
     ASSERT_TRUE(shared.has_value());
     EXPECT_EQ(to_string(*shared), "shared-options");
 
-    const auto overridden = reader->section(hsm::npu_device_id, hsm::Tags::compiled_options);
+    const auto overridden = reader->section(fake_device_id, hsm::Tags::compiled_options);
     ASSERT_TRUE(overridden.has_value());
-    EXPECT_EQ(to_string(*overridden), "npu-options");
+    EXPECT_EQ(to_string(*overridden), "device-options");
 
     EXPECT_EQ(reader->count(hsm::Tags::compiled_options), 1U);
-    EXPECT_EQ(reader->count(hsm::npu_device_id, hsm::Tags::compiled_options), 1U);
+    EXPECT_EQ(reader->count(fake_device_id, hsm::Tags::compiled_options), 1U);
 
     // A device that published no override of its own finds nothing under its id, and so falls back to the
     // shared any_device_id entry - the resolution order every such lookup follows.
-    EXPECT_FALSE(reader->section(hsm::gpu_device_id, hsm::Tags::compiled_options).has_value());
+    EXPECT_FALSE(reader->section(other_device_id, hsm::Tags::compiled_options).has_value());
 }
 
 TEST(HsmReaderTest, section_returns_only_the_first_of_several_matching_entries) {
