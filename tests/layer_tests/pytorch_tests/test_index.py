@@ -181,3 +181,29 @@ class TestIndexNone(PytorchLayerTest):
 
         self._test(self.aten_index_list(idxs), "aten::index", ie_device, precision,
                    ir_version, use_convert_model=True, trace_model=True)
+
+
+class TestIndexTrailingDimensions(PytorchLayerTest):
+    def _prepare_input(self, prefix, indices):
+        return (self.random.randn(*prefix, 4, 5),
+                np.asarray(indices[0], dtype=np.int64),
+                np.asarray(indices[1], dtype=np.int64))
+
+    @pytest.mark.parametrize("prefix", [(), (3,), (2, 3)])
+    @pytest.mark.parametrize("indices", [
+        ([0, 3, 1], [4, 0, 2]),
+        ([-1, 0, -2], [-1, -3, 2]),
+        ([[0], [3]], [[0, 2, 4]]),
+        (2, [0, -1]),
+        (2, -1),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_index_trailing(self, prefix, indices, ie_device, precision, ir_version):
+        class Model(torch.nn.Module):
+            def forward(self, x, rows, columns):
+                return torch.ops.aten.index.Tensor(x, [None] * len(prefix) + [rows, columns])
+
+        self._test(Model(), "aten::index", ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"prefix": prefix, "indices": indices}, trace_model=True)

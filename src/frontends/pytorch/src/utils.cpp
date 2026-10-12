@@ -18,6 +18,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -1183,6 +1184,34 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     auto input_shape = rg.make<v3::ShapeOf>(data, element::i32);
     auto zero = rg.make<v0::Constant>(element::i32, Shape{}, 0);
     auto input_dims = rg.make<v1::Split>(input_shape, zero, rank.get_length());
+    const auto first_advanced_axis = advanced_ids.front();
+    const bool trailing_integer_indices = advanced_ids.back() == static_cast<size_t>(rank.get_length() - 1) &&
+                                          advanced_ids.size() == rank.get_length() - first_advanced_axis &&
+                                          std::none_of(is_masked_bool.begin(), is_masked_bool.end(), [](bool masked) {
+                                              return masked;
+                                          });
+    if (trailing_integer_indices) {
+        // Gather selected spatial positions before materializing a dense transpose.
+        Output<Node> linear_index = zero;
+        for (auto axis : advanced_ids) {
+            auto index = rg.make<v0::Convert>(masked_indices[axis], element::i32);
+            const auto dimension = rg.make<v0::Squeeze>(input_dims->output(axis), zero);
+            const auto negative = rg.make<v1::Less>(index, zero);
+            const auto normalized = rg.make<v1::Select>(negative, rg.make<v1::Add>(index, dimension), index);
+            linear_index = rg.make<v1::Add>(rg.make<v1::Multiply>(linear_index, dimension), normalized);
+        }
+        auto first_axis = rg.make<v0::Constant>(element::i32, Shape{1}, first_advanced_axis);
+        auto start = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
+        auto step = rg.make<v0::Constant>(element::i32, Shape{1}, 1);
+        auto prefix_shape = rg.make<v8::Slice>(input_shape, start, first_axis, step);
+        auto minus_one = rg.make<v0::Constant>(element::i32, Shape{1}, -1);
+        auto flat_shape = rg.make<v0::Concat>(OutputVector{prefix_shape, minus_one}, 0);
+        auto flattened = rg.make<v1::Reshape>(data, flat_shape, false);
+        auto gather_axis = rg.make<v0::Constant>(element::i32, Shape{}, first_advanced_axis);
+        new_output = rg.make<v8::Gather>(flattened, linear_index, gather_axis);
+        use_input_as_output = false;
+        return true;
+    }
     std::vector<size_t> non_used_dims;
     for (auto i = 0; i < rank.get_length(); i++) {
         if (std::find(advanced_ids.begin(), advanced_ids.end(), i) == advanced_ids.end()) {

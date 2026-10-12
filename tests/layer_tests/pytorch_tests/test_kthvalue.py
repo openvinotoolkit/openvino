@@ -52,3 +52,24 @@ class TestKthValue(PytorchLayerTest):
                    kwargs_to_prepare_input={"shape": shape, "dtype": dtype},
                    trace_model=True,
                    )
+
+
+class TestSymbolicMinKthValue(PytorchLayerTest):
+    def _prepare_input(self, count):
+        return (np.arange(count, dtype=np.float32) - 0.5,)
+
+    @pytest.mark.parametrize("count", [2, 4, 7])
+    @pytest.mark.nightly
+    @pytest.mark.precommit_torch_export
+    def test_symbolic_min(self, count, ie_device, precision, ir_version):
+        if not self.use_torch_export():
+            pytest.skip("Tests symbolic min in an exported graph")
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                selected = x[x > 0]
+                k = torch.sym_min(3, selected.shape[0])
+                return torch.kthvalue(selected, k)
+
+        self._test(Model(), "aten::kthvalue", ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"count": count})

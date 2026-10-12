@@ -217,6 +217,7 @@ aten::logical_or,
 aten::logical_xor,
 aten::lstm,
 aten::lt,
+aten::mT,Real-valued tensors
 aten::masked_fill,
 aten::masked_fill_,
 aten::masked_scatter,
