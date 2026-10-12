@@ -1,109 +1,63 @@
 # PyTorch Frontend Review
 
 Apply alongside [frontend guidance](frontend.md) to PyTorch translators,
-normalization passes, Python decoders, and conversion tests. Keep shared
-graph-efficiency and dtype-severity rules in the frontend reference.
+passes, decoders, and conversion tests.
 
-## Capture paths and operator dispatch
+## Capture and dispatch
 
-- Identify the actual input: a scripted or traced TorchScript module, a
-  `torch.export.ExportedProgram`, or an FX graph from a `torch.compile`
-  backend. Inspect the captured graph and configured conversion path;
-  sharing an FX decoder does not make export and compile graphs identical.
-- Check the affected [TorchScript decoder](../../../../src/bindings/python/src/openvino/frontend/pytorch/ts_decoder.py)
-  or [FX decoder](../../../../src/bindings/python/src/openvino/frontend/pytorch/fx_decoder.py).
-  Scripting can retain control flow and typed containers; tracing can
-  specialize Python branches and scalar values to the example inputs.
-  Export has its own symbolic-shape constraints and graph representation.
-  Distinguish capture limitations from defects introduced during conversion.
-- Follow dispatch through the [operation table](../../../../src/frontends/pytorch/src/op_table.cpp)
+- Identify the actual capture path: scripted/traced
+  [TorchScript](../../../../src/bindings/python/src/openvino/frontend/pytorch/ts_decoder.py),
+  `torch.export.ExportedProgram`, or `torch.compile` through the
+  [FX decoder](../../../../src/bindings/python/src/openvino/frontend/pytorch/fx_decoder.py).
+  Inspect the captured graph and configured decomposition/functionalization;
+  sharing a decoder does not imply identical operators, metadata, or mutations.
+  Do not assume decompositions run or require them just to hide missing support.
+- Trace dispatch through the [operation table](../../../../src/frontends/pytorch/src/op_table.cpp)
   and [translation session](../../../../src/frontends/pytorch/src/translate_session.cpp).
-  TorchScript names such as `aten::add` and FX names such as
-  `aten.add.Tensor` may reach shared translators or explicit FX overrides.
-  Confirm the overload and schema before sharing a translator: Tensor,
-  Scalar, `out`, and in-place variants may require different handling.
-- Check the graph before and after any configured decomposition or
-  functionalization. These steps can replace an operator, remove mutations,
-  or introduce `*_copy` and other ATen variants. Do not assume that they run,
-  require them solely to hide a missing translator, or treat identical values
-  as sufficient evidence that view and copy variants have identical semantics.
-- Review framework-version-sensitive schemas, defaults, and decompositions
-  against the versions supported by the repository. Avoid assuming that an
-  operator always appears in the form produced by one local PyTorch version.
+  `aten::add` and `aten.add.Tensor` may use shared translators or FX overrides.
+  Check overload schemas, keyword arguments, omitted defaults, `None`, and
+  inlined scalars/lists before sharing logic across capture paths or versions.
+- Distinguish capture specialization from conversion defects. Do not turn
+  symbolic shape calculations into example-input constants, or reorder user
+  inputs, parameters, buffers, and flattened container outputs.
 
-## Type alignment and promotion
+## Type alignment
 
-- Use the existing [type-alignment helpers](../../../../src/frontends/pytorch/src/utils.cpp),
-  including `align_eltwise_input_types`, `get_inputs_with_promoted_types`,
-  `is_python_scalar_input`, and `align_output_types`, when they implement the
-  affected operator's rules. Check [helper wrappers](../../../../src/frontends/pytorch/src/utils.hpp)
-  before adding ad hoc casts or duplicating promotion logic.
-- Distinguish Python scalars, zero-dimensional tensors, and tensors with
-  dimensions. PyTorch promotion depends on both numeric category and operand
-  kind; a Python scalar's stored `i64` or `f32` type does not by itself dictate
-  the result type. Preserve decoder `PyScalar` information and pass the
-  correct scalar flags to alignment helpers, even when the graph scalar is
-  represented by an OpenVINO constant.
-- Align operands before arithmetic when promotion is required. Casting the
-  result afterward cannot repair overflow, truncation, or incorrect division
-  that already occurred in the wrong computation type. Check output alignment
-  separately, including boolean comparison outputs, reduction accumulation
-  types, integer true division, and explicit `dtype` arguments.
-- Apply operator-specific rules rather than promoting every operand alike.
-  In-place operations must respect the destination tensor's dtype and allowed
-  casts; an `out=` tensor can constrain output handling differently from an
-  ordinary result. Scaling arguments such as `alpha` also have schema-specific
-  restrictions. Do not silently accept casts or argument combinations that
-  PyTorch rejects in the supported scenario.
-- Do not rely on static decoder output types to compensate for missing
-  promotion: metadata may be dynamic or unavailable in another capture path.
-  Preserve runtime type alignment where needed. For creation operators and
-  Python floating scalars, check explicit dtype, inferred dtype, and framework
-  default dtype behavior rather than assuming all floating results are `f32`.
-- When dtype decoding changes, keep the Python dtype mappings and the C++
-  ScalarType interpretation consistent. Apply the shared frontend guidance
-  when assessing `i64`/`f64` fidelity and practical narrowing tradeoffs.
+- Reuse [promotion helpers](../../../../src/frontends/pytorch/src/utils.cpp)
+  (`align_eltwise_input_types`, `get_inputs_with_promoted_types`,
+  `is_python_scalar_input`, `align_output_types`) and
+  [wrappers](../../../../src/frontends/pytorch/src/utils.hpp) where their rules apply.
+- Distinguish Python scalars, zero-dimensional tensors, and other tensors.
+  Promotion depends on numeric category and operand kind, not just stored
+  dtype. Preserve decoder `PyScalar` information and pass correct scalar flags.
+- Align operands before arithmetic; casting afterward cannot repair overflow,
+  truncation, or wrong division. Check result types separately, especially
+  comparisons, reductions, integer true division, and explicit/default dtype.
+  Decoder output metadata may be dynamic, so it cannot replace promotion logic.
+- Apply operator-specific rules: in-place destination dtype, allowed `out=`
+  casts, and scalar arguments such as `alpha` differ from ordinary promotion.
+  When dtype decoding changes, keep Python mappings and C++ ScalarType
+  interpretation consistent. Use shared frontend rules for 64-bit tradeoffs.
 
-## Decoder inputs, shapes, and mutation
+## Mutation and aliases
 
-- Check positional arguments, keyword-only arguments, omitted defaults,
-  `None`, inlined scalars, and lists against the actual operator schema.
-  TorchScript may expose values as graph inputs that FX presents as keyword
-  arguments or omits because they equal defaults. Preserve missing versus
-  explicit values when the distinction affects semantics.
-- Check symbolic dimensions, shape-dependent arithmetic, and input/output
-  container ordering. Do not turn export shape hints or example-input sizes
-  into constants when the captured graph permits those values to vary.
-  Follow parameter and buffer handling through the actual decoder entry point
-  so they are not accidentally exposed as user inputs or reordered.
-- Follow mutation through `NodeContext::mutate_input` and the translation
-  session's alias handling. Updating only an operation's returned value can
-  leave later uses of the original tensor or its views stale. Check mutation
-  of a view and of its base, values computed before mutation, in-place return
-  aliases, and `out=` destinations when the change affects them.
-- Preserve the distinction between views and copies. Reshape may create a
-  copy for non-contiguous input, and functionalized `*_copy` variants should
-  not inherit view aliases merely because their values and shapes match.
-  Verify the captured graph and decoder alias contract instead of inferring
-  aliasing solely from an operation's name.
+Follow `NodeContext::mutate_input` and session alias handling, not only the
+returned value: later base/view uses must see updates, while values computed
+before mutation remain unchanged. Check in-place return aliases and `out=`
+destinations when affected. Preserve view/copy distinctions: non-contiguous
+reshape may copy, and `*_copy` variants must not gain aliases merely because
+values match. Use the captured graph and decoder alias contract as evidence.
 
 ## Regression coverage
 
-Use the [PyTorch layer-test harness](../../../../tests/layer_tests/pytorch_tests/pytorch_layer_test_class.py)
-to identify the exercised path. `PYTORCH_TRACING_MODE=EXPORT` selects export,
-`TORCHFX` selects the compile backend, and the ordinary path uses TorchScript
-with its scripting or tracing options. Confirm these settings in the target
-checkout rather than relying on a test name or marker alone.
+Confirm the actual mode in the
+[layer-test harness](../../../../tests/layer_tests/pytorch_tests/pytorch_layer_test_class.py):
+`PYTORCH_TRACING_MODE=EXPORT` selects export, `TORCHFX` selects the compile
+backend, and the ordinary path uses TorchScript scripting/tracing options.
+Check affected paths when shared logic receives different schemas or metadata;
+do not demand unsupported capture modes.
 
-For shared translator changes, check coverage of the affected capture paths
-when their schemas or metadata differ. For path-specific changes, require
-coverage of that path without demanding unsupported capture modes. Verify
-that the expected operator and overload survive capture and any decomposition;
-otherwise a passing numerical test may never exercise the changed translator.
-
-Choose cases that expose the changed rule: mixed dtypes and scalar kinds for
-promotion, multiple permitted shapes for symbolic behavior, or observable
-base/view updates for mutation. Check converted types when dtype behavior is
-the subject of the change; numerical agreement alone does not establish type
-fidelity. Distinguish capture, conversion, and plugin inference failures when
-reporting evidence.
+Verify the expected operator/overload survives capture and decomposition.
+For the changed rule, check mixed dtype/scalar kinds, multiple permitted
+shapes, or observable mutation of bases/views. Assert converted types for
+dtype changes; numerical agreement alone does not establish type fidelity.
