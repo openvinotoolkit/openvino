@@ -26,7 +26,7 @@ namespace {
  * COMPILER_TYPE: whether this decoder actually applies to the imported blob is settled lazily, the first time
  * Pipeline tries to decode with it.
  */
-ov::SoPtr<VCLProfilingDecoder> make_profiling_decoder(const Config& config) {
+ov::SoPtr<IProfilingDecoder> make_profiling_decoder(const Config& config) {
     if (!config.get<PERF_COUNT>()) {
         return {};
     }

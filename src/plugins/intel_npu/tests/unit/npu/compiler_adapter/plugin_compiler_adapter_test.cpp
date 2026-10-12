@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "fake_vcl_compiler.hpp"
@@ -48,13 +49,31 @@ std::shared_ptr<ov::Model> makeWeightlessModel() {
     return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input}, "adapter_ws_test_model");
 }
 
+class RecordingProfilingDecoder final : public ::intel_npu::IProfilingDecoder {
+public:
+    std::vector<ov::ProfilingInfo> decode(const std::vector<uint8_t>& profData,
+                                          const ov::Tensor& network) const override {
+        ++calls;
+        receivedData = profData;
+        networkSize = network.get_byte_size();
+        return {};
+    }
+
+    mutable size_t calls = 0;
+    mutable std::vector<uint8_t> receivedData;
+    mutable size_t networkSize = 0;
+};
+
 struct PluginCompilerAdapterTest : public ::testing::Test {
     std::shared_ptr<FakeVCLCompiler> compiler = std::make_shared<FakeVCLCompiler>();
 
     // The adapter is built with a null ZeroInitStructsHolder throughout: that is the no-driver path,
     // which is the only one reachable without an NPU.
-    std::unique_ptr<PluginCompilerAdapter> makeAdapter() {
-        return std::make_unique<PluginCompilerAdapter>(nullptr, ov::SoPtr<::intel_npu::IVCLCompiler>(compiler));
+    std::unique_ptr<PluginCompilerAdapter> makeAdapter(
+        ov::SoPtr<::intel_npu::IProfilingDecoder> profilingDecoder = {}) {
+        return std::make_unique<PluginCompilerAdapter>(nullptr,
+                                                      ov::SoPtr<::intel_npu::IVCLCompiler>(compiler),
+                                                      std::move(profilingDecoder));
     }
 
     static std::shared_ptr<OptionsDesc> makeOptionsDesc() {
@@ -105,6 +124,20 @@ TEST_F(PluginCompilerAdapterTest, CompileProducesAGraphEvenWithoutADriver) {
     EXPECT_EQ(compiler->compileCalls, 1);
     // No driver means no Level Zero metadata; the graph is export-only but still constructed.
     EXPECT_TRUE(graph->get_metadata().name.empty());
+}
+
+TEST_F(PluginCompilerAdapterTest, CompiledGraphUsesInjectedProfilingDecoder) {
+    auto decoder = std::make_shared<RecordingProfilingDecoder>();
+    auto adapter = makeAdapter(ov::SoPtr<::intel_npu::IProfilingDecoder>(decoder));
+    auto config = makeConfig();
+    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{});
+    const std::vector<uint8_t> profData{1, 2, 3};
+
+    ASSERT_NE(graph, nullptr);
+    EXPECT_TRUE(graph->process_profiling_output(profData).empty());
+    EXPECT_EQ(decoder->calls, 1u);
+    EXPECT_EQ(decoder->receivedData, profData);
+    EXPECT_EQ(decoder->networkSize, compiler->compileResult.get_byte_size());
 }
 
 TEST_F(PluginCompilerAdapterTest, CompilePropagatesCompilerFailures) {

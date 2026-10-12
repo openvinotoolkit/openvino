@@ -26,6 +26,13 @@ ov::Tensor makeNetworkTensor() {
     return ov::Tensor(ov::element::u8, ov::Shape{4});
 }
 
+class NoopProfilingDecoder final : public ::intel_npu::IProfilingDecoder {
+public:
+    std::vector<ov::ProfilingInfo> decode(const std::vector<uint8_t>&, const ov::Tensor&) const override {
+        return {};
+    }
+};
+
 }  // namespace
 
 struct VCLProfilingDecoderTest : public ::testing::Test {
@@ -44,6 +51,27 @@ TEST_F(VCLProfilingDecoderTest, ConstructionDoesNotTriggerACompilerCreateGetDest
     EXPECT_FALSE(fake.called("vclCompilerCreate"));
     EXPECT_FALSE(fake.called("vclCompilerGetProperties"));
     EXPECT_EQ(fake.compilerDestroyCount, 0);
+}
+
+TEST_F(VCLProfilingDecoderTest, InterfaceSoPtrKeepsItsSharedLibraryAlive) {
+    bool libraryReleased = false;
+    auto library = std::shared_ptr<void>(new int(0), [&libraryReleased](void* handle) {
+        delete static_cast<int*>(handle);
+        libraryReleased = true;
+    });
+    auto decoder = std::make_shared<NoopProfilingDecoder>();
+    std::weak_ptr<::intel_npu::IProfilingDecoder> weakDecoder = decoder;
+    ov::SoPtr<::intel_npu::IProfilingDecoder> decoderWithLibrary(
+        std::static_pointer_cast<::intel_npu::IProfilingDecoder>(decoder), library);
+
+    decoder.reset();
+    library.reset();
+    EXPECT_FALSE(weakDecoder.expired());
+    EXPECT_FALSE(libraryReleased);
+
+    decoderWithLibrary = {};
+    EXPECT_TRUE(weakDecoder.expired());
+    EXPECT_TRUE(libraryReleased);
 }
 
 TEST_F(VCLProfilingDecoderTest, NullFunctionTableIsRejected) {

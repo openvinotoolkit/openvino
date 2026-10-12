@@ -145,7 +145,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    /* blob = */ std::nullopt,
                                    get_compatibility_descriptor(graphDesc._handle),
                                    false,
-                                   ov::SoPtr<VCLProfilingDecoder>(nullptr));
+                                   ov::SoPtr<IProfilingDecoder>(nullptr));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -268,7 +268,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              std::move(model),
                                              /* persistentBlob = */ false,
                                              get_compatibility_descriptor(mainGraphHandle._handle),
-                                             ov::SoPtr<VCLProfilingDecoder>(nullptr));
+                                             ov::SoPtr<IProfilingDecoder>(nullptr));
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

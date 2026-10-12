@@ -144,16 +144,10 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
     OPENVINO_ASSERT(_profiling_query != nullptr, "Profiling query is unavailable for model-level profiling");
 
-    // Always try the graph's own (compiler-specific) decode first; if it throws - e.g. no decoder is
-    // available, or the raw data doesn't match what the decoder expects - fall back to the driver's own
-    // layer statistics.
-    try {
-        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
-    } catch (const std::exception& ex) {
+    return zeroProfiling::getModelLayerStatistics(*_graph, *_profiling_query, [this](const std::exception& ex) {
         _logger.debug("get_profiling_info - graph-level decode unavailable (%s), falling back to L0 layer statistics",
                       ex.what());
-        return _profiling_query->getLayerStatistics();
-    }
+    });
 }
 
 Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,

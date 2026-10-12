@@ -8,6 +8,7 @@
 #include <ze_graph_ext.h>
 
 #include <climits>
+#include <exception>
 #include <map>
 
 #include "intel_npu/common/igraph.hpp"
@@ -21,6 +22,16 @@ namespace intel_npu {
 namespace zeroProfiling {
 
 using LayerStatistics = std::vector<ov::ProfilingInfo>;
+
+template <typename Query, typename OnFallback>
+LayerStatistics getModelLayerStatistics(const IGraph& graph, const Query& query, OnFallback&& onFallback) {
+    try {
+        return graph.process_profiling_output(query.template getData<uint8_t>());
+    } catch (const std::exception& ex) {
+        onFallback(ex);
+        return query.getLayerStatistics();
+    }
+}
 
 constexpr uint32_t POOL_SIZE = 1;
 

@@ -264,7 +264,7 @@ WeightlessGraph::WeightlessGraph(
         weightsSource,
     const bool blobIsPersistent,
     const std::optional<std::string>& compatibilityDescriptor,
-    ov::SoPtr<VCLProfilingDecoder> profilingDecoder)
+    ov::SoPtr<IProfilingDecoder> profilingDecoder)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
