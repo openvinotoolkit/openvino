@@ -60,6 +60,8 @@ These are the most commonly used GPU debug knobs.
 | `OV_VERBOSE` | Verbosity level. Supported range: `0` (disabled) to `4` (maximum). |
 | `OV_GPU_LOG_TO_FILE` | Saves verbose logs to the specified file. |
 | `OV_GPU_LIST_LAYERS` | Set to `1` to print the list of executed primitives. This is a subset of the `OV_VERBOSE` log. |
+| `OV_GPU_FORCE_FP32_LAYER_TYPES` | Space-separated operation types to promote from FP16 to FP32. See [Selective FP32 precision](#selective-fp32-precision). |
+| `OV_GPU_FORCE_FP32_LAYER_NAMES` | Space-separated friendly-name substrings to select for FP32 promotion. Combined with the type filter using AND. |
 | `OV_DYNAMIC_QUANTIZATION_GROUP_SIZE` | Sets the dynamic quantization group size. For best accuracy, disable dynamic quantization by setting this value to `0`. |
 | `OV_ACTIVATIONS_SCALE_FACTOR` | Scalar floating-point value used for runtime activation tensor scaling. This is mainly useful for accuracy troubleshooting where `NaN` or `inf` is created in the middle of network execution. |
 | `OV_GPU_DUMP_GRAPHS_PATH` | Saves intermediate graph representations during model compilation to the specified directory. Useful for debugging fusion, layout selection, or opt-out decisions. See the graph dump section below for details. |
@@ -92,6 +94,64 @@ $ OV_VERBOSE=1 ./benchmark_app
 Non default env value for VERBOSE = 1
 ...
 ```
+
+## Selective FP32 precision
+
+Use `ForceFP32Selective` to investigate FP16 accuracy issues by promoting selected operations' FP16 inputs and outputs to FP32. This feature requires a GPU plugin build with `ENABLE_DEBUG_CAPS=ON`.
+
+The pass runs at the end of the GPU model transformation pipeline, after precision conversion and fusion. Filters use the operation's current type (`get_type_name()`) and friendly name at this stage. For example, an original `MatMul` may already be `FullyConnected`, and an RMS pattern may be fused into the internal `RMS` operation. Use types and names from the transformed model; names from the original model may have changed.
+
+### Filters and examples
+
+Both variables accept **space-separated** values. Quote a list in the shell; commas do not separate values. Type matching is exact and case-sensitive. Name matching uses case-sensitive substrings, with no regular expressions or wildcards.
+
+| Type list | Name list | Initial selection |
+|---|---|---|
+| Empty | Empty | No changes. |
+| Set | Empty | Any listed type (OR). |
+| Empty | Set | Any listed name substring (OR). |
+| Set | Set | A listed type AND a listed name substring. |
+
+A matching operation must have at least one FP16 output. If no operation qualifies, the pass makes no changes. GPU `Placeholder`, model `Parameter`/`Result`, and operations with no outputs are excluded from initial selection.
+
+The examples below set only the filters shown. Leave the other filter unset when using type-only or name-only selection. Replace the example names with friendly-name substrings present in your transformed model.
+
+```bash
+# Type-only: select FullyConnected OR RMS.
+OV_GPU_FORCE_FP32_LAYER_TYPES="FullyConnected RMS" ./benchmark_app -m model.xml -d GPU
+
+# Name-only: select names containing block.19 OR ff.net.0.proj.
+OV_GPU_FORCE_FP32_LAYER_NAMES="block.19 ff.net.0.proj" ./benchmark_app -m model.xml -d GPU
+
+# Combined: select RMS nodes whose names contain block.19; print changed ports.
+OV_GPU_FORCE_FP32_LAYER_TYPES="RMS" OV_GPU_FORCE_FP32_LAYER_NAMES="block.19" \
+OV_VERBOSE=2 ./benchmark_app -m model.xml -d GPU
+```
+
+### Selection region and precision boundaries
+
+After initial selection, the pass repeatedly adds connected operations with FP16 outputs from this list: `Reshape`, `Transpose`, `Squeeze`, `Unsqueeze`, `StridedSlice`, `Gather`, `Concat`, `Split`, `VariadicSplit`, `ShapeOf`, and `Broadcast`. A connection on either the input or output side is enough, so expansion can include branches and operations that do not match the filters. `PASSTHROUGH_OPS` is not a supported filter alias.
+
+Only originally FP16 output ports are promoted. Existing FP32, integer, boolean, and BF16 outputs keep their types; for example, TopK values are promoted while its integer indices remain unchanged. External FP16 inputs get FP32 Converts, and outputs leaving the region are restored to their original FP16 type. Model input and output types remain unchanged.
+
+Region nodes connect directly where possible. FP16/FP32 Convert chains can be bypassed on a selected input edge when they lead back to a promoted region output or an external FP32 source. Other consumers keep the original chain. Chains containing integer, boolean, or BF16 conversions, or starting from an external FP16 producer, are preserved.
+
+### Supported scope and limits
+
+Graph tests cover ordinary data operations, Split, TopK, Convert, internal RMS, GPU FullyConnected/FullyConnectedCompressed, Gemm, IndirectSDPA, and TypeRelaxed precision overrides. The pass updates recognized FP16 output precision attributes as well as output descriptors. These tests do not establish FP32 kernel support for every operation.
+
+Constant data, shared state (`ReadValue`/`Assign` and caches), and `Loop`/`If` boundaries are not fully supported. The pass does not recursively select operations inside subgraph bodies. Constant, state, and subgraph operations are excluded from precision attribute updates, but are not all excluded by the initial filters; avoid selecting them until coordinated type handling is implemented. Separate calculation attributes such as `RMSNorm::compute_type` are not updated.
+
+Widening an already rounded FP16 value to FP32 does not recover the lost precision. This applies to previously compressed constants and values produced outside the region. Check the compiled runtime graph and GPU results to confirm the execution precision and accuracy of the selected operations.
+
+With `OV_VERBOSE=2` or higher, the pass logs changed graph output ports. Example output (without the file/line prefix):
+
+```text
+[ForceFP32Selective] FORCED: type=RMS  name=block.19.rms  output=0 f16->f32
+[ForceFP32Selective] Done. Region=1  Forced=1  Outputs=1
+```
+
+`Region` is the selected region size after expansion, `Forced` counts nodes with logged promotions still present in the model, and `Outputs` counts their promoted ports. Unmatched or unchanged nodes have no `FORCED` entry. Logs describe the graph at the end of this pass, before automatic validation and GPU kernel selection; they do not confirm kernel execution precision.
 
 ## Dump execution graph
 
