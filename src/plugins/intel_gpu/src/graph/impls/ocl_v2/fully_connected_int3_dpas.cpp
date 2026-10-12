@@ -310,6 +310,26 @@ bool use_plain_weights_experiment() {
     return plain;
 }
 
+// Single-row GEMV on plain weights with the lanes along K: a step covers SIMD consecutive granules of a row, so each
+// subgroup streams its rows contiguously.
+bool use_k_lanes(const Int3FcInfo& info, const GemmConfig& cfg) {
+    static const bool disabled = std::getenv("INT3_NO_KLANES") != nullptr;
+    return !disabled && use_plain_weights_experiment() && !cfg.dpas && cfg.tile_m == 1 && ((info.ifm / k_chunk) % simd) == 0;
+}
+
+// Subgroups splitting the SIMD output channels of a k-lanes work-group; each streams SIMD / sg_k rows over all of K.
+size_t get_k_lanes_sg_k(const Int3FcInfo&) {
+    static const size_t sg_k = std::getenv("INT3_KL_SGK") ? std::stoul(std::getenv("INT3_KL_SGK")) : 8;
+    return sg_k;
+}
+
+size_t get_sg_k(const Int3FcInfo& info, const GemmConfig& cfg) {
+    if (cfg.dpas) {
+        return 1;
+    }
+    return use_k_lanes(info, cfg) ? get_k_lanes_sg_k(info) : get_scalar_sg_k(info);
+}
+
 std::shared_ptr<WeightsReorderParams> make_weights_reorder_params(const layout& weights) {
     if (use_plain_weights_experiment() || weights.format == format::os_is_yx_osv16_isv32) {
         return nullptr;
@@ -427,7 +447,8 @@ protected:
         jit.make("V2_NB", m_cfg.nb);
         jit.make("TILE_M", m_cfg.tile_m);
         jit.make("SG_M", m_cfg.sg_m);
-        jit.make("SG_K", m_cfg.dpas ? 1 : get_scalar_sg_k(info));
+        jit.make("SG_K", get_sg_k(info, m_cfg));
+        jit.make("K_LANES", use_k_lanes(info, m_cfg));
 
         // The store addresses output element (out_row, n), out_row being the row of the flattened batch. A 3D bfyx
         // output [B, M, N] splits it back into b and f. The fused ops compute this index per element, so M is a
@@ -499,7 +520,7 @@ protected:
                 wgs.global = {(n_blocks / cfg.nb) * simd, m_groups * cfg.sg_m, 1};
                 wgs.local = {simd, cfg.sg_m, 1};
             } else {
-                const size_t sg_k = get_scalar_sg_k(info);
+                const size_t sg_k = get_sg_k(info, cfg);
                 wgs.global = {n_blocks * simd, ceil_div(dispatch_rows, cfg.tile_m) * sg_k, 1};
                 wgs.local = {simd, sg_k, 1};
             }
