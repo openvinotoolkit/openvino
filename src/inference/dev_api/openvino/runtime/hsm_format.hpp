@@ -267,9 +267,8 @@ enum class Tags : uint32_t {
     model_id = 1,              //!< See #model_id.
     model = 2,                 //!< See #model.
     runtime_requirements = 3,  //!< See #runtime_requirements_tag.
-    model_struct = 4,          //!< See #model_struct_tag.
-    weights = 5,               //!< See #weights_tag.
-    compiled_options = 6,      //!< See #compiled_options_tag.
+    weights = 4,               //!< See #weights_tag.
+    compiled_options = 5,      //!< See #compiled_options_tag.
     // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
     // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
@@ -280,7 +279,6 @@ static_assert(static_cast<uint32_t>(Tags::sentinel_count) <= core_tag_id_range_e
 inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!< Model identifier (e.g. a hash).
 inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!< The serialized compiled model itself.
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
-inline constexpr uint32_t model_struct = static_cast<uint32_t>(Tags::model_struct);
 inline constexpr uint32_t weights = static_cast<uint32_t>(Tags::weights);
 inline constexpr uint32_t compiled_options = static_cast<uint32_t>(Tags::compiled_options);
 
@@ -298,9 +296,6 @@ inline constexpr SectionTag model_tag = SectionTag::make(model, /*is_inline=*/fa
  * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
 inline constexpr SectionTag runtime_requirements_tag = SectionTag::make(runtime_requirements, /*is_inline=*/false);
-
-/// Wire tag for #model_struct - always pointer-mode. Payload contract: CVS-196450.
-inline constexpr SectionTag model_struct_tag = SectionTag::make(model_struct, /*is_inline=*/false);
 
 /// Wire tag for #weights - always pointer-mode. Payload contract: CVS-196451.
 inline constexpr SectionTag weights_tag = SectionTag::make(weights, /*is_inline=*/false);

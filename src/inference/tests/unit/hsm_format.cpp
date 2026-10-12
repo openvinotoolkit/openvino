@@ -131,10 +131,9 @@ bool all_in_range(const std::array<T, N>& values, T low, T high) {
 
 // Every Core tag id. Listing them here is what makes the uniqueness and count guards below meaningful:
 // adding a tag to Tags without adding it here fails the build.
-constexpr std::array<uint32_t, 6> k_core_tag_ids{hsm::model_id,
+constexpr std::array<uint32_t, 5> k_core_tag_ids{hsm::model_id,
                                                  hsm::model,
                                                  hsm::runtime_requirements,
-                                                 hsm::model_struct,
                                                  hsm::weights,
                                                  hsm::compiled_options};
 
@@ -215,9 +214,6 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tags_have_fixed_mode) {
     static_assert(hsm::runtime_requirements_tag.id() == hsm::runtime_requirements, "runtime_requirements_tag id");
     static_assert(hsm::runtime_requirements_tag.is_pointer(), "runtime_requirements_tag must always be pointer-mode");
 
-    static_assert(hsm::model_struct_tag.id() == hsm::model_struct, "model_struct_tag id");
-    static_assert(hsm::model_struct_tag.is_pointer(), "model_struct_tag must always be pointer-mode");
-
     static_assert(hsm::weights_tag.id() == hsm::weights, "weights_tag id");
     static_assert(hsm::weights_tag.is_pointer(), "weights_tag must always be pointer-mode");
 
@@ -248,9 +244,8 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_values_are_pinned) {
     static_assert(static_cast<uint32_t>(hsm::Tags::model) == 2, "Tags::model value changed");
     static_assert(static_cast<uint32_t>(hsm::Tags::runtime_requirements) == 3,
                   "Tags::runtime_requirements value changed");
-    static_assert(static_cast<uint32_t>(hsm::Tags::model_struct) == 4, "Tags::model_struct value changed");
-    static_assert(static_cast<uint32_t>(hsm::Tags::weights) == 5, "Tags::weights value changed");
-    static_assert(static_cast<uint32_t>(hsm::Tags::compiled_options) == 6, "Tags::compiled_options value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::weights) == 4, "Tags::weights value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::compiled_options) == 5, "Tags::compiled_options value changed");
 
     SUCCEED();
 }
