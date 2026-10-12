@@ -37,3 +37,19 @@ class TestNarrow(PytorchLayerTest):
     def test_narrow(self, input_shape, dim, start, length, ie_device, precision, ir_version):
         self.input_shape = input_shape
         self._test(*self.create_model(dim, start, length), ie_device, precision, ir_version)
+
+    @pytest.mark.parametrize("input_shape", [
+        [3, 3], [3, 4, 5]
+    ])
+    @pytest.mark.parametrize("dim", [0, 1, -1])
+    @pytest.mark.parametrize("start,length", [
+        # A negative start counts from the end of the dimension. The windows reaching the end of
+        # the axis (start + length == 0) used to come out empty.
+        (-1, 1), (-2, 2), (-2, 1), (-3, 2), (-3, 3),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_narrow_negative_start(self, input_shape, dim, start, length, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+        self._test(*self.create_model(dim, start, length), ie_device, precision, ir_version)
