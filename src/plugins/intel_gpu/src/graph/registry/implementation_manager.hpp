@@ -31,8 +31,8 @@ struct implementation_key {
 
 #define OV_GPU_PRIMITIVE_IMPL(TYPE_NAME)                                                  \
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() { \
-        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME};                   \
-        type_info_static.hash();                                                          \
+        static const ::ov::DiscreteTypeInfo type_info_static =                            \
+            ::ov::util::make_type_info(TYPE_NAME);                                        \
         return type_info_static;                                                          \
     }                                                                                     \
     const ::ov::DiscreteTypeInfo& get_type_info() const override { return get_type_info_static(); }

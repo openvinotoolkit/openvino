@@ -129,6 +129,19 @@ struct AsTypePtr<std::shared_ptr<In>> {
         return ov::is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
     }
 };
+
+/// \brief Builds a DiscreteTypeInfo with its hash already computed.
+///
+/// RTTI macros publish the result as a shared function-local static. Caching the hash lazily on that
+/// shared instance would be an unsynchronized write racing with concurrent readers, so it is computed
+/// here, before publication.
+inline DiscreteTypeInfo make_type_info(const char* name,
+                                       const char* version_id = nullptr,
+                                       const DiscreteTypeInfo* parent = nullptr) {
+    DiscreteTypeInfo type_info{name, version_id, parent};
+    type_info.hash();
+    return type_info;
+}
 }  // namespace util
 
 /// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
