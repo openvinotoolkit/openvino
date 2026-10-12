@@ -546,9 +546,10 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_gguf_genai_validation.yml
     with:
-      runner: 'aks-linux-8-cores-32gb'
+      runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
-      genai-ref: 490237c850a54f64ebd0682def3081706998b13c
+      run-real-models: ${{ github.event_name == 'schedule' }}
+      genai-ref: acb77de96aa9c89d0984c2e2d363cffb15b4f1d7
 
   GGUF_LlamaCpp_Validation:
     name: GGUF Frontend x llama.cpp validation

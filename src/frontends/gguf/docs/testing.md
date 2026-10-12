@@ -126,10 +126,14 @@ the backend revision, operator tests, state scenarios, and exclusions. These val
 
 [GenAI acceptance CI](../../../../.github/workflows/job_gguf_genai_validation.yml)
 uses this workflow's OpenVINO package and wheels and a pinned companion GenAI
-commit. Its pytest harness builds an independent pinned llama.cpp CPU oracle,
-converts pinned tiny checkpoints, and runs square/JPEG, SDPA/PA, single/multiple
-media, video/audio, chat, cancellation/reset and beam-search cases. Separate
-checks cover Optimum directory/map loading and a real Qwen3.5 pure Q4_0 fixture.
+commit on a 4-core/16-GB runner. Precommit runs generated tiny decoder, MoE and
+recurrent models across SDPA, PA, AUTO and continuous batching, plus tiny GGUF
+tokenizer, input, beam-search, streaming and saved-IR regressions. The multimodal
+pytest harness builds an independent pinned llama.cpp CPU oracle, converts pinned
+tiny checkpoints, and runs square/JPEG, SDPA/PA, single/multiple media, video/audio,
+chat, cancellation/reset and beam-search cases. Separate checks cover Optimum
+directory/map loading. Scheduled runs also enable the real Qwen3.5 pure Q4_0 fixture
+through `run-real-models`; precommit uses tiny models only.
 Acceptance reports record required coverage and source/precision provenance;
 Q4_K_M is excluded from accuracy gates pending the plugin fix. Known Gemma4
 window and Unified prefix-cache parity gaps remain documented in [mmproj.md](mmproj.md).
