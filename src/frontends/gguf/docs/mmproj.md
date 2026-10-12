@@ -153,7 +153,9 @@ mode prepares the language model for media injection:
 For vision, `AdaptMmprojToGenAI(Modality::VISION, Layout::VISION_ENCODERS)` rewrites the
 model to the optimum-intel export layout, allowing OpenVINO GenAI to reuse its existing
 encoders. `get_vision_models()` returns the adapted model under `vision_embeddings`, or
-the three Qwen components below; the supplied model becomes the Qwen merger. GGUF
+the three Qwen components below; the supplied model becomes the Qwen merger. Vision layout
+construction runs on a clone and replaces the supplied graph only on success, preserving it for
+native-embedding fallback if metadata, weights or graph requirements are invalid. GGUF
 preprocessing uses llama.cpp geometry and token limits:
 
 | Projector | Models | Inputs |

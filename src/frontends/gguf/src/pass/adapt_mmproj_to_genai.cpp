@@ -5,6 +5,7 @@
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 
 #include <limits>
+#include <stdexcept>
 #include <unordered_set>
 
 #include "openvino/core/graph_util.hpp"
@@ -134,8 +135,27 @@ Value require_weight(const std::shared_ptr<ov::Model>& model, const std::string&
     return value;
 }
 
-int64_t metadata(const std::shared_ptr<ov::Model>& model, const std::string& key) {
-    return std::stoll(model->get_rt_info<std::string>({"gguf_mmproj", key}));
+int64_t metadata(const std::shared_ptr<ov::Model>& model, const std::string& key, int64_t minimum = 1) {
+    OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", key}), "[GGUF] missing mmproj metadata ", key);
+    const auto& attribute = model->get_rt_info<ov::Any>({"gguf_mmproj", key});
+    OPENVINO_ASSERT(attribute.is<std::string>(), "[GGUF] mmproj metadata must be a string: ", key);
+    const auto& text = attribute.as<std::string>();
+    int64_t value;
+    size_t end;
+    try {
+        value = std::stoll(text, &end);
+    } catch (const std::invalid_argument&) {
+        OPENVINO_THROW("[GGUF] invalid integer mmproj metadata ", key, ": '", text, "'");
+    } catch (const std::out_of_range&) {
+        OPENVINO_THROW("[GGUF] out-of-range integer mmproj metadata ", key, ": '", text, "'");
+    }
+    OPENVINO_ASSERT(end == text.size() && value >= minimum,
+                    "[GGUF] invalid integer mmproj metadata ",
+                    key,
+                    ": '",
+                    text,
+                    "'");
+    return value;
 }
 
 Value image_from_patches(const Value& patches,
@@ -162,6 +182,8 @@ void squeeze_output(const std::shared_ptr<ov::Model>& model) {
 
 // Patches fill the leading rows in raster order; padding rows have position -1.
 void gemma4_layout(const std::shared_ptr<ov::Model>& model, int64_t patch) {
+    OPENVINO_ASSERT(patch <= std::numeric_limits<int64_t>::max() / 3 / patch,
+                    "[GGUF] out-of-range mmproj metadata vision.patch_size");
     auto pixels = new_input(ov::element::f32, {1, -1, 3 * patch * patch});
     auto positions = new_input(ov::element::i64, {1, -1, 2});
     auto flat = std::make_shared<v0::Squeeze>(positions, i64({0}));
@@ -184,6 +206,12 @@ void gemma4_layout(const std::shared_ptr<ov::Model>& model, int64_t patch) {
 }
 
 void muse_layout(const std::shared_ptr<ov::Model>& model, int64_t patch, int64_t window, int64_t merge) {
+    OPENVINO_ASSERT(patch <= std::numeric_limits<int64_t>::max() / 3 / patch,
+                    "[GGUF] out-of-range mmproj metadata vision.patch_size");
+    OPENVINO_ASSERT(window <= std::numeric_limits<int64_t>::max() / window,
+                    "[GGUF] out-of-range mmproj metadata vision.window_size");
+    OPENVINO_ASSERT(merge <= std::numeric_limits<int64_t>::max() / merge,
+                    "[GGUF] out-of-range mmproj metadata vision.merge");
     auto pixels = new_input(ov::element::f32, {-1, 3 * patch * patch});
     auto grid = new_input(ov::element::i64, {1, 3});
     auto thw = std::make_shared<v0::Squeeze>(grid, i64({0}));
@@ -261,7 +289,10 @@ Models qwen_layout(const std::shared_ptr<ov::Model>& model) {
     models["vision_embeddings_pos"] = single_output_model(table, "last_hidden_state", {table_indices});
 
     auto norm_weight = require_weight(model, "v.blk.0.ln1.weight");
-    auto scale = norm_weight.get_target_inputs().begin()->get_node();
+    const auto consumers = norm_weight.get_target_inputs();
+    OPENVINO_ASSERT(!consumers.empty(), "[GGUF] mmproj vision encoder has no consumer of v.blk.0.ln1.weight");
+    auto scale = consumers.begin()->get_node();
+    OPENVINO_ASSERT(ov::is_type<v1::Multiply>(scale), "[GGUF] unexpected consumer of v.blk.0.ln1.weight");
     auto normalized = scale->input_value(0) == norm_weight ? scale->input_value(1) : scale->input_value(0);
     auto hidden_states = new_input(ov::element::f32, {-1, width});
     normalized.get_node()->input_value(0).replace(std::make_shared<v0::Unsqueeze>(hidden_states, i64({0, 1})));
@@ -269,8 +300,12 @@ Models qwen_layout(const std::shared_ptr<ov::Model>& model) {
     model->remove_parameter(parameter(model, "patch_indices"));
 
     // The first column of each rotary half has frequency 1, so it holds the row or column.
-    const auto head =
-        metadata(model, "clip.vision.embedding_length") / metadata(model, "clip.vision.attention.head_count");
+    const auto width_metadata = metadata(model, "clip.vision.embedding_length");
+    const auto heads = metadata(model, "clip.vision.attention.head_count");
+    OPENVINO_ASSERT(width_metadata == width && width_metadata % heads == 0 && width_metadata / heads % 4 == 0,
+                    "[GGUF] incompatible mmproj metadata clip.vision.embedding_length and "
+                    "clip.vision.attention.head_count");
+    const auto head = width_metadata / heads;
     auto rotary = new_input(ov::element::f32, {-1, head / 2});
     auto row = column(rotary, 0), col = column(rotary, head / 4);
     auto positions = std::make_shared<v5::Round>(std::make_shared<v0::Concat>(ov::OutputVector{row, col, row, col}, 0),
@@ -308,13 +343,15 @@ Models qwen_layout(const std::shared_ptr<ov::Model>& model) {
     models["vision_embeddings_merger"] = model;
     return models;
 }
-}  // namespace
-
-bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    m_vision_models.clear();
-    if (m_layout == Layout::VISION_ENCODERS)
-        OPENVINO_ASSERT(m_modality == Modality::VISION, "[GGUF] VISION_ENCODERS layout requires vision modality");
-    const std::string prefix = m_modality == Modality::VISION ? "vision." : "audio.";
+Models adapt_mmproj(const std::shared_ptr<ov::Model>& model,
+                    AdaptMmprojToGenAI::Modality modality,
+                    AdaptMmprojToGenAI::Layout layout) {
+    using Modality = AdaptMmprojToGenAI::Modality;
+    using Layout = AdaptMmprojToGenAI::Layout;
+    Models vision_models;
+    if (layout == Layout::VISION_ENCODERS)
+        OPENVINO_ASSERT(modality == Modality::VISION, "[GGUF] VISION_ENCODERS layout requires vision modality");
+    const std::string prefix = modality == Modality::VISION ? "vision." : "audio.";
     std::shared_ptr<ov::op::v0::Result> selected;
     for (const auto& result : model->get_results()) {
         if (result->input_value(0).get_names().count(prefix + "embeddings"))
@@ -322,7 +359,7 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
     OPENVINO_ASSERT(selected, "[GGUF] mmproj has no ", prefix, "embeddings output");
     std::string projector;
-    if (m_layout == Layout::VISION_ENCODERS) {
+    if (layout == Layout::VISION_ENCODERS) {
         projector = model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"});
         OPENVINO_ASSERT(projector == "gemma3" || projector == "gemma4v" || projector == "gemma4uv" ||
                             projector == "muse-glimmer" || projector == "qwen3vl_merger",
@@ -338,8 +375,8 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto embeddings = std::make_shared<ov::op::v0::Squeeze>(selected->input_value(0),
                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
     size_t auxiliary_count = 0;
-    if (m_modality == Modality::VISION && model->has_rt_info({"gguf_mmproj", "vision.auxiliary_count"}))
-        auxiliary_count = std::stoull(model->get_rt_info<std::string>({"gguf_mmproj", "vision.auxiliary_count"}));
+    if (modality == Modality::VISION && model->has_rt_info({"gguf_mmproj", "vision.auxiliary_count"}))
+        auxiliary_count = size_t(metadata(model, "vision.auxiliary_count", 0));
     if (auxiliary_count) {
         auto split = std::make_shared<ov::op::v1::Split>(embeddings,
                                                          ov::op::v0::Constant::create(ov::element::i64, {}, {2}),
@@ -350,7 +387,7 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         }
     } else {
         // Only the tensor that becomes a Result is named; the Split path names output 0 instead.
-        embeddings->output(0).set_names({m_modality == Modality::VISION ? "image_features" : "audio_features"});
+        embeddings->output(0).set_names({modality == Modality::VISION ? "image_features" : "audio_features"});
         model->add_results({std::make_shared<ov::op::v0::Result>(embeddings)});
     }
     PruneParametersOrphanedSince(live_before).run_on_model(model);
@@ -360,9 +397,9 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             name_output(p, name.substr(prefix.size()));
     }
     model->validate_nodes_and_infer_types();
-    if (m_layout == Layout::VISION_ENCODERS) {
+    if (layout == Layout::VISION_ENCODERS) {
         if (projector == "qwen3vl_merger") {
-            m_vision_models = qwen_layout(model);
+            vision_models = qwen_layout(model);
         } else {
             if (projector == "gemma4v" || projector == "gemma4uv") {
                 gemma4_layout(model, metadata(model, "vision.patch_size"));
@@ -372,9 +409,43 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                             metadata(model, "vision.window_size"),
                             metadata(model, "vision.merge"));
             }
-            m_vision_models = {{"vision_embeddings", model}};
+            vision_models = {{"vision_embeddings", model}};
         }
     }
+    return vision_models;
+}
+}  // namespace
+
+bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    m_vision_models.clear();
+    if (m_layout == Layout::EMBEDDINGS) {
+        adapt_mmproj(model, m_modality, m_layout);
+        return true;
+    }
+    // Layout construction may fail after rewiring nodes; commit only the validated clone.
+    auto adapted = model->clone();
+    auto vision_models = adapt_mmproj(adapted, m_modality, m_layout);
+    const auto results = model->get_results();
+    const auto parameters = model->get_parameters();
+    const auto sinks = model->get_sinks();
+    const auto variables = model->get_variables();
+    for (const auto& result : results)
+        model->remove_result(result);
+    for (const auto& parameter : parameters)
+        model->remove_parameter(parameter);
+    for (const auto& sink : sinks)
+        model->remove_sink(sink);
+    for (const auto& variable : variables)
+        model->remove_variable(variable);
+    model->add_parameters(adapted->get_parameters());
+    model->add_results(adapted->get_results());
+    model->add_sinks(adapted->get_sinks());
+    model->add_variables(adapted->get_variables());
+    for (auto& [name, encoder] : vision_models) {
+        if (encoder == adapted)
+            encoder = model;
+    }
+    m_vision_models = std::move(vision_models);
     return true;
 }
 }  // namespace ov::frontend::gguf::pass

@@ -19,6 +19,7 @@ public:
     enum class Modality { VISION, AUDIO };
     /// EMBEDDINGS retains native encoder inputs and exposes [B,T,D] features.
     /// VISION_ENCODERS exposes the family-specific inputs used by GenAI vision encoders.
+    /// Invalid layout requirements throw without changing the supplied model.
     enum class Layout { EMBEDDINGS, VISION_ENCODERS };
     explicit AdaptMmprojToGenAI(Modality modality, Layout layout = Layout::EMBEDDINGS)
         : m_modality(modality),

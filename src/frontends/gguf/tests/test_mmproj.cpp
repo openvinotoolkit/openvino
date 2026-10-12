@@ -360,6 +360,112 @@ TEST_F(GGUFMMProj, VisionEncoderLayoutRejectsUnsupportedProjectorWithoutChanging
     EXPECT_EQ(model->output().get_any_name(), "image_features");
 }
 
+std::shared_ptr<ov::Model> vision_fixture(const std::string& name) {
+    auto arrays = cnpy::npz_load(
+        (std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy" / (name + ".npz")).string());
+    ov_gguf_test::TemporaryGguf fixture(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    return frontend.convert(frontend.load(fixture.path));
+}
+
+void expect_layout_rejection_preserves_model(const std::shared_ptr<ov::Model>& model, const std::string& requirement) {
+    const auto results = model->get_results();
+    const auto parameters = model->get_parameters();
+    const auto nodes = model->get_ordered_ops();
+    std::vector<ov::OutputVector> inputs;
+    std::vector<std::string> names;
+    std::vector<std::unordered_set<std::string>> tensor_names;
+    for (const auto& node : nodes) {
+        inputs.push_back(node->input_values());
+        names.push_back(node->get_friendly_name());
+        for (const auto& output : node->outputs())
+            tensor_names.push_back(output.get_names());
+    }
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    OV_EXPECT_THROW(adapter.run_on_model(model), ov::Exception, testing::HasSubstr(requirement));
+    EXPECT_TRUE(adapter.get_vision_models().empty());
+    EXPECT_EQ(model->get_results(), results);
+    EXPECT_EQ(model->get_parameters(), parameters);
+    EXPECT_EQ(model->get_ordered_ops(), nodes);
+    size_t output_index = 0;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        EXPECT_EQ(nodes[i]->input_values(), inputs[i]);
+        EXPECT_EQ(nodes[i]->get_friendly_name(), names[i]);
+        for (const auto& output : nodes[i]->outputs())
+            EXPECT_EQ(output.get_names(), tensor_names[output_index++]);
+    }
+    EXPECT_NO_THROW(Adapter(Adapter::Modality::VISION).run_on_model(model));
+    EXPECT_EQ(model->output(0).get_any_name(), "image_features");
+}
+
+class GGUFMMProjLayoutMetadata : public ::testing::TestWithParam<std::pair<std::string, std::string>> {};
+
+TEST_P(GGUFMMProjLayoutMetadata, RejectsInvalidMetadataWithoutChangingModel) {
+    const auto& [fixture, key] = GetParam();
+    auto source = vision_fixture(fixture);
+    for (const std::string value : {"missing",
+                                    "wrong_type",
+                                    "",
+                                    "invalid",
+                                    "2trailing",
+                                    "0",
+                                    "-1",
+                                    "9223372036854775808",
+                                    "9223372036854775807"}) {
+        SCOPED_TRACE(key + "=" + value);
+        auto model = source->clone();
+        if (value == "missing")
+            model->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase(key);
+        else if (value == "wrong_type")
+            model->set_rt_info(2, {"gguf_mmproj", key});
+        else
+            model->set_rt_info(value, {"gguf_mmproj", key});
+        expect_layout_rejection_preserves_model(model, key);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(VisionEncoders,
+                         GGUFMMProjLayoutMetadata,
+                         ::testing::Values(std::make_pair("gemma4v", "vision.patch_size"),
+                                           std::make_pair("gemma4uv", "vision.patch_size"),
+                                           std::make_pair("muse-glimmer", "vision.patch_size"),
+                                           std::make_pair("muse-glimmer", "vision.window_size"),
+                                           std::make_pair("muse-glimmer", "vision.merge"),
+                                           std::make_pair("qwen3vl_merger", "clip.vision.embedding_length"),
+                                           std::make_pair("qwen3vl_merger", "clip.vision.attention.head_count")));
+
+TEST(GGUFMMProjLayout, RejectsMissingQwenWeightsWithoutChangingModel) {
+    auto source = vision_fixture("qwen3vl_merger");
+    for (const std::string tensor :
+         {"v.patch_embd.weight", "v.patch_embd.weight.1", "v.position_embd.weight", "v.blk.0.ln1.weight"}) {
+        SCOPED_TRACE(tensor);
+        auto model = source->clone();
+        bool found = false;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (node->get_friendly_name() == tensor + "_" + tensor) {
+                node->set_friendly_name("unavailable_weight");
+                found = true;
+            }
+        }
+        ASSERT_TRUE(found);
+        expect_layout_rejection_preserves_model(model, tensor);
+    }
+}
+
+TEST(GGUFMMProjLayout, RejectsMissingQwenInputWithoutChangingModel) {
+    auto model = vision_fixture("qwen3vl_merger");
+    bool found = false;
+    for (const auto& input : model->get_parameters()) {
+        if (input->get_friendly_name() == "vision.position_ids") {
+            input->set_friendly_name("unavailable_input");
+            found = true;
+        }
+    }
+    ASSERT_TRUE(found);
+    expect_layout_rejection_preserves_model(model, "position_ids");
+}
+
 TEST_F(GGUFMMProj, UnsupportedSecondModalityIsNotSilentlyDiscarded) {
     encoder("vision", "gemma3");
     writer.kv_bool("clip.has_audio_encoder", true);
