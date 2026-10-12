@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -16,6 +17,7 @@
 #include "intel_gpu/op/gemm.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/placeholder.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
@@ -120,6 +122,128 @@ size_t count_converts(const std::shared_ptr<ov::Model>& model) {
             count++;
     }
     return count;
+}
+
+class ScopedVerboseCapture {
+public:
+    ScopedVerboseCapture() : stream(ov::intel_gpu::get_verbose_stream()), original(stream.rdbuf(captured.rdbuf())) {}
+
+    ~ScopedVerboseCapture() {
+        stream.rdbuf(original);
+    }
+
+    ScopedVerboseCapture(const ScopedVerboseCapture&) = delete;
+    ScopedVerboseCapture& operator=(const ScopedVerboseCapture&) = delete;
+
+    std::string str() const {
+        return captured.str();
+    }
+
+private:
+    std::ostringstream captured;
+    std::ostream& stream;
+    std::streambuf* original;
+};
+
+class ForceFP32SelectiveLogging : public testing::Test {
+protected:
+    void SetUp() override {
+        if (ov::intel_gpu::ExecutionConfig::get_verbose() < 2)
+            GTEST_SKIP() << "Run with OV_VERBOSE=2 to verify debug logs.";
+        capture = std::make_unique<ScopedVerboseCapture>();
+    }
+
+    std::unique_ptr<ScopedVerboseCapture> capture;
+};
+
+TEST_F(ForceFP32SelectiveLogging, ReportsOnlyPromotedPortsAndNodes) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
+    auto mixed = std::make_shared<MixedOutputOp>(input);
+    auto integer = std::make_shared<ov::op::v0::Relu>(mixed->output(0));
+    auto fp32 = std::make_shared<ov::op::v0::Relu>(mixed->output(2));
+    auto other = std::make_shared<ov::op::v0::Relu>(input);
+    input->set_friendly_name("selected_input");
+    mixed->set_friendly_name("selected_mixed");
+    integer->set_friendly_name("selected_integer");
+    fp32->set_friendly_name("selected_fp32");
+    other->set_friendly_name("other");
+    auto outputs = mixed->outputs();
+    outputs.insert(outputs.end(), {integer, fp32, other});
+    auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    const auto log = capture->str();
+    EXPECT_NE(log.find("FORCED: type=MixedOutputOp  name=selected_mixed  output=1 f16->f32"), std::string::npos);
+    for (const auto port : {0, 2, 3, 4})
+        EXPECT_EQ(log.find("output=" + std::to_string(port) + " f16->f32"), std::string::npos);
+    for (const auto* name : {"selected_input", "selected_integer", "selected_fp32", "other"})
+        EXPECT_EQ(log.find("name=" + std::string(name)), std::string::npos);
+    EXPECT_NE(log.find("Done. Region=1  Forced=1  Outputs=1"), std::string::npos);
+    EXPECT_EQ(mixed->get_output_element_type(1), ov::element::f32);
+}
+
+TEST_F(ForceFP32SelectiveLogging, ReportsExpandedNodesAndAllPromotedOutputs) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+    auto selected = std::make_shared<ov::op::v0::Relu>(input);
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto split = std::make_shared<ov::op::v1::Split>(selected, axis, 2);
+    selected->set_friendly_name("selected_relu");
+    split->set_friendly_name("expanded_split");
+    auto model = std::make_shared<ov::Model>(split->outputs(), ov::ParameterVector{input});
+
+    force_selected(model);
+
+    const auto log = capture->str();
+    EXPECT_NE(log.find("FORCED: type=Relu  name=selected_relu  output=0 f16->f32"), std::string::npos);
+    for (size_t port = 0; port < 2; port++) {
+        EXPECT_NE(log.find("FORCED: type=Split  name=expanded_split  output=" + std::to_string(port) + " f16->f32"),
+                  std::string::npos);
+        EXPECT_EQ(split->get_output_element_type(port), ov::element::f32);
+    }
+    EXPECT_NE(log.find("Done. Region=2  Forced=2  Outputs=3"), std::string::npos);
+}
+
+TEST_F(ForceFP32SelectiveLogging, ReportsSelectedConvertRetainedInGraph) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
+    auto first = std::make_shared<ov::op::v0::Relu>(input);
+    auto down = std::make_shared<ov::op::v0::Convert>(first, ov::element::f16);
+    auto second = std::make_shared<ov::op::v0::Relu>(down);
+    first->set_friendly_name("selected_first");
+    down->set_friendly_name("selected_down");
+    second->set_friendly_name("selected_second");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{second}, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    const auto log = capture->str();
+    EXPECT_NE(log.find("FORCED: type=Relu  name=selected_first  output=0 f16->f32"), std::string::npos);
+    EXPECT_NE(log.find("FORCED: type=Relu  name=selected_second  output=0 f16->f32"), std::string::npos);
+    EXPECT_NE(log.find("FORCED: type=Convert  name=selected_down  output=0 f16->f32"), std::string::npos);
+    EXPECT_NE(log.find("Done. Region=3  Forced=3  Outputs=3"), std::string::npos);
+    EXPECT_EQ(second->input_value(0), down->output(0));
+    EXPECT_EQ(down->get_destination_type(), ov::element::f32);
+}
+
+TEST_F(ForceFP32SelectiveLogging, NoOpFiltersHaveNoSuccessLog) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
+    auto other = std::make_shared<ov::op::v0::Relu>(input);
+    auto fp32 = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+    input->set_friendly_name("selected_input");
+    other->set_friendly_name("other");
+    fp32->set_friendly_name("selected_fp32");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{other, fp32}, ov::ParameterVector{input});
+    ov::intel_gpu::ForceFP32Selective selected_pass({}, {"selected"});
+    ov::intel_gpu::ForceFP32Selective missing_pass({}, {"missing"});
+    ov::intel_gpu::ForceFP32Selective empty_pass({}, {});
+
+    EXPECT_FALSE(selected_pass.run_on_model(model));
+    EXPECT_FALSE(missing_pass.run_on_model(model));
+    EXPECT_FALSE(empty_pass.run_on_model(model));
+
+    EXPECT_EQ(capture->str().find("FORCED:"), std::string::npos);
+    EXPECT_EQ(capture->str().find("Done."), std::string::npos);
+    EXPECT_EQ(count_converts(model), 1u);
 }
 
 using FilterCase = std::tuple<std::vector<std::string>, std::vector<std::string>, unsigned int>;
