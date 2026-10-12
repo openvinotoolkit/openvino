@@ -13,6 +13,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <numeric>
 #include <sstream>
 
 #include "common_test_utils/node_builders/constant.hpp"
@@ -302,7 +303,8 @@ TEST(GGUFAdaptToGenAI, MediaPaddingAcceptsIntegralMetadataAndRejectsInvalidValue
         auto m = build_minimal_gguf_model(8, 2, false, true);
         m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
         auto metadata = std::make_shared<ov::frontend::gguf::GGUFTokenizerMetadata>();
-        metadata->config["tokens"] = std::vector<std::string>{"a", "b", "pad", "<|image|>", "c", "d", "e", "f"};
+        metadata->config["tokens"] =
+            std::vector<std::string>{"a", "b", "pad", "<|image|>", "<|video|>", "<|audio|>", "e", "f"};
         metadata->config["padding_token_id"] = padding;
         m.model->get_rt_info()[ov::frontend::gguf::gguf_tokenizer_metadata_key()] = metadata;
         AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
@@ -320,12 +322,16 @@ TEST(GGUFAdaptToGenAI, MediaPaddingAcceptsIntegralMetadataAndRejectsInvalidValue
         SCOPED_TRACE(type);
         const auto value = v0::Constant::create(type, {}, {2});
         auto lookup = adapt(value->get_tensor_view());
-        ov::Tensor ids(ov::element::i64, {1, 1});
-        ids.data<int64_t>()[0] = 3;
-        ov::TensorVector output{ov::Tensor(ov::element::f32, {1, 1, 2, 1})};
+        ov::Tensor ids(ov::element::i64, {1, 4});
+        std::iota(ids.data<int64_t>(), ids.data<int64_t>() + 4, 3);
+        ov::TensorVector output{ov::Tensor(ov::element::f32, {1, 4, 2, 1})};
         ASSERT_TRUE(lookup->evaluate(output, {ids}));
-        EXPECT_EQ(output.front().data<float>()[0], 1004.f);
-        EXPECT_EQ(output.front().data<float>()[1], 1005.f);
+        for (size_t i = 0; i < 3; ++i) {
+            EXPECT_EQ(output.front().data<float>()[2 * i], 1004.f);
+            EXPECT_EQ(output.front().data<float>()[2 * i + 1], 1005.f);
+        }
+        EXPECT_EQ(output.front().data<float>()[6], 1012.f);
+        EXPECT_EQ(output.front().data<float>()[7], 1013.f);
     }
     for (const auto& value : {v0::Constant::create(ov::element::i64, {0}, {}),
                               v0::Constant::create(ov::element::i64, {2}, {2, 2}),
@@ -338,6 +344,23 @@ TEST(GGUFAdaptToGenAI, MediaPaddingAcceptsIntegralMetadataAndRejectsInvalidValue
     for (const auto& value : {ov::Any{}, ov::Any{std::string{"2"}}, ov::Any{int64_t{2}}}) {
         EXPECT_THROW(adapt(value), ov::Exception);
     }
+}
+
+TEST(GGUFAdaptToGenAI, MediaPaddingPreservesTokenIdsWithoutPaddingMetadata) {
+    auto m = build_minimal_gguf_model(8, 2, false, true);
+    m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
+    auto metadata = std::make_shared<ov::frontend::gguf::GGUFTokenizerMetadata>();
+    metadata->config["tokens"] =
+        std::vector<std::string>{"a", "b", "c", "<|image|>", "<|video|>", "<|audio|>", "e", "f"};
+    m.model->get_rt_info()[ov::frontend::gguf::gguf_tokenizer_metadata_key()] = metadata;
+    AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(pass.run_on_model(m.model));
+    ov::Tensor ids(ov::element::i64, {1, 4});
+    std::iota(ids.data<int64_t>(), ids.data<int64_t>() + 4, 3);
+    ov::TensorVector output{ov::Tensor(ov::element::f32, {1, 4, 2, 1})};
+    ASSERT_TRUE(pass.get_per_layer_embedding_model()->evaluate(output, {ids}));
+    for (size_t i = 0; i < output.front().get_size(); ++i)
+        EXPECT_EQ(output.front().data<float>()[i], float(1006 + i));
 }
 
 // An untagged token lookup cannot be moved, so the language model keeps input_ids for it.

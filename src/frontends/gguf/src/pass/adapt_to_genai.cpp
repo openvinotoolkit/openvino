@@ -201,8 +201,11 @@ ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Ou
     const auto tokens = config.find("tokens");
     if (tokens == config.end() || !tokens->second.is<std::vector<std::string>>())
         return ids;
-    int64_t pad = 0;
-    if (const auto p = config.find("padding_token_id"); p != config.end()) {
+    const auto p = config.find("padding_token_id");
+    if (p == config.end())
+        return ids;
+    int64_t pad;
+    {
         OPENVINO_ASSERT(p->second.is<ov::Tensor>(), "[GGUF] padding_token_id must be a tensor");
         const auto& value = p->second.as<ov::Tensor>();
         OPENVINO_ASSERT(value.get_size() == 1 && value.get_element_type().is_integral_number(),

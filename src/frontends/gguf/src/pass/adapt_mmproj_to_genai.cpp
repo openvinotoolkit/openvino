@@ -21,6 +21,7 @@
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -290,12 +291,15 @@ Models qwen_layout(const std::shared_ptr<ov::Model>& model) {
 
     auto norm_weight = require_weight(model, "v.blk.0.ln1.weight");
     const auto consumers = norm_weight.get_target_inputs();
-    OPENVINO_ASSERT(!consumers.empty(), "[GGUF] mmproj vision encoder has no consumer of v.blk.0.ln1.weight");
+    OPENVINO_ASSERT(consumers.size() == 1, "[GGUF] expected one consumer of v.blk.0.ln1.weight");
     auto scale = consumers.begin()->get_node();
     OPENVINO_ASSERT(ov::is_type<v1::Multiply>(scale), "[GGUF] unexpected consumer of v.blk.0.ln1.weight");
-    auto normalized = scale->input_value(0) == norm_weight ? scale->input_value(1) : scale->input_value(0);
+    auto normalized = ov::as_type_ptr<v6::MVN>(
+        (scale->input_value(0) == norm_weight ? scale->input_value(1) : scale->input_value(0)).get_node_shared_ptr());
+    OPENVINO_ASSERT(normalized, "[GGUF] expected LayerNorm before v.blk.0.ln1.weight");
     auto hidden_states = new_input(ov::element::f32, {-1, width});
-    normalized.get_node()->input_value(0).replace(std::make_shared<v0::Unsqueeze>(hidden_states, i64({0, 1})));
+    // Replace the activation shared by LayerNorm and its residual path.
+    normalized->input_value(0).replace(std::make_shared<v0::Unsqueeze>(hidden_states, i64({0, 1})));
     model->remove_parameter(parameter(model, "pixel_values"));
     model->remove_parameter(parameter(model, "patch_indices"));
 

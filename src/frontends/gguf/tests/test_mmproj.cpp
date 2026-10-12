@@ -18,8 +18,11 @@
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
 
@@ -464,6 +467,59 @@ TEST(GGUFMMProjLayout, RejectsMissingQwenInputWithoutChangingModel) {
     }
     ASSERT_TRUE(found);
     expect_layout_rejection_preserves_model(model, "position_ids");
+}
+
+TEST(GGUFMMProjLayout, QwenPreservesLayerNormAndResidualWithEitherWeightInput) {
+    for (const bool swap_inputs : {false, true}) {
+        SCOPED_TRACE(swap_inputs);
+        auto model = vision_fixture("qwen3vl_merger");
+        for (const auto& node : model->get_ordered_ops()) {
+            if (node->get_friendly_name() != "v.blk.0.ln1.weight_v.blk.0.ln1.weight")
+                continue;
+            auto scale = node->output(0).get_target_inputs().begin()->get_node();
+            if (swap_inputs) {
+                const auto inputs = scale->input_values();
+                scale->input(0).replace_source_output(inputs[1]);
+                scale->input(1).replace_source_output(inputs[0]);
+            }
+        }
+        using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(adapter.run_on_model(model));
+        auto hidden = model->input("hidden_states");
+        const auto hidden_consumers = hidden.get_target_inputs();
+        ASSERT_EQ(hidden_consumers.size(), 1);
+        const auto activation = hidden_consumers.begin()->get_node();
+        ASSERT_TRUE(ov::is_type<ov::op::v0::Unsqueeze>(activation));
+        bool normalized = false, residual = false;
+        for (const auto& input : activation->output(0).get_target_inputs()) {
+            normalized |= ov::is_type<ov::op::v6::MVN>(input.get_node());
+            residual |= ov::is_type<ov::op::v1::Add>(input.get_node());
+        }
+        EXPECT_TRUE(normalized);
+        EXPECT_TRUE(residual);
+    }
+}
+
+TEST(GGUFMMProjLayout, RejectsUnexpectedQwenNormalizationWithoutChangingModel) {
+    for (const bool extra_weight_consumer : {false, true}) {
+        SCOPED_TRACE(extra_weight_consumer);
+        auto model = vision_fixture("qwen3vl_merger");
+        for (const auto& node : model->get_ordered_ops()) {
+            if (node->get_friendly_name() != "v.blk.0.ln1.weight_v.blk.0.ln1.weight")
+                continue;
+            const auto weight = node->output(0);
+            auto scale = weight.get_target_inputs().begin()->get_node();
+            const size_t activation_index = scale->input_value(0) == weight ? 1 : 0;
+            const auto normalized = scale->input_value(activation_index);
+            if (extra_weight_consumer)
+                scale->input(activation_index)
+                    .replace_source_output(std::make_shared<ov::op::v1::Add>(normalized, weight));
+            else
+                scale->input(activation_index).replace_source_output(normalized.get_node()->input_value(0));
+        }
+        expect_layout_rejection_preserves_model(model, extra_weight_consumer ? "one consumer" : "LayerNorm");
+    }
 }
 
 TEST_F(GGUFMMProj, UnsupportedSecondModalityIsNotSilentlyDiscarded) {
