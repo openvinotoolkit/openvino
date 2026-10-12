@@ -100,7 +100,9 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
         endif()
 
         add_subdirectory(${ARM_COMPUTE_SOURCE_DIR} ${ARM_COMPUTE_BINARY_DIR} EXCLUDE_FROM_ALL)
-        set_target_properties(arm_compute PROPERTIES OUTPUT_NAME arm_compute-static)
+        if(NOT BUILD_SHARED_LIBS)
+            set_target_properties(arm_compute PROPERTIES OUTPUT_NAME arm_compute-static)
+        endif()
 
         if(NOT TARGET arm_compute::arm_compute)
             add_library(arm_compute::arm_compute ALIAS arm_compute)
