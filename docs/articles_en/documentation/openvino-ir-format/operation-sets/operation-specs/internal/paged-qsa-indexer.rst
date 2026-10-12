@@ -4,7 +4,7 @@ PagedQSAIndexer
 ===============
 
 .. meta::
-  :description: Learn about PagedQSAIndexer - a paged, model-specific plan producer for Qwen Sparse Attention (QSA) under continuous batching / PagedAttention page tables. It maintains full-history raw-K and incremental summary caches over the main page table and emits complete-block selections with an optional causal-tail marker.
+  :description: Learn about PagedQSAIndexer - a paged, model-specific plan producer for Qwen Sparse Attention (QSA) under continuous batching / PagedAttention page tables. It maintains full-history raw-K and incremental summary caches over the main page table and emits selections containing only complete blocks.
 
 **Versioned name**: *PagedQSAIndexer*
 
@@ -51,9 +51,9 @@ main PagedAttention page table and are passed as explicit inputs:
 
 A block is *completed* once exactly :math:`r` raw keys have been appended. The flush reads the block's contiguous
 raw-key slice from the shared paged cache and writes its pooled, normalized, logically block-start-rotated summary
-into ``summary_cache``. The last, partially-filled block is not summarized or selected as a complete block; its
-logical ID is appended as the optional final tail marker, and the paired sparse-attention consumer handles only its
-visible causal prefix.
+into ``summary_cache``. The last, partially-filled block is not summarized and is never included in this
+operation's selection. SparseAttention independently derives and processes the causal tail for each query from its
+logical position.
 
 **Prefix Caching**
 
@@ -173,14 +173,15 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
   i.e. :math:`N_{complete}(p) = \lfloor (p + 1) / r \rfloor`. Only these causally-valid complete blocks participate
   in the top-k.
 - The number of selected *complete* blocks per selection head is capped at ``block_topk``; the output width is
-  ``K_max = block_topk + 1``. The extra slot is reserved for the query's current incomplete causal-tail block.
+  ``K_max = block_topk``. ``sel_count`` counts complete-block IDs only and is at most
+  ``min(block_topk, n_complete)``; no tail ID or tail token indices are emitted.
 - **Tie-breaking and ordering**: among equal scores the *smaller block index* (earlier block) wins; the op
   computes the selection as ``argsort(-scores, kind='stable')``, takes the first ``k`` entries, and emits them in
   **strictly ascending** block order (``sort(order[:k])``), yielding a deterministic, implementation-independent,
   monotone result. The valid output prefix ``sel_indices[t, sh, :sel_count[t, sh]]`` is sorted ascending.
-- **Causal-tail block ID**: when ``(p+1) % r != 0``, append ``floor((p+1)/r)`` after the selected complete-block
-  IDs and increment ``sel_count``. This final ID identifies the block whose visible token prefix is processed by
-  the consumer as the causal tail; it is not attended as a complete selected block.
+- **Causal tail**: it is not part of the selection output. SparseAttention derives
+  ``tail_start = floor((p+1)/r) * r`` for each query and attends token positions ``tail_start..p`` inclusive;
+  this span is empty at a complete-block boundary.
 
 **Pseudo-code (numpy)**
 
@@ -205,14 +206,14 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
         # block_indices_begins: [num_sequences + 1]  split pointers into block_indices (len == total_logical_blocks)
         # subsequence_begins:   [num_sequences + 1]  split pointers into the token stream (len == tokens)
         # past_lens:        [num_sequences]  (logical length of each sequence before this step)
-        # returns: sel_indices [tokens, H_sel, K_max]  (int32; -1 = pad), K_max = block_topk + 1
+        # returns: sel_indices [tokens, H_sel, K_max]  (int32; -1 = pad), K_max = block_topk
         #          sel_count   [tokens, H_sel]         (int32)
         tokens = q_idx.shape[0]
         Hiq = q_idx.shape[1] // indexer_head_dim      # index-query heads, derived from the shape
         Hik = k_idx.shape[1] // indexer_head_dim      # index-key heads, derived from the shape
         Hsel = h_sel
         r = compress_ratio
-        Kmax = block_topk + 1
+        Kmax = block_topk
         G = Hiq // Hik                                # index-query heads per index-key head
         assert page_size % r == 0 and Hiq % Hik == 0 and Hsel in (1, Hik)
 
@@ -277,9 +278,6 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
                 picked = sort(order[:k])                 # strictly ascending block indices
                 sel_indices[t, sh, :k] = picked
                 sel_count[t, sh] = k
-                if (pos + 1) % r != 0:
-                    sel_indices[t, sh, k] = (pos + 1) // r
-                    sel_count[t, sh] = k + 1
         return sel_indices, sel_count
 
 
@@ -295,10 +293,8 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
 
 * *block_topk*
 
-  * **Description**: Maximum number of *complete* blocks selected per selection head. The output width is
-    ``block_topk + 1``; when the query is inside an incomplete block, the final slot contains that block's logical
-    ID as a causal-tail marker. The sparse-attention consumer processes its visible token prefix, not the whole
-    block as another selected complete block.
+  * **Description**: Maximum number of *complete* blocks selected per selection head and the output width
+    ``K_max``. The causal tail is not part of this output and does not consume a selection slot.
   * **Type**: ``int``
   * **Required**: *yes*
   * **Constraints**: ``block_topk >= 1``.
@@ -413,17 +409,20 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
 **Outputs**
 
 * **0**: ``sel_indices``
-  A 3D tensor of type *T_IND* with shape ``[tokens, H_sel, block_topk + 1]``.
-  Selected complete-block IDs followed, when the query is inside an incomplete block, by that causal-tail block ID.
-  For query ``t`` and selection head ``sh``, the valid prefix
+  A 3D tensor of type *T_IND* with shape ``[tokens, H_sel, K_max]``, where ``K_max = block_topk``.
+  Contains only selected complete-block IDs. For query ``t`` and selection head ``sh``, the valid prefix
   ``sel_indices[t, sh, :sel_count[t, sh]]`` is **strictly ascending and duplicate-free**; ``-1`` is padded only
-  after the prefix (no interior holes). The final tail ID is metadata for causal-tail processing, not another
-  complete block to attend. **Required.**
+  after the prefix (no interior holes). SparseAttention derives the causal tail per query; it is not represented
+  in this output. **Required.**
 
 * **1**: ``sel_count``
   A 2D tensor of type *T_IND* with shape ``[tokens, H_sel]``.
-  Number of valid output entries (complete-block IDs plus an optional causal-tail marker) per selection head per
-  query. **Required.**
+  Number of selected complete-block IDs per selection head per query, satisfying
+  ``0 <= sel_count <= min(block_topk, n_complete)``. Tail tokens are not counted. **Required.**
+
+For the QSA configuration ``H_sel = 1``, the logical selection ABI is ``sel_indices[T, K]`` and
+``sel_count[T]``, with ``T = tokens`` and ``K = block_topk``. The explicit ``H_sel`` axis above is retained for
+the generalized multi-selection-head form.
 
 
 **Shape inference and type rules**
@@ -442,12 +441,12 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
   equals ``page_size``; it stores raw K for the full logical history, with no ring-capacity attribute.
 * ``position_ids`` length equals ``tokens``; ``rotary_cos_sin`` dim 1 equals ``2 * indexer_rotary_dim`` and covers
   the query positions and completed-block start positions used in the invocation.
-* ``sel_indices`` last dimension ``K_max`` equals ``block_topk + 1``; ``sel_count[t, sh] <= K_max`` and is at most
-  ``min(block_topk, n_complete) + tail_present`` per query, where ``tail_present`` is one iff
-  ``(abs_pos + 1) % compress_ratio != 0``. The valid
+* ``sel_indices`` last dimension ``K_max`` equals ``block_topk``; ``sel_count[t, sh] <= K_max`` and is at most
+  ``min(block_topk, n_complete)`` per query. The valid
   prefix ``sel_indices[t, sh, :sel_count[t, sh]]`` is **strictly ascending** and contains no ``-1`` entries.
-* When the selection for a row is empty (``sel_count == 0``), the consumer must produce a zero output vector for
-  that row.
+* If ``sel_count == 0``, a causal SparseAttention consumer may still produce a nonzero result from its
+  automatically-derived tail. It produces zero only when no effective key remains after selection and tail
+  handling.
 
 **Types**
 
@@ -458,13 +457,13 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
 **Example**
 
 The example below shows a single query token at logical position ``9`` (``past_lens[0] = 9``, one token in the
-step) with ``compress_ratio = 4``, ``block_topk = 2`` (so ``K_max = block_topk + 1 = 3``), ``h_sel = 1``,
+step) with ``compress_ratio = 4``, ``block_topk = 2`` (so ``K_max = block_topk = 2``), ``h_sel = 1``,
 ``H_iq = 4``, ``H_ik = 1``, and ``page_size = 16``. The history written before this step covers
 blocks ``{0:[0..3], 1:[4..7]}`` (complete) and block ``2:[8]`` (incomplete). Causally-valid complete blocks for
-``pos = 9`` are ``{0, 1}``. After a stable top-2 by score, the selection head emits ``sel_indices = [[[0, 1, 2]]]``
-and ``sel_count = [[3]]`` in strictly ascending order. The final ID ``2`` identifies the partial causal tail and
-is not attended as a complete block. With ``H_iq = 4`` and ``H_ik = 1``, all four
-index-query heads participate in the single selection head's score.
+``pos = 9`` are ``{0, 1}``. After a stable top-2 by score, the selection head emits ``sel_indices = [[[0, 1]]]``
+and ``sel_count = [[2]]`` in strictly ascending order. SparseAttention independently derives the tail positions
+``[8, 9]`` for this query; the tail is absent from the selection output/count. With ``H_iq = 4`` and ``H_ik = 1``,
+all four index-query heads participate in the single selection head's score.
 
 .. code-block:: xml
    :force:
@@ -512,8 +511,8 @@ index-query heads participate in the single selection head's score.
            </port>
        </input>
        <output>
-             <port id="12" precision="I32">  <!-- sel_indices: [tokens, H_sel, block_topk + 1] -->
-               <dim>1</dim><dim>1</dim><dim>3</dim>
+             <port id="12" precision="I32">  <!-- sel_indices: [tokens, H_sel, K_max=block_topk] -->
+               <dim>1</dim><dim>1</dim><dim>2</dim>
            </port>
            <port id="13" precision="I32">  <!-- sel_count: [tokens, H_sel] -->
                <dim>1</dim><dim>1</dim>

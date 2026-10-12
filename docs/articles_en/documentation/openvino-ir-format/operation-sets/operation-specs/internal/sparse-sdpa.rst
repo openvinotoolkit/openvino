@@ -16,15 +16,16 @@ KVCache-managed* K/V tensors. It is a **model-agnostic plan consumer** over a st
 ``(sel_indices, sel_count)`` block-selection contract from a *model-specific* producer (e.g. ``QSAIndexer``),
 gathers the KV at the selected blocks, and applies online-softmax attention with GQA head
 mapping. It contains **no producer-leaked artifacts**: no ``index_weights``, no output gate, no RoPE/norm
-parameters, and no ``r-1`` tail hack. It is intentionally RoPE- and norm-free: all positional and normalization
+parameters, and no producer-side tail encoding. It is intentionally RoPE- and norm-free: all positional and normalization
 math is owned by the main attention layer and the upstream indexer. The operation is *stateless with respect to
 the selection*: it recomputes attention over the selected set each step.
 
 The operation is specified in the exact tensor language of the `Scaled Dot-Product Attention` (`SDPA-13`)
 operation set: the query, key and value inputs adopt the 4D ``[B, H, L, D]`` SDPA layout, and the operation is
-*defined* as ``SDPA13`` invoked with ``causal = false`` and an explicit ``combined_mask`` that is the
-conjunction of the optional ``attn_mask``, the **bottom-right aligned** generative causal pattern
-:math:`kpos \le S - L + l`, and the sparsity plan expanded to a full attention mask. It is **mathematically
+**defined** as ``SDPA13`` invoked with ``causal = false`` and an explicit ``combined_mask`` that combines
+the optional ``attn_mask``, the **bottom-right aligned** generative causal pattern
+:math:`kpos \le S - L + l`, and the union of selected complete blocks with the consumer-derived causal tail,
+expanded to a full attention mask. It is **mathematically
 equivalent to SDPA-13** over the masked set: an implementation must reproduce the dense SDPA-13 result over that
 set, with numerical consistency within a given tolerance (the online-softmax reduction order may differ).
 
@@ -46,10 +47,10 @@ The operation:
    :math:`\mathrm{num\_q\_blocks} = \lceil L / B_q \rceil`. When :math:`B_q = 1`, ``num_q_blocks == L`` (one
    selection per query token); when :math:`B_q > 1` (e.g. FlashVSR block sparse with :math:`B_q = 128`), the
    selection is carried once per :math:`B_q`-token query block and replicated across the block's rows.
-2. **Gathers** the selected KV blocks for each query block (a block-gather, not a masked matmul over the full
-   history — the key bandwidth/FLOP win of sparse attention). The causal-diagonal / incomplete block, when
-   emitted by the producer as a valid block index, is gathered as a partial block bounded by the query position
-   *inclusive* (:math:`\le pos`).
+2. **Gathers** the selected complete KV blocks for each query block (a block-gather, not a masked matmul over the
+  full history — the key bandwidth/FLOP win of sparse attention). When ``causal = true``, the consumer derives
+  and adds each query's visible causal-tail token span from its right-aligned logical position. This span is not
+  emitted by or counted in the producer's selection.
 3. **Scores** each selected key against the query with the attention scale ``1/sqrt(Dh)`` (overridable via the
    ``scale`` input).
 4. **Online-softmax** normalizes scores over the selected set, subject to the optional ``attn_mask``.
@@ -64,21 +65,23 @@ a ``[B, H, L, S]`` boolean mask — the exact source of the bandwidth saving. Th
 The producer emits block-level selection in the same 4D language as the rest of the op, with the **first
 selection dimension equal to ``num_q_blocks``**:
 
-- ``sel_indices`` ``[B, H_sel, num_q_blocks, K_max]``: selected *block* indices per query block per selection
+- ``sel_indices`` ``[B, H_sel, num_q_blocks, K_max]``: selected **complete-block** indices per query block per selection
   head, as a **strictly ascending, duplicate-free** sequence in the contiguous prefix ``sel_indices[:sel_count]``,
   ``-1`` padded only past ``sel_count``. Here ``num_q_blocks = ceil(L / B_q)``.
-- ``sel_count`` ``[B, H_sel, num_q_blocks]``: valid block count per query block per selection head.
+- ``sel_count`` ``[B, H_sel, num_q_blocks]``: number of selected complete blocks per query block per selection head;
+  it never includes causal-tail tokens.
 - ``sel_block_size`` (attribute, :math:`B_k`): the number of tokens per selected KV block; the consumer gathers
-  full blocks of this size (and a partial prefix of the causal-diagonal block, bounded by the query's absolute
-  position).
+  selected complete blocks of this size and independently adds the causal-tail tokens for each query.
 - ``q_block_size`` (attribute, :math:`B_q`, default ``1``): the number of query tokens that share one selection.
 
-The op never re-derives the selection: it gathers exactly the blocks named in the valid prefix of ``sel_indices``
-and counted by ``sel_count``, and carries no ``index_weights``, no output gate, and no ``r-1`` tail encoding. The
-plan is position-free: causality is a joint producer/consumer responsibility (see "Causal responsibility"), and
-the consumer applies the **token-level** causal truncation :math:`kpos \le S - L + l` (including the diagonal)
-that is the final guarantee of correctness. An empty selection (``sel_count == 0``, e.g. a query with no
-causally-valid block) yields a zero output vector for that row.
+The op never re-derives the selected complete-block plan: it gathers exactly the complete blocks named in the
+valid prefix of ``sel_indices`` and counted by ``sel_count``. The causal tail is separate from that plan and is
+always derived by the consumer when ``causal = true``. The op carries no ``index_weights``, no output gate, and no
+producer-side tail encoding. The plan is position-free: the consumer derives each query's right-aligned logical
+position :math:`q_{abs} = S-L+l`, computes :math:`tail\_start = \lfloor(q_{abs}+1)/B_k\rfloor B_k`, and adds
+positions :math:`tail\_start, \ldots, q_{abs}` inclusive (empty at a complete-block boundary). It then applies
+the **token-level** causal truncation :math:`kpos \le q_{abs}`. An empty complete-block selection may still yield
+a nonzero output from the automatically-added tail; output is zero only when no effective key remains.
 
 **Mask-only plans for unbounded-K_max producers**
 
@@ -87,7 +90,7 @@ scoring, which greedily accumulates the highest-scoring blocks until their *cumu
 threshold fraction, with no cap on how many blocks that takes — is **data-dependent**: for a near-uniform score
 distribution the loop keeps going until almost every block is selected, so the worst-case selected-block count
 approaches the full block grid, :math:`K_{max} \to \mathrm{num\_k\_blocks} = \lceil S / B_k \rceil`. Unlike QSA's
-fixed ``block_topk + 1``, there is no tighter bound to declare. Forcing such a plan through ``sel_indices`` then
+fixed ``block_topk`` complete-block bound, there is no tighter bound to declare. Forcing such a plan through ``sel_indices`` then
 pays for a full-width ``int32`` index per logical block per query row (4 bytes, often carrying no more
 information than "every block is selected") instead of the 1 bit a boolean mask would need — the opposite of the
 bandwidth win the index-based contract exists to provide.
@@ -96,9 +99,8 @@ For this case, the plan **may instead be carried directly through** ``attn_mask`
 ``sel_indices``/``sel_count``: the producer expands its ``[B, H_sel, num_q_blocks, num_k_blocks]`` boolean
 block decision to a tensor broadcastable to ``[B, H_sel, L, S]`` (SDPA-13 boolean-mask semantics, replicated at
 ``sel_block_size``/``q_block_size`` granularity) and supplies it as ``attn_mask``; ``sel_indices`` and
-``sel_count`` are then omitted, and ``combined_mask`` reduces to ``attn_mask`` :math:`\wedge`
-:math:`\mathrm{causal}_{S-L+l}` (``expand(plan)`` is trivially all-ones since the plan no longer exists as a
-separate index structure). This forgoes the bandwidth benefit a bounded index list gives a consumer that can
+``sel_count`` are then omitted, and the consumer treats ``attn_mask`` as the complete-block plan, unions it with
+the implicit per-query tail mask, and applies :math:`\mathrm{causal}_{S-L+l}`. This forgoes the bandwidth benefit a bounded index list gives a consumer that can
 skip ungathered blocks entirely, but that benefit was illusory for a producer whose own selection is already
 block-dense: expressing it as a mask avoids round-tripping through a same-size-or-larger ``int32`` index buffer
 for no gain. This mirrors the GPU implementation of XAttention (``xattn_find_block.cm`` / ``xattn_post_proc.cm``),
@@ -114,14 +116,13 @@ joined by the same conjunction regardless of representation.
 
 Causality is split across the producer and the consumer:
 
-- **Producer (e.g. ``QSAIndexer``) — block-level coarse filter (Block Eligibility).** The
-  producer ensures no *future / not-yet-written complete block* is ever placed in the plan: it selects only the
-  causally-valid complete blocks (block :math:`b` is eligible iff :math:`(b{+}1) \cdot B_k - 1 \le pos`) plus the
-  causal diagonal. The plan itself is position-free, however: the consumer applies the exact per-token truncation.
+- **Producer (e.g. ``QSAIndexer``) — complete-block plan only.** The producer selects only complete,
+  causally-valid blocks (block :math:`b` is eligible iff :math:`(b{+}1) \cdot B_k - 1 \le pos`). It does not emit
+  the causal diagonal or tail block, and the tail is not included in ``sel_count``.
 - **Consumer (this op) — token-level fine filter (Token-level Precision).** The consumer is the final authority
-  on token-level causality: it gathers the selected blocks and imposes :math:`kpos \le S - L + l` (including the
-  diagonal, self-attended). This is what guarantees exact causal semantics regardless of the producer's block
-  granularity.
+  on token-level causality: it gathers the selected complete blocks, derives and adds the per-query tail span
+  :math:`[\lfloor(q_{abs}+1)/B_k\rfloor B_k, q_{abs}]` (inclusive), where :math:`q_{abs}=S-L+l`, and imposes
+  :math:`kpos \le q_{abs}`. This guarantees exact causal semantics regardless of the producer's block granularity.
 
 This division mirrors ``SparsePA``: the producer performs the coarse block filter and the consumer the fine token
 filter.
@@ -144,16 +145,24 @@ where
 
 .. math::
 
-    \mathrm{combined\_mask} = \mathrm{attn\_mask} \wedge \mathrm{causal}_{S-L+l} \wedge \mathrm{expand}(\mathrm{plan})
+    \mathrm{combined\_mask} = \mathrm{user\_mask} \wedge \mathrm{causal\_mask} \wedge
+      (\mathrm{expand}(\mathrm{complete\_plan}) \vee \mathrm{tail\_mask})
 
-and
-
-- :math:`\mathrm{causal}_{S-L+l}` is the **bottom-right aligned** lower-triangular mask
+- :math:`\mathrm{user\_mask}` is the optional SDPA-13 attention mask, or all-ones when omitted. If ``attn_mask``
+  is used as the plan carrier because ``sel_indices``/``sel_count`` are absent, it supplies
+  :math:`\mathrm{expand}(\mathrm{complete\_plan})` instead and :math:`\mathrm{user\_mask}` is all-ones (v1 does
+  not carry both separately),
+- :math:`\mathrm{causal\_mask}` is the **bottom-right aligned** lower-triangular mask
   :math:`kpos \le S - L + l` (including the diagonal, i.e. self-attended),
-- :math:`\mathrm{expand}(\mathrm{plan})` is the :math:`[B, H_q, L, S]` boolean mask that is ``1`` exactly where
-  row ``(b, h, l)`` attends to a KV token inside a block selected by the plan (non-selected blocks set to
-  ``0``), and
-- :math:`\wedge` is the element-wise conjunction of the three mask sources.
+- :math:`\mathrm{expand}(\mathrm{complete\_plan})` is the :math:`[B, H_q, L, S]` boolean mask that is ``1``
+  exactly where row ``(b, h, l)`` attends to a KV token inside a selected complete block (non-selected blocks set
+  to ``0``),
+- :math:`\mathrm{tail\_mask}` is ``1`` for positions :math:`kpos` in the per-query tail interval
+  :math:`[\lfloor(q_{abs}+1)/B_k\rfloor B_k, q_{abs}]` and ``0`` elsewhere; it is all-zero when ``causal`` is
+  false or the query is at a complete-block boundary. The consumer forms the union of the complete-block plan
+  and this implicit tail before applying causality and any user attention mask, and
+- :math:`\vee` and :math:`\wedge` are element-wise union and conjunction, respectively. When ``causal = false``,
+  :math:`\mathrm{causal\_mask}` is all-ones and :math:`\mathrm{tail\_mask}` is all-zero.
 
 This identity is the *definitional* contract of the op: any implementation must reproduce the dense SDPA-13 result
 over the masked set. It is **mathematically equivalent**, with numerical consistency within a given tolerance — the
@@ -162,10 +171,11 @@ when :math:`L == S` (full-sequence prefill) does this coincide with ``SDPA-13``'
 :math:`L < S` (decode / incremental), the bottom-right alignment differs from ``SDPA-13``'s top-left
 ``causal=true``, which is why the mask is always passed explicitly with ``causal = false``.
 
-``attn_mask`` **semantics** follow SDPA-13: it may be supplied either as a **boolean** mask (``False`` positions
-are excluded from the softmax) or as a **floating-point additive** mask (``-inf`` positions are excluded, finite
-values are added to the logits before the softmax). The effective ``combined_mask`` is the conjunction
-``attn_mask & causal_{S-L+l} & expand(plan)``.
+``attn_mask`` **semantics** follow SDPA-13: with index-list selection it may be supplied as an ordinary **boolean**
+mask (``False`` positions are excluded) or **floating-point additive** mask (``-inf`` excludes; finite values are
+added to logits). With no index list, a boolean ``attn_mask`` carries the complete-block plan; the consumer unions
+that plan with the implicit causal tail before applying the causal mask. The implicit tail is never required in the
+producer-supplied plan.
 
 **Head mapping**
 
@@ -210,8 +220,8 @@ page table; the fused GPU primitive dispatch is shared.
         # query:             [B, Hq, L, Dh]  (already projected/RMSNorm'ed/RoPE'ed)
         # key:               [B, Hkv, S, Dh]
         # value:             [B, Hkv, S, Dv]
-        # sel_indices:       [B, H_sel, num_q_blocks, K_max]   (int32; strictly ascending, -1 padded past count)
-        # sel_count:         [B, H_sel, num_q_blocks]           (int32; valid block count)
+        # sel_indices:       [B, H_sel, num_q_blocks, K_max]   (int32; complete blocks only, -1 padded)
+        # sel_count:         [B, H_sel, num_q_blocks]           (int32; valid complete-block count)
         # attn_mask:         broadcastable to [B, 1, L, S] optional (SDPA semantics; boolean or float-additive)
         # scale:             scalar optional; defaults to 1/sqrt(Dh)
         B, Hq, L, Dh = query.shape
@@ -234,21 +244,43 @@ page table; the fused GPU primitive dispatch is shared.
                 for sh in range(h_sel):
                     nblocks = sel_count[b, sh, qb]
                     idx = sel_indices[b, sh, qb, :nblocks]    # [nblocks] logical block indices (ascending set)
-                    # Materialize the absolute KV position of every gathered token, then truncate any
-                    # out-of-range (kv_abs_pos >= S) entries introduced by a partial final block.
+                    # Materialize positions of the selected complete-block tokens.
                     blk_base = idx * Bk                        # absolute KV start of each selected block
                     kpos = concat([blk_base[:, None] + arange(Bk)[None, :]], axis=-1).reshape(-1)
                     valid = kpos < S                           # truncate partial blocks that exceed the cache
                     kpos = kpos[valid]
                     K_g = gather_blocks(key[b], idx, Bk)[valid]   # [n_tok, Hkv, Dh]
                     V_g = gather_blocks(value[b], idx, Bk)[valid] # [n_tok, Hkv, Dv]
+                    n_complete_tokens = kpos.shape[0]
+                    # The consumer derives a tail independently for every query row. Build the union of
+                    # tail positions for this query block, then mask each row to its own tail interval.
+                    tail_pos = empty((0,), dtype=int32)
+                    if causal:
+                        tail_chunks = [
+                            arange(((S - L + l + 1) // Bk) * Bk, S - L + l + 1)
+                            for l in range(l0, l1)
+                        ]
+                        if len(tail_chunks) > 0:
+                            tail_pos = unique(concat(tail_chunks))
+                        if tail_pos.shape[0] > 0:
+                            K_tail = gather_logical_positions(key[b], tail_pos)  # [n_tail, Hkv, Dh]
+                            V_tail = gather_logical_positions(value[b], tail_pos) # [n_tail, Hkv, Dv]
+                            K_g = concat([K_g, K_tail], axis=0)
+                            V_g = concat([V_g, V_tail], axis=0)
+                            kpos = concat([kpos, tail_pos], axis=0)
                     for h in range(q_per_sel * sh, q_per_sel * (sh + 1)):
                         kv = h // (Hq // Hkv)                  # KV head of query head h
                         # scores over the selected set. The query's absolute position is right-aligned:
                         # q_abs = S - L + l (generative / transformers convention); causal keeps kpos <= q_abs.
                         scores = np.sum(q[b, h, l0:l1, None, :] * K_g[None, :, kv, :], axis=-1) * sc
-                        # Build the effective combined_mask = attn_mask & causal & expand(plan) as a boolean.
-                        eff = ones((l1 - l0, kpos.shape[0]), dtype=bool)   # within selected blocks (plan)
+                        # Complete-plan membership plus each row's own implicit tail membership.
+                        eff = ones((l1 - l0, kpos.shape[0]), dtype=bool)
+                        if causal and tail_pos.shape[0] > 0:
+                            for local_l, l in enumerate(range(l0, l1)):
+                                q_abs = S - L + l
+                                tail_start = ((q_abs + 1) // Bk) * Bk
+                                eff[local_l, n_complete_tokens:] = (
+                                    (tail_pos >= tail_start) & (tail_pos <= q_abs))
                         if causal:
                             q_abs = S - L + (l0 + arange(l1 - l0))         # [Lq] absolute query positions
                             eff = eff & (q_abs[:, None] >= kpos[None, :])  # bottom-right aligned, self-inclusive
@@ -325,10 +357,10 @@ page table; the fused GPU primitive dispatch is shared.
 
 * *causal*
 
-  * **Description**: Whether the causal-diagonal block is gathered as a partial block whose valid keys satisfy
-    :math:`kpos \le q_{abs}` (inclusive, self-attended), where :math:`q_{abs} = S - L + l` is the query's
-    **bottom-right aligned** absolute position (the generative / transformers convention). When ``false``, all
-    tokens of every selected block are attended.
+  * **Description**: Whether the consumer automatically adds each query's causal-tail tokens, with valid keys
+    satisfying :math:`kpos \le q_{abs}` (inclusive, self-attended), where :math:`q_{abs} = S - L + l` is the
+    query's **bottom-right aligned** logical position (the generative / transformers convention). The tail is not
+    supplied by the producer. When ``false``, all tokens of every selected block are attended.
   * **Type**: ``bool``
   * **Default value**: ``true``
   * **Required**: *no*
@@ -350,21 +382,24 @@ page table; the fused GPU primitive dispatch is shared.
 
 * **3**: ``sel_indices``
   A 4D tensor of type *T_IND* with shape ``[B, H_sel, num_q_blocks, K_max]``.
-  Per-query-block, per-selection-head selected *block* indices emitted by the upstream producer, where
-  ``num_q_blocks = ceil(L / B_q)`` (equals ``L`` when ``B_q == 1``). ``-1`` padded. **Required**, unless the plan
+  Per-query-block, per-selection-head selected **complete-block** indices emitted by the upstream producer, where
+  ``num_q_blocks = ceil(L / B_q)`` (equals ``L`` when ``B_q == 1``). In causal mode, the plan must not contain the
+  current incomplete tail block; SparseSDPA derives that tail itself. ``-1`` padded. **Required**, unless the plan
   is instead carried directly by ``attn_mask`` (see "Mask-only plans for unbounded-K_max producers" above),
   in which case this input is omitted.
 
 * **4**: ``sel_count``
   A 3D tensor of type *T_IND* with shape ``[B, H_sel, num_q_blocks]``.
-  Valid selected block count per query block per selection head. **Required, unless omitted together with**
+  Number of selected complete-block IDs per query block per selection head; it excludes automatically-derived tail
+  tokens. **Required, unless omitted together with**
   ``sel_indices`` **when the plan is carried by** ``attn_mask``.
 
 * **5**: ``attn_mask``
   A tensor broadcastable to ``[B, 1, L, S]`` (optional, unless it is carrying the sparsity plan — see below).
   Attention mask in SDPA-13 semantics: either a **boolean** mask (``False`` excludes a position) or a
   **floating-point additive** mask (``-inf`` excludes, finite values are added to the logits). The effective
-  mask is the conjunction ``attn_mask & causal & expand(plan)``. When omitted, only ``causal & expand(plan)``
+  mask is the conjunction of the user mask, causal mask, and selected-complete-block plan unioned with the
+  automatically-derived tail. When omitted, only the causal mask and this plan/tail union
   applies. **Optional**, except when ``sel_indices``/``sel_count`` are omitted: for producers with no fixed
   per-row top-:math:`K` (e.g. XAttention's threshold-based block selection), the full sparsity plan may instead
   be expanded directly into ``attn_mask`` (see "Mask-only plans for unbounded-K_max producers" above), in
@@ -392,7 +427,7 @@ page table; the fused GPU primitive dispatch is shared.
 * ``query`` first dimension equals ``key`` first dimension (:math:`B`); ``query`` sequence dimension :math:`L`
   is related to the last two selection dims by ``sel_indices`` dim 2 ``== ceil(L / q_block_size)`` and
   ``sel_count`` dim 2 ``== ceil(L / q_block_size)``. When ``q_block_size == 1``, this equals ``L``.
-* ``sel_indices`` last dimension ``K_max`` is **determined by the producer**: ``block_topk + 1`` for a QSA-style
+* ``sel_indices`` last dimension ``K_max`` is **determined by the producer**: ``block_topk`` for a QSA-style
   producer, or ``ceil(S / sel_block_size)`` when the selection is produced from a block-level mask conversion
   (the full set of logical KV blocks). ``sel_count[b, sh, qb] <= K_max``, and the valid prefix
   ``sel_indices[b, sh, qb, :sel_count[b, sh, qb]]`` is **strictly ascending** and contains no ``-1`` entries.
@@ -406,10 +441,13 @@ page table; the fused GPU primitive dispatch is shared.
   valid prefix.
 * When ``attn_mask`` is present it must be broadcastable to ``[B, 1, L, S]`` and is boolean or float-additive
   per SDPA-13.
-* When ``causal`` is true, the causal-diagonal block is read only up to the query's right-aligned absolute
-  position inclusive (:math:`kpos \le q_{abs} = S - L + l`).
+* When ``causal`` is true, the op automatically adds the per-query tail positions from
+  :math:`\lfloor(q_{abs}+1)/sel\_block\_size\rfloor sel\_block\_size` through the right-aligned logical query
+  position :math:`q_{abs}=S-L+l` inclusive; this tail does not appear in ``sel_indices`` or ``sel_count``. All
+  gathered keys are still bounded by :math:`kpos \le q_{abs}`.
 * Gathered tokens with absolute position ``>= S`` (introduced by a partial final block) are truncated out.
-* When a row's selection is empty (``sel_count == 0``), the op produces a zero output vector for that row.
+* If ``sel_count == 0`` and ``causal`` is true, the automatically-added tail can still produce a nonzero output.
+  Output is zero only when no effective key remains after plan, tail, causal, and attention-mask filtering.
 
 
 **Types**
@@ -423,13 +461,12 @@ page table; the fused GPU primitive dispatch is shared.
 **Example 1 — Qwen4 Token Sparse** (:math:`B_q = 1`, :math:`B_k = 4`, :math:`H_{sel} = 1`).
 
 The producer emits one selection per query *token* (:math:`B_q = 1`, so ``num_q_blocks == L``). ``sel_indices``
-encodes the top-:math:`K` complete blocks (from the per-head ReLU score) plus the causal diagonal. With
-``B=1``, ``L=1``, dense key history ``S=10``, ``sel_block_size=4``, ``block_topk=2`` (``K_max=3``): the query's
+encodes only the top-:math:`K` complete blocks (from the per-head ReLU score). With
+``B=1``, ``L=1``, dense key history ``S=10``, ``sel_block_size=4``, ``block_topk=2`` (``K_max=2``): the query's
 absolute position is :math:`q_{abs} = S - L + l = 10 - 1 + 0 = 9`; causally-valid complete blocks are those with
-``b < (9+1)//4 = 2``, i.e. ``{0, 1}``. After a stable top-2 the plan is ``sel_indices = [[[[0, 1, 2]]]]``,
-``sel_count = [[[3]]]``. Block ``2`` covers KV positions ``[8..11]``; it is truncated to ``< S = 10``
-(positions ``{8, 9}``) and then, under ``causal = true``, further to :math:`kpos \le q_{abs} = 9`, so the gathered
-valid keys of the diagonal block are ``{8, 9}``.
+``b < (9+1)//4 = 2``, i.e. ``{0, 1}``. After a stable top-2 the plan is ``sel_indices = [[[[0, 1]]]]``,
+``sel_count = [[[2]]]``. SparseSDPA independently derives the tail start as ``floor((9+1)/4)*4 = 8`` and adds
+positions ``{8, 9}``; these tail tokens are not present in the selection or its count.
 
 .. code-block:: xml
    :force:
@@ -448,7 +485,7 @@ valid keys of the diagonal block are ``{8, 9}``.
                <dim>1</dim><dim>2</dim><dim>10</dim><dim>256</dim>
            </port>
            <port id="3">   <!-- sel_indices: [B, H_sel, num_q_blocks, K_max] (num_q_blocks = ceil(L/Bq) = 1) -->
-               <dim>1</dim><dim>1</dim><dim>1</dim><dim>3</dim>
+               <dim>1</dim><dim>1</dim><dim>1</dim><dim>2</dim>
            </port>
            <port id="4">   <!-- sel_count: [B, H_sel, num_q_blocks] -->
                <dim>1</dim><dim>1</dim><dim>1</dim>

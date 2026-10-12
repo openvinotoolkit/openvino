@@ -35,13 +35,14 @@ addition of an **in-place KV write** of the current-step tokens. The operation:
    ``key_cache`` / ``value_cache`` at the physical block / slot determined by the page table and ``past_lens``.
 3. Resolves each selected logical block to its physical block via ``block_indices`` /
    ``block_indices_begins``.
-4. Gathers the selected K/V token states *at block granularity* (a block-gather that maps to hardware tile
-   loads, rather than arbitrary per-token scatter). The causal-diagonal / incomplete block, when emitted as a
-   valid block index, is gathered as a partial block whose valid tokens satisfy :math:`kpos \le token\_pos`
-   (inclusive, right-aligned to the query's logical position). **When ``causal = false``**, the op additionally
-   enforces the upper bound :math:`kpos < \mathrm{past\_lens}[s] + \mathrm{chunk\_len}_s`, so it never reads
-   unallocated or stale slots in the physical pages.
-5. Applies online-softmax attention over the selected blocks.
+4. Gathers the selected **complete** K/V blocks *at block granularity* (a block-gather that maps to hardware tile
+    loads, rather than arbitrary per-token scatter). When ``causal = true``, it independently derives each query's
+    logical position and adds the visible causal-tail token span; this span is not emitted by or counted in the
+    producer's selection. **When ``causal = false``**, no causal tail is added, and the op still enforces the upper
+    bound :math:`kpos < \mathrm{past\_lens}[s] + \mathrm{chunk\_len}_s`, so it never reads unallocated or stale
+    slots in the physical pages.
+5. Applies online-softmax attention over the selected complete blocks and, when causal, the automatically-derived
+    tail tokens.
 6. Writes the per-head output.
 
 **Dimension naming: ``total_q_blocks`` vs ``tokens``**
@@ -80,13 +81,20 @@ and the producer's ``summary_cache`` has the same first dimension ``num_blocks``
 
 **Block granularity and the clean contract**
 
-The producer emits block-level selection at granularity ``sel_block_size``. A selected *complete* selection
-block is loaded whole (all ``sel_block_size`` tokens). The causal-diagonal / incomplete block is loaded as a
-partial-block gather whose valid tokens satisfy :math:`kpos \le token\_pos` (inclusive). The plan is a
-**strictly ascending, duplicate-free** sequence of block indices: the op gathers exactly the blocks named in the
-contiguous prefix ``sel_indices[:sel_count]`` and never re-derives the block selection. An empty selection
-(``sel_count == 0``) yields a zero output vector for that row. The kernel handles the boundary where ``sel_count``
-is smaller than the selection width (short context / prefill) directly from ``sel_count``.
+The producer emits block-level selection at granularity ``sel_block_size``. For QSA, the plan contains only
+selected *complete* blocks, each loaded whole (all ``sel_block_size`` tokens); it never carries a causal-tail ID.
+For every causal query, SparsePA computes
+:math:`tail\_start = \lfloor (token\_pos + 1) / B_k \rfloor B_k` and additionally gathers logical token
+positions :math:`tail\_start, \ldots, token\_pos` inclusive. The span is empty when the query is at a complete
+block boundary. The plan is a **strictly ascending, duplicate-free** sequence of complete-block indices: the op
+gathers exactly the blocks named in the contiguous prefix ``sel_indices[:sel_count]`` and does not infer or
+modify that selection. The causal tail is an independent, mandatory attention span, not a selection entry. An
+empty complete-block selection can still produce a nonzero result from its causal tail; output is zero only when
+there are no effective keys after applying plan, causal, and validity bounds.
+
+The same rule applies when a plan is supplied as ``sel_block_mask``: in causal mode it describes selected complete
+blocks only. The bit for the query's incomplete tail block is not a producer selection; SparsePA adds the visible
+tail tokens independently for each query.
 
 **Mask-only plans for unbounded-K_max producers**
 
@@ -94,7 +102,8 @@ Not every producer has a fixed per-row top-:math:`K`. Threshold-based selection 
 scoring, which greedily accumulates the highest-scoring blocks until their *cumulative softmax mass* crosses a
 threshold fraction, with no cap on how many blocks that takes — is **data-dependent**: for a near-uniform score
 distribution the loop keeps going until almost every block of the sequence is selected, so the worst-case
-selected-block count approaches that sequence's full logical block grid. Unlike QSA's fixed ``block_topk + 1``,
+selected-block count approaches that sequence's full logical block grid. Unlike QSA's fixed ``block_topk``
+complete-block bound,
 there is no tighter bound to declare, and forcing such a plan through ``sel_indices`` then pays for a full-width
 ``int32`` index per logical block per query row — in the worst case carrying no more information than "every
 block of this sequence is selected" — instead of the 1 bit a boolean mask would need.
@@ -119,14 +128,14 @@ One of the two plan representations must be present: either the ``sel_indices``/
 
 Causality is split across the producer and the consumer:
 
-- **Producer (e.g. ``PagedQSAIndexer``) — block-level coarse filter (Block Eligibility).** The producer ensures
-  no *future / not-yet-written complete block* is ever placed in the plan: it selects only the causally-valid
-  complete blocks (block :math:`b` eligible iff :math:`(b{+}1) \cdot B_k - 1 \le pos`) plus the causal diagonal.
-  The plan itself is position-free.
+- **Producer (e.g. ``PagedQSAIndexer``) — complete-block plan only.** The producer selects only complete,
+  causally-valid blocks (block :math:`b` eligible iff :math:`(b{+}1) \cdot B_k - 1 \le pos`). It does not emit
+  the causal diagonal or tail block, and the tail is not included in ``sel_count``.
 - **Consumer (this op) — token-level fine filter (Token-level Precision).** The consumer is the final authority
-  on token-level causality: it gathers the selected blocks and imposes :math:`kpos \le token\_pos` (including
-  the diagonal, self-attended). This is what guarantees bit-correct generative attention regardless of the
-  producer's block granularity.
+  on token-level causality: it gathers the selected complete blocks, derives and adds the per-query tail span
+  :math:`[\lfloor (token\_pos+1)/B_k \rfloor B_k, token\_pos]` (inclusive), and imposes
+  :math:`kpos \le token\_pos`. This guarantees causal attention regardless of producer granularity or selection
+  width.
 
 When :math:`causal = \mathrm{false}`, there is no lower truncation, but the op must **still** guard the *upper*
 bound: a key at logical position :math:`kpos` is only valid if it has actually been written for this sequence,
@@ -189,7 +198,7 @@ carries its own selection.
         # subsequence_begins:   [num_sequences + 1]  split pointers into the token stream
         # past_lens:        [num_sequences]  (logical KV length per sequence before this step)
         # sel_indices:      [total_q_blocks, H_sel, K_max]  (int32; strictly ascending, -1 padded past sel_count)
-        # sel_count:        [total_q_blocks, H_sel]         (int32; valid block count)
+        # sel_count:        [total_q_blocks, H_sel]         (int32; valid complete-block count)
         # qb_start:         [num_sequences + 1]  running prefix sum of per-sequence query-block counts
         #                   (qb_start[s] = sum_{s'<s} ceil(chunk_len_{s'} / Bq); qb_start[-1] == total_q_blocks)
         tokens = query.shape[0]
@@ -229,11 +238,21 @@ carries its own selection.
                     # Map each selected selection-block to its physical block + in-block selection offset.
                     phys = phys_seq[idx // blk_per_page]          # physical block ids [nblocks]
                     offs = (idx % blk_per_page) * Bk              # in-block selection offset [nblocks]
-                    # Gather the selected K/V tokens at sel_block_size granularity. The absolute KV position
+                    # Gather selected complete blocks at sel_block_size granularity. The absolute KV position
                     # of each gathered token is derived from its logical block index: kpos = idx*Bk + off.
                     K_g, V_g = gather_physical_blocks(key_cache, value_cache,
                                                       phys, offs, Bk)   # [n_sel*Bk, Hkv, Dh], [n_sel*Bk, Hkv, Dv]
                     kpos = concat([idx[:, None] * Bk + arange(Bk)[None, :]], axis=-1).reshape(-1)  # abs pos
+                    # Causal tail is implicit and independent of the producer's complete-block selection.
+                    # Derive it for this token (not once per query block); it is empty at a block boundary.
+                    if causal:
+                        tail_start = ((token_pos + 1) // Bk) * Bk
+                        tail_pos = arange(tail_start, token_pos + 1)
+                        K_tail, V_tail = gather_logical_positions(
+                            key_cache, value_cache, phys_seq, tail_pos, block_size=B)
+                        K_g = concat([K_g, K_tail], axis=0)
+                        V_g = concat([V_g, V_tail], axis=0)
+                        kpos = concat([kpos, tail_pos], axis=0)
                     # Token-level fine filter. Lower bound: keep keys at positions <= the query's logical
                     # position (self-inclusive) when causal. Upper bound (always): never read a slot that has
                     # not been written for this sequence (valid_max), so causal=false never touches unallocated
@@ -320,9 +339,10 @@ carries its own selection.
 
 * *causal*
 
-  * **Description**: Whether the causal-diagonal block is gathered as a partial block whose valid keys satisfy
-    :math:`kpos \le token\_pos` (inclusive, self-attended). When ``false``, all written tokens of every
-    selected block are attended — but the op still enforces the upper bound
+  * **Description**: Whether the consumer automatically adds each query's causal-tail tokens, with valid keys
+    satisfying :math:`kpos \le token\_pos` (inclusive, self-attended). The tail is derived from the logical query
+    position and is not supplied by the producer. When ``false``, all written tokens of every selected block are
+    attended — but the op still enforces the upper bound
     :math:`kpos < \mathrm{past\_lens}[s] + \mathrm{chunk\_len}_s` so it never reads unallocated or stale slots
     in the physical pages.
   * **Type**: ``bool``
@@ -376,16 +396,18 @@ carries its own selection.
 
 * **9**: ``sel_indices``
   A 3D tensor of type *T_IND* with shape ``[total_q_blocks, h_sel, K_max]``.
-  Per-query-block, per-selection-head selected *block* indices emitted by the upstream producer, as a
-  **strictly ascending, duplicate-free** sequence in the contiguous prefix ``sel_indices[:sel_count]``. ``-1``
+  Per-query-block, per-selection-head selected **complete-block** indices emitted by the upstream producer, as a
+  **strictly ascending, duplicate-free** sequence in the contiguous prefix ``sel_indices[:sel_count]``. In causal
+  mode, the plan must not contain the current incomplete tail block; SparsePA derives that tail itself. ``-1``
   padded only past ``sel_count``. When ``q_block_size == 1``, the first dimension ``total_q_blocks`` equals
   ``tokens``. **Required**, unless the plan is instead carried by ``sel_block_mask`` (see "Mask-only plans for
   unbounded-K_max producers" above), in which case this input is omitted.
 
 * **10**: ``sel_count``
   A 2D tensor of type *T_IND* with shape ``[total_q_blocks, h_sel]``.
-  Valid selected block count per selection head. An empty selection (``sel_count == 0``) yields a zero output
-  vector for that row. **Required, unless omitted together with** ``sel_indices`` **when the plan is carried by**
+  Number of selected complete-block IDs per selection head; it excludes any automatically-derived causal tail.
+  With ``causal = true``, ``sel_count == 0`` can still yield a nonzero output from the tail. **Required, unless
+  omitted together with** ``sel_indices`` **when the plan is carried by**
   ``sel_block_mask``.
 
 * **11**: ``sel_block_mask``
@@ -428,8 +450,9 @@ carries its own selection.
 * ``sel_indices``/``sel_count`` (or ``sel_block_mask``) first dimension equals ``total_q_blocks``, where
   ``total_q_blocks == qb_start[-1] == sum_s ceil(chunk_len_s / q_block_size)``; when ``q_block_size == 1`` this
   equals ``tokens``.
-* ``sel_indices`` last dimension ``K_max`` is **determined by the producer**: ``block_topk + 1`` for a QSA-style
-  producer, or ``ceil(S / sel_block_size)`` when the selection is produced from a block-level mask conversion.
+* ``sel_indices`` last dimension ``K_max`` is **determined by the producer**: ``block_topk`` for a QSA-style
+  producer (the causal tail is implicit and not counted), or ``ceil(S / sel_block_size)`` when the selection is
+  produced from a block-level mask conversion.
   When a producer has no bound on ``K_max`` tighter than a sequence's full logical block count (e.g.
   XAttention's threshold-based selection), ``sel_indices``/``sel_count`` should be omitted and the plan carried
   directly via ``sel_block_mask`` instead — see "Mask-only plans for unbounded-K_max producers".
@@ -445,11 +468,14 @@ carries its own selection.
 * ``past_lens[s]`` equals the number of tokens already written for sequence ``s``; the write slot
   ``past_lens[s] + (t - subsequence_begins[s])`` must lie within an allocated physical block.
 * When ``q_block_size > 1``, ``past_lens[s] % q_block_size == 0`` for every sequence ``s``.
-* When ``causal`` is true, the causal-diagonal block is read only up to the query's logical position inclusive
-  (:math:`kpos \le token\_pos`). The op **always** enforces the upper bound
+* When ``causal`` is true, the op automatically adds the per-query causal-tail positions from
+  :math:`\lfloor (token\_pos+1)/sel\_block\_size \rfloor sel\_block\_size` through ``token_pos`` inclusive;
+  this tail is not part of ``sel_indices`` or ``sel_count``. The op also enforces :math:`kpos \le token\_pos` for
+  all gathered keys. It **always** enforces the upper bound
   :math:`kpos < \mathrm{past\_lens}[s] + \mathrm{chunk\_len}_s`, so a non-causal gather never reads unallocated
   or stale slots in the physical pages.
-* When a row's selection is empty (``sel_count == 0``), the op produces a zero output vector for that row.
+* If ``sel_count == 0`` and ``causal`` is true, the automatically-added causal tail can still produce a nonzero
+  output. The output is zero only when no effective key remains after plan, tail, causal, and validity filtering.
 
 
 **Types**
@@ -463,12 +489,12 @@ carries its own selection.
 **Example 1 — Qwen4 Token Sparse** (:math:`B_q = 1`, :math:`B_k = 4`, :math:`H_{sel} = 1`).
 
 A batch of two sequences, each with a fully-paged KV cache, attending with ``compress_ratio = 4`` (so
-``K_max = block_topk + 1 = 3`` blocks including the causal diagonal), ``block_size = 8`` (a multiple of
+``K_max = block_topk = 2`` complete blocks; the causal tail is added by SparsePA), ``block_size = 8`` (a multiple of
 ``sel_block_size = 4``), ``num_heads = 24``, ``num_kv_heads = 2``, ``h_sel = 1``. With ``B_q = 1``, the first
 selection dimension ``total_q_blocks == tokens``; the example shows ``tokens = 4`` (e.g. two sequences of two
-tokens each, ``chunk_len = [2, 2]``, so ``qb_start = [0, 2, 4]``). ``sel_indices`` encodes, per query token, the
-top-``K`` complete blocks plus the causal diagonal. When ``causal = true`` the diagonal block is gathered only up
-to :math:`kpos \le token\_pos`.
+tokens each, ``chunk_len = [2, 2]``, so ``qb_start = [0, 2, 4]``). ``sel_indices`` encodes, per query token, only
+the top-``K`` complete blocks. When ``causal = true``, SparsePA independently derives and adds each token's tail
+up to :math:`kpos \le token\_pos`.
 
 .. code-block:: xml
    :force:
@@ -505,7 +531,7 @@ to :math:`kpos \le token\_pos`.
                <dim>2</dim>
            </port>
            <port id="9">   <!-- sel_indices: [total_q_blocks, H_sel, K_max] (== tokens when Bq == 1) -->
-               <dim>4</dim><dim>1</dim><dim>3</dim>
+               <dim>4</dim><dim>1</dim><dim>2</dim>
            </port>
            <port id="10">  <!-- sel_count: [total_q_blocks, H_sel] -->
                <dim>4</dim><dim>1</dim>
