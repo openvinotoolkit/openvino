@@ -878,9 +878,9 @@ void ov::npuw::GQAInferRequest::infer() {
     try {
         m_inner_request->infer();
     } catch (const std::exception& ex) {
-        // The app-level error codes (e.g. PsResult::InferenceError) surfaced to the user
-        // carry no detail about what actually failed inside OV/the NPU driver -- print the
-        // real exception message here before it propagates and gets wrapped away.
+        // Generic app-level error codes surfaced to the user carry no detail about what
+        // actually failed inside OV/the NPU driver -- print the real exception message
+        // here before it propagates and gets wrapped away.
         (void)ex;  // only referenced by GQA_TRACE, a no-op outside NPU_PLUGIN_DEVELOPER_BUILD
         GQA_TRACE("GQAInferRequest::infer() -> inner request infer() THREW: " << ex.what());
         throw;
