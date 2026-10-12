@@ -58,6 +58,8 @@ class TestAtan2Types(PytorchLayerTest):
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.int, torch.float32],
                               [torch.int, torch.float64],
+                              [torch.int, torch.int],
+                              [torch.int64, torch.int32],
                               [torch.float32, torch.float64],
                               [torch.int64, torch.float32]
                               ])
