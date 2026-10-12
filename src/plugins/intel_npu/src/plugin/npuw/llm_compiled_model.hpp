@@ -118,6 +118,9 @@ protected:
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
 
+    std::map<std::string, std::size_t> serialize_prefill_other_outs_seqdims() const;
+    void deserialize_prefill_other_outs_seqdims(const std::map<std::string, std::size_t>& by_name);
+
     // Trust-boundary check for imported blobs: KVCacheDesc::dim and the V-transposed flags are read
     // from the stream and select the axis used to subscript shape vectors in the KV-slice helpers.
     // Reject them unless that axis is valid for every KV input/output of the restored prefill and
