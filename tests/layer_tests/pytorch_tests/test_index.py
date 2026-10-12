@@ -231,7 +231,7 @@ class TestIndexTrailingDimensions(PytorchLayerTest):
         columns = torch.tensor([-1, invalid_index[1], 0])
         with pytest.raises(IndexError):
             model(data, rows, columns)
-        # Gather uses zero for invalid indices; a coordinate must never spill into another axis.
+        # Invalid coordinates produce zero and must never spill into another axis.
         expected = model(data, rows[[0, 2]], columns[[0, 2]]).numpy()
         expected = np.insert(expected, 1, 0, axis=-1)
         actual = compiled((data.numpy(), rows.numpy(), columns.numpy()))[0]

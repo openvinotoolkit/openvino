@@ -88,11 +88,12 @@ def benchmark(name, shape, args):
     for image, data in zip(examples, numpy_inputs):
         reference = flattenize_structure(model(image))
         values = list(reference.values()) if isinstance(reference, dict) else reference
-        actual = request.infer([data], share_inputs=True, share_outputs=True)
+        result = request.infer([data], share_inputs=True, share_outputs=True)
         assert len(values) == len(compiled.outputs)
+        keys = reference if isinstance(reference, dict) else range(len(reference))
+        actual = {key: result[port] for key, port in zip(keys, compiled.outputs)}
         if name == "XFeat":
             # Nearly equal scores can swap ranks while preserving the same feature set.
-            actual = {key: actual[key] for key in reference}
             for outputs in (reference, actual):
                 points = outputs["keypoints"]
                 order = np.lexsort((points[:, 1], points[:, 0]))

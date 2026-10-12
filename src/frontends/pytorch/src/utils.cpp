@@ -4,6 +4,8 @@
 
 #include "utils.hpp"
 
+#include <numeric>
+
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -12,10 +14,12 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -684,6 +688,15 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     return x;
 }
 
+Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
+    auto is_negative = context.mark_node(std::make_shared<v1::Less>(x, zero));
+    auto ceil = context.mark_node(std::make_shared<v0::Ceiling>(x));
+    auto floor = context.mark_node(std::make_shared<v0::Floor>(x));
+    return context.mark_node(std::make_shared<v1::Select>(is_negative, ceil, floor));
+}
+
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     // Handle SequenceMark (list construct) - concatenate elements
@@ -1195,7 +1208,6 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     if (trailing_integer_indices) {
         // Gather selected spatial positions before materializing a dense transpose.
         Output<Node> linear_index = zero;
-        Output<Node> suffix_size = rg.make<v0::Constant>(element::i32, Shape{}, 1);
         Output<Node> valid_indices = rg.make<v0::Constant>(element::boolean, Shape{}, true);
         for (auto axis : advanced_ids) {
             auto index = rg.make<v0::Convert>(masked_indices[axis], element::i32);
@@ -1206,9 +1218,8 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                                                             rg.make<v1::Less>(normalized, dimension));
             valid_indices = rg.make<v1::LogicalAnd>(valid_indices, valid_axis);
             linear_index = rg.make<v1::Add>(rg.make<v1::Multiply>(linear_index, dimension), normalized);
-            suffix_size = rg.make<v1::Multiply>(suffix_size, dimension);
         }
-        linear_index = rg.make<v1::Select>(valid_indices, linear_index, suffix_size);
+        linear_index = rg.make<v1::Select>(valid_indices, linear_index, zero);
         auto first_axis = rg.make<v0::Constant>(element::i32, Shape{1}, first_advanced_axis);
         auto start = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
         auto step = rg.make<v0::Constant>(element::i32, Shape{1}, 1);
@@ -1217,7 +1228,15 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         auto flat_shape = rg.make<v0::Concat>(OutputVector{prefix_shape, minus_one}, 0);
         auto flattened = rg.make<v1::Reshape>(data, flat_shape, false);
         auto gather_axis = rg.make<v0::Constant>(element::i32, Shape{}, first_advanced_axis);
-        new_output = rg.make<v8::Gather>(flattened, linear_index, gather_axis);
+        const auto gathered = rg.make<v8::Gather>(flattened, linear_index, gather_axis);
+        if (first_advanced_axis > 0) {
+            std::vector<int32_t> axes(first_advanced_axis);
+            std::iota(axes.begin(), axes.end(), 0);
+            const auto prefix_axes = rg.make<v0::Constant>(element::i32, Shape{axes.size()}, axes);
+            valid_indices = rg.make<v0::Unsqueeze>(valid_indices, prefix_axes);
+        }
+        const auto output_zero = rg.make<v1::ConvertLike>(zero, data);
+        new_output = rg.make<v1::Select>(valid_indices, gathered, output_zero);
         use_input_as_output = false;
         return true;
     }
