@@ -18,7 +18,9 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -1193,13 +1195,20 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     if (trailing_integer_indices) {
         // Gather selected spatial positions before materializing a dense transpose.
         Output<Node> linear_index = zero;
+        Output<Node> suffix_size = rg.make<v0::Constant>(element::i32, Shape{}, 1);
+        Output<Node> valid_indices = rg.make<v0::Constant>(element::boolean, Shape{}, true);
         for (auto axis : advanced_ids) {
             auto index = rg.make<v0::Convert>(masked_indices[axis], element::i32);
             const auto dimension = rg.make<v0::Squeeze>(input_dims->output(axis), zero);
             const auto negative = rg.make<v1::Less>(index, zero);
             const auto normalized = rg.make<v1::Select>(negative, rg.make<v1::Add>(index, dimension), index);
+            const auto valid_axis = rg.make<v1::LogicalAnd>(rg.make<v1::GreaterEqual>(normalized, zero),
+                                                            rg.make<v1::Less>(normalized, dimension));
+            valid_indices = rg.make<v1::LogicalAnd>(valid_indices, valid_axis);
             linear_index = rg.make<v1::Add>(rg.make<v1::Multiply>(linear_index, dimension), normalized);
+            suffix_size = rg.make<v1::Multiply>(suffix_size, dimension);
         }
+        linear_index = rg.make<v1::Select>(valid_indices, linear_index, suffix_size);
         auto first_axis = rg.make<v0::Constant>(element::i32, Shape{1}, first_advanced_axis);
         auto start = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
         auto step = rg.make<v0::Constant>(element::i32, Shape{1}, 1);
