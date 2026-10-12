@@ -825,6 +825,73 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
 }
 
 namespace {
+// A minimal, fully working fake "inner" compiled model / infer request pair, used to
+// exercise GQAInferRequest::set_tensor()/get_tensor() end-to-end (as opposed to
+// RecordingFactory/MockSubCompiledModel, whose create_sync_infer_request() returns
+// nullptr and so cannot be infer()'d against). Every port gets a real, pre-allocated
+// tensor at construction time -- mirroring the TestInferRequest pattern in failsafe.cpp.
+class FakeInnerSyncInferRequest final : public ov::ISyncInferRequest {
+public:
+    explicit FakeInnerSyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
+        : ov::ISyncInferRequest(compiled_model) {
+        for (const auto& input : get_inputs()) {
+            ov::ISyncInferRequest::set_tensor(
+                input,
+                ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+        }
+        for (const auto& output : get_outputs()) {
+            ov::ISyncInferRequest::set_tensor(
+                output,
+                ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        }
+    }
+    void infer() override {}
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return {};
+    }
+};
+
+class FakeInnerCompiledModel final : public ov::npuw::ICompiledModel {
+public:
+    FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::npuw::ICompiledModel(model, plugin) {}
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        return {};
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        return std::make_shared<FakeInnerSyncInferRequest>(shared_from_this());
+    }
+};
+
+ov::npuw::GQACompiledModel::CompiledModelFactory fake_inner_factory() {
+    return [](const std::shared_ptr<ov::Model>& model,
+             const std::shared_ptr<const ov::IPlugin>& plugin,
+             const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel> {
+        return std::make_shared<FakeInnerCompiledModel>(model, plugin);
+    };
+}
+
+// build_gqa_model_with_dynamic_kv_cache()'s past_key/past_value ports are f16; this
+// helper fills a real f16 tensor so set_tensor()'s type-check passes.
+ov::SoPtr<ov::ITensor> make_f16_kv_cache_tensor(const ov::Shape& shape, float start_val = 0.f) {
+    auto tensor = ov::get_tensor_impl(ov::Tensor(ov::element::f16, shape));
+    auto* data = reinterpret_cast<ov::float16*>(tensor->data());
+    for (size_t i = 0; i < tensor->get_size(); ++i) {
+        data[i] = ov::float16(start_val + static_cast<float>(i));
+    }
+    return tensor;
+}
+}  // namespace
+
+namespace {
 ov::SoPtr<ov::ITensor> make_kv_cache_tensor(const ov::Shape& shape, float start_val = 0.f) {
     auto tensor = ov::get_tensor_impl(ov::Tensor(ov::element::f32, shape));
     auto* data = reinterpret_cast<float*>(tensor->data());
@@ -839,6 +906,65 @@ std::vector<float> to_vec(const ov::SoPtr<ov::ITensor>& t) {
     return std::vector<float>(data, data + t->get_size());
 }
 }  // namespace
+
+TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTensorAfterShortTensor) {
+    // Regression test for a bug where, after a port's inner request got aliased onto a
+    // full-capacity caller tensor, a later set_tensor() with a *shorter* tensor for the
+    // same port left the inner request still pointing at the stale (now orphaned) full
+    // tensor; the subsequent sync then wrote the new, shorter data straight into that
+    // stale caller tensor instead of into a buffer NPUW owns, silently corrupting memory
+    // the original caller might still hold a reference to.
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+        model,
+        m_plugin,
+        ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+        fake_inner_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    const uint32_t capacity = 16;
+    const size_t num_heads = 2, head_size = 16;
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+
+    ov::Output<const ov::Node> past_key_port;
+    for (const auto& input : compiled->inputs()) {
+        if (input.get_node()->get_friendly_name() == "past_keys_0") {
+            past_key_port = input;
+        }
+    }
+    ASSERT_TRUE(past_key_port.get_node());
+
+    // 1) Full-capacity caller tensor -- exercises the "exact capacity" aliasing branch.
+    auto full_tensor = make_f16_kv_cache_tensor({1, num_heads, capacity, head_size}, /*start_val=*/0.f);
+    request->set_tensor(past_key_port, full_tensor);
+    // Poison every element so we can detect any stray writes into this (now stale) tensor.
+    auto* full_data = reinterpret_cast<ov::float16*>(full_tensor->data());
+    for (size_t i = 0; i < full_tensor->get_size(); ++i) {
+        full_data[i] = ov::float16(-1.0f);
+    }
+
+    // 2) Short caller tensor for the very same port -- this used to leave the inner
+    // request pointing at `full_tensor` while bookkeeping moved on to the short one.
+    const size_t short_len = 4;
+    auto short_tensor = make_f16_kv_cache_tensor({1, num_heads, short_len, head_size}, /*start_val=*/0.f);
+    request->set_tensor(past_key_port, short_tensor);
+
+    ASSERT_NO_THROW(request->infer());
+
+    // The stale, full-capacity caller tensor from step (1) must be left untouched: it is
+    // no longer part of the live request, and the original caller may still hold a
+    // reference to it expecting its own data back.
+    for (size_t i = 0; i < full_tensor->get_size(); ++i) {
+        EXPECT_FLOAT_EQ(static_cast<float>(full_data[i]), -1.0f)
+            << "stale full-capacity caller tensor was corrupted at index " << i;
+    }
+
+    // 3) Going back to a full-capacity tensor afterwards must still work (re-alias path).
+    auto full_tensor_2 = make_f16_kv_cache_tensor({1, num_heads, capacity, head_size}, /*start_val=*/100.f);
+    ASSERT_NO_THROW(request->set_tensor(past_key_port, full_tensor_2));
+    ASSERT_NO_THROW(request->infer());
+}
 
 TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis2LeftAligned) {
     // [N=1, H=2, S, E=3]: src has S1=2, dst has capacity S2=4.

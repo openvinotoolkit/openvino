@@ -58,6 +58,17 @@ private:
     // GQACompiledModel::m_dynamic_kv_cache_axes); only its valid prefix is copied into
     // the inner request's static buffer. Keyed by port friendly name.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_tensors;
+    // Names of dynamic-axis inputs currently bound directly onto the caller's own
+    // (exact-capacity) tensor inside the inner request, rather than a private buffer.
+    // set_tensor() with a shorter tensor on the same port must restore the stashed
+    // private buffer below before the inner request is used again.
+    mutable std::unordered_set<std::string> m_dynamic_kv_cache_input_aliased;
+    // The inner request's own, privately-owned static-capacity buffer for a dynamic-axis
+    // input, stashed away the first time that port gets aliased directly onto a caller's
+    // exact-capacity tensor (see set_tensor()); restored once a shorter tensor is bound
+    // to the same port, so a stale caller tensor from a previous call is never written
+    // into or left dangling inside the inner request.
+    mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_private_buffers;
     // Outer-facing tensors for dynamic present_key/present_value outputs; allocated
     // lazily and refreshed from the inner static buffer after every infer().
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_output_tensors;

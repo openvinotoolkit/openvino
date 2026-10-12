@@ -1139,10 +1139,34 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
         // Exact match: alias the inner request directly onto the caller's tensor instead
         // of copying into a separate, static buffer -- no copy is needed since the whole
         // buffer is valid and there's nothing to trim.
+        if (m_dynamic_kv_cache_input_aliased.count(name) == 0) {
+            // First time this port is aliased -- stash the inner request's own private
+            // buffer (whatever it's currently bound to) so a later, shorter
+            // set_tensor() call can restore it instead of leaving the inner request
+            // bound to this (soon to be stale) caller tensor.
+            m_dynamic_kv_cache_private_buffers[name] = inner_tensor;
+        }
         m_inner_request->set_tensor(map_port_locked(port), tensor);
         m_dynamic_kv_cache_tensors[name] = tensor;
+        m_dynamic_kv_cache_input_aliased.insert(name);
         GQA_TRACE("    -> requested_len == capacity, aliased inner request tensor directly (no copy)");
         return;
+    }
+    if (m_dynamic_kv_cache_input_aliased.erase(name) != 0) {
+        // The inner request is currently aliased directly onto a caller tensor from a
+        // previous exact-capacity set_tensor() call (see above). That tensor is only
+        // `requested_len` rows large on THIS call's caller side, but the inner request
+        // still expects a full-capacity buffer, and sync_dynamic_kv_cache_tensors_locked()
+        // would otherwise copy into the stale old caller tensor instead of a buffer we
+        // actually own. Restore the inner request's own private buffer before this
+        // (shorter) tensor is used.
+        auto priv_it = m_dynamic_kv_cache_private_buffers.find(name);
+        OPENVINO_ASSERT(priv_it != m_dynamic_kv_cache_private_buffers.end(),
+                        "GQA KV-cache '",
+                        name,
+                        "' was aliased but has no stashed private buffer to restore");
+        m_inner_request->set_tensor(map_port_locked(port), priv_it->second);
+        GQA_TRACE("    -> requested_len < capacity, restored inner request's own private buffer");
     }
     // Data is intentionally NOT copied here: the caller may keep writing into `tensor`
     // after this call and before infer() (e.g. set_tensor(t); write_into(t); infer();).
