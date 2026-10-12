@@ -18,6 +18,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -26,6 +27,7 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -35,6 +37,8 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/rms.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 
 using namespace ov;
 using ov::op::internal::GroupQueryAttention;
@@ -619,4 +623,94 @@ TEST(GroupQueryAttentionValues, bidirectional_mask_has_no_causal_comparison) {
     // on the query row.
     EXPECT_EQ(count_ops_of_type<op::v1::Greater>(model), 0u);
     EXPECT_EQ(count_ops_of_type<op::v1::GreaterEqual>(model), 1u);
+}
+
+namespace {
+// Packed QKV + RoPE with QK-Norm weights (Constants, as ONNX initializers are) at inputs 14/15.
+std::shared_ptr<Model> make_packed_rotary_qk_norm_gqa_model(const element::Type& type) {
+    const auto qkv =
+        std::make_shared<op::v0::Parameter>(type, PartialShape{1, NUM_HEADS + 2 * KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto split_lengths =
+        op::v0::Constant::create(element::i64, Shape{3}, {NUM_HEADS, KV_NUM_HEADS, KV_NUM_HEADS});
+    const auto split = std::make_shared<op::v1::VariadicSplit>(qkv,
+                                                               op::v0::Constant::create(element::i64, Shape{}, {1}),
+                                                               split_lengths);
+    const auto past_k = std::make_shared<op::v0::Parameter>(type, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto past_v = std::make_shared<op::v0::Parameter>(type, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    const auto total = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto cos = std::make_shared<op::v0::Parameter>(type, PartialShape{-1, HEAD_SIZE / 2});
+    const auto sin = std::make_shared<op::v0::Parameter>(type, PartialShape{-1, HEAD_SIZE / 2});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    const auto q_weight = op::v0::Constant::create(type, Shape{HEAD_SIZE}, {0.5f});
+    const auto k_weight = op::v0::Constant::create(type, Shape{HEAD_SIZE}, {1.5f});
+    const auto gqa = std::make_shared<GroupQueryAttention>(OutputVector{split->output(0),
+                                                                        split->output(1),
+                                                                        split->output(2),
+                                                                        past_k,
+                                                                        past_v,
+                                                                        seqlens,
+                                                                        total,
+                                                                        cos,
+                                                                        sin,
+                                                                        empty,
+                                                                        empty,
+                                                                        empty,
+                                                                        empty,
+                                                                        empty,
+                                                                        q_weight,
+                                                                        k_weight},
+                                                           NUM_HEADS,
+                                                           KV_NUM_HEADS,
+                                                           0.0f,
+                                                           true,
+                                                           false,
+                                                           0,
+                                                           op::internal::GroupQueryAttentionQuantType::NONE,
+                                                           op::internal::GroupQueryAttentionQuantType::NONE,
+                                                           -1,
+                                                           false,
+                                                           false,
+                                                           true,
+                                                           0.0f,
+                                                           1e-5f);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    return std::make_shared<Model>(results, ParameterVector{qkv, past_k, past_v, seqlens, total, cos, sin});
+}
+
+// The QK-Norm chain is emitted in the RMSFusion form, so plugins running RMSFusion after the decomposition get one
+// fused RMS per Q and K (f32 compute; f16/bf16 inputs are upcast once, as ORT does), feeding RoPE rather than SDPA.
+void check_qk_norm_fuses_to_rms(const element::Type& type) {
+    auto model = make_packed_rotary_qk_norm_gqa_model(type);
+    pass::Manager manager;
+    manager.register_pass<pass::GroupQueryAttentionDecomposition>();
+    manager.register_pass<pass::RMSFusion>(false);
+    manager.run_passes(model);
+
+    size_t rms_count = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto rms = as_type_ptr<op::internal::RMS>(op)) {
+            ++rms_count;
+            EXPECT_EQ(rms->get_epsilon(), static_cast<double>(1e-5f));
+            EXPECT_EQ(rms->get_output_element_type(0), element::f32);
+            for (const auto& in : rms->output(0).get_target_inputs()) {
+                const auto consumer = in.get_node();
+                EXPECT_FALSE(is_type<op::v13::ScaledDotProductAttention>(consumer)) << "QK-Norm must precede RoPE";
+                EXPECT_EQ(is_type<op::v0::Convert>(consumer), type != element::f32) << consumer;
+            }
+        }
+    }
+    EXPECT_EQ(rms_count, 2u);
+    EXPECT_EQ(count_ops_of_type<op::v1::ReduceMean>(model), 0u);
+}
+}  // namespace
+
+TEST(GroupQueryAttentionValues, qk_norm_fuses_to_rms_f32) {
+    check_qk_norm_fuses_to_rms(element::f32);
+}
+
+TEST(GroupQueryAttentionValues, qk_norm_fuses_to_rms_f16) {
+    check_qk_norm_fuses_to_rms(element::f16);
 }

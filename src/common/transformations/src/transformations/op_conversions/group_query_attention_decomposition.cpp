@@ -34,6 +34,7 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -42,6 +43,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
@@ -158,6 +160,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
     const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
     const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
+
+    // QK-Norm is applied to the new Q/K heads before RoPE (ORT); shared KV has no new keys.
+    if (node->has_qk_norm()) {
+        const auto epsilon = node->get_qk_norm_epsilon();
+        Q = make_qk_norm(Q, get_input(GQAInputs::Q_NORM_WEIGHT), epsilon);
+        if (!shared_kv) {
+            K = make_qk_norm(K, get_input(GQAInputs::K_NORM_WEIGHT), epsilon);
+        }
+    }
 
     if (do_rotary) {
         // Get cos_cache and sin_cache from their actual input indices (ONNX COS_CACHE and SIN_CACHE).
@@ -695,6 +706,22 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimens
     const std::shared_ptr<ov::Node>& node,
     const std::vector<int>& dims) {
     return get_dimensions(register_new_node<v3::ShapeOf>(node), dims);
+}
+
+ov::Output<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_qk_norm(const ov::Output<ov::Node>& input,
+                                                                              const ov::Output<ov::Node>& weight,
+                                                                              float epsilon) {
+    const auto type = input.get_element_type();
+    const bool upcast = type != ov::element::f32;
+    const auto x = upcast ? register_new_node<v0::Convert>(input, ov::element::f32)->output(0) : input;
+    const auto gamma = upcast ? register_new_node<v0::Convert>(weight, ov::element::f32)->output(0) : weight;
+    const auto two = register_new_node(v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f}));
+    const auto axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+    const auto eps = register_new_node(v0::Constant::create(ov::element::f32, ov::Shape{}, {epsilon}));
+    const auto mean = register_new_node<v1::ReduceMean>(register_new_node<v1::Power>(x, two), axis, true);
+    const auto rms = register_new_node<v0::Sqrt>(register_new_node<v1::Add>(mean, eps));
+    const auto normed = register_new_node<v1::Multiply>(gamma, register_new_node<v1::Divide>(x, rms));
+    return upcast ? register_new_node<v0::Convert>(normed, type)->output(0) : normed->output(0);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbedding(ov::Output<ov::Node> input,

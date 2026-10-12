@@ -53,6 +53,13 @@ protected:
                                                      float softcap,
                                                      int64_t kv_num_heads);
 
+    // QK-Norm: per-head RMSNorm over head_size, x * rsqrt(mean(x^2) + epsilon) * weight, computed in f32 like
+    // ONNX Runtime and cast back to the input type. The base emits the primitive chain RMSFusion recognizes;
+    // plugins that fuse RMS before this pass can return their fused op directly.
+    virtual ov::Output<ov::Node> make_qk_norm(const ov::Output<ov::Node>& input,
+                                              const ov::Output<ov::Node>& weight,
+                                              float epsilon);
+
     virtual std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
         const ov::Output<ov::Node>& key,
