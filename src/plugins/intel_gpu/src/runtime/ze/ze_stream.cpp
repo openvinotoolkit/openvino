@@ -370,7 +370,7 @@ event::ptr ze_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool i
     } else if (m_sync_method  == SyncMethods::events) {
         auto dep_event_handles = ze_base_event::get_event_handles(deps, true);
         if (!dep_event_handles.empty()) {
-            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(cmd_list_handle, ev_handle, dep_event_handles.size(), dep_event_handles.data()));
+            OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(cmd_list_handle, ev_handle, static_cast<uint32_t>(dep_event_handles.size()), dep_event_handles.data()));
         } else {
             OV_ZE_EXPECT(ze::zeCommandListAppendSignalEvent(cmd_list_handle, ev_handle));
         }
