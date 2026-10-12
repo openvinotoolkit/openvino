@@ -1558,6 +1558,32 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     }
 }
 
+std::map<std::string, std::size_t> ov::npuw::LLMCompiledModel::serialize_prefill_other_outs_seqdims() const {
+    std::map<std::string, std::size_t> by_name;
+    for (const auto& [port, seqdim] : m_prefill_other_outs_seqdims) {
+        by_name.emplace(port.get_any_name(), seqdim);
+    }
+    return by_name;
+}
+
+void ov::npuw::LLMCompiledModel::deserialize_prefill_other_outs_seqdims(
+    const std::map<std::string, std::size_t>& by_name) {
+    m_prefill_other_outs_seqdims.clear();
+    const auto& prefill_outs = m_prefill_compiled->outputs();
+    for (const auto& [port_name, seqdim] : by_name) {
+        const auto& name = port_name;
+        auto it =
+            std::find_if(prefill_outs.begin(), prefill_outs.end(), [&name](const ov::Output<const ov::Node>& out) {
+                return out.get_names().count(name) > 0;
+            });
+        OPENVINO_ASSERT(it != prefill_outs.end(),
+                        "NPUW blob: prefill output '",
+                        port_name,
+                        "' from the seq-dim table is missing after import.");
+        m_prefill_other_outs_seqdims.emplace(*it, seqdim);
+    }
+}
+
 void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::npuw::s11n::CompiledContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
@@ -1624,10 +1650,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         // The chunked-prefill outputs' sequence-dimension table is keyed by model output ports,
         // which cannot be serialized directly. Export it by tensor name instead, so it can be
         // rebuilt against the restored prefill model on import.
-        std::map<std::string, std::size_t> other_outs_seqdims;
-        for (const auto& [port, seqdim] : m_prefill_other_outs_seqdims) {
-            other_outs_seqdims.emplace(port.get_any_name(), seqdim);
-        }
+        auto other_outs_seqdims = serialize_prefill_other_outs_seqdims();
         stream & other_outs_seqdims;
     };
 
@@ -1848,20 +1871,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         // against the restored prefill model (see the matching comment in serialize()).
         std::map<std::string, std::size_t> other_outs_seqdims;
         stream & other_outs_seqdims;
-        compiled->m_prefill_other_outs_seqdims.clear();
-        const auto& prefill_outs = compiled->m_prefill_compiled->outputs();
-        for (const auto& [port_name, seqdim] : other_outs_seqdims) {
-            auto it = std::find_if(prefill_outs.begin(),
-                                   prefill_outs.end(),
-                                   [&port_name](const ov::Output<const ov::Node>& out) {
-                                       return out.get_names().count(port_name) > 0;
-                                   });
-            OPENVINO_ASSERT(it != prefill_outs.end(),
-                            "NPUW blob: prefill output '",
-                            port_name,
-                            "' from the seq-dim table is missing after import.");
-            compiled->m_prefill_other_outs_seqdims.emplace(*it, seqdim);
-        }
+        compiled->deserialize_prefill_other_outs_seqdims(other_outs_seqdims);
 
         // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
         compiled->validate_imported_kvcache_dim();
