@@ -500,8 +500,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     local float S_check_slm[ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_n];
 #endif
 
-    const bool need_sum_barrier = (ugemm_vs_barrier_count == 0);
-
     /* Locate K/Q/V/A matrices within batch */
 #if IS_PAGED_ATTENTION
     #if IS_GQA_SINGLE_TOKEN
@@ -1613,10 +1611,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* Wait for S stores */
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
-        /* Last iteration: signal column sums are ready */
-        if (last && need_sum_barrier)
-            intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
-
         /* Accumulate A += V * S */
 #if IS_PAGED_ATTENTION && !IS_PREFILL
         int kb0 = 0;
@@ -1772,8 +1766,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     k0 += k_chunk;
     }
 
-    /* Wait for column sums to be ready */
-    if (need_sum_barrier) intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
+    /* Wait for column sums to be ready. The barrier is unconditional: in the PA MIXED
+       stage the last K iteration is clipped to the new tokens and runs ugemm_vcs only,
+       which reports no internal barrier, so nothing else orders the S_sum_slm store of
+       that iteration against the reads below. */
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     /* Load column sums from SLM + reduce in registers */
     a_scale_tile_type A_scale_tile, A_scale_tile_load;
