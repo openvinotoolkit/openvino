@@ -286,9 +286,7 @@ class TestCase:
 
     @classmethod
     def from_model_path(cls, model_id: str, model_path: Path, device: str):
-        model_descr = cls._read_description(model_path)
-        if model_descr is None:
-            raise Exception("TODO")
+        model_descr = cls._read_description(model_path) or {}
         weights_path = model_path.with_suffix(".bin")
         if not weights_path.is_file():
             print(f"Warning: Test case {model_id} invalid: can't find weights file at {weights_path}")
@@ -328,7 +326,7 @@ class TestSession:
         self.test_case_log = None
         if self.log_dir:
             self.log_dir.mkdir(parents=True, exist_ok=True)
-            self.test_case_log_file = (self.log_dir / "test_cases.csv").open("w")
+            self.test_case_log_file = (self.log_dir / "test_cases.csv").open("w", newline="")
             self.test_case_log = csv.DictWriter(
                 self.test_case_log_file, TestCase._main_fields)
             self.test_case_log.writeheader()
@@ -495,7 +493,7 @@ class TestSession:
         for test in self.generate_test_cases():
             self.log_test_case(test)
             result = self.run_test_case(test)
-            if self.api:
+            if self.report_api:
                 self.api_push_test_result(test, result)
             self.log_test_result(test, result)
 

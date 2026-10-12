@@ -11,7 +11,7 @@ ov::PartialShape get_default_shape(ov::PartialShape given_shape) {
     }
     if (given_shape.size() != 4) {
         // unlikely an image
-        throw std::runtime_error("For dynamic shapes, only number of dimentions equal to 4 is supported.");
+        throw std::runtime_error("For dynamic shapes, only inputs with four dimensions are supported.");
     }
     const ov::Shape default_shape = {1, 3, 480, 480};
     ov::Shape new_shape;

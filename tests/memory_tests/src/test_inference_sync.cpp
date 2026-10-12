@@ -23,12 +23,12 @@ void do_test(memory_tests::Context &test) {
 
     ov::Core core;
     auto model = core.read_model(test.model_path);
-    std::map<size_t, ov::PartialShape> input_shapes;
-    for (auto input: model->inputs()) {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> input_shapes;
+    for (const auto& input : model->inputs()) {
         if (input.get_partial_shape().is_static()) {
             continue;
         }
-        input_shapes.insert({input.get_index(), get_default_shape(model->input().get_partial_shape())});
+        input_shapes.emplace(input, get_default_shape(input.get_partial_shape()));
     }
     model->reshape(input_shapes);
     ov::CompiledModel compiled_model = core.compile_model(model, test.device);
