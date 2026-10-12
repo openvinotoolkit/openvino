@@ -32,7 +32,7 @@ ov::Output<ov::Node> reshape_add_id_input_to_2d(const ov::Output<ov::Node>& inpu
         return input;
     }
     auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
-    return std::make_shared<ov::op::v1::Reshape>(input, get_dimensions(shape, dims), false);
+    return std::make_shared<ov::op::v1::Reshape>(input, gather_dims(shape, dims), false);
 }
 }  // namespace
 

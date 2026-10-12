@@ -104,7 +104,10 @@ namespace ov {
     symbol_statement(zeDeviceGetRuntimeRequirements)          \
     symbol_statement(zeDeviceGetRuntimeRequirementsKey)       \
     symbol_statement(zeDeviceValidateRuntimeRequirements)     \
+    symbol_statement(zeCommandQueueSetPriorityExt)            \
     symbol_statement(zeEventCounterBasedCreate)               \
+    symbol_statement(zeCommandQueueSetQosExt)                 \
+    symbol_statement(zeCommandQueueGetQosExt)                 \
     symbol_statement(zeCommandListImmediateAppendCommandListsWithParameters)
 // clang-format on
 
