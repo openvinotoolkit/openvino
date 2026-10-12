@@ -51,17 +51,20 @@ public:
         }
 
         if (inputs_count == 1) {
-            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode, primitive->m_pythondiv});
-        } else {
             params.operations.push_back(
-                {{kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1)}, mode, primitive->m_pythondiv});
+                {{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode, primitive->m_pythondiv});
+        } else {
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
+                                          kernel_selector::eltwise_params::InputType::Buffer(1)},
+                                         mode,
+                                         primitive->m_pythondiv});
         }
 
         for (uint32_t i = 2; i < static_cast<uint32_t>(inputs_count); i++) {
-            params.operations.push_back(
-                {{kernel_selector::eltwise_params::InputType::Intermediate(i - 2), kernel_selector::eltwise_params::InputType::Buffer(i)},
-                 mode,
-                 primitive->m_pythondiv});
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(i - 2),
+                                          kernel_selector::eltwise_params::InputType::Buffer(i)},
+                                         mode,
+                                         primitive->m_pythondiv});
         }
 
         params.coefficients = primitive->coefficients;
@@ -422,3 +425,4 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::eltwise)
+```

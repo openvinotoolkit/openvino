@@ -13,9 +13,12 @@
 
 namespace {
 
-class DividePythonDivisionTest : public testing::WithParamInterface<std::tuple<ov::element::Type, bool>>, virtual public ov::test::SubgraphBaseStaticTest {
+class DividePythonDivisionTest
+    : public testing::WithParamInterface<std::tuple<ov::element::Type, bool>>,
+      virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<ov::element::Type, bool>>& obj) {
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<std::tuple<ov::element::Type, bool>>& obj) {
         const auto& [et, pythondiv] = obj.param;
         std::ostringstream result;
         result << "ET=" << et << "_pythondiv=" << pythondiv;
@@ -31,7 +34,8 @@ protected:
         auto rhs = std::make_shared<ov::op::v0::Parameter>(et, ov::Shape{4});
         auto divide = std::make_shared<ov::op::v1::Divide>(lhs, rhs, pythondiv);
         auto result = std::make_shared<ov::op::v0::Result>(divide);
-        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{lhs, rhs}, "divide");
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result}, ov::ParameterVector{lhs, rhs}, "divide");
 
         ov::test::InputShape shape{ov::PartialShape{4}, {ov::Shape{4}}};
         init_input_shapes({shape, shape});
@@ -97,7 +101,10 @@ TEST_P(DividePythonDivisionTest, IntegerDividePropagatesPythondiv) {
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_IntegerDivide,
-                         DividePythonDivisionTest,
-                         ::testing::Combine(::testing::Values(ov::element::i16, ov::element::i32), ::testing::Values(true, false)),
-                         DividePythonDivisionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_IntegerDivide,
+    DividePythonDivisionTest,
+    ::testing::Combine(::testing::Values(ov::element::i16, ov::element::i32),
+                       ::testing::Values(true, false)),
+    DividePythonDivisionTest::getTestCaseName);
+```

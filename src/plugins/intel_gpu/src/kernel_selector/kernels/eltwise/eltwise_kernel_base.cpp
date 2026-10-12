@@ -364,9 +364,10 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                     // semantically identical to the reference: for a NaN first
                     // operand the reference already returns it unchanged, and for a
                     // finite first operand fmax/fmin and the comparison agree.
-                    const std::string cmp = (ew.mode == EltwiseMode::MIN)
-                        ? ("(" + input1_str + " < " + input0_str + ")")
-                        : ("(" + input0_str + " < " + input1_str + ")");
+                    const std::string cmp =
+                        (ew.mode == EltwiseMode::MIN)
+                            ? ("(" + input1_str + " < " + input0_str + ")")
+                            : ("(" + input0_str + " < " + input1_str + ")");
                     op += cast_type + "(isnan(" + input0_str + ") ? " + input0_str + " : (" + cmp + " ? " + input1_str + " : " + input0_str + "))";
                 }
             }
