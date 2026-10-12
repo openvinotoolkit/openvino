@@ -38,19 +38,17 @@ DisableFP16CompForGaussianTopK::DisableFP16CompForGaussianTopK() {
         if (transformation_callback(sparsified_node))
             return false;
 
-        const auto mean_node = pattern_map.at(mean).get_node_shared_ptr();
+        const auto mean_node = ov::as_type_ptr<ov::op::v1::ReduceMean>(pattern_map.at(mean).get_node_shared_ptr());
         const auto deviation_node = pattern_map.at(deviation).get_node_shared_ptr();
         const auto squared_deviation_node = pattern_map.at(squared_deviation).get_node_shared_ptr();
+        const auto variance_node = ov::as_type_ptr<ov::op::v1::ReduceMean>(pattern_map.at(variance).get_node_shared_ptr());
         const auto threshold_node = pattern_map.at(threshold).get_node_shared_ptr();
-        const auto& x = sparsified_node->input_value(0);
 
-        // Repeated pattern labels are not bound to a single producer, so verify that every
-        // use of x, mean and the deviation refers to the same tensor.
-        const bool is_gaussian_topk = mean_node->input_value(0) == x && deviation_node->input_value(0) == x &&
-                                      deviation_node->input_value(1) == mean_node->output(0) &&
-                                      squared_deviation_node->input_value(0) == squared_deviation_node->input_value(1) &&
-                                      (threshold_node->input_value(0) == mean_node->output(0) ||
-                                       threshold_node->input_value(1) == mean_node->output(0));
+        // data (any_input) binds once, but the repeated wrap_type labels mean and deviation may bind to different nodes.
+        const auto& deviation_mean = deviation_node->input_value(1);
+        const bool is_gaussian_topk = squared_deviation_node->input_value(0) == squared_deviation_node->input_value(1) &&
+                                      (threshold_node->input_value(0) == deviation_mean || threshold_node->input_value(1) == deviation_mean) &&
+                                      mean_node->get_reduction_axes() == variance_node->get_reduction_axes();
         if (!is_gaussian_topk)
             return false;
 

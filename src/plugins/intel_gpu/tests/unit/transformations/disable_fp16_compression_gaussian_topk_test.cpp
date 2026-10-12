@@ -38,28 +38,32 @@ const std::string name_threshold = "threshold";
 const std::string name_sparsified = "sparsified";
 const std::string name_relu = "relu";
 
+// Each negative variant still matches the pattern and is rejected by one callback check.
 enum class Variant {
     GaussianTopK,
-    NonSquaredDeviation,  // Multiply(deviation, other) instead of Multiply(deviation, deviation)
-    ThresholdFromOtherMean,  // threshold built on a mean of a different tensor
+    NonSquaredDeviation,     // Multiply(x - mean_1(x), deviation): not a square
+    ThresholdFromOtherMean,  // threshold built on mean_1(x) instead of the deviation's mean
+    MismatchedReduceAxes,    // variance reduced over axis 1, mean over the last axis
 };
 
 // relu(x - (mean(x) + k * sqrt(mean((x - mean(x))^2)))), as emitted by the PyTorch frontend
 // for torch.std-based Gaussian top-k activation sparsity (e.g. Gemma-3n MLP).
-std::shared_ptr<ov::Model> create_model(Variant variant) {
+std::shared_ptr<ov::Model> create_model(Variant variant, bool mean_first_in_threshold = true) {
     auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 64});
-    auto other = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 64});
     auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 
     auto mean = std::make_shared<ov::op::v1::ReduceMean>(x, axes, true);
     mean->set_friendly_name(name_mean);
     auto deviation = std::make_shared<ov::op::v1::Subtract>(x, mean);
     deviation->set_friendly_name(name_deviation);
-    auto squared_deviation = variant == Variant::NonSquaredDeviation
-                                 ? std::make_shared<ov::op::v1::Multiply>(deviation, other)
-                                 : std::make_shared<ov::op::v1::Multiply>(deviation, deviation);
+    std::shared_ptr<ov::Node> squared_deviation = std::make_shared<ov::op::v1::Multiply>(deviation, deviation);
+    if (variant == Variant::NonSquaredDeviation) {
+        auto other_deviation = std::make_shared<ov::op::v1::Subtract>(x, std::make_shared<ov::op::v1::ReduceMean>(x, axis_1, true));
+        squared_deviation = std::make_shared<ov::op::v1::Multiply>(other_deviation, deviation);
+    }
     squared_deviation->set_friendly_name(name_squared_deviation);
-    auto variance = std::make_shared<ov::op::v1::ReduceMean>(squared_deviation, axes, true);
+    auto variance = std::make_shared<ov::op::v1::ReduceMean>(squared_deviation, variant == Variant::MismatchedReduceAxes ? axis_1 : axes, true);
     variance->set_friendly_name(name_variance);
     auto std_dev = std::make_shared<ov::op::v0::Sqrt>(variance);
     std_dev->set_friendly_name(name_std_dev);
@@ -69,15 +73,16 @@ std::shared_ptr<ov::Model> create_model(Variant variant) {
 
     std::shared_ptr<ov::Node> threshold_mean = mean;
     if (variant == Variant::ThresholdFromOtherMean)
-        threshold_mean = std::make_shared<ov::op::v1::ReduceMean>(other, axes, true);
-    auto threshold = std::make_shared<ov::op::v1::Add>(threshold_mean, scaled_std_dev);
+        threshold_mean = std::make_shared<ov::op::v1::ReduceMean>(x, axis_1, true);
+    auto threshold = mean_first_in_threshold ? std::make_shared<ov::op::v1::Add>(threshold_mean, scaled_std_dev)
+                                             : std::make_shared<ov::op::v1::Add>(scaled_std_dev, threshold_mean);
     threshold->set_friendly_name(name_threshold);
     auto sparsified = std::make_shared<ov::op::v1::Subtract>(x, threshold);
     sparsified->set_friendly_name(name_sparsified);
     auto relu = std::make_shared<ov::op::v0::Relu>(sparsified);
     relu->set_friendly_name(name_relu);
 
-    return std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{x, other});
+    return std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{x});
 }
 
 void run_test(const std::shared_ptr<ov::Model>& model,
@@ -106,7 +111,6 @@ void run_test(const std::shared_ptr<ov::Model>& model,
 }  // namespace
 
 TEST(TransformationTests, DisableFP16CompForGaussianTopK_Positive) {
-    auto model = create_model(Variant::GaussianTopK);
     // Only the threshold computation is kept in FP32; the sparsified output is not.
     std::unordered_map<std::string, bool> expected_status = {
         {name_mean, true},
@@ -119,7 +123,10 @@ TEST(TransformationTests, DisableFP16CompForGaussianTopK_Positive) {
         {name_sparsified, false},
         {name_relu, false},
     };
-    run_test(model, expected_status);
+    for (bool mean_first : {true, false}) {
+        SCOPED_TRACE(mean_first ? "Add(mean, k * std)" : "Add(k * std, mean)");
+        run_test(create_model(Variant::GaussianTopK, mean_first), expected_status);
+    }
 }
 
 TEST(TransformationTests, DisableFP16CompForGaussianTopK_NonSquaredDeviation_NoOp) {
@@ -136,6 +143,18 @@ TEST(TransformationTests, DisableFP16CompForGaussianTopK_NonSquaredDeviation_NoO
 
 TEST(TransformationTests, DisableFP16CompForGaussianTopK_ThresholdFromOtherMean_NoOp) {
     auto model = create_model(Variant::ThresholdFromOtherMean);
+    std::unordered_map<std::string, bool> expected_status = {
+        {name_mean, false},
+        {name_deviation, false},
+        {name_squared_deviation, false},
+        {name_variance, false},
+        {name_threshold, false},
+    };
+    run_test(model, expected_status);
+}
+
+TEST(TransformationTests, DisableFP16CompForGaussianTopK_MismatchedReduceAxes_NoOp) {
+    auto model = create_model(Variant::MismatchedReduceAxes);
     std::unordered_map<std::string, bool> expected_status = {
         {name_mean, false},
         {name_deviation, false},
