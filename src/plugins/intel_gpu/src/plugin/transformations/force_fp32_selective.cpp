@@ -217,14 +217,14 @@ void expand_region(const std::shared_ptr<ov::Model>& model,
                   << " (rounds=" << expansion_rounds << ")" << std::endl;
 }
 
-// Bypass only floating-point Convert chains connecting two region nodes.
-ov::Output<ov::Node> find_region_source(ov::Output<ov::Node> source,
-                                       const OriginalOutputTypes& original_types) {
+// Bypass FP16/FP32 Convert chains from promoted or already-FP32 producers.
+ov::Output<ov::Node> find_fp32_source(ov::Output<ov::Node> source,
+                                    const OriginalOutputTypes& original_types) {
     const auto original_source = source;
     while (!original_types.count(source.get_node())) {
         const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source.get_node_shared_ptr());
         if (!convert)
-            return original_source;
+            break;
 
         const auto source_type = convert->get_input_element_type(0);
         const auto destination_type = convert->get_destination_type();
@@ -235,7 +235,7 @@ ov::Output<ov::Node> find_region_source(ov::Output<ov::Node> source,
         source = convert->input_value(0);
     }
 
-    if (!is_fp32_region_output(source, original_types))
+    if (!is_fp32_region_output(source, original_types) && source.get_element_type() != ov::element::f32)
         return original_source;
 
     return source;
@@ -264,10 +264,11 @@ std::tuple<bool, int, size_t> promote_inputs(
             if (input_et != ov::element::f16 && input_et != desired_et)
                 continue;
 
-            const auto region_source = find_region_source(incoming_output, original_types);
-            if (is_fp32_region_output(region_source, original_types)) {
-                if (region_source != incoming_output)
-                    input.replace_source_output(region_source);
+            const auto fp32_source = find_fp32_source(incoming_output, original_types);
+            if (is_fp32_region_output(fp32_source, original_types) ||
+                fp32_source.get_element_type() == desired_et) {
+                if (fp32_source != incoming_output)
+                    input.replace_source_output(fp32_source);
                 continue;
             }
 

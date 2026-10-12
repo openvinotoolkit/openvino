@@ -422,7 +422,8 @@ TEST(ForceFP32Selective, DirectSharedOutputRestoresOnlyUnselectedBranch) {
 TEST(ForceFP32Selective, ExternalSharedRoundTripKeepsUnselectedValues) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     auto down = std::make_shared<ov::op::v0::Convert>(input, ov::element::f16);
-    auto selected = std::make_shared<ov::op::v0::Relu>(down);
+    auto offset = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1});
+    auto selected = std::make_shared<ov::op::v1::Subtract>(down, offset);
     auto other = std::make_shared<ov::op::v0::Convert>(down, ov::element::f32);
     selected->set_friendly_name("selected");
     other->set_friendly_name("other");
@@ -435,14 +436,16 @@ TEST(ForceFP32Selective, ExternalSharedRoundTripKeepsUnselectedValues) {
 
     force_selected(model);
 
-    auto promote = ov::as_type_ptr<ov::op::v0::Convert>(selected->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(promote, nullptr);
-    EXPECT_EQ(promote->input_value(0).get_node_shared_ptr(), down);
+    EXPECT_EQ(selected->input_value(0).get_node_shared_ptr(), input);
     EXPECT_EQ(other->input_value(0).get_node_shared_ptr(), down);
     EXPECT_EQ(down->input_value(0).get_node_shared_ptr(), input);
     ov::TensorVector actual{ov::Tensor(ov::element::f16, ov::Shape{1}),
                             ov::Tensor(ov::element::f32, ov::Shape{1})};
     ASSERT_TRUE(model->evaluate(actual, {data}));
+    EXPECT_EQ(static_cast<float>(expected[0].data<ov::float16>()[0]), 0.0f);
+    EXPECT_EQ(static_cast<float>(actual[0].data<ov::float16>()[0]),
+              static_cast<float>(ov::float16(data.data<float>()[0] - 1.0f)));
+    EXPECT_GT(static_cast<float>(actual[0].data<ov::float16>()[0]), 0.0f);
     EXPECT_FLOAT_EQ(actual[1].data<float>()[0], expected[1].data<float>()[0]);
     EXPECT_NE(actual[1].data<float>()[0], data.data<float>()[0]);
 }
@@ -473,7 +476,7 @@ TEST(ForceFP32Selective, InternalConnectionDoesNotRoundToFP16) {
     EXPECT_EQ(static_cast<float>(after[0].data<ov::float16>()[0]), 0.00000095367431640625f);
 }
 
-TEST(ForceFP32Selective, ExternalSingleUseConvertIsPreserved) {
+TEST(ForceFP32Selective, ExternalSingleUseConvertIsBypassed) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     auto down = std::make_shared<ov::op::v0::Convert>(input, ov::element::f16);
     auto selected = std::make_shared<ov::op::v0::Relu>(down);
@@ -483,13 +486,99 @@ TEST(ForceFP32Selective, ExternalSingleUseConvertIsPreserved) {
 
     force_selected(model);
 
-    auto promote = ov::as_type_ptr<ov::op::v0::Convert>(selected->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(promote, nullptr);
-    EXPECT_EQ(promote->input_value(0).get_node_shared_ptr(), down);
+    EXPECT_EQ(selected->input_value(0).get_node_shared_ptr(), input);
+    EXPECT_EQ(selected->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(count_converts(model), 1u);
     EXPECT_EQ(down->input_value(0).get_node_shared_ptr(), input);
     EXPECT_EQ(down->get_destination_type(), ov::element::f16);
     EXPECT_EQ(down->get_friendly_name(), "original_downcast");
 }
+
+TEST(ForceFP32Selective, ExternalFP32ConvertChainKeepsSharedConsumers) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto down = std::make_shared<ov::op::v0::Convert>(input, ov::element::f16);
+    auto up = std::make_shared<ov::op::v0::Convert>(down, ov::element::f32);
+    auto half = std::make_shared<ov::op::v0::Convert>(up, ov::element::f16);
+    auto selected = std::make_shared<ov::op::v0::Relu>(half);
+    auto other = std::make_shared<ov::op::v0::Relu>(half);
+    selected->set_friendly_name("selected");
+    other->set_friendly_name("other");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{selected, other}, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    EXPECT_EQ(selected->input_value(0).get_node_shared_ptr(), input);
+    EXPECT_EQ(other->input_value(0).get_node_shared_ptr(), half);
+    EXPECT_EQ(half->input_value(0).get_node_shared_ptr(), up);
+    EXPECT_EQ(up->input_value(0).get_node_shared_ptr(), down);
+    EXPECT_EQ(down->input_value(0).get_node_shared_ptr(), input);
+    EXPECT_EQ(other->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(count_converts(model), 4u);
+}
+
+TEST(ForceFP32Selective, ExternalRoundTripEndingInFP32IsBypassed) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto down = std::make_shared<ov::op::v0::Convert>(input, ov::element::f16);
+    auto up = std::make_shared<ov::op::v0::Convert>(down, ov::element::f32);
+    auto selected = std::make_shared<ov::op::internal::RMS>(up, 1e-5, ov::element::f16);
+    auto other = std::make_shared<ov::op::v0::Relu>(up);
+    selected->set_friendly_name("selected");
+    other->set_friendly_name("other");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{selected, other}, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    EXPECT_EQ(selected->input_value(0).get_node_shared_ptr(), input);
+    EXPECT_EQ(other->input_value(0).get_node_shared_ptr(), up);
+    EXPECT_EQ(up->input_value(0).get_node_shared_ptr(), down);
+    EXPECT_EQ(down->get_destination_type(), ov::element::f16);
+    EXPECT_EQ(other->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(count_converts(model), 3u);
+}
+
+TEST(ForceFP32Selective, ExternalFP16ProducerKeepsItsConvertChain) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
+    auto up = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+    auto down = std::make_shared<ov::op::v0::Convert>(up, ov::element::f16);
+    auto selected = std::make_shared<ov::op::v0::Relu>(down);
+    selected->set_friendly_name("selected");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{selected}, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    auto promote = ov::as_type_ptr<ov::op::v0::Convert>(selected->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(promote, nullptr);
+    EXPECT_EQ(promote->input_value(0).get_node_shared_ptr(), down);
+    EXPECT_EQ(down->input_value(0).get_node_shared_ptr(), up);
+    EXPECT_EQ(up->input_value(0).get_node_shared_ptr(), input);
+    EXPECT_EQ(input->get_element_type(), ov::element::f16);
+    EXPECT_EQ(count_converts(model), 4u);
+}
+
+class ForceFP32SelectiveExternalConversions : public testing::TestWithParam<ov::element::Type> {};
+
+TEST_P(ForceFP32SelectiveExternalConversions, KeepsConversionsThroughOtherTypes) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    auto narrow = std::make_shared<ov::op::v0::Convert>(input, GetParam());
+    auto half = std::make_shared<ov::op::v0::Convert>(narrow, ov::element::f16);
+    auto selected = std::make_shared<ov::op::v0::Relu>(half);
+    selected->set_friendly_name("selected");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{selected}, ov::ParameterVector{input});
+
+    force_selected(model);
+
+    auto promote = ov::as_type_ptr<ov::op::v0::Convert>(selected->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(promote, nullptr);
+    EXPECT_EQ(promote->input_value(0).get_node_shared_ptr(), half);
+    EXPECT_EQ(half->input_value(0).get_node_shared_ptr(), narrow);
+    EXPECT_EQ(narrow->input_value(0).get_node_shared_ptr(), input);
+    EXPECT_EQ(narrow->get_destination_type(), GetParam());
+    EXPECT_EQ(count_converts(model), 4u);
+}
+
+INSTANTIATE_TEST_SUITE_P(SourceTypes,
+                         ForceFP32SelectiveExternalConversions,
+                         testing::Values(ov::element::i32, ov::element::boolean, ov::element::bf16));
 
 TEST(ForceFP32Selective, IntegerConvertChainIsNotBypassed) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
