@@ -14,6 +14,7 @@ import openvino.opset5 as ov_opset5
 import openvino.opset10 as ov_opset10
 import openvino.opset15 as ov_opset15
 import openvino.opset16 as ov_opset16
+import openvino.opset17 as ov_opset17
 import openvino.opset11 as ov
 from openvino.op.util import VariableInfo, Variable
 
@@ -1942,6 +1943,48 @@ def test_nv12_to_rgb():
     assert node_separate_planes.get_output_size() == 1
     assert node_separate_planes.get_output_element_type(0) == Type.f32
     assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+
+def test_rgb_to_nv12():
+    # Single plane
+    arg = ov.parameter([1, 480, 640, 3], name="input", dtype=np.float32)
+    node_single_plane = ov_opset17.rgb_to_nv12(arg)
+
+    assert node_single_plane.get_type_name() == "RGBtoNV12"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == [1, 720, 640, 1]
+
+    # Two planes
+    node_two_planes = ov_opset17.rgb_to_nv12(arg, single_plane=False)
+
+    assert node_two_planes.get_type_name() == "RGBtoNV12"
+    assert node_two_planes.get_output_size() == 2
+    assert node_two_planes.get_output_element_type(0) == Type.f32
+    assert node_two_planes.get_output_element_type(1) == Type.f32
+    assert list(node_two_planes.get_output_shape(0)) == [1, 480, 640, 1]
+    assert list(node_two_planes.get_output_shape(1)) == [1, 240, 320, 2]
+
+
+def test_bgr_to_nv12():
+    # Single plane
+    arg = ov.parameter([1, 480, 640, 3], name="input", dtype=np.float32)
+    node_single_plane = ov_opset17.bgr_to_nv12(arg)
+
+    assert node_single_plane.get_type_name() == "BGRtoNV12"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == [1, 720, 640, 1]
+
+    # Two planes
+    node_two_planes = ov_opset17.bgr_to_nv12(arg, single_plane=False)
+
+    assert node_two_planes.get_type_name() == "BGRtoNV12"
+    assert node_two_planes.get_output_size() == 2
+    assert node_two_planes.get_output_element_type(0) == Type.f32
+    assert node_two_planes.get_output_element_type(1) == Type.f32
+    assert list(node_two_planes.get_output_shape(0)) == [1, 480, 640, 1]
+    assert list(node_two_planes.get_output_shape(1)) == [1, 240, 320, 2]
 
 
 def test_softsign():
