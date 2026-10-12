@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstdlib>
 #include "opencv_c_wrapper.h"
+
+#include <cstdlib>
 
 extern "C" {
 #include "bmp_reader.h"
