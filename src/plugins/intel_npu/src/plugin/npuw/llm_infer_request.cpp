@@ -1015,12 +1015,14 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
 void LLMInferRequest::accumulate_other_chunked_outputs(uint32_t start_offset,
                                                        uint32_t chunk_token_count,
-                                                       uint32_t stored_token_count,
+                                                       uint32_t processed_token_count,
                                                        uint32_t max_seq_len) {
     LOG_INFO("Accumulating other chunked outputs into full ones, chunk_token_count:"
-             << chunk_token_count << ", stored_token_count:" << stored_token_count << ", max_seq_len:" << max_seq_len);
-    OPENVINO_ASSERT(chunk_token_count + stored_token_count <= max_seq_len,
-                    "Sanity check for input parameters: chunk_token_count + stored_token_count must be <= max_seq_len");
+             << chunk_token_count << ", processed_token_count:" << processed_token_count
+             << ", max_seq_len:" << max_seq_len);
+    OPENVINO_ASSERT(
+        chunk_token_count + processed_token_count <= max_seq_len,
+        "Sanity check for input parameters: chunk_token_count + processed_token_count must be <= max_seq_len");
 
     for (auto&& [port, dim] : m_prefill_other_outs_seqdims) {
         LOG_BLOCK();
@@ -1048,7 +1050,7 @@ void LLMInferRequest::accumulate_other_chunked_outputs(uint32_t start_offset,
         OPENVINO_ASSERT(full_seq_len == max_seq_len,
                         "Pre-allocated tensor size (" + std::to_string(full_seq_len) +
                             ") must match max sequence length (" + std::to_string(max_seq_len) + ")");
-        const auto full_tensor_slice_begin = start_offset + stored_token_count;
+        const auto full_tensor_slice_begin = start_offset + processed_token_count;
         const auto full_tensor_slice_end = full_tensor_slice_begin + chunk_token_count;
         auto full_tensor_slice = util::make_tensor_slice(full_tensor,
                                                          static_cast<uint32_t>(dim),
@@ -1123,6 +1125,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         has_deepstack ? count_visual_tokens_before(visual_pos_masks, kvcache_desc.num_stored_tokens) : 0u;
 
     const uint32_t start_offset = kvcache_desc.max_prompt_size - static_cast<uint32_t>(remaining_prompts);
+    const uint32_t other_outs_accum_base = kvcache_desc.num_stored_tokens;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -1266,7 +1269,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         m_llm_profile["1/prefill:3c.post_chunk"].record([&]() {
             accumulate_other_chunked_outputs(start_offset,
                                              static_cast<uint32_t>(current_prompts_len),
-                                             static_cast<uint32_t>(kvcache_desc.num_stored_tokens),
+                                             kvcache_desc.num_stored_tokens - other_outs_accum_base,
                                              static_cast<uint32_t>(kvcache_desc.max_prompt_size));
 
             if (enable_prefix_caching) {
