@@ -643,7 +643,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAutoDetectSkipsNpuTilesInDefaultS
         expect_prop(
             call->props,
             "NPU_COMPILATION_MODE_PARAMS",
-            "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm performance-hint-override=latency");
+            "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 
