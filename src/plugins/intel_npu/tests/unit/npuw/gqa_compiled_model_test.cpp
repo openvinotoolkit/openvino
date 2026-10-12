@@ -12,6 +12,7 @@
 
 #include "gqa_compiled_model.hpp"
 #include "llm_test_helpers.hpp"
+#include "npuw_transformations/reshape_to_static_gqa.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
@@ -244,6 +245,67 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dyna
                                  sin_cache,
                                  attention_mask};
     auto model = std::make_shared<ov::Model>(results, params, "gqa_attention_bias_model");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// Same wiring as build_gqa_model_with_dynamic_kv_cache(), but the GQA op has
+// sliding_window_cache=true -- its physical KV-cache ring buffer eviction/repacking
+// depends on the buffer's own runtime capacity, so a dynamic axis here must be rejected
+// by ReshapeToStaticGQA rather than silently forced to a single static capacity.
+std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis) {
+    auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
+    input_hidden_states->set_friendly_name("input_hidden_states");
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+    position_ids->set_friendly_name("position_ids");
+
+    auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
+    auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+
+    ov::PartialShape kv_shape{1, 2, 8, 16};
+    kv_shape[axis] = ov::Dimension::dynamic();
+    auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, kv_shape);
+    past_key->set_friendly_name("past_keys_0");
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, kv_shape);
+    past_value->set_friendly_name("past_values_0");
+
+    auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+    auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+        ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache},
+        /*num_heads=*/4,
+        /*kv_num_heads=*/2,
+        /*scale=*/0.0f,
+        /*do_rotary=*/true,
+        /*rotary_interleaved=*/false,
+        /*kv_cache_bit_width=*/0,
+        ov::op::internal::GroupQueryAttentionQuantType::NONE,
+        ov::op::internal::GroupQueryAttentionQuantType::NONE,
+        /*local_window_size=*/6,
+        /*sliding_window_cache=*/true);
+
+    auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
+    present_key->set_friendly_name("present_keys_0");
+    auto present_value = std::make_shared<ov::op::v0::Result>(gqa->output(2));
+    present_value->set_friendly_name("present_values_0");
+
+    ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)), present_key, present_value};
+    ov::ParameterVector params = {input_hidden_states,
+                                 position_ids,
+                                 query,
+                                 key,
+                                 value,
+                                 past_key,
+                                 past_value,
+                                 seqlens_k,
+                                 total_sequence_length,
+                                 cos_cache,
+                                 sin_cache};
+    auto model = std::make_shared<ov::Model>(results, params, "gqa_sliding_window_cache_model");
     model->validate_nodes_and_infer_types();
     return model;
 }
@@ -1161,6 +1223,28 @@ TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF
     ASSERT_EQ(read_back[0]->get_partial_shape().rank().get_length(), 4);
     EXPECT_EQ(read_back[0]->get_partial_shape()[2], ov::Dimension(1, 8192));
     EXPECT_EQ(read_back[0]->get_partial_shape(), shape);
+}
+
+TEST(ReshapeToStaticGQATest, RejectsSlidingWindowCacheWithDynamicKvCache) {
+    // Regression test for review comment ankitm3k#4230466592 on PR
+    // openvinotoolkit/openvino#38304: sliding_window_cache=true means the KV-cache is a
+    // fixed-capacity ring buffer whose own runtime capacity drives the eviction/repacking
+    // math (GroupQueryAttentionDecomposition). Forcing a single, model-wide static
+    // capacity here (as for an ordinary growing cache) would silently diverge from
+    // whatever buffer the caller actually uses. ReshapeToStaticGQA must reject this
+    // configuration rather than silently reshape it.
+    auto model = build_gqa_model_with_sliding_window_cache(/*axis=*/2);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16);
+    EXPECT_THROW(reshape_to_static_gqa.run_on_model(model), ov::Exception);
+}
+
+TEST(ReshapeToStaticGQATest, AllowsOrdinaryDynamicKvCacheWithoutSlidingWindowCache) {
+    // Sanity check: the ordinary (sliding_window_cache=false) dynamic KV-cache models
+    // used throughout this file must keep reshaping successfully -- the new check must
+    // not become overly broad.
+    auto model = build_gqa_model_with_dynamic_kv_cache(/*axis=*/2);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16);
+    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 }
 
 TEST(GQACompiledModelPresentAxisTest, FindsDynamicPresentOutputsAtAxis2) {

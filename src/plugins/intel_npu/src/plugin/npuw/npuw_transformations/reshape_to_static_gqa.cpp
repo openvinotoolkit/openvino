@@ -75,6 +75,46 @@ std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::sh
     return result;
 }
 
+// Models with `sliding_window_cache=true` physically evict/repack their KV-cache ring
+// buffer using its own runtime capacity (see GroupQueryAttentionDecomposition) -- this is
+// fundamentally different from `local_window_size` alone, which only restricts the
+// attention mask while the buffer keeps growing. Forcing such a KV-cache Parameter to a
+// capacity that doesn't match whatever buffer the caller actually uses at runtime would
+// silently corrupt the eviction math (diverges from the reference once total tokens
+// exceed the caller's real buffer + 1, per review comment ankitm3k#4230466592 on PR
+// openvinotoolkit/openvino#38304). NPUW has no mechanism yet to give such a KV-cache a
+// separate, caller-matched capacity (the reviewer's other suggested fix), so reject this
+// case outright rather than risk a silent accuracy bug.
+void reject_sliding_window_cache_with_dynamic_kv(const std::shared_ptr<ov::Model>& model,
+                                                 const std::unordered_map<std::string, size_t>& dynamic_kv_cache_axes) {
+    using ov::op::internal::GroupQueryAttention;
+    using ov::op::internal::GroupQueryAttentionInputs;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto gqa = ov::as_type_ptr<GroupQueryAttention>(node);
+        if (!gqa || !gqa->get_sliding_window_cache()) {
+            continue;
+        }
+        for (auto kv_input : {GroupQueryAttentionInputs::PAST_KEY, GroupQueryAttentionInputs::PAST_VALUE}) {
+            if (gqa->get_input_size() <= static_cast<size_t>(kv_input)) {
+                continue;
+            }
+            auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(
+                gqa->input_value(static_cast<size_t>(kv_input)).get_node_shared_ptr());
+            if (!parameter) {
+                continue;
+            }
+            OPENVINO_ASSERT(dynamic_kv_cache_axes.count(parameter->get_friendly_name()) == 0,
+                            "GQA op '",
+                            gqa->get_friendly_name(),
+                            "' has sliding_window_cache=true, whose physical eviction/repacking depends on its "
+                            "own runtime KV-cache capacity. Forcing its dynamic KV-cache Parameter '",
+                            parameter->get_friendly_name(),
+                            "' to a single, model-wide static capacity would silently diverge from the caller's "
+                            "actual window buffer. This configuration is not supported by GQA dispatch yet.");
+        }
+    }
+}
+
 }  // namespace
 
 ov::npuw::ReshapeToStaticGQA::ReshapeToStaticGQA(size_t max_seq_len) : m_max_seq_len(max_seq_len) {}
@@ -83,6 +123,7 @@ bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>
     m_dynamic_kv_cache_axes = find_dynamic_kv_cache_axes(model);
     OPENVINO_ASSERT(!m_dynamic_kv_cache_axes.empty(),
                     "GQA model has a dynamic max_seq_len but no resolvable KV-cache Parameter was found");
+    reject_sliding_window_cache_with_dynamic_kv(model, m_dynamic_kv_cache_axes);
 
     std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
     for (const auto& kv : m_dynamic_kv_cache_axes) {
