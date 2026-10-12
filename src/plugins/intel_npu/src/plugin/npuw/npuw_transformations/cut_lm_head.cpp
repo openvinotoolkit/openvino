@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "../llm_compiled_model.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
@@ -36,10 +37,10 @@ class CutLMHeadMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::CutLMHeadMatcher");
     explicit CutLMHeadMatcher(std::shared_ptr<ov::Model>& lm_head_model) {
-        // We are interested at first input to MatMul as a cut point
+        // The first input to MatMul is treated as the cut point.
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
 
-        // There are several patterns for matmul we are looking for:
+        // Several patterns for matmul are supported:
         // Matmul -> Result
         // Matmul -> Add -> Result
         auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
@@ -77,16 +78,16 @@ public:
             }
 
             // Skip Result nodes that are not logits.
-            // Note: We can check that Result's output name is "logits" and it will be a
-            //       sufficiently reliable check for finding exatly logits output, because:
-            //       1. LLMInferRequest always rely on "logits" name to get logits from
-            ///         prefill/kvcache models.
+            // Note: checking that Result's output name is "logits" is a sufficiently
+            //       reliable check for finding exactly the logits output, because:
+            //       1. LLMInferRequest always relies on the "logits" name to get logits
+            //          from prefill/kvcache models.
             //       2. - Following Exporter configs: OnnxConfig, OnnxConfigWithPast,
             //            TextDecoderOnnxConfig and TextDecoderWithPositionIdsOnnxConfig
             //            from optimum-onnx name LLM output with "logits".
             //          - Most of optimum-intel OpenVINO Exporter configs are derived
             //            from the configs above.
-            //          - optimum-intel `export()` function set names for output tensors
+            //          - optimum-intel `export()` function sets names for output tensors
             //            from Exporter config:
             //            https://github.com/huggingface/optimum-intel/blob/main/optimum/exporters/openvino/convert.py#L442-L445
             if (matched_result->output(0).get_names().count(ov::npuw::LLMCompiledModel::layer_names::logits) == 0) {
@@ -109,9 +110,10 @@ public:
                     return ov::is_type<ov::op::v0::Result>(in.get_node());
                 });
             if (producer_feeds_result) {
-                embeds_source =
-                    std::make_shared<ov::op::v0::Convert>(matmul_first_source, matmul_first_source.get_element_type())
-                        ->output(0);
+                auto embeds_convert =
+                    std::make_shared<ov::op::v0::Convert>(matmul_first_source, matmul_first_source.get_element_type());
+                ov::copy_runtime_info(matmul_first_source.get_node_shared_ptr(), embeds_convert);
+                embeds_source = embeds_convert->output(0);
             }
 
             // Cut original model: repurpose the logits Result as the embeddings output.

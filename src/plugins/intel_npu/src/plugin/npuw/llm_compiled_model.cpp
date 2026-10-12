@@ -580,11 +580,11 @@ std::map<std::string, std::vector<std::size_t>> find_other_dynamic_outputs(const
 std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim(
     const std::shared_ptr<ov::npuw::ICompiledModel_v0>& compiled_model,
     const std::map<std::string, std::vector<std::size_t>>& other_dynamic_outputs,
-    const std::size_t static_seqdim_value) {
+    const std::size_t expected_seqdim_value) {
     std::map<ov::Output<const ov::Node>, std::size_t> other_outputs_with_seqdim;
+    const auto& cm_outs = compiled_model->outputs();
     for (const auto& [name, dynamic_dims] : other_dynamic_outputs) {
         const auto& output_name = name;
-        const auto& cm_outs = compiled_model->outputs();
         if (auto it = std::find_if(cm_outs.begin(),
                                    cm_outs.end(),
                                    [&output_name](const ov::Output<const ov::Node>& output) {
@@ -601,14 +601,17 @@ std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim
             //     Batch size has been also a dynamic dimension prevously, but it is expected to be
             //     reshaped to 1, so it won't be equal to the max sequence length in the prefill model.
             for (const auto& dim : dynamic_dims) {
-                if (static_shape[dim] == static_seqdim_value) {
+                OPENVINO_ASSERT(dim < static_shape.size(),
+                                "Dimension index " + std::to_string(dim) +
+                                    " is out of range for the static shape of output port: " + port.get_any_name());
+                if (static_shape[dim] == expected_seqdim_value) {
                     matched_dyn_dim = dim;
                     ++match_count;
                 }
             }
 
             if (match_count == 0) {
-                LOG_INFO("No dynamic dimension matched the max sequence length for output port: "
+                LOG_WARN("No dynamic dimension matched the max sequence length for output port: "
                          << port.get_any_name() << ", assuming that given output doesn't need accumulation.");
                 continue;
             }
@@ -620,9 +623,9 @@ std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim
                                 std::to_string(match_count) + " matches for output port: " + port.get_any_name());
             other_outputs_with_seqdim.emplace(port, matched_dyn_dim);
         } else {
-            LOG_VERB("[WARN] Output port with name: " << name
-                                                      << " was marked as dynamic additional output to the \"logits\","
-                                                         "but it wasn't found in outputs of prefill model!");
+            LOG_WARN("Output port with name: " << name
+                                               << " was marked as dynamic additional output to the \"logits\","
+                                                  "but it wasn't found in outputs of prefill model!");
         }
     }
     return other_outputs_with_seqdim;
@@ -1487,7 +1490,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                       "model and its config, please check passed config.");
     if (m_use_chunk_prefill) {
         LOG_VERB("Find all models outputs besides logits that have sequence dimension to handle in chunked prefill.");
-        m_prefill_other_outs_to_seqdims =
+        m_prefill_other_outs_seqdims =
             find_other_outputs_with_seqdim(m_prefill_compiled, other_dynamic_outputs, m_prefill_chunk_size);
     }
     if (lm_head_model) {
@@ -1568,32 +1571,6 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     }
 }
 
-std::map<std::string, std::size_t> ov::npuw::LLMCompiledModel::prefill_other_outs_seqdims_by_name() const {
-    std::map<std::string, std::size_t> by_name;
-    for (const auto& [port, seqdim] : m_prefill_other_outs_to_seqdims) {
-        by_name.emplace(port.get_any_name(), seqdim);
-    }
-    return by_name;
-}
-
-void ov::npuw::LLMCompiledModel::rebuild_prefill_other_outs_to_seqdims(
-    const std::map<std::string, std::size_t>& by_name) {
-    m_prefill_other_outs_to_seqdims.clear();
-    const auto& prefill_outs = m_prefill_compiled->outputs();
-    for (const auto& [port_name, seqdim] : by_name) {
-        const auto& name = port_name;
-        auto it =
-            std::find_if(prefill_outs.begin(), prefill_outs.end(), [&name](const ov::Output<const ov::Node>& out) {
-                return out.get_names().count(name) > 0;
-            });
-        OPENVINO_ASSERT(it != prefill_outs.end(),
-                        "NPUW blob: prefill output '",
-                        port_name,
-                        "' from the seq-dim table is missing after import.");
-        m_prefill_other_outs_to_seqdims.emplace(*it, seqdim);
-    }
-}
-
 void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::npuw::s11n::CompiledContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
@@ -1660,7 +1637,10 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         // The chunked-prefill "other outputs" seq-dim table is keyed by prefill output ports, which
         // can't travel directly. Store it by tensor name and rebuild against the deserialized
         // prefill model on import.
-        auto other_outs_seqdims = prefill_other_outs_seqdims_by_name();
+        std::map<std::string, std::size_t> other_outs_seqdims;
+        for (const auto& [port, seqdim] : m_prefill_other_outs_seqdims) {
+            other_outs_seqdims.emplace(port.get_any_name(), seqdim);
+        }
         stream & other_outs_seqdims;
     };
 
@@ -1881,7 +1861,20 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         // restored prefill model - see the matching comment in serialize().
         std::map<std::string, std::size_t> other_outs_seqdims;
         stream & other_outs_seqdims;
-        compiled->rebuild_prefill_other_outs_to_seqdims(other_outs_seqdims);
+        compiled->m_prefill_other_outs_seqdims.clear();
+        const auto& prefill_outs = compiled->m_prefill_compiled->outputs();
+        for (const auto& [port_name, seqdim] : other_outs_seqdims) {
+            auto it = std::find_if(prefill_outs.begin(),
+                                   prefill_outs.end(),
+                                   [&port_name](const ov::Output<const ov::Node>& out) {
+                                       return out.get_names().count(port_name) > 0;
+                                   });
+            OPENVINO_ASSERT(it != prefill_outs.end(),
+                            "NPUW blob: prefill output '",
+                            port_name,
+                            "' from the seq-dim table is missing after import.");
+            compiled->m_prefill_other_outs_seqdims.emplace(*it, seqdim);
+        }
 
         // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
         compiled->validate_imported_kvcache_dim();
