@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "graph.hpp"
+#include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iremote_context.hpp"

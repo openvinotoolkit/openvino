@@ -30,7 +30,7 @@ public:
      * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
      *        produces export-only graphs with no runtime metadata.
      * @param compiler The compiler-in-plugin to adapt; must be non-null.
-    * @param profilingDecoder The profiling decoder to hand to every compiled graph; may be empty.
+     * @param profilingDecoder The profiling decoder to hand to every compiled graph; may be empty.
      */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                           ov::SoPtr<IVCLCompiler> compiler,

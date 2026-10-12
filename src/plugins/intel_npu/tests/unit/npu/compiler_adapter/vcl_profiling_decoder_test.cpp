@@ -54,12 +54,17 @@ TEST_F(VCLProfilingDecoderTest, ConstructionDoesNotTriggerACompilerCreateGetDest
 }
 
 TEST_F(VCLProfilingDecoderTest, InterfaceSoPtrKeepsItsSharedLibraryAlive) {
+    // makeVCLProfilingDecoder() pairs the decoder with the loaded VCL library via this same ov::SoPtr
+    // aliasing constructor, but it cannot be exercised directly without a real, dlopen'd library. A
+    // plain int and a no-op decoder stand in for "the library" and "the decoder" to verify the pairing
+    // mechanism itself keeps both alive together.
     auto library = std::make_shared<int>(0);
     std::weak_ptr<int> weakLibrary = library;
     auto decoder = std::make_shared<NoopProfilingDecoder>();
     std::weak_ptr<::intel_npu::IProfilingDecoder> weakDecoder = decoder;
     ov::SoPtr<::intel_npu::IProfilingDecoder> decoderWithLibrary(
-        std::static_pointer_cast<::intel_npu::IProfilingDecoder>(decoder), library);
+        std::static_pointer_cast<::intel_npu::IProfilingDecoder>(decoder),
+        library);
 
     decoder.reset();
     library.reset();
@@ -141,6 +146,45 @@ TEST_F(VCLProfilingDecoderTest, DecodeThrowsOnNullData) {
     } catch (const ov::Exception& error) {
         EXPECT_NE(std::string(error.what()).find("Failed to get VCL profiling output"), std::string::npos);
     }
+    // The handle was created and must still be released even though destroy was never explicitly reached.
+    EXPECT_EQ(fake.profilingDestroyCount, 1);
+}
+
+TEST_F(VCLProfilingDecoderTest, DecodeCleansUpTheHandleWhenGetPropertiesFails) {
+    auto decoder = makeDecoder();
+    fake.failWith("vclProfilingGetProperties", VCL_RESULT_ERROR_UNKNOWN);
+
+    try {
+        decoder->decode({1}, makeNetworkTensor());
+        FAIL() << "Expected a throw on vclProfilingGetProperties failure";
+    } catch (const ov::Exception& error) {
+        EXPECT_NE(std::string(error.what()).find("vclProfilingGetProperties"), std::string::npos);
+    }
+    // The handle was created before this failure; it must still be released, not leaked.
+    EXPECT_EQ(fake.profilingDestroyCount, 1);
+}
+
+TEST_F(VCLProfilingDecoderTest, DecodeCleansUpTheHandleWhenGetDecodedProfilingBufferFails) {
+    auto decoder = makeDecoder();
+    fake.failWith("vclGetDecodedProfilingBuffer", VCL_RESULT_ERROR_UNKNOWN);
+
+    try {
+        decoder->decode({1}, makeNetworkTensor());
+        FAIL() << "Expected a throw on vclGetDecodedProfilingBuffer failure";
+    } catch (const ov::Exception& error) {
+        EXPECT_NE(std::string(error.what()).find("vclGetDecodedProfilingBuffer"), std::string::npos);
+    }
+    EXPECT_EQ(fake.profilingDestroyCount, 1);
+}
+
+TEST_F(VCLProfilingDecoderTest, DecodeThrowsOnMisalignedBufferSize) {
+    // One byte short of a whole ze_profiling_layer_info: integer division would otherwise silently
+    // truncate the vector while memcpy still copied the full, larger byte count into it.
+    fake.profilingPayload.assign(sizeof(ze_profiling_layer_info) - 1, 0);
+    auto decoder = makeDecoder();
+
+    EXPECT_THROW(decoder->decode({1}, makeNetworkTensor()), ov::Exception);
+    EXPECT_EQ(fake.profilingDestroyCount, 1);
 }
 
 TEST_F(VCLProfilingDecoderTest, DecodeThrowsWhenCreateFails) {

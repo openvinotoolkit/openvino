@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "graph.hpp"
+#include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/config.hpp"

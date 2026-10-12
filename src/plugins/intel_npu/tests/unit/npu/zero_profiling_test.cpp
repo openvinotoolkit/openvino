@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "zero_profiling.hpp"
+
 #include <gtest/gtest.h>
 
 #include <optional>
@@ -10,7 +12,6 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "openvino/core/except.hpp"
-#include "zero_profiling.hpp"
 
 namespace {
 
@@ -24,6 +25,10 @@ class TestGraph final : public intel_npu::IGraph {
 public:
     std::optional<bool> is_profiling_blob() const override {
         return true;
+    }
+
+    bool has_profiling_decoder() const override {
+        return decoderAvailable;
     }
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& data) const override {
@@ -84,8 +89,9 @@ TEST(ZeroProfilingTest, FallsBackToLevelZeroStatisticsWhenGraphHasNoDecoder) {
 
     ASSERT_EQ(result.size(), 1u);
     EXPECT_EQ(result.front().node_name, "level-zero");
-    EXPECT_EQ(graph.receivedData, query.rawData);
-    EXPECT_EQ(query.rawDataCalls, 1u);
+    // No decoder means the raw profiling buffer is never worth fetching.
+    EXPECT_TRUE(graph.receivedData.empty());
+    EXPECT_EQ(query.rawDataCalls, 0u);
     EXPECT_EQ(query.layerStatisticsCalls, 1u);
 }
 

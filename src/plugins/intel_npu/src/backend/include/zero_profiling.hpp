@@ -25,9 +25,17 @@ using LayerStatistics = std::vector<ov::ProfilingInfo>;
 
 template <typename Query>
 LayerStatistics getModelLayerStatistics(const IGraph& graph, const Query& query) {
+    if (!graph.has_profiling_decoder()) {
+        return query.getLayerStatistics();
+    }
+
     try {
         return graph.process_profiling_output(query.template getData<uint8_t>());
-    } catch (const std::exception&) {
+    } catch (const std::exception& ex) {
+        Logger::global().warning(
+            "getModelLayerStatistics - graph profiling decoder failed, falling back to level-zero layer "
+            "statistics: %s",
+            ex.what());
         return query.getLayerStatistics();
     }
 }

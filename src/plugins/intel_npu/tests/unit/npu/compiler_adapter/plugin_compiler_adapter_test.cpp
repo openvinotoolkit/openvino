@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "fake_vcl_compiler.hpp"
+#include "graph.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -72,8 +73,8 @@ struct PluginCompilerAdapterTest : public ::testing::Test {
     std::unique_ptr<PluginCompilerAdapter> makeAdapter(
         ov::SoPtr<::intel_npu::IProfilingDecoder> profilingDecoder = {}) {
         return std::make_unique<PluginCompilerAdapter>(nullptr,
-                                                      ov::SoPtr<::intel_npu::IVCLCompiler>(compiler),
-                                                      std::move(profilingDecoder));
+                                                       ov::SoPtr<::intel_npu::IVCLCompiler>(compiler),
+                                                       std::move(profilingDecoder));
     }
 
     static std::shared_ptr<OptionsDesc> makeOptionsDesc() {
@@ -138,6 +139,43 @@ TEST_F(PluginCompilerAdapterTest, CompiledGraphUsesInjectedProfilingDecoder) {
     EXPECT_EQ(decoder->calls, 1u);
     EXPECT_EQ(decoder->receivedData, profData);
     EXPECT_EQ(decoder->networkSize, compiler->compileResult.get_byte_size());
+}
+
+TEST_F(PluginCompilerAdapterTest, CompiledGraphWithoutProfilingDecoderThrowsOnProfilingOutput) {
+    auto adapter = makeAdapter();  // no profiling decoder injected
+    auto config = makeConfig();
+    const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{});
+
+    ASSERT_NE(graph, nullptr);
+    EXPECT_FALSE(graph->has_profiling_decoder());
+    try {
+        (void)graph->process_profiling_output({1, 2, 3});
+        FAIL() << "Expected a throw when no profiling decoder is available";
+    } catch (const ov::Exception& error) {
+        EXPECT_NE(std::string(error.what()).find("No VCL profiling decoder is available"), std::string::npos);
+    }
+}
+
+TEST_F(PluginCompilerAdapterTest, GraphWithDecoderButNoBlobThrowsOnProfilingOutput) {
+    auto decoder = std::make_shared<RecordingProfilingDecoder>();
+    ::intel_npu::Graph graph(nullptr,
+                             nullptr,
+                             ::intel_npu::GraphDescriptor{},
+                             ::intel_npu::NetworkMetadata{},
+                             /* blob = */ std::nullopt,
+                             std::nullopt,
+                             false,
+                             ov::SoPtr<::intel_npu::IProfilingDecoder>(decoder));
+
+    EXPECT_TRUE(graph.has_profiling_decoder());
+    try {
+        (void)graph.process_profiling_output({1, 2, 3});
+        FAIL() << "Expected a throw when the graph has no retained blob";
+    } catch (const ov::Exception& error) {
+        EXPECT_NE(std::string(error.what()).find("requires the compiled network blob"), std::string::npos);
+    }
+    // The missing-blob guard must fire before the decoder is ever invoked.
+    EXPECT_EQ(decoder->calls, 0u);
 }
 
 TEST_F(PluginCompilerAdapterTest, CompilePropagatesCompilerFailures) {

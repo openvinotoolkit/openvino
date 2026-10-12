@@ -31,7 +31,7 @@ ov::SoPtr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& devic
 ov::SoPtr<IProfilingDecoder> makeProfilingDecoderIfAvailable() {
     try {
         return makeVCLProfilingDecoder();
-    } catch (const ov::Exception&) {
+    } catch (const std::exception&) {
         return {};
     }
 }
@@ -136,10 +136,10 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         }
 
         _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
-        auto pluginAdapter = std::make_unique<PluginCompilerAdapter>(
-            engineBackend ? engineBackend->getInitStructs() : nullptr,
-            std::move(pluginCompiler),
-            makeProfilingDecoderIfAvailable());
+        auto pluginAdapter =
+            std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
+                                                    std::move(pluginCompiler),
+                                                    makeProfilingDecoderIfAvailable());
         return {std::move(pluginAdapter), ov::intel_npu::CompilerType::PLUGIN};
     }
 
