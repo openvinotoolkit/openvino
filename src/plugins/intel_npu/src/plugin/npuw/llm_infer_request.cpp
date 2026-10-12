@@ -1060,7 +1060,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     // DeepStack rows are consumed in visual-token order across chunks; track how many have
     // already been scattered so each chunk continues where the previous one left off.
     size_t visual_tokens_scattered =
-        has_deepstack ? count_visual_tokens_before(visual_pos_masks, kvcache_desc.num_stored_tokens) : 0u;
+        has_deepstack
+            ? count_visual_tokens_before(visual_pos_masks, kvcache_desc.num_stored_tokens - m_continued_prefill_base)
+            : 0u;
 
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
@@ -1069,6 +1071,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
 
         m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
+            // Caller tensors hold only the delta during a continued prefill, so they are
+            // indexed relative to the absolute base the continuation started at. The
+            // base is zero for an ordinary prefill, keeping this the absolute position.
+            // The attention mask is the exception and always covers the whole history.
+            const uint32_t src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
+
             // Handle first chunk with prefix caching: populate attention mask for restored cache
             if (enable_prefix_caching && cache_context.restore_prefix_cache) {
                 prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
@@ -1091,11 +1099,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                         current_prompts_len,
                         attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
 
-            // Caller tensors hold only the delta during a continued prefill, so they are
-            // indexed relative to the absolute base the continuation started at. The
-            // base is zero for an ordinary prefill, keeping this the absolute position.
             auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
-            auto prefilled_bytes = (kvcache_desc.num_stored_tokens - m_continued_prefill_base) * input_ids_elem_size;
+            auto prefilled_bytes = src_offset * input_ids_elem_size;
             if (is_input_embeds) {
                 current_prefill_bytes *= input_ids->get_shape().back();
                 prefilled_bytes *= input_ids->get_shape().back();
@@ -1110,14 +1115,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D position_ids
             // [3, BATCH, SEQ_LEN]
             // Copy postion ids with considering the 3D position_ids
-            // The caller tensor is delta-relative during a continued prefill.
             auto last_dim = position_ids->get_shape().size() - 1;
-            const uint32_t pos_src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
             auto actual_position_ids_slice =
                 ov::npuw::util::make_tensor_slice(position_ids,
                                                   static_cast<uint32_t>(last_dim),
-                                                  pos_src_offset,
-                                                  pos_src_offset + static_cast<uint32_t>(current_prompts_len));
+                                                  src_offset,
+                                                  src_offset + static_cast<uint32_t>(current_prompts_len));
 
             auto pos_ids_slice =
                 ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
@@ -1136,11 +1139,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             if (has_deepstack) {
                 auto deepstack_local = m_prefill_request->get_tensor(deepstack_it->second);
                 const uint32_t seq_dim = static_cast<uint32_t>(visual_pos_masks->get_shape().size() - 1);
-                auto chunk_mask = ov::npuw::util::make_tensor_slice(
-                    visual_pos_masks,
-                    seq_dim,
-                    static_cast<uint32_t>(kvcache_desc.num_stored_tokens),
-                    static_cast<uint32_t>(kvcache_desc.num_stored_tokens + current_prompts_len));
+                auto chunk_mask =
+                    ov::npuw::util::make_tensor_slice(visual_pos_masks,
+                                                      seq_dim,
+                                                      src_offset,
+                                                      src_offset + static_cast<uint32_t>(current_prompts_len));
                 visual_tokens_scattered += scatter_deepstack_visual_embeds(deepstack_visual_embeds,
                                                                            chunk_mask._ptr,
                                                                            deepstack_local,
@@ -1166,11 +1169,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // Dest shape:   [1, chunk_prompt_len, num_layers, proj_dim] (static)
             if (per_layer_inputs) {
                 auto dst = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::per_layer_inputs));
-                ov::npuw::util::copy_per_layer_inputs_chunk_to_right(
-                    per_layer_inputs,
-                    dst,
-                    kvcache_desc.num_stored_tokens - m_continued_prefill_base,
-                    static_cast<uint32_t>(current_prompts_len));
+                ov::npuw::util::copy_per_layer_inputs_chunk_to_right(per_layer_inputs,
+                                                                     dst,
+                                                                     src_offset,
+                                                                     static_cast<uint32_t>(current_prompts_len));
             }
 
             // Gemma4-26B-A4B MoE: token_type_ids is [BATCH, SEQ_LEN].
@@ -1183,7 +1185,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                 chunk_prompt_len,
                                 int64_t{0});
                 }
-                std::copy_n(token_type_ids->data<int64_t>() + kvcache_desc.num_stored_tokens,
+                std::copy_n(token_type_ids->data<int64_t>() + src_offset,
                             current_prompts_len,
                             token_type_ids_in_tensor->data<int64_t>() + total_len - current_prompts_len);
             }
@@ -1346,7 +1348,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     m_llm_profile["1/prefill:1.prepare_for_new_conversation"].record([&]() {
         if (m_continued_prefill_base > 0u) {
-            prepare_for_continued_prefill(m_continued_prefill_base, input_ids, attention_mask, position_ids);
+            prepare_for_continued_prefill(m_continued_prefill_base,
+                                          input_ids,
+                                          attention_mask,
+                                          position_ids,
+                                          token_type_ids,
+                                          visual_pos_masks,
+                                          deepstack_visual_embeds);
         } else {
             prepare_for_new_conversation(prompt_length);
         }
@@ -1409,20 +1417,28 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 void ov::npuw::LLMInferRequest::validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids,
                                                                 uint32_t keep,
                                                                 uint32_t delta_len) const {
-    // A continued prefill is validated from the whole position id sequence, never from
-    // a single scalar equality, which would become a second routing heuristic.
-    OPENVINO_ASSERT(position_ids->get_shape().size() == 2u,
-                    "Continued prefill: 3-D position ids cannot be validated as a linear sequence.");
-    const auto* data = position_ids->data<int64_t>();
-    const size_t count = position_ids->get_size();
     // A length mismatch must be a preflight rejection: it would otherwise only
     // surface inside the chunk loop, after the repack mutated the cache.
+    const auto& shape = position_ids->get_shape();
+    const size_t count = shape.back();
     OPENVINO_ASSERT(count == delta_len,
                     "Continued prefill: position ids must cover exactly the delta. Expected ",
                     delta_len,
                     " entries, got ",
                     count,
                     ".");
+    if (shape.size() == 3u) {
+        // M-RoPE position ids [axes, batch, seq] do not follow the token index: an image
+        // block spans fewer positions than tokens, and the text after it resumes from the
+        // block's largest position. The caller passes the [keep, end) slice of the full
+        // history position ids, which cannot be derived here, so only the length is checked.
+        return;
+    }
+    // A continued prefill is validated from the whole position id sequence, never from
+    // a single scalar equality, which would become a second routing heuristic.
+    OPENVINO_ASSERT(position_ids->get_size() == delta_len,
+                    "Continued prefill: position ids must be a single [1, delta] sequence.");
+    const auto* data = position_ids->data<int64_t>();
     const int64_t expected_start = m_first_position_id + static_cast<int64_t>(keep);
     OPENVINO_ASSERT(data[0] == expected_start,
                     "Continued prefill: position ids must start at the granted keep. Expected ",
@@ -1439,7 +1455,10 @@ void ov::npuw::LLMInferRequest::validate_continued_position_ids(const ov::SoPtr<
 void ov::npuw::LLMInferRequest::prepare_for_continued_prefill(uint32_t keep,
                                                               ov::SoPtr<ov::ITensor> input_ids,
                                                               ov::SoPtr<ov::ITensor> attention_mask,
-                                                              ov::SoPtr<ov::ITensor> position_ids) {
+                                                              ov::SoPtr<ov::ITensor> position_ids,
+                                                              ov::SoPtr<ov::ITensor> token_type_ids,
+                                                              ov::SoPtr<ov::ITensor> visual_pos_masks,
+                                                              ov::SoPtr<ov::ITensor> deepstack_visual_embeds) {
     LOG_DEBUG("Continuing the conversation, keep=" << keep);
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -1468,6 +1487,18 @@ void ov::npuw::LLMInferRequest::prepare_for_continued_prefill(uint32_t keep,
                     attention_mask->get_size(),
                     ".");
     validate_continued_position_ids(position_ids, keep, delta_len);
+    // The per-token VLM inputs hold only the delta, like the embeddings, and DeepStack
+    // carries one row per visual token of the delta.
+    for (const auto& per_token : {token_type_ids, visual_pos_masks}) {
+        OPENVINO_ASSERT(!per_token || per_token->get_shape().back() == delta_len,
+                        "Continued prefill: token_type_ids and visual_pos_masks must cover exactly the delta.");
+    }
+    if (m_prefill_in_ports.count(layer_names::deepstack_visual_embeds) > 0u) {
+        OPENVINO_ASSERT(
+            deepstack_visual_embeds && visual_pos_masks &&
+                deepstack_visual_embeds->get_shape().at(1) == count_visual_tokens_before(visual_pos_masks, delta_len),
+            "Continued prefill: deepstack_visual_embeds must hold one row per visual token of the delta.");
+    }
 
     // The strategy validates its own preconditions before moving any byte, so
     // mutation starts inside this call. An exception past that leaves the cache
