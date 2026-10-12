@@ -779,3 +779,65 @@ INSTANTIATE_TEST_SUITE_P(OnnxConvertEquivalence,
                              }
                              return n;
                          });
+
+class DropoutTrainingModeTest : public testing::TestWithParam<std::pair<std::vector<int32_t>, std::string>> {};
+
+TEST_P(DropoutTrainingModeTest, validates_training_mode) {
+    const auto& [training_mode_values, expected_error] = GetParam();
+    auto model = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+    model->set_ir_version(13);
+    auto* opset = model->add_opset_import();
+    opset->set_version(12);
+    auto* graph = model->mutable_graph();
+    auto* node = graph->add_node();
+    node->set_op_type("Dropout");
+    node->add_input("X");
+    node->add_input("");
+    node->add_input("training_mode");
+    node->add_output("Y");
+    auto* init = graph->add_initializer();
+    init->set_name("training_mode");
+    init->set_data_type(ONNX_NAMESPACE::TensorProto_DataType_BOOL);
+    init->add_dims(training_mode_values.size());
+    for (const auto value : training_mode_values) {
+        init->add_int32_data(value);
+    }
+    auto* input = graph->add_input();
+    input->set_name("X");
+    input->mutable_type()->mutable_tensor_type()->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+    input->mutable_type()->mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
+    auto* output = graph->add_output();
+    output->set_name("Y");
+    output->mutable_type()->mutable_tensor_type()->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+    output->mutable_type()->mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
+    auto iterator = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+    iterator->initialize(model);
+    iterator->reset();
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    auto input_model = frontend->load(std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iterator));
+    ASSERT_NE(input_model, nullptr);
+    if (expected_error.empty()) {
+        const auto converted_model = frontend->convert(input_model);
+        ASSERT_NE(converted_model, nullptr);
+        EXPECT_EQ(converted_model->output(0).get_node()->input_value(0),
+                  converted_model->get_parameters().at(0)->output(0));
+        return;
+    }
+    try {
+        frontend->convert(input_model);
+        FAIL() << "Expected training_mode to be rejected";
+    } catch (const ov::Exception& e) {
+        const std::string error_msg = e.what();
+        EXPECT_NE(error_msg.find(expected_error), std::string::npos) << "Unexpected error message: " << error_msg;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    FrontEndGraphIteratorTest,
+    DropoutTrainingModeTest,
+    testing::Values(std::make_pair(std::vector<int32_t>{}, "training_mode input must contain one element."),
+                    std::make_pair(std::vector<int32_t>{0}, ""),
+                    std::make_pair(std::vector<int32_t>{1}, "Training mode is not supported for Dropout op"),
+                    std::make_pair(std::vector<int32_t>{0, 1}, "training_mode input must contain one element.")));

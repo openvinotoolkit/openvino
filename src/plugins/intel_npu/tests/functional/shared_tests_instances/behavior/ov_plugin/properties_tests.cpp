@@ -77,7 +77,7 @@ const std::vector<ov::AnyMap> compat_CorrectPluginDefaultMutableProperties = {
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}},
     {{ov::hint::num_requests.name(), 1u}},
     {{ov::log::level.name(), getTestsLogLevelFromEnvironmentOr(ov::log::Level::WARNING)}},
-    {{ov::device::id.name(), ""}},
+    {{ov::device::id.name(), "0"}},
     {{ov::num_streams.name(), ov::streams::AUTO}},
 };
 

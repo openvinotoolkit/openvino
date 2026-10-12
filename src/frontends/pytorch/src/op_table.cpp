@@ -169,6 +169,7 @@ OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_while_loop_fx);
+OP_CONVERTER(translate_wrap_with_context_fx);
 OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
@@ -923,6 +924,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.log_sigmoid_forward.default", op::translate_log_sigmoid_fx},
         {"aten.mean.default", op::translate_mean_fx},
         {"aten.mean.dim", op::translate_mean_fx},
+        {"aten.meshgrid.default", op::translate_meshgrid},
+        {"aten.meshgrid.indexing", op::translate_meshgrid},
         {"aten.native_batch_norm.default", op::translate_batch_norm_legit_fx},
         {"aten.native_dropout.default", op::skip_node},
         {"aten.native_group_norm.default", op::translate_group_norm_fx},
@@ -983,6 +986,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},
+        {"wrap_with_autocast", op::translate_wrap_with_context_fx},
+        {"wrap_with_set_grad_enabled", op::translate_wrap_with_context_fx},
     };
 };
 

@@ -3,6 +3,8 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include <algorithm>
+
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
@@ -341,6 +343,8 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
         } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
                    npu_platform == ov::intel_npu::Platform::NPU5020) {
             set_npu_tiles = true;
+        } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
+            arch_added_compilation_param = "performance-hint-override=latency";
         } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
             arch_added_compilation_param = "performance-hint-override=latency";
         } else {
@@ -1180,10 +1184,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
+        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, m_kvcache_desc.v_tensors_transposed_gen)
+            .run_on_model(generate_model_variants[i]);
     }
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
-    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
+    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, m_kvcache_desc.v_tensors_transposed_pre)
+        .run_on_model(prefill_model);
 
     std::optional<std::string> user_compilation_mode_params = std::nullopt;
     if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
@@ -1396,6 +1402,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
     // This ensures ShapeOf nodes are already regularized before transformation
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
+        const bool integer_kv_cache =
+            kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
+        OPENVINO_ASSERT(!integer_kv_cache,
+                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE cannot be combined with integer KV-cache precision.");
         OPENVINO_ASSERT(!m_enable_prefix_caching,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
                         "cannot be enabled simultaneously — this combination is not yet supported. "
@@ -1784,6 +1794,18 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         uint32_t num_variants = 0;
         stream & num_variants;
 
+        // m_kvcache_sizes and the generate variants are conceptually one object: the size table
+        // has exactly one entry per variant. They are serialized as two independent fields, so a
+        // corrupted blob can declare a size table that disagrees with the variant count. The two
+        // containers are later indexed by each other's size, so a mismatch is an out-of-bounds
+        // access. Enforce the invariant here, at restore time, before anything can consume it.
+        OPENVINO_ASSERT(compiled->m_kvcache_sizes.size() == num_variants,
+                        "NPUW blob: kvcache size table (",
+                        compiled->m_kvcache_sizes.size(),
+                        ") does not match generate variant count (",
+                        num_variants,
+                        ").");
+
         compiled->m_generate_compiled_variants.reserve(num_variants);
 
         // Deserialize CompiledModels
@@ -1809,6 +1831,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
 
+        // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
+        compiled->validate_imported_kvcache_dim();
+
         return compiled;
     };
 
@@ -1825,6 +1850,47 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
     return compiled;
+}
+
+void ov::npuw::LLMCompiledModel::validate_imported_kvcache_dim() const {
+    // On the compile path every KV axis is in [0, rank), so an out-of-range one means a tampered blob.
+    auto validate_ports = [this](const std::vector<ov::Output<const ov::Node>>& ports, bool v_transposed) {
+        for (const auto& port : ports) {
+            // Check every alias, so get_any_name()'s choice can't hide a KV port.
+            for (const auto& name : port.get_names()) {
+                const auto past_name = ov::npuw::util::present_to_past_key_values_name(name);
+                const bool is_key = ov::npuw::util::isPastKeyParam(name) ||
+                                    ov::npuw::util::isPresentKeyValuesKey(name).has_value() ||
+                                    ov::npuw::util::isDQScaleOrZPKey(past_name);
+                const bool is_value = ov::npuw::util::isPastValueParam(name) ||
+                                      ov::npuw::util::isPresentKeyValuesValue(name).has_value() ||
+                                      ov::npuw::util::isDQScaleOrZPValue(past_name);
+                if (!is_key && !is_value) {
+                    continue;
+                }
+                // Same axis selection as the runtime KV copy/slice helpers.
+                const uint32_t axis = (is_value && v_transposed) ? 3u : m_kvcache_desc.dim;
+                const auto& rank = port.get_partial_shape().rank();
+                OPENVINO_ASSERT(rank.is_static() && axis < static_cast<uint32_t>(rank.get_length()),
+                                "NPUW blob: KV axis ",
+                                axis,
+                                " is out of range for tensor '",
+                                name,
+                                "' of rank ",
+                                rank,
+                                ".");
+            }
+        }
+    };
+
+    for (const auto& variant : m_generate_compiled_variants) {
+        validate_ports(variant->inputs(), m_kvcache_desc.v_tensors_transposed_gen);
+        validate_ports(variant->outputs(), m_kvcache_desc.v_tensors_transposed_gen);
+    }
+    if (m_prefill_compiled) {
+        validate_ports(m_prefill_compiled->inputs(), m_kvcache_desc.v_tensors_transposed_pre);
+        validate_ports(m_prefill_compiled->outputs(), m_kvcache_desc.v_tensors_transposed_pre);
+    }
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {
