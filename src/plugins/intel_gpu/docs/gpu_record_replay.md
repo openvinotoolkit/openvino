@@ -18,7 +18,7 @@ Support check can be skipped by setting `OV_GPU_RECORD_REPLAY_DYNAMIC=1` option.
 
 ## How recording works
 
-Recording iteration can be divied into 2 phases.
+Recording iteration can be divided into 2 phases.
 
 1. Capture phase
 
@@ -46,4 +46,4 @@ Using record and replay feature with more than 1 inference request can lead to r
 
 ## Synchronization method
 
-Currently record and replay supports only in-orded execution with `SyncMethods::none` (which is the default configuration for OpenVINO builds with OneDNN enabled). Using `SyncMethods::barriers` or `SyncMethods::events` may result in application hang as signal-wait sequence might not be correctly captured for some events.
+Currently record and replay supports only in-order execution with `SyncMethods::none` (which is the default configuration for OpenVINO builds with OneDNN enabled). Using `SyncMethods::barriers` or `SyncMethods::events` may result in application hang as signal-wait sequence might not be correctly captured for some events.

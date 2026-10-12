@@ -33,7 +33,7 @@ public:
     /// @brief Ends the current recording session and executes recorded commands.
     void end_recording();
 
-    /// @brief Attempt to replay previosuly recorded command list.
+    /// @brief Attempt to replay previously recorded command list.
     /// @param deps Events that must complete before commands are replayed.
     /// @param primitives A list of primitives to replay. Must be the same as the list used for the recording.
     /// @return True if replay was successful, false otherwise.

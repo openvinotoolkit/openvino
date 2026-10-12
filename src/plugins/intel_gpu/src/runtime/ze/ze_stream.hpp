@@ -48,7 +48,7 @@ public:
     command_recorder::ptr get_recorder() const override;
 
     /// @brief Get the current command list.
-    /// @return Recorded command list if recoding is in progress, otherwise the immediate command list.
+    /// @return Recorded command list if recording is in progress, otherwise the immediate command list.
     ze_command_list_resource get_command_list() const;
 
     bool is_profiling_enabled() const { return m_ev_factory->is_profiling_enabled(); }
