@@ -60,19 +60,18 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     if (!plugin || !plugin->get_core()) {
         return std::nullopt;
     }
-    std::vector<std::string> all_devices;
+    NPUDesc desc;
     try {
-        all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+        const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+        if (all_devices.empty()) {
+            return std::nullopt;
+        }
+        desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+        desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
     } catch (const ov::Exception& ex) {
         LOG_WARN("Flux2CompiledModel: failed to query NPU capabilities: " << ex.what());
         return std::nullopt;
     }
-    if (all_devices.empty()) {
-        return std::nullopt;
-    }
-    NPUDesc desc;
-    desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
-    desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
     return std::make_optional(std::move(desc));
 }
 
@@ -83,7 +82,7 @@ void set_max_tiles_based_on_arch(ov::AnyMap& config, const std::optional<NPUDesc
     }
     LOG_DEBUG("Flux2CompiledModel: NPU arch " << npudesc->arch << ", max tiles " << npudesc->max_tiles);
 
-    // Platform parameter has a higher priority than deviceID.
+    // Use the reported architecture when available; otherwise keep AUTO_DETECT.
     const std::string npu_platform = (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT)
                                          ? ov::intel_npu::Platform::standardize(npudesc->arch)
                                          : npudesc->arch;
@@ -91,14 +90,16 @@ void set_max_tiles_based_on_arch(ov::AnyMap& config, const std::optional<NPUDesc
     bool set_npu_tiles = false;
     std::string arch_added_compilation_param;
     if (npu_platform == ov::intel_npu::Platform::NPU3720) {
-        // Keep baseline settings.
+        // Keep baseline settings
     } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
         set_npu_tiles = true;
         arch_added_compilation_param = "optimization-level=3";
     } else if (npu_platform == ov::intel_npu::Platform::NPU5010 || npu_platform == ov::intel_npu::Platform::NPU5020) {
         set_npu_tiles = true;
-    } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+    } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
         arch_added_compilation_param = "performance-hint-override=latency";
+    } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+        // Keep baseline settings
     } else {
         LOG_WARN("Flux2CompiledModel: unknown NPU platform " << npu_platform << ". Default config will be used.");
     }

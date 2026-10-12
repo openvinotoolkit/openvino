@@ -441,8 +441,25 @@ TEST_F(Flux2CompiledModelTest, Arch3720SkipsNpuTiles) {
     EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(), "compute-layers-with-higher-precision=MVN");
 }
 
-TEST_F(Flux2CompiledModelTest, ArchAutoDetectAppendsLatencyHintAndSkipsNpuTiles) {
+TEST_F(Flux2CompiledModelTest, ArchAutoDetectUsesDefaultConfigAndSkipsNpuTiles) {
     m_plugin = std::make_shared<ArchAwarePlugin>("AUTO_DETECT", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.count(kTiles), 0u);
+    EXPECT_EQ(call.props.at(kCompileParams).as<std::string>(), "compute-layers-with-higher-precision=MVN");
+}
+
+TEST_F(Flux2CompiledModelTest, Arch6010AppendsLatencyHintAndSkipsNpuTiles) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("6010", 4);
     const auto core = attach_mock_core_with_npu_device(m_plugin);
 
     RecordingFactory recorder;
