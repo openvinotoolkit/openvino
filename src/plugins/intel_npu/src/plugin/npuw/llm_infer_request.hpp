@@ -103,7 +103,7 @@ protected:
 
     void accumulate_other_chunked_outputs(uint32_t start_offset,
                                           uint32_t chunk_token_count,
-                                          uint32_t stored_token_count,
+                                          uint32_t processed_token_count,
                                           uint32_t max_seq_len);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
