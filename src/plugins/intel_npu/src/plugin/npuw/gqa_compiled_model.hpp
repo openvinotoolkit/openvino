@@ -169,6 +169,12 @@ private:
         // KV-cache/attention-bias Parameter friendly name -> axis pinned to kMaxSeqLen
         // (only populated when has_dynamic_max_seq_len() is true for the model).
         std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
+        // The static KV-cache capacity actually used to reshape the model (either the
+        // OPENVINO_NPUW_GQA_CTX_LEN env override or the NPUW_LLM_MAX_CONTEXT_LEN
+        // property; see prepare()). NPUW_LLM_MAX_CONTEXT_LEN itself is stripped from
+        // the inner CompiledModel's properties (it only registers ROOT options), so
+        // this is the only way to read the effective capacity back afterwards.
+        uint32_t effective_max_context_len = 0;
     };
 
     static PreparedState prepare(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties);
@@ -182,7 +188,8 @@ private:
     GQACompiledModel(const std::shared_ptr<ov::Model>& outer_model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
-                     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes);
+                     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
+                     uint32_t effective_max_context_len);
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
@@ -210,6 +217,11 @@ private:
     // "grown" by the newly appended tokens) instead of just mirroring past_key/
     // past_value's own length, which misses the rows appended by the current step.
     std::optional<std::string> m_total_seq_len_param_name;
+    // The effective static KV-cache capacity (see PreparedState::effective_max_context_len
+    // above); returned from get_property(NPUW_LLM_MAX_CONTEXT_LEN) since the inner
+    // CompiledModel no longer carries this property (see prepare()). Serialized across
+    // export_model()/import_model() so a cache hit reports the same value.
+    uint32_t m_effective_max_context_len = 0;
 };
 
 }  // namespace ov::npuw

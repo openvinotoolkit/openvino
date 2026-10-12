@@ -309,16 +309,21 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     // Reshape kv-cache to static, if any
     std::shared_ptr<ov::Model> compiled_model = model;
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
+    uint32_t effective_max_context_len = cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties);
     if (has_dynamic_max_seq_len(model)) {
-        const size_t max_seq_len =
-            gqa_ctx_len_env_override().value_or(cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties));
+        const size_t max_seq_len = gqa_ctx_len_env_override().value_or(effective_max_context_len);
+        effective_max_context_len = static_cast<uint32_t>(max_seq_len);
         compiled_model = model->clone();
         ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len);
         reshape_to_static_gqa.run_on_model(compiled_model);
         dynamic_kv_cache_axes = reshape_to_static_gqa.dynamic_kv_cache_axes();
     }
 
-    return {model, compiled_model, std::move(prepared_properties), std::move(dynamic_kv_cache_axes)};
+    return {model,
+            compiled_model,
+            std::move(prepared_properties),
+            std::move(dynamic_kv_cache_axes),
+            effective_max_context_len};
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::make_compiled_model(
@@ -591,7 +596,8 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
     : ov::npuw::ICompiledModel(prepared.model, plugin),
       m_inner_compiled_model(factory(prepared.compiled_model, plugin, prepared.properties)),
       m_outer_model(prepared.model),
-      m_dynamic_kv_cache_axes(std::move(prepared.dynamic_kv_cache_axes)) {
+      m_dynamic_kv_cache_axes(std::move(prepared.dynamic_kv_cache_axes)),
+      m_effective_max_context_len(prepared.effective_max_context_len) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
     m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
@@ -604,11 +610,13 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
 ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& outer_model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
-                                             std::unordered_map<std::string, size_t> dynamic_kv_cache_axes)
+                                             std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
+                                             uint32_t effective_max_context_len)
     : ov::npuw::ICompiledModel(outer_model, plugin),
       m_inner_compiled_model(std::move(inner_compiled_model)),
       m_outer_model(outer_model),
-      m_dynamic_kv_cache_axes(std::move(dynamic_kv_cache_axes)) {
+      m_dynamic_kv_cache_axes(std::move(dynamic_kv_cache_axes)),
+      m_effective_max_context_len(effective_max_context_len) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
     m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
@@ -712,10 +720,11 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     GQACompiledModel::write_port_list(stream, outer_inputs);
     GQACompiledModel::write_port_list(stream, outer_outputs);
     write(stream, m_dynamic_kv_cache_axes);
+    write(stream, m_effective_max_context_len);
     GQA_TRACE("GQACompiledModel::export_model() -> wrote "
-              << outer_inputs.size() << " outer inputs, " << outer_outputs.size() << " outer outputs, and "
-              << m_dynamic_kv_cache_axes.size()
-              << " dynamic-axis entries; delegating to inner m_inner_compiled_model->export_model()");
+              << outer_inputs.size() << " outer inputs, " << outer_outputs.size() << " outer outputs, "
+              << m_dynamic_kv_cache_axes.size() << " dynamic-axis entries, and effective_max_context_len="
+              << m_effective_max_context_len << "; delegating to inner m_inner_compiled_model->export_model()");
     m_inner_compiled_model->export_model(stream);
     LOG_INFO("Done");
     GQA_TRACE("GQACompiledModel::export_model() done");
@@ -738,9 +747,11 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     ov::ParameterVector outer_parameters;
     ov::NodeVector outer_results;
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
+    uint32_t effective_max_context_len = 0;
     outer_parameters = GQACompiledModel::read_input_port_list(stream);
     outer_results = GQACompiledModel::read_output_port_list(stream);
     read(stream, dynamic_kv_cache_axes);
+    read(stream, effective_max_context_len);
 
     GQA_TRACE("    read " << outer_parameters.size() << " outer parameters, " << outer_results.size()
                           << " outer results, " << dynamic_kv_cache_axes.size() << " dynamic-axis entries:");
@@ -763,8 +774,11 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
               << "; wrapping it back into a GQACompiledModel so dynamic KV-cache/attention-bias reshape "
                  "survives the cache hit");
 
-    return std::shared_ptr<GQACompiledModel>(
-        new GQACompiledModel(outer_model, plugin, std::move(inner_compiled_model), std::move(dynamic_kv_cache_axes)));
+    return std::shared_ptr<GQACompiledModel>(new GQACompiledModel(outer_model,
+                                                                  plugin,
+                                                                  std::move(inner_compiled_model),
+                                                                  std::move(dynamic_kv_cache_axes),
+                                                                  effective_max_context_len));
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::GQACompiledModel::get_runtime_model() const {
@@ -776,6 +790,15 @@ void ov::npuw::GQACompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any ov::npuw::GQACompiledModel::get_property(const std::string& name) const {
+    // NPUW_LLM_MAX_CONTEXT_LEN is stripped from the inner CompiledModel's properties in
+    // prepare() (it only registers ROOT options -- see with_gqa_defaults()), so forwarding
+    // this query would throw "Unsupported configuration key" even though compilation
+    // itself succeeded with an effective capacity (possibly overridden by
+    // OPENVINO_NPUW_GQA_CTX_LEN). Answer it directly from the value actually used to
+    // reshape the model, which also survives export_model()/import_model().
+    if (name == std::string(::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN::key())) {
+        return m_effective_max_context_len;
+    }
     return m_inner_compiled_model->get_property(name);
 }
 

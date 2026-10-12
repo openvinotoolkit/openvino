@@ -866,6 +866,26 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis3) {
     }
 }
 
+TEST_F(GQACompiledModelTest, GetPropertyReturnsEffectiveMaxContextLenInsteadOfThrowing) {
+    // Regression test for review comment AlexanderKalistratov#4246978192 on PR
+    // openvinotoolkit/openvino#38304: NPUW_LLM_MAX_CONTEXT_LEN is stripped from the
+    // inner CompiledModel's properties before it's created (it only registers ROOT
+    // options), so forwarding get_property("NPUW_LLM_MAX_CONTEXT_LEN") there throws
+    // "Unsupported configuration key" even though compilation succeeded with an
+    // effective capacity. It must be answered directly from the wrapper instead,
+    // reflecting whatever capacity was actually used to reshape the model.
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "4096"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    ov::Any max_context_len;
+    ASSERT_NO_THROW(max_context_len = compiled->get_property("NPUW_LLM_MAX_CONTEXT_LEN"));
+    EXPECT_EQ(max_context_len.as<uint32_t>(), 4096u);
+}
+
 TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
