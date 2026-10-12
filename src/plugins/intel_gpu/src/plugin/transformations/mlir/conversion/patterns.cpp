@@ -87,11 +87,18 @@ GroupedMatMulPattern::GroupedMatMulPattern()
                           OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name() << " — compressed weights");
                           return false;
                       }
-                      if (!output.get_element_type().is_real() || !node->get_input_element_type(0).is_real() || !node->get_input_element_type(1).is_real()) {
-                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected "
-                                                    << node->get_friendly_name() << " — non-float element type, got mat_a " << node->get_input_element_type(0)
-                                                    << " x mat_b " << node->get_input_element_type(1) << " -> " << output.get_element_type());
-                          return false;
+const auto is_supported_type = [](const ov::element::Type& type) {
+    return type == ov::element::f64 || type == ov::element::f32 || type == ov::element::f16 ||
+           type == ov::element::bf16;
+};
+if (!is_supported_type(output.get_element_type()) || !is_supported_type(node->get_input_element_type(0)) ||
+    !is_supported_type(node->get_input_element_type(1))) {
+    OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected "
+                              << node->get_friendly_name() << " — unsupported element type, got mat_a "
+                              << node->get_input_element_type(0) << " x mat_b " << node->get_input_element_type(1)
+                              << " -> " << output.get_element_type());
+    return false;
+}
                       }
 
                       const auto& a_shape = node->get_input_partial_shape(0);
