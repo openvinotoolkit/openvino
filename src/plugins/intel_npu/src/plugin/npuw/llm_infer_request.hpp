@@ -169,8 +169,8 @@ protected:
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_other_outputs;
-    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_out_seqdims;
-    std::unordered_map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> m_prefill_other_accumulated_outs;
+    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_seqdims;
+    std::unordered_map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> m_prefill_other_outs_accum;
 
     PortsMap m_prefill_in_ports;
     PortsMap m_prefill_out_ports;

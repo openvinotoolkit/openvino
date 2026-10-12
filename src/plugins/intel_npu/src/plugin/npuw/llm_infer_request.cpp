@@ -415,12 +415,12 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     if (compiled_model->m_use_chunk_prefill) {
-        m_prefill_other_out_seqdims = compiled_model->m_prefill_other_outs_to_seqdims;
-        for (auto&& [out_port, out_dim] : m_prefill_other_out_seqdims) {
+        m_prefill_other_outs_seqdims = compiled_model->m_prefill_other_outs_seqdims;
+        for (auto&& [out_port, out_dim] : m_prefill_other_outs_seqdims) {
             const auto& chunked_shape = out_port.get_partial_shape();
             auto full_max_len_shape = chunked_shape;
             full_max_len_shape[out_dim] = m_npuw_llm_compiled_model->m_kvcache_desc.max_prompt_size;
-            m_prefill_other_accumulated_outs.emplace(
+            m_prefill_other_outs_accum.emplace(
                 out_port,
                 ov::get_tensor_impl(ov::Tensor(out_port.get_element_type(), full_max_len_shape.get_shape())));
         }
@@ -989,8 +989,8 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     }
     auto dirty_num = kvcache_desc.num_stored_tokens - position_id_u32;
     if (dirty_num > 0) {
-        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
-                                        << " to " << position_id_u32 << " length");
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id_u32
+                                        << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
@@ -1020,13 +1020,13 @@ void LLMInferRequest::accumulate_other_chunked_outputs(uint32_t start_offset,
     OPENVINO_ASSERT(chunk_token_count + stored_token_count <= max_seq_len,
                     "Sanity check for input parameters: chunk_token_count + stored_token_count must be <= max_seq_len");
 
-    for (auto&& [port, dim] : m_prefill_other_out_seqdims) {
+    for (auto&& [port, dim] : m_prefill_other_outs_seqdims) {
         LOG_BLOCK();
         LOG_VERB("Processing chunked output tensor at index " << port << " with sequence dimension " << dim);
         auto chunk_tensor = m_prefill_request->get_tensor(port);
         const auto& chunk_shape = chunk_tensor->get_shape();
 
-        auto full_tensor = m_prefill_other_accumulated_outs[port];
+        auto full_tensor = m_prefill_other_outs_accum[port];
         const auto& full_shape = full_tensor->get_shape();
         LOG_VERB("Its full counterpart has shape: " << full_shape);
 
@@ -1454,9 +1454,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
             if (name == layer_names::logits) {
                 continue;
             }
-            if (!m_prefill_other_accumulated_outs.empty() &&
-                m_prefill_other_accumulated_outs.find(port) != m_prefill_other_accumulated_outs.end()) {
-                m_other_outputs[name] = m_prefill_other_accumulated_outs[port];
+            if (!m_prefill_other_outs_accum.empty() &&
+                m_prefill_other_outs_accum.find(port) != m_prefill_other_outs_accum.end()) {
+                m_other_outputs[name] = m_prefill_other_outs_accum[port];
             } else {
                 m_other_outputs[name] = m_prefill_request->get_tensor(port);
             }

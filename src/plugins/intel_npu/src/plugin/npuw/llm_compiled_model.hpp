@@ -121,9 +121,6 @@ protected:
     // generate models.
     void validate_imported_kvcache_dim() const;
 
-    std::map<std::string, std::size_t> prefill_other_outs_seqdims_by_name() const;
-    void rebuild_prefill_other_outs_to_seqdims(const std::map<std::string, std::size_t>& by_name);
-
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
@@ -139,7 +136,7 @@ protected:
     bool m_is_block_kv_cache = false;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
-    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_to_seqdims;
+    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_seqdims;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
 
