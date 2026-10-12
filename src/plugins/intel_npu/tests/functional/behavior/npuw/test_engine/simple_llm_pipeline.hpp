@@ -20,6 +20,7 @@ public:
     std::shared_ptr<ov::InferRequest> get_request() const {
         return m_request;
     }
+
 private:
     uint32_t m_max_prompt_len{std::numeric_limits<uint32_t>::max()};
     uint32_t m_min_response_len{std::numeric_limits<uint32_t>::max()};

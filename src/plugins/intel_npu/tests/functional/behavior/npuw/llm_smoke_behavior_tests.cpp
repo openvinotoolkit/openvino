@@ -15,31 +15,29 @@ public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        // Test will only work if CPU plugin is enabled.
-        #if !defined(OPENVINO_STATIC_LIBRARY) && defined(WITH_CPU_PLUGIN) && \
-            (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
-                const char* cpu_plugin_file_name = "openvino_intel_cpu_plugin";
-                // Register CPU plugin in OpenVINO:
-                try {
-                    core.register_plugin(std::string(cpu_plugin_file_name) + OV_BUILD_POSTFIX, "CPU");
-                } catch (ov::Exception& ex) {
-                    if (std::string{ex.what()}.find("is already registered as device \"CPU\"") == std::string::npos) {
-                        throw ex;
-                    }
-                }
-        #else
-            GTEST_SKIP() << "CPU plugin is not enabled or platform requirements are not met, skipping the test!";
-        #endif // not OPENVINO_STATIC_LIBRARY && WITH_CPU_PLUGIN &&
-            // (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64));
+// Test will only work if CPU plugin is enabled.
+#if !defined(OPENVINO_STATIC_LIBRARY) && defined(WITH_CPU_PLUGIN) && \
+    (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
+        const char* cpu_plugin_file_name = "openvino_intel_cpu_plugin";
+        // Register CPU plugin in OpenVINO:
+        try {
+            core.register_plugin(std::string(cpu_plugin_file_name) + OV_BUILD_POSTFIX, "CPU");
+        } catch (ov::Exception& ex) {
+            if (std::string{ex.what()}.find("is already registered as device \"CPU\"") == std::string::npos) {
+                throw ex;
+            }
+        }
+#else
+        GTEST_SKIP() << "CPU plugin is not enabled or platform requirements are not met, skipping the test!";
+#endif  // not OPENVINO_STATIC_LIBRARY && WITH_CPU_PLUGIN &&
+        // (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64));
 
-        chunked_prefill_props = 
-            {{"NPU_USE_NPUW", "YES"},
-                {"NPUW_LLM", "YES"},
-                {"NPUW_DEVICES", "CPU"},
-                {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
-                {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
-                {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}};
-
+        chunked_prefill_props = {{"NPU_USE_NPUW", "YES"},
+                                 {"NPUW_LLM", "YES"},
+                                 {"NPUW_DEVICES", "CPU"},
+                                 {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                                 {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                                 {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}};
 
         input_ids.resize(128);
         std::iota(input_ids.begin(), input_ids.end(), 1);
