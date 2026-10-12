@@ -5,6 +5,10 @@
 #define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
 #define IS_F8_F4 (IS_F8 || F4E2M1_OUTPUT)
 
+#if IS_F8_F4
+#include "include/dynamic_quantize_utils.cl"
+#endif
+
 #if F4E2M1_OUTPUT
 #include "include/f4_utils.cl"
 #endif
@@ -113,7 +117,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
 #if IS_MXFP
-    SCALE_TYPE quan_scale = exp2(floor(log2(OUTPUT_VAL_MAX / convert_float(max_value))));
+    SCALE_TYPE quan_scale = DQ_COMPUTE_MXFP_SCALE(max_value);
 #else
     SCALE_TYPE quan_scale = OUTPUT_VAL_MAX / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
@@ -121,10 +125,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if F4E2M1_OUTPUT
-        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale);
+        quantized_value[i] = DQ_COMPUTE_OUTPUT_VALUE_N(4, input_0[i], quan_scale);
         vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
 #elif IS_F8
-        quantized_value[i] = TO_OUTPUT_VECTOR_TYPE_SAT(convert_float4(input_0[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 4))quan_scale, 4);
+        quantized_value[i] = DQ_COMPUTE_OUTPUT_VALUE_N(4, input_0[i], quan_scale);
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
 #else
         quantized_value[i] = convert_char4_rte(input_0[i] * (half4)quan_scale);
@@ -282,8 +286,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
         VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_offset + (blockid  * block_size) / ELEMENTS_PER_BYTE]));
 #elif IS_F8
-        val *= scale;
-        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_OUTPUT_VECTOR_TYPE_SAT(val, VEC_SIZE);
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = DQ_COMPUTE_OUTPUT_VALUE_N(VEC_SIZE, val, scale);
         VSTORE_N(out, 0, &output[output_offset + (blockid * block_size)]);
 #elif ASYMMETRIC_QUANTIZATION
         val *= scale;
@@ -440,14 +443,13 @@ KERNEL(dynamic_quantize_gpu_opt)(
         if ((local_id * iteration + i) >= TOTAL_BLOCK_NUM)
             continue;
 
-        MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE) val_scaled = TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale;
+MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE) val_scaled = TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale;
 #if F4E2M1_OUTPUT
         val_scaled = clamp(val_scaled, -TO_SCALE_TYPE(OUTPUT_VAL_MAX), TO_SCALE_TYPE(OUTPUT_VAL_MAX));
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
         VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_byte_offset + ((local_id * iteration + i) * block_size) / ELEMENTS_PER_BYTE]));
 #elif IS_F8
-        val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
-        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_OUTPUT_VECTOR_TYPE_SAT(val[i], VEC_SIZE);
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = DQ_COMPUTE_OUTPUT_VALUE_N(VEC_SIZE, val[i], scale);
         VSTORE_N(out, 0, &output[offset + ((local_id * iteration + i) * block_size)]);
 #elif ASYMMETRIC_QUANTIZATION
         val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);

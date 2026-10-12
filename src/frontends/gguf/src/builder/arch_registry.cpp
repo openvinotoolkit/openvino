@@ -1,97 +1,162 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// The native builder's architecture accept list, and the one per-architecture property that
-// cannot be derived from the GGUF tensor table (the RoPE mode).
-//
-// Adding a same-family architecture is a one-line change here and nothing else: the decoder
-// builder derives everything else -- QK-norm, biases, fused QKV, MoE routing, SWA, soft-caps --
-// from the tensor table and metadata. See docs/adding_an_architecture.md.
 
 #include "arch_registry.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+#include <optional>
+#include <utility>
+
+#include "builder/arch/mamba_builder.hpp"
+#include "builder/arch/mmproj_builder.hpp"
+#include "openvino/core/except.hpp"
+
+namespace ov::frontend::gguf {
+
+namespace {
+struct ArchitectureEntry {
+    ArchitectureEntry(const char* name, RopeMode rope) : name(name), rope(rope) {}
+
+    ArchitectureEntry(const char* name,
+                      ArchitectureDefinition::BuilderFactory factory,
+                      ArchitectureDefinition::MatchFn match = {},
+                      const char* id = nullptr)
+        : name(name),
+          factory(std::move(factory)),
+          match(std::move(match)),
+          id(id) {}
+
+    const char* name;
+    std::optional<RopeMode> rope;
+    ArchitectureDefinition::BuilderFactory factory = {};
+    ArchitectureDefinition::MatchFn match = {};
+    const char* id = nullptr;
+};
+const ArchitectureEntry architectures[] = {
+    {"bailingmoe2", RopeMode::Neox},
+    {"clip",
+     make_mmproj_builder,
+     [](const GgufMetadata& meta) {
+         return meta.has("clip.projector_type") || meta.has("clip.vision.projector_type") ||
+                meta.has("clip.audio.projector_type");
+     },
+     "clip.mmproj"},
+    {"deepseek2-ocr", RopeMode::Neox},
+    {"ernie4_5-moe", RopeMode::Normal},
+    {"exaone-moe", RopeMode::Neox},
+    {"exaone4", RopeMode::Neox},
+    {"gemma", RopeMode::Neox},
+    {"gemma2", RopeMode::Neox},
+    {"gemma3", RopeMode::Neox},
+    {"gemma4", RopeMode::Neox},
+    {"glm4moe", RopeMode::Neox},
+    {"gpt-oss", RopeMode::Neox},
+    {"hunyuan-dense", RopeMode::Neox},
+    {"hunyuan-moe", RopeMode::Neox},
+    {"jais2", RopeMode::Neox},
+    {"llama", RopeMode::Normal},
+    {"llama-embed", RopeMode::Normal},
+    {"maincoder", RopeMode::Normal},
+    {"mamba2", make_mamba2_builder},
+    {"mellum", RopeMode::Neox},
+    {"minicpm", RopeMode::Normal},
+    {"minimax-m2", RopeMode::Neox},
+    {"mistral3", RopeMode::Normal},
+    {"muse-glimmer", RopeMode::Normal},
+    {"nemotron_h", make_mamba2_builder},
+    {"olmoe", RopeMode::Neox},
+    {"phi3", RopeMode::Neox},
+    {"plamo3", RopeMode::Neox},
+    {"qwen2", RopeMode::Neox},
+    {"qwen3", RopeMode::Neox},
+    {"qwen35", RopeMode::Interleaved},
+    {"qwen35moe", RopeMode::Interleaved},
+    {"qwen3moe", RopeMode::Neox},
+    {"smollm3", RopeMode::Normal},
+};
+}  // namespace
+
+std::vector<ArchitectureDefinition> builtin_architectures() {
+    std::vector<ArchitectureDefinition> definitions;
+    for (const auto& entry : architectures) {
+        if (entry.factory) {
+            definitions.push_back({entry.id ? entry.id : entry.name, entry.name, entry.factory, entry.match});
+        } else {
+            definitions.push_back(make_decoder_architecture(entry.name, entry.rope.value()));
+        }
+    }
+    return definitions;
+}
 
 bool arch_uses_neox_rope(const std::string& arch) {
-    return arch == "qwen2" || arch == "qwen3" || arch == "phi3" || arch == "hunyuan-dense" || arch == "gpt-oss" ||
-           arch == "gemma" || arch == "gemma2" || arch == "gemma3" || arch == "gemma4" || arch == "olmoe" ||
-           // H2 2025 dense additions
-           arch == "exaone4" || arch == "plamo3" || arch == "mellum" ||
-           // H2 2025 MoE additions
-           arch == "hunyuan-moe" || arch == "glm4moe" || arch == "bailingmoe2" || arch == "exaone-moe" ||
-           arch == "minimax-m2" ||
-           // H2 2025 VL backbone / other
-           arch == "jais2" || arch == "deepseek2-ocr";
+    for (const auto& entry : architectures) {
+        if (arch == entry.name)
+            return entry.rope == RopeMode::Neox;
+    }
+    return false;
 }
 
-const std::set<std::string>& verified_archs() {
-    static const std::set<std::string> archs = {
-        "llama",  // llama-2 / llama-3
-        "qwen2",  // qwen2 / qwen2.5
-        "qwen3",
-        "phi3",           // phi-3 (fused QKV)
-        "minicpm",        // NORMAL rope + scalar scales
-        "hunyuan-dense",  // NEOX rope + per-head QK-norm after RoPE
-        "olmoe",          // OLMoE 1B-7B (MoE)
-        // Qwen3.5/3.6 hybrid: Gated-DeltaNet linear attention on 3 of every 4 layers, full
-        // attention with M-RoPE and an interleaved query+gate projection on the rest. Verified
-        // token-exact against llama.cpp on Qwen3.5-0.8B-Q8_0 and Ternary-Bonsai-27B-Q2_g64.
-        // GREEDY / BATCH 1 ONLY: the recurrent conv and delta states are not reordered by
-        // beam_idx and have a static batch of 1, so beam search or batch > 1 fails at inference
-        // (a Concat shape mismatch on the conv window) rather than producing wrong output.
-        "qwen35",
-        "gpt-oss",  // MoE + sinks + SWA
-        "gemma3",   // Gemma 3: post-norms + final logit soft-cap
-        "gemma4",   // Gemma 4: SWA, per-layer embeddings, shared KV
-    };
-    return archs;
+ArchRegistry::ArchRegistry(std::vector<ArchitectureDefinition> definitions) {
+    for (auto& definition : definitions)
+        add(std::move(definition), RegistrationMode::Add);
 }
 
-const std::set<std::string>& experimental_archs() {
-    static const std::set<std::string> archs = {
-        // H2 2025: dense
-        "llama-embed",  // Bidirectional LLaMA (embedding, no causal mask)
-        "exaone4",      // EXAONE 4.0: NEOX rope, post-norms (attn+ffn)
-        "plamo3",       // PLaMo-3: NEOX rope, post-norms (attn+ffn)
-        "smollm3",      // SmolLM3: NORMAL rope + SWA
-        // H2 2025: MoE
-        "hunyuan-moe",   // Hunyuan MoE: NEOX rope, MoE routing, QK-norm
-        "glm4moe",       // GLM 4.5 MoE: NEOX rope, 1 dense lead layer, MoE + attn post-norm
-        "exaone-moe",    // EXAONE MoE: NEOX rope, SWA + MoE, shared expert
-        "minimax-m2",    // Minimax M2: NEOX rope, pure MoE
-        "ernie4_5-moe",  // Ernie 4.5 MoE: NORMAL rope, dense lead layers + MoE stride
-        "bailingmoe2",   // BailingMoe V2: NEOX rope, MoE + shared expert + QK-norm
-        // 2026: dense
-        "maincoder",     // Maincoder-1B: NORMAL rope, QK-norm (auto-detected)
-        "mistral3",      // Ministral-3B: NORMAL rope, dense
-        "muse-glimmer",  // Muse Glimmer (Meta Onyx): NORMAL rope on SWA layers only (global
-                         // layers are NoPE), sigmoid attention output gate, QK-norm,
-                         // pre+post norms, final logit soft-cap
-        // 2026: MoE
-        "mellum",         // JetBrains Mellum: NEOX rope, pure MoE
-        "deepseek2-ocr",  // DeepSeekOCR: NEOX rope, dense lead layers + MoE
-        "jais2",          // JAIS-2: NEOX rope, dense (biases auto-detected)
-        // Demoted from verified_archs(): the GenAI-vs-llama.cpp measured status (see
-        // docs/supported_models.md) found these produce degenerate output (or, for `gemma`,
-        // throw) through the native builder despite passing conversion. Re-promote once fixed.
-        "qwen3moe",  // Qwen3 MoE: same topology as olmoe
-        "gemma",     // Gemma 2B / 7B
-        "gemma2",    // Gemma 2: post-norms + attention soft-cap
-    };
-    return archs;
+void ArchRegistry::add(ArchitectureDefinition definition, RegistrationMode mode) {
+    OPENVINO_ASSERT(!definition.id.empty() && !definition.architecture.empty(),
+                    "[GGUF] architecture definition requires a handler id and architecture name");
+    OPENVINO_ASSERT(definition.factory, "[GGUF] architecture '", definition.id, "' has no builder factory");
+    const auto existing = m_definitions.find(definition.id);
+    if (mode == RegistrationMode::Add) {
+        OPENVINO_ASSERT(existing == m_definitions.end(),
+                        "[GGUF] duplicate architecture handler '",
+                        definition.id,
+                        "'; use RegistrationMode::Replace to replace it explicitly");
+    } else {
+        OPENVINO_ASSERT(existing != m_definitions.end(),
+                        "[GGUF] cannot replace unknown architecture handler '",
+                        definition.id,
+                        "'");
+    }
+    const auto id = definition.id;
+    m_definitions[id] = std::make_shared<const ArchitectureDefinition>(std::move(definition));
 }
 
-const std::set<std::string>& supported_archs() {
-    static const std::set<std::string> archs = [] {
-        std::set<std::string> a = verified_archs();
-        a.insert(experimental_archs().begin(), experimental_archs().end());
-        return a;
-    }();
-    return archs;
+void ArchRegistry::add_extension(const ArchitectureExtension::Ptr& ext) {
+    OPENVINO_ASSERT(ext, "[GGUF] null ArchitectureExtension");
+    if (const auto projector = std::dynamic_pointer_cast<ProjectorExtension>(ext))
+        m_projectors.add(projector->projector_definition(), projector->registration_mode());
+    else
+        add(ext->definition(), ext->registration_mode());
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+std::shared_ptr<const ArchitectureDefinition> ArchRegistry::find(const GgufMetadata& meta) const {
+    std::shared_ptr<const ArchitectureDefinition> found;
+    for (const auto& [id, definition] : m_definitions) {
+        if (!definition->matches(meta))
+            continue;
+        OPENVINO_ASSERT(!found, "[GGUF] architecture handlers '", found->id, "' and '", id, "' both claim this file");
+        found = definition;
+    }
+    return found;
+}
+
+std::set<std::string> ArchRegistry::supported_archs() const {
+    std::set<std::string> names;
+    for (const auto& entry : m_definitions)
+        names.insert(entry.second->architecture);
+    return names;
+}
+
+std::string ArchRegistry::describe_supported() const {
+    std::string out;
+    for (const auto& architecture : supported_archs())
+        out += (out.empty() ? "" : ", ") + architecture;
+    return out;
+}
+
+const ArchRegistry& default_arch_registry() {
+    static const ArchRegistry registry;
+    return registry;
+}
+
+}  // namespace ov::frontend::gguf

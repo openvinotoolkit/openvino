@@ -4402,15 +4402,15 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jcp.layout != InterpolateLayoutType::planar) {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             interpolateKernel =
                 std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>>(jcp, *attr.get());
-        } else if (mayiuse(cpu::x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
-        } else if (mayiuse(cpu::x64::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::sse41>>(jcp, *attr.get());
         }
-    } else if (mayiuse(cpu::x64::avx2) && interpAttrs.inPrc == ov::element::f32) {
+    } else if (ov::with_cpu_x86_avx2() && interpAttrs.inPrc == ov::element::f32) {
         // gather ISA(for planar JIT kernel) for avx2 and fp32
         interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
     } else {

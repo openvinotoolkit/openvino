@@ -10,10 +10,7 @@
 using namespace std;
 using namespace ov::opset11;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 
 OutputVector while_op(const ov::frontend::tensorflow_lite::NodeContext& node) {
     int32_t cond_idx = node.get_attribute<int32_t>("cond_subgraph_index");
@@ -97,7 +94,4 @@ OutputVector while_op(const ov::frontend::tensorflow_lite::NodeContext& node) {
     return loop->outputs();
 }
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

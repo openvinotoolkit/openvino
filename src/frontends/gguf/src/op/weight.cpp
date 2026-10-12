@@ -15,10 +15,7 @@
 #include "quant/weights.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // A GGUF weight surfaced as a node. A weight is a ggml leaf (op type "GGML_OP_NONE") that the
 // decoder marks as a weight. Two payload shapes are supported, both dequantized here so the
@@ -91,7 +88,4 @@ OutputVector translate_weight(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(node)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op
