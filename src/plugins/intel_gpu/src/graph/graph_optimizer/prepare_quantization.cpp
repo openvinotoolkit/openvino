@@ -4,6 +4,7 @@
 
 #include "fully_connected_inst.h"
 #include "gather_matmul_inst.h"
+#include "grouped_matmul_inst.h"
 #include "moe_3gemm_fused_inst.h"
 #include "moe_gemm_inst.h"
 #include "impls/ocl_v2/moe/moe_3gemm_base.hpp"
@@ -638,6 +639,18 @@ static void optimize_gather_matmul_decompression_parameters(gather_matmul_node& 
         reorder_decompression_param_to_byfx(node, gather_matmul::WEIGHT_ZP, p);
 }
 
+// onednn grouped matmul reads group-wise scales/zp as [G, K/gs, N] (N innermost), while the graph provides
+// [G, N, K/gs]. The reorder to byfx is constant-folded at compile time.
+static void optimize_grouped_matmul_decompression_parameters(grouped_matmul_node& node, program& p) {
+    auto prim = node.get_primitive();
+    if (!prim->compressed_weights)
+        return;
+    size_t idx = grouped_matmul::GroupedMatmulInputIdx::OFFSETS + 1;
+    reorder_decompression_param_to_byfx(node, idx++, p);
+    if (prim->decompression_zero_point.is_valid())
+        reorder_decompression_param_to_byfx(node, idx, p);
+}
+
 static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, program& p) {
     auto prim = node.get_primitive();
     // Production has bias; tests may not.
@@ -698,6 +711,8 @@ void prepare_quantization::run(program& p) {
             optimize_weights_decompression_parameters(node->as<fully_connected>(), p);
         } else if (node->is_type<gather_matmul>()) {
             optimize_gather_matmul_decompression_parameters(node->as<gather_matmul>(), p);
+        } else if (node->is_type<grouped_matmul>()) {
+            optimize_grouped_matmul_decompression_parameters(node->as<grouped_matmul>(), p);
         } else if (node->is_type<moe_gemm>()) {
             optimize_moe_gemm_decompression_parameters(node->as<moe_gemm>(), p);
         } else if (node->is_type<moe_3gemm_fused_compressed>()) {

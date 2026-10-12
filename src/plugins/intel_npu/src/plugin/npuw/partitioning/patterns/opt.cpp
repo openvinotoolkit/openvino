@@ -47,6 +47,13 @@ void Context::to_f16(const PPtr& orig_param) {
     orig_param->validate_and_infer_types();
 }
 
+Context::PPtr Context::subtract_128(const PPtr& orig_param) {
+    auto shifted_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, orig_param->get_partial_shape());
+    shifted_param->set_friendly_name(orig_param->get_friendly_name() + "_sub128");
+    closures_to_subtract_128.emplace(shifted_param, orig_param);
+    return shifted_param;
+}
+
 void Context::register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm) {
     par_dq_mms[std::make_pair(multiply, axis)].push_back(std::move(mm));
 }
@@ -1089,8 +1096,8 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()}, is_subtract_128);
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()}, is_subtract_128);
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qcoeff});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
@@ -1110,14 +1117,11 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         const auto& matched_out_gather = node_to_output.at(gather);
 
-        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+        const bool has_weight_shift = node_to_output.count(qshiftw) != 0;
+        const bool has_zeropoint_shift = node_to_output.count(qshiftz) != 0;
+        if (has_weight_shift != has_zeropoint_shift) {
             return false;
         }
-        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
-            return false;
-        }
-
         // Replicate the compute part
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto new_g_w = std::make_shared<ov::op::v8::Gather>(matched_out_w, matched_out_ids, gather_c);
@@ -1126,7 +1130,20 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
 
         auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(new_g_w, ov::element::f16);
         auto new_cvt_z = std::make_shared<ov::op::v0::Convert>(new_g_z, ov::element::f16);
-        auto new_sub = std::make_shared<ov::op::v1::Subtract>(new_cvt_w, new_cvt_z);
+        std::shared_ptr<ov::Node> dequantized_w = new_cvt_w;
+        std::shared_ptr<ov::Node> dequantized_z = new_cvt_z;
+        if (has_weight_shift && has_zeropoint_shift) {
+            auto shift = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {128.0f});
+            auto shifted_w = std::make_shared<ov::op::v1::Subtract>(new_cvt_w, shift);
+            auto shifted_z = std::make_shared<ov::op::v1::Subtract>(new_cvt_z, shift);
+            ov::copy_runtime_info(node_to_output.at(qshiftw).get_node_shared_ptr(), shifted_w);
+            ov::copy_runtime_info(node_to_output.at(qshiftz).get_node_shared_ptr(), shifted_z);
+            shifted_w->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+            shifted_z->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+            dequantized_w = shifted_w;
+            dequantized_z = shifted_z;
+        }
+        auto new_sub = std::make_shared<ov::op::v1::Subtract>(dequantized_w, dequantized_z);
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_sub, new_g_s);
         auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
 
@@ -1284,6 +1301,40 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherSymGQ"), std::move(callback));
 }
 
+ConvertDQVocab::ConvertDQVocab(Context::Ref ctx) {
+    const auto weight = opp::wrap_type<ov::op::v0::Parameter>(opp::type_matches(ov::element::u8));
+    const auto zerop = opp::wrap_type<ov::op::v0::Parameter>(opp::type_matches(ov::element::u8));
+    const auto weight_convert = opp::wrap_type<ov::op::v0::Convert>({weight});
+    const auto zerop_convert = opp::wrap_type<ov::op::v0::Convert>({zerop});
+    const auto weight_shift = opp::wrap_type<ov::op::v1::Subtract>({weight_convert, opp::any_input()}, is_subtract_128);
+    const auto zerop_shift = opp::wrap_type<ov::op::v1::Subtract>({zerop_convert, opp::any_input()}, is_subtract_128);
+    const auto dequantized = opp::wrap_type<ov::op::v1::Subtract>({weight_shift, zerop_shift});
+
+    auto callback = [=](ov::pass::pattern::Matcher& matcher) {
+        const auto& values = matcher.get_pattern_value_map();
+        for (const auto& convert : {weight_convert, zerop_convert}) {
+            const auto type = values.at(convert).get_element_type();
+            if (type != ov::element::f16 && type != ov::element::f32) {
+                return false;
+            }
+        }
+
+        for (const auto& shift : {weight_shift, zerop_shift}) {
+            const auto matched_shift = values.at(shift).get_node_shared_ptr();
+            const auto convert = matched_shift->input_value(0).get_node_shared_ptr();
+            const auto source = ov::as_type_ptr<ov::op::v0::Parameter>(convert->input_value(0).get_node_shared_ptr());
+            OPENVINO_ASSERT(source, "ConvertDQVocab source must be a parameter");
+            auto shifted = ctx.get().subtract_128(source);
+            // after this we have: i8 derived Parameter -> Convert -> Subtract(128) -> outer Subtract
+            convert->input(0).replace_source_output(shifted);
+            // after this we have: i8 derived Parameter -> Convert -> outer Subtract
+            ov::replace_node(matched_shift, convert);
+        }
+        return true;
+    };
+    register_matcher(std::make_shared<opp::Matcher>(dequantized, "ConvertDQVocab"), std::move(callback));
+}
+
 // This is a companion to DQLiftGatherAsymCW step. This pass runs if
 // the respective block (mainly, a head) was turned a function
 // (e.g. with FUNCALL_FOR_ALL) As in this case the DQUnpackDictMatMulCWu
@@ -1400,8 +1451,8 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()}, is_subtract_128);
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()}, is_subtract_128);
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
@@ -1412,17 +1463,11 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
         const auto& matched_out_mul = node_to_output.at(qmuls);
         auto out_shape = matched_out_mul.get_shape();
 
-        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+        const bool has_weight_shift = node_to_output.count(qshiftw) != 0;
+        const bool has_zeropoint_shift = node_to_output.count(qshiftz) != 0;
+        if (has_weight_shift != has_zeropoint_shift) {
             return false;
         }
-        // The paired shifts mark u8 tensors adapted for an i8 DQ graph. The current
-        // host path replaces that graph with direct u8 dequantization, where the
-        // equal shifts cancel: (W - 128) - (Z - 128) == W - Z.
-        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
-            return false;
-        }
-
         if (out_shape.size() != 3 && out_shape.size() != 4) {
             return false;
         }
@@ -1456,11 +1501,24 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
+            const bool use_sub128 = has_weight_shift && has_zeropoint_shift;
+            const bool weight_is_sub128 = use_sub128 && matched_qweight->get_element_type() == ov::element::u8;
+            const bool zerop_is_sub128 = use_sub128 && matched_qzerop->get_element_type() == ov::element::u8;
+            if (weight_is_sub128 != zerop_is_sub128) {
+                return false;
+            }
+            auto host_weight = matched_qweight;
+            auto host_zerop = matched_qzerop;
+            if (weight_is_sub128) {
+                host_weight = ctx.get().subtract_128(matched_qweight);
+                host_zerop = ctx.get().subtract_128(matched_qzerop);
+            }
+
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future- unpacked and gathered
             // fp16
             auto new_wi = ctx.get().host_gather_unpack_quant(matched_ids,
-                                                             matched_qweight,
-                                                             matched_qzerop,
+                                                             host_weight,
+                                                             host_zerop,
                                                              matched_qcoeff,
                                                              ov::element::f16);
             matched_node_cvt->input(0).replace_source_output(new_wi);
@@ -1966,9 +2024,7 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
-    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
+    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     // The Convert between Multiply and MatMul is optional (some models omit it when Multiply is already f32)
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls});
@@ -2005,14 +2061,6 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
-
-        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
-            return false;
-        }
-        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
-            return false;
-        }
 
         // Standard layout: weight [OC, IC], scale [OC, 1], transpose_b=true
         const bool standard_layout = qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 &&

@@ -122,6 +122,27 @@ inline int64_t get_batch_size(const cldnn::layout& qkv, const std::vector<int64_
     return dim.get_length();
 }
 
+// Output batch of Q/K/V (numpy broadcast). Static batches are always checked. Returns -1 if any batch is dynamic.
+inline int64_t get_broadcast_batch(int64_t q_batch, int64_t k_batch, int64_t v_batch) {
+    bool has_dynamic = false;
+    int64_t out_batch = 1;
+    for (const auto batch : {q_batch, k_batch, v_batch}) {
+        if (batch == -1) {
+            has_dynamic = true;
+            continue;
+        }
+        OPENVINO_ASSERT(batch == 1 || out_batch == 1 || batch == out_batch,
+                        "SDPA: Q/K/V batch sizes cannot be broadcast: ",
+                        q_batch,
+                        ", ",
+                        k_batch,
+                        ", ",
+                        v_batch);
+        out_batch = std::max(out_batch, batch);
+    }
+    return has_dynamic ? -1 : out_batch;
+}
+
 inline int64_t get_num_heads(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     // 4D - BHLS
     // 3D - BLS and H=1

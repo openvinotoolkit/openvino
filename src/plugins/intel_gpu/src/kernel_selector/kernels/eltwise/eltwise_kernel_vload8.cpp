@@ -2,13 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "activation/activation_kernel_base.h"
 #include "eltwise_kernel_vload8.h"
-#include "kernel_selector_utils.h"
-#include <string>
+
 #include <algorithm>
+#include <string>
+
+#include "activation/activation_kernel_base.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
+
+namespace {
+
+bool IsFeatureBroadcast(const DataTensor& input, const DataTensor& output) {
+    if (input.GetLayout() != DataLayout::bfyx || output.GetLayout() != DataLayout::bfyx)
+        return false;
+
+    if (input.PitchesDifferFromLogicalDims() || output.PitchesDifferFromLogicalDims() || input.GetFirstElementOffset() != 0 ||
+        output.GetFirstElementOffset() != 0)
+        return false;
+
+    const size_t feature_plane_size = input.Y().v * input.X().v;
+    return input.Batch().v == output.Batch().v && input.Feature().v == 1 && output.Feature().v > 1 && input.Y().v == output.Y().v &&
+           input.X().v == output.X().v && feature_plane_size != 0 && feature_plane_size % 8 == 0;
+}
+
+}  // namespace
 
 ParamsKey EltwiseKernel_vload8::GetSupportedKey() const {
     ParamsKey k;
@@ -21,11 +40,26 @@ ParamsKey EltwiseKernel_vload8::GetSupportedKey() const {
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableBatching();
+    k.EnableEltwiseBroadcast();
     return k;
 }
 
 JitConstants EltwiseKernel_vload8::GetJitConstants(const eltwise_params& params) const {
     return GetJitConstantsCommon(params, true);
+}
+
+std::string EltwiseKernel_vload8::GetVload8InputIndex(const eltwise_params& params, size_t input_idx) const {
+    const auto& input = params.inputs[input_idx];
+    const auto& output = params.outputs[0];
+    if (params.is_shape_agnostic || !IsFeatureBroadcast(input, output))
+        return EltwiseKernelBase::GetVload8InputIndex(params, input_idx);
+
+    // The output is flattened as [batch][feature][y*x]. Ignore the output
+    // feature coordinate and reuse the single input feature plane.
+    const size_t feature_plane_vecs = output.Y().v * output.X().v / 8;
+    const size_t output_batch_stride_vecs = output.Feature().v * feature_plane_vecs;
+    return "((global_id / " + toCodeString(output_batch_stride_vecs) + ") * " + toCodeString(feature_plane_vecs) + " + (global_id % " +
+           toCodeString(feature_plane_vecs) + "))";
 }
 
 bool EltwiseKernel_vload8::Validate(const Params& params) const {
@@ -36,48 +70,46 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
     // Only one activation can be fused.
-    if (ewParams.fused_ops.size() > 1 ||
-        (!ewParams.activations.empty() && !ewParams.fused_ops.empty())) {
+    if (ewParams.fused_ops.size() > 1 || (!ewParams.activations.empty() && !ewParams.fused_ops.empty())) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-        for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-            const auto input_layout = ewParams.inputs[i].GetLayout();
-            const auto batch_size = ewParams.inputs[i].Batch().v;
-            const auto feature_size = ewParams.inputs[i].Feature().v;
-            if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) ||
-                (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
-                (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) ||
-                (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
-                input_layout == DataLayout::fs_b_yx_fsv32 ||
-                (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
-                (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0))) {
-                DO_NOT_USE_THIS_KERNEL(params.layerID);
-            }
-        }
-        if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
-            ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
-                (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
-                (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0))) {
+    for (size_t i = 0; i < ewParams.inputs.size(); i++) {
+        const auto input_layout = ewParams.inputs[i].GetLayout();
+        const auto batch_size = ewParams.inputs[i].Batch().v;
+        const auto feature_size = ewParams.inputs[i].Feature().v;
+        if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) || (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
+            (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) || (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
+            input_layout == DataLayout::fs_b_yx_fsv32 ||
+            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
+            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0))) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
+    }
+    if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
+        ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
+         (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
+         (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0))) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& output = ewParams.outputs[0];
-    const auto count = output.PhysicalSize();
 
-    const bool bSupportedCount = (count % 8) == 0;
+    const bool bSupportedCount = (output.LogicalSize() % 8) == 0;
 
     bool bCheckSizes = true;
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        // allow only the same input sizes or scalars, without pitches
-        if (ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
-            ((ewParams.inputs[0] != ewParams.inputs[i] || ewParams.inputs[i] != ewParams.outputs[0]) &&
-             ewParams.inputs[i].PhysicalSize() != 1)) {
+        // Allow equal-sized inputs, scalars, or a plain bfyx input which differs
+        // only by broadcasting feature=1 to the output feature count.
+        const bool same_as_output = ewParams.inputs[i] == output;
+        const bool scalar = ewParams.inputs[i].PhysicalSize() == 1;
+        const bool feature_broadcast = !ewParams.is_shape_agnostic && IsFeatureBroadcast(ewParams.inputs[i], output);
+        if ((!same_as_output && !scalar && !feature_broadcast) || ewParams.inputs[i].PitchesDifferFromLogicalDims()) {
             bCheckSizes = false;
         }
     }
@@ -140,7 +172,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params) const {
     }
 
     auto& kernel = kd.kernels[0];
-    kernel.params.workGroups.global = {std::max(newParams.inputs[0].LogicalSize() / 8, (size_t)1), 1, 1};
+    kernel.params.workGroups.global = {std::max(newParams.outputs[0].LogicalSize() / 8, static_cast<size_t>(1)), 1, 1};
     kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
     kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);

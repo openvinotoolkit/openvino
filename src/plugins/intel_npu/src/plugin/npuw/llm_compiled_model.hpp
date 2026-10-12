@@ -16,6 +16,7 @@ namespace npuw {
 struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMSwaCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -84,16 +85,18 @@ public:
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
 
-private:
+protected:
     friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
     friend class EmbeddingInferRequest;
     friend class LLMBlockKVCacheStrategy;
     friend class LLMContinuousKVCacheStrategy;
+    friend class SwaKVCacheHelper;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMSwaCacheTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
@@ -108,6 +111,12 @@ private:
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
+
+    // Trust-boundary check for imported blobs: KVCacheDesc::dim and the V-transposed flags are read
+    // from the stream and select the axis used to subscript shape vectors in the KV-slice helpers.
+    // Reject them unless that axis is valid for every KV input/output of the restored prefill and
+    // generate models.
+    void validate_imported_kvcache_dim() const;
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
@@ -167,6 +176,9 @@ private:
     // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
     // routed to the dedicated KV/RoPE-free encoder embedding path.
     bool m_is_encoder_embedding = false;
+
+    // SWA (sliding-window attention) window size, 0 if none.
+    uint32_t m_swa_window_size = 0;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
