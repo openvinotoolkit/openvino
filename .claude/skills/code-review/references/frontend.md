@@ -13,9 +13,10 @@ under `src/bindings/python/src/openvino/frontend/` and
   layouts, and translator registration. Report unsupported behavior only
   when the diff claims support or changes its error handling; placeholder
   nodes are not full support.
-- When adding a mode or fixing an existing conversion, preserve the emitted
-  graph for previously working cases unless a concrete benefit, such as
-  improved performance or graph simplification, justifies the change.
+- When modifying an existing conversion to support another operation mode or
+  fix a bug, preserve the emitted graph for previously working cases unless
+  a concrete benefit, such as improved performance or graph simplification,
+  justifies the change.
   Equivalent graphs can break downstream transformation matching. Always
   flag changes to those cases for human review, stating the affected graph
   form, rationale, and transformation risk, even when the risk is justified.
