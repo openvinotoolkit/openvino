@@ -384,13 +384,23 @@ def extract_input_info_from_example(args, inputs):
                 name = input_desc.name
                 dtype = input_desc.type
                 shape = input_desc.shape
-                example = input_arg_by_name.get(name, input_arg[i]) if name is not None else input_arg[i]
-                if name is None:
-                    name = example.name
-                if dtype is None:
-                    dtype = example.type
-                if shape is None:
-                    shape = example.shape
+                positional_example = input_arg[i]
+                if name is not None and positional_example.name is not None:
+                    # Both sides are named: only trust an actual name match. Falling
+                    # back to position here would copy another input's shape/dtype
+                    # whenever the two name sets don't line up 1:1.
+                    example = input_arg_by_name.get(name)
+                else:
+                    # At least one side has no name, so position is the only signal
+                    # there is, same as before named matching was added.
+                    example = positional_example
+                if example is not None:
+                    if name is None:
+                        name = example.name
+                    if dtype is None:
+                        dtype = example.type
+                    if shape is None:
+                        shape = example.shape
                 new_input.append(_InputCutInfo(name, shape, dtype, input_desc.value))
             input_arg = new_input
         else:

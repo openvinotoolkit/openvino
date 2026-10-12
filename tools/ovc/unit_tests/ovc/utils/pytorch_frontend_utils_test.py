@@ -3,7 +3,7 @@
 
 from argparse import Namespace
 
-from openvino.tools.ovc.cli_parser import input_to_input_cut_info
+from openvino.tools.ovc.cli_parser import _InputCutInfo, input_to_input_cut_info
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import extract_input_info_from_example
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
@@ -45,16 +45,35 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         self.assertEqual(list(shapes_by_name["attention_mask"]), [1, 4])
 
     def test_unnamed_example_input_still_matches_positionally(self):
-        # No names anywhere (example_input is a plain tuple, 'input' only carries
-        # shapes), so matching stays positional, same as before named matching
-        # was added.
+        # No names anywhere, and the descriptors carry no shape either, so this
+        # actually exercises copying example_input's shape by position, not just
+        # echoing a shape the descriptor already had.
         args = Namespace()
         args.input_model = FakeInputModel((FakeTensor((1, 4)), FakeTensor((1, 8))))
         args.example_input = None
         args.dynamo = True
-        args.input = input_to_input_cut_info([[1, 4], [1, 8]])
+        args.input = [_InputCutInfo(None, None, None, None), _InputCutInfo(None, None, None, None)]
 
         extract_input_info_from_example(args, args.input)
 
         self.assertEqual(list(args.input[0].shape), [1, 4])
         self.assertEqual(list(args.input[1].shape), [1, 8])
+
+    def test_unmatched_name_leaves_shape_unset_instead_of_guessing_by_position(self):
+        # Both sides are named, but the name sets don't line up (the user mistyped
+        # "attn_mask"). Falling back to position here would silently attach
+        # "input_ids"'s shape to "attn_mask", so it must stay unset instead.
+        args = Namespace()
+        args.input_model = FakeInputModel({
+            "attention_mask": FakeTensor((1, 4)),
+            "input_ids": FakeTensor((1, 8)),
+        })
+        args.example_input = None
+        args.dynamo = True
+        args.input = input_to_input_cut_info(["input_ids", "attn_mask"])
+
+        extract_input_info_from_example(args, args.input)
+
+        shapes_by_name = {inp.name: inp.shape for inp in args.input}
+        self.assertEqual(list(shapes_by_name["input_ids"]), [1, 8])
+        self.assertIsNone(shapes_by_name["attn_mask"])
