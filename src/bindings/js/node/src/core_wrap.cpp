@@ -308,8 +308,7 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
             if (info.Length() == 2) {
                 compiled = _core.import_model(stream, std::string(info[1].ToString()));
             } else {
-                compiled =
-                    _core.import_model(stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
+                compiled = _core.import_model(stream, std::string(info[1].ToString()), to_anyMap(info.Env(), info[2]));
             }
 
             return CompiledModelWrap::wrap(info.Env(), compiled);
@@ -337,8 +336,7 @@ void import_model_thread(ImportModelContext* context, std::mutex& mutex) {
         if (!context->_buffer.IsEmpty()) {
             ov::SharedStreamBuffer buffer{context->_buffer_data, context->_buffer_size};
             std::istream stream{&buffer};
-            context->_compiled_model =
-                context->_core.import_model(stream, context->_device, context->_config);
+            context->_compiled_model = context->_core.import_model(stream, context->_device, context->_config);
         } else {
             context->_compiled_model =
                 context->_core.import_model(context->_stream, context->_device, context->_config);
