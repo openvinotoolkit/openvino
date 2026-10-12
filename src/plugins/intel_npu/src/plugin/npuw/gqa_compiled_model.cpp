@@ -76,9 +76,12 @@ bool gqa_trace_enabled() {
 // Lets a run be repointed to a different context length without plumbing the property
 // through the app; takes priority over both the NPUW_LLM_MAX_CONTEXT_LEN property and its
 // own default when set. Parsed once and cached; an unparsable value is NOT silently
-// ignored - std::stoull's exception is left to propagate so a malformed override is
-// surfaced to the caller instead of silently falling back to the property/default. Like
-// the rest of NPUW's env-based debug knobs (see logging.cpp), this only does anything in
+// ignored - a malformed override throws so it is surfaced to the caller instead of
+// silently falling back to the property/default. The parse itself is strict: the whole
+// string must be consumed (std::stoull alone would happily accept "8oops" as 8), no sign
+// is accepted (std::stoull would otherwise wrap a leading '-' into a huge unsigned value),
+// and 0 is rejected since it would reach ov::Dimension(0). Like the rest of NPUW's
+// env-based debug knobs (see logging.cpp), this only does anything in
 // NPU_PLUGIN_DEVELOPER_BUILD; production builds never read the environment.
 std::optional<size_t> gqa_ctx_len_env_override() {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -87,7 +90,16 @@ std::optional<size_t> gqa_ctx_len_env_override() {
         if (raw == nullptr) {
             return std::optional<size_t>{};
         }
-        return std::optional<size_t>{static_cast<size_t>(std::stoull(raw))};
+        const std::string str(raw);
+        if (str.empty() || str.find_first_not_of("0123456789") != std::string::npos) {
+            OPENVINO_THROW("OPENVINO_NPUW_GQA_CTX_LEN must be a positive integer, got: '", str, "'");
+        }
+        size_t parsed_chars = 0;
+        const unsigned long long parsed = std::stoull(str, &parsed_chars);
+        if (parsed_chars != str.size() || parsed == 0u) {
+            OPENVINO_THROW("OPENVINO_NPUW_GQA_CTX_LEN must be a positive integer, got: '", str, "'");
+        }
+        return std::optional<size_t>{static_cast<size_t>(parsed)};
     }();
     return value;
 #else
