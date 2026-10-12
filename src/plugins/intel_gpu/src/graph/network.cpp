@@ -1066,6 +1066,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     } catch (...) {
         if (is_recording) {
             _record_replay_session->end_recording();
+            _record_replay_session->invalidate();
         }
         throw;
     }
