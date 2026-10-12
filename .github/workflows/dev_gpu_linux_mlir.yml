@@ -94,8 +94,9 @@ jobs:
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
       - name: Show affected components
-        run: |
-          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        env:
+          AFFECTED_COMPONENTS: ${{ toJSON(steps.smart_ci.outputs.affected_components) }}
+        run: echo "${AFFECTED_COMPONENTS}"
         shell: bash
 
   Docker:
@@ -174,6 +175,7 @@ jobs:
       - name: Load SCCACHE_AZURE_CONNECTION_STRING from file
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> "$GITHUB_ENV"
 
@@ -221,7 +223,7 @@ jobs:
         id: cache_keys
         working-directory: ${{ env.GC_REPO }}
         run: |
-          llvm_sha=$({ cat cmake/llvm-version.txt scripts/build.sh patches/*.patch; c++ --version; } \
+          llvm_sha=$({ cat cmake/llvm-version.txt scripts/build.sh scripts/utils.sh patches/*.patch; c++ --version; } \
             | sha1sum | cut -d' ' -f1)
           echo "llvm-key=llvm-${LLVM_BUILD_TYPE}-dylink${GC_DYLINK}-${llvm_sha}" >> "$GITHUB_OUTPUT"
           # The restore action creates the target directory with a non-recursive mkdir
