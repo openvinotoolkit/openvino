@@ -416,7 +416,7 @@ void Graph::Activate() {
     CreatePrimitivesAndExecConstants();
 
     m_weightsToPrefetch.clear();
-    if (ov::weight_sharing::PrefetchScheduler::get_lookahead() > 0) {
+    if (m_context->getWeightsPrefetchLookahead() > 0) {
         for (const auto& node : m_executableGraphNodes) {
             if (auto weights = getRepackedWeights(*node)) {
                 m_weightsToPrefetch.push_back(std::move(weights));
@@ -1393,21 +1393,21 @@ void Graph::InferStatic(SyncInferRequest* request, int numaId) {
 namespace {
 
 // The repacked weights are waited for right before the node is prepared and evicted right after.
-void updateNodeDynamicParams(const NodePtr& node, ov::weight_sharing::PrefetchScheduler* weightsPrefetch) {
-    const auto weights = weightsPrefetch ? getRepackedWeights(*node) : nullptr;
+void updateNodeDynamicParams(const NodePtr& node, ov::weight_sharing::PrefetchScheduler& weightsPrefetch) {
+    const auto weights = weightsPrefetch.empty() ? nullptr : getRepackedWeights(*node);
     if (weights) {
-        weightsPrefetch->acquire(*weights);
+        weightsPrefetch.acquire(*weights);
     }
     node->updateDynamicParams();
     if (weights) {
-        weightsPrefetch->release(*weights);
+        weightsPrefetch.release(*weights);
     }
 }
 
 class UpdateNodesSeq {
 public:
-    explicit UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes,
-                            ov::weight_sharing::PrefetchScheduler* weightsPrefetch = nullptr)
+    UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes,
+                   ov::weight_sharing::PrefetchScheduler& weightsPrefetch)
         : m_executableGraphNodes(executableGraphNodes),
           m_weightsPrefetch(weightsPrefetch) {}
 
@@ -1424,7 +1424,7 @@ public:
 private:
     size_t prepareCounter = 0;
     std::vector<NodePtr>& m_executableGraphNodes;
-    ov::weight_sharing::PrefetchScheduler* m_weightsPrefetch;
+    ov::weight_sharing::PrefetchScheduler& m_weightsPrefetch;
 };
 
 #if (OV_THREAD == OV_THREAD_SEQ)
@@ -1436,8 +1436,8 @@ using UpdateNodes = UpdateNodesSeq;
 
 class UpdateNodesBase {
 public:
-    explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes,
-                             ov::weight_sharing::PrefetchScheduler* weightsPrefetch = nullptr)
+    UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes,
+                    ov::weight_sharing::PrefetchScheduler& weightsPrefetch)
         : m_executableGraphNodes(executableGraphNodes),
           m_weightsPrefetch(weightsPrefetch) {}
     void updateShapes(size_t node_indx, size_t stop_indx) {
@@ -1478,7 +1478,7 @@ protected:
     std::atomic<size_t> m_prepareCounter{0};
     std::atomic<bool> m_completion{false};
     std::vector<NodePtr>& m_executableGraphNodes;
-    ov::weight_sharing::PrefetchScheduler* m_weightsPrefetch;
+    ov::weight_sharing::PrefetchScheduler& m_weightsPrefetch;
 };
 
 // NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
@@ -1702,20 +1702,17 @@ void Graph::Infer(SyncInferRequest* request) {
     m_context->allocateMemory();
 
     // The weights are repacked on the first inference, that is when they are loaded.
-    std::unique_ptr<ov::weight_sharing::PrefetchScheduler> weightsPrefetch;
-    if (!m_weightsToPrefetch.empty()) {
-        weightsPrefetch = std::make_unique<ov::weight_sharing::PrefetchScheduler>(
-            m_weightsToPrefetch,
-            ov::weight_sharing::PrefetchScheduler::get_lookahead());
-        m_weightsToPrefetch.clear();
-    }
+    // Empty on any later inference, which makes the scheduler a no-op.
+    ov::weight_sharing::PrefetchScheduler weightsPrefetch(m_weightsToPrefetch,
+                                                          m_context->getWeightsPrefetchLookahead());
+    m_weightsToPrefetch.clear();
 
     switch (status) {
     case Status::ReadyDynamic:
-        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes, weightsPrefetch.get()));
+        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes, weightsPrefetch));
         break;
     case Status::ReadyDynamicSeq:
-        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes, weightsPrefetch.get()));
+        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes, weightsPrefetch));
         break;
     case Status::ReadyStatic:
         InferStatic(request, numaId);

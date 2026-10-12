@@ -44,6 +44,11 @@ public:
     /** @brief Evicts the constant data and prefetches the next constants. Call it once the constant is not read. */
     void release(const ov::op::v0::Constant& constant) noexcept;
 
+    /** @brief No constant is tracked, so acquire() and release() do nothing. */
+    [[nodiscard]] bool empty() const noexcept {
+        return m_constants.empty();
+    }
+
     /**
      * @brief Lookahead set by the OV_WEIGHTS_PREFETCH_LOOKAHEAD environment variable.
      *

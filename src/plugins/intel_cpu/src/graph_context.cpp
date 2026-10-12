@@ -27,7 +27,8 @@ GraphContext::GraphContext(Config config,
                            bool isGraphQuantized,
                            ov::threading::IStreamsExecutor::Ptr streamExecutor,
                            std::shared_ptr<CpuParallel> cpuParallel,
-                           std::shared_ptr<SubMemoryManager> sub_memory_manager)
+                           std::shared_ptr<SubMemoryManager> sub_memory_manager,
+                           size_t weightsPrefetchLookahead)
     : m_config(std::move(config)),
       m_weightsCache(std::move(w_cache)),
       m_rtParamsCache(std::make_shared<MultiCache>(m_config.rtCacheCapacity)),
@@ -36,6 +37,7 @@ GraphContext::GraphContext(Config config,
       m_streamExecutor(std::move(streamExecutor)),
       m_cpuParallel(std::move(cpuParallel)),
       m_subMemoryManager(std::move(sub_memory_manager)),
+      m_weightsPrefetchLookahead(weightsPrefetchLookahead),
 
       m_memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
       m_auxiliaryNetworkMemoryControl(std::make_shared<NetworkMemoryControl>()),
