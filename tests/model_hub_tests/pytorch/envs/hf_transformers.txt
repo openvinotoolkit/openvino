@@ -22,3 +22,7 @@ einops==0.8.0
 # librosa/pyctcdecode needed internally by some HF audio models
 librosa==0.10.2; python_version < "3.12"
 pyctcdecode==0.5.0; python_version < "3.12"
+
+# pyarrow 26.0.0 release breaks PyTorch Models Tests due to NumPy incompatibility
+pyarrow==20.0.0; python_version < "3.12"
+pyarrow==25.0.1; python_version >= "3.12"

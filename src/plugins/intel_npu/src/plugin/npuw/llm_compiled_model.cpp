@@ -3,6 +3,8 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include <algorithm>
+
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
@@ -1829,6 +1831,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
 
+        // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
+        compiled->validate_imported_kvcache_dim();
+
         return compiled;
     };
 
@@ -1845,6 +1850,47 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
     return compiled;
+}
+
+void ov::npuw::LLMCompiledModel::validate_imported_kvcache_dim() const {
+    // On the compile path every KV axis is in [0, rank), so an out-of-range one means a tampered blob.
+    auto validate_ports = [this](const std::vector<ov::Output<const ov::Node>>& ports, bool v_transposed) {
+        for (const auto& port : ports) {
+            // Check every alias, so get_any_name()'s choice can't hide a KV port.
+            for (const auto& name : port.get_names()) {
+                const auto past_name = ov::npuw::util::present_to_past_key_values_name(name);
+                const bool is_key = ov::npuw::util::isPastKeyParam(name) ||
+                                    ov::npuw::util::isPresentKeyValuesKey(name).has_value() ||
+                                    ov::npuw::util::isDQScaleOrZPKey(past_name);
+                const bool is_value = ov::npuw::util::isPastValueParam(name) ||
+                                      ov::npuw::util::isPresentKeyValuesValue(name).has_value() ||
+                                      ov::npuw::util::isDQScaleOrZPValue(past_name);
+                if (!is_key && !is_value) {
+                    continue;
+                }
+                // Same axis selection as the runtime KV copy/slice helpers.
+                const uint32_t axis = (is_value && v_transposed) ? 3u : m_kvcache_desc.dim;
+                const auto& rank = port.get_partial_shape().rank();
+                OPENVINO_ASSERT(rank.is_static() && axis < static_cast<uint32_t>(rank.get_length()),
+                                "NPUW blob: KV axis ",
+                                axis,
+                                " is out of range for tensor '",
+                                name,
+                                "' of rank ",
+                                rank,
+                                ".");
+            }
+        }
+    };
+
+    for (const auto& variant : m_generate_compiled_variants) {
+        validate_ports(variant->inputs(), m_kvcache_desc.v_tensors_transposed_gen);
+        validate_ports(variant->outputs(), m_kvcache_desc.v_tensors_transposed_gen);
+    }
+    if (m_prefill_compiled) {
+        validate_ports(m_prefill_compiled->inputs(), m_kvcache_desc.v_tensors_transposed_pre);
+        validate_ports(m_prefill_compiled->outputs(), m_kvcache_desc.v_tensors_transposed_pre);
+    }
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {
