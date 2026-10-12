@@ -54,11 +54,8 @@ TEST_F(VCLProfilingDecoderTest, ConstructionDoesNotTriggerACompilerCreateGetDest
 }
 
 TEST_F(VCLProfilingDecoderTest, InterfaceSoPtrKeepsItsSharedLibraryAlive) {
-    bool libraryReleased = false;
-    auto library = std::shared_ptr<void>(new int(0), [&libraryReleased](void* handle) {
-        delete static_cast<int*>(handle);
-        libraryReleased = true;
-    });
+    auto library = std::make_shared<int>(0);
+    std::weak_ptr<int> weakLibrary = library;
     auto decoder = std::make_shared<NoopProfilingDecoder>();
     std::weak_ptr<::intel_npu::IProfilingDecoder> weakDecoder = decoder;
     ov::SoPtr<::intel_npu::IProfilingDecoder> decoderWithLibrary(
@@ -67,11 +64,11 @@ TEST_F(VCLProfilingDecoderTest, InterfaceSoPtrKeepsItsSharedLibraryAlive) {
     decoder.reset();
     library.reset();
     EXPECT_FALSE(weakDecoder.expired());
-    EXPECT_FALSE(libraryReleased);
+    EXPECT_FALSE(weakLibrary.expired());
 
     decoderWithLibrary = {};
     EXPECT_TRUE(weakDecoder.expired());
-    EXPECT_TRUE(libraryReleased);
+    EXPECT_TRUE(weakLibrary.expired());
 }
 
 TEST_F(VCLProfilingDecoderTest, NullFunctionTableIsRejected) {

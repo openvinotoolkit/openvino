@@ -65,34 +65,28 @@ TEST(ZeroProfilingTest, PrefersGraphDecoderWhenItSucceeds) {
     TestGraph graph;
     graph.graphStatistics = {makeProfilingInfo("graph-decoded")};
     TestQuery query;
-    bool fallbackCalled = false;
 
-    const auto result = intel_npu::zeroProfiling::getModelLayerStatistics(
-        graph, query, [&fallbackCalled](const std::exception&) { fallbackCalled = true; });
+    const auto result = intel_npu::zeroProfiling::getModelLayerStatistics(graph, query);
 
     ASSERT_EQ(result.size(), 1u);
     EXPECT_EQ(result.front().node_name, "graph-decoded");
     EXPECT_EQ(graph.receivedData, query.rawData);
     EXPECT_EQ(query.rawDataCalls, 1u);
     EXPECT_EQ(query.layerStatisticsCalls, 0u);
-    EXPECT_FALSE(fallbackCalled);
 }
 
 TEST(ZeroProfilingTest, FallsBackToLevelZeroStatisticsWhenGraphHasNoDecoder) {
     TestGraph graph;
     graph.decoderAvailable = false;
     TestQuery query;
-    bool fallbackCalled = false;
 
-    const auto result = intel_npu::zeroProfiling::getModelLayerStatistics(
-        graph, query, [&fallbackCalled](const std::exception&) { fallbackCalled = true; });
+    const auto result = intel_npu::zeroProfiling::getModelLayerStatistics(graph, query);
 
     ASSERT_EQ(result.size(), 1u);
     EXPECT_EQ(result.front().node_name, "level-zero");
     EXPECT_EQ(graph.receivedData, query.rawData);
     EXPECT_EQ(query.rawDataCalls, 1u);
     EXPECT_EQ(query.layerStatisticsCalls, 1u);
-    EXPECT_TRUE(fallbackCalled);
 }
 
 TEST(ZeroProfilingTest, FallsBackToLevelZeroStatisticsWhenGraphDecoderThrows) {
@@ -100,8 +94,7 @@ TEST(ZeroProfilingTest, FallsBackToLevelZeroStatisticsWhenGraphDecoderThrows) {
     graph.throwOnDecode = true;
     TestQuery query;
 
-    const auto result = intel_npu::zeroProfiling::getModelLayerStatistics(
-        graph, query, [](const std::exception&) {});
+    const auto result = intel_npu::zeroProfiling::getModelLayerStatistics(graph, query);
 
     ASSERT_EQ(result.size(), 1u);
     EXPECT_EQ(result.front().node_name, "level-zero");

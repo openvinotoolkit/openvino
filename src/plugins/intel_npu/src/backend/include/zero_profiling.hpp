@@ -23,12 +23,11 @@ namespace zeroProfiling {
 
 using LayerStatistics = std::vector<ov::ProfilingInfo>;
 
-template <typename Query, typename OnFallback>
-LayerStatistics getModelLayerStatistics(const IGraph& graph, const Query& query, OnFallback&& onFallback) {
+template <typename Query>
+LayerStatistics getModelLayerStatistics(const IGraph& graph, const Query& query) {
     try {
         return graph.process_profiling_output(query.template getData<uint8_t>());
-    } catch (const std::exception& ex) {
-        onFallback(ex);
+    } catch (const std::exception&) {
         return query.getLayerStatistics();
     }
 }
