@@ -14,6 +14,7 @@
 #include "llm_test_helpers.hpp"
 #include "npuw_transformations/reshape_to_static_gqa.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -254,8 +256,9 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dyna
 
 // Same wiring as build_gqa_model_with_dynamic_kv_cache(), but the GQA op has
 // sliding_window_cache=true -- its physical KV-cache ring buffer eviction/repacking
-// depends on the buffer's own runtime capacity, so a dynamic axis here must be rejected
-// by ReshapeToStaticGQA rather than silently forced to a single static capacity.
+// depends on the buffer's own runtime capacity, so a dynamic axis here must be pinned by
+// ReshapeToStaticGQA to its own small, local_window_size-derived capacity instead of the
+// model-wide max_seq_len.
 std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis) {
     auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
@@ -309,6 +312,225 @@ std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis
                                  cos_cache,
                                  sin_cache};
     auto model = std::make_shared<ov::Model>(results, params, "gqa_sliding_window_cache_model");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// A single model with TWO independent GQA layers sharing the same dynamic axis: a
+// "global" layer (sliding_window_cache=false, ordinary growing cache -- should still take
+// the model-wide max_seq_len) and a "sliding" layer (sliding_window_cache=true,
+// local_window_size=6 -- should get its own small capacity). Proves the two don't bleed
+// into each other once ReshapeToStaticGQA resolves per-layer capacities.
+std::shared_ptr<ov::Model> build_gqa_model_with_mixed_global_and_sliding_layers() {
+    auto make_layer = [](const std::string& suffix, bool sliding) {
+        auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
+        auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+        auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+
+        auto past_key =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        past_key->set_friendly_name("past_keys_" + suffix);
+        auto past_value =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        past_value->set_friendly_name("past_values_" + suffix);
+
+        auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+        auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+        auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+        auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+
+        auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+            ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache},
+            /*num_heads=*/4,
+            /*kv_num_heads=*/2,
+            /*scale=*/0.0f,
+            /*do_rotary=*/true,
+            /*rotary_interleaved=*/false,
+            /*kv_cache_bit_width=*/0,
+            ov::op::internal::GroupQueryAttentionQuantType::NONE,
+            ov::op::internal::GroupQueryAttentionQuantType::NONE,
+            /*local_window_size=*/sliding ? 6 : -1,
+            /*sliding_window_cache=*/sliding);
+
+        auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
+        present_key->set_friendly_name("present_keys_" + suffix);
+        auto present_value = std::make_shared<ov::op::v0::Result>(gqa->output(2));
+        present_value->set_friendly_name("present_values_" + suffix);
+
+        ov::ResultVector layer_results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)),
+                                          present_key,
+                                          present_value};
+        ov::ParameterVector layer_params =
+            {query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache};
+        return std::make_pair(layer_results, layer_params);
+    };
+
+    auto [global_results, global_params] = make_layer("global", /*sliding=*/false);
+    auto [sliding_results, sliding_params] = make_layer("sliding", /*sliding=*/true);
+
+    ov::ResultVector results = global_results;
+    results.insert(results.end(), sliding_results.begin(), sliding_results.end());
+    ov::ParameterVector params = global_params;
+    params.insert(params.end(), sliding_params.begin(), sliding_params.end());
+
+    auto model = std::make_shared<ov::Model>(results, params, "gqa_mixed_global_and_sliding_model");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// Same two-layer wiring as build_gqa_model_with_mixed_global_and_sliding_layers(), but
+// neither GQA op sets sliding_window_cache/local_window_size at all (this app's actual
+// models never do) -- instead the model carries rt_info["framework"]["sliding_window_layers"
+// / "sliding_window_size"], mirroring how ONNX metadata_props survive conversion. The
+// second ("sliding") layer's query input is derived from the first ("global") layer's
+// attention output via a real data dependency, exactly as consecutive layers of an actual
+// sequential transformer stack would be wired -- this is what makes ov::Model's
+// topological op order deterministically match the model's own layer numbering (0, 1,
+// ...), the same assumption index_gqa_layers() relies on in reshape_to_static_gqa.cpp. Two
+// independent/unconnected GQA branches (as a naively-simpler test model would have) leave
+// their relative topological order implementation-defined, which isn't representative of
+// a real model and would make this test flaky.
+std::shared_ptr<ov::Model> build_gqa_model_with_rt_info_sliding_window_layers(size_t declared_sliding_window_size) {
+    auto make_layer = [](const std::string& suffix, const ov::Output<ov::Node>& prev_attention_output) {
+        ov::Output<ov::Node> query_input;
+        auto query_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
+        if (prev_attention_output.get_node()) {
+            // Previous layer's output(0) is [B, S, N*H] == [1, 1, 64]; reshape it back to
+            // [B, N, S, H] == [1, 4, 1, 16] and fold it into this layer's query so this
+            // layer's GQA op only becomes schedulable once the previous one has run.
+            auto reshaped_prev = std::make_shared<ov::op::v1::Reshape>(
+                prev_attention_output,
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 1, 16}),
+                false);
+            query_input = std::make_shared<ov::op::v1::Add>(query_param, reshaped_prev);
+        } else {
+            query_input = query_param;
+        }
+
+        auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+        auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+
+        auto past_key =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        past_key->set_friendly_name("past_keys_" + suffix);
+        auto past_value =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        past_value->set_friendly_name("past_values_" + suffix);
+
+        auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+        auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+        auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+        auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+
+        auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+            ov::OutputVector{query_input, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache},
+            /*num_heads=*/4,
+            /*kv_num_heads=*/2,
+            /*scale=*/0.0f,
+            /*do_rotary=*/true,
+            /*rotary_interleaved=*/false,
+            /*kv_cache_bit_width=*/0,
+            ov::op::internal::GroupQueryAttentionQuantType::NONE,
+            ov::op::internal::GroupQueryAttentionQuantType::NONE);
+
+        auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
+        present_key->set_friendly_name("present_keys_" + suffix);
+        auto present_value = std::make_shared<ov::op::v0::Result>(gqa->output(2));
+        present_value->set_friendly_name("present_values_" + suffix);
+
+        ov::ResultVector layer_results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)),
+                                          present_key,
+                                          present_value};
+        ov::ParameterVector layer_params = {query_param,
+                                            key,
+                                            value,
+                                            past_key,
+                                            past_value,
+                                            seqlens_k,
+                                            total_sequence_length,
+                                            cos_cache,
+                                            sin_cache};
+        return std::make_tuple(layer_results, layer_params, gqa->output(0));
+    };
+
+    auto [global_results, global_params, global_attention_output] = make_layer("global", ov::Output<ov::Node>());
+    auto [sliding_results, sliding_params, sliding_attention_output] = make_layer("sliding", global_attention_output);
+
+    ov::ResultVector results = global_results;
+    results.insert(results.end(), sliding_results.begin(), sliding_results.end());
+    ov::ParameterVector params = global_params;
+    params.insert(params.end(), sliding_params.begin(), sliding_params.end());
+
+    auto model = std::make_shared<ov::Model>(results, params, "gqa_rt_info_sliding_window_model");
+    model->set_rt_info(std::string("[1]"), "framework", "sliding_window_layers");
+    model->set_rt_info(std::string("[0]"), "framework", "full_attention_layers");
+    model->set_rt_info(std::to_string(declared_sliding_window_size), "framework", "sliding_window_size");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// Same two-independent-layer shape as build_gqa_model_with_mixed_global_and_sliding_layers(),
+// but carries NEITHER sliding_window_cache/local_window_size attributes NOR any rt_info --
+// the only signal available is each layer's own SEQLENS_K/TOTAL_SEQUENCE_LENGTH Parameter
+// name, optionally hinting "sliding" (mirroring the real model's actual
+// past_seq_len_sliding/past_seq_len_full exporter convention). When `name_hint` is false,
+// the names carry no "sliding"/"full" substring at all, so the fallback has nothing to go
+// on and must leave every layer at the model-wide max_seq_len.
+std::shared_ptr<ov::Model> build_gqa_model_with_seqlens_name_hint(bool name_hint) {
+    auto make_layer = [&](const std::string& suffix, bool sliding) {
+        auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
+        auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+        auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+
+        auto past_key =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        past_key->set_friendly_name("past_keys_" + suffix);
+        auto past_value =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, ov::Dimension::dynamic(), 16});
+        past_value->set_friendly_name("past_values_" + suffix);
+
+        auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+        auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+        if (name_hint) {
+            seqlens_k->set_friendly_name(sliding ? "past_seq_len_sliding" : "past_seq_len_full");
+            total_sequence_length->set_friendly_name(sliding ? "total_seq_len_sliding" : "total_seq_len_full");
+        }
+        auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+        auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+
+        auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+            ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache},
+            /*num_heads=*/4,
+            /*kv_num_heads=*/2,
+            /*scale=*/0.0f,
+            /*do_rotary=*/true,
+            /*rotary_interleaved=*/false,
+            /*kv_cache_bit_width=*/0,
+            ov::op::internal::GroupQueryAttentionQuantType::NONE,
+            ov::op::internal::GroupQueryAttentionQuantType::NONE);
+
+        auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
+        present_key->set_friendly_name("present_keys_" + suffix);
+        auto present_value = std::make_shared<ov::op::v0::Result>(gqa->output(2));
+        present_value->set_friendly_name("present_values_" + suffix);
+
+        ov::ResultVector layer_results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)),
+                                          present_key,
+                                          present_value};
+        ov::ParameterVector layer_params =
+            {query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache};
+        return std::make_pair(layer_results, layer_params);
+    };
+
+    auto [global_results, global_params] = make_layer("global", /*sliding=*/false);
+    auto [sliding_results, sliding_params] = make_layer("sliding", /*sliding=*/true);
+
+    ov::ResultVector results = global_results;
+    results.insert(results.end(), sliding_results.begin(), sliding_results.end());
+    ov::ParameterVector params = global_params;
+    params.insert(params.end(), sliding_params.begin(), sliding_params.end());
+
+    auto model = std::make_shared<ov::Model>(results, params, "gqa_seqlens_name_hint_model");
     model->validate_nodes_and_infer_types();
     return model;
 }
@@ -1324,17 +1546,152 @@ TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF
     EXPECT_EQ(read_back[0]->get_partial_shape(), shape);
 }
 
-TEST(ReshapeToStaticGQATest, RejectsSlidingWindowCacheWithDynamicKvCache) {
+TEST(ReshapeToStaticGQATest, PinsSlidingWindowCacheToItsOwnSmallerCapacityNotModelWideMax) {
     // Regression test for review comment ankitm3k#4230466592 on PR
     // openvinotoolkit/openvino#38304: sliding_window_cache=true means the KV-cache is a
     // fixed-capacity ring buffer whose own runtime capacity drives the eviction/repacking
-    // math (GroupQueryAttentionDecomposition). Forcing a single, model-wide static
-    // capacity here (as for an ordinary growing cache) would silently diverge from
-    // whatever buffer the caller actually uses. ReshapeToStaticGQA must reject this
-    // configuration rather than silently reshape it.
+    // math (GroupQueryAttentionDecomposition). Forcing it to the model-wide max_seq_len
+    // (as for an ordinary growing/global-attention cache) would silently diverge from the
+    // op's own, much smaller local_window_size=6. ReshapeToStaticGQA must instead pin it
+    // to its own small capacity (16-aligned + one alignment block of headroom: 6 -> 16 ->
+    // 32), independent of the much larger model-wide max_seq_len.
     auto model = build_gqa_model_with_sliding_window_cache(/*axis=*/2);
-    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16);
-    EXPECT_THROW(reshape_to_static_gqa.run_on_model(model), ov::Exception);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
+    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    const auto& params = model->get_parameters();
+    auto it = std::find_if(params.begin(), params.end(), [](const auto& parameter) {
+        return parameter->get_friendly_name() == "past_keys_0";
+    });
+    ASSERT_NE(it, params.end());
+    EXPECT_EQ((*it)->get_partial_shape(), ov::PartialShape({1, 2, 32, 16}));
+}
+
+TEST(ReshapeToStaticGQATest, MixedGlobalAndSlidingLayersKeepDistinctCapacities) {
+    // The sliding layer's small capacity must not leak onto the global layer's, and vice
+    // versa -- both layers share the same model-wide max_seq_len argument, but only the
+    // global layer should actually end up pinned to it.
+    auto model = build_gqa_model_with_mixed_global_and_sliding_layers();
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
+    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    const auto& params = model->get_parameters();
+    auto shape_of = [&](const std::string& name) {
+        auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
+            return parameter->get_friendly_name() == name;
+        });
+        OPENVINO_ASSERT(it != params.end(), "parameter '", name, "' not found");
+        return (*it)->get_partial_shape();
+    };
+
+    EXPECT_EQ(shape_of("past_keys_global"), ov::PartialShape({1, 2, 8192, 16}));
+    EXPECT_EQ(shape_of("past_values_global"), ov::PartialShape({1, 2, 8192, 16}));
+    EXPECT_EQ(shape_of("past_keys_sliding"), ov::PartialShape({1, 2, 32, 16}));
+    EXPECT_EQ(shape_of("past_values_sliding"), ov::PartialShape({1, 2, 32, 16}));
+}
+
+TEST(ReshapeToStaticGQATest, UsesRtInfoSlidingWindowLayersAsExactCapacityNotMaxSeqLen) {
+    // This app's actual models never set sliding_window_cache/local_window_size -- a
+    // layer's windowing is instead declared via rt_info["framework"]["sliding_window_layers"
+    // / "sliding_window_size"] (preserved from ONNX metadata_props). The declared
+    // sliding_window_size (2048) must be used VERBATIM as the sliding layer's capacity,
+    // not rounded/padded, since it's an exact contract with the host's own eviction
+    // logic -- while the model-wide max_seq_len (8192) must still apply to the layer not
+    // listed in sliding_window_layers.
+    auto model = build_gqa_model_with_rt_info_sliding_window_layers(/*declared_sliding_window_size=*/2048);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
+    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    const auto& params = model->get_parameters();
+    auto shape_of = [&](const std::string& name) {
+        auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
+            return parameter->get_friendly_name() == name;
+        });
+        OPENVINO_ASSERT(it != params.end(), "parameter '", name, "' not found");
+        return (*it)->get_partial_shape();
+    };
+
+    EXPECT_EQ(shape_of("past_keys_global"), ov::PartialShape({1, 2, 8192, 16}));
+    EXPECT_EQ(shape_of("past_values_global"), ov::PartialShape({1, 2, 8192, 16}));
+    EXPECT_EQ(shape_of("past_keys_sliding"), ov::PartialShape({1, 2, 2048, 16}));
+    EXPECT_EQ(shape_of("past_values_sliding"), ov::PartialShape({1, 2, 2048, 16}));
+}
+
+TEST(ReshapeToStaticGQATest, RtInfoSlidingWindowSizeIsCappedByMaxSeqLen) {
+    // A declared sliding_window_size larger than the configured max_seq_len must not
+    // blow past the model-wide context budget -- cap it instead of pinning it verbatim.
+    auto model = build_gqa_model_with_rt_info_sliding_window_layers(/*declared_sliding_window_size=*/4096);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/1024);
+    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    const auto& params = model->get_parameters();
+    auto it = std::find_if(params.begin(), params.end(), [](const auto& parameter) {
+        return parameter->get_friendly_name() == "past_keys_sliding";
+    });
+    ASSERT_NE(it, params.end());
+    EXPECT_EQ((*it)->get_partial_shape(), ov::PartialShape({1, 2, 1024, 16}));
+}
+
+TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackAppliesConfiguredDefaultCapacity) {
+    // Last-resort case: no rt_info, no sliding_window_cache/local_window_size attribute --
+    // only a shared SEQLENS_K/TOTAL_SEQUENCE_LENGTH Parameter name hinting "sliding", and a
+    // caller-configured default_sliding_window_capacity. The sliding layer must be pinned
+    // to that configured default, while the plain ("full") layer keeps max_seq_len.
+    auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/true);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*default_sliding_window_capacity=*/2048);
+    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    const auto& params = model->get_parameters();
+    auto shape_of = [&](const std::string& name) {
+        auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
+            return parameter->get_friendly_name() == name;
+        });
+        OPENVINO_ASSERT(it != params.end(), "parameter '", name, "' not found");
+        return (*it)->get_partial_shape();
+    };
+
+    EXPECT_EQ(shape_of("past_keys_global"), ov::PartialShape({1, 2, 8192, 16}));
+    EXPECT_EQ(shape_of("past_values_global"), ov::PartialShape({1, 2, 8192, 16}));
+    EXPECT_EQ(shape_of("past_keys_sliding"), ov::PartialShape({1, 2, 2048, 16}));
+    EXPECT_EQ(shape_of("past_values_sliding"), ov::PartialShape({1, 2, 2048, 16}));
+}
+
+TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackIsOptInOnly) {
+    // Even with the "sliding"-hinting Parameter names present, the fallback must do
+    // nothing unless the caller actually configured a default_sliding_window_capacity --
+    // it's never guessed implicitly, to avoid silently reshaping a model the caller never
+    // asked to be treated this way.
+    auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/true);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
+    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    const auto& params = model->get_parameters();
+    auto it = std::find_if(params.begin(), params.end(), [](const auto& parameter) {
+        return parameter->get_friendly_name() == "past_keys_sliding";
+    });
+    ASSERT_NE(it, params.end());
+    EXPECT_EQ((*it)->get_partial_shape(), ov::PartialShape({1, 2, 8192, 16}));
+}
+
+TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackDoesNothingWithoutNameHint) {
+    // No rt_info, no op attribute, no "sliding" substring anywhere in the SEQLENS_K/
+    // TOTAL_SEQUENCE_LENGTH Parameter names either -- there's no signal to act on, so even
+    // a configured default_sliding_window_capacity must not affect either layer.
+    auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/false);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*default_sliding_window_capacity=*/2048);
+    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    const auto& params = model->get_parameters();
+    auto shape_of = [&](const std::string& name) {
+        auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
+            return parameter->get_friendly_name() == name;
+        });
+        OPENVINO_ASSERT(it != params.end(), "parameter '", name, "' not found");
+        return (*it)->get_partial_shape();
+    };
+
+    EXPECT_EQ(shape_of("past_keys_global"), ov::PartialShape({1, 2, 8192, 16}));
+    EXPECT_EQ(shape_of("past_keys_sliding"), ov::PartialShape({1, 2, 8192, 16}));
 }
 
 TEST(ReshapeToStaticGQATest, AllowsOrdinaryDynamicKvCacheWithoutSlidingWindowCache) {

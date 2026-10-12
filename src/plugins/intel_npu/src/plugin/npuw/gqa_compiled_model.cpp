@@ -107,6 +107,38 @@ std::optional<size_t> gqa_ctx_len_env_override() {
 #endif
 }
 
+// Best-effort default capacity for sliding-window GQA layers that carry NEITHER rt_info
+// metadata NOR a sliding_window_cache=true op attribute (see
+// ReshapeToStaticGQA::has_sliding_window_seqlens_name() in reshape_to_static_gqa.cpp) --
+// set via the OPENVINO_NPUW_GQA_SLIDING_LEN environment variable. Unset by default: a
+// model without any of the three sliding-window signals simply keeps every layer at the
+// model-wide max_seq_len, exactly as before this mechanism existed. Parsed with the same
+// strict rules as gqa_ctx_len_env_override() above, for the same reasons. Like the rest of
+// NPUW's env-based debug knobs, this only does anything in NPU_PLUGIN_DEVELOPER_BUILD.
+std::optional<size_t> gqa_default_sliding_window_len_env_override() {
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static const std::optional<size_t> value = [] {
+        const char* raw = std::getenv("OPENVINO_NPUW_GQA_SLIDING_LEN");
+        if (raw == nullptr) {
+            return std::optional<size_t>{};
+        }
+        const std::string str(raw);
+        if (str.empty() || str.find_first_not_of("0123456789") != std::string::npos) {
+            OPENVINO_THROW("OPENVINO_NPUW_GQA_SLIDING_LEN must be a positive integer, got: '", str, "'");
+        }
+        size_t parsed_chars = 0;
+        const unsigned long long parsed = std::stoull(str, &parsed_chars);
+        if (parsed_chars != str.size() || parsed == 0u) {
+            OPENVINO_THROW("OPENVINO_NPUW_GQA_SLIDING_LEN must be a positive integer, got: '", str, "'");
+        }
+        return std::optional<size_t>{static_cast<size_t>(parsed)};
+    }();
+    return value;
+#else
+    return std::nullopt;
+#endif
+}
+
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     for (const auto& [key, value] : rhs) {
         if (auto it = lhs.find(key); it != lhs.end()) {
@@ -314,7 +346,7 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
         const size_t max_seq_len = gqa_ctx_len_env_override().value_or(effective_max_context_len);
         effective_max_context_len = static_cast<uint32_t>(max_seq_len);
         compiled_model = model->clone();
-        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len);
+        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len, gqa_default_sliding_window_len_env_override());
         reshape_to_static_gqa.run_on_model(compiled_model);
         dynamic_kv_cache_axes = reshape_to_static_gqa.dynamic_kv_cache_axes();
     }
