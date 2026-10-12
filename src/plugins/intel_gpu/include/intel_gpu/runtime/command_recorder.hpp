@@ -12,6 +12,7 @@
 
 namespace cldnn {
 /// @brief Interface for recording commands on associated stream.
+/// @note command_recorder interface is not thread safe and must be used from the same thread as the associated stream
 class command_recorder {
 public:
     using ptr = std::shared_ptr<command_recorder>;
@@ -29,14 +30,12 @@ public:
     /// @param cmd_list Open command list to record executed commands.
     void start_recording(command_list::ptr cmd_list) {
         OPENVINO_ASSERT(cmd_list->get_status() == command_list_status::open, "Can't start recording command list that is not open");
-        std::lock_guard<std::mutex> lock(_mutex);
         OPENVINO_ASSERT(_active_cmd_list == nullptr, "Can't start recording while another recording is in progress");
         _active_cmd_list = cmd_list;
     }
     /// @brief Get command list that is currently being recorded.
     /// @return Command list that is currently being recorded or nullptr.
     command_list::ptr get_active_command_list() const {
-        std::lock_guard<std::mutex> lock(_mutex);
         return _active_cmd_list;
     }
 
@@ -44,10 +43,7 @@ public:
     /// @return Command list with recorded commands or nullptr if stream was not recording.
     command_list::ptr stop_recording() {
         command_list::ptr ret = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(_mutex);
-            _active_cmd_list.swap(ret);
-        }
+        _active_cmd_list.swap(ret);
         if (ret != nullptr) {
             ret->close();
             ret->enqueue();
@@ -57,7 +53,6 @@ public:
 
 protected:
     command_list::ptr _active_cmd_list;
-    mutable std::mutex _mutex;
 };
 
 }  // namespace cldnn
