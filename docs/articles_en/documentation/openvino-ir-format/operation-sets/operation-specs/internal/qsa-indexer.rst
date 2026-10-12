@@ -1,23 +1,23 @@
-SparseAttentionIndexer
-======================
+QSAIndexer
+==========
 
 
 .. meta::
-  :description: Learn about SparseAttentionIndexer - the indexer of dynamic sparse attention that
+  :description: Learn about QSAIndexer - the indexer of dynamic sparse attention that
                 selects the key blocks each query attends to (Qwen Sparse Attention, DeepSeek Sparse
                 Attention).
 
-**Versioned name**: *SparseAttentionIndexer*
+**Versioned name**: *QSAIndexer*
 
 **Category**: *Sequence processing*
 
-**Short description**: *SparseAttentionIndexer* scores the complete key blocks visible to every
+**Short description**: *QSAIndexer* scores the complete key blocks visible to every
 query token and returns the indices of a budget of the best-scoring blocks together with their
 number.
 
 **Detailed description**:
 
-*SparseAttentionIndexer* is the selection stage of dynamic, query-dependent sparse attention. Its
+*QSAIndexer* is the selection stage of dynamic, query-dependent sparse attention. Its
 output is consumed by :doc:`BlockSparseAttention <block-sparse-attention>`. It covers:
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
@@ -35,15 +35,15 @@ The selection is decoupled from the attention in the same way as in inference en
   takes the top-k, which ``build_attn_qsa`` consumes.
 
 Unlike the engines, which expand the selected blocks into token positions before the attention,
-*SparseAttentionIndexer* returns block indices. Expanding the blocks and adding the tokens of the
+*QSAIndexer* returns block indices. Expanding the blocks and adding the tokens of the
 query's incomplete block is done by *BlockSparseAttention*. This keeps the selection
 ``compress_ratio`` times smaller and lets the attention read every selected block as a contiguous
 run of tokens.
 
 The selection works on blocks of ``compress_ratio`` consecutive key tokens: block ``b`` holds the
 positions ``b * compress_ratio .. b * compress_ratio + compress_ratio - 1``. Each complete block is
-represented by one index key (``index_key_blocks``). For every query token,
-*SparseAttentionIndexer*:
+represented by one index key (``block_index_keys``). For every query token,
+*QSAIndexer*:
 
 1. Scores every complete block that ends at or before the query position with the multi-head,
    ReLU-rectified dot product of the index query heads and the block key, summed over the heads
@@ -53,8 +53,10 @@ represented by one index key (``index_key_blocks``). For every query token,
 2. Selects the ``token_budget / compress_ratio`` best-scoring blocks, or all of them if there are
    fewer.
 
-The operation is weight-free: the index projection, normalizations and rotary embeddings are
-computed by other operations and passed in through ``index_query`` and ``index_key_blocks``.
+The operation is weight-free: the index projection and the normalization and rotation of the index
+query are computed by regular operations of the graph, and the pooling, normalization and rotation
+of the block keys by :doc:`QSAPrepare <qsa-prepare>`. They are passed in through ``index_query`` and
+``block_index_keys``.
 
 **Selection heads.** By default a query token gets one selection, shared by all attention heads that
 consume it (``num_selection_heads = 1``); this is the case of QSA and DSA, where the scores of all
@@ -68,12 +70,12 @@ per key-value head shared by its group of query heads, the granularity of Native
 per token and is independent of ``Hi``, the number of index query heads that score: with ``Hs = 1``
 any number of index heads is reduced to one selection.
 
-*SparseAttentionIndexer* provides functionality according to the following pseudo-code using ``numpy``:
+*QSAIndexer* provides functionality according to the following pseudo-code using ``numpy``:
 
 .. code-block:: py
    :force:
 
-    def SparseAttentionIndexer(index_query, index_key_blocks, key_length, index_weights=None, *,
+    def QSAIndexer(index_query, block_index_keys, key_length, index_weights=None, *,
                                compress_ratio, token_budget, num_selection_heads=1):
         N, Hi, L, Di = index_query.shape
         S = key_length
@@ -95,7 +97,7 @@ any number of index heads is reduced to one selection.
                     if num_visible_blocks == 0:
                         continue
                     q = index_query[n, heads, l, :].astype(numpy.float32)                 # [G, Di]
-                    k = index_key_blocks[n, :num_visible_blocks, :].astype(numpy.float32) # [B, Di]
+                    k = block_index_keys[n, :num_visible_blocks, :].astype(numpy.float32) # [B, Di]
                     w = index_weights[n, l, heads].astype(numpy.float32)                  # [G]
                     scores = (w[:, None] * numpy.maximum(q @ k.T, 0.0)).sum(axis=0)      # [B]
                     num_selected_blocks = min(block_topk, num_visible_blocks)
@@ -145,28 +147,32 @@ Properties that follow from the definition:
    compete for the last selected places, the blocks with the smaller indices are selected, so the
    selection is deterministic and the same in every invocation and on every device.
 
-**Preparing the inputs** (informative)
+**Preparing the inputs**
 
-In Qwen3.8-Flash-Next both inputs come from one projection of the attention layer input,
-``index_qk_proj``, that produces ``Hi`` query heads and one key head of size ``Di``:
+Both inputs come from one projection of the attention layer input, ``index_qk_proj`` in
+Qwen3.8-Flash-Next, that gives ``Hi`` query heads and one key head of size ``Di``:
 
 * ``index_query``: the query heads, RMS-normalized with ``q_layernorm`` and rotated with the same
-  (M-)RoPE and positions as the main attention query.
-* ``index_key_blocks``: the raw key head of every token (before normalization and rotation) is
-  mean-pooled over each complete block of ``compress_ratio`` tokens, RMS-normalized with
-  ``k_layernorm``, and rotated with the (M-)RoPE position of the first token of the block.
+  (M-)RoPE and positions as the main attention query. Regular operations of the graph compute it
+  (*RMS* with the weight ``1 + w``, *RoPE*), as for the query of the main attention.
+* ``block_index_keys``: computed by :doc:`QSAPrepare <qsa-prepare>`. The raw key head of every token
+  (before normalization and rotation) is mean-pooled over each complete block of ``compress_ratio``
+  tokens, RMS-normalized with ``k_layernorm``, and rotated with the (M-)RoPE position of the first
+  token of the block.
 
-In a stateful model with *ScaledDotProductAttention*-style caches, the raw index keys of the past
-tokens are kept as one more state next to the key and value caches, with the shape ``[N, S, Di]``,
-and ``index_key_blocks`` is recomputed from it. Because a block key depends only on the tokens of
-its own block, an implementation may instead keep the compressed keys of the complete blocks plus
-the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, as vLLM does.
+The graph flow of a QSA layer is *QSAPrepare* -> *QSAIndexer* ->
+:doc:`BlockSparseAttention <block-sparse-attention>`, with the index query prepared next to
+*QSAPrepare* by *RMS* and *RoPE*. In a stateful model with
+*ScaledDotProductAttention*-style caches, the raw index keys of the past tokens are kept as one more
+state next to the key and value caches, with the shape ``[N, S, Di]``. The paged counterparts are
+:doc:`PagedQSAPrepare <paged-qsa-prepare>` -> :doc:`PagedQSAIndexer <paged-qsa-indexer>` ->
+:doc:`PagedBlockSparseAttention <paged-block-sparse-attention>`.
 
 **Relation to DeepSeek Sparse Attention (DSA)**
 
 .. note::
 
-   With ``compress_ratio = 1`` and ``index_weights`` provided, *SparseAttentionIndexer* covers the DSA indexer
+   With ``compress_ratio = 1`` and ``index_weights`` provided, *QSAIndexer* covers the DSA indexer
    of DeepSeek-V3.2 and GLM-MoE-DSA (``DeepseekV32Indexer`` in Hugging Face Transformers):
 
    * every block is a single token, so a query at the position ``p`` scores all tokens
@@ -175,7 +181,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
    * ``token_budget`` is ``index_topk`` (``2048``), ``Hi`` is ``index_n_heads`` (``64``),
      ``Di`` is ``index_head_dim`` (``128``) and ``num_selection_heads`` is ``1``: the weighted
      scores of all index heads are summed into one selection per token;
-   * ``index_key_blocks`` is the per-token index key ``k_norm(wk(x))`` with the partial RoPE of
+   * ``block_index_keys`` is the per-token index key ``k_norm(wk(x))`` with the partial RoPE of
      the indexer, that is the DSA indexer key cache. Mean-pooling over one token is the identity;
    * ``index_query`` is ``wq_b(q_resid)`` with the same partial RoPE;
    * ``index_weights`` is ``weights_proj(x) * index_n_heads^-0.5``. The positive factor
@@ -183,7 +189,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
      be omitted or multiplied into ``index_weights``.
 
    DSA scores the keys with ``sum_h w[h] * ReLU(softmax_scale * q[h] . k)``, which is the score of
-   *SparseAttentionIndexer* up to the positive factor. The Hadamard rotation and the FP8 quantization of the
+   *QSAIndexer* up to the positive factor. The Hadamard rotation and the FP8 quantization of the
    reference DSA indexer are precision optimizations and are not part of the definition. The
    selected tokens are consumed by :doc:`BlockSparseAttention <block-sparse-attention>` with
    ``compress_ratio = 1``.
@@ -231,7 +237,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
 * **1**: ``index_query`` - 4D tensor of type *T* and shape ``[N, Hi, L, Di]``: the index query
   heads of the query tokens. **Required.**
 
-* **2**: ``index_key_blocks`` - 3D tensor of type *T* and shape ``[N, B, Di]``: one index key per
+* **2**: ``block_index_keys`` - 3D tensor of type *T* and shape ``[N, B, Di]``: one index key per
   complete key block, ``B = floor(S / compress_ratio)``. **Required.**
 
 * **3**: ``key_length`` - a scalar or single element 1D tensor of type *T_IND*: the number of key
@@ -288,7 +294,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
 .. code-block:: xml
    :force:
 
-    <layer id="1" name="indexer" type="SparseAttentionIndexer" version="extension">
+    <layer id="1" name="indexer" type="QSAIndexer" version="extension">
         <data compress_ratio="4" token_budget="2048" index_element_type="i32"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->
@@ -297,7 +303,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
                 <dim>-1</dim>  <!-- L -->
                 <dim>128</dim> <!-- Di -->
             </port>
-            <port id="1" precision="BF16"> <!-- index_key_blocks -->
+            <port id="1" precision="BF16"> <!-- block_index_keys -->
                 <dim>1</dim>   <!-- N -->
                 <dim>-1</dim>  <!-- B = floor(S / 4) -->
                 <dim>128</dim> <!-- Di -->
@@ -324,7 +330,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
 .. code-block:: xml
    :force:
 
-    <layer id="2" name="indexer" type="SparseAttentionIndexer" version="extension">
+    <layer id="2" name="indexer" type="QSAIndexer" version="extension">
         <data compress_ratio="4" token_budget="2048"/>
         <input>
             <port id="0" precision="FP32"> <!-- index_query -->
@@ -333,7 +339,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
                 <dim>1</dim>    <!-- L -->
                 <dim>128</dim>  <!-- Di -->
             </port>
-            <port id="1" precision="FP32"> <!-- index_key_blocks -->
+            <port id="1" precision="FP32"> <!-- block_index_keys -->
                 <dim>2</dim>    <!-- N -->
                 <dim>2500</dim> <!-- B = floor(10001 / 4) -->
                 <dim>128</dim>  <!-- Di -->
@@ -361,7 +367,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
 .. code-block:: xml
    :force:
 
-    <layer id="3" name="dsa_indexer" type="SparseAttentionIndexer" version="extension">
+    <layer id="3" name="dsa_indexer" type="QSAIndexer" version="extension">
         <data compress_ratio="1" token_budget="2048"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->
@@ -370,7 +376,7 @@ the raw keys of at most ``compress_ratio - 1`` tokens of the incomplete block, a
                 <dim>1</dim>     <!-- L -->
                 <dim>128</dim>   <!-- Di = index_head_dim -->
             </port>
-            <port id="1" precision="BF16"> <!-- index_key_blocks: per-token index keys -->
+            <port id="1" precision="BF16"> <!-- block_index_keys: per-token index keys -->
                 <dim>1</dim>     <!-- N -->
                 <dim>10001</dim> <!-- B = S -->
                 <dim>128</dim>   <!-- Di -->

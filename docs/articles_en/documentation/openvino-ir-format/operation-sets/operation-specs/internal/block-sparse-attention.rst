@@ -23,7 +23,7 @@ blocks are not a fixed sparsity pattern: they are selected per query token, or p
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
   Hugging Face Transformers), with blocks of ``compress_ratio = 4`` tokens selected by
-  :doc:`SparseAttentionIndexer <sparse-attention-indexer>`. Most of this document uses it as the
+  :doc:`QSAIndexer <qsa-indexer>`. Most of this document uses it as the
   example;
 * DeepSeek Sparse Attention (DSA) of DeepSeek-V3.2 and GLM-MoE-DSA, with single-token blocks
   (``compress_ratio = 1``). See the note below;
@@ -117,7 +117,7 @@ Properties that follow from the definition:
 
 * Causal mode: the ``L`` query tokens are the last ``L`` of the ``S`` key tokens, and query ``l``
   has the position ``S - L + l``. With the valid block indices of a row in
-  ``[0, (p + 1) // compress_ratio)``, as produced by *SparseAttentionIndexer*, every attended token
+  ``[0, (p + 1) // compress_ratio)``, as produced by *QSAIndexer*, every attended token
   is at or before ``p``. A query attends to ``block_count * compress_ratio + (p + 1) % compress_ratio``
   tokens, so the number of key and value rows of every query is known before any of them is read.
 * With ``causal = false`` a query attends to the ``block_count * compress_ratio`` tokens of its
@@ -131,12 +131,12 @@ Properties that follow from the definition:
   count column that the vLLM sparse attention kernel uses as its tile-loop bound.
 * The result does not depend on the order of the valid block indices in a row or on the entries
   after the first ``block_count`` ones, which are ignored.
-* With the rows produced by *SparseAttentionIndexer*, the result is identical to causal
+* With the rows produced by *QSAIndexer*, the result is identical to causal
   *ScaledDotProductAttention* as long as every complete block is selected, that is for the first
   ``token_budget + compress_ratio - 1`` positions.
 * A query head attends to nothing, and produces zeros, if the ``block_count`` of its selection is
   ``0`` and, in the causal mode, ``p + 1`` is a multiple of ``compress_ratio``.
-  *SparseAttentionIndexer* never produces such a row; the FlashVSR selection can.
+  *QSAIndexer* never produces such a row; the FlashVSR selection can.
 * With ``Hs = 1`` every query head of a token attends to the same key and value rows, so an
   implementation can read every selected block once for all heads, as for multi-query attention.
   With ``Hs = Hkv`` the rows are shared within every group of query heads of one key-value head.
@@ -153,7 +153,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
    With ``compress_ratio = 1``, every block is a single token and the incomplete block is always
    empty, so a query attends to exactly the tokens listed in ``block_indices``. Together with
-   :doc:`SparseAttentionIndexer <sparse-attention-indexer>` configured as described there, this covers the sparse attention
+   :doc:`QSAIndexer <qsa-indexer>` configured as described there, this covers the sparse attention
    of DeepSeek Sparse Attention (DSA) models such as DeepSeek-V3.2 and GLM-MoE-DSA. Their
    multi-head latent attention maps to this operation in its absorbed form, as multi-query
    attention with ``Hkv = 1``, ``E = kv_lora_rank + qk_rope_head_dim`` (``576``) and
@@ -192,7 +192,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * *compress_ratio*
 
   * **Description**: number of consecutive key tokens that form one block. It must be equal to
-    *compress_ratio* of the *SparseAttentionIndexer* that produces ``block_indices``. ``128`` for
+    *compress_ratio* of the *QSAIndexer* that produces ``block_indices``. ``128`` for
     FlashVSR.
   * **Range of values**: a positive integer
   * **Type**: ``int``
@@ -236,12 +236,12 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
   ``block_count`` entries. These entries are unique within a row and, in the causal mode, in
   ``[0, (p + 1) // compress_ratio)`` for the position ``p`` of every query token of the row; with
   ``causal = false`` they are in ``[0, ceil(S / compress_ratio))``. Otherwise the behavior is
-  undefined. The remaining entries are ignored; *SparseAttentionIndexer* sets them to ``-1``.
+  undefined. The remaining entries are ignored; *QSAIndexer* sets them to ``-1``.
   **Required.**
 
 * **5**: ``block_count`` - 3D tensor of type *T_IND* and shape ``[N, Hs, Lq]``: the number of valid
   entries in every row of ``block_indices``, ``0 <= block_count <= KB``. Normally the
-  ``block_count`` output of *SparseAttentionIndexer*. **Required.**
+  ``block_count`` output of *QSAIndexer*. **Required.**
 
 * **6**: ``scale`` - a scalar or single element 1D tensor of type *T*: the attention scale factor,
   used instead of the default ``1 / sqrt(E)``. **Optional.**
@@ -283,7 +283,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * ``Ev`` - head size of the attention value.
 
 * ``KB`` - maximum number of selected blocks per query row. For the output of
-  *SparseAttentionIndexer*, ``KB = token_budget / compress_ratio``; for FlashVSR, the number of key
+  *QSAIndexer*, ``KB = token_budget / compress_ratio``; for FlashVSR, the number of key
   windows.
 
 
@@ -315,13 +315,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
                 <dim>-1</dim>   <!-- S -->
                 <dim>256</dim>  <!-- Ev -->
             </port>
-            <port id="3" precision="I32"> <!-- block_indices from SparseAttentionIndexer -->
+            <port id="3" precision="I32"> <!-- block_indices from QSAIndexer -->
                 <dim>1</dim>    <!-- N -->
                 <dim>1</dim>    <!-- Hs -->
                 <dim>-1</dim>   <!-- L -->
                 <dim>512</dim>  <!-- KB -->
             </port>
-            <port id="4" precision="I32"> <!-- block_count from SparseAttentionIndexer -->
+            <port id="4" precision="I32"> <!-- block_count from QSAIndexer -->
                 <dim>1</dim>    <!-- N -->
                 <dim>1</dim>    <!-- Hs -->
                 <dim>-1</dim>   <!-- L -->
@@ -363,13 +363,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
                 <dim>10001</dim> <!-- S -->
                 <dim>256</dim>   <!-- Ev -->
             </port>
-            <port id="3" precision="I32"> <!-- block_indices from SparseAttentionIndexer -->
+            <port id="3" precision="I32"> <!-- block_indices from QSAIndexer -->
                 <dim>2</dim>     <!-- N -->
                 <dim>1</dim>     <!-- Hs -->
                 <dim>1</dim>     <!-- L -->
                 <dim>512</dim>   <!-- KB -->
             </port>
-            <port id="4" precision="I32"> <!-- block_count from SparseAttentionIndexer: 512 -->
+            <port id="4" precision="I32"> <!-- block_count from QSAIndexer: 512 -->
                 <dim>2</dim>     <!-- N -->
                 <dim>1</dim>     <!-- Hs -->
                 <dim>1</dim>     <!-- L -->
