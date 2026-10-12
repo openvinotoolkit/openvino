@@ -88,7 +88,6 @@ private:
     int32_t minimum = 0;
     int32_t maximum = 0;
 
-    void prepare_min_max(double alpha, double beta);
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>

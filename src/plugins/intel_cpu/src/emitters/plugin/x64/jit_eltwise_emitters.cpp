@@ -3179,7 +3179,7 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
     const auto& clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node);
     double alpha = clamp->get_min();
     double beta = clamp->get_max();
-    prepare_min_max(alpha, beta);
+    std::tie(minimum, maximum) = get_clamp_min_max(alpha, beta, exec_prc_);
     prepare_table();
 }
 
@@ -3189,12 +3189,8 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
                                      double alpha,
                                      double beta)
     : jit_emitter(host, host_isa, exec_prc) {
-    prepare_min_max(alpha, beta);
-    prepare_table();
-}
-
-void jit_clamp_emitter::prepare_min_max(double alpha, double beta) {
     std::tie(minimum, maximum) = get_clamp_min_max(alpha, beta, exec_prc_);
+    prepare_table();
 }
 
 size_t jit_clamp_emitter::get_inputs_num() const {

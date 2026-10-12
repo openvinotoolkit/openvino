@@ -130,7 +130,7 @@ jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* 
     if (clamp == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }
-    prepare_min_max(clamp->get_min(), clamp->get_max());
+    std::tie(minimum, maximum) = get_clamp_min_max(clamp->get_min(), clamp->get_max(), exec_prc_);
 
     prepare_table();
 }
@@ -141,12 +141,8 @@ jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* 
                                      const double beta,
                                      const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
-    prepare_min_max(alpha, beta);
-    prepare_table();
-}
-
-void jit_clamp_emitter::prepare_min_max(double alpha, double beta) {
     std::tie(minimum, maximum) = get_clamp_min_max(alpha, beta, exec_prc_);
+    prepare_table();
 }
 
 size_t jit_clamp_emitter::get_inputs_count() const {
