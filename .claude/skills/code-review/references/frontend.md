@@ -1,7 +1,8 @@
 # OpenVINO Frontend Review
 
-Apply to frontend translators, Python decoders and bindings, and conversion
-tests. Use the base skill's correctness, safety, and reporting checklist.
+Apply to changes under `src/frontends/`, frontend Python decoders and bindings
+under `src/bindings/python/src/openvino/frontend/` and
+`src/bindings/python/src/pyopenvino/frontend/`, and their conversion tests.
 
 ## Conversion semantics
 
