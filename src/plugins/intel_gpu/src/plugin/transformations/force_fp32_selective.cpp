@@ -24,6 +24,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "plugin/transformations/utils.hpp"
 
@@ -144,13 +145,15 @@ std::unordered_set<ov::Node*> collect_seeds(
         if (!type_match || !name_match)
             continue;
 
+        // GPU Placeholder represents an absent optional input, not a computation.
+        if (ov::is_type<ov::intel_gpu::op::Placeholder>(node))
+            continue;
+
         // Model boundaries keep their original types; outputless nodes are not seeds.
         if (ov::is_type<ov::op::v0::Parameter>(node) || ov::is_type<ov::op::v0::Result>(node) ||
             !has_fp16_output(node)) {
             continue;
         }
-        if (node_name.find("Placeholder") != std::string::npos)
-            continue;
 
         f32_region.insert(node.get());
     }
@@ -260,6 +263,11 @@ std::tuple<bool, int, size_t> promote_inputs(
 
         for (const auto& input : node->inputs()) {
             const auto incoming_output = input.get_source_output();
+            const auto incoming_node = incoming_output.get_node_shared_ptr();
+            // An absent optional input has no tensor to convert.
+            if (ov::is_type<ov::intel_gpu::op::Placeholder>(incoming_node))
+                continue;
+
             const auto input_et = incoming_output.get_element_type();
             if (input_et != ov::element::f16 && input_et != desired_et)
                 continue;
@@ -274,13 +282,6 @@ std::tuple<bool, int, size_t> promote_inputs(
 
             if (input_et == desired_et)
                 continue;
-
-            const auto incoming_node = incoming_output.get_node_shared_ptr();
-            // Skip Placeholder inputs
-            if (incoming_node->get_friendly_name().find("Placeholder") != std::string::npos ||
-                incoming_node->get_type_info().name == std::string("gpu_opset::Placeholder")) {
-                continue;
-            }
 
             // Change this edge only, preserving external Converts and their users.
             auto convert = std::make_shared<ov::op::v0::Convert>(incoming_output, desired_et);
