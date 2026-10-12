@@ -372,7 +372,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         std::vector<BufferDescriptor> descs;
         if (_had_block != 0)
             descs.emplace_back(M * _K, ov::element::f16);
-        if (_int8 && M > 8)
+        if (M > 8 && _int8)
             descs.emplace_back((_K / kTernoclGroupSize) * ((M + 31) & ~size_t{31}), ov::element::f16);
         return descs;
     }

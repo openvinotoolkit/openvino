@@ -68,16 +68,16 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         const auto& device_info = node.get_program().get_engine().get_device_info();
         if (device_info.arch < gpu_arch::xe2 || !device_info.supports_immad)
             return false;
-#define TERNOCL_REJECT(reason)                                                                                 \
-    do {                                                                                                       \
+#define TERNOCL_REJECT(reason)                                                                               \
+    do {                                                                                                     \
         GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] reject " << fc_node.id() << ": " << (reason) << std::endl; \
-        /* a fused Hadamard input exists only here; another impl would ignore it */                            \
-        OPENVINO_ASSERT(fc_prim->hadamard_block == 0,                                                          \
-                        "[GPU] ternocl int2: ",                                                                \
-                        fc_node.id(),                                                                          \
-                        " carries a Hadamard input transform but the TernOCL impl rejected it: ",              \
-                        (reason));                                                                             \
-        return false;                                                                                          \
+        /* a fused Hadamard input exists only here; another impl would ignore it */                          \
+        OPENVINO_ASSERT(fc_prim->hadamard_block == 0,                                                        \
+                        "[GPU] ternocl int2: ",                                                              \
+                        fc_node.id(),                                                                        \
+                        " carries a Hadamard input transform but the TernOCL impl rejected it: ",            \
+                        (reason));                                                                           \
+        return false;                                                                                        \
     } while (0)
 
         if (!fc_prim->compressed_weights)
