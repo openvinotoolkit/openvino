@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -116,25 +117,16 @@ public:
 };
 
 template <typename T, size_t N>
-constexpr bool all_unique(const std::array<T, N>& values) {
-    for (size_t i = 0; i < N; ++i) {
-        for (size_t j = i + 1; j < N; ++j) {
-            if (values[i] == values[j]) {
-                return false;
-            }
-        }
-    }
-    return true;
+bool all_unique(std::array<T, N> values) {
+    std::sort(values.begin(), values.end());
+    return std::adjacent_find(values.begin(), values.end()) == values.end();
 }
 
 template <typename T, size_t N>
-constexpr bool all_in_range(const std::array<T, N>& values, T low, T high) {
-    for (size_t i = 0; i < N; ++i) {
-        if (values[i] < low || !(values[i] < high)) {
-            return false;
-        }
-    }
-    return true;
+bool all_in_range(const std::array<T, N>& values, T low, T high) {
+    return std::all_of(values.begin(), values.end(), [low, high](const T& value) {
+        return low <= value && value < high;
+    });
 }
 
 // Every Core tag id. Listing them here is what makes the uniqueness and count guards below meaningful:
@@ -264,14 +256,13 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_values_are_pinned) {
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_ids_cannot_be_shared) {
-    static_assert(all_unique(k_core_tag_ids), "two Core tags resolve to the same wire id");
-    static_assert(all_in_range(k_core_tag_ids, 1u, hsm::core_tag_id_range_end),
-                  "a Core tag id reuses Tags::invalid or escapes the Core-owned range");
     // +1 for Tags::invalid, which is not a real tag and so is absent from k_core_tag_ids.
     static_assert(k_core_tag_ids.size() + 1 == static_cast<size_t>(hsm::Tags::sentinel_count),
                   "a Core tag was added to Tags but not listed in k_core_tag_ids");
 
-    SUCCEED();
+    EXPECT_TRUE(all_unique(k_core_tag_ids)) << "two Core tags resolve to the same wire id";
+    EXPECT_TRUE(all_in_range(k_core_tag_ids, 1U, hsm::core_tag_id_range_end))
+        << "a Core tag id reuses Tags::invalid or escapes the Core-owned range";
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, device_values_are_pinned_and_cannot_be_shared) {
@@ -279,14 +270,12 @@ TEST_F(HsmFormatLayoutCompatibilityTest, device_values_are_pinned_and_cannot_be_
     static_assert(static_cast<hsm::DeviceId>(hsm::Devices::cpu) == 1, "Devices::cpu value changed");
     static_assert(static_cast<hsm::DeviceId>(hsm::Devices::gpu) == 2, "Devices::gpu value changed");
     static_assert(static_cast<hsm::DeviceId>(hsm::Devices::npu) == 3, "Devices::npu value changed");
-
-    static_assert(all_unique(k_device_ids), "two devices resolve to the same wire id");
-    static_assert(all_in_range(k_device_ids, hsm::any_device_id, hsm::sample_device_id_range_start),
-                  "a real device id escapes into the sample/test bucket");
     static_assert(k_device_ids.size() == static_cast<size_t>(hsm::Devices::sentinel_count),
                   "a device was added to Devices but not listed in k_device_ids");
 
-    SUCCEED();
+    EXPECT_TRUE(all_unique(k_device_ids)) << "two devices resolve to the same wire id";
+    EXPECT_TRUE(all_in_range(k_device_ids, hsm::any_device_id, hsm::sample_device_id_range_start))
+        << "a real device id escapes into the sample/test bucket";
 }
 // --- HSM wire-format layout/version compatibility end ----------------------------------------------------
 
