@@ -37,7 +37,7 @@ public:
 protected:
     /**
      * @brief Returns a set of snippets::Reg that should be spilled in the derived emitter.
-     * This set includes live_regs passed in constructor, plus callee-saved regs and regs for ABI params.
+     * This set includes live_regs passed in constructor, plus regs for ABI params and call address.
      */
     const std::set<snippets::Reg>& get_regs_to_spill() const;
 
@@ -45,11 +45,6 @@ protected:
      * @brief Returns a GPR that can be used to store the address of the callable.
      */
     const Xbyak_aarch64::XReg& get_call_address_reg() const;
-
-    /**
-     * @brief Returns a callee-saved GPR that can be used for stack alignment before the call.
-     */
-    const Xbyak_aarch64::XReg& get_callee_saved_reg() const;
 
     /**
      * @brief Initializes registers for binary call emission according to ARM64 AAPCS.
@@ -80,7 +75,6 @@ protected:
 private:
     // All mutable because init_binary_call_regs() is called from const emit_impl()
     mutable std::set<snippets::Reg> m_regs_to_spill;
-    mutable Xbyak_aarch64::XReg m_callee_saved_reg{31};  // Initialize to invalid reg
     mutable Xbyak_aarch64::XReg m_call_address_reg{31};  // Initialize to invalid reg
     mutable bool m_regs_initialized = false;
     mutable bool m_stack_preserved = false;  // Tracks if emit_stack_preserve was called

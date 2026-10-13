@@ -101,6 +101,22 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
             // cover Sign NAN test case
             if ((activationType == utils::ActivationTypes::Sign) && funcInput.get_element_type() == ov::element::f32) {
                 static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN();
+            } else if ((activationType == utils::ActivationTypes::Floor ||
+                        activationType == utils::ActivationTypes::Ceiling) &&
+                       funcInput.get_element_type() == ov::element::f32) {
+                auto inject = [&](size_t idx, float val) {
+                    if (idx < tensor.get_size()) {
+                        static_cast<float*>(tensor.data())[idx] = val;
+                    }
+                };
+                inject(0, -1.25f);
+                inject(1, -0.25f);
+                inject(2, 0.25f);
+                inject(3, -2147483904.0f);
+                inject(4, 2147483904.0f);
+                inject(5, std::numeric_limits<float>::infinity());
+                inject(6, -std::numeric_limits<float>::infinity());
+                inject(7, std::numeric_limits<float>::quiet_NaN());
             } else if (activationType == utils::ActivationTypes::ErfInv && funcInput.get_element_type().is_real()) {
                 const auto sz = tensor.get_size();
                 auto inject = [&](size_t idx, float val) {
