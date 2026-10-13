@@ -701,11 +701,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
 
-            // With f16 inference precision, f32 activations are also supported: the MoE passes run before ConvertPrecision,
+            // With f16 inference precision, f32 and bf16 activations are also supported: the MoE passes run before ConvertPrecision,
             // which converts them to f16. With dynamic inference precision, the model activation types are kept as is.
             std::vector<ov::element::Type> supported_activation_types{ov::element::f16};
             if (infer_precision == ov::element::f16) {
-                supported_activation_types.push_back(ov::element::f32);
+                supported_activation_types.insert(supported_activation_types.end(), {ov::element::f32, ov::element::bf16});
             }
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types,
                                                                                  supported_activation_types);

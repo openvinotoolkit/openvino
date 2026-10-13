@@ -114,7 +114,7 @@ TEST_P(FuseMoERouterTest, CompareFunctions) {
         auto indices_out = std::make_shared<ov::op::v0::Unsqueeze>(topk_indices, ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
         model = std::make_shared<ov::Model>(ov::OutputVector{weights_out, indices_out}, ov::ParameterVector{hidden_states});
     }
-    manager.register_pass<FuseMoERouter>();
+    manager.register_pass<FuseMoERouter>(std::vector<ov::element::Type>{data_precision});
     {
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(data_precision, Shape{4, 8, 2048});
         auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});

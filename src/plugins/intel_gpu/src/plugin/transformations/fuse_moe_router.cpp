@@ -37,18 +37,8 @@ namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 using namespace ov::pass;
 
-namespace {
-// Restrict the router logits types (any type if the list is empty)
-ov::pass::pattern::op::Predicate activation_type_matches(const std::vector<ov::element::Type>& supported_activation_types) {
-    if (supported_activation_types.empty()) {
-        return {};
-    }
-    return type_matches_any(supported_activation_types);
-}
-}  // namespace
-
 FuseMoESoftmaxRouter::FuseMoESoftmaxRouter(const std::vector<ov::element::Type>& supported_activation_types) {
-    auto routing_matmul = wrap_type<ov::op::v0::MatMul>(activation_type_matches(supported_activation_types));
+    auto routing_matmul = wrap_type<ov::op::v0::MatMul>(type_matches_any(supported_activation_types));
 
     auto softmax_m = wrap_type<ov::op::v8::Softmax>({routing_matmul}, consumers_count(1));
     auto topk_k_m = wrap_const();
@@ -100,7 +90,7 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter(const std::vector<ov::element::Type>&
 }
 
 FuseMoESigmoidRouter::FuseMoESigmoidRouter(const std::vector<ov::element::Type>& supported_activation_types) {
-    auto routing_matmul = wrap_type<ov::op::v0::MatMul>(activation_type_matches(supported_activation_types));
+    auto routing_matmul = wrap_type<ov::op::v0::MatMul>(type_matches_any(supported_activation_types));
 
     auto sigmoid_m = wrap_type<ov::op::v0::Sigmoid>({routing_matmul});
     auto routing_bias_m = any_input();

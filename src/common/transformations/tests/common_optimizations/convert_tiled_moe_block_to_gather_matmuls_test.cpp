@@ -1097,8 +1097,7 @@ TEST_P(ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest, CompareFunctions)
 INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest_positive_cases,
                          ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest,
                          ::testing::Combine(::testing::ValuesIn(moe_types),
-                                            ::testing::Values(std::vector<ov::element::Type>{},
-                                                              std::vector<ov::element::Type>{ov::element::f16,
+                                            ::testing::Values(std::vector<ov::element::Type>{ov::element::f16,
                                                                                              ov::element::f32}),
                                             ::testing::Values(true)),
                          ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest::getTestCaseName);
@@ -1106,7 +1105,8 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest_
 INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest_negative_cases,
                          ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest,
                          ::testing::Combine(::testing::ValuesIn(moe_types),
-                                            ::testing::Values(std::vector<ov::element::Type>{ov::element::f16}),
+                                            ::testing::Values(std::vector<ov::element::Type>{},
+                                                              std::vector<ov::element::Type>{ov::element::f16}),
                                             ::testing::Values(false)),
                          ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest::getTestCaseName);
 }  // namespace

@@ -58,14 +58,6 @@ std::shared_ptr<ov::Node> make_expert_weight_pattern(const std::vector<ov::eleme
     return std::make_shared<pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
 }
 
-// Restrict the MoE block activation types (any type if the list is empty)
-pattern::op::Predicate activation_type_matches(const std::vector<ov::element::Type>& supported_activation_types) {
-    if (supported_activation_types.empty()) {
-        return {};
-    }
-    return pattern::type_matches_any(supported_activation_types);
-}
-
 std::shared_ptr<ov::op::v0::Unsqueeze> introduce_n_experts_dim(const ov::Output<ov::Node>& data) {
     auto zero_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(data, zero_const);
@@ -92,7 +84,7 @@ MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& s
     MOE2GEMMPatternNodes p;
 
     p.experts_input = pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()},
-                                                      activation_type_matches(supported_activation_types));
+                                                      pattern::type_matches_any(supported_activation_types));
     p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
     p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(1));
     p.gate_up_matmul = pattern::wrap_type<v0::MatMul>(
@@ -168,7 +160,7 @@ MOE3GEMMPatternNodes build_3gemm_pattern(const std::vector<ov::element::Type>& s
                                          const std::vector<ov::element::Type>& supported_activation_types) {
     MOE3GEMMPatternNodes p;
 
-    p.experts_input = pattern::any_input(activation_type_matches(supported_activation_types));
+    p.experts_input = pattern::any_input(pattern::type_matches_any(supported_activation_types));
     p.tile = pattern::wrap_type<v0::Tile>({p.experts_input, pattern::any_input()}, pattern::consumers_count(1));
     p.after_tile_reshape = pattern::wrap_type<v1::Reshape>({p.tile, pattern::any_input()}, pattern::consumers_count(2));
 
