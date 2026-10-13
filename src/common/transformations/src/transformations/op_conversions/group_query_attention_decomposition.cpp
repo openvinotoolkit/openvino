@@ -37,7 +37,6 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/round.hpp"
@@ -203,14 +202,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
     }
     const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
-
-    const auto max_over_batch = [&](const std::shared_ptr<ov::Node>& per_batch_len) {
-        const auto flat = register_new_node<v1::Reshape>(
-            per_batch_len,
-            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1})),
-            false);
-        return register_new_node<v1::ReduceMax>(flat, zero, true);
-    };
 
     // QK-Norm is applied to the new Q/K heads before RoPE (ORT); shared KV has no new keys.
     if (node->has_qk_norm()) {
@@ -601,10 +592,13 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                                        qk_output);
         qga_output = attention[0];
         if (qk_output != ov::op::internal::GroupQueryAttentionQKOutput::NONE) {
-            // Keep only the total_sequence_length (past + current) key columns, as ONNX Runtime does; a static or
-            // shared cache buffer may hold more rows, which are masked and dropped here.
+            // ONNX Runtime lays output_qk out over the total_sequence_length input, which a static or shared cache
+            // does not tie to seqlens_k; the per-batch lengths only mask. Extra cache rows are dropped here.
             const auto three = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
-            const auto total_cols = batched ? max_over_batch(total_b)->output(0) : seqlens_1d->output(0);
+            const auto total_cols = register_new_node<v1::Reshape>(
+                register_new_node<v0::Convert>(get_input(GQAInputs::TOTAL_SEQUENCE_LENGTH), ov::element::i64),
+                one,
+                false);
             qk_scores = register_new_node<v8::Slice>(attention[1], zero, total_cols, one, three);
         }
     } else if (sink.get_node_shared_ptr()) {

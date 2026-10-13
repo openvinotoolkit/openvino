@@ -7215,8 +7215,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_after_softmax) {
     test_case.run_with_tolerance_as_fp();
 }
 
-// Preallocated cache (capacity 8, total 5): output_qk keeps only the total_sequence_length key columns.
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache) {
+namespace {
+// Preallocated cache (capacity 8) decode with seqlens_k = 4: output_qk has total_sequence_length columns (ORT), while
+// seqlens_k alone drives the attention and the cache update.
+void run_gqa_qk_output_static_cache(int total, const std::vector<float>& expected_qk) {
     const auto model = convert_model("com.microsoft/gqa_qk_output_static_cache.onnx");
 
     // Zero-initialized buffer holding 4 past rows; rows beyond total are unspecified in ORT.
@@ -7229,7 +7231,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache) {
     test_case.add_input<float>(Shape{1, 1, 8, 16}, past_key);
     test_case.add_input<float>(Shape{1, 1, 8, 16}, past_value);
     test_case.add_input<int>(Shape{1, 1}, {4});
-    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_input<int>(Shape{}, {total});
     test_case.add_expected_output<float>(
         Shape{1, 1, 32},
         {
@@ -7276,20 +7278,30 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache) {
             0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
             0.000000f,  0.000000f,
         });
-    test_case.add_expected_output<float>(Shape{1, 2, 1, 5},
-                                         {
-                                             -0.290551f,
-                                             1.084145f,
-                                             -0.004623f,
-                                             -2.390336f,
-                                             -0.274342f,
-                                             1.730582f,
-                                             -0.621596f,
-                                             0.607299f,
-                                             0.223935f,
-                                             -1.017994f,
-                                         });
+    test_case.add_expected_output<float>(Shape{1, 2, 1, static_cast<size_t>(total)}, expected_qk);
     test_case.run_with_tolerance_as_fp();
+}
+}  // namespace
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache) {
+    run_gqa_qk_output_static_cache(5,
+                                   {-0.290551f,
+                                    1.084145f,
+                                    -0.004623f,
+                                    -2.390336f,
+                                    -0.274342f,
+                                    1.730582f,
+                                    -0.621596f,
+                                    0.607299f,
+                                    0.223935f,
+                                    -1.017994f});
+}
+
+// total_sequence_length (4) below seqlens_k + 1 (5): output_qk keeps 4 columns, the attention still sees 5 keys.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache_total_below_seqlens) {
+    run_gqa_qk_output_static_cache(
+        4,
+        {-0.290551f, 1.084145f, -0.004623f, -2.390336f, 1.730582f, -0.621596f, 0.607299f, 0.223935f});
 }
 
 // softcap in f16: the capped chain runs in reduced precision, incl. the finite-lowest() mask clamp.

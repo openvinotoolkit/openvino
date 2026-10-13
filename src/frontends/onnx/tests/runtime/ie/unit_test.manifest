@@ -417,3 +417,4 @@ IE_GPU.onnx_model_max_unpool
 
 # GPU: a fully static model cannot produce the runtime-sized (total_sequence_length) GQA output_qk
 IE_GPU.onnx_model_gqa_qk_output_static_cache
+IE_GPU.onnx_model_gqa_qk_output_static_cache_total_below_seqlens
