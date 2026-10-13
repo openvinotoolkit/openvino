@@ -14,15 +14,26 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace ov;
@@ -48,12 +59,16 @@ struct GqaParams {
     std::string name;
     bool do_rotary = false;
     bool rotary_interleaved = false;
+    int64_t rotary_dim = HEAD_SIZE;
     int64_t kv_cache_bit_width = 0;
     element::Type kv_type = element::f32;
     int64_t local_window_size = -1;
     bool sliding_window_cache = false;
     bool smooth_softmax = false;
     bool head_sink = false;
+    bool causal = true;
+    bool shared_kv = false;
+    float softcap = 0.0f;
     bool attention_bias = false;
     Dimension bias_kv_len = Dimension::dynamic();
     Dimension past_len = Dimension::dynamic();
@@ -63,9 +78,10 @@ struct GqaParams {
     bool expects_scatter_update = false;
 
     explicit GqaParams(std::string n) : name(std::move(n)) {}
-    GqaParams& rotary(bool interleaved = false) {
+    GqaParams& rotary(bool interleaved = false, int64_t dim = HEAD_SIZE) {
         do_rotary = true;
         rotary_interleaved = interleaved;
+        rotary_dim = dim;
         return *this;
     }
     GqaParams& quant(int64_t bits, element::Type t) {
@@ -92,6 +108,18 @@ struct GqaParams {
     GqaParams& sink_head() {
         head_sink = true;
         expected_sdpa_inputs = 6;
+        return *this;
+    }
+    GqaParams& soft_cap(float cap) {
+        softcap = cap;
+        return *this;
+    }
+    GqaParams& shared() {
+        shared_kv = true;
+        return *this;
+    }
+    GqaParams& bidirectional() {
+        causal = false;
         return *this;
     }
     // kv_len lets a case declare the bias narrower than the buffer it will be added against (e.g. a
@@ -129,16 +157,17 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
 
     // The internal op receives Q/K/V already transposed to [batch, heads, seq, head_size] (the ONNX FE
     // splits the packed QKV before creating it).
-    add(f32, PartialShape{1, NUM_HEADS, p.seq_len, HEAD_SIZE});              // 0: query
-    add(f32, PartialShape{1, KV_NUM_HEADS, p.seq_len, HEAD_SIZE});           // 1: key
-    add(f32, PartialShape{1, KV_NUM_HEADS, p.seq_len, HEAD_SIZE});           // 2: value
+    add(f32, PartialShape{1, NUM_HEADS, p.seq_len, HEAD_SIZE});  // 0: query
+    const Dimension kv_seq = p.shared_kv ? Dimension(0) : p.seq_len;
+    add(f32, PartialShape{1, KV_NUM_HEADS, kv_seq, HEAD_SIZE});              // 1: key
+    add(f32, PartialShape{1, KV_NUM_HEADS, kv_seq, HEAD_SIZE});              // 2: value
     add(p.kv_type, PartialShape{1, KV_NUM_HEADS, p.past_len, stored_head});  // 3: past_key
     add(p.kv_type, PartialShape{1, KV_NUM_HEADS, p.past_len, stored_head});  // 4: past_value
     add(element::i32, PartialShape{1});                                      // 5: seqlens_k
     add(element::i32, PartialShape{});                                       // 6: total_sequence_length
     if (p.do_rotary) {
-        add(f32, PartialShape{1, HEAD_SIZE / 2});  // 7: cos_cache
-        add(f32, PartialShape{1, HEAD_SIZE / 2});  // 8: sin_cache
+        add(f32, PartialShape{1, p.rotary_dim / 2});  // 7: cos_cache
+        add(f32, PartialShape{1, p.rotary_dim / 2});  // 8: sin_cache
     }
     if (p.attention_bias) {
         pad_to(10);
@@ -165,7 +194,9 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
                                                            quant,
                                                            p.local_window_size,
                                                            p.sliding_window_cache,
-                                                           p.smooth_softmax);
+                                                           p.smooth_softmax,
+                                                           p.causal,
+                                                           p.softcap);
     ResultVector results;
     for (size_t i = 0; i < gqa->get_output_size(); ++i)
         results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
@@ -178,7 +209,8 @@ std::shared_ptr<GroupQueryAttention> make_gqa_op(const Dimension& batch,
                                                  const Dimension& seq,
                                                  const Dimension& past,
                                                  int64_t local_window_size,
-                                                 bool sliding_window_cache) {
+                                                 bool sliding_window_cache,
+                                                 bool causal = true) {
     const auto f32 = element::f32;
     auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, NUM_HEADS, seq, HEAD_SIZE});
     auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, KV_NUM_HEADS, seq, HEAD_SIZE});
@@ -199,7 +231,8 @@ std::shared_ptr<GroupQueryAttention> make_gqa_op(const Dimension& batch,
                                                  op::internal::GroupQueryAttentionQuantType::NONE,
                                                  local_window_size,
                                                  sliding_window_cache,
-                                                 /*smooth_softmax*/ false);
+                                                 /*smooth_softmax*/ false,
+                                                 causal);
 }
 
 }  // namespace
@@ -224,8 +257,20 @@ TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
         }
     }
 
-    // The windowed rolling cache assembles the present buffer with ScatterUpdate; other paths do not.
-    EXPECT_EQ(count_ops_of_type<op::v3::ScatterUpdate>(model) > 0u, p.expects_scatter_update);
+    // The windowed rolling / static-cache paths assemble the present buffer with a ScatterUpdate along the
+    // sequence axis (2); other cache paths do not. (Partial rotary also emits an unrelated ScatterUpdate to
+    // re-attach pass-through channels along the last (channel) axis - filter cache writes by scatter axis.)
+    bool has_cache_scatter_update = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto su = as_type_ptr<op::v3::ScatterUpdate>(op)) {
+            auto axis_const = as_type_ptr<op::v0::Constant>(su->get_input_node_shared_ptr(3));
+            if (axis_const && axis_const->cast_vector<int64_t>() == std::vector<int64_t>{2}) {
+                has_cache_scatter_update = true;
+                break;
+            }
+        }
+    }
+    EXPECT_EQ(has_cache_scatter_update, p.expects_scatter_update);
 }
 
 INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
@@ -234,6 +279,9 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"prefill"}.shape(4, Dimension::dynamic()),
                                          GqaParams{"rotary"}.rotary(),
                                          GqaParams{"rotary_interleaved"}.rotary(/*interleaved*/ true),
+                                         GqaParams{"partial_rotary"}.rotary(/*interleaved*/ false, HEAD_SIZE / 2),
+                                         GqaParams{"partial_rotary_interleaved"}.rotary(/*interleaved*/ true,
+                                                                                        HEAD_SIZE / 2),
                                          GqaParams{"static_past_scatter"}.shape(1, 8),
                                          GqaParams{"static_past_scatter_bias"}.shape(1, 8).bias(5),
                                          GqaParams{"sliding_window"}.window(2),
@@ -244,7 +292,8 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"i8_per_tensor"}.quant(8, element::i8),
                                          GqaParams{"i4_per_tensor"}.quant(4, element::u8),
                                          GqaParams{"f8e4m3_per_tensor"}.quant(8, element::f8e4m3),
-                                         GqaParams{"windowed_cache"}.windowed_roll(3, 4)),
+                                         GqaParams{"windowed_cache"}.windowed_roll(3, 4),
+                                         GqaParams{"bidirectional"}.bidirectional()),
                          [](const testing::TestParamInfo<GqaParams>& i) {
                              return i.param.name;
                          });
@@ -268,12 +317,12 @@ TEST(GroupQueryAttentionOpValidation, rejects_local_window_size_zero) {
                     testing::HasSubstr("local_window_size must be -1"));
 }
 
-TEST(GroupQueryAttentionOpValidation, rejects_static_multi_token_windowed_cache) {
-    // A statically-known sequence_length > 1 with a windowed cache may cross an eviction at runtime
-    // (the unmodeled staging regime), so it is rejected up front.
-    OV_EXPECT_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true),
-                    ov::NodeValidationFailure,
-                    testing::HasSubstr("single-token decode"));
+TEST(GroupQueryAttentionOpValidation, allows_static_multi_token_windowed_cache) {
+    // A statically-known sequence_length > 1 with a windowed cache (e.g. a fixed-size prefill/context
+    // graph) takes the same staging branch a dynamic sequence_length resolving to the same runtime value
+    // would, so it is not rejected: whether a step crosses a window eviction is a runtime property
+    // (derived from seqlens_k), not something decidable - or worth gating - from the static shape alone.
+    EXPECT_NO_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true));
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one) {
@@ -292,6 +341,19 @@ TEST(GroupQueryAttentionOpValidation, allows_dynamic_sequence_with_windowed_cach
 TEST(GroupQueryAttentionOpValidation, allows_dynamic_batch) {
     // A dynamic batch dimension cannot be checked from shapes and stays enabled.
     EXPECT_NO_THROW(make_gqa_op(Dimension::dynamic(), 1, 8, /*window*/ -1, /*swc*/ false));
+}
+
+TEST(GroupQueryAttentionOpValidation, rejects_local_window_size_with_causal_false) {
+    // causal=0 (bidirectional) is mutually exclusive with a sliding window, matching ONNX Runtime
+    // (gqa_attention_base.h: causal_ || local_window_size_ == -1).
+    OV_EXPECT_THROW(make_gqa_op(1, 1, 8, /*window*/ 2, /*swc*/ false, /*causal*/ false),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("local_window_size requires causal=1"));
+}
+
+TEST(GroupQueryAttentionOpValidation, allows_bidirectional_without_window) {
+    // causal=0 with the window disabled (the only combination the FE ever produces) must construct cleanly.
+    EXPECT_NO_THROW(make_gqa_op(1, 4, 8, /*window*/ -1, /*swc*/ false, /*causal*/ false));
 }
 
 // --- Decomposed constant values -------------------------------------------------------------------
@@ -330,6 +392,31 @@ TEST(GroupQueryAttentionValues, sliding_window_boundary_uses_window_size_constan
     EXPECT_EQ(window_const->cast_vector<int64_t>(), std::vector<int64_t>{W});
 }
 
+TEST(GroupQueryAttentionValues, static_cache_scatter_index_unclamped) {
+    // past_seqlen feeds the scatter index directly, with no Minimum clamp in the chain - bounds checking
+    // for an out-of-range past_seqlen is ScatterUpdate's own responsibility, not this decomposition's.
+    auto model = make_gqa_model(GqaParams{"static_scatter"}.shape(1, 8));
+    decompose(model);
+
+    std::shared_ptr<op::v3::ScatterUpdate> cache_scatter;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto su = as_type_ptr<op::v3::ScatterUpdate>(op)) {
+            if (ov::is_type<op::v0::Parameter>(su->get_input_node_shared_ptr(0))) {
+                cache_scatter = su;
+                break;
+            }
+        }
+    }
+    ASSERT_NE(cache_scatter, nullptr) << "static full-length cache ScatterUpdate not found";
+
+    // indices = Range(0, S) + past_seqlen
+    auto add = as_type_ptr<op::v1::Add>(cache_scatter->get_input_node_shared_ptr(1));
+    ASSERT_NE(add, nullptr);
+    for (size_t i = 0; i < add->get_input_size(); ++i)
+        EXPECT_EQ(as_type_ptr<op::v1::Minimum>(add->get_input_node_shared_ptr(i)), nullptr)
+            << "past_seqlen feeding the static-cache scatter index must no longer be clamped";
+}
+
 TEST(GroupQueryAttentionValues, smooth_softmax_sink_is_zero) {
     auto model = make_gqa_model(GqaParams{"smooth"}.sink_smooth());
     decompose(model);
@@ -362,4 +449,174 @@ TEST(GroupQueryAttentionValues, head_sink_reshapes_input_to_per_head_sink) {
     auto shape_const = as_type_ptr<op::v0::Constant>(sink_reshape->get_input_node_shared_ptr(1));
     ASSERT_NE(shape_const, nullptr);
     EXPECT_EQ(shape_const->cast_vector<int64_t>(), (std::vector<int64_t>{1, -1, 1, 1}));
+}
+
+namespace {
+// softcap > 0 replaces SDPA with the explicit chain softmax(cap * tanh(scale * QK^T / cap) + mask) * V.
+void expect_softcap_chain(const std::shared_ptr<Model>& model, float cap) {
+    EXPECT_EQ(find_sdpa(model), nullptr) << "softcap must not lower to SDPA (no logit-capping hook)";
+    std::shared_ptr<op::v0::Tanh> tanh;
+    size_t softmax_count = 0;
+    for (const auto& n : model->get_ordered_ops()) {
+        if (auto t = as_type_ptr<op::v0::Tanh>(n))
+            tanh = t;
+        softmax_count += is_type<op::v8::Softmax>(n) ? 1 : 0;
+    }
+    ASSERT_NE(tanh, nullptr);
+    EXPECT_EQ(softmax_count, 1u);
+    // cap * tanh(...): the Tanh output is multiplied by the softcap constant.
+    bool scaled_by_cap = false;
+    for (const auto& in : tanh->output(0).get_target_inputs()) {
+        auto mul = as_type<op::v1::Multiply>(in.get_node());
+        if (!mul)
+            continue;
+        for (size_t i = 0; i < 2; ++i) {
+            auto c = as_type_ptr<op::v0::Constant>(mul->get_input_node_shared_ptr(i));
+            if (c && c->cast_vector<float>() == std::vector<float>{cap})
+                scaled_by_cap = true;
+        }
+    }
+    EXPECT_TRUE(scaled_by_cap);
+}
+}  // namespace
+
+TEST(GroupQueryAttentionValues, softcap_uses_explicit_tanh_chain) {
+    auto model = make_gqa_model(GqaParams{"softcap"}.soft_cap(30.0f));
+    decompose(model);
+    expect_softcap_chain(model, 30.0f);
+}
+
+TEST(GroupQueryAttentionValues, softcap_with_head_sink_appends_sink_column) {
+    auto model = make_gqa_model(GqaParams{"softcap_sink"}.soft_cap(50.0f).sink_head());
+    decompose(model);
+    expect_softcap_chain(model, 50.0f);
+    // The sink joins the softmax as one extra column on the last axis, which is sliced off afterwards.
+    bool sliced = false;
+    for (const auto& n : model->get_ordered_ops()) {
+        if (auto sm = as_type_ptr<op::v8::Softmax>(n)) {
+            ASSERT_TRUE(is_type<op::v0::Concat>(sm->get_input_node_shared_ptr(0)));
+            for (const auto& in : sm->output(0).get_target_inputs())
+                sliced |= is_type<op::v8::Slice>(in.get_node());
+        }
+    }
+    EXPECT_TRUE(sliced);
+}
+
+TEST(GroupQueryAttentionValues, shared_kv_attends_to_past_and_returns_it_as_present) {
+    auto model = make_gqa_model(GqaParams{"shared_kv"}.shared().rotary());
+    decompose(model);
+
+    // present_key/present_value are the past parameters themselves (nothing appended).
+    const auto& params = model->get_parameters();
+    EXPECT_EQ(model->get_results()[1]->get_input_node_shared_ptr(0), params[3]);
+    EXPECT_EQ(model->get_results()[2]->get_input_node_shared_ptr(0), params[4]);
+    // Zero copy: attention reads the past directly (no Slice of the cache) and no Concat/ScatterUpdate cache
+    // write is emitted; rows beyond `total` are hidden by the explicit mask instead.
+    auto sdpa = find_sdpa(model);
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_GE(sdpa->get_input_size(), 4u) << "shared KV needs the explicit mask";
+    for (const auto& n : model->get_ordered_ops()) {
+        EXPECT_FALSE(is_type<op::v3::ScatterUpdate>(n)) << n;
+    }
+    for (const auto& past : {params[3], params[4]}) {
+        for (const auto& in : past->output(0).get_target_inputs()) {
+            EXPECT_FALSE(is_type<op::v8::Slice>(in.get_node())) << "past must not be sliced (copied)";
+        }
+    }
+    // RoPE is applied to Q only: the (empty) key parameter has no consumers.
+    EXPECT_TRUE(params[1]->output(0).get_target_inputs().empty());
+}
+
+TEST(GroupQueryAttentionValues, softcap_grouped_query_does_not_replicate_kv) {
+    auto model = make_gqa_model(GqaParams{"softcap_gqa"}.soft_cap(30.0f).shape(1, Dimension::dynamic()));
+    decompose(model);
+    // NUM_HEADS / KV_NUM_HEADS = 2: query heads are grouped onto the KV heads by MatMul broadcasting, so no
+    // Concat may replicate K/V (it would materialize G copies of the KV cache).
+    size_t matmuls = 0;
+    for (const auto& n : model->get_ordered_ops()) {
+        if (const auto concat = as_type_ptr<op::v0::Concat>(n)) {
+            const auto& in0 = concat->input_value(0);
+            bool all_same = concat->get_input_size() > 1;
+            for (size_t i = 1; i < concat->get_input_size(); ++i) {
+                all_same &= concat->input_value(i) == in0;
+            }
+            EXPECT_FALSE(all_same) << "K/V head replication found: " << concat;
+        }
+        if (const auto mm = as_type_ptr<op::v0::MatMul>(n)) {
+            ++matmuls;
+            EXPECT_EQ(mm->get_output_partial_shape(0).rank().get_length(), 5) << "grouped [B, Nkv, G, S, *] MatMul";
+        }
+    }
+    EXPECT_EQ(matmuls, 2u);
+}
+
+namespace {
+size_t count_slices_of(const std::shared_ptr<Model>& model, const std::shared_ptr<Node>& source) {
+    size_t n = 0;
+    for (const auto& in : source->output(0).get_target_inputs()) {
+        n += is_type<op::v8::Slice>(in.get_node()) ? 1 : 0;
+    }
+    return n;
+}
+
+// Packed QKV (the layout of production ORT GenAI / orca models): Q/K/V come from one split, so S_kv == S_q and the
+// dynamic-kv-length handling must not alter the graph: cos/sin feed both RoPEs directly (no K-side Slice).
+std::shared_ptr<Model> make_packed_rotary_gqa_model() {
+    const auto f32 = element::f32;
+    const auto qkv =
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{1, NUM_HEADS + 2 * KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto split_lengths =
+        op::v0::Constant::create(element::i64, Shape{3}, {NUM_HEADS, KV_NUM_HEADS, KV_NUM_HEADS});
+    const auto split = std::make_shared<op::v1::VariadicSplit>(qkv,
+                                                               op::v0::Constant::create(element::i64, Shape{}, {1}),
+                                                               split_lengths);
+    const auto past_k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto past_v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, -1, HEAD_SIZE});
+    const auto seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    const auto total = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto cos = std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, HEAD_SIZE / 2});
+    const auto sin = std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, HEAD_SIZE / 2});
+    const auto gqa = std::make_shared<GroupQueryAttention>(
+        OutputVector{split->output(0), split->output(1), split->output(2), past_k, past_v, seqlens, total, cos, sin},
+        NUM_HEADS,
+        KV_NUM_HEADS,
+        0.0f,
+        true,
+        false);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    return std::make_shared<Model>(results, ParameterVector{qkv, past_k, past_v, seqlens, total, cos, sin});
+}
+}  // namespace
+
+TEST(GroupQueryAttentionValues, packed_qkv_keeps_query_length_cache_arithmetic) {
+    auto model = make_packed_rotary_gqa_model();
+    decompose(model);
+    const auto& params = model->get_parameters();
+    // Past: exactly one Slice each (keep total - S_q rows), as before.
+    EXPECT_EQ(count_slices_of(model, params[1]), 1u);
+    EXPECT_EQ(count_slices_of(model, params[2]), 1u);
+    // cos/sin: gathered once and used by both RoPEs without a K-side Slice.
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto gather = as_type_ptr<op::v8::Gather>(op)) {
+            if (gather->get_input_node_shared_ptr(0) == params[5] ||
+                gather->get_input_node_shared_ptr(0) == params[6]) {
+                for (const auto& in : gather->output(0).get_target_inputs()) {
+                    EXPECT_FALSE(is_type<op::v8::Slice>(in.get_node())) << "packed QKV must not slice cos/sin for K";
+                }
+            }
+        }
+    }
+}
+
+TEST(GroupQueryAttentionValues, bidirectional_mask_has_no_causal_comparison) {
+    auto model = make_gqa_model(GqaParams{"bidir"}.bidirectional());
+    decompose(model);
+
+    // causal=0 must not emit the query-relative Greater(hori, vert) causal comparison; only the single
+    // GreaterEqual against the total-length (past + current) threshold remains, and it does not depend
+    // on the query row.
+    EXPECT_EQ(count_ops_of_type<op::v1::Greater>(model), 0u);
+    EXPECT_EQ(count_ops_of_type<op::v1::GreaterEqual>(model), 1u);
 }

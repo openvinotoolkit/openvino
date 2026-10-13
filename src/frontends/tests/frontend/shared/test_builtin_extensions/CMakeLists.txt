@@ -10,8 +10,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4217")
 endif()
 
-file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+set(LIBRARY_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/builtin_extensions.cpp
+)
 
 set(DEPENDENCIES openvino::runtime::dev)
 
@@ -41,8 +42,7 @@ if (ENABLE_OV_PYTORCH_FRONTEND)
 endif()
 
 # Create library
-
-add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC} ${LIBRARY_HEADERS})
+add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINITIONS})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})

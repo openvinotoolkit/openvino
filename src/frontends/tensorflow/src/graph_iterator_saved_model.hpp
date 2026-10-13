@@ -12,9 +12,7 @@
 #include "ov_tensorflow/saved_model.pb.h"
 #include "variables_index.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 std::filesystem::path get_saved_model_name();
 std::filesystem::path get_variables_index_name();
@@ -181,7 +179,7 @@ private:
         // Update variables map using information by resolving AssignVariableOp graph nodes
         std::map<std::string, std::string> var_map;
         VariablesIndex::map_assignvariable(m_graph_def, var_map, m_hash_table_keys_map, m_hash_table_values_map);
-        if (m_variables_index && !m_variables_index->empty()) {
+        if (m_variables_index) {
             for (auto var : var_map) {
                 m_variables_index->map_variable(var.first, var.second);
             }
@@ -199,6 +197,4 @@ private:
     std::vector<std::string> split_tags(const std::string tags) const;
 };  // GraphIteratorSavedModel
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

@@ -11,7 +11,8 @@ import logging
 import os
 from pathlib import Path
 import shlex
-import subprocess
+# Coverage CI: run_cmd uses argv lists with shell=False unless explicitly opted in.
+import subprocess  # nosec B404
 import sys
 from typing import Any
 

@@ -64,8 +64,9 @@ bool does_device_match_config(const cl::Device& device) {
 #else
         int32_t min_ocl_version = 120;
 #endif
-        if (ocl_version < min_ocl_version)
+        if (ocl_version < min_ocl_version) {
             return false;
+        }
     }
 
     return true;
@@ -206,8 +207,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
             std::vector<cl::Device> devices;
             platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
             for (auto& device : devices) {
-                if (!does_device_match_config(device))
+                if (!does_device_match_config(device)) {
                     continue;
+                }
 
                 if (device.getInfo<CL_DEVICE_VENDOR_ID>() == cldnn::INTEL_VENDOR_ID) {
                     supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), platform));
@@ -231,8 +233,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_conte
     std::vector<device::ptr> supported_devices;
     for (size_t i = 0; i < all_devices.size(); i++) {
         auto& device = all_devices[i];
-        if (!does_device_match_config(device) || static_cast<int>(i) != ctx_device_id)
+        if (!does_device_match_config(device) || static_cast<int>(i) != ctx_device_id) {
             continue;
+        }
         supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, cl::Platform(device.getInfo<CL_DEVICE_PLATFORM>())));
     }
 
@@ -255,8 +258,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
     for (auto& id : platform_ids) {
         cl::PlatformVA platform = cl::PlatformVA(id);
 
-        if (platform.getInfo<CL_PLATFORM_VENDOR>() != INTEL_PLATFORM_VENDOR)
+        if (platform.getInfo<CL_PLATFORM_VENDOR>() != INTEL_PLATFORM_VENDOR) {
             continue;
+        }
 
         std::vector<cl::Device> devices;
 #ifdef _WIN32
@@ -283,8 +287,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
             &devices);
 
         for (auto& device : devices) {
-            if (!does_device_match_config(device))
+            if (!does_device_match_config(device)) {
                 continue;
+            }
 
             cl_context_properties props[] = {
 #ifdef _WIN32

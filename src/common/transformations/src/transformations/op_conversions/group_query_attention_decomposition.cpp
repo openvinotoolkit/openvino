@@ -27,7 +27,9 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/power.hpp"
@@ -39,8 +41,10 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -89,7 +93,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto rotary_interleaved = node->get_rotary_interleaved();
     const auto local_window_size = node->get_local_window_size();
     const auto smooth_softmax = node->get_smooth_softmax();
-    // TODO: add softcap support
+    const auto causal = node->get_causal();
+    const auto softcap = node->get_softcap();
+    const bool use_softcap = softcap > 0.0f;
 
     const auto has_input = [&](const GQAInputs input_pos) {
         const auto pos = static_cast<size_t>(input_pos);
@@ -140,6 +146,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const bool shared_kv = node->is_shared_kv();
+    // A separate key/value with a dynamic length may resolve to 0 at runtime (ORT shared KV), so its own length
+    // drives the cache arithmetic: the past keeps total - S_kv rows while the causal offset stays total - S_q.
+    const bool independent_kv_len = node->has_independent_kv_length();
+    const auto kv_seqlen = independent_kv_len ? get_dimensions(register_new_node<v3::ShapeOf>(K), {2}) : nullptr;
     const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
     const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
 
@@ -169,14 +180,26 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
         const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
-        K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+        // Shared KV has no new keys: the past keys were already rotated when they were appended.
+        if (independent_kv_len) {
+            // The new keys sit at the same positions as the queries; take only the first S_kv rows (all of them
+            // unless S_kv resolves to 0 at runtime).
+            const auto cos_k = register_new_node<v8::Slice>(cos, zero, kv_seqlen, one, zero);
+            const auto sin_k = register_new_node<v8::Slice>(sin, zero, kv_seqlen, one, zero);
+            K = rotaryEmbedding(K, cos_k, sin_k, rotary_interleaved);
+        } else if (!shared_kv) {
+            K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+        }
     }
-    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
+    // A static past is a preallocated max-length buffer written in place. A zero-capacity past (an absent ONNX
+    // past or an empty cache) has nothing to write into, so it grows by concatenation instead.
+    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static() &&
+                                 past_key.get_partial_shape()[2].get_length() > 0;
 
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
     // verbatim (no re-rounding of past tokens). Matches ONNX Runtime MLAS/CUDA semantics.
-    if (kv_quantized) {
+    if (kv_quantized && !shared_kv) {
         K = quantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, kv_cache_type);
         V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
     }
@@ -190,7 +213,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> bias_col_offset = zero;
     ov::Output<ov::Node> present_k, present_v;
 
-    if (node->get_sliding_window_cache()) {
+    if (shared_kv) {
+        // Shared KV (ORT kv_sequence_length == 0): attend to the past buffer as is (zero copy) and return it
+        // unchanged as present. Rows at or beyond `total` are hidden by the explicit mask (causal offset
+        // total - S_q via mask_past_seqlen), so no Slice of the cache is needed.
+        K = past_key;
+        V = past_value;
+        present_k = past_key;
+        present_v = past_value;
+    } else if (node->get_sliding_window_cache()) {
         // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
         // row counts before/after appending the S new tokens (see windowed_cache_end).
         const auto capacity = get_dimensions(past_key.get_node_shared_ptr(), {2});
@@ -273,6 +304,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     } else if (is_static_input) {
         // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
         // [past_seqlen, past_seqlen + curr_seqlen] with ScatterUpdate, keeping the buffer shape.
+        // An out-of-range past_seqlen is ScatterUpdate's own bounds-check responsibility, not something to
+        // guard against here via a graph-level clamp; the decomposition assumes the caller-supplied
+        // seqlens_k stays within the declared cache capacity.
         std::shared_ptr<ov::Node> scatter_idx =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
@@ -285,17 +319,26 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
         };
-        past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
-        past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
+        const ov::Output<ov::Node> kept_past = independent_kv_len
+                                                   ? register_new_node<v1::Subtract>(seqlens_1d, kv_seqlen)->output(0)
+                                                   : past_seqlen->output(0);
+        past_key = register_new_node<v8::Slice>(past_key, zero, kept_past, one, two);
+        past_value = register_new_node<v8::Slice>(past_value, zero, kept_past, one, two);
         K = construct_kv_cache(past_key, K);
         V = construct_kv_cache(past_value, V);
         present_k = K;
         present_v = V;
     }
 
+    // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
+    std::optional<CompressedKV> compressed_kv;
+    if (!use_softcap) {
+        compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
+    }
+
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
-    if (kv_quantized) {
+    if (kv_quantized && !compressed_kv) {
         K = dequantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, T);
         V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
     }
@@ -305,7 +348,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
-    if (kv_num_heads_factor > 1) {
+    // The softcap chain groups query heads per KV head itself (no KV replication), see make_softcap_attention.
+    if (kv_num_heads_factor > 1 && !compressed_kv && !use_softcap) {
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);
         const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
@@ -325,21 +369,42 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     if (has_input(GQAInputs::ATTENTION_BIAS)) {
         external_bias = get_input(GQAInputs::ATTENTION_BIAS);
     }
-    const auto mask = make_attention_mask(curr_seqlen_scalar,
-                                          concat_kv_len_scalar,
-                                          concat_kv_len,
-                                          mask_past_seqlen,
-                                          T,
-                                          local_window_size,
-                                          external_bias,
-                                          bias_col_offset);
+    const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
+    const bool has_sink = has_head_sink || smooth_softmax;
+    // The softcap chain has no is_causal fallback, and shared KV must hide the past rows beyond `total`, so both
+    // always take the explicit (base) mask; overrides may otherwise drop it in favor of SDPA's causal flag.
+    const bool explicit_mask = use_softcap || shared_kv;
+    const auto mask = explicit_mask
+                          ? GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
+                                                                                  concat_kv_len_scalar,
+                                                                                  concat_kv_len,
+                                                                                  mask_past_seqlen,
+                                                                                  T,
+                                                                                  causal,
+                                                                                  local_window_size,
+                                                                                  external_bias,
+                                                                                  bias_col_offset,
+                                                                                  node->get_sliding_window_cache(),
+                                                                                  scale,
+                                                                                  has_sink)
+                          : make_attention_mask(curr_seqlen_scalar,
+                                                concat_kv_len_scalar,
+                                                concat_kv_len,
+                                                mask_past_seqlen,
+                                                T,
+                                                causal,
+                                                local_window_size,
+                                                external_bias,
+                                                bias_col_offset,
+                                                node->get_sliding_window_cache(),
+                                                scale,
+                                                has_sink);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
     // the softmax, then sliced out. head_sink provides a per-head value; plain smooth_softmax uses 0.
     ov::Output<ov::Node> sink;
-    const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
-    if (has_head_sink || smooth_softmax) {
+    if (has_sink) {
         const auto sink_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
         if (has_head_sink) {
             auto head_sink = get_input(GQAInputs::HEAD_SINK);
@@ -356,23 +421,27 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         }
     }
 
-    std::shared_ptr<ov::Node> qga_output;
-    if (sink.get_node_shared_ptr()) {
-        // SDPA's 6-input form requires an explicit scale; use the op scale or the default 1/sqrt(head_size).
-        ov::Output<ov::Node> scale_node;
+    // Explicit scale: the op scale or the default 1/sqrt(head_size).
+    const auto make_scale_node = [&]() -> ov::Output<ov::Node> {
         if (scale != 0.0f) {
-            scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        } else {
-            const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
-            const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
-            scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
+            return register_new_node(v0::Constant::create(T, Shape{}, {scale}));
         }
-        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, sink, false);
+        const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
+        const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
+        return register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
+    };
+
+    std::shared_ptr<ov::Node> qga_output;
+    if (use_softcap) {
+        qga_output = make_softcap_attention(Q, K, V, mask, make_scale_node(), sink, softcap, kv_num_heads);
+    } else if (sink.get_node_shared_ptr()) {
+        // SDPA's 6-input form requires an explicit scale.
+        qga_output = make_sdpa(Q, K, V, mask, make_scale_node(), sink, false, compressed_kv);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, compressed_kv);
     } else {
-        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
+        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, compressed_kv);
     }
 
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
@@ -383,6 +452,98 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
 
     return {output, present_k, present_v};
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(const ov::Output<ov::Node>& query,
+                                                                                const ov::Output<ov::Node>& key,
+                                                                                const ov::Output<ov::Node>& value,
+                                                                                const ov::Output<ov::Node>& mask,
+                                                                                const ov::Output<ov::Node>& scale,
+                                                                                const ov::Output<ov::Node>& sink,
+                                                                                bool is_causal,
+                                                                                const std::optional<CompressedKV>&) {
+    if (sink.get_node()) {
+        return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, is_causal);
+    }
+    if (scale.get_node()) {
+        return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, is_causal);
+    }
+    if (mask.get_node()) {
+        return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, is_causal);
+    }
+    return register_new_node<v13::ScaledDotProductAttention>(query, key, value, is_causal);
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_softcap_attention(
+    const ov::Output<ov::Node>& query,
+    const ov::Output<ov::Node>& key,
+    const ov::Output<ov::Node>& value,
+    const ov::Output<ov::Node>& mask,
+    const ov::Output<ov::Node>& scale,
+    const ov::Output<ov::Node>& sink,
+    float softcap,
+    int64_t kv_num_heads) {
+    // SDPA has no hook between Q*K^T and softmax, so softcap uses the explicit chain in ONNX Runtime order
+    // (gqa_attention_base.h): scale -> softcap * tanh(x / softcap) -> + bias/mask -> softmax (+ sink) -> * V.
+    const auto T = query.get_element_type();
+    // Grouped-query attention without replicating K/V: view Q [B, N, S, D] as [B, Nkv, G, S, D] (query head
+    // h = kv * G + g, matching ORT) and let MatMul broadcast it against K/V viewed as [B, Nkv, 1, L, D]. The
+    // reshapes are free views of contiguous tensors; scores are taken back to [B, N, S, L] for the mask/softmax.
+    const auto q_shape = register_new_node<v3::ShapeOf>(query);
+    const auto k_shape = register_new_node<v3::ShapeOf>(key);
+    const auto batch = get_dimensions(q_shape, {0});
+    const auto num_heads = get_dimensions(q_shape, {1});
+    const auto q_len_head = get_dimensions(q_shape, {2, 3});
+    const auto kv_len = get_dimensions(k_shape, {2});
+    const auto kv_heads = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads}));
+    const auto minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+    const auto axis_2 = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const auto grouped_q_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, kv_heads, minus_one, q_len_head}, 0);
+    const auto grouped_q = register_new_node<v1::Reshape>(query, grouped_q_shape, false);
+    const auto grouped_k = register_new_node<v0::Unsqueeze>(key, axis_2);
+    const auto grouped_v = register_new_node<v0::Unsqueeze>(value, axis_2);
+    const auto grouped_scores = register_new_node<v0::MatMul>(grouped_q, grouped_k, false, true);
+    const auto scores_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, num_heads, get_dimensions(q_shape, {2}), kv_len}, 0);
+    const auto scores = register_new_node<v1::Reshape>(grouped_scores, scores_shape, false);
+    const auto inv_cap = register_new_node(v0::Constant::create(T, Shape{}, {1.0f / softcap}));
+    const auto cap = register_new_node(v0::Constant::create(T, Shape{}, {softcap}));
+    const auto scaled = register_new_node<v1::Multiply>(scores, register_new_node<v1::Multiply>(scale, inv_cap));
+    std::shared_ptr<ov::Node> logits = register_new_node<v1::Multiply>(register_new_node<v0::Tanh>(scaled), cap);
+    logits = register_new_node<v1::Add>(logits, mask);
+    if (T != ov::element::f32) {
+        // The mask fills with the type's finite lowest(); keep lowest() + logit from overflowing to -inf in
+        // reduced precision, so a fully-masked row cannot softmax to NaN.
+        const auto lowest = T == ov::element::f16 ? static_cast<float>(std::numeric_limits<ov::float16>::lowest())
+                                                  : static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        logits = register_new_node<v1::Maximum>(logits, register_new_node(v0::Constant::create(T, Shape{}, {lowest})));
+    }
+
+    std::shared_ptr<ov::Node> probs;
+    if (sink.get_node()) {
+        // Append the per-head sink as one extra logit column, softmax over it, then drop it.
+        const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+        const auto three = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
+        const auto logits_shape = register_new_node<v3::ShapeOf>(logits);
+        const auto sink_shape =
+            register_new_node<v0::Concat>(ov::NodeVector{get_dimensions(logits_shape, {0, 1, 2}), one}, 0);
+        const auto sink_col = register_new_node<v3::Broadcast>(sink, sink_shape);
+        const auto with_sink = register_new_node<v0::Concat>(ov::OutputVector{logits, sink_col}, 3);
+        probs = register_new_node<v8::Softmax>(with_sink, -1);
+        probs = register_new_node<v8::Slice>(probs, zero, minus_one, one, three);
+    } else {
+        probs = register_new_node<v8::Softmax>(logits, -1);
+    }
+    const auto grouped_probs_shape =
+        register_new_node<v0::Concat>(ov::NodeVector{batch, kv_heads, minus_one, get_dimensions(q_shape, {2}), kv_len},
+                                      0);
+    const auto grouped_probs = register_new_node<v1::Reshape>(probs, grouped_probs_shape, false);
+    const auto grouped_out = register_new_node<v0::MatMul>(grouped_probs, grouped_v);
+    // [B, Nkv, G, S, D] -> [B, N, S, D]
+    const auto out_shape = register_new_node<v0::Concat>(ov::NodeVector{batch, num_heads, q_len_head}, 0);
+    return register_new_node<v1::Reshape>(grouped_out, out_shape, false);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_cache_end(
@@ -405,7 +566,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_c
     const auto reclaimed = register_new_node<v1::Multiply>(blocks, gap);
     const auto evicted = register_new_node<v1::Subtract>(seqlen_scalar, reclaimed);
     const auto overflowed = register_new_node<v1::Greater>(seqlen_scalar, capacity_scalar);
-    return register_new_node<v1::Select>(overflowed, evicted, seqlen_scalar);
+    const auto end = register_new_node<v1::Select>(overflowed, evicted, seqlen_scalar);
+    // Data-dependent index (feeds Slice/Gather/ScatterUpdate bounds); GPU protects it from fusion.
+    end->get_rt_info()["gpu_shape_of_subgraph_root"] = true;
+    return end;
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_attention_mask(
@@ -414,45 +578,64 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     const ov::Output<ov::Node>& kv_len_1d,
     const ov::Output<ov::Node>& past_seqlen,
     const ov::element::Type& compute_type,
+    bool causal,
     int64_t local_window_size,
     const ov::Output<ov::Node>& external_bias,
-    const ov::Output<ov::Node>& bias_col_offset) {
+    const ov::Output<ov::Node>& bias_col_offset,
+    [[maybe_unused]] bool sliding_window_cache,
+    [[maybe_unused]] float scale,
+    [[maybe_unused]] bool has_sink) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
+    // A window is only ever paired with causal=1 (enforced upstream by the FE and the op), so it is only
+    // considered on the causal branch below.
     const bool has_window = local_window_size >= 1;
 
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
 
-    // Key positions [1, kv_len] and absolute query positions [curr, 1]. Coordinates are cache-relative
-    // (past_seqlen is the resident past length), which matches the distance-only ONNX Runtime rule.
+    // Key positions [1, kv_len]. Coordinates are cache-relative (past_seqlen is the resident past length),
+    // which matches the distance-only ONNX Runtime rule.
     const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     const auto one_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     std::shared_ptr<ov::Node> hori_range =
         register_new_node<v4::Range>(zero_scalar, kv_len_scalar, one_scalar, ov::element::i64);
     hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
-    std::shared_ptr<ov::Node> vert_range =
-        register_new_node<v4::Range>(zero_scalar, curr_seqlen_scalar, one_scalar, ov::element::i64);
-    vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-    vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
 
-    // Causal mask (future keys: k > q), OR-ed with the optional sliding-window band (keys older than the
-    // window: (q - k) >= local_window_size). This is applied unconditionally; an external attention_bias
-    // is added on top of it, matching ONNX Runtime (the bias does not replace the causal/window mask).
-    std::shared_ptr<ov::Node> masked = register_new_node<v1::Greater>(hori_range, vert_range);
-    if (has_window) {
-        const auto distance = register_new_node<v1::Subtract>(vert_range, hori_range);
-        const auto window = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
-        const auto too_old = register_new_node<v1::GreaterEqual>(distance, window);
-        masked = register_new_node<v1::LogicalOr>(masked, too_old);
+    std::shared_ptr<ov::Node> masked;
+    if (causal) {
+        // Absolute query positions [curr, 1]. Causal mask (future keys: k > q), OR-ed with the optional
+        // sliding-window band (keys older than the window: (q - k) >= local_window_size). This is applied
+        // unconditionally; an external attention_bias is added on top of it, matching ONNX Runtime (the bias
+        // does not replace the causal/window mask).
+        std::shared_ptr<ov::Node> vert_range =
+            register_new_node<v4::Range>(zero_scalar, curr_seqlen_scalar, one_scalar, ov::element::i64);
+        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
+        vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
+
+        masked = register_new_node<v1::Greater>(hori_range, vert_range);
+        if (has_window) {
+            const auto distance = register_new_node<v1::Subtract>(vert_range, hori_range);
+            const auto window =
+                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
+            const auto too_old = register_new_node<v1::GreaterEqual>(distance, window);
+            masked = register_new_node<v1::LogicalOr>(masked, too_old);
+        }
+    } else {
+        // Bidirectional attention: every query attends to all valid keys. Only the unused cache tail beyond
+        // total_sequence_length (past + current) is masked, matching ONNX Runtime's visible_length ==
+        // total_seqlen for causal=0. The mask does not depend on the query row, so it broadcasts as [1, kv_len]
+        // instead of materializing a full [curr, kv_len] tensor.
+        const auto past_scalar = register_new_node<v0::Squeeze>(past_seqlen);
+        const auto total_scalar = register_new_node<v1::Add>(past_scalar, curr_seqlen_scalar);
+        masked = register_new_node<v1::GreaterEqual>(hori_range, total_scalar);
     }
 
     const auto typed_zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
     // Finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN. The magnitude must
     // match the compute type so it does not overflow to -inf when narrowed: f16 and bf16 have far smaller
-    // ranges than f32. (The core op currently restricts the activation type to {f32, f16}, so bf16 is not
-    // yet reachable here, but keep an explicit branch so a future bf16 activation stays finite.)
+    // ranges than f32.
     std::shared_ptr<ov::Node> minus_inf;
     if (compute_type == ov::element::f16)
         minus_inf = register_new_node(
@@ -513,28 +696,52 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
                                                                                       bool interleaved) {
     auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
+    // rotary_dim (2 * cos.shape[-1]) may be smaller than head_size for GPT-NeoX/Phi-style partial RoPE:
+    // only the leading rotary_dim channels are rotated below; the trailing channels pass through
+    // unchanged. The op-level validate_and_infer_types() already bounds rotary_dim <= head_size.
+    const auto& cos_partial_shape = cos.get_partial_shape();
+    const auto half_head_size_val =
+        static_cast<int64_t>(cos_partial_shape[cos_partial_shape.rank().get_length() - 1].get_length());
+    const auto rotary_dim_val = 2 * half_head_size_val;
+    const auto& input_partial_shape = input.get_partial_shape();
+    const auto head_size_val =
+        static_cast<int64_t>(input_partial_shape[input_partial_shape.rank().get_length() - 1].get_length());
+    const bool is_partial_rotary = rotary_dim_val < head_size_val;
+
+    ov::Output<ov::Node> rotary_input = input;
+    if (is_partial_rotary) {
+        // Slice out only the leading rotary_dim channels to feed the RoPE math below; the trailing
+        // pass-through channels are never materialized as a separate tensor - re-attaching them later is a
+        // ScatterUpdate into the original `input`, not a Concat (avoids holding a live pass_through copy).
+        const auto slice_start = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        const auto slice_stop = v0::Constant::create(ov::element::i64, ov::Shape{1}, {rotary_dim_val});
+        const auto slice_step = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        const auto slice_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        rotary_input = register_new_node<v8::Slice>(input, slice_start, slice_stop, slice_step, slice_axis);
+    }
+
     // Unsqueeze cos/sin to 4D [1, 1, seqlen, head_size/2] to match RoPE fusion pattern
     auto unsqueeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
     auto cos_4d = register_new_node<v0::Unsqueeze>(cos, unsqueeze_axes);
     auto sin_4d = register_new_node<v0::Unsqueeze>(sin, unsqueeze_axes);
 
     // For interleaved mode, deinterleave first so the core RoPE formula is identical
-    ov::Output<ov::Node> rope_input = input;
+    ov::Output<ov::Node> rope_input = rotary_input;
     std::shared_ptr<v3::ShapeOf> input_shape;
     std::shared_ptr<ov::Node> dim_bns, half_head_size;
     std::shared_ptr<v0::Constant> perm_5d;
     if (interleaved) {
-        input_shape = register_new_node<v3::ShapeOf>(input);
+        input_shape = register_new_node<v3::ShapeOf>(rotary_input);
         dim_bns = get_dimensions(input_shape, {0, 1, 2});
         half_head_size = get_dimensions(cos.get_node_shared_ptr(), {-1});
         perm_5d = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
 
-        // Deinterleave: [bs,nh,seq,head_size]
-        //   -> reshape [bs,nh,seq,head_size/2,2]
-        //   -> transpose [bs,nh,seq,2,head_size/2]
-        //   -> reshape [bs,nh,seq,head_size]  (now [first_half, second_half])
+        // Deinterleave: [bs,nh,seq,rotary_dim]
+        //   -> reshape [bs,nh,seq,rotary_dim/2,2]
+        //   -> transpose [bs,nh,seq,2,rotary_dim/2]
+        //   -> reshape [bs,nh,seq,rotary_dim]  (now [first_half, second_half])
         auto deinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, two}, 0);
-        auto reshaped_5d = register_new_node<v1::Reshape>(input, deinterleave_5d, false);
+        auto reshaped_5d = register_new_node<v1::Reshape>(rotary_input, deinterleave_5d, false);
         auto transposed_5d = register_new_node<v1::Transpose>(reshaped_5d, perm_5d);
         rope_input = register_new_node<v1::Reshape>(transposed_5d, input_shape, false);
     }
@@ -542,9 +749,6 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     // Core RoPE formula (matches RoPEFusionGPTOSS pattern for both modes)
     // first_ = first_half * cos - second_half * sin
     // second_ = second_half * cos + first_half * sin
-    const auto& cos_partial_shape = cos.get_partial_shape();
-    const auto half_head_size_val =
-        static_cast<int64_t>(cos_partial_shape[cos_partial_shape.rank().get_length() - 1].get_length());
     const auto split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
     const auto split_lengths =
         v0::Constant::create(ov::element::i64, ov::Shape{2}, {half_head_size_val, half_head_size_val});
@@ -562,14 +766,25 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
 
     // For interleaved mode, re-interleave the result
     if (interleaved) {
-        // Re-interleave: [bs,nh,seq,head_size]
-        //   -> reshape [bs,nh,seq,2,head_size/2]
-        //   -> transpose [bs,nh,seq,head_size/2,2]
-        //   -> reshape [bs,nh,seq,head_size]
+        // Re-interleave: [bs,nh,seq,rotary_dim]
+        //   -> reshape [bs,nh,seq,2,rotary_dim/2]
+        //   -> transpose [bs,nh,seq,rotary_dim/2,2]
+        //   -> reshape [bs,nh,seq,rotary_dim]
         auto reinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, two, half_head_size}, 0);
         auto result_5d = register_new_node<v1::Reshape>(output, reinterleave_5d, false);
         auto result_transposed = register_new_node<v1::Transpose>(result_5d, perm_5d);
         output = register_new_node<v1::Reshape>(result_transposed, input_shape, false);
+    }
+
+    if (is_partial_rotary) {
+        // Scatter the rotated channels back into `input` at [0, rotary_dim); channels beyond rotary_dim
+        // are left untouched since they were never sliced out.
+        const auto zero_s = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        const auto one_s = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        const auto rotary_dim_scalar = v0::Constant::create(ov::element::i64, ov::Shape{}, {rotary_dim_val});
+        const auto scatter_indices = register_new_node<v4::Range>(zero_s, rotary_dim_scalar, one_s, ov::element::i64);
+        const auto scatter_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        output = register_new_node<v3::ScatterUpdate>(input, scatter_indices, output, scatter_axis);
     }
 
     return output.get_node_shared_ptr();

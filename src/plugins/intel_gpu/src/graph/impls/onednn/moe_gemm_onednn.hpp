@@ -34,8 +34,9 @@ struct MoEGemmImplementationManager : public ImplementationManager {
         OPENVINO_ASSERT(node.is_type<moe_gemm>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
         static const std::vector<format> supported_fmts = {
             format::bfyx,
@@ -134,8 +135,9 @@ struct MoEGemmImplementationManager : public ImplementationManager {
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-            if (node.get_dependency(idx).is_constant())
+            if (node.get_dependency(idx).is_constant()) {
                 continue;
+            }
 
             size_t out_rank = node.get_output_layout().get_rank();
             auto target_format = format::get_default_format(out_rank);

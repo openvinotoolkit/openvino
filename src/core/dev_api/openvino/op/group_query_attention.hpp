@@ -15,8 +15,8 @@ enum class GroupQueryAttentionInputs : size_t {
     QUERY = 0,                  // Q (mandatory)
     KEY = 1,                    // K (mandatory)
     VALUE = 2,                  // V (mandatory)
-    PAST_KEY = 3,               // KV cache key (mandatory)
-    PAST_VALUE = 4,             // KV cache value (mandatory)
+    PAST_KEY = 3,               // KV cache key (mandatory; the ONNX FE passes an empty cache for an absent past)
+    PAST_VALUE = 4,             // KV cache value (mandatory; the ONNX FE passes an empty cache for an absent past)
     SEQLENS_K = 5,              // Sequence lengths (mandatory)
     TOTAL_SEQUENCE_LENGTH = 6,  // Total sequence length (mandatory)
     COS_CACHE = 7,              // RoPE cos cache (optional, required if do_rotary=1)
@@ -75,7 +75,9 @@ public:
                         GroupQueryAttentionQuantType v_quant_type = GroupQueryAttentionQuantType::NONE,
                         int64_t local_window_size = -1,
                         bool sliding_window_cache = false,
-                        bool smooth_softmax = false);
+                        bool smooth_softmax = false,
+                        bool causal = true,
+                        float softcap = 0.0f);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -123,6 +125,24 @@ public:
     bool is_kv_quantized() const {
         return m_kv_cache_bit_width != 0 && m_k_quant_type != GroupQueryAttentionQuantType::NONE;
     }
+    // When true (the ONNX Runtime default), each query only attends to keys at or before its own position
+    // (plus the optional sliding window). When false, attention is bidirectional: every query attends to all
+    // valid keys up to total_sequence_length (only the unused cache tail beyond it is masked).
+    bool get_causal() const {
+        return m_causal;
+    }
+    // Shared KV (ONNX kv_sequence_length == 0): key/value are statically empty and past_key/past_value already
+    // hold the complete KV, so nothing is appended and present_key/present_value equal the past.
+    bool is_shared_kv() const;
+    // True when the key/value sequence length may differ from the query's at runtime (separate K/V with a dynamic
+    // length, e.g. 0 for ORT shared KV), so the cache arithmetic must use the key's own length. Packed QKV is
+    // excluded: Q/K/V are split from one tensor, so S_kv == S_q even when that length is dynamic.
+    bool has_independent_kv_length() const;
+    // Logit soft-capping (Gemma-style): when > 0, scaled scores become softcap * tanh(score / softcap)
+    // before the attention bias/mask and softmax. 0 disables it (the ONNX frontend maps ORT's "<= 0 disables" to 0).
+    float get_softcap() const {
+        return m_softcap;
+    }
 
 private:
     int64_t m_num_heads = 0;
@@ -136,6 +156,8 @@ private:
     int64_t m_local_window_size = -1;
     bool m_sliding_window_cache = false;
     bool m_smooth_softmax = false;
+    bool m_causal = true;
+    float m_softcap = 0.0f;
 };
 
 }  // namespace ov::op::internal

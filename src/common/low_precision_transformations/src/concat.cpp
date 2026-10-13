@@ -219,11 +219,13 @@ bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
     }
 
     if (!mulConstants.empty()) {
+        const auto multiply_constant = NetworkHelper::toScalarIfPossible(concat_constants_if_needed(mulConstants));
+        const auto multiply_input_type = lastDequantization->get_output_element_type(0);
         const auto multiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
-            opset1::Multiply(
-                lastDequantization,
-                NetworkHelper::toScalarIfPossible(concat_constants_if_needed(mulConstants))),
-            layerDequantizations[0].multiply->get_output_element_type(0));
+            element::TypeVector{multiply_input_type, multiply_input_type},
+            element::TypeVector{layerDequantizations[0].multiply->get_output_element_type(0)},
+            ov::op::TemporaryReplaceOutputType(lastDequantization, multiply_input_type).get(),
+            ov::op::TemporaryReplaceOutputType(multiply_constant, multiply_input_type).get());
 
         NetworkHelper::copyInfo({ concat, multiply }, multiply);
         multiply->set_friendly_name(concat->get_friendly_name() + "/DequantizationMultyply");

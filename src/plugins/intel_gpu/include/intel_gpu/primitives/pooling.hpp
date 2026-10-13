@@ -175,8 +175,9 @@ struct pooling : public primitive_base<pooling> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const pooling>(rhs);
 
@@ -228,8 +229,9 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (indices_output.is_valid())
+        if (indices_output.is_valid()) {
             ret[idx++] = &indices_output;
+        }
 
         return ret;
     }

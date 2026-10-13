@@ -102,8 +102,9 @@ static constexpr Property<PerfCurveTable> perf_curve_table{"PERF_CURVE_TABLE"};
 /**
  * @brief Name of the device AUTO should prefer while the platform is in low power mode
  * (as reported by IPF/DTT). Takes precedence over
- * devices_utilization_threshold when the platform is in low power mode. The value must exactly
- * match a candidate DeviceInformation::device_name, for example "CPU", "NPU", or "GPU.0".
+ * devices_utilization_threshold when the platform is in low power mode. The value is matched
+ * against a candidate DeviceInformation::device_name first (e.g. "GPU.0"), then against its base
+ * device name (e.g. "NPU" also matches a candidate named "NPU.5010").
  * On builds without OV_AUTO_ENABLE_IPF, the telemetry backend always returns unknown, so this
  * property has no effect.
  * @ingroup ov_runtime_cpp_prop_api

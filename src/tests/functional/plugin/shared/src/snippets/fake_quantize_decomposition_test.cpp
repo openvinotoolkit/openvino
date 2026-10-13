@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -63,16 +62,40 @@ void FakeQuantizeDecompositionTest::SetUp() {
         values.zeroPoint,
         {},
         op);
+
+    expected_layer_type = std::string(operation.second.first);
+    expected_original_layers_names = operation.second.second;
+}
+
+void FakeQuantizeDecompositionTest::validate() {
+    SnippetsTestsCommon::validate();
+    validateOriginalLayersNamesByType(expected_layer_type, expected_original_layers_names);
+}
+
+void FakeQuantizeDecompositionTest::validateOriginalLayersNamesByType(const std::string& layerType,
+                                                                       const std::string& originalLayersNames) {
+    const auto& compiled_model = compiledModel.get_runtime_model();
+    for (const auto& op : compiled_model->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+
+        const auto& typeIt = rtInfo.find("layerType");
+        if (typeIt == rtInfo.end())
+            continue;
+        const auto type = typeIt->second.as<std::string>();
+        if (type == layerType) {
+            const auto& nameIt = rtInfo.find("originalLayersNames");
+            ASSERT_NE(nameIt, rtInfo.end()) << "Failed to find originalLayersNames in " << op->get_friendly_name() << " rt_info.";
+            const auto name = nameIt->second.as<std::string>();
+            ASSERT_EQ(originalLayersNames, name);
+            return;
+        }
+    }
+
+    ASSERT_TRUE(false) << "Layer type '" << layerType << "' was not found in compiled model";
 }
 
 TEST_P(FakeQuantizeDecompositionTest, CompareWithRefImpl) {
     run();
-
-    const auto operation = std::get<1>(this->GetParam());
-    auto elementType = std::string(operation.second.first);
-    validateOriginalLayersNamesByType(elementType, operation.second.second);
-
-    validateNumSubgraphs();
 };
 }  // namespace snippets
 }  // namespace test

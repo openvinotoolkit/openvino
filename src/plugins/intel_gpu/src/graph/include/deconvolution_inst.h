@@ -34,8 +34,9 @@ public:
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
         auto prim = get_primitive();
-        if (!prim->output_shape_id.is_valid())
+        if (!prim->output_shape_id.is_valid()) {
             return {};
+        }
         return {prim->dependencies().size() - 1};
     }
 
@@ -43,8 +44,9 @@ public:
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
-        if (bias_term())
+        if (bias_term()) {
             params->bias_layout = optional_layout(bias().get_output_layout());
+        }
         return params;
     }
 
@@ -66,8 +68,9 @@ public:
     static std::string to_string(deconvolution_node const& node);
 
     bool need_reset_input_memory(size_t idx = 0) const override {
-        if (idx != 0)
+        if (idx != 0) {
             return false;
+        }
 
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
         return static_cast<bool>(input_layout.data_padding);

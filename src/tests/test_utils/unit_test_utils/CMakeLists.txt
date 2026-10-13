@@ -9,6 +9,7 @@ endif()
 set(TARGET_NAME unit_test_utils)
 
 add_subdirectory(mocks/mock_engine)
+add_subdirectory(mocks/mock_dispatch_candidate)
 
 ov_add_target(
         NAME ${TARGET_NAME}

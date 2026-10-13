@@ -106,6 +106,7 @@ protected:
     virtual JitConstants GetJitConstants(const eltwise_params& params) const;
     virtual JitConstants GetOperationsJitConstants(const eltwise_params& params, bool useVload8, size_t blockSize = 1) const;
     virtual JitConstants MakeLoadJitConstants(const eltwise_params& params, bool useVload8) const;
+    virtual std::string GetVload8InputIndex(const eltwise_params& params, size_t input_idx) const;
     virtual JitConstants MakeIndexJitConstants(const eltwise_params& params, bool useVload8) const;
     virtual JitConstants MakeInputDeclsJitConstants(const eltwise_params& params, bool useVload8) const;
     virtual DispatchData SetDefault(const eltwise_params& params) const;

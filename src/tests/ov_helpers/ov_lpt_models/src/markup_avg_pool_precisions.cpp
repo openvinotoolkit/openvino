@@ -20,7 +20,6 @@ namespace subgraph {
 
 std::shared_ptr<Node> createConvolution(
     const ov::element::Type precision,
-    const ov::element::Type inputPrecision,
     const ov::Shape& inputShape,
     const std::shared_ptr<Node>& parent) {
     const size_t outputChannels = 6ul;
@@ -140,10 +139,10 @@ std::shared_ptr<ov::Model> MarkupAvgPoolPrecisionsFunction::getOriginal(
 
     if (convoutionBranch != -1) {
         if (convoutionBranch != 1) {
-            parent1 = createConvolution(precision, inputPrecision, inputShape, parent1);
+            parent1 = createConvolution(precision, inputShape, parent1);
         }
         if (convoutionBranch != 0) {
-            parent2 = createConvolution(precision, inputPrecision, inputShape, parent2);
+            parent2 = createConvolution(precision, inputShape, parent2);
         }
     }
 

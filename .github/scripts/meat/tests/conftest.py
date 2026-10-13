@@ -20,7 +20,8 @@ SCRIPTS_DIR = pathlib.Path(__file__).parent.parent
 
 def run_script(script: pathlib.Path, cwd, *args, extra_env=None):
     """Run a Python script as a subprocess, return CompletedProcess."""
-    import subprocess
+    # Test harness only: sys.executable + script path argv, no shell.
+    import subprocess  # nosec B404
 
     env = os.environ.copy()
     if extra_env:

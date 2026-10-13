@@ -4,6 +4,7 @@
 
 #include "openvino/decompositions/rope.hpp"
 
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -32,10 +33,7 @@
 #include "openvino/pass/node_registry.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_rope(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
@@ -45,7 +43,10 @@ OutputVector translate_rope(const NodeContext& context) {
     ov::Output<Node> res;
 
     auto data = context.get_input(0);
-    auto output_shape = context.get_output_shape().to_shape();
+    auto output_shape = context.get_output_shape();
+    if (output_shape.rank().is_dynamic()) {
+        output_shape = context.get_input_shape(0);
+    }
     auto rope_config = context.get_attribute<RopeConfig>("rope_config");
     const int mode = (op_case & 0xFFFF0000) >> 16;
     op_case = (op_case & 0x0000FFFF);
@@ -53,6 +54,66 @@ OutputVector translate_rope(const NodeContext& context) {
     constexpr int TYPE_NORMAL = 0;
     constexpr int TYPE_NEOX = 1;
     constexpr int TYPE_IMROPE = 2;
+    constexpr int TYPE_VISION = 3;
+
+    if (mode == TYPE_VISION) {
+        // ggml vision RoPE rotates the full head in two halves; n_dims is half the
+        // head width, and each position section restarts its frequency progression.
+        using namespace ov::op;
+        const auto shape = data.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(shape.rank() == 4 && shape[3].is_static(),
+                                      "Vision RoPE requires rank four and a static head width");
+        const int64_t half = shape[3].get_length() / 2;
+        FRONT_END_OP_CONVERSION_CHECK(2 * half == shape[3].get_length() && rope_config.n_dims == half,
+                                      "Vision RoPE n_dims must equal half the head width");
+        FRONT_END_OP_CONVERSION_CHECK(rope_config.ext_factor == 0.f && context.get_input_size() == 2,
+                                      "Vision RoPE with YaRN or frequency-factor weights is not supported");
+        auto sections = rope_config.sections;
+        int64_t total = 0;  // four int32 counts always fit in 64 bits
+        for (auto section : sections) {
+            FRONT_END_OP_CONVERSION_CHECK(section >= 0, "Negative vision RoPE section");
+            total += section;
+        }
+        FRONT_END_OP_CONVERSION_CHECK(total > 0 && total <= 2 * half && rope_config.freq_base > 0.f,
+                                      "Invalid vision RoPE sections or frequency base");
+        std::vector<int64_t> axes(half);
+        std::vector<float> factors(half);
+        for (int64_t i = 0; i < half; ++i) {
+            int offset = int(i % total), section = 0;
+            while (section < 3 && offset >= sections[section]) {
+                offset -= sections[section];
+                ++section;
+            }
+            axes[i] = section;
+            factors[i] = std::pow(rope_config.freq_base, -2.f * offset / half) * rope_config.freq_scale;
+        }
+        auto positions = std::make_shared<v1::Reshape>(context.get_input(1),
+                                                       v0::Constant::create(ov::element::i64, {2}, {4, -1}),
+                                                       false);
+        auto transposed =
+            std::make_shared<v1::Transpose>(positions, v0::Constant::create(ov::element::i64, {2}, {1, 0}));
+        auto selected = std::make_shared<v8::Gather>(transposed,
+                                                     v0::Constant::create(ov::element::i64, {size_t(half)}, axes),
+                                                     v0::Constant::create(ov::element::i64, {}, {1}));
+        auto theta = std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(selected, ov::element::f32),
+                                                    v0::Constant::create(ov::element::f32, {size_t(half)}, factors));
+        auto expand = v0::Constant::create(ov::element::i64, {2}, {0, 2});
+        auto scale = v0::Constant::create(ov::element::f32, {}, {rope_config.attn_factor});
+        auto cos =
+            std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Cos>(theta), expand),
+                                           scale);
+        auto sin =
+            std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Sin>(theta), expand),
+                                           scale);
+        const auto type = data.get_element_type();
+        if (type != ov::element::f32)
+            data = std::make_shared<v0::Convert>(data, ov::element::f32);
+        ov::pass::NodeRegistry reg;
+        res = ov::decomposition::rope(reg, data, cos, sin, half);
+        if (type != ov::element::f32)
+            res = std::make_shared<v0::Convert>(res, type);
+        return rename_outputs_with_suffix({res}, context.get_name());
+    }
 
     Output<Node> cos_theta_node;
     Output<Node> sin_theta_node;
@@ -79,19 +140,38 @@ OutputVector translate_rope(const NodeContext& context) {
         return ov::op::v0::Constant::create(
             ov::element::i64,
             {4},
-            std::vector<int64_t>{0, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
+            std::vector<int64_t>{0, -1, (int64_t)output_shape[2].get_length(), (int64_t)output_shape[3].get_length()});
     };
 
     if (op_case == 2) {
         // The input comes from a VIEW
-        int slice_len = static_cast<int>(output_shape[2] * output_shape[3]);
+        int slice_len = static_cast<int>(output_shape[2].get_length() * output_shape[3].get_length());
         data = process_view_input(context, 0, slice_len);
         data = std::make_shared<ov::op::v1::Reshape>(data, make_bhsd_shape(), true);
     }
 
-    const auto output_type = context.get_output_type();
+    const auto output_type = data.get_element_type();
     if (data.get_element_type() != ov::element::f32) {
         data = std::make_shared<ov::op::v0::Convert>(data, ov::element::f32);
+    }
+
+    const int64_t head_dim = output_shape[3].get_length();
+    const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
+    const int64_t offset = context.get_attribute<int64_t>("rope_offset", 0);
+    FRONT_END_OP_CONVERSION_CHECK(offset >= 0 && offset % 2 == 0 && n_rot > 0 && n_rot % 2 == 0 && offset <= head_dim &&
+                                      n_rot <= head_dim - offset,
+                                  "ROPE requires even dimensions and offset within the head");
+    Output<Node> prefix;
+    if (offset != 0) {
+        data = std::make_shared<ov::op::v1::Reshape>(data, make_bhsd_shape(), true);
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        auto start = ov::op::v0::Constant::create(ov::element::i64, {1}, {offset});
+        auto end = ov::op::v0::Constant::create(ov::element::i64, {1}, {head_dim});
+        prefix = std::make_shared<ov::op::v8::Slice>(data, zero, start, one, axis);
+        data = std::make_shared<ov::op::v8::Slice>(data, start, end, one, axis);
+        output_shape[3] = head_dim - offset;
     }
 
     if (mode == TYPE_NORMAL) {
@@ -99,8 +179,8 @@ OutputVector translate_rope(const NodeContext& context) {
         // folds this subgraph into ov::op::internal::RoPE → GPU ocl::rope::opt kernel.
         // RoPEFusionFlux requires rank-4 x with static last two dims [n_heads, head_size].
         // After the VIEW prologue the data is already [B,L,n_heads,head_size].
-        const int64_t n_heads = static_cast<int64_t>(output_shape[2]);
-        const int64_t head_size = static_cast<int64_t>(output_shape[3]);
+        const int64_t n_heads = static_cast<int64_t>(output_shape[2].get_length());
+        const int64_t head_size = static_cast<int64_t>(output_shape[3].get_length());
         const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_size;
         const int64_t half = n_rot / 2;
 
@@ -160,7 +240,7 @@ OutputVector translate_rope(const NodeContext& context) {
         // Partial rotary (ggml n_dims < head_dim): only the first n_dims of every head are
         // rotated; the remaining tail is passed through unchanged. cos/sin have width n_dims/2,
         // so the rotated block must be exactly n_dims wide.
-        const int64_t head_dim = static_cast<int64_t>(output_shape[3]);
+        const int64_t head_dim = static_cast<int64_t>(output_shape[3].get_length());
         const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
 
         // Split the head into the rotated block [0, n_rot) and the untouched tail [n_rot, head_dim)
@@ -189,8 +269,8 @@ OutputVector translate_rope(const NodeContext& context) {
         // the decomposition there, and transpose the result back. The math is unchanged; the
         // wrapping Transposes are sunk / cancelled against the adjacent PERMUTE during
         // TransposeSinking.
-        const int64_t n_head_rope = static_cast<int64_t>(output_shape[2]);
-        const int64_t head_size_rope = static_cast<int64_t>(output_shape[3]);
+        const int64_t n_head_rope = static_cast<int64_t>(output_shape[2].get_length());
+        const int64_t head_size_rope = static_cast<int64_t>(output_shape[3].get_length());
         const auto perm_bhls = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
 
         // Data reaches this op in inconsistent shapes depending on the layer's upstream rank:
@@ -240,7 +320,7 @@ OutputVector translate_rope(const NodeContext& context) {
         // exactly n_rot wide; using the full head here rotates the pass-through tail and corrupts
         // every full-attention layer. (Use output_shape, not data.get_shape() which throws
         // on a dynamic dim.)
-        const int64_t head_dim = static_cast<int64_t>(output_shape[3]);
+        const int64_t head_dim = static_cast<int64_t>(output_shape[3].get_length());
         const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
 
         Output<Node> rotary_in = data;
@@ -257,7 +337,7 @@ OutputVector translate_rope(const NodeContext& context) {
 
         auto cos_sin_shape = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                     ov::Shape{4},
-                                                                    std::vector<int64_t>{1, -1, 1, (n_rot >> 1)});
+                                                                    std::vector<int64_t>{0, -1, 1, (n_rot >> 1)});
         auto cos_reshaped = std::make_shared<ov::op::v1::Reshape>(cos_theta_node, cos_sin_shape, true);
         auto sin_reshaped = std::make_shared<ov::op::v1::Reshape>(sin_theta_node, cos_sin_shape, true);
 
@@ -281,14 +361,15 @@ OutputVector translate_rope(const NodeContext& context) {
     // Fail cleanly on an unmapped mode rather than dereferencing a null res downstream.
     FRONT_END_CHECK_IMPLEMENTED(res.get_node_shared_ptr() != nullptr, "Unsupported ROPE mode");
 
+    if (prefix.get_node_shared_ptr()) {
+        res = std::make_shared<ov::op::v0::Concat>(OutputVector{prefix, res}, -1);
+    }
+
     if (res.get_element_type() != output_type) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

@@ -53,8 +53,9 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const moe_scatter_reduction>(rhs);
 

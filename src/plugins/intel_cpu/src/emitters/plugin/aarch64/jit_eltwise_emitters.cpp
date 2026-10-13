@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 #include <set>
+#include <tuple>
 #include <unordered_set>
 #include <vector>
 
@@ -129,20 +130,18 @@ jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* 
     if (clamp == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }
-    min = static_cast<float>(clamp->get_min());
-    max = static_cast<float>(clamp->get_max());
+    std::tie(minimum, maximum) = get_clamp_min_max(clamp->get_min(), clamp->get_max(), exec_prc_);
 
     prepare_table();
 }
 
 jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                     const float min,
-                                     const float max,
+                                     const double alpha,
+                                     const double beta,
                                      const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc),
-      min(min),
-      max(max) {
+    : jit_emitter(host, host_isa, exec_prc) {
+    std::tie(minimum, maximum) = get_clamp_min_max(alpha, beta, exec_prc_);
     prepare_table();
 }
 
@@ -159,8 +158,8 @@ size_t jit_clamp_emitter::get_aux_gprs_count() const {
 }
 
 void jit_clamp_emitter::register_table_entries() {
-    push_arg_entry_of("min", dnnl::impl::float2int(min), true);
-    push_arg_entry_of("max", dnnl::impl::float2int(max), true);
+    push_arg_entry_of("min", minimum, true);
+    push_arg_entry_of("max", maximum, true);
 }
 
 void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -175,22 +174,32 @@ void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_clamp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_vec_idxs[0]);
     auto aux = TReg(aux_vec_idxs[0]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->ld1r(aux.s, table_val2("min"));
-    h->fmax(dst.s, src.s, aux.s);
-    h->ld1r(aux.s, table_val2("max"));
-    h->fmin(dst.s, dst.s, aux.s);
+    switch (exec_prc_) {
+    case element::f32:
+        h->ld1r(aux.s, table_val2("min"));
+        h->fmax(dst.s, src.s, aux.s);
+        h->ld1r(aux.s, table_val2("max"));
+        h->fmin(dst.s, dst.s, aux.s);
+        break;
+    case element::i32:
+        h->ld1r(aux.s, table_val2("min"));
+        h->smax(dst.s, src.s, aux.s);
+        h->ld1r(aux.s, table_val2("max"));
+        h->smin(dst.s, dst.s, aux.s);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("unsupported precision: " + exec_prc_.to_string());
+    }
 }
 
 std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32}, {element::i32}};
 }
 
 /// DIVIDE ///
@@ -2015,6 +2024,161 @@ void jit_logical_xor_emitter::register_table_entries() {
 std::set<std::vector<element::Type>> jit_logical_xor_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
+}
+
+/// BITWISE_AND ///
+jit_bitwise_and_emitter::jit_bitwise_and_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_bitwise_and_emitter::get_inputs_count() const {
+    return 2;
+}
+
+void jit_bitwise_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                        const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_bitwise_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(
+        exec_prc_ == ov::element::i8 || exec_prc_ == ov::element::u8 || exec_prc_ == ov::element::i32,
+        "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg src0 = TReg(in_vec_idxs[0]);
+    const TReg src1 = TReg(in_vec_idxs[1]);
+    const TReg dst = TReg(out_vec_idxs[0]);
+
+    h->and_(dst.b16, src0.b16, src1.b16);
+}
+
+std::set<std::vector<element::Type>> jit_bitwise_and_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::i8, element::i8}, {element::u8, element::u8}, {element::i32, element::i32}};
+}
+
+/// BITWISE_NOT ///
+jit_bitwise_not_emitter::jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_bitwise_not_emitter::get_inputs_count() const {
+    return 1;
+}
+
+void jit_bitwise_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                        const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_bitwise_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(
+        exec_prc_ == ov::element::i8 || exec_prc_ == ov::element::u8 || exec_prc_ == ov::element::i32,
+        "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg src = TReg(in_vec_idxs[0]);
+    const TReg dst = TReg(out_vec_idxs[0]);
+
+    h->not_(dst.b16, src.b16);
+}
+
+std::set<std::vector<element::Type>> jit_bitwise_not_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::i8}, {element::u8}, {element::i32}};
+}
+
+/// BITWISE_OR ///
+jit_bitwise_or_emitter::jit_bitwise_or_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                               const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_bitwise_or_emitter::get_inputs_count() const {
+    return 2;
+}
+
+void jit_bitwise_or_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_bitwise_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(
+        exec_prc_ == ov::element::i8 || exec_prc_ == ov::element::u8 || exec_prc_ == ov::element::i32,
+        "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg src0 = TReg(in_vec_idxs[0]);
+    const TReg src1 = TReg(in_vec_idxs[1]);
+    const TReg dst = TReg(out_vec_idxs[0]);
+
+    h->orr(dst.b16, src0.b16, src1.b16);
+}
+
+std::set<std::vector<element::Type>> jit_bitwise_or_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::i8, element::i8}, {element::u8, element::u8}, {element::i32, element::i32}};
+}
+
+/// BITWISE_XOR ///
+jit_bitwise_xor_emitter::jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_bitwise_xor_emitter::get_inputs_count() const {
+    return 2;
+}
+
+void jit_bitwise_xor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                        const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                       const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(
+        exec_prc_ == ov::element::i8 || exec_prc_ == ov::element::u8 || exec_prc_ == ov::element::i32,
+        "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg src0 = TReg(in_vec_idxs[0]);
+    const TReg src1 = TReg(in_vec_idxs[1]);
+    const TReg dst = TReg(out_vec_idxs[0]);
+
+    h->eor(dst.b16, src0.b16, src1.b16);
+}
+
+std::set<std::vector<element::Type>> jit_bitwise_xor_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::i8, element::i8}, {element::u8, element::u8}, {element::i32, element::i32}};
 }
 
 /// MAX ///
