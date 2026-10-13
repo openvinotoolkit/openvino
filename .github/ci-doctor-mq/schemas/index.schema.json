@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://github.com/openvinotoolkit/openvino/.github/ci-doctor-mq/schemas/index.schema.json",
     "title": "CI Doctor MQ Investigations Index",
-    "description": "Canonical structure for the append-only aggregate index maintained by the CI Failure Doctor (Merge Queue) workflow at /tmp/gh-aw/repo-memory/default/mq/investigations/index.json. This file references every investigation record ever written; it MUST only ever grow via read-modify-write and must never be recreated from scratch or overwritten in a way that drops previously recorded entries.",
+    "description": "Canonical structure for the rolling-retention aggregate index maintained by the CI Failure Doctor (Merge Queue) workflow at /tmp/gh-aw/repo-memory/default/mq/investigations/index.json. This file references the most recent investigations (INDEX_RETENTION_MAX, kept as a rolling window); the permanent recurrence signal lives in the per-signature pattern records, not here. It MUST only grow via read-modify-write during a run and must never be recreated from scratch or overwritten in a way that accidentally drops entries; the oldest entries are trimmed only by the Phase 5 retention step.",
     "type": "object",
     "additionalProperties": false,
     "required": [
@@ -19,11 +19,11 @@
         "total": {
             "type": "integer",
             "minimum": 0,
-            "description": "Number of elements in the entries array. Must equal entries.length and must never decrease between consecutive writes."
+            "description": "Number of elements in the entries array. Must equal entries.length. Grows via read-modify-write during a run; only the Phase 5 retention step may reduce it (rolling-window trim)."
         },
         "entries": {
             "type": "array",
-            "description": "Append-only list of investigation summaries, one per recorded investigation. New entries are appended; existing entries are never removed or reordered destructively.",
+            "description": "Rolling-window list of investigation summaries, one per recorded investigation, capped at the most recent INDEX_RETENTION_MAX entries. New entries are appended and existing entries are never removed or reordered destructively during a run; the oldest entries are trimmed only by the Phase 5 retention step.",
             "items": {
                 "$ref": "#/$defs/entry"
             }

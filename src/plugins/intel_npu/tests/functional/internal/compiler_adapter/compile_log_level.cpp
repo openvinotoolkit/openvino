@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "model_serializer.hpp"
@@ -18,7 +17,7 @@ namespace {
 class CompileLogLevelSerializeConfigTests : public ::testing::Test {
 protected:
     std::shared_ptr<::intel_npu::OptionsDesc> options;
-    std::unique_ptr<::intel_npu::FilteredConfig> config;
+    std::unique_ptr<::intel_npu::Config> config;
 
     void SetUp() override {
         using namespace ::intel_npu;
@@ -26,7 +25,7 @@ protected:
         options = std::make_shared<OptionsDesc>();
         options->add<LOG_LEVEL>();
         options->add<COMPILE_LOG_LEVEL>();
-        config = std::make_unique<FilteredConfig>(options);
+        config = std::make_unique<Config>(options);
     }
 
     static ze_graph_compiler_version_info_t modernCompilerVersion() {

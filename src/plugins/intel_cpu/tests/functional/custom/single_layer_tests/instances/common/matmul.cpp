@@ -32,6 +32,24 @@ const std::vector<ShapeRelatedParams> IS = {
     {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
 };
 
+const std::vector<ShapeRelatedParams> IS_ZeroDim = {
+    // empty output
+    {static_shapes_to_test_representation({{0, 4}, {4, 3}}), {false, false}},
+    {static_shapes_to_test_representation({{0, 4}, {4, 3}}), {true, true}},
+    {static_shapes_to_test_representation({{4, 3}, {3, 0}}), {false, false}},
+    {static_shapes_to_test_representation({{0, 4, 8}, {0, 8, 4}}), {false, false}},
+    {static_shapes_to_test_representation({{2, 0, 3}, {3, 3}}), {false, false}},
+    // degenerate case: zero collapsing dimension, the output is a null matrix
+    {static_shapes_to_test_representation({{4, 0}, {0, 3}}), {false, false}},
+    {
+        {
+            {{-1, 0}, {{4, 0}, {7, 0}}}, // input 0
+            {{0, -1}, {{0, 3}, {0, 5}}}  // input 1
+        },
+        {false, false}
+    },
+};
+
 const std::vector<ShapeRelatedParams> IS_Dynamic = {
     {
         { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
@@ -298,6 +316,22 @@ const auto testParams = ::testing::Combine(matMulParams,
                                            ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Static, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
+
+const auto matMulParamsZeroDim = ::testing::Combine(::testing::ValuesIn(IS_ZeroDim),
+                                                    ::testing::Values(ElementType::f32, ElementType::i32),
+                                                    ::testing::Values(ElementType::dynamic),
+                                                    ::testing::Values(ElementType::dynamic),
+                                                    ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                    ::testing::Values(emptyAdditionalConfig()));
+
+const auto testParamsZeroDim =
+    ::testing::Combine(matMulParamsZeroDim,
+                       ::testing::Values(MatMulNodeType::MatMul),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::Values(CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_ZeroDim, MatMulLayerCPUTest, testParamsZeroDim, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynamic),
                                                     ::testing::ValuesIn(netPRCs()),

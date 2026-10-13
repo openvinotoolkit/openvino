@@ -13,9 +13,7 @@
 #include "ov_tensorflow/tensor_bundle.pb.h"
 #include "ov_tensorflow/trackable_object_graph.pb.h"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDef& signature) const {
     for (const auto& it : signature.inputs()) {
@@ -73,6 +71,4 @@ std::vector<std::string> GraphIteratorSavedModel::split_tags(const std::string t
     return tag_list;
 }
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow
