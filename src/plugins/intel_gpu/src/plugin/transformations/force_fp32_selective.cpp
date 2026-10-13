@@ -71,9 +71,7 @@ void promote_precision_attributes(const std::shared_ptr<ov::Node>& node) {
     node->visit_attributes(visitor);
 }
 
-// Pass-through ops: no arithmetic, just data movement.
-// These are automatically absorbed into f32 regions when connected to f32 ops,
-// preventing f32->f16->f32 roundtrip truncation.
+// Types selected explicitly through the PASSTHROUGH_OPS filter alias.
 bool is_passthrough_op(const std::string& type_name) {
     static const std::unordered_set<std::string> passthrough_types = {
         "Reshape", "Transpose", "Squeeze", "Unsqueeze",
@@ -84,7 +82,11 @@ bool is_passthrough_op(const std::string& type_name) {
 }
 
 bool matches_type(const std::vector<std::string>& forced_types, const std::string& type_name) {
-    return std::find(forced_types.begin(), forced_types.end(), type_name) != forced_types.end();
+    for (const auto& type : forced_types) {
+        if (type == type_name || (type == "PASSTHROUGH_OPS" && is_passthrough_op(type_name)))
+            return true;
+    }
+    return false;
 }
 
 bool matches_name(const std::vector<std::string>& forced_names, const std::string& node_name) {
@@ -161,64 +163,6 @@ std::unordered_set<ov::Node*> collect_seeds(
     return f32_region;
 }
 
-// Phase 2: Region Expansion — absorb pass-through ops connected to the f32
-// region via flood-fill, preventing f32->f16->f32 roundtrip truncation.
-//
-// NOTE: We intentionally use one-side connectivity (OR), not bridge condition
-// (AND). Requiring BOTH sides causes deadlock on multi-node passthrough chains:
-//   [f32 A] -> Reshape -> Transpose -> [f32 B]
-// With AND: neither is ever absorbed regardless of iteration count.
-void expand_region(const std::shared_ptr<ov::Model>& model,
-                   std::unordered_set<ov::Node*>& f32_region) {
-    bool expanded = true;
-    int expansion_rounds = 0;
-    while (expanded) {
-        expanded = false;
-        expansion_rounds++;
-        for (const auto& node : model->get_ops()) {
-            if (f32_region.count(node.get()))
-                continue;
-
-            const std::string node_type = node->get_type_name();
-            if (!is_passthrough_op(node_type))
-                continue;
-
-            if (!has_fp16_output(node))
-                continue;
-
-            // Check: does this node have at least one f32-region neighbor?
-            bool has_f32_neighbor = false;
-            for (const auto& input : node->inputs()) {
-                auto* producer = input.get_source_output().get_node();
-                if (f32_region.count(producer)) {
-                    has_f32_neighbor = true;
-                    break;
-                }
-            }
-            if (!has_f32_neighbor) {
-                for (const auto& output : node->outputs()) {
-                    for (const auto& target : output.get_target_inputs()) {
-                        if (f32_region.count(target.get_node())) {
-                            has_f32_neighbor = true;
-                            break;
-                        }
-                    }
-                    if (has_f32_neighbor)
-                        break;
-                }
-            }
-            if (!has_f32_neighbor)
-                continue;
-
-            f32_region.insert(node.get());
-            expanded = true;
-        }
-    }
-
-    GPU_DEBUG_LOG << "[ForceFP32Selective] region after expansion: " << f32_region.size()
-                  << " (rounds=" << expansion_rounds << ")" << std::endl;
-}
-
 // Bypass FP16/FP32 Convert chains from promoted or already-FP32 producers.
 ov::Output<ov::Node> find_fp32_source(ov::Output<ov::Node> source,
                                     const OriginalOutputTypes& original_types) {
@@ -243,7 +187,7 @@ ov::Output<ov::Node> find_fp32_source(ov::Output<ov::Node> source,
     return source;
 }
 
-// Phase 3a: Input Promotion — insert f16->f32 boundary Converts at region
+// Phase 2a: Input Promotion — insert f16->f32 boundary Converts at region
 // entry points and force output type to f32.
 std::pair<bool, size_t> promote_inputs(
     const std::shared_ptr<ov::Model>& model,
@@ -307,7 +251,7 @@ std::pair<bool, size_t> promote_inputs(
     return {changed, global_convert_idx};
 }
 
-// Phase 3b: Output Restore — insert f32->f16 Converts at region exit points.
+// Phase 2b: Output Restore — insert f32->f16 Converts at region exit points.
 // Done separately after all promotions so that region-internal edges are never
 // accidentally restored.
 void restore_outputs(const std::shared_ptr<ov::Model>& model,
@@ -394,15 +338,12 @@ bool ForceFP32Selective::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (f32_region.empty())
         return false;
 
-    // Phase 2: Region Expansion
-    expand_region(model, f32_region);
-
     const auto original_types = record_output_types(model, f32_region);
 
-    // Phase 3a: Input Promotion
+    // Phase 2a: Input Promotion
     auto [changed, convert_idx] = promote_inputs(model, original_types);
 
-    // Phase 3b: Output Restore
+    // Phase 2b: Output Restore
     restore_outputs(model, original_types, convert_idx);
 
     log_promoted_outputs(model, original_types);

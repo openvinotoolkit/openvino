@@ -23,6 +23,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -282,50 +283,97 @@ TEST(ForceFP32Selective, ExternalSharedRoundTripKeepsUnselectedValues) {
     EXPECT_NE(actual[1].data<float>()[0], data.data<float>()[0]);
 }
 
-TEST(ForceFP32Selective, ExpansionIncludesInputChainAndOutputBranchesOutsideNameFilter) {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
-    auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 2});
-    auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, false);
-    auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
-    auto transpose = std::make_shared<ov::op::v1::Transpose>(reshape, order);
-    auto selected = std::make_shared<ov::op::v0::Relu>(transpose);
-    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    auto split = std::make_shared<ov::op::v1::Split>(selected, axis, 2);
-    auto left = std::make_shared<ov::op::v0::Relu>(split->output(0));
-    auto right = std::make_shared<ov::op::v0::Relu>(split->output(1));
-    auto isolated = std::make_shared<ov::op::v1::Reshape>(input, shape, false);
-    reshape->set_friendly_name("upstream_reshape");
-    transpose->set_friendly_name("upstream_transpose");
-    selected->set_friendly_name("selected");
-    split->set_friendly_name("downstream_split");
-    left->set_friendly_name("left");
-    right->set_friendly_name("right");
-    isolated->set_friendly_name("isolated");
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{left, right, isolated}, ov::ParameterVector{input});
+TEST(ForceFP32Selective, PassThroughAliasIsExplicitAndRespectsNameFilter) {
+    using AliasCase = std::tuple<std::string, std::string, bool, bool, bool>;
+    // Flags: select target arithmetic, middle pass-through ops, other pass-through ops.
+    const std::vector<AliasCase> cases{
+        {"Multiply Subtract", "", true, false, false},
+        {"", "target middle", true, true, false},
+        {"Multiply Subtract PASSTHROUGH_OPS", "", true, true, true},
+        {"Multiply Subtract PASSTHROUGH_OPS", "target middle", true, true, false},
+        {"Multiply Subtract PASSTHROUGH_OPS", "target", true, false, false},
+        {"PASSTHROUGH_OPS", "", false, true, true},
+    };
+    for (const auto& [type_list, name_list, targets_selected, middle_selected, others_selected] : cases) {
+        SCOPED_TRACE(type_list + " / " + name_list);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+        auto factor = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0009765625f});
+        auto first = std::make_shared<ov::op::v1::Multiply>(input, factor);
+        auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 2});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(first, shape, false);
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(reshape, order);
+        auto rounded = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.001953125f});
+        auto second = std::make_shared<ov::op::v1::Subtract>(transpose, rounded);
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto split = std::make_shared<ov::op::v1::Split>(second, axis, 2);
+        auto left = std::make_shared<ov::op::v0::Relu>(split->output(0));
+        auto right = std::make_shared<ov::op::v0::Relu>(split->output(1));
+        auto isolated = std::make_shared<ov::op::v1::Reshape>(input, shape, false);
+        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(second, ov::element::i64);
+        first->set_friendly_name("target_first");
+        second->set_friendly_name("target_second");
+        reshape->set_friendly_name("middle_reshape");
+        transpose->set_friendly_name("middle_transpose");
+        split->set_friendly_name("other_split");
+        isolated->set_friendly_name("other_isolated");
+        shape_of->set_friendly_name("middle_shape");
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{left, right, isolated, shape_of},
+                                               ov::ParameterVector{input});
+        const auto types = type_list.empty() ? std::vector<std::string>{}
+                                            : ov::Any(type_list).as<std::vector<std::string>>();
+        const auto names = name_list.empty() ? std::vector<std::string>{}
+                                            : ov::Any(name_list).as<std::vector<std::string>>();
+        ov::pass::Manager manager;
+        manager.register_pass<ov::intel_gpu::ForceFP32Selective>(types, names);
 
-    force_selected(model);
+        manager.run_passes(model);
 
-    EXPECT_EQ(reshape->get_output_element_type(0), ov::element::f32);
-    EXPECT_EQ(transpose->get_output_element_type(0), ov::element::f32);
-    EXPECT_EQ(transpose->input_value(0), reshape->output(0));
-    EXPECT_EQ(selected->input_value(0), transpose->output(0));
-    EXPECT_EQ(split->input_value(0), selected->output(0));
-    for (const auto& output : split->outputs())
-        EXPECT_EQ(output.get_element_type(), ov::element::f32);
-    for (const auto& consumer : {left, right}) {
-        auto restore = ov::as_type_ptr<ov::op::v0::Convert>(consumer->input_value(0).get_node_shared_ptr());
-        ASSERT_NE(restore, nullptr);
-        EXPECT_EQ(restore->input_value(0).get_node_shared_ptr(), split);
-        EXPECT_EQ(consumer->get_input_element_type(0), ov::element::f16);
-        EXPECT_EQ(consumer->get_output_element_type(0), ov::element::f16);
+        for (const auto& node : {first->output(0), second->output(0)})
+            EXPECT_EQ(node.get_element_type(), targets_selected ? ov::element::f32 : ov::element::f16);
+        EXPECT_EQ(reshape->get_output_element_type(0), middle_selected ? ov::element::f32 : ov::element::f16);
+        EXPECT_EQ(transpose->get_output_element_type(0), middle_selected ? ov::element::f32 : ov::element::f16);
+        for (const auto& output : split->outputs())
+            EXPECT_EQ(output.get_element_type(), others_selected ? ov::element::f32 : ov::element::f16);
+        EXPECT_EQ(isolated->get_output_element_type(0), others_selected ? ov::element::f32 : ov::element::f16);
+        EXPECT_EQ(shape_of->get_output_element_type(0), ov::element::i64);
+        EXPECT_EQ(reshape->input_value(1), shape->output(0));
+        EXPECT_EQ(transpose->input_value(1), order->output(0));
+        EXPECT_EQ(split->input_value(1), axis->output(0));
+        EXPECT_EQ(left->get_output_element_type(0), ov::element::f16);
+        EXPECT_EQ(right->get_output_element_type(0), ov::element::f16);
+        for (size_t port = 0; port < 3; port++)
+            EXPECT_EQ(model->get_output_element_type(port), ov::element::f16);
+        EXPECT_EQ(model->get_output_element_type(3), ov::element::i64);
+        if (targets_selected && middle_selected) {
+            EXPECT_EQ(reshape->input_value(0), first->output(0));
+            EXPECT_EQ(transpose->input_value(0), reshape->output(0));
+            EXPECT_EQ(second->input_value(0), transpose->output(0));
+        } else if (targets_selected) {
+            auto down = ov::as_type_ptr<ov::op::v0::Convert>(reshape->input_value(0).get_node_shared_ptr());
+            auto up = ov::as_type_ptr<ov::op::v0::Convert>(second->input_value(0).get_node_shared_ptr());
+            ASSERT_NE(down, nullptr);
+            ASSERT_NE(up, nullptr);
+            EXPECT_EQ(down->get_destination_type(), ov::element::f16);
+            EXPECT_EQ(down->input_value(0), first->output(0));
+            EXPECT_EQ(up->get_destination_type(), ov::element::f32);
+            EXPECT_EQ(up->input_value(0), transpose->output(0));
+        }
+
+        ov::Tensor data(ov::element::f16, ov::Shape{1, 4});
+        for (size_t index = 0; index < data.get_size(); index++)
+            data.data<ov::float16>()[index] = ov::float16(1.0009765625f);
+        ov::TensorVector outputs{ov::Tensor(ov::element::f16, ov::Shape{2, 1}),
+                                 ov::Tensor(ov::element::f16, ov::Shape{2, 1}),
+                                 ov::Tensor(ov::element::f16, ov::Shape{2, 2}),
+                                 ov::Tensor(ov::element::i64, ov::Shape{2})};
+        ASSERT_TRUE(model->evaluate(outputs, {data}));
+        const float expected = targets_selected && middle_selected ? 0.00000095367431640625f : 0.0f;
+        for (size_t port = 0; port < 2; port++) {
+            for (size_t index = 0; index < outputs[port].get_size(); index++)
+                EXPECT_EQ(static_cast<float>(outputs[port].data<ov::float16>()[index]), expected);
+        }
     }
-    EXPECT_EQ(isolated->input_value(0), input->output(0));
-    EXPECT_EQ(isolated->get_output_element_type(0), ov::element::f16);
-    EXPECT_EQ(reshape->input_value(1), shape->output(0));
-    EXPECT_EQ(transpose->input_value(1), order->output(0));
-    EXPECT_EQ(split->input_value(1), axis->output(0));
-    EXPECT_EQ(input->get_element_type(), ov::element::f16);
-    EXPECT_EQ(count_converts(model), 3u);
 }
 
 TEST(ForceFP32Selective, RenamedPlaceholderRemainsAnAbsentOptionalInput) {

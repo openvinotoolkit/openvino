@@ -142,5 +142,5 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, pa_integrity_check, false, "Enable in-kern
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_workgroup_config, std::vector<int>{}, "Override SDPA micro-kernel workgroup config: 4 ints [wg_m_kq wg_n_kq wg_m_vs wg_n_vs]")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_disable_prefetch, 0, "Disable SDPA micro-kernel prefetches (Xe-HPC+). Bitmask: 1 - attn mask, 2 - K, 4 - V, 7 - all")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic, false, "Enable level-zero command list through record and replay for all (static and dynamic) models. Feature is work in progress and may produce incorrect results.")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_types, std::vector<std::string>{}, "Space separated list of layer types to force FP32 precision (debug feature for accuracy isolation)")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_types, std::vector<std::string>{}, "Space separated list of layer types to force FP32 precision; PASSTHROUGH_OPS selects data movement types (no automatic propagation)")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_names, std::vector<std::string>{}, "Space separated list of layer name substrings to force FP32 precision (AND with layer_types if both set)")
