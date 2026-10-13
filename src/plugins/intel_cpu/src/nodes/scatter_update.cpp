@@ -909,7 +909,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
         // fully validate (possibly negative) indices here so the per-element write loops stay branch-free.
         // Violations are flagged, not thrown, inside the loop: an exception escaping a parallel_nt worker
         // is not reliably propagated on the OpenMP threading backend.
-        const bool allowNegativeIndices = scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate;
+        const bool allow_negative_indices = scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate;
         const auto nthr = parallel_get_max_threads();
         std::vector<uint8_t> out_of_range_flags(nthr, 0);
         parallel_nt(nthr, [&](const int ithr, const int nthr) {
@@ -919,7 +919,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             bool local_out_of_range = false;
             for (size_t i = start; i < end; i++) {
                 int64_t idxValue = getIndicesValue(indicesPtr, i);
-                if (allowNegativeIndices && idxValue < 0) {
+                if (allow_negative_indices && idxValue < 0) {
                     idxValue += static_cast<int64_t>(srcDimAxis);
                 }
                 local_out_of_range =

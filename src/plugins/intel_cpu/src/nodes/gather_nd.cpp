@@ -283,11 +283,11 @@ int32_t GatherND::GatherNDExecutor::HandleNegativeIndices(const int32_t* indices
                                                           size_t idx,
                                                           bool& out_of_range) const {
     int32_t index = indices[idx];
-    const auto dimSize = static_cast<int32_t>(srcDims[idx + batchDims]);
+    const auto dim_size = static_cast<int32_t>(srcDims[idx + batchDims]);
     if (index < 0) {
-        index += dimSize;
+        index += dim_size;
     }
-    const auto bad = static_cast<uint32_t>(index) >= static_cast<uint32_t>(dimSize);
+    const auto bad = static_cast<uint32_t>(index) >= static_cast<uint32_t>(dim_size);
     out_of_range |= bad;
     return bad ? 0 : index;
 }
