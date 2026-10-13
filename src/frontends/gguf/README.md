@@ -50,6 +50,7 @@ Projector files convert to encoder models; see [multimodal conversion](docs/mmpr
 * [Register extensions and build plugins](docs/extensions.md), with [runnable examples](examples/architecture_extension/README.md)
 * [Add an operation translator](docs/how_to_add_op.md)
 * [Weight formats and precision](docs/quantization.md)
+* [Weight unpacking: algorithms, memory overhead and tradeoffs](docs/weight_unpacking.md)
 * [Debug accuracy differences](docs/debugging_accuracy.md)
 * [Build, test and regenerate references](docs/testing.md)
 

@@ -5,6 +5,9 @@ choices. Support for a weight format does not establish model accuracy or device
 The native format mapping lives in [`weights.cpp`](../src/quant/weights.cpp); parsing and tensor
 extraction live in [`gguf.cpp`](../src/quant/gguf.cpp).
 
+See [weight unpacking and its tradeoffs](weight_unpacking.md) for each format's block layout,
+decompression algorithm, storage overhead and numerical or execution costs.
+
 ## Native weight formats
 
 | GGUF weight type | OpenVINO weight representation |
