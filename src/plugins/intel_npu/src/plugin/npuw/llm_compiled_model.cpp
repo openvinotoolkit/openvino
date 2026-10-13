@@ -2055,21 +2055,28 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         const uint64_t prefill_required = m_use_chunk_prefill ? m_prefill_chunk_size : m_kvcache_desc.max_prompt_size;
         for (const char* name : {layer_names::input_ids,
                                  layer_names::inputs_embeds,
-                                 layer_names::attention_mask,
                                  layer_names::position_ids,
                                  layer_names::token_type_ids}) {
             validate_extent(prefill_inputs, name, prefill_required);
         }
+        // ReshapeToStatic always sizes attention_mask to max_prompt_size (the full KV window),
+        // never to the chunk size (see reshape_to_static.cpp). infer_chunked_prefill() copies
+        // each completed chunk's mask forward to an absolute offset of num_stored_tokens, which
+        // grows up to max_prompt_size across chunks - validate it against that limit, not the
+        // chunk size every other prefill port uses.
+        validate_extent(prefill_inputs, layer_names::attention_mask, m_kvcache_desc.max_prompt_size);
     }
 
-    for (const auto& variant : m_generate_compiled_variants) {
-        const auto& gen_inputs = variant->inputs();
-        for (const char* name : {layer_names::input_ids,
-                                 layer_names::inputs_embeds,
-                                 layer_names::attention_mask,
-                                 layer_names::position_ids}) {
+    for (size_t i = 0; i < m_generate_compiled_variants.size(); ++i) {
+        const auto& gen_inputs = m_generate_compiled_variants[i]->inputs();
+        for (const char* name : {layer_names::input_ids, layer_names::inputs_embeds, layer_names::position_ids}) {
             validate_extent(gen_inputs, name, m_kvcache_desc.max_generation_token_len);
         }
+        // ReshapeToStatic sizes each generate variant's attention_mask to that variant's own
+        // KV window (m_kvcache_sizes[i]), not to max_generation_token_len - infer_generate()
+        // copies the full stored-token history into it starting at offset 0, so the window
+        // size is what has to hold, not the (generally smaller) per-step generation limit.
+        validate_extent(gen_inputs, layer_names::attention_mask, m_kvcache_sizes.at(i));
     }
 }
 

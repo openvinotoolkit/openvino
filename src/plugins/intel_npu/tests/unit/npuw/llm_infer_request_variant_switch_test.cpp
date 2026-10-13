@@ -38,6 +38,12 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_generate_compiled_variants.at(idx);
     }
 
+    static void set_generate_variant(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                     std::size_t idx,
+                                     std::shared_ptr<ov::npuw::ICompiledModel_v0> variant) {
+        compiled->m_generate_compiled_variants.at(idx) = std::move(variant);
+    }
+
     static bool is_block_kv_cache(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
         return compiled->m_is_block_kv_cache;
     }
@@ -889,6 +895,50 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedAttentionMaskWithZeroBat
     LLMVariantSwitchTestAccess::set_prefill_compiled(
         compiled,
         std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// ReshapeToStatic sizes attention_mask to max_prompt_size - the full KV window - never to the
+// chunk size (see reshape_to_static.cpp), since infer_chunked_prefill() copies each completed
+// chunk's mask forward to an absolute offset of num_stored_tokens, which grows up to
+// max_prompt_size across chunks. A port sized to only one chunk must still be rejected, even
+// though it would satisfy a (wrong) chunk-size-only check.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedChunkedPrefillAttentionMaskSizedToChunkInsteadOfMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 512});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// ReshapeToStatic sizes each generate variant's attention_mask to that variant's own KV window
+// (m_kvcache_sizes[i]), not to max_generation_token_len - infer_generate() copies the full
+// stored-token history into it starting at offset 0, so a port sized to only the (generally much
+// smaller) per-step generation limit must still be rejected.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedGenerateAttentionMaskSizedToMaxGenerationLenInsteadOfKvSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_GE(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 1u);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 8});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        0u,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
 
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
