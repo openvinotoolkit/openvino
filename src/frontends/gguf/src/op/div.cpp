@@ -17,7 +17,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -137,13 +137,11 @@ OutputVector translate_div(const NodeContext& context) {
 
     ov::Output<ov::Node> res = std::make_shared<ov::op::v1::Divide>(input_0, input_1);
     // Keep the divide in FP32: the GPU plugin would otherwise compress it back to FP16 and overflow
-    // on small gate values (e.g. silu(x) / x in qwen2moe).
-    ov::mark_as_precision_sensitive(res.get_node_shared_ptr()->input(0));
-    ov::mark_as_precision_sensitive(res.get_node_shared_ptr()->input(1));
+    // on small gate values (e.g. silu(x) / x in qwen2moe). Precision-sensitive inputs would instead
+    // mark the whole producing subgraph as a shape computation and keep it in FP32.
+    ov::disable_conversion(res.get_node_shared_ptr(), ov::element::f16);
     if (res.get_element_type() != output_type) {
-        auto output_convert = std::make_shared<ov::op::v0::Convert>(res, output_type);
-        ov::mark_as_precision_sensitive(output_convert->input(0));
-        res = output_convert;
+        res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }

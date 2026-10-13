@@ -19,7 +19,8 @@
 namespace ov::intel_gpu {
 
 // precomputed_reduction is providing partial reduction of activation from dynamic quantization into onednn for faster computation
-// It is used for asymmetric weight.
+// It is used for asymmetric 8-bit weights only: for sub-byte weights onednn applies weight zp during up-conversion to s8,
+// so the reduction is not used by the kernel and gives no performance gain.
 DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size,
                                                             bool asymmetric,
                                                             bool precomputed_reduction,
@@ -42,23 +43,30 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         uint64_t adj_group_size = group_size; // If group_size is not supported, it can be adjusted to proper group size
 
         auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
+        ov::NodeVector new_ops;
+        auto make_placeholder = [&new_ops]() {
+            auto placeholder = std::make_shared<ov::intel_gpu::op::Placeholder>();
+            new_ops.push_back(placeholder);
+            return placeholder;
+        };
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t k_axis = weight_shape.size() - (m_fc->get_transpose_b() ? 1 : 2);
         const size_t innermost_size = weight_shape[k_axis].get_length();
 
         const bool has_wzp = m_fc->get_input_size() > 4;
-        auto optional_w_zp = has_wzp ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto optional_w_zp = has_wzp ? m_fc->get_input_node_shared_ptr(4) : make_placeholder();
         ov::op::internal::DynamicQuantize::Attributes config;
         const bool has_static_wzp = m_fc->get_input_size() > 4 && optional_w_zp->get_output_partial_shape(0).rank().is_static();
         const bool is_wei_i8_u8 = cldnn::one_of(m_fc->get_input_element_type(1), {ov::element::i8, ov::element::u8});
+        const bool is_wei_sub_byte = m_fc->get_input_element_type(1).bitwidth() < 8;
 
         if (DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8_u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {
             adj_group_size = 128;
         }
 
         // Add precomputed_reduction connection, if possible
-        if (precomputed_reduction && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
+        if (precomputed_reduction && !is_wei_sub_byte && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const bool is_zp_scalar = has_static_wzp && ov::shape_size(m_fc->get_input_shape(4)) == 1;
@@ -121,9 +129,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
 
         int dyn_quan_output_idx = 2;
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
-                                std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(dyn_quan_output_idx++);
+                                make_placeholder() : dyn_quan->output(dyn_quan_output_idx++);
         auto optional_precomputed_reduction = config.precomputed_reduction ?
-                                 dyn_quan->output(dyn_quan_output_idx++) : std::make_shared<ov::intel_gpu::op::Placeholder>();
+                                 dyn_quan->output(dyn_quan_output_idx++) : make_placeholder();
 
         auto output_type = m_fc->get_output_type();
         if (output_type.is_dynamic()) {
@@ -144,7 +152,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         ov::replace_node(m_fc, new_fc);
 
         new_fc->set_friendly_name(m_fc->get_friendly_name());
-        ov::copy_runtime_info(m_fc, new_fc);
+        new_ops.push_back(dyn_quan);
+        new_ops.push_back(new_fc);
+        ov::copy_runtime_info(m_fc, new_ops);
         return true;
     };
     auto m = std::make_shared<ov::pass::pattern::Matcher>(fully_connected_compressed, "DynamicQuantizeFullyConnected");

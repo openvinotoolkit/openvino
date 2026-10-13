@@ -268,10 +268,12 @@ struct stateless_kv_impl : typed_primitive_impl_ocl<stateless_kv> {
             if (!_kernel_data.params) {
                 update_dispatch_data(*instance.get_impl_params());
             }
-            auto& params = static_cast<scatter_kernel_params_t&>(*_kernel_data.params);
-            if (params.is_inplace != instance.get_is_inplace()) {
-                params.is_inplace = instance.get_is_inplace();
-                (_kernel_data.update_dispatch_data_func)(params, _kernel_data);
+            if (_kernel_data.params) {
+                auto& params = static_cast<scatter_kernel_params_t&>(*_kernel_data.params);
+                if (params.is_inplace != instance.get_is_inplace()) {
+                    params.is_inplace = instance.get_is_inplace();
+                    (_kernel_data.update_dispatch_data_func)(params, _kernel_data);
+                }
             }
         }
         parent::set_arguments_impl(instance);
