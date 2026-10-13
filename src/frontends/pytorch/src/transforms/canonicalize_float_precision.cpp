@@ -15,10 +15,7 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 namespace {
 namespace v0 = ov::op::v0;
@@ -156,7 +153,4 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     return true;
 }
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

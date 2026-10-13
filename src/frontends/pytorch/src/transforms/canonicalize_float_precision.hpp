@@ -6,10 +6,7 @@
 
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 /**
  * @interface CanonicalizeFloatPrecision
@@ -38,7 +35,4 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass
