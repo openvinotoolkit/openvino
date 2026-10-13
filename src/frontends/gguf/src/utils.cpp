@@ -19,6 +19,7 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -34,6 +35,57 @@
 #include "openvino/op/variadic_split.hpp"
 
 namespace ov::frontend::gguf {
+
+ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input) {
+    const auto block = context.get_attribute<int64_t>("hadamard_block", 0);
+    if (block == 0)
+        return input;
+    using namespace ov::op;
+    const auto shape = input.get_partial_shape();
+    FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape[shape.size() - 1].is_static(),
+                                  "Hadamard requires a static feature width");
+    const auto width = shape[shape.size() - 1].get_length();
+    FRONT_END_OP_CONVERSION_CHECK(block > 0 && block <= 4096 && (block & (block - 1)) == 0 && width % block == 0,
+                                  "Invalid Hadamard block size/width");
+    const auto pattern = [&](const std::vector<int64_t>& dims) {
+        return v0::Constant::create(ov::element::i64, {dims.size()}, dims);
+    };
+    const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
+    const auto heads = context.get_attribute<std::vector<int64_t>>("hadamard_gdn_heads", {});
+    if (!heads.empty()) {
+        FRONT_END_OP_CONVERSION_CHECK(heads.size() == 3 && heads[0] * heads[1] * heads[2] == width,
+                                      "Invalid Hadamard GDN feature order");
+        input = std::make_shared<v1::Reshape>(input, pattern({-1, heads[0], heads[1], heads[2]}), false);
+        input = std::make_shared<v1::Transpose>(input, pattern({0, 2, 1, 3}));
+        input = std::make_shared<v1::Reshape>(input, original, false);
+    }
+    const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
+    const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
+    const auto sign_node = signs ? std::make_shared<v0::Constant>(signs) : nullptr;
+    if (sign_node && !inverse)
+        input = std::make_shared<v1::Multiply>(input, sign_node);
+    std::vector<float> matrix(static_cast<size_t>(block * block));
+    const float scale = 1.f / std::sqrt(static_cast<float>(block));
+    for (int64_t row = 0; row < block; ++row) {
+        for (int64_t col = 0; col < block; ++col) {
+            uint64_t bits = row & col;
+            bool odd = false;
+            while (bits) {
+                odd = !odd;
+                bits &= bits - 1;
+            }
+            matrix[row * block + col] = odd ? -scale : scale;
+        }
+    }
+    const auto rotation =
+        v0::Constant::create(ov::element::f32, {static_cast<size_t>(block), static_cast<size_t>(block)}, matrix);
+    input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
+    input = std::make_shared<v0::MatMul>(input, rotation, false, true);
+    input = std::make_shared<v1::Reshape>(input, original, false);
+    if (sign_node && inverse)
+        input = std::make_shared<v1::Multiply>(input, sign_node);
+    return input;
+}
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto input_size = context.get_input_size();

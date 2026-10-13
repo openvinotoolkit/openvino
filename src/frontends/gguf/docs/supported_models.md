@@ -24,6 +24,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | Architecture | Notes | Real checkpoint | Choices |
 |---|---|---|---|
 | `bailingmoe2` | Sigmoid routing, biased/grouped selection, shared experts | Ling-mini-2.0 Q2_K | 12/13 |
+| `dspark` | Noncausal block drafter, captured target features, log-SNR, optional Markov/confidence outputs; separate host sampling contract | Bonsai/Ternary-Bonsai-27B BF16 | NMSE < 6e-6 |
 | `deepseek2-ocr` | Language backbone: dense lead layers, shared/routed experts | DeepSeek-OCR-2 Q4_K_M | 13/13 |
 | `ernie4_5-moe` | Interleaved MoE, biased selection, normalized weights, shared experts | ERNIE-4.5-21B-A3B-PT Q4_K_M | 12/13 |
 | `exaone-moe` | Dense lead, shared/routed experts, RoPE on SWA layers only | K-EXAONE-236B-A23B Q2_K | 11/13 ¹ |
@@ -69,7 +70,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 
 ### Numerical regression coverage
 
-[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) runs 40 small nonzero F32 decoder
+[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) runs 41 small nonzero F32 decoder
 fixtures (every decoder above except `gpt-oss`, plus Devstral YaRN/temperature, Gemma4 MQA/MoE/PLE,
 Qwen3.5 mixed and fused variants) and `GGUFEmbeddingAccuracy` five embedding fixtures. Each compares
 complete logits with llama.cpp CPU through prefill, decode and a two-token cache append. Fixtures
@@ -114,3 +115,50 @@ GGML_OPENVINO_DEVICE=CPU GGML_OPENVINO_STATEFUL_EXECUTION=1 \
 ```
 
 Checkpoints used `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K` and `Q8_0`; other formats are covered by unit tests only.
+
+## Bonsai checkpoint coverage
+
+The pinned inventory in
+[`bonsai_models.json`](../../../../tests/model_hub_tests/gguf/bonsai_models.json) contains all
+38 published Bonsai/Bonsai-2 GGUF filenames at the recorded revisions, including identical
+binary filename aliases, six projectors and four DSpark drafts. MLX, AWQ, GemLite and unpacked
+Safetensors repositories are separate input formats.
+
+Original binary Bonsai uses `qwen3` at 1.7B/4B/8B and `qwen35` at 27B. Ternary Bonsai includes
+F16, legacy Q2_0 per-128, Q2_0 per-64 and private PQ2_0. Bonsai-2 27B additionally includes
+PTQ1_0 and folded Hadamard weights; its F16 files retain the same activation-transform contract.
+Supported Hadamard metadata is version 1 or tied-output version 2, normalized Sylvester,
+input-last-dimension, identity or explicit ±1 signs, and blocks up to 4096. The frontend applies
+the inverse transform after token lookup and preserves transforms when splitting QKV and Q/gate.
+
+The October 2026 CPU validation uses Prism llama.cpp
+`e8fd209c975c80aa7fb36a8423571ff3b1b7e955`. All 25 decoder checkpoint files excluding filename aliases
+passed the same first choice and ≥90% continuation gate for `The capital of France is`.
+Twenty-four matched 13/13 choices; Ternary-Bonsai-4B Q2_0 per-64 matched 12/13. Per-step full-logit
+NMSE is retained separately (quantized kernels differ from represented-F32 arithmetic).
+Legacy per-128 references require only descriptor type 42→142 in a separate copy; native
+OpenVINO consumes the original files. The three `.gguf` binary aliases have identical publisher
+SHA256s to their Q1_0 filenames.
+
+DSpark accepts a fixed draft block in `inp_tokens` and captured target-layer features in
+`dspark_ctx_feat` (`[1,1,context_rows,capture_count*embedding_width]`). Positions and cache-write
+indices cover context plus draft rows; callers provide a fully open attention mask for the
+noncausal round. Outputs include `logits`, `dspark.hidden`, per-layer caches and, when present,
+`dspark.corrected_logits` and raw `dspark.confidence_score`. `dspark_prev_tokens` supplies the
+sampled predecessor for each auxiliary-head row. Sequential sampling and target-layer capture
+belong to the caller. Log-SNR uses the published round-1 convention (anchor at max, masks at min).
+Hidden-correction checkpoints and generic GenAI decoder adaptation are excluded.
+
+Both published DSpark BF16 drafts passed the full-logit `1e-5` limit at context lengths two and
+three. Both Q4_1 drafts passed against independently expanded F32 represented weights: binary
+NMSE ≤`3.1e-7`, ternary ≤`1.7e-8`. Against Prism quantized CPU execution, binary Q4_1 reaches
+`1.8e-4` and ternary Q4_1 reaches `1.16e-5`; both remain failed strict-parity results.
+All six multimodal projectors passed; see [mmproj.md](mmproj.md).
+The original Bonsai-27B, Ternary-Bonsai-27B and Ternary-Bonsai-2-27B F16 files each passed with
+13/13 choices after verifying their publisher SHA256s. Their per-step NMSE was below the
+GTest report's six-decimal display precision.
+
+`tests/model_hub_tests/gguf/test_bonsai.py` provides an opt-in full decoder/drafter conversion,
+compile and inference matrix (`GGUF_BONSAI_ALL=1`). Allocate memory for 27B F16 compilation.
+This smoke matrix complements the independent logit and projector-feature comparisons; it does
+not establish long-context, model-quality or complete multimodal/speculative application support.

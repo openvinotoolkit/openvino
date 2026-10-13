@@ -36,6 +36,71 @@
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
 
+TEST(GGUFDSparkAccuracy, NoncausalDraftBlocksMatchPrismCPU) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/dspark.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(temporary.path));
+    EXPECT_FALSE(ov::frontend::gguf::pass::AdaptToGenAI().run_on_model(model));
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::hint::dynamic_quantization_group_size(0),
+                                       ov::inference_num_threads(4));
+    auto request = compiled.create_infer_request();
+    for (size_t rows : {2, 3, 2}) {
+        SCOPED_TRACE(rows);
+        const auto count = rows + 4;
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            auto shape = input.get_partial_shape();
+            for (size_t i = 0; i < shape.size(); ++i)
+                if (shape[i].is_dynamic())
+                    shape[i] = name == "dspark_ctx_feat" ? rows : count;
+            ov::Tensor value(input.get_element_type(), shape.to_shape());
+            std::memset(value.data(), 0, value.get_byte_size());
+            if (name == "dspark_ctx_feat") {
+                for (size_t i = 0; i < value.get_size(); ++i)
+                    value.data<float>()[i] = std::sin(static_cast<float>(i)) * .1f;
+            } else if (name == "inp_tokens" || name == "dspark_prev_tokens" || name == "inp_pos" ||
+                       name == "inp_kv_idx") {
+                for (size_t i = 0; i < value.get_size(); ++i)
+                    value.data<int32_t>()[i] = i + (name == "inp_tokens" || name == "dspark_prev_tokens" ? 1 : 0);
+            }
+            request.set_tensor(name, value);
+        }
+        request.infer();
+        const auto actual = request.get_tensor("logits");
+        const auto& expected = ov_gguf_test::npz_array(arrays, "logits_" + std::to_string(rows));
+        ASSERT_EQ(actual.get_size(), expected.num_vals);
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), actual.get_size()),
+            1e-5);
+        const auto hidden = request.get_tensor("dspark.hidden");
+        const auto corrected = request.get_tensor("dspark.corrected_logits");
+        const auto confidence = request.get_tensor("dspark.confidence_score");
+        const auto* a = ov_gguf_test::npz_array(arrays, "dspark.markov_head_a.weight").data<float>();
+        const auto* b = ov_gguf_test::npz_array(arrays, "dspark.markov_head_b.weight").data<float>();
+        const auto* c = ov_gguf_test::npz_array(arrays, "dspark.confidence_head.weight").data<float>();
+        const auto bias = ov_gguf_test::npz_array(arrays, "dspark.confidence_head.bias").data<float>()[0];
+        for (size_t token = 0; token < 4; ++token) {
+            double score = bias;
+            for (size_t feature = 0; feature < 64; ++feature)
+                score += hidden.data<const float>()[token * 64 + feature] * c[feature];
+            for (size_t rank = 0; rank < 8; ++rank)
+                score += a[(token + 1) * 8 + rank] * c[64 + rank];
+            EXPECT_NEAR(confidence.data<const float>()[token], score, 1e-6);
+            for (size_t vocab = 0; vocab < 256; ++vocab) {
+                double logit = actual.data<const float>()[token * 256 + vocab];
+                for (size_t rank = 0; rank < 8; ++rank)
+                    logit += a[(token + 1) * 8 + rank] * b[vocab * 8 + rank];
+                EXPECT_NEAR(corrected.data<const float>()[token * 256 + vocab], logit, 1e-6);
+            }
+        }
+    }
+}
+
 // Check batching and beam reordering against independent stateful requests. The
 // same synthetic checkpoints are qualified against llama.cpp below.
 void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
@@ -86,7 +151,8 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttention) {
-    for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe", "gemma4-ple"}) {
+    for (const auto* family :
+         {"qwen35", "bonsai2-hadamard", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe", "gemma4-ple"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -572,6 +638,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
                          ::testing::Values("qwen35",
+                                           "bonsai2-hadamard",
                                            "qwen35-mixed",
                                            "qwen35moe",
                                            "qwen35moe-fused",

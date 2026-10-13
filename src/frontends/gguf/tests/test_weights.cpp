@@ -88,7 +88,9 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q5_k", "Q5_K", kTolRequant},
                                            WeightCase{"q6_k", "Q6_K", kTolRequant},
                                            WeightCase{"q2_0", "Q2_0", kTolFaithful},
-                                           WeightCase{"q1_0", "Q1_0", kTolFaithful}),
+                                           WeightCase{"q1_0", "Q1_0", kTolFaithful},
+                                           WeightCase{"pq2_0", "PQ2_0", 0.f},
+                                           WeightCase{"ptq1_0", "PTQ1_0", 0.f}),
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });

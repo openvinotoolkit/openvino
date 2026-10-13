@@ -82,6 +82,9 @@ WeightFormat get_weight_format(GgufTensorType qtype) {
         return {FillKind::ASYMMETRIC, 16, ov::element::u2};
     case GGUF_TYPE_Q2_0:
         return {FillKind::Q2_0, 64, ov::element::u2};
+    case GGUF_TYPE_PQ2_0:
+    case GGUF_TYPE_PTQ1_0:
+        return {FillKind::Q2_0, 128, ov::element::u2};
     case GGUF_TYPE_Q4_1:
     case GGUF_TYPE_Q4_K:
         return {FillKind::ASYMMETRIC, 32, ov::element::u32};
@@ -409,7 +412,7 @@ ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType q
     // request the faithful f16 zero-point of both u4 formats via OV_GGUF_Q4_K_ZP_F16. Q2_0's zero-point is exactly
     // 1, so u8 is faithful there. Other asymmetric formats keep f16 because their zero-point can
     // exceed u8 range. token_embd/output keep a faithful f16 zero-point.
-    if (qtype == GGUF_TYPE_Q2_0) {
+    if (qtype == GGUF_TYPE_Q2_0 || qtype == GGUF_TYPE_PQ2_0 || qtype == GGUF_TYPE_PTQ1_0) {
         return ov::element::u8;
     }
     const bool requantized = qtype == GGUF_TYPE_Q5_K ||
@@ -467,7 +470,9 @@ GgufTensorType gguf_type_from_name(const std::string& quant_type) {
                                                                           {"Q8_K", GGUF_TYPE_Q8_K},
                                                                           {"MXFP4", GGUF_TYPE_MXFP4},
                                                                           {"Q1_0", GGUF_TYPE_Q1_0},
-                                                                          {"Q2_0", GGUF_TYPE_Q2_0}};
+                                                                          {"Q2_0", GGUF_TYPE_Q2_0},
+                                                                          {"PQ2_0", GGUF_TYPE_PQ2_0},
+                                                                          {"PTQ1_0", GGUF_TYPE_PTQ1_0}};
     // Accept ggml's lowercase type names ("q4_0", "q6_K", "f16", ...) as well as the
     // canonical uppercase form.
     auto it = names.find(ov::util::to_upper(quant_type));
