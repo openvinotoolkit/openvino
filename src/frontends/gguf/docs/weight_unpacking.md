@@ -204,11 +204,17 @@ have already been rounded to F16 at import.
 Q8_0 directly copies 32 `i8` codes and one F16 scale per block. There is no code expansion,
 requantization or extra metadata; its usual decompression multiply is F16.
 
-Q8_K copies 256 `i8` codes and an F32 scale. The 16 `i16` partial sums stored by GGML for
-quantized dot products are omitted because they are not needed by the decompression graph.
-Storage falls from 292 to 260 bytes and reconstruction uses F32. OpenVINO does not reproduce
-GGML's partial-sum kernel through this representation. Q8_1 has no implemented native weight
-unpacking path.
+Q8_K copies 256 `i8` codes and an F32 scale unchanged. Each GGUF block contains 256 code bytes,
+four scale bytes and 32 bytes of precomputed sums (`16` values of type `i16`), totaling 292
+bytes. OpenVINO omits the sums, leaving 260 bytes: a reduction of `32/292`, or 11.0%.
+
+Each omitted sum is `bsums[j] = sum(codes[16*j : 16*j+16])`. These sums accelerate GGML's
+quantized dot products but are not needed by the decompression graph. No weight information
+or precision is lost by omitting them: reconstruction remains `weight[i] = scale * code[i]`
+in F32, without requantization. The sums can be regenerated exactly from the retained codes
+if a future kernel or GGUF exporter needs them. Preserving them would add unused storage to
+the current representation. OpenVINO does not reproduce GGML's partial-sum kernel through
+this representation. Q8_1 has no implemented native weight unpacking path.
 
 ## Affine K formats
 
