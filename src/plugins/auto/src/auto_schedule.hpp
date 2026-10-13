@@ -53,6 +53,10 @@ private:
     // mode: a switch away from it relies on the on-disk cache blob to recompile the new target fast.
     void release_dynamic_device_resources();
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_precompile_executor;
+    // Per-device pre-compile completion signal; lets a foreground compile wait instead of racing it.
+    std::mutex                                                           m_precompile_mutex;
+    std::map<std::string, std::promise<void>>                            m_precompile_promises;
+    std::map<std::string, std::shared_future<void>>                      m_precompile_futures;
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;

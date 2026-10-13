@@ -372,37 +372,52 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (devices_to_precompile.empty()) {
         return;
     }
+    {
+        // Pre-register futures so an early foreground compile always has something to wait on.
+        std::lock_guard<std::mutex> lock(m_precompile_mutex);
+        for (const auto& device : devices_to_precompile) {
+            std::promise<void> promise;
+            m_precompile_futures[device.device_name] = promise.get_future().share();
+            m_precompile_promises[device.device_name] = std::move(promise);
+        }
+    }
     if (!m_precompile_executor) {
-        // Bound the stream count by the number of devices to precompile to avoid oversubscription,
-        // and clamp to at least 1 since hardware_concurrency() may return 0.
-        const int num_streams = std::max(1,
-                                          std::min(static_cast<int>(devices_to_precompile.size()),
-                                                   static_cast<int>(std::thread::hardware_concurrency())));
+        // Single stream: precompile devices sequentially in priority order.
         m_precompile_executor =
             m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
                 "AutoDeviceCachePreCompilation",
-                num_streams,
+                1,
                 0 /*default threads per stream, workaround for ticket 62376*/});
     }
 
-    for (const auto& device : devices_to_precompile) {
-        // Clone before scheduling; skip this device if cloning fails.
-        std::shared_ptr<ov::Model> model_snapshot;
-        if (model) {
-            try {
-                model_snapshot = model->clone();
-            } catch (const std::exception& e) {
-                LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: %s",
-                              device.device_name.c_str(),
-                              e.what());
-                continue;
-            } catch (...) {
-                LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: unknown exception",
-                              device.device_name.c_str());
-                continue;
+    m_precompile_executor->run([this, core = m_context->m_ov_core, devices_to_precompile, model, model_path] {
+        for (const auto& device : devices_to_precompile) {
+            auto notify_done = [this, &device]() {
+                std::lock_guard<std::mutex> lock(m_precompile_mutex);
+                auto promise_it = m_precompile_promises.find(device.device_name);
+                if (promise_it != m_precompile_promises.end()) {
+                    promise_it->second.set_value();
+                    m_precompile_promises.erase(promise_it);
+                }
+            };
+            // Clone before compiling; skip this device if cloning fails.
+            std::shared_ptr<ov::Model> model_snapshot;
+            if (model) {
+                try {
+                    model_snapshot = model->clone();
+                } catch (const std::exception& e) {
+                    LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: %s",
+                                  device.device_name.c_str(),
+                                  e.what());
+                    notify_done();
+                    continue;
+                } catch (...) {
+                    LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, failed to clone model: unknown exception",
+                                  device.device_name.c_str());
+                    notify_done();
+                    continue;
+                }
             }
-        }
-        m_precompile_executor->run([this, core = m_context->m_ov_core, device, model_snapshot, model_path] {
             // Wait for ACTUALDEVICE to settle, then skip this device if it was selected as the actual device.
             if (m_compile_context[ACTUALDEVICE].m_future.valid()) {
                 m_compile_context[ACTUALDEVICE].m_future.wait();
@@ -412,7 +427,8 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
                 if (device.device_name == m_compile_context[ACTUALDEVICE].m_device_info.device_name) {
                     LOG_INFO_TAG("skip cache pre-compilation for device: %s, already compiled as the actual device",
                                  device.device_name.c_str());
-                    return;
+                    notify_done();
+                    continue;
                 }
             }
             const auto compile_begin = std::chrono::steady_clock::now();
@@ -456,8 +472,9 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
                               device.device_name.c_str(),
                               compile_ms);
             }
-        });
-    }
+            notify_done();
+        }
+    });
 }
 
 void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
@@ -489,6 +506,22 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
             } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
             }
+        }
+    }
+    {
+        // Wait for this device's background pre-compile to finish instead of racing it.
+        std::shared_future<void> precompile_future;
+        {
+            std::lock_guard<std::mutex> lock(m_precompile_mutex);
+            auto it = m_precompile_futures.find(device);
+            if (it != m_precompile_futures.end()) {
+                precompile_future = it->second;
+            }
+        }
+        if (precompile_future.valid()) {
+            LOG_DEBUG_TAG("Device: [%s]: waiting for cache pre-compilation to finish before compiling on demand",
+                          device.c_str());
+            precompile_future.wait();
         }
     }
     try {
