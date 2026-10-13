@@ -144,6 +144,7 @@ std::shared_ptr<const ov::Model> ov::npuw::KokoroCompiledModel::get_runtime_mode
 void ov::npuw::KokoroCompiledModel::set_property(const ov::AnyMap& properties) {
     LOG_DEBUG("Setting properties to KokoroCompiledModel");
     // Both models are NPUW compiled models, they validate which keys are mutable
+    std::lock_guard<std::mutex> lock(m_set_property_mutex);
     if (m_model_a_compiled) {
         m_model_a_compiled->set_property(properties);
     }

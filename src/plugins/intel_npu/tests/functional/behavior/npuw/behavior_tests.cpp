@@ -766,6 +766,30 @@ TEST_F(BehaviorTestsNPUWOnlinePartitioning, ModelPriorityIsSkippedForSubmodelsWh
     EXPECT_EQ(ov::hint::Priority::LOW, compiled_model.get_property(ov::hint::model_priority));
 }
 
+TEST_F(BehaviorTestsNPUW, ModelPriorityIsNotRememberedWhenNoSubmodelCanChangeIt) {
+    model = model_builder.get_model_with_one_op();
+
+    // Set expectations first:
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+    EXPECT_COMPILE_MODEL(mock_cpu, TIMES(0));
+    // The compiled model keeps the default mock behavior (priority isn't RW, set_property throws),
+    // like a device which can't change it. NB: MockNPU is used rather than a MockCPU-only list on
+    // purpose: the mock engines hand out the injected plugins in creation order on Linux, so MockNPU
+    // must be created first.
+    mock_npu_plugin->set_expectations_to_comp_models(MODEL(0), [](MockCompiledModel& model) {
+        EXPECT_CALL(model, set_property(_)).Times(0);
+    });
+
+    // Register mock objects as plugins in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    // Do the actual test:
+    use_npuw_props.emplace(devices("MockNPU"));
+    auto compiled_model = core.compile_model(model, "NPU", use_npuw_props);
+    EXPECT_NO_THROW(compiled_model.set_property(ov::hint::model_priority(ov::hint::Priority::HIGH)));
+    EXPECT_NE(ov::hint::Priority::HIGH, compiled_model.get_property(ov::hint::model_priority));
+}
+
 TEST_F(BehaviorTestsNPUW, SettingNonPriorityPropertyAfterCompilationThrows) {
     model = model_builder.get_model_with_one_op();
 

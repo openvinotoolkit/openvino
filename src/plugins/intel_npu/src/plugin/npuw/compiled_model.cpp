@@ -1443,7 +1443,7 @@ void ov::npuw::CompiledModel::ensure_phase0_compatibility() const {
 
 void ov::npuw::CompiledModel::serialize_orc(std::ostream& stream) const {
     ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
-    serialize_orc_container(stream, true, get_encrypt_callback(m_non_npuw_props));
+    serialize_orc_container(stream, true, get_encrypt_callback(non_npuw_props()));
 }
 
 void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
@@ -1462,7 +1462,8 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
         ensure_phase0_compatibility();
     }
 
-    bool is_weightless = should_use_weightless_flow(m_non_npuw_props, m_cfg, m_const_to_offset);
+    ov::AnyMap serializable_props = non_npuw_props();
+    bool is_weightless = should_use_weightless_flow(serializable_props, m_cfg, m_const_to_offset);
     LOG_INFO("Serialization will be done via " << (is_weightless ? "weightless" : "flow with weights") << ".");
     // For top-level CompiledModel export we serialize this model's own BF16 cache.
     // For nested export (e.g. inside LLMCompiledModel) the parent may provide a
@@ -1470,7 +1471,6 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
     // propagated view must win so weightless import can reconstruct tensors correctly.
     const auto& bf16_cache = bf16_consts != nullptr ? *bf16_consts : m_bf16_consts;
 
-    ov::AnyMap serializable_props = m_non_npuw_props;
     serializable_props.erase(ov::cache_encryption_callbacks.name());
     s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
 
@@ -1582,6 +1582,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         meta_stream & compiled->m_cfg;
         compiled->m_cfg.parseEnvVars();
         meta_stream & compiled->m_non_npuw_props;
+        // Model priority is a runtime-only property: the submodels are imported with the default one,
+        // so drop the value saved at export time to report what they actually use
+        compiled->m_non_npuw_props.erase(ov::hint::model_priority.name());
         meta_stream & is_weightless;
         meta_stream & compiled->m_bf16_consts;
         if (encrypted) {
@@ -2307,6 +2310,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     const auto& first_model = pyramid_attn_models[0];
                     npu_device_str = device;
                     const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                    std::lock_guard<std::mutex> lock(m_props_mutex);
                     const ov::Any existing_any =
                         ov::npuw::util::at::_(m_meta_devices[npu_device_str]).at_or(strides_key, std::string{});
                     saved_strides = existing_any.as<std::string>();
@@ -2342,6 +2346,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
         if (support_strides_for && !npu_device_str.empty()) {
             const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+            std::lock_guard<std::mutex> lock(m_props_mutex);
             if (saved_strides.empty()) {
                 m_meta_devices[npu_device_str].erase(strides_key);
             } else {
@@ -2378,6 +2383,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 hfa->_can_use_tensor_view = true;
                 npu_device_str = device;
                 const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                std::lock_guard<std::mutex> lock(m_props_mutex);
                 const ov::Any existing_any =
                     ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
                 saved_strides = existing_any.as<std::string>();
@@ -2398,6 +2404,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
 
             if (supports_strides_for && !npu_device_str.empty()) {
                 const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                std::lock_guard<std::mutex> lock(m_props_mutex);
                 if (saved_strides.empty()) {
                     m_meta_devices[npu_device_str].erase(strides_key);
                 } else {
@@ -2417,8 +2424,15 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
-    // Make a device config COPY here!
-    auto device_config = m_meta_devices[device];
+    // Make a device config COPY here! It may be called at runtime (failsafe fallback) while
+    // set_property() updates the per-device configs
+    ov::AnyMap device_config;
+    {
+        std::lock_guard<std::mutex> lock(m_props_mutex);
+        if (auto it = m_meta_devices.find(device); it != m_meta_devices.end()) {
+            device_config = it->second;
+        }
+    }
 
     if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
@@ -2777,6 +2791,29 @@ void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
         return;
     }
 
+    std::lock_guard<std::mutex> set_property_lock(m_set_property_mutex);
+
+    // Each device config gets only the keys its device can change (e.g. CPU can't change any).
+    // Query the devices outside of m_props_mutex, take it only to access the maps.
+    std::vector<std::string> devices;
+    {
+        std::lock_guard<std::mutex> props_lock(m_props_mutex);
+        for (const auto& [device, device_props] : m_meta_devices) {
+            devices.push_back(device);
+        }
+    }
+    auto core = get_npuw_plugin()->get_core();
+    std::unordered_map<std::string, ov::AnyMap> device_updates;
+    for (const auto& device : devices) {
+        const auto device_mutable =
+            ov::npuw::util::mutable_properties(core->get_property(device, ov::supported_properties));
+        for (const auto& [key, value] : updates) {
+            if (device_mutable.count(key)) {
+                device_updates[device][key] = value;
+            }
+        }
+    }
+
     // Collect every device-level compiled model owned by this partitioned model, once.
     // Function calls have neither a compiled model nor extra models of their own (they run
     // their body's), so each model appears only in the submodel which owns it. The extra
@@ -2797,38 +2834,60 @@ void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
         }
     }
 
-    // Each submodel gets only the keys its device can change (e.g. CPU can't change any)
+    // Keys which at least one compiled submodel can change at runtime. Only those are
+    // remembered, so get_property never reports a value no submodel uses.
+    ov::AnyMap applied;
+
+    // Same for the compiled submodels
+    std::vector<std::pair<ov::SoPtr<ov::ICompiledModel>, ov::AnyMap>> cm_updates;
     for (const auto& cm : targets) {
         const auto cm_mutable = ov::npuw::util::mutable_properties(
             cm->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>());
-        ov::AnyMap cm_updates;
+        ov::AnyMap props;
         for (const auto& [key, value] : updates) {
             if (cm_mutable.count(key)) {
-                cm_updates.emplace(key, value);
+                props.emplace(key, value);
+                applied[key] = value;
             }
         }
-        if (cm_updates.empty()) {
+        if (props.empty()) {
             LOG_DEBUG("Skipping a submodel which can't change any of the requested properties");
             continue;
         }
-        cm->set_property(cm_updates);
+        cm_updates.emplace_back(cm, std::move(props));
     }
 
-    // Keep the per-device configs in sync so submodels compiled later (e.g. failsafe
-    // fallbacks) inherit the new values, and remember them for get_property/export
-    auto core = get_npuw_plugin()->get_core();
-    for (auto& [device, device_props] : m_meta_devices) {
-        const auto device_mutable =
-            ov::npuw::util::mutable_properties(core->get_property(device, ov::supported_properties));
-        for (const auto& [key, value] : updates) {
-            if (device_mutable.count(key)) {
+    for (const auto& [key, value] : updates) {
+        if (!applied.count(key)) {
+            LOG_WARN("NPUW CompiledModel: '" << key << "' can't be changed by any of the submodels, ignoring it");
+        }
+    }
+
+    // Update the per-device configs first, so submodels compiled from now on (e.g. failsafe
+    // fallbacks) inherit the new values, and remember them for get_property/export. A fallback
+    // which already took the old config holds its failsafe lock until it's done, so the
+    // propagation below waits for it and then reaches the newly compiled model.
+    {
+        std::lock_guard<std::mutex> props_lock(m_props_mutex);
+        for (const auto& [device, props] : device_updates) {
+            auto& device_props = m_meta_devices.at(device);
+            for (const auto& [key, value] : props) {
                 device_props[key] = value;
             }
         }
+        for (const auto& [key, value] : applied) {
+            m_non_npuw_props[key] = value;
+        }
     }
-    for (const auto& [key, value] : updates) {
-        m_non_npuw_props[key] = value;
+
+    for (const auto& [cm, props] : cm_updates) {
+        cm->set_property(props);
     }
+}
+
+ov::AnyMap ov::npuw::CompiledModel::non_npuw_props() const {
+    std::lock_guard<std::mutex> lock(m_props_mutex);
+    return m_non_npuw_props;
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() const {
@@ -2848,8 +2907,12 @@ ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {
     auto&& configIterator = m_prop_to_opt.find(name);
     if (configIterator != m_prop_to_opt.cend()) {
         return std::get<1>(configIterator->second)(m_cfg);
-    } else if (m_non_npuw_props.count(name)) {
-        return m_non_npuw_props.at(name);
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_props_mutex);
+        if (auto it = m_non_npuw_props.find(name); it != m_non_npuw_props.end()) {
+            return it->second;
+        }
     }
 
     OPENVINO_THROW("Unsupported configuration key: ", name);
@@ -3028,8 +3091,11 @@ void ov::npuw::CompiledModel::implement_properties() {
          {ov::PropertyMutability::RW,
           [&](const ::intel_npu::Config&) -> ov::Any {
               // Report the priority the submodels actually use (set at compile time or via set_property), falling back to the plugin's default
-              if (auto it = m_non_npuw_props.find(ov::hint::model_priority.name()); it != m_non_npuw_props.end()) {
-                  return it->second.as<ov::hint::Priority>();
+              {
+                  std::lock_guard<std::mutex> lock(m_props_mutex);
+                  if (auto it = m_non_npuw_props.find(ov::hint::model_priority.name()); it != m_non_npuw_props.end()) {
+                      return it->second.as<ov::hint::Priority>();
+                  }
               }
               GET_PLUGIN_PROP(ov::hint::model_priority);
           }}}
