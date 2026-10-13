@@ -95,3 +95,64 @@ class TestHypotValues(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_hypot_values(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, fx_kind="aten.hypot")
+
+
+class TestHypotExtremeValues(PytorchLayerTest):
+    # Inputs whose squares overflow to inf or underflow to 0 in f32, while hypot itself is
+    # representable. The result is divided by max(|input|, |other|) so every finite output is
+    # in [1, sqrt(2)] and the absolute tolerance of the comparison cannot hide an inf or a 0.
+    def _prepare_input(self):
+        lhs = np.array(self.lhs, dtype=np.float32)
+        rhs = np.array(self.rhs, dtype=np.float32)
+        norm = np.maximum(np.abs(lhs), np.abs(rhs))
+        norm = np.where(np.isfinite(norm) & (norm > 0), norm, 1).astype(np.float32)
+        return (lhs, rhs, norm)
+
+    def create_model(self):
+
+        class aten_hypot(torch.nn.Module):
+            def forward(self, lhs, rhs, norm):
+                return torch.hypot(lhs, rhs) / norm
+
+        return aten_hypot(), "aten::hypot"
+
+    @pytest.mark.parametrize(("lhs", "rhs"), [
+        # squares overflow f32
+        ([1e20, 3e19, -1e30, 1e38, 1e38], [1e20, 4e19, 1e30, 1e38, 1.0]),
+        # squares underflow to 0 in f32
+        ([1e-25, 3e-30, -1e-37, 1e-30], [1e-25, 4e-30, 1e-37, 0.0]),
+        # inf dominates nan, nan propagates otherwise
+        ([np.inf, -np.inf, np.nan, np.nan, np.inf, 3.0, 0.0], [np.nan, 5.0, -np.inf, 2.0, np.inf, np.nan, 0.0]),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_hypot_extreme_values(self, ie_device, precision, ir_version, lhs, rhs):
+        if precision == "FP16":
+            pytest.skip("Values exceed the f16 range")
+        self.lhs = lhs
+        self.rhs = rhs
+        self._test(*self.create_model(), ie_device, precision, ir_version, fx_kind="aten.hypot")
+
+
+class TestHypotF16Range(PytorchLayerTest):
+    # In f16 (max 65504) the squares of inputs above ~256 overflow, though hypot itself fits.
+    def _prepare_input(self):
+        return (np.array([300.0, -1000.0, 255.0, 40000.0, 3.0], dtype=np.float32),
+                np.array([400.0, 0.5, 256.0, 30000.0, 4.0], dtype=np.float32))
+
+    def create_model(self):
+
+        class aten_hypot(torch.nn.Module):
+            def forward(self, lhs, rhs):
+                return torch.hypot(lhs.to(torch.float16), rhs.to(torch.float16))
+
+        return aten_hypot(), "aten::hypot"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_hypot_f16_range(self, ie_device, precision, ir_version):
+        # f16 resolution is ~1e-3 relative, results may differ from torch by an ulp.
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   freeze_model=False, trace_model=True, fx_kind="aten.hypot", custom_eps=1e-2)
