@@ -147,6 +147,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roi_align_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roi_pooling_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roll_si_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scaled_dot_product_attention_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scatter_nd_update_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scatter_update_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/select_si_test.cpp
