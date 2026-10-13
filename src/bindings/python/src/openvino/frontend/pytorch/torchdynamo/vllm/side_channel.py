@@ -654,3 +654,10 @@ def _bind_gdn_side_channel(compiled):
             rec_dst[idx] = rec.transpose(-1, -2).to(rec_dst.dtype)
 
     return result, scatter_back
+
+
+def clear_caches():
+    """Drop every per-model binding cache. Their keys hold id() values that are reused once the models are freed."""
+    for cache in (_pa_kv_ovt_cache, _pa_sliding_window_cache, _pa_layer_static_cache, _pa_layout_cache,
+                  _gdn_layout_cache):
+        cache.clear()

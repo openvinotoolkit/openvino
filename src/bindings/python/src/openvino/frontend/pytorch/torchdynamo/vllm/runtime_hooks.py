@@ -22,6 +22,12 @@ _fastinfer_out_cache = {}   # id(req) -> {out_port: numpy_view}
 _fastinfer_out_static = {}  # id(compiled) -> bool: output views are reusable
 
 
+def clear_caches():
+    """Drop the fast-infer caches. Their keys are id(compiled)/id(req), reused once those are freed."""
+    for cache in (_fastinfer_port_cache, _fastinfer_bound_ids, _fastinfer_out_cache, _fastinfer_out_static):
+        cache.clear()
+
+
 # Sentinel returned by run_pa_infer to signal "skip this infer; use eager".
 class _PaSkip:
     __slots__ = ()

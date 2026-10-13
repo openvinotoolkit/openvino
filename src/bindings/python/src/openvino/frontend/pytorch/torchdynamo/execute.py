@@ -547,9 +547,12 @@ def clear_caches():
     # retraces, and req_cache their InferRequests
     structural_cache.clear()
     req_cache.clear()
-    # Also clear vLLM side-channel caches when the subpackage is present.
+    # The vLLM side-channel and fast-infer caches are keyed by id() of the
+    # objects just dropped, so they must go too or a recycled id() would
+    # hand a new model the old one's bindings.
     try:
-        from openvino.frontend.pytorch.torchdynamo.vllm.side_channel import _pa_kv_ovt_cache
-        _pa_kv_ovt_cache.clear()
-    except Exception:
-        pass
+        from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks, side_channel
+    except ImportError:
+        return
+    side_channel.clear_caches()
+    runtime_hooks.clear_caches()
