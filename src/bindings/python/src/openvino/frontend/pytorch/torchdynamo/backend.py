@@ -210,7 +210,18 @@ def fx_openvino(subgraph, example_inputs, options=None):
         return _call
     except Exception as e:
         logger.debug(f"Failed in OpenVINO execution: {e}")
+        if _get_no_fallback(options):
+            raise
         return compile_fx(subgraph, example_inputs)
+
+
+def _get_no_fallback(options):
+    """Resolve "no_fallback" like execute.py does: through the vLLM preset when it's present."""
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    except ImportError:
+        return bool(options and options.get("no_fallback", False))
+    return bool_opt(options, "no_fallback", False)
 
 
 def reset():
