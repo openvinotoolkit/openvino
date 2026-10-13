@@ -139,7 +139,10 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
             if (bias_shape.rank().get_length() == 1 && bias_shape[0].compatible(hidden_size)) {
                 bias_node = bias_input;
             } else {
-                if (bias_shape.is_static()) {
+                else if (bias_shape.is_static() && ov::shape_size(bias_shape.to_shape()) != hidden_size) {
+                    // Validate that the total element count matches hidden_size
+                    return false;
+                }
                     // Validate that the total element count matches hidden_size
                     if (ov::shape_size(bias_shape.to_shape()) != hidden_size) {
                         return false;
