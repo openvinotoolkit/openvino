@@ -465,23 +465,12 @@ public:
         std::shared_ptr<dnnl::convolution_forward::primitive_desc> user_layout_desc;
 
         // The layout of a dynamic node is fixed at compile time; some runtime shapes only get oneDNN's reference impl.
+        // Dynamic nodes never get a sum post-op (get_add_fusing_type), so dst may use a layout chosen by oneDNN.
         if (arg.is_dynamic() && onednn::is_reference_impl(*prim_desc)) {
-            // A sum post-op accumulates into dst, so dst must keep the OV layout.
-            const auto post_ops = attr->get_post_ops();
-            bool has_sum = false;
-            for (int i = 0; i < post_ops.len(); ++i) {
-                has_sum |= post_ops.kind(i) == dnnl::primitive::kind::sum;
-            }
-            if (!has_sum) {
-                auto any_layout_desc = get_convolution_primitive_descriptor(impl_params, *attr, dnnl::memory::format_tag::any);
-                if (!onednn::is_reference_impl(*any_layout_desc)) {
-                    user_layout_desc = prim_desc;
-                    prim_desc = any_layout_desc;
-                }
-            }
-            if (!user_layout_desc && arg.type()->has_impl_for(arg, impl_types::ocl, shape_types::static_shape)) {
-                GPU_DEBUG_TRACE_DETAIL << arg.id() << ": oneDNN selected " << prim_desc->impl_info_str() << ", using an OCL impl for this shape" << std::endl;
-                return nullptr;
+            auto any_layout_desc = get_convolution_primitive_descriptor(impl_params, *attr, dnnl::memory::format_tag::any);
+            if (!onednn::is_reference_impl(*any_layout_desc)) {
+                user_layout_desc = prim_desc;
+                prim_desc = any_layout_desc;
             }
         }
 
