@@ -196,7 +196,8 @@ TEST(GGUFDSparkAccuracy, NoncausalDraftBlocksMatchPrismCPU) {
             } else if (name == "inp_tokens" || name == "dspark_prev_tokens" || name == "inp_pos" ||
                        name == "inp_kv_idx") {
                 for (size_t i = 0; i < value.get_size(); ++i)
-                    value.data<int32_t>()[i] = i + (name == "inp_tokens" || name == "dspark_prev_tokens" ? 1 : 0);
+                    value.data<int32_t>()[i] =
+                        static_cast<int32_t>(i) + (name == "inp_tokens" || name == "dspark_prev_tokens" ? 1 : 0);
             }
             request.set_tensor(name, value);
         }
