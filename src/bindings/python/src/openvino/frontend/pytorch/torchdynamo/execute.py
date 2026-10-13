@@ -87,8 +87,8 @@ def _use_structural_cache(options):
     """Return True if this compile may reuse a model across dynamo re-traces.
 
     Opt-in: a hit asserts two graphs are equivalent, so anything
-    _structural_key omits (a Constant's dtype, a node's kwargs) serves the
-    wrong model. On by default only under the vllm preset, where a miss
+    _structural_key omits serves the wrong model. It covers node targets,
+    literal args and kwargs, and get_attr constants (see _key_constant). On by default only under the vllm preset, where a miss
     costs a ~14 s recompile every decode step. OV_STRUCTURAL_CACHE=1/0
     forces it on or off.
     """
@@ -100,6 +100,51 @@ def _use_structural_cache(options):
     except Exception:
         return False
     return bool_opt(options, "vllm", False)
+
+
+# Constants up to this many elements are keyed by content: freezing may rebuild them as new tensors on
+# every re-trace, so their storage address isn't stable. Larger ones (weights) are keyed by storage.
+_KEY_CONTENT_NUMEL = 1 << 16
+_KEY_LITERAL_TYPES = (bool, int, float, complex, str, type(None), torch.dtype, torch.device,
+                      torch.memory_format, torch.layout)
+
+
+def _key_arg(arg, node_id):
+    """Key text for one FX argument: graph nodes by id, literals by value, containers recursively."""
+    if isinstance(arg, torch.fx.Node):
+        return node_id.get(arg, arg.op)
+    if isinstance(arg, (list, tuple)):
+        return "[" + ",".join(_key_arg(a, node_id) for a in arg) + "]"
+    if isinstance(arg, dict):
+        return "{" + ",".join(f"{k}={_key_arg(v, node_id)}" for k, v in sorted(arg.items(), key=lambda kv: str(kv[0]))) + "}"
+    if isinstance(arg, slice):
+        return f"slice({_key_arg(arg.start, node_id)},{_key_arg(arg.stop, node_id)},{_key_arg(arg.step, node_id)})"
+    if isinstance(arg, _KEY_LITERAL_TYPES):
+        return repr(arg)
+    # Anything else (e.g. an op overload passed as an argument): its type; repr may embed an address.
+    return type(arg).__name__
+
+
+def _key_constant(gm, target):
+    """Key text for a get_attr constant: content for small tensors, storage identity for large ones."""
+    try:
+        obj = gm
+        for atom in str(target).split("."):
+            obj = getattr(obj, atom)
+    except AttributeError:
+        return "?"
+    if not isinstance(obj, torch.Tensor):
+        return type(obj).__name__
+    desc = f"{obj.dtype}{tuple(obj.shape)}{tuple(obj.stride())}"
+    if obj.numel() <= _KEY_CONTENT_NUMEL:
+        import hashlib
+        data = obj.detach().contiguous().cpu()
+        try:
+            raw = data.view(torch.uint8).numpy().tobytes()
+        except (RuntimeError, TypeError):
+            raw = repr(data.tolist()).encode()
+        return desc + hashlib.sha256(raw).hexdigest()[:16]
+    return desc + f"@{obj.untyped_storage().data_ptr()}+{obj.storage_offset()}"
 
 
 def _structural_key(gm, args, options=None):
@@ -161,10 +206,12 @@ def _structural_key(gm, args, options=None):
                 continue
             # node target (stable)
             target = str(node.target) if hasattr(node, "target") else str(node.op)
-            # input edge descriptor: refer by node_id if known, else by op
-            arg_descs = []
-            for arg in node.args:
-                arg_descs.append(node_id.get(arg, type(arg).__name__))
+            # Inputs by node id; literal args and kwargs by value, since two graphs that differ only in a
+            # scalar, an axis or an index must not share a compiled model.
+            arg_descs = [_key_arg(arg, node_id) for arg in node.args]
+            arg_descs += [f"{k}={_key_arg(v, node_id)}" for k, v in sorted(node.kwargs.items())]
+            if node.op == "get_attr":
+                arg_descs.append(_key_constant(gm, node.target))
             parts.append(f"{node.op}:{target}({','.join(arg_descs)})")
             # Counted separately from placeholders, which reorder across traces.
             node_id[node] = f"n{op_i}"
