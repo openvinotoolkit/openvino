@@ -192,16 +192,23 @@ def _patch_cpu_model_runner():
         if not is_ov:
             return
 
+        # "vllm": True turns on every vLLM-required flag (see preset.py).
+        # Precision keys are deliberately absent: derived per-model dtype.
+        options = {"aot_autograd": True, "vllm": True, "model_id": next(_next_model_id)}
+
         # Hand the KV-cache write to OV's PagedAttention for this model's
-        # layers only; see _own_kv_cache_update.
-        try:
-            _n = _own_kv_cache_update(self.model)
-            logger.debug(
-                "[OV plugin] kv-cache update ownership moved to OV "
-                "PagedAttention for %d attention layer(s)", _n)
-        except Exception as _e:
-            logger.debug(
-                "[OV plugin] kv_cache_update suppression skipped: %s", _e)
+        # layers only; see _own_kv_cache_update. Only when OV runs the attention:
+        # the partitioner then refuses any call site it can't rewrite.
+        from openvino.frontend.pytorch.torchdynamo.vllm import owns_kv_cache_update
+        if owns_kv_cache_update(options):
+            try:
+                _n = _own_kv_cache_update(self.model)
+                logger.debug(
+                    "[OV plugin] kv-cache update ownership moved to OV "
+                    "PagedAttention for %d attention layer(s)", _n)
+            except Exception as _e:
+                logger.debug(
+                    "[OV plugin] kv_cache_update suppression skipped: %s", _e)
 
         # Gated here rather than in register() so eager/inductor workers do not
         # get monkey-patched with the OV sampler path.
@@ -229,9 +236,6 @@ def _patch_cpu_model_runner():
         _raise_dynamo_cache_limit()
 
         logger.info("[OV plugin] Compiling model with torch.compile backend=openvino")
-        # "vllm": True turns on every vLLM-required flag (see preset.py).
-        # Precision keys are deliberately absent: derived per-model dtype.
-        options = {"aot_autograd": True, "vllm": True, "model_id": next(_next_model_id)}
         # Stops dynamo specializing num_tokens==1, so decode reuses
         # prefill's compiled model instead of compiling its own copy.
         import torch.fx.experimental._config as _dynamo_cfg

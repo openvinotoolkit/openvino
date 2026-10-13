@@ -130,6 +130,11 @@ def _is_unified_attention_with_output(node) -> bool:
     return is_auto_functionalized(node, lambda: torch.ops.vllm.unified_attention_with_output.default)
 
 
+def count_unified_attention(gm) -> int:
+    """Number of vLLM attention call sites (auto_functionalized_v2(unified_attention_with_output)) in gm."""
+    return sum(1 for n in gm.graph.nodes if _is_unified_attention_with_output(n))
+
+
 def rewrite_unified_attention_to_paged_attention(gm) -> int:
     """Rewrite every attention HOP node to a call of the OV paged_attention op.
 
