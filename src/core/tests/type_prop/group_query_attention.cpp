@@ -728,5 +728,23 @@ TEST(type_prop, group_query_attention_growing_cache_has_no_fixed_capacity) {
                      ->has_fixed_kv_capacity());
 }
 
+TEST(type_prop, group_query_attention_seqlens_k_must_match_batch) {
+    // ORT: seqlens_k holds batch_size elements; a single length must not silently cover a batch of 2.
+    using op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    args[0] = std::make_shared<Parameter>(element::f32, PartialShape{2, 6, 4, 8});
+    args[1] = std::make_shared<Parameter>(element::f32, PartialShape{2, 2, 4, 8});
+    args[2] = std::make_shared<Parameter>(element::f32, PartialShape{2, 2, 4, 8});
+    args[3] = std::make_shared<Parameter>(element::f32, PartialShape{2, 2, 5, 8});
+    args[4] = std::make_shared<Parameter>(element::f32, PartialShape{2, 2, 5, 8});
+    args[5] = std::make_shared<Parameter>(element::i32, PartialShape{1, 1});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("seqlens_k must have batch_size (2) elements"));
+    args[5] = std::make_shared<Parameter>(element::i32, PartialShape{2, 1});
+    OV_ASSERT_NO_THROW(std::ignore =
+                           std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false));
+}
+
 }  // namespace testing
 }  // namespace ov

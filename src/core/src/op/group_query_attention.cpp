@@ -280,6 +280,18 @@ void GroupQueryAttention::validate_and_infer_types() {
     const auto& sequence_len = q_shape[2];
     const auto& head_size = q_shape[3];
 
+    // seqlens_k holds one length per batch entry (ORT: batch_size elements, e.g. [B] or [B, 1]).
+    const auto& seqlens_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::SEQLENS_K));
+    if (seqlens_ps.is_static() && batch_size.is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              static_cast<int64_t>(shape_size(seqlens_ps.to_shape())) == batch_size.get_length(),
+                              "GroupQueryAttention: seqlens_k must have batch_size (",
+                              batch_size.get_length(),
+                              ") elements, got shape ",
+                              seqlens_ps,
+                              ".");
+    }
+
     if (m_do_rotary) {
         // Partial RoPE (GPT-NeoX/Phi-style): rotary_dim = 2 * cos_cache.shape[-1] may be smaller than
         // head_size; only the leading rotary_dim channels are rotated (see

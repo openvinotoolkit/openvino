@@ -809,8 +809,9 @@ bool is_axis_scatter_update(const std::shared_ptr<ov::Node>& op) {
 // A static batch of 1 keeps the scalar-length graph (ScatterUpdate / Slice + Concat, which plugins and the NPU compiler
 // pattern-match); any other batch writes each batch's rows with one flat ScatterUpdate per K/V.
 TEST(GroupQueryAttentionValues, batch_one_keeps_scalar_cache_update) {
-    for (const auto& past : {Dimension(8), Dimension::dynamic()})
+    for (const auto& past : {Dimension(8), Dimension::dynamic()}) {
         EXPECT_EQ(count_decomposed_ops(1, past, is_flat_scatter_update), 0u) << past;
+    }
     EXPECT_EQ(count_decomposed_ops(1, 8, is_axis_scatter_update), 2u);
 }
 
@@ -841,8 +842,10 @@ TEST(GroupQueryAttentionValues, batched_fixed_capacity_cache_keeps_capacity) {
     EXPECT_EQ(model->get_results()[2]->get_input_partial_shape(0), inferred_present);
     // A cache-growth Concat would join rank-4 [B, Nkv, L, D] tensors on the sequence axis (the rank-5 KV-head
     // replication Concat is unrelated).
-    for (const auto& op : model->get_ordered_ops())
-        if (const auto concat = as_type_ptr<op::v0::Concat>(op))
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto concat = as_type_ptr<op::v0::Concat>(op)) {
             EXPECT_FALSE(concat->get_output_partial_shape(0).rank() == 4 && concat->get_axis() == 2)
                 << "fixed-capacity cache must not grow by Concat: " << concat;
+        }
+    }
 }

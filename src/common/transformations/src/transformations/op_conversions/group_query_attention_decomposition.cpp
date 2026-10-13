@@ -184,7 +184,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // prompt, total - S otherwise), and the row the first new key is written at.
     std::shared_ptr<ov::Node> total_b, q_past_b, kv_past_b;
     if (batched) {
-        const auto per_batch = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{3}, {-1, 1, 1}));
+        // [B, 1, 1] with B taken from the query, so a seqlens_k without one entry per batch fails the Reshape
+        // instead of broadcasting one length over every batch (ORT requires batch_size elements).
+        const auto per_batch = register_new_node<v0::Concat>(
+            ov::OutputVector{get_dimensions(q_shape, {0}),
+                             register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1}))},
+            0);
         total_b = register_new_node<v1::Reshape>(real_seqlens, per_batch, false);
         q_past_b = register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(total_b, current_seqlen), zero);
         kv_past_b = independent_kv_len
@@ -868,8 +873,6 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_batch
     int64_t local_window_size,
     const ov::Output<ov::Node>& external_bias) {
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-    const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
-    const auto three = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
     const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     const auto one_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
 
