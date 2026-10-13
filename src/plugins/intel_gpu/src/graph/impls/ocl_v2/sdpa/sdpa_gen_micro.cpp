@@ -1528,10 +1528,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         if (!(disabled_prefetch & 1))
             jit.make("PREFETCH_MASK", 1);
         const bool enable_kv_prefetch = (!config.is_paged_attention || m_is_prefill) && !is_byte_packed_int4;
-        const bool enable_k_prefetch = enable_kv_prefetch && !(disabled_prefetch & 2);
+        const bool enable_k_prefetch = enable_kv_prefetch && ((disabled_prefetch & 2) == 0);
         jit.make("PREFETCH_K0", enable_k_prefetch);
         jit.make("PREFETCH_K", enable_k_prefetch);
-        jit.make("PREFETCH_V", enable_kv_prefetch && !(disabled_prefetch & 4));
+        jit.make("PREFETCH_V", enable_kv_prefetch && ((disabled_prefetch & 4) == 0));
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
