@@ -233,22 +233,32 @@ OPENVINO_API AxisVector try_get_normalized_axis_vector(const Tensor& tensor, con
 /// \return        Normalized AxisSet.
 OPENVINO_API AxisSet try_get_normalized_axis_set(const Tensor& tensor, const Rank& rank, const Node& node);
 
-/// \brief Narrows an unsigned integral value (e.g. size_t) to another (usually smaller and/or signed)
+/// \brief Narrows an integral value to another (usually smaller and/or differently signed)
 /// integral type, asserting that no information is lost in the conversion.
 ///
-/// Use this instead of a bare static_cast whenever an unsigned size/count value needs to be narrowed
-/// to a signed type (int32_t, int64_t, ...) to avoid a silent overflow / underflow.
+/// Use this instead of a bare static_cast whenever a size/count value (or any integral value) needs
+/// to be narrowed to another integral type to avoid a silent overflow / underflow.
 ///
 /// \tparam To    Target integral type to cast to.
-/// \tparam From  Source type of `value`. Must be an unsigned integral type (SFINAE).
+/// \tparam From  Source type of `value`.
 /// \param value  Value to be narrowed to `To`.
 /// \return       `value` casted to `To`.
-template <typename To,
-          typename From,
-          std::enable_if_t<std::is_integral_v<To> && std::is_integral_v<From> && std::is_unsigned_v<From>, int> = 0>
+template <typename To, typename From>
 To narrow_cast(From value) {
-    OPENVINO_ASSERT(value <= static_cast<From>(std::numeric_limits<To>::max()),
-                    "Value exceeds the maximum representable value of the target type");
+    static_assert(std::is_integral_v<To> && std::is_integral_v<From>, "narrow_cast supports only integral types");
+
+    if constexpr (std::is_signed_v<From> && std::is_unsigned_v<To>) {
+        OPENVINO_ASSERT(value >= 0, "Value is negative and cannot be narrowed to an unsigned type");
+        OPENVINO_ASSERT(static_cast<std::make_unsigned_t<From>>(value) <= std::numeric_limits<To>::max(),
+                        "Value exceeds the maximum representable value of the target type");
+    } else if constexpr (std::is_unsigned_v<From> && std::is_signed_v<To>) {
+        OPENVINO_ASSERT(value <= static_cast<From>(std::numeric_limits<To>::max()),
+                        "Value exceeds the maximum representable value of the target type");
+    } else {
+        OPENVINO_ASSERT(value >= static_cast<From>(std::numeric_limits<To>::min()) &&
+                            value <= static_cast<From>(std::numeric_limits<To>::max()),
+                        "Value is out of the representable range of the target type");
+    }
     return static_cast<To>(value);
 }
 
