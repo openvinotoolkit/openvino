@@ -75,11 +75,6 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS, uint64_t, 128,
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_CONTINUOUS_PREFILL, bool, true, ov::intel_npu::npuw::llm, enable_continuous_prefill, "NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, ov::intel_npu::npuw::llm, cache_rope, "NPUW_LLM_CACHE_ROPE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_MAX_CONTEXT_LEN, uint32_t, 8192, ov::intel_npu::npuw::llm, max_context_len, "NPUW_LLM_MAX_CONTEXT_LEN", LLM, EXPOSED, CACHED, ALL)
-// Explicit sliding-window capacity for GQA layers that carry neither rt_info metadata nor a
-// sliding_window_cache=true op attribute (see ReshapeToStaticGQA in reshape_to_static_gqa.cpp).
-// 0 (the default) means "not configured" -- rt_info and the op attribute remain
-// authoritative when present; this property is only consulted as a fallback above the
-// OPENVINO_NPUW_GQA_SLIDING_LEN env-var override and the (nonexistent) hardcoded default.
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_SWA_LEN, uint32_t, 0, ov::intel_npu::npuw::llm, swa_len, "NPUW_LLM_SWA_LEN", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, bool, false, ov::intel_npu::npuw::llm, enable_block_based_kv_cache, "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK, bool, false, ov::intel_npu::npuw::llm, enable_swa_kv_cache_shrink, "NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", LLM, EXPOSED, CACHED, ALL)
