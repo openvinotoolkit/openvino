@@ -420,7 +420,7 @@ page table; the fused GPU primitive dispatch is shared.
 **Shape inference and type rules**
 
 * ``T`` is a floating-point type (``float32``, ``float16``, ``bfloat16``).
-* ``T_IND`` is ``int32`` or ``int64``.
+* ``T_IND`` is ``int32``.
 * ``num_heads % num_kv_heads == 0``; the group size ``num_heads // num_kv_heads`` must be positive.
 * ``h_sel`` is ``1``, ``num_kv_heads``, or ``num_heads``; ``num_heads % h_sel == 0``.
 * ``key``/``value`` second dimension equals ``num_kv_heads``.
@@ -453,7 +453,7 @@ page table; the fused GPU primitive dispatch is shared.
 **Types**
 
 * *T*: any floating point type.
-* *T_IND*: ``int32`` or ``int64``.
+* *T_IND*: ``int32``.
 
 
 **Examples**

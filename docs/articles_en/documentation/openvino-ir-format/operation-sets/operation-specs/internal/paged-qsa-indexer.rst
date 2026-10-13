@@ -18,8 +18,9 @@ and produces block selections. Unlike the standard
 :doc:`QSAIndexer <qsa-indexer>` (a pure Functional State Interface with external ``ReadValue``/``Assign`` state),
 *PagedQSAIndexer* owns its recurrent caches **in place** as explicitly-passed paged tensors and reads the shared
 main PagedAttention page table (``block_indices`` / ``block_indices_begins``). It performs the same *K-side
-compression chain* (per-token or pooled key mean-pool, RMSNorm, block-start RoPE), maintains the full-history
-``indexer_raw_k_cache`` and incremental ``summary_cache``, and emits a clean ``(sel_indices, sel_count)``
+compression chain* (per-token or pooled key mean-pool, RMSNorm, RoPE using the real recorded ``position_ids`` of
+each completed block's first logical token), maintains the full-history ``indexer_raw_k_cache``,
+``indexer_position_cache`` and incremental ``summary_cache``, and emits a clean ``(sel_indices, sel_count)``
 block-selection contract. It **supports page-aligned prefix caching** (see "Prefix Caching" below): because
 ``page_size % compress_ratio == 0``, cached physical pages already have their ``summary_cache`` populated, so a
 matched prompt prefix skips summary recomputation for the cached pages.
@@ -30,7 +31,7 @@ The K-side history is maintained as two in-place paged caches. The full raw-K ca
 main PagedAttention page table and are passed as explicit inputs:
 
 - ``summary_cache`` ``[num_blocks, H_ik, page_size / compress_ratio, D_idx]``: the mean-pooled, RMSNorm'ed,
-  block-start-RoPE'ed summary key of each *completed* block. This is the incrementally-updated artifact that
+  real-position-RoPE'ed summary key of each *completed* block. This is the incrementally-updated artifact that
   makes the per-token update :math:`O(1)`. It is addressed by the **same page table** as the main PagedAttention
   KV cache (``block_indices`` / ``block_indices_begins``). For sequence ``s``, block ``b`` (covering logical
   tokens ``[b*r, (b+1)*r - 1]``) is stored at the physical location
@@ -46,11 +47,21 @@ main PagedAttention page table and are passed as explicit inputs:
   ``phys = block_indices[block_indices_begins[s] + pos // page_size]``. The second dimension is the configurable
   index-key head count ``H_ik``. This is full-history storage, not a per-sequence ring: it removes ring wraparound,
   capacity sizing, and cross-block slot-alias hazards, at the cost of memory proportional to the full sequence.
-- ``rotary_cos_sin`` ``[max_positions, 2 * indexer_rotary_dim]``: shared RoPE table. Query rows are selected by
-  ``position_ids``; summary rows are selected by logical block start ``block_id * compress_ratio``.
+- ``indexer_position_cache`` ``[num_blocks, page_size / compress_ratio]``: one recorded ``position_ids`` value per
+  QSA block -- the position of that block's first logical token -- addressed through the same page table and at
+  the same per-page granularity as ``summary_cache``. Written once, when that first token is processed (which may
+  be an earlier invocation than the one that completes the block), and read back once when the block completes.
+  This replaces inferring the coordinate from a synthetic ``block_id * compress_ratio`` count, so a block whose
+  first token does not fall on a monotonic, gapless position (e.g. a multi-axis or otherwise non-monotonic mRoPE
+  scheme) still rotates correctly. Only one value per block is kept, not one per raw key: nothing else is ever
+  read back from this cache.
+- ``rotary_cos_sin`` ``[max_positions, indexer_rotary_dim]``: shared NEOX RoPE table, row ``p`` holding interleaved
+  ``(cos_j, sin_j)`` pairs for ``j < indexer_rotary_dim / 2``. Query rows are selected by
+  ``position_ids``; summary rows are selected by the real recorded position read from
+  ``indexer_position_cache``.
 
 A block is *completed* once exactly :math:`r` raw keys have been appended. The flush reads the block's contiguous
-raw-key slice from the shared paged cache and writes its pooled, normalized, logically block-start-rotated summary
+raw-key slice from the shared paged cache and writes its pooled, normalized, real-position-rotated summary
 into ``summary_cache``. The last, partially-filled block is not summarized and is never included in this
 operation's selection. SparseAttention independently derives and processes the causal tail for each query from its
 logical position.
@@ -107,8 +118,8 @@ copying or allocating a private page is required. Therefore the prefix length is
     by a configured ring size, provided the scheduler retains the raw-K pages and restores the valid summary length.
     Replaying from a smaller ``past_lens`` overwrites raw K at the same logical positions and recomputes summaries
     for blocks completed by the replay. Summaries beyond the rollback point must be invalidated or hidden by the
-    restored logical length. No pending RoPE-start state is required because summary phase is derived from the logical
-    block ID and shared rotary table.
+    restored logical length. Replaying also overwrites ``indexer_position_cache`` at the same logical positions,
+    so a recomputed summary always rotates with the position recorded by the replay, not a stale one.
 
   **Logical positions and RoPE coordinates**
 
@@ -116,14 +127,21 @@ The op separates the *logical KV index* used for block addressing and causal fil
 used for positional rotation. The **logical position** of a token is derived from ``past_lens`` and the sequence
 partition (``subsequence_begins``): for sequence ``s`` and token ``t``,
 :math:`pos = past\_lens[s] + (t - subsequence\_begins[s])`. This logical position drives (a) which blocks are
-causally valid and (b) the raw-K page/offset. Query RoPE uses ``position_ids[t]`` and summary RoPE uses
-the logical block-start row ``b * r`` from ``rotary_cos_sin``. A block completed in a later invocation therefore
-needs no saved phase tensor.
+causally valid and (b) the raw-K page/offset. Query RoPE uses ``position_ids[t]``; summary RoPE uses the **real
+recorded position** of the block's first logical token, read from ``indexer_position_cache`` at that block's own
+slot rather than inferred as ``b * r``. A block completed in a later invocation still needs no separate pending
+phase tensor beyond this: ``indexer_position_cache`` is written once, in whichever invocation first appends the
+block's first token, so by the time the block completes (possibly several invocations later) that position is
+already resident. An invocation that both starts and completes a block in the same call avoids a same-work-group
+global write-then-read round trip (observed to race without an explicit global coherence fence) by also staging
+the value through local (SLM) memory for that call's own use.
 
-**Position-coordinate extensions.** A model whose summary RoPE coordinate is not the logical block start (for
-example, a multi-axis or otherwise non-monotonic position scheme) needs a versioned extension that supplies the
-block-start coordinate or phase and persists pending-block metadata across calls. The default contract does not
-infer such coordinates from the page table or silently add phase state.
+**Non-monotonic / multi-axis position schemes.** Because the block-start RoPE coordinate is read from
+``indexer_position_cache`` instead of inferred as ``block_id * compress_ratio``, a model whose ``position_ids``
+is not monotonic or gapless (for example, an mRoPE scheme where multiple tokens share one axis's rank) rotates
+summaries correctly without any extra block-grouping change: block membership (which ``r`` raw keys form one
+block) still follows the plain logical-token count, only the RoPE coordinate applied to the pooled result is the
+real recorded value.
 
 **Score computation**
 
@@ -198,7 +216,7 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
         # q_idx:            [tokens, H_iq * D_idx]   (raw external projection; norm/RoPE applied here)
         # k_idx:            [tokens, H_ik * D_idx]   (raw external projection)
         # position_ids:     [tokens]                (query RoPE table indices)
-        # rotary_cos_sin:   [max_positions, 2 * indexer_rotary_dim]
+        # rotary_cos_sin:   [max_positions, indexer_rotary_dim], interleaved (cos_j, sin_j)
         # summary_cache:    [num_blocks, H_ik, page_size // r, D_idx]
         # indexer_raw_k_cache: [num_blocks, H_ik, page_size, D_idx] (full history, shared page table)
         # q_norm_weight, k_norm_weight: [D_idx]
@@ -239,8 +257,9 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
                     pooled = mean(indexer_raw_k_cache[block_phys, :, raw_start:raw_start + r, :]
                                   .astype(float32), axis=1).astype(k.dtype)       # [Hik, Di]
                     nb = rms_norm(pooled, k_norm_weight, eps)                     # [Hik, Di]
-                    bar = apply_partial_rope(nb, rotary_cos_sin[b * r], indexer_rotary_dim)
                     slot_in_block = (b * r % page_size) // r
+                    bar = apply_partial_rope(nb, rotary_cos_sin[indexer_position_cache[block_phys, slot_in_block]],
+                                             indexer_rotary_dim)
                     summary_cache[block_phys, :, slot_in_block, :] = bar        # [Hik, Di]
 
         # 2. Score the causally-valid complete blocks per selection head (grouped per-query-head reduction).
@@ -362,8 +381,10 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
   A 1D integer tensor with shape ``[tokens]`` containing the rotary-table index for each query token. **Required.**
 
 * **3**: ``rotary_cos_sin``
-  A 2D tensor of type *T* with shape ``[max_positions, 2 * indexer_rotary_dim]``. Shared table used for query
-  positions and logical summary block starts. **Required.**
+  A 2D tensor of type *T* with shape ``[max_positions, indexer_rotary_dim]``. Row ``p`` stores the
+  ``indexer_rotary_dim / 2`` NEOX (rotate-half) frequencies of position ``p`` as interleaved pairs
+  ``(cos_0, sin_0, cos_1, sin_1, ...)``. Query rows use ``position_ids``; summary rows use the real recorded
+  position read from ``indexer_position_cache``. **Required.**
 
 * **4**: ``summary_cache``
   A 4D tensor of type *T* with shape ``[num_blocks, H_ik, page_size // compress_ratio, D_idx]``.
@@ -405,6 +426,18 @@ model converter into the stored weight :math:`w' = 1 + w`, so the op consumes th
   advanced by the matched prefix length, so the op skips the cached prefix pages. The global logical position of a
   token is ``past_lens[s] + (t - subsequence_begins[s])``. **Required.**
 
+* **12**: ``indexer_position_cache``
+  A 2D tensor of type *T_IND* with shape ``[num_blocks, page_size // compress_ratio]``.
+  One recorded ``position_ids`` value per QSA block -- the real position of that block's first logical token --
+  addressed through the same page table as ``summary_cache``. Written once, in whichever invocation first appends
+  that first token (physical page ``block_indices[block_indices_begins[s] + pos // page_size]``, offset
+  ``(pos // compress_ratio) % (page_size // compress_ratio)``), and read back once the block completes, to
+  recover the real RoPE coordinate for that block's summary. Updated in place. **Required.**
+
+Inputs 4, 5 and 12 are mutated in place. When they are model inputs, the bound tensors MUST be device-visible
+storage of the exact port element type (e.g. a GPU RemoteTensor or USM host tensor); a runtime that would stage
+them through a host copy or precision conversion MUST reject the binding instead of silently dropping the update.
+
 
 **Outputs**
 
@@ -428,7 +461,7 @@ the generalized multi-selection-head form.
 **Shape inference and type rules**
 
 * ``T`` is a floating-point type (``float32``, ``float16``, ``bfloat16``).
-* ``T_IND`` is ``int32`` or ``int64``.
+* ``T_IND`` is ``int32`` (``position_ids`` and the page-table inputs included).
 * ``tokens``, ``num_sequences`` and ``subsequence_begins`` must be consistent:
   ``subsequence_begins[0] == 0`` and ``subsequence_begins[-1] == tokens``.
 * ``block_indices_begins[0] == 0`` and ``block_indices_begins[-1] == len(block_indices)`` (block splits).
@@ -439,8 +472,11 @@ the generalized multi-selection-head form.
   equals ``H_ik``, and dim 0 equals ``num_blocks`` (shared with the main KV ``key_cache`` dim 0).
 * ``indexer_raw_k_cache`` dim 0 equals ``num_blocks`` (shared with main KV cache), dim 1 equals ``H_ik``, and dim 2
   equals ``page_size``; it stores raw K for the full logical history, with no ring-capacity attribute.
-* ``position_ids`` length equals ``tokens``; ``rotary_cos_sin`` dim 1 equals ``2 * indexer_rotary_dim`` and covers
-  the query positions and completed-block start positions used in the invocation.
+* ``position_ids`` length equals ``tokens``; ``rotary_cos_sin`` dim 1 equals ``indexer_rotary_dim`` and covers
+  the query positions and the real recorded positions read from ``indexer_position_cache`` for completed blocks.
+* ``indexer_position_cache`` dim 0 equals ``num_blocks`` (shared with the main KV cache and ``indexer_raw_k_cache``)
+  and dim 1 equals ``page_size // compress_ratio`` (shared with ``summary_cache``); it must be writable and stores
+  one position per completed-or-pending block, not a per-token or ring-capacity tensor.
 * ``sel_indices`` last dimension ``K_max`` equals ``block_topk``; ``sel_count[t, sh] <= K_max`` and is at most
   ``min(block_topk, n_complete)`` per query. The valid
   prefix ``sel_indices[t, sh, :sel_count[t, sh]]`` is **strictly ascending** and contains no ``-1`` entries.
@@ -451,7 +487,7 @@ the generalized multi-selection-head form.
 **Types**
 
 * *T*: any floating point type.
-* *T_IND*: ``int32`` or ``int64``.
+* *T_IND*: ``int32``.
 
 
 **Example**
@@ -482,7 +518,7 @@ all four index-query heads participate in the single selection head's score.
              <port id="2">   <!-- position_ids: [tokens] -->
                <dim>1</dim>
            </port>
-             <port id="3">   <!-- rotary_cos_sin: [max_positions, 2*rotary_dim] -->
+             <port id="3">   <!-- rotary_cos_sin: [max_positions, rotary_dim] -->
                <dim>16</dim><dim>256</dim>
              </port>
              <port id="4">   <!-- summary_cache: [num_blocks, H_ik, page_size//r, D_idx] -->
@@ -509,12 +545,15 @@ all four index-query heads participate in the single selection head's score.
            <port id="11">  <!-- past_lens: [num_sequences] -->
                <dim>1</dim>
            </port>
+           <port id="12">  <!-- indexer_position_cache: [num_blocks, page_size//r], writable -->
+               <dim>4</dim><dim>4</dim>
+           </port>
        </input>
        <output>
-             <port id="12" precision="I32">  <!-- sel_indices: [tokens, H_sel, K_max=block_topk] -->
+             <port id="13" precision="I32">  <!-- sel_indices: [tokens, H_sel, K_max=block_topk] -->
                <dim>1</dim><dim>1</dim><dim>2</dim>
            </port>
-           <port id="13" precision="I32">  <!-- sel_count: [tokens, H_sel] -->
+           <port id="14" precision="I32">  <!-- sel_count: [tokens, H_sel] -->
                <dim>1</dim><dim>1</dim>
            </port>
        </output>

@@ -437,7 +437,7 @@ carries its own selection.
 **Shape inference and type rules**
 
 * ``T`` is a floating-point type (``float32``, ``float16``, ``bfloat16``).
-* ``T_IND`` is ``int32`` or ``int64``.
+* ``T_IND`` is ``int32``.
 * ``num_heads % num_kv_heads == 0``.
 * ``h_sel`` is ``1``, ``num_kv_heads``, or ``num_heads``; ``num_heads % h_sel == 0``.
 * ``key_cache``/``value_cache`` second dimension equals ``num_kv_heads``; third dimension equals
@@ -481,7 +481,7 @@ carries its own selection.
 **Types**
 
 * *T*: any floating point type.
-* *T_IND*: ``int32`` or ``int64``.
+* *T_IND*: ``int32``.
 
 
 **Examples**
