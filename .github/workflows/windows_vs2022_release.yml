@@ -673,9 +673,53 @@ jobs:
             ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
 
+  GPU_Functional_Tests:
+    name: GPU functional tests
+    needs: [ Build, Smart_CI ]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    timeout-minutes: 70
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: [ self-hosted, Windows, ptl ]
+    env:
+      INSTALL_DIR: "${{ github.workspace }}\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+    steps:
+      - name: Download OpenVINO package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          Expand-Archive "${{ env.INSTALL_DIR }}\\openvino_package.zip" -DestinationPath "${{ env.INSTALL_DIR }}"
+          Expand-Archive "${{ env.INSTALL_TEST_DIR }}\\openvino_tests.zip" -DestinationPath "${{ env.INSTALL_DIR }}"
+
+      - name: Run GPU functional smoke tests
+        run: |
+          . "${{ env.INSTALL_DIR }}\\setupvars.ps1"
+          & "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_func_tests.exe" "--gtest_filter=*smoke*" "--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-functional.xml"
+        timeout-minutes: 60
+
+      - name: Upload GPU functional test results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: test-results-functional-gpu
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST-gpu-functional.xml
+          if-no-files-found: 'ignore'
+
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, GPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
