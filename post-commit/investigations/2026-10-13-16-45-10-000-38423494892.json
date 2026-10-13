@@ -1,0 +1,55 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-13-16-45-10-000-38423494892",
+    "timestamp": "2026-10-13T16:45:10Z",
+    "run_id": "38423494892",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38423494892",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "commit_sha": "529331f083ebed40ccba117ba3a443c5468c8d89",
+    "pr_number": null,
+    "pr_url": null,
+    "author": null,
+    "category": "Network",
+    "title": "Post-commit jobs fail checkout/fetch with DNS resolution failure (Could not resolve host: github.com)",
+    "signature": "fatal: unable to access 'https://github.com/<ORG>/<REPO>/': Could not resolve host: github.com|Network",
+    "signature_hash": "eeae3ce3f5218e80",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Samples / Samples",
+            "conclusion": "failure",
+            "symptom": "Checkout retried after DNS failure succeeded, but later test_dynamic_shape[CPU-C++] failed with socket.gaierror: Temporary failure in name resolution while downloading a model from media.githubusercontent.com"
+        },
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "'Fetch custom actions' step failed: git fetch repeatedly failed with 'Could not resolve host: github.com' until retries were exhausted"
+        },
+        {
+            "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+            "conclusion": "failure",
+            "symptom": "'Checkout' step failed: git fetch repeatedly failed with 'Could not resolve host: github.com' until retries were exhausted"
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_24",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check failed because upstream jobs in the same run failed (exit 1), no independent error"
+        }
+    ],
+    "key_errors": [
+        "##[error]fatal: unable to access 'https://github.com/openvinotoolkit/openvino/': Could not resolve host: github.com",
+        "The process '/usr/bin/git' failed with exit code 128",
+        "E       socket.gaierror: [Errno -3] Temporary failure in name resolution",
+        "url = '/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=true'"
+    ],
+    "root_cause": "Multiple independent GitHub-hosted runners in this run experienced transient DNS resolution failures for github.com (and later media.githubusercontent.com) at the network/OS level ('Could not resolve host' / 'Temporary failure in name resolution'). This occurred during the actions/checkout 'Fetching the repository' step (three retries, two of which eventually succeeded after ~20-40s) and during an outbound download inside the Samples smoke test (test_dynamic_shape[CPU-C++], which did not retry and failed outright). The common root cause is DNS resolver instability on the GitHub Actions hosted runner infrastructure (observed on Ubuntu 24.04 hosted runners, Azure westus region per runner image metadata), not a code or configuration change in this commit. The ci/gha_overall_status_ubuntu_24 job is a pure aggregator and failed only because it reports non-zero when any upstream job fails.",
+    "reproduction_steps": "N/A - this is a transient infrastructure/network failure on the hosted runner and is not reliably reproducible locally. To reproduce the downstream symptom, one would need to simulate a DNS outage (e.g., block/break /etc/resolv.conf or firewall UDP/53) while running 'git fetch' against github.com or while running install/tests/smoke_tests/test_benchmark_app.py::test_dynamic_shape against media.githubusercontent.com.",
+    "recommended_actions": [
+        "No code or workflow changes required for this specific occurrence; the checkout step's built-in retry (3 attempts) already recovered for 2 of 3 jobs.",
+        "Consider adding a retry wrapper (e.g., nick-fields/retry or a wget/curl --retry loop) around the external model-download calls used by smoke_tests (test_benchmark_app.py / samples_common_test_class.py) that fetch from media.githubusercontent.com, since these currently fail hard on a single DNS/network hiccup with no retry.",
+        "If this DNS failure signature recurs frequently, escalate to GitHub Actions support as a runner/infrastructure issue (Azure westus hosted runner DNS resolver instability).",
+        "No action needed for the ci/gha_overall_status_ubuntu_24 failure itself; it will clear automatically once the upstream jobs succeed on a rerun."
+    ],
+    "prevention_strategies": "Wrap external network calls in CI test code (model downloads, dataset fetches) with bounded retry/backoff logic similar to actions/checkout's built-in fetch retry, so a single transient DNS blip does not fail an entire test job. Where feasible, prefer artifacts/caches already mirrored inside the CI network over live internet downloads during test execution.",
+    "historical_context": "This exact DNS-resolution-at-checkout signature has not been seen before in this database; it is distinct from the previously tracked 'getaddrinfo EAI_AGAIN during GitHub Actions artifact upload' (signature_hash d877f2bb57b833d0, occurs during artifact *upload* at the end of a job) and 'Failed to CreateArtifact: Unable to make request: ENOTFOUND' (signature_hash 4e9cf236bf92d555, Windows runner). Those affect the upload leg of the job; this one affects the initial checkout/fetch and a mid-test external download, confirming this is a recurring class of transient DNS failures across different stages of the CI pipeline on GitHub-hosted runners, though each specific symptom is tracked as its own signature per protocol."
+}
