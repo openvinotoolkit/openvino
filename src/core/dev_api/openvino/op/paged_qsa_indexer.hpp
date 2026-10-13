@@ -31,7 +31,7 @@ public:
         static constexpr size_t Q_IDX = 0;                  ///< [tokens, H_iq*D_idx]
         static constexpr size_t K_IDX = 1;                  ///< [tokens, H_ik*D_idx]
         static constexpr size_t POSITION_IDS = 2;           ///< [tokens]
-        static constexpr size_t ROTARY_COS_SIN = 3;         ///< [max_positions, 2*indexer_rotary_dim]
+        static constexpr size_t ROTARY_COS_SIN = 3;         ///< [max_positions, indexer_rotary_dim], interleaved (cos_j, sin_j)
         static constexpr size_t SUMMARY_CACHE = 4;          ///< [N_phys, H_ik, page_size/r, D_idx], writable in place
         static constexpr size_t INDEXER_RAW_K_CACHE = 5;    ///< [N_phys, H_ik, page_size, D_idx], writable in place
         static constexpr size_t Q_NORM_WEIGHT = 6;          ///< [D_idx]

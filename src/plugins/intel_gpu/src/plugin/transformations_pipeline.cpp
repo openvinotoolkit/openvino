@@ -1640,6 +1640,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
+        // Runs before RoPEFusion, which would otherwise absorb the indexer's RoPE table
+        // gather that SparseAttentionFusion proves position_ids from.
+        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
         manager.register_pass<ov::pass::RoPEFusion>(true);
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
@@ -1654,7 +1657,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // QSA / Gated Residual pattern recognition. Both matchers keep the original
         // generic graph whenever the pattern cannot be proven safe to replace.
         manager.register_pass<ov::intel_gpu::GatedResidualFusion>();
-        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 

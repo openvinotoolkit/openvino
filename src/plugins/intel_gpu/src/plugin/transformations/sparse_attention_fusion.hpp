@@ -8,6 +8,11 @@
 
 namespace ov::intel_gpu {
 
+/// rt_info key on a model input whose tensor the device mutates in place. Such inputs
+/// must be bound to a same-context RemoteTensor/USM host tensor of the port's exact
+/// element type; a host copy would silently drop the update.
+inline constexpr const char* in_place_cache_rt_key = "GPU_IN_PLACE_CACHE";
+
 /// @brief Recognizes a decomposed, non-paged (dense) Qwen Sparse Attention (QSA) layer
 /// and replaces its indexer + attention sub-graph with
 /// `ov::op::internal::QSAIndexer` + `ov::op::internal::SparseSDPA`.
@@ -22,13 +27,16 @@ namespace ov::intel_gpu {
 /// The only decomposed source pattern this pass can soundly bridge is therefore one
 /// where the indexer's raw-key history is already a `ReadValue`-backed `Variable`: the
 /// pass removes that `ReadValue` (and the `Concat`/mean-pool recomputation it feeds) and
-/// appends brand-new `Parameter`s to the model for the three cache tensors, sized from
-/// the `Variable`'s own declared shape/type. This is a disclosed, user-visible change to
-/// the compiled model's input signature -- callers must bind persistent, externally
-/// owned tensors to these new inputs and reuse the SAME tensor objects across calls
-/// (there is deliberately no in-graph mechanism for this; see `qsa_final_design_implement.md`
-/// &sect;2.3's operator-external IndexerCache manager). The pass bails out -- leaving the
-/// original generic graph untouched -- whenever any required fact cannot be proven.
+/// appends brand-new f16/i32 `Parameter`s (tagged with `in_place_cache_rt_key`, dynamic
+/// capacity) to the model for the three cache tensors. This is a disclosed, user-visible
+/// change to the compiled model's input signature -- callers must bind persistent,
+/// device-visible tensors to these new inputs and reuse the SAME tensor objects across
+/// calls (see `qsa_final_design_implement.md` &sect;2.3's operator-external IndexerCache
+/// manager). `past_lens` is taken from the main K `ReadValue` history length and
+/// `position_ids` from the indices the source graph gathers RoPE rows with. Only causal,
+/// default-scale attention (or a mask derived from the indexer's own TopK) is replaced.
+/// The pass bails out -- leaving the original generic graph untouched -- whenever any
+/// required fact cannot be proven.
 class DenseSparseAttentionFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("DenseSparseAttentionFusion");
@@ -46,10 +54,12 @@ public:
 /// `past_lens`) as plain inputs -- continuous-batching graphs never use `ReadValue` for
 /// this -- so those four tensors are reused verbatim for `PagedQSAIndexer`/`SparsePA`
 /// without being recreated. The indexer's own `summary_cache`/`indexer_raw_k_cache`/
-/// `indexer_position_cache` are, like the dense case, modeled as brand-new `Parameter`s
-/// appended to the model (shaped from `PagedAttentionExtension`'s own `key_cache`
-/// `[num_blocks, Hk, Bs, S]` for `num_blocks`/page size), since the paged ops' ABI is
-/// equally caller-owned/in-place with no `ReadValue` counterpart.
+/// `indexer_position_cache` are, like the dense case, modeled as brand-new tagged
+/// `Parameter`s appended to the model (page geometry from `key_cache`), and
+/// `position_ids` comes from the indices the source graph gathers RoPE rows with.
+/// Optional `PagedAttentionExtension` features (sliding window, alibi, sinks, xattention,
+/// cache rotation, adaptive RKV, qq_bias, score/diversity outputs) and integer KV caches
+/// must be provably disabled, otherwise the pass bails out.
 ///
 /// Unlike `DenseSparseAttentionFusion`, this path has no validated worked reference in
 /// this codebase (the legacy `QSAFusion` it supersedes never actually replaced a paged

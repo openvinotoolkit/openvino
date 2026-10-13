@@ -14,6 +14,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -24,7 +25,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/range.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -34,10 +34,14 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/op/sink.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -46,6 +50,7 @@
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/sparse_pa.hpp"
 #include "openvino/op/sparse_sdpa.hpp"
+#include "ov_ops/rms.hpp"
 
 namespace ov::intel_gpu {
 
@@ -275,23 +280,228 @@ bool verify_indexer_signature(const ov::pass::pattern::PatternValueMap& pm,
     return true;
 }
 
-/// Facts shared by both the paged and dense rewrites once the indexer score signature
-/// is proven: the shared QK projection, per-leg RMSNorm gains, and the RoPE table.
-struct SharedIndexerFacts {
-    std::shared_ptr<ov::op::v0::MatMul> qk_proj_mm;
-    ov::Output<ov::Node> qk_weight_src;
-    std::shared_ptr<ov::op::v0::Constant> q_norm_const;
-    std::shared_ptr<ov::op::v0::Constant> k_norm_const;
-    std::shared_ptr<ov::op::v0::Constant> rope_const;
-    size_t Hidx = 0;
-    size_t D = 0;
-    size_t indexer_rotary_dim = 0;
+bool is_ancestor_of(const ov::Output<ov::Node>& start, const ov::Node* target, size_t max_depth) {
+    return find_ancestor_if(start, max_depth, nullptr, [target](ov::Node* n) {
+        return n == target;
+    }) != nullptr;
+}
+
+bool is_layout_only(const ov::Node* n) {
+    return ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Reshape>(n) || ov::is_type<ov::op::v0::Unsqueeze>(n) ||
+           ov::is_type<ov::op::v0::Squeeze>(n) || ov::is_type<ov::op::v1::Transpose>(n);
+}
+
+/// `1 + w` gains that were not constant-folded are folded here, so the op receives the
+/// gain exactly as the kernel applies it.
+std::shared_ptr<ov::op::v0::Constant> fold_one_plus_gain(const std::shared_ptr<ov::op::v0::Constant>& gain) {
+    for (const auto& consumer : gain->output(0).get_target_inputs()) {
+        auto add = ov::as_type<ov::op::v1::Add>(consumer.get_node());
+        if (!add) {
+            continue;
+        }
+        float one = 0.0f;
+        if (get_scalar_f32(add->input_value(1 - consumer.get_index()), one) && close(one, 1.0f)) {
+            auto values = gain->cast_vector<float>();
+            for (auto& v : values) {
+                v += 1.0f;
+            }
+            return ov::op::v0::Constant::create(gain->get_element_type(), gain->get_shape(), values);
+        }
+    }
+    return gain;
+}
+
+struct NormFacts {
+    std::shared_ptr<ov::op::v0::Constant> gain;
+    float eps = 0.0f;
 };
 
-/// Proves the shared `[Hidx*Di + Di, D]` INDEXER_QK_WEIGHT projection convention, the
-/// per-leg RMSNorm gain constants, and a single already-packed RoPE table, exactly as
-/// the legacy QSASDPAFusion did. `idx_q`/`idx_k` are the (post-norm/RoPE) operands of the
-/// indexer score MatMul.
+/// The GPU lowering of the QSA ops accepts f16 data only.
+std::shared_ptr<ov::op::v0::Constant> to_f16_const(const std::shared_ptr<ov::op::v0::Constant>& c) {
+    if (c->get_element_type() == ov::element::f16) {
+        return c;
+    }
+    return ov::op::v0::Constant::create(ov::element::f16, c->get_shape(), c->cast_vector<float>());
+}
+
+/// Proves one indexer leg's RMSNorm: either an already-fused `ov::op::internal::RMS`
+/// (RMSFusion runs earlier in the GPU pipeline) or the decomposed
+/// `x * rsqrt(ReduceMean(x^2) + eps) * gain` form.
+bool prove_norm(const ov::Output<ov::Node>& leg, ov::Node* stop_at, size_t Di, NormFacts& out) {
+    if (auto rms = find_ancestor<ov::op::internal::RMS>(leg, 25, stop_at)) {
+        out.eps = static_cast<float>(rms->get_epsilon());
+        if (rms->get_input_size() > 1) {
+            auto gain = ov::as_type_ptr<ov::op::v0::Constant>(resolve_constant_source(rms->input_value(1)).get_node_shared_ptr());
+            if (!gain || static_element_count(gain->get_output_partial_shape(0)) != Di) {
+                return false;
+            }
+            out.gain = fold_one_plus_gain(gain);
+        } else {
+            out.gain = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{Di}, std::vector<float>(Di, 1.0f));
+        }
+        return true;
+    }
+
+    auto gain = ov::as_type_ptr<ov::op::v0::Constant>(find_ancestor_if(leg, 25, stop_at, [Di](ov::Node* n) {
+        auto c = ov::as_type<ov::op::v0::Constant>(n);
+        return c && static_element_count(c->get_output_partial_shape(0)) == Di;
+    }));
+    if (!gain) {
+        return false;
+    }
+    auto is_mean = [](ov::Node* n) {
+        if (ov::is_type<ov::op::v0::Convert>(n)) {
+            n = n->get_input_node_ptr(0);
+        }
+        return ov::is_type<ov::op::v1::ReduceMean>(n);
+    };
+    float eps = 0.0f;
+    auto eps_add = find_ancestor_if(leg, 25, stop_at, [&](ov::Node* n) {
+        if (!ov::is_type<ov::op::v1::Add>(n)) {
+            return false;
+        }
+        for (size_t i = 0; i < 2; ++i) {
+            float v = 0.0f;
+            if (is_mean(n->get_input_node_ptr(1 - i)) && get_scalar_f32(n->input_value(i), v) && v > 0.0f && v <= 1e-2f) {
+                eps = v;
+                return true;
+            }
+        }
+        return false;
+    });
+    if (!eps_add) {
+        return false;
+    }
+    out.eps = eps;
+    out.gain = fold_one_plus_gain(gain);
+    return true;
+}
+
+struct RopeFacts {
+    std::shared_ptr<ov::op::v0::Constant> table;  ///< [max_positions, rd], interleaved (cos_j, sin_j)
+    ov::Output<ov::Node> positions;               ///< the per-token indices the graph gathers rows with
+    size_t rotary_dim = 0;
+};
+
+/// Proves `rows = Gather(table, positions, axis=0)` on the indexer query leg and the row
+/// layout from how `rows` is split on its last axis: step-2 slices mean the kernel's
+/// interleaved `(cos_j, sin_j)` layout; two `rd/2` halves mean `[cos | sin]` and the table
+/// is repacked. Any other use bails out.
+bool prove_rope(const ov::Output<ov::Node>& idx_q, ov::Node* stop_at, size_t Di, RopeFacts& out) {
+    auto gather_node = find_ancestor_if(idx_q, 25, stop_at, [](ov::Node* n) {
+        if (!ov::is_type<ov::op::util::GatherBase>(n)) {
+            return false;
+        }
+        auto table = ov::as_type_ptr<ov::op::v0::Constant>(resolve_constant_source(n->input_value(0)).get_node_shared_ptr());
+        std::vector<int64_t> axis;
+        return table && table->get_output_partial_shape(0).size() == 2 && get_i64_vector(n->input_value(2), axis) && axis.size() == 1 &&
+               axis[0] == 0;
+    });
+    if (!gather_node) {
+        return false;
+    }
+    auto table = ov::as_type_ptr<ov::op::v0::Constant>(resolve_constant_source(gather_node->input_value(0)).get_node_shared_ptr());
+    const auto table_shape = table->get_shape();
+    const size_t rd = table_shape[1];
+    if (rd == 0 || rd % 2 != 0 || rd > Di) {
+        return false;
+    }
+    const auto half = static_cast<int64_t>(rd / 2);
+
+    auto last_axis = [](const ov::Node* n, int64_t axis) {
+        const auto& rank = n->get_input_partial_shape(0).rank();
+        return rank.is_static() && (axis == -1 || axis == rank.get_length() - 1);
+    };
+    bool halves = false;
+    bool interleaved = false;
+    std::unordered_set<ov::Node*> visited;
+    std::deque<ov::Node*> queue{gather_node.get()};
+    while (!queue.empty()) {
+        auto* node = queue.front();
+        queue.pop_front();
+        if (!visited.insert(node).second) {
+            continue;
+        }
+        for (const auto& consumer : node->output(0).get_target_inputs()) {
+            auto* n = consumer.get_node();
+            if (is_layout_only(n)) {
+                queue.push_back(n);
+            } else if (auto slice = ov::as_type<ov::op::v8::Slice>(n)) {
+                std::vector<int64_t> start, stop, step, axes;
+                if (!get_i64_vector(slice->input_value(1), start) || !get_i64_vector(slice->input_value(2), stop) ||
+                    !get_i64_vector(slice->input_value(3), step) || start.empty()) {
+                    return false;
+                }
+                if (slice->get_input_size() > 4) {
+                    if (!get_i64_vector(slice->input_value(4), axes) || axes.size() != 1 || !last_axis(slice, axes[0])) {
+                        return false;
+                    }
+                } else if (!last_axis(slice, static_cast<int64_t>(start.size()) - 1)) {
+                    return false;
+                }
+                const auto b = start.back(), e = stop.back(), s = step.back();
+                if (s == 2 && (b == 0 || b == 1)) {
+                    interleaved = true;
+                } else if (s == 1 && ((b == 0 && e == half) || (b == half && e >= static_cast<int64_t>(rd)))) {
+                    halves = true;
+                } else {
+                    return false;
+                }
+            } else if (auto split = ov::as_type<ov::op::v1::Split>(n)) {
+                std::vector<int64_t> axis;
+                if (split->get_num_splits() != 2 || !get_i64_vector(split->input_value(1), axis) || axis.size() != 1 || !last_axis(split, axis[0])) {
+                    return false;
+                }
+                halves = true;
+            } else if (auto vsplit = ov::as_type<ov::op::v1::VariadicSplit>(n)) {
+                std::vector<int64_t> axis, lengths;
+                if (!get_i64_vector(vsplit->input_value(1), axis) || axis.size() != 1 || !last_axis(vsplit, axis[0]) ||
+                    !get_i64_vector(vsplit->input_value(2), lengths) || lengths != std::vector<int64_t>{half, half}) {
+                    return false;
+                }
+                halves = true;
+            } else {
+                return false;
+            }
+        }
+    }
+    if (halves == interleaved) {
+        return false;
+    }
+
+    if (halves) {
+        const auto values = table->cast_vector<float>();
+        std::vector<float> packed(values.size());
+        for (size_t p = 0; p < table_shape[0]; ++p) {
+            for (size_t j = 0; j < rd / 2; ++j) {
+                packed[p * rd + 2 * j] = values[p * rd + j];
+                packed[p * rd + 2 * j + 1] = values[p * rd + rd / 2 + j];
+            }
+        }
+        table = ov::op::v0::Constant::create(table->get_element_type(), table_shape, packed);
+    }
+    out.table = table;
+    out.positions = gather_node->input_value(1);
+    out.rotary_dim = rd;
+    return true;
+}
+
+/// Facts shared by both the paged and dense rewrites once the indexer score signature
+/// is proven: the shared QK projection, per-leg RMSNorm gains/eps, and the RoPE table +
+/// the position indices the source graph gathers it with.
+struct SharedIndexerFacts {
+    std::shared_ptr<ov::op::v0::MatMul> qk_proj_mm;
+    std::shared_ptr<ov::op::v0::Constant> q_norm_const;
+    std::shared_ptr<ov::op::v0::Constant> k_norm_const;
+    RopeFacts rope;
+    float eps = 0.0f;
+    size_t Hidx = 0;
+    size_t D = 0;
+};
+
+/// Proves the shared `[Hidx*Di + Di, D]` INDEXER_QK_WEIGHT projection convention, both
+/// legs' RMSNorm (same eps), and the RoPE table/positions. `idx_q`/`idx_k` are the
+/// (post-norm/RoPE) operands of the indexer score MatMul.
 bool prove_shared_indexer_facts(const ov::Output<ov::Node>& idx_q, const ov::Output<ov::Node>& idx_k, size_t Di, SharedIndexerFacts& out) {
     auto idx_q_proj_mm = find_ancestor<ov::op::v0::MatMul>(idx_q, 40);
     auto idx_k_proj_mm = find_ancestor<ov::op::v0::MatMul>(idx_k, 40);
@@ -317,72 +527,54 @@ bool prove_shared_indexer_facts(const ov::Output<ov::Node>& idx_q, const ov::Out
         return false;
     }
 
-    auto find_norm_gain = [&](const ov::Output<ov::Node>& leg) {
-        return ov::as_type_ptr<ov::op::v0::Constant>(find_ancestor_if(leg, 25, idx_q_proj_mm.get(), [Di](ov::Node* n) {
-            auto c = ov::as_type<ov::op::v0::Constant>(n);
-            return c && static_element_count(c->get_output_partial_shape(0)) == Di;
-        }));
-    };
-    auto q_norm_const = find_norm_gain(idx_q);
-    auto k_norm_const = find_norm_gain(idx_k);
-    if (!q_norm_const || !k_norm_const) {
+    NormFacts q_norm, k_norm;
+    if (!prove_norm(idx_q, idx_q_proj_mm.get(), Di, q_norm) || !prove_norm(idx_k, idx_q_proj_mm.get(), Di, k_norm) || !close(q_norm.eps, k_norm.eps)) {
         return false;
     }
-
-    auto rope_node = find_ancestor_if(idx_q, 25, idx_q_proj_mm.get(), [&](ov::Node* n) {
-        auto c = ov::as_type<ov::op::v0::Constant>(n);
-        if (!c || c == qk_weight_const.get() || c == q_norm_const.get()) {
-            return false;
-        }
-        const auto& ps = c->get_output_partial_shape(0);
-        if (ps.rank().is_dynamic() || ps.size() != 2 || ps.is_dynamic()) {
-            return false;
-        }
-        const auto width = static_cast<size_t>(ps[1].get_length());
-        return width >= 2 && width <= 2 * Di && width < D;
-    });
-    auto rope_const = ov::as_type_ptr<ov::op::v0::Constant>(rope_node);
-    if (!rope_const) {
+    if (!prove_rope(idx_q, idx_q_proj_mm.get(), Di, out.rope)) {
         return false;
     }
 
     out.qk_proj_mm = idx_q_proj_mm;
-    out.qk_weight_src = qk_weight_src;
-    out.q_norm_const = q_norm_const;
-    out.k_norm_const = k_norm_const;
-    out.rope_const = rope_const;
+    out.q_norm_const = to_f16_const(q_norm.gain);
+    out.k_norm_const = to_f16_const(k_norm.gain);
+    out.rope.table = to_f16_const(out.rope.table);
+    out.eps = q_norm.eps;
     out.Hidx = Hidx;
     out.D = D;
-    out.indexer_rotary_dim = static_cast<size_t>(rope_const->get_output_partial_shape(0)[1].get_length());
     return true;
 }
 
-/// Rebuilds the pre-norm, pre-RoPE [1, 1, Hidx, Di] / [1, 1, 1, Di] indexer query/key
-/// views directly from the shared projection's own output, rather than searching the
-/// matched graph for them: QSAIndexer/PagedQSAIndexer apply RMSNorm + RoPE internally,
-/// so feeding them an already-normalized/rotated value would double-apply both.
-void split_qk_projection(const std::shared_ptr<ov::op::v0::MatMul>& qk_proj_mm,
+/// Pre-norm, pre-RoPE indexer Q/K channels sliced off the shared projection's LAST axis
+/// only, so every leading (batch/token) axis keeps its runtime extent. QSAIndexer/
+/// PagedQSAIndexer apply RMSNorm + RoPE internally; feeding the matched post-norm values
+/// would double-apply both.
+void split_qk_projection(const ov::Output<ov::Node>& proj,
                           size_t Hidx,
                           size_t Di,
                           ov::NodeVector& new_ops,
-                          ov::Output<ov::Node>& q_idx,
-                          ov::Output<ov::Node>& k_idx) {
+                          ov::Output<ov::Node>& q_raw,
+                          ov::Output<ov::Node>& k_raw) {
     auto i64c = [&](std::vector<int64_t> v) {
         auto c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
         new_ops.push_back(c);
         return c;
     };
     const auto hidx_di = static_cast<int64_t>(Hidx * Di);
-    auto q_slice = std::make_shared<ov::op::v8::Slice>(qk_proj_mm, i64c({0, 0, 0}), i64c({1, 1, hidx_di}), i64c({1, 1, 1}));
+    auto q_slice = std::make_shared<ov::op::v8::Slice>(proj, i64c({0}), i64c({hidx_di}), i64c({1}), i64c({-1}));
     new_ops.push_back(q_slice);
-    auto q_reshaped = std::make_shared<ov::op::v1::Reshape>(q_slice, i64c({1, 1, static_cast<int64_t>(Hidx), static_cast<int64_t>(Di)}), false);
-    new_ops.push_back(q_reshaped);
-    auto k_slice = std::make_shared<ov::op::v8::Slice>(qk_proj_mm, i64c({0, 0, hidx_di}), i64c({1, 1, hidx_di + static_cast<int64_t>(Di)}), i64c({1, 1, 1}));
+    auto k_slice = std::make_shared<ov::op::v8::Slice>(proj, i64c({hidx_di}), i64c({hidx_di + static_cast<int64_t>(Di)}), i64c({1}), i64c({-1}));
     new_ops.push_back(k_slice);
-    auto k_reshaped = std::make_shared<ov::op::v1::Reshape>(k_slice, i64c({1, 1, 1, static_cast<int64_t>(Di)}), false);
-    new_ops.push_back(k_reshaped);
-    q_idx = q_reshaped->output(0);
-    k_idx = k_reshaped->output(0);
+    q_raw = q_slice->output(0);
+    k_raw = k_slice->output(0);
+}
+
+std::shared_ptr<ov::op::v0::Parameter> make_in_place_cache(const ov::element::Type& et, const ov::PartialShape& shape, const std::string& name) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(et, shape);
+    param->set_friendly_name(name);
+    param->output(0).get_tensor().set_names({name});
+    param->output(0).get_rt_info()[in_place_cache_rt_key] = true;
+    return param;
 }
 
 }  // namespace
@@ -422,6 +614,10 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         if (!prove_shared_indexer_facts(idx_q, idx_k, Di, facts)) {
             continue;
         }
+        const auto proj_out = facts.qk_proj_mm->output(0);
+        if (proj_out.get_partial_shape().rank().is_dynamic() || proj_out.get_partial_shape().size() != 3 || proj_out.get_element_type() != ov::element::f16) {
+            continue;
+        }
 
         auto sdpa = find_descendant<ov::op::v13::ScaledDotProductAttention>(root->output(0), 100);
         if (!sdpa) {
@@ -443,16 +639,51 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto& q_ps = query_in.get_partial_shape();
         const auto& k_ps = key_in.get_partial_shape();
         const auto& v_ps = value_in.get_partial_shape();
+        if (query_in.get_element_type() != ov::element::f16 || key_in.get_element_type() != ov::element::f16 ||
+            value_in.get_element_type() != ov::element::f16) {
+            continue;
+        }
         if (q_ps.rank().is_dynamic() || q_ps.size() != 4 || k_ps.rank().is_dynamic() || k_ps.size() != 4 || v_ps.rank().is_dynamic() ||
-            v_ps.size() != 4 || q_ps.is_dynamic() || k_ps.is_dynamic() || v_ps.is_dynamic() || q_ps[0].get_length() != 1) {
+            v_ps.size() != 4 || q_ps[1].is_dynamic() || q_ps[3].is_dynamic() || k_ps[1].is_dynamic() || v_ps[3].is_dynamic()) {
             continue;
         }
         const size_t Hq = static_cast<size_t>(q_ps[1].get_length());
         const size_t Dh = static_cast<size_t>(q_ps[3].get_length());
         const size_t Hkv = static_cast<size_t>(k_ps[1].get_length());
-        const size_t S = static_cast<size_t>(k_ps[2].get_length());
         const size_t Dv = static_cast<size_t>(v_ps[3].get_length());
-        if (k_ps[0].get_length() != 1 || v_ps[0].get_length() != 1 || v_ps[2].get_length() != static_cast<int64_t>(S)) {
+
+        // SparseSDPA reproduces causal selected-block attention with the default scale
+        // only. A mask is accepted only when derived from this indexer's TopK (i.e. it is
+        // the selection mask itself); any other mask, a non-causal call without one, a
+        // non-default scale or a sink input is not representable.
+        if (sdpa->get_input_size() > 5) {
+            continue;
+        }
+        if (sdpa->get_input_size() > 3) {
+            if (!is_ancestor_of(sdpa->input_value(3), root.get(), 100)) {
+                continue;
+            }
+        } else if (!sdpa->get_causal()) {
+            continue;
+        }
+        if (sdpa->get_input_size() > 4) {
+            float sdpa_scale = 0.0f;
+            if (!get_scalar_f32(sdpa->input_value(4), sdpa_scale) || !close(sdpa_scale, 1.0f / std::sqrt(static_cast<float>(Dh)))) {
+                continue;
+            }
+        }
+
+        // past_len comes from the main K history (its Assign survives this pass), never
+        // from the raw-K Variable whose Assign is retired below and would freeze at 0.
+        if (key_read_value->get_output_partial_shape(0).rank() != 4) {
+            continue;
+        }
+        auto kv_concat = find_ancestor_if(key_in, 40, nullptr, [&](ov::Node* n) {
+            auto concat = ov::as_type<ov::op::v0::Concat>(n);
+            return concat && concat->get_output_partial_shape(0).rank() == 4 && (concat->get_axis() == 2 || concat->get_axis() == -2) &&
+                   is_ancestor_of(concat->output(0), key_read_value.get(), 4);
+        });
+        if (!kv_concat) {
             continue;
         }
 
@@ -475,7 +706,7 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             continue;
         }
         const size_t r = static_cast<size_t>(pool_in_ps[pool_axis].get_length());
-        if (r == 0 || S % r != 0) {
+        if (r == 0) {
             continue;
         }
 
@@ -483,9 +714,9 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         indexer_config.compress_ratio = r;
         indexer_config.block_topk = static_cast<size_t>(sig.block_topk);
         indexer_config.h_sel = 1;
-        indexer_config.indexer_rotary_dim = facts.indexer_rotary_dim;
+        indexer_config.indexer_rotary_dim = facts.rope.rotary_dim;
         indexer_config.indexer_head_dim = Di;
-        indexer_config.eps = 1e-6f;
+        indexer_config.eps = facts.eps;
         indexer_config.scale = 1.0f / std::sqrt(static_cast<float>(Di));
         std::string reason;
         if (!ov::op::internal::QSAIndexer::validate_config(indexer_config, reason)) {
@@ -512,52 +743,51 @@ bool DenseSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             return c;
         };
 
-        ov::Output<ov::Node> q_idx_in, k_idx_in;
-        split_qk_projection(facts.qk_proj_mm, facts.Hidx, Di, new_ops, q_idx_in, k_idx_in);
+        ov::Output<ov::Node> q_raw, k_raw;
+        split_qk_projection(proj_out, facts.Hidx, Di, new_ops, q_raw, k_raw);
+        auto q_idx_in = std::make_shared<ov::op::v1::Reshape>(q_raw, i64c({0, 0, static_cast<int64_t>(facts.Hidx), static_cast<int64_t>(Di)}), true);
+        new_ops.push_back(q_idx_in);
+        auto k_idx_in = std::make_shared<ov::op::v1::Reshape>(k_raw, i64c({0, 0, 1, static_cast<int64_t>(Di)}), true);
+        new_ops.push_back(k_idx_in);
 
-        // PAST_LENS: length of the indexer's own raw-K history before this call.
-        auto raw_k_shape = std::make_shared<ov::op::v3::ShapeOf>(raw_k_read_value->output(0), ov::element::i64);
-        new_ops.push_back(raw_k_shape);
-        auto past_lens = std::make_shared<ov::op::v8::Gather>(raw_k_shape, i64c({1}), i64c({0}));
+        auto proj_shape = std::make_shared<ov::op::v3::ShapeOf>(proj_out, ov::element::i64);
+        new_ops.push_back(proj_shape);
+        auto batch_dim = std::make_shared<ov::op::v8::Gather>(proj_shape, i64c({0}), i64c({0}));
+        new_ops.push_back(batch_dim);
+        auto batch_len = std::make_shared<ov::op::v8::Gather>(proj_shape, i64c({0, 1}), i64c({0}));
+        new_ops.push_back(batch_len);
+
+        // PAST_LENS [B] i32: the main K history length before this call.
+        auto kv_shape = std::make_shared<ov::op::v3::ShapeOf>(key_read_value->output(0), ov::element::i64);
+        new_ops.push_back(kv_shape);
+        auto past_len = std::make_shared<ov::op::v8::Gather>(kv_shape, i64c({2}), i64c({0}));
+        new_ops.push_back(past_len);
+        auto past_lens_b = std::make_shared<ov::op::v3::Broadcast>(past_len, batch_dim);
+        new_ops.push_back(past_lens_b);
+        auto past_lens = std::make_shared<ov::op::v0::Convert>(past_lens_b, ov::element::i32);
         new_ops.push_back(past_lens);
-        auto past_len_scalar = std::make_shared<ov::op::v0::Squeeze>(past_lens, i64c({0}));
-        new_ops.push_back(past_len_scalar);
 
-        // POSITION_IDS: range(past_len, past_len + L) -- L is q_idx_in's own L axis.
-        auto qk_shape = std::make_shared<ov::op::v3::ShapeOf>(facts.qk_proj_mm->output(0), ov::element::i64);
-        new_ops.push_back(qk_shape);
-        auto l_dim = std::make_shared<ov::op::v8::Gather>(qk_shape, i64c({1}), i64c({0}));
-        new_ops.push_back(l_dim);
-        auto l_scalar = std::make_shared<ov::op::v0::Squeeze>(l_dim, i64c({0}));
-        new_ops.push_back(l_scalar);
-        auto position_stop = std::make_shared<ov::op::v1::Add>(past_len_scalar, l_scalar);
-        new_ops.push_back(position_stop);
-        auto range_step = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-        new_ops.push_back(range_step);
-        auto position_ids = std::make_shared<ov::op::v4::Range>(past_len_scalar, position_stop, range_step, ov::element::i64);
+        // POSITION_IDS [B, L] i32: the same indices the source graph gathers RoPE rows
+        // with, so non-sequential (mRoPE) positions are preserved.
+        auto positions_bl = std::make_shared<ov::op::v1::Reshape>(facts.rope.positions, batch_len, false);
+        new_ops.push_back(positions_bl);
+        auto position_ids = std::make_shared<ov::op::v0::Convert>(positions_bl, ov::element::i32);
         new_ops.push_back(position_ids);
 
-        // Indexer cache tensors: QSAIndexer's ABI is caller-owned/in-place with no
-        // ReadValue counterpart (see class doc comment) -- new Parameters are the only
-        // sound bridge from this ReadValue-based source pattern. The indexer's own raw-K
-        // capacity is assumed equal to the main attention's dense K/V capacity S, mirroring
-        // the legacy fused op's identical assumption (pa_block_size doubled as both).
-        auto raw_k_cache = std::make_shared<ov::op::v0::Parameter>(
-            raw_k_read_value->get_output_element_type(0), ov::PartialShape{1, 1, static_cast<int64_t>(S), static_cast<int64_t>(Di)});
-        raw_k_cache->set_friendly_name(raw_k_read_value->get_variable_id() + "_raw_k_cache");
-        auto summary_cache = std::make_shared<ov::op::v0::Parameter>(
-            raw_k_read_value->get_output_element_type(0), ov::PartialShape{1, 1, static_cast<int64_t>(S / r), static_cast<int64_t>(Di)});
-        summary_cache->set_friendly_name(raw_k_read_value->get_variable_id() + "_summary_cache");
-        auto position_cache =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, static_cast<int64_t>(S / r)});
-        position_cache->set_friendly_name(raw_k_read_value->get_variable_id() + "_position_cache");
+        // Caller-owned in-place caches (no ReadValue counterpart in QSAIndexer's ABI); the
+        // caller sizes capacity. f16 matches the kernels so no conversion copy is inserted.
+        const auto& cache_prefix = raw_k_read_value->get_variable_id();
+        const auto di = static_cast<int64_t>(Di);
+        auto raw_k_cache = make_in_place_cache(ov::element::f16, ov::PartialShape{-1, 1, -1, di}, cache_prefix + "_raw_k_cache");
+        auto summary_cache = make_in_place_cache(ov::element::f16, ov::PartialShape{-1, 1, -1, di}, cache_prefix + "_summary_cache");
+        auto position_cache = make_in_place_cache(ov::element::i32, ov::PartialShape{-1, -1}, cache_prefix + "_position_cache");
         model->add_parameters({raw_k_cache, summary_cache, position_cache});
 
         ov::OutputVector indexer_args(ov::op::internal::QSAIndexer::InputIdx::COUNT);
         indexer_args[ov::op::internal::QSAIndexer::InputIdx::Q_IDX] = q_idx_in;
         indexer_args[ov::op::internal::QSAIndexer::InputIdx::K_IDX] = k_idx_in;
         indexer_args[ov::op::internal::QSAIndexer::InputIdx::POSITION_IDS] = position_ids;
-        indexer_args[ov::op::internal::QSAIndexer::InputIdx::ROTARY_COS_SIN] = facts.rope_const;
+        indexer_args[ov::op::internal::QSAIndexer::InputIdx::ROTARY_COS_SIN] = facts.rope.table;
         indexer_args[ov::op::internal::QSAIndexer::InputIdx::SUMMARY_CACHE] = summary_cache;
         indexer_args[ov::op::internal::QSAIndexer::InputIdx::INDEXER_RAW_K_CACHE] = raw_k_cache;
         indexer_args[ov::op::internal::QSAIndexer::InputIdx::Q_NORM_WEIGHT] = facts.q_norm_const;
@@ -655,21 +885,50 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         const auto block_indices_begins_in = paged_attn->input_value(8);
         const auto scale_in = paged_attn->input_value(9);
 
-        const auto& key_cache_ps = key_cache_in.get_partial_shape();
-        if (key_cache_ps.rank().is_dynamic() || key_cache_ps.size() != 4 || key_cache_ps.is_dynamic()) {
+        // Optional PagedAttentionExtension features SparsePA does not reproduce must be
+        // provably disabled (statically empty / zero).
+        auto input_empty = [&](size_t idx) {
+            if (idx >= paged_attn->get_input_size()) {
+                return true;
+            }
+            const auto& ps = paged_attn->get_input_partial_shape(idx);
+            return ps.is_static() && ov::shape_size(ps.to_shape()) == 0;
+        };
+        auto input_zero = [&](size_t idx) {
+            if (idx >= paged_attn->get_input_size()) {
+                return true;
+            }
+            std::vector<int64_t> v;
+            return get_i64_vector(paged_attn->input_value(idx), v) && v.size() == 1 && v[0] == 0;
+        };
+        constexpr size_t sliding_window = 10, alibi_slopes = 11, rotated_block_indices = 14, xattention_threshold = 17, sinks = 20,
+                         adaptive_rkv_evictable_sizes = 22, token_type_ids = 25, qq_bias = 26;
+        if (!input_zero(sliding_window) || !input_empty(alibi_slopes) || !input_empty(rotated_block_indices) || !input_empty(xattention_threshold) ||
+            !input_empty(sinks) || !input_empty(adaptive_rkv_evictable_sizes) || !input_empty(token_type_ids) || !input_empty(qq_bias)) {
             continue;
         }
-        const size_t num_blocks = static_cast<size_t>(key_cache_ps[0].get_length());
+        // SparsePA reads/writes f16 pages only (no compressed KV cache, no f32 inference).
+        if (key_cache_in.get_element_type() != ov::element::f16 || value_cache_in.get_element_type() != ov::element::f16 ||
+            query_in.get_element_type() != ov::element::f16 || facts.qk_proj_mm->get_output_element_type(0) != ov::element::f16) {
+            continue;
+        }
+
+        const auto& key_cache_ps = key_cache_in.get_partial_shape();
+        if (key_cache_ps.rank().is_dynamic() || key_cache_ps.size() != 4 || key_cache_ps[1].is_dynamic() || key_cache_ps[2].is_dynamic() ||
+            key_cache_ps[3].is_dynamic()) {
+            continue;
+        }
+        const auto num_blocks = key_cache_ps[0];
         const size_t Hkv = static_cast<size_t>(key_cache_ps[1].get_length());
         const size_t page_size = static_cast<size_t>(key_cache_ps[2].get_length());
         const size_t Dh = static_cast<size_t>(key_cache_ps[3].get_length());
         const auto& value_cache_ps = value_cache_in.get_partial_shape();
-        if (value_cache_ps.rank().is_dynamic() || value_cache_ps.size() != 4 || value_cache_ps.is_dynamic()) {
+        if (value_cache_ps.rank().is_dynamic() || value_cache_ps.size() != 4 || value_cache_ps[3].is_dynamic()) {
             continue;
         }
         const size_t Dv = static_cast<size_t>(value_cache_ps[3].get_length());
         const auto& query_ps = query_in.get_partial_shape();
-        if (query_ps.rank().is_dynamic() || query_ps.size() != 2 || query_ps.is_dynamic()) {
+        if (query_ps.rank().is_dynamic() || query_ps.size() != 2 || query_ps[1].is_dynamic()) {
             continue;
         }
         const size_t Hq_Dh = static_cast<size_t>(query_ps[1].get_length());
@@ -707,10 +966,10 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         indexer_config.compress_ratio = r;
         indexer_config.block_topk = static_cast<size_t>(sig.block_topk);
         indexer_config.h_sel = 1;
-        indexer_config.indexer_rotary_dim = facts.indexer_rotary_dim;
+        indexer_config.indexer_rotary_dim = facts.rope.rotary_dim;
         indexer_config.indexer_head_dim = Di;
         indexer_config.page_size = page_size;
-        indexer_config.eps = 1e-6f;
+        indexer_config.eps = facts.eps;
         indexer_config.scale = 1.0f / std::sqrt(static_cast<float>(Di));
         std::string reason;
         if (!ov::op::internal::PagedQSAIndexer::validate_config(indexer_config, reason)) {
@@ -726,8 +985,8 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
         attn_config.sel_block_size = r;
         attn_config.q_block_size = 1;
         attn_config.causal = true;
-        if (get_scalar_f32(scale_in, attn_config.scale)) {
-            // proven below via validate_config; fall through either way
+        if (!get_scalar_f32(scale_in, attn_config.scale)) {
+            continue;
         }
         if (!ov::op::internal::SparsePA::validate_config(attn_config, reason)) {
             continue;
@@ -740,42 +999,40 @@ bool PagedSparseAttentionFusion::run_on_model(const std::shared_ptr<ov::Model>& 
             return c;
         };
 
-        ov::Output<ov::Node> q_idx_in, k_idx_in;
-        split_qk_projection(facts.qk_proj_mm, facts.Hidx, Di, new_ops, q_idx_in, k_idx_in);
-        // Flatten the [1,1,Hidx,Di]/[1,1,1,Di] views down to PagedQSAIndexer's token-major
-        // [tokens, Hidx*Di]/[tokens, Di] convention (tokens == 1 along this call's L axis
-        // for the proof above, generalized the same way query_in already is).
+        ov::Output<ov::Node> q_raw, k_raw;
+        split_qk_projection(facts.qk_proj_mm->output(0), facts.Hidx, Di, new_ops, q_raw, k_raw);
         auto flatten_tokens = [&](const ov::Output<ov::Node>& v, size_t heads) {
-            auto reshaped = std::make_shared<ov::op::v1::Reshape>(v, i64c({-1, static_cast<int64_t>(heads * Di)}), true);
+            auto reshaped = std::make_shared<ov::op::v1::Reshape>(v, i64c({-1, static_cast<int64_t>(heads * Di)}), false);
             new_ops.push_back(reshaped);
             return reshaped->output(0);
         };
-        auto q_idx_flat = flatten_tokens(q_idx_in, facts.Hidx);
-        auto k_idx_flat = flatten_tokens(k_idx_in, 1);
+        auto q_idx_flat = flatten_tokens(q_raw, facts.Hidx);
+        auto k_idx_flat = flatten_tokens(k_raw, 1);
 
-        // POSITION_IDS: derived from subsequence_begins the same way the main
-        // PagedAttentionExtension call already does (per-token absolute position).
-        auto position_ids = std::make_shared<ov::op::v8::Gather>(subsequence_begins_in, i64c({0}), i64c({0}));
+        // POSITION_IDS [tokens] i32: the same indices the source graph gathers RoPE rows
+        // with, so non-sequential (mRoPE) positions are preserved.
+        auto positions_flat = std::make_shared<ov::op::v1::Reshape>(facts.rope.positions, i64c({-1}), false);
+        new_ops.push_back(positions_flat);
+        auto position_ids = std::make_shared<ov::op::v0::Convert>(positions_flat, ov::element::i32);
         new_ops.push_back(position_ids);
 
-        const size_t summaries_per_page = page_size / r;
-        auto raw_k_cache = std::make_shared<ov::op::v0::Parameter>(
-            key_cache_in.get_element_type(), ov::PartialShape{static_cast<int64_t>(num_blocks), 1, static_cast<int64_t>(page_size), static_cast<int64_t>(Di)});
-        raw_k_cache->set_friendly_name(paged_attn->get_friendly_name() + "_indexer_raw_k_cache");
-        auto summary_cache = std::make_shared<ov::op::v0::Parameter>(
-            key_cache_in.get_element_type(),
-            ov::PartialShape{static_cast<int64_t>(num_blocks), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(Di)});
-        summary_cache->set_friendly_name(paged_attn->get_friendly_name() + "_indexer_summary_cache");
-        auto position_cache = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::i32, ov::PartialShape{static_cast<int64_t>(num_blocks), static_cast<int64_t>(summaries_per_page)});
-        position_cache->set_friendly_name(paged_attn->get_friendly_name() + "_indexer_position_cache");
+        const auto summaries_per_page = static_cast<int64_t>(page_size / r);
+        const auto di = static_cast<int64_t>(Di);
+        const auto& cache_prefix = paged_attn->get_friendly_name();
+        auto raw_k_cache = make_in_place_cache(ov::element::f16,
+                                               ov::PartialShape{num_blocks, 1, static_cast<int64_t>(page_size), di},
+                                               cache_prefix + "_indexer_raw_k_cache");
+        auto summary_cache =
+            make_in_place_cache(ov::element::f16, ov::PartialShape{num_blocks, 1, summaries_per_page, di}, cache_prefix + "_indexer_summary_cache");
+        auto position_cache =
+            make_in_place_cache(ov::element::i32, ov::PartialShape{num_blocks, summaries_per_page}, cache_prefix + "_indexer_position_cache");
         model->add_parameters({raw_k_cache, summary_cache, position_cache});
 
         ov::OutputVector indexer_args(ov::op::internal::PagedQSAIndexer::InputIdx::COUNT);
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::Q_IDX] = q_idx_flat;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::K_IDX] = k_idx_flat;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::POSITION_IDS] = position_ids;
-        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::ROTARY_COS_SIN] = facts.rope_const;
+        indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::ROTARY_COS_SIN] = facts.rope.table;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::SUMMARY_CACHE] = summary_cache;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::INDEXER_RAW_K_CACHE] = raw_k_cache;
         indexer_args[ov::op::internal::PagedQSAIndexer::InputIdx::Q_NORM_WEIGHT] = facts.q_norm_const;

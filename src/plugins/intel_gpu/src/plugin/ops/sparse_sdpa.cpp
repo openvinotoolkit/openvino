@@ -24,6 +24,11 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     std::string reason;
     OPENVINO_ASSERT(ov::op::internal::SparseSDPA::validate_config(op->get_config(), reason), "[GPU] Cannot lower SparseSDPA op '", layer_name, "': ", reason);
+    OPENVINO_ASSERT(op->get_config().h_sel == 1, "[GPU] SparseSDPA '", layer_name, "': only h_sel == 1 is supported, got ", op->get_config().h_sel);
+    for (size_t idx : {In::QUERY, In::KEY, In::VALUE}) {
+        OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
+                        "[GPU] SparseSDPA '", layer_name, "': input ", idx, " must be f16, got ", op->get_input_element_type(idx));
+    }
 
     float resolved_scale = 1.0f / std::sqrt(static_cast<float>(op->get_config().k_head_size));
     if (op->has_scale_input()) {

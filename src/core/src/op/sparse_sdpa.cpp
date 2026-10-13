@@ -5,6 +5,7 @@
 #include "openvino/op/sparse_sdpa.hpp"
 
 #include <string>
+#include <utility>
 
 #include "itt.hpp"
 
@@ -70,6 +71,15 @@ void SparseSDPA::validate_and_infer_types() {
 
     const auto& query_ps = get_input_partial_shape(InputIdx::QUERY);
     NODE_VALIDATION_CHECK(this, query_ps.rank().is_dynamic() || query_ps.size() == 4, "SparseSDPA expects a rank-4 [B, Hq, L, Dh] query input, got ", query_ps);
+
+    // The kernels read the selection plan as int32_t.
+    const std::pair<size_t, int64_t> int_inputs[] = {{InputIdx::SEL_INDICES, 4}, {InputIdx::SEL_COUNT, 3}};
+    for (const auto& [idx, rank] : int_inputs) {
+        const auto& et = get_input_element_type(idx);
+        const auto& ps = get_input_partial_shape(idx);
+        NODE_VALIDATION_CHECK(this, et.is_dynamic() || et == element::i32, "SparseSDPA expects an i32 input ", idx, ", got ", et);
+        NODE_VALIDATION_CHECK(this, ps.rank().compatible(rank), "SparseSDPA expects a rank-", rank, " input ", idx, ", got ", ps);
+    }
 
     auto out_ps = ov::PartialShape::dynamic(4);
     if (query_ps.rank().is_static()) {

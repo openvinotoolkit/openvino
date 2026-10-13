@@ -5,6 +5,7 @@
 #include "openvino/op/sparse_pa.hpp"
 
 #include <string>
+#include <utility>
 
 #include "itt.hpp"
 
@@ -68,6 +69,21 @@ void SparsePA::validate_and_infer_types() {
                            query_ps.rank().is_dynamic() || query_ps.size() == 2,
                            "SparsePA expects a rank-2 [tokens, num_heads*k_head_size] query input, got ",
                            query_ps);
+
+    // The kernels read every integer input as int32_t.
+    const std::pair<size_t, int64_t> int_inputs[] = {{InputIdx::BLOCK_INDICES, 1},
+                                                     {InputIdx::BLOCK_INDICES_BEGINS, 1},
+                                                     {InputIdx::SUBSEQUENCE_BEGINS, 1},
+                                                     {InputIdx::PAST_LENS, 1},
+                                                     {InputIdx::SEL_INDICES, 3},
+                                                     {InputIdx::SEL_COUNT, 2},
+                                                     {InputIdx::QB_START, 1}};
+    for (const auto& [idx, rank] : int_inputs) {
+        const auto& et = get_input_element_type(idx);
+        const auto& ps = get_input_partial_shape(idx);
+        NODE_VALIDATION_CHECK(this, et.is_dynamic() || et == element::i32, "SparsePA expects an i32 input ", idx, ", got ", et);
+        NODE_VALIDATION_CHECK(this, ps.rank().compatible(rank), "SparsePA expects a rank-", rank, " input ", idx, ", got ", ps);
+    }
 
     auto out_ps = ov::PartialShape::dynamic(2);
     if (query_ps.rank().is_static()) {

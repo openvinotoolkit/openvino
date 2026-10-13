@@ -30,7 +30,7 @@ public:
         static constexpr size_t Q_IDX = 0;                ///< [B, L, H_iq, D_idx]
         static constexpr size_t K_IDX = 1;                ///< [B, L, H_ik, D_idx]
         static constexpr size_t POSITION_IDS = 2;         ///< [B, L]
-        static constexpr size_t ROTARY_COS_SIN = 3;       ///< [max_positions, 2*indexer_rotary_dim]
+        static constexpr size_t ROTARY_COS_SIN = 3;       ///< [max_positions, indexer_rotary_dim], interleaved (cos_j, sin_j)
         static constexpr size_t SUMMARY_CACHE = 4;        ///< [B, H_ik, floor(S_cap/r), D_idx], writable in place
         static constexpr size_t INDEXER_RAW_K_CACHE = 5;  ///< [B, H_ik, S_cap, D_idx], writable in place
         static constexpr size_t Q_NORM_WEIGHT = 6;        ///< [D_idx]
