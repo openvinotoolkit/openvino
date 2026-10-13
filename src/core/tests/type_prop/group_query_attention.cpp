@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace testing {
@@ -338,6 +340,228 @@ TEST(type_prop, group_query_attention_causal_false_rejects_window) {
                         /*causal*/ false),
                     ov::NodeValidationFailure,
                     HasSubstr("local_window_size requires causal=1"));
+}
+
+namespace {
+ov::OutputVector make_gqa_args_with_head_sink(const element::Type& sink_type, const PartialShape& sink_shape) {
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    auto args = make_valid_gqa_args();
+    // positions 7-10: cos_cache, sin_cache, position_ids, attention_bias (absent)
+    args.insert(args.end(), {empty, empty, empty, empty});
+    args.push_back(std::make_shared<op::v0::Parameter>(sink_type, sink_shape));
+    return args;
+}
+}  // namespace
+
+TEST(type_prop, group_query_attention_head_sink_valid) {
+    const auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{6});
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_head_sink_dynamic_dim_valid) {
+    const auto args = make_gqa_args_with_head_sink(element::f16, PartialShape{-1});
+    OV_ASSERT_NO_THROW(std::ignore =
+                           std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false));
+}
+
+TEST(type_prop, group_query_attention_head_sink_invalid_rank) {
+    const auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{1, 6});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Rank of `head_sink` input is not compatible"));
+}
+
+TEST(type_prop, group_query_attention_head_sink_invalid_length) {
+    const auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{4});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("head_sink must have num_heads (6) elements"));
+}
+
+TEST(type_prop, group_query_attention_head_sink_zero_length_invalid) {
+    const auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{0});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("head_sink must have num_heads (6) elements"));
+}
+
+TEST(type_prop, group_query_attention_head_sink_absent_placeholder_valid) {
+    auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{6});
+    args.back() = op::v0::Constant::create(element::f32, Shape{0}, {});
+    OV_ASSERT_NO_THROW(std::ignore =
+                           std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false));
+}
+
+TEST(type_prop, group_query_attention_head_sink_invalid_type) {
+    const auto args = make_gqa_args_with_head_sink(element::i32, PartialShape{6});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Element type of `head_sink` input is not compatible"));
+}
+
+TEST(type_prop, group_query_attention_static_empty_past_grows_by_current) {
+    using ov::op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    // A zero-capacity past (absent ONNX past) cannot be written in place: present = current tokens only.
+    args[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 4, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 4, 8}));
+}
+
+TEST(type_prop, group_query_attention_static_past_keeps_capacity) {
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+}
+
+TEST(type_prop, group_query_attention_bf16_activations_and_cache) {
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(element::bf16),
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false);
+    EXPECT_EQ(op->get_output_element_type(0), element::bf16);
+    EXPECT_EQ(op->get_output_element_type(1), element::bf16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_rejects_integer_query) {
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(element::i32),
+                                                                                      6,
+                                                                                      2,
+                                                                                      1.0f,
+                                                                                      false,
+                                                                                      false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Element type of `query` input is not compatible"));
+}
+
+TEST(type_prop, group_query_attention_shared_kv_present_is_past) {
+    using ov::op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    // Shared KV: statically empty key/value, nothing appended -> present keeps the past shape (static or dynamic).
+    args[1] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[2] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(op->is_shared_kv());
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+
+    args[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    args[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, -1, 8}));
+}
+
+TEST(type_prop, group_query_attention_regular_kv_is_not_shared) {
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
+    EXPECT_FALSE(op->is_shared_kv());
+}
+
+TEST(type_prop, group_query_attention_independent_kv_length_separate_kv) {
+    using ov::op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    EXPECT_FALSE(std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false)
+                     ->has_independent_kv_length());
+
+    // A dynamic key length may differ from the query's at runtime (0 for ORT shared KV).
+    args[1] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    args[2] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(op->has_independent_kv_length());
+    EXPECT_FALSE(op->is_shared_kv());
+}
+
+TEST(type_prop, group_query_attention_dynamic_kv_len_static_past_grows_by_key) {
+    using ov::op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    // Static query and past, dynamic key: no in-place write, present grows by the key's own length.
+    args[1] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    args[2] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, Dimension(5, -1), 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, Dimension(5, -1), 8}));
+
+    // Empty past: present is just the key's length.
+    args[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, -1, 8}));
+}
+
+TEST(type_prop, group_query_attention_independent_kv_length_packed_qkv) {
+    using ov::op::v0::Constant;
+    using ov::op::v0::Parameter;
+    // Packed QKV: Q/K/V split from one tensor, so S_kv == S_q even when the length is dynamic.
+    const auto qkv = std::make_shared<Parameter>(element::f32, PartialShape{1, 10, -1, 8});
+    const auto split = std::make_shared<ov::op::v1::VariadicSplit>(qkv,
+                                                                   Constant::create(element::i64, Shape{}, {1}),
+                                                                   Constant::create(element::i64, Shape{3}, {6, 2, 2}));
+    auto args = make_valid_gqa_args();
+    args[0] = split->output(0);
+    args[1] = split->output(1);
+    args[2] = split->output(2);
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_FALSE(op->has_independent_kv_length());
+}
+
+TEST(type_prop, group_query_attention_independent_kv_length_static_shared_kv) {
+    using ov::op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    args[1] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[2] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(op->is_shared_kv());
+    EXPECT_FALSE(op->has_independent_kv_length());
+}
+
+namespace {
+std::shared_ptr<op::internal::GroupQueryAttention> make_gqa_with_softcap(float softcap) {
+    return std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(),
+                                                               6,
+                                                               2,
+                                                               1.0f,
+                                                               false,
+                                                               false,
+                                                               /*kv_cache_bit_width*/ 0,
+                                                               op::internal::GroupQueryAttentionQuantType::NONE,
+                                                               op::internal::GroupQueryAttentionQuantType::NONE,
+                                                               /*local_window_size*/ -1,
+                                                               /*sliding_window_cache*/ false,
+                                                               /*smooth_softmax*/ false,
+                                                               /*causal*/ true,
+                                                               softcap);
+}
+}  // namespace
+
+TEST(type_prop, group_query_attention_softcap_defaults_to_disabled) {
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_softcap(), 0.0f);
+}
+
+TEST(type_prop, group_query_attention_softcap_positive_is_valid) {
+    const auto op = make_gqa_with_softcap(30.0f);
+    EXPECT_EQ(op->get_softcap(), 30.0f);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_softcap_negative_rejected) {
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_softcap(-1.0f),
+                    ov::NodeValidationFailure,
+                    HasSubstr("expects softcap >= 0"));
+}
+
+TEST(type_prop, group_query_attention_softcap_nan_rejected) {
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_softcap(std::numeric_limits<float>::quiet_NaN()),
+                    ov::NodeValidationFailure,
+                    HasSubstr("expects softcap >= 0"));
 }
 
 }  // namespace testing
