@@ -5,7 +5,7 @@
 """vLLM PagedAttention integration for the OV torchdynamo backend.
 
 Registers a custom torch op
-`openvino::paged_attention(q, k, v, layer_name, scale, kv_sharing_target)`
+`ov_ext::paged_attention(q, k, v, layer_name, scale, kv_sharing_target)`
 whose Python impl delegates to vLLM's `unified_attention_with_output`, plus an
 FX pre-pass that rewrites `auto_functionalized_v2(unified_attention_with_output)`
 call sites into it. That turns attention from an untranslatable HOP into an
@@ -50,14 +50,14 @@ _REGISTERED = False
 
 
 def _register_custom_op():
-    """Register torch.ops.openvino.paged_attention once per process."""
+    """Register torch.ops.ov_ext.paged_attention once per process."""
     global _REGISTERED
     if _REGISTERED:
         return
     import torch
 
     @torch.library.custom_op(
-        "openvino::paged_attention",
+        "ov_ext::paged_attention",
         mutates_args=(),
     )
     def paged_attention(
@@ -90,7 +90,7 @@ def _register_custom_op():
         return torch.empty_like(query).contiguous()
 
     _REGISTERED = True
-    logger.debug("Registered torch.ops.openvino.paged_attention")
+    logger.debug("Registered torch.ops.ov_ext.paged_attention")
 
 
 def _attention_layer_meta(layer_name):
@@ -134,14 +134,14 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
     """Rewrite every attention HOP node to a call of the OV paged_attention op.
 
     Matches auto_functionalized_v2(unified_attention_with_output, ...) nodes
-    and rewrites them to torch.ops.openvino.paged_attention.default. Returns
+    and rewrites them to torch.ops.ov_ext.paged_attention.default. Returns
     the number of rewrites performed.
     """
     import torch
 
     _register_custom_op()
 
-    paged_attention_op = torch.ops.openvino.paged_attention.default
+    paged_attention_op = torch.ops.ov_ext.paged_attention.default
 
     # Collect first; do not mutate while iterating.
     to_rewrite = [n for n in gm.graph.nodes if _is_unified_attention_with_output(n)]

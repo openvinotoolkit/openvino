@@ -6,10 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 /**
  * @interface MarkCompressedWeightsCast
@@ -38,7 +35,4 @@ public:
     MarkCompressedWeightsCast();
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

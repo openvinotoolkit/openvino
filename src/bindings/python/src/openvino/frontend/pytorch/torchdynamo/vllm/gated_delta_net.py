@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Rewrites vLLM's cpu_gdn_attention_core into openvino::gdn_attention (lowered to PagedGatedDeltaNet)."""
+"""Rewrites vLLM's cpu_gdn_attention_core into ov_ext::gdn_attention (lowered to PagedGatedDeltaNet)."""
 
 # mypy: ignore-errors
 
@@ -24,7 +24,7 @@ def _register_custom_op():
 
     import torch
 
-    @torch.library.custom_op("openvino::gdn_attention", mutates_args=())
+    @torch.library.custom_op("ov_ext::gdn_attention", mutates_args=())
     def gdn_attention(
         mixed_qkv: torch.Tensor,
         b_proj: torch.Tensor,
@@ -84,7 +84,7 @@ def _gdn_layer(layer_name):
 
 
 def rewrite_gdn_to_ov(gm) -> int:
-    """Rewrite vLLM's CPU GDN core calls into openvino.gdn_attention; unresolvable sites stay on vLLM's op."""
+    """Rewrite vLLM's CPU GDN core calls into ov_ext.gdn_attention; unresolvable sites stay on vLLM's op."""
     import torch
     from torch.utils._python_dispatch import _disable_current_modes
 
@@ -92,7 +92,7 @@ def rewrite_gdn_to_ov(gm) -> int:
     if not nodes:
         return 0
     _register_custom_op()
-    gdn_op = torch.ops.openvino.gdn_attention.default
+    gdn_op = torch.ops.ov_ext.gdn_attention.default
 
     rewrites = 0
     for i, node in enumerate(nodes):

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Translates openvino.gdn_attention (vLLM Gated DeltaNet); state and metadata come
+// Translates ov_ext.gdn_attention (vLLM Gated DeltaNet); state and metadata come
 // from "__pa__gdn__" side-channel Parameters bound in torchdynamo/vllm/side_channel.py.
 
 #include "openvino/frontend/pytorch/node_context.hpp"
@@ -22,10 +22,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op::ext {
 
 using namespace ov::op;
 
@@ -40,7 +37,7 @@ Output<Node> to_type(const Output<Node>& t, const element::Type& et) {
 
 }  // namespace
 
-OutputVector translate_openvino_gdn_attention(const NodeContext& context) {
+OutputVector translate_gdn_attention(const NodeContext& context) {
     // Args: (mixed_qkv, b, a, conv_weight, conv_bias, A_log, dt_bias,
     //        layer_name, num_k_heads, num_v_heads, head_k_dim, head_v_dim).
     num_inputs_check(context, 12, 12);
@@ -147,7 +144,4 @@ OutputVector translate_openvino_gdn_attention(const NodeContext& context) {
     return {context.mark_node(to_type(gdn, data_et).get_node_shared_ptr())};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op::ext
