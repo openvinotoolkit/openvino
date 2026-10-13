@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -50,7 +51,8 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
                                              bool add_decompression_metadata = false,
                                              bool use_distinct_endpoint_names = false,
                                              bool use_v14_max_pool = false,
-                                             bool add_external_endpoint_user = false) {
+                                             bool add_external_endpoint_user = false,
+                                             bool add_max_pool_indices_user = false) {
     const auto input_shape = dynamic_camera_height
                                  ? ov::PartialShape{1, 4, 3, ov::Dimension::dynamic(), 640}
                                  : ov::PartialShape{1, 4, 3, 480, 640};
@@ -90,6 +92,7 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
     }
 
     ov::OutputVector branches;
+    ov::ResultVector extra_results;
     branches.reserve(indices.size());
     for (size_t i = 0; i < indices.size(); ++i) {
         auto index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {indices[i]});
@@ -132,6 +135,9 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
                                                                    ov::element::i64,
                                                                    2);
             branch = max_pool->output(0);
+            if (add_max_pool_indices_user && i == 0) {
+                extra_results.push_back(std::make_shared<ov::op::v0::Result>(max_pool->output(1)));
+            }
         }
         if (use_nonzero_endpoint_output) {
             auto max_pool = std::make_shared<ov::op::v8::MaxPool>(branch,
@@ -159,6 +165,7 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
     output_concat->output(0).set_names({"camera_output"});
     auto result = std::make_shared<ov::op::v0::Result>(output_concat);
     ov::ResultVector results{result};
+    results.insert(results.end(), extra_results.begin(), extra_results.end());
     if (add_external_endpoint_user) {
         auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(branches.front());
         results.push_back(std::make_shared<ov::op::v0::Result>(shape_of));
@@ -283,6 +290,30 @@ std::vector<float> evaluate_camera_model(const std::shared_ptr<ov::Model>& model
     CameraGraphEvaluator evaluator(input);
     const auto output = evaluator.evaluate(model->get_results().front()->input_value(0).get_node_shared_ptr());
     return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());
+}
+
+std::shared_ptr<ov::Model> make_small_fp16_camera_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 4, 4});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto weights = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 1, 1}, {0.5f});
+
+    ov::OutputVector branches;
+    for (int64_t index = 0; index < 2; ++index) {
+        auto gather_index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {index});
+        auto gather = std::make_shared<ov::op::v8::Gather>(input, gather_index, axis, 0);
+        branches.push_back(std::make_shared<ov::op::v1::Convolution>(
+                               gather,
+                               weights,
+                               ov::Strides{1, 1},
+                               ov::CoordinateDiff{0, 0},
+                               ov::CoordinateDiff{0, 0},
+                               ov::Strides{1, 1})
+                               ->output(0));
+    }
+
+    auto concat = std::make_shared<ov::op::v0::Concat>(branches, 3);
+    return std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(concat),
+                                       ov::ParameterVector{input});
 }
 
 }  // namespace
@@ -547,10 +578,18 @@ TEST(BatchReplicatedBranches, FusesNonFourWayReplicaCountAndNonDefaultAxes) {
     auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {camera_axis});
 
     ov::OutputVector branches;
+    auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{3, 3, 1, 1}, {1.0f});
     for (size_t i = 0; i < replica_count; ++i) {
         auto index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(i)});
         auto gather = std::make_shared<ov::op::v8::Gather>(input, index, axis, 0);
-        branches.push_back(std::make_shared<ov::op::v0::Relu>(gather)->output(0));
+        auto convolution = std::make_shared<ov::op::v1::Convolution>(
+            gather,
+            weights,
+            ov::Strides{1, 1},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{0, 0},
+            ov::Strides{1, 1});
+        branches.push_back(std::make_shared<ov::op::v0::Relu>(convolution)->output(0));
     }
     auto output_concat = std::make_shared<ov::op::v0::Concat>(branches, concat_axis);
     auto result = std::make_shared<ov::op::v0::Result>(output_concat);
@@ -565,6 +604,55 @@ TEST(BatchReplicatedBranches, FusesNonFourWayReplicaCountAndNonDefaultAxes) {
     ASSERT_NE(repacked, nullptr);
     const ov::PartialShape expected_output_shape{1, replica_count * 3, 3, 3};
     EXPECT_EQ(repacked->get_output_partial_shape(0), expected_output_shape);
+}
+
+TEST(BatchReplicatedBranches, RejectsReluOnlyBranches) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 3, 3, 3});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+
+    ov::OutputVector branches;
+    for (int64_t index = 0; index < 3; ++index) {
+        auto gather_index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {index});
+        auto gather = std::make_shared<ov::op::v8::Gather>(input, gather_index, axis, 0);
+        branches.push_back(std::make_shared<ov::op::v0::Relu>(gather)->output(0));
+    }
+
+    auto output_concat = std::make_shared<ov::op::v0::Concat>(branches, 1);
+    auto result = std::make_shared<ov::op::v0::Result>(output_concat);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(model);
+
+    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
+                                                      .get_node_shared_ptr()),
+              nullptr);
+}
+
+TEST(BatchReplicatedBranches, RejectsConsumedMaxPoolIndices) {
+    auto model = make_camera_model({0, 1, 2, 3},
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   true,
+                                   false,
+                                   true);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(model);
+
+    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
+                                                      .get_node_shared_ptr()),
+              nullptr);
 }
 
 TEST(BatchReplicatedBranches, NumericalRegressionPreservesCameraOrder) {
@@ -622,4 +710,45 @@ TEST(BatchReplicatedBranches, NumericalRegressionPreservesCameraOrder) {
         EXPECT_GT(transformed_values[index], first_camera_value) << "camera ordering changed at camera " << camera;
     }
     EXPECT_EQ(transformed_values.size(), output_channels * output_height * 4 * output_width);
+}
+
+TEST(BatchReplicatedBranches, ValidatesFp16GpuNumericalTolerance) {
+    auto reference_model = make_small_fp16_camera_model();
+    auto transformed_model = reference_model->clone();
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(transformed_model);
+
+    ov::Tensor input(ov::element::f16, ov::Shape{1, 2, 1, 4, 4});
+    auto* input_values = input.data<ov::float16>();
+    for (size_t i = 0; i < input.get_size(); ++i) {
+        input_values[i] = static_cast<float>(i + 1) * 0.125f;
+    }
+
+    try {
+        ov::Core core;
+        auto cpu_model = core.compile_model(reference_model, "CPU");
+        auto gpu_model = core.compile_model(transformed_model, "GPU");
+
+        auto cpu_request = cpu_model.create_infer_request();
+        cpu_request.set_input_tensor(input);
+        cpu_request.infer();
+        const auto cpu_output = cpu_request.get_output_tensor(0);
+
+        auto gpu_request = gpu_model.create_infer_request();
+        gpu_request.set_input_tensor(input);
+        gpu_request.infer();
+        const auto gpu_output = gpu_request.get_output_tensor(0);
+
+        ASSERT_EQ(cpu_output.get_size(), gpu_output.get_size());
+        const auto* cpu_values = cpu_output.data<ov::float16>();
+        const auto* gpu_values = gpu_output.data<ov::float16>();
+        for (size_t i = 0; i < cpu_output.get_size(); ++i) {
+            EXPECT_NEAR(static_cast<float>(cpu_values[i]), static_cast<float>(gpu_values[i]), 1e-2f)
+                << "at output index " << i;
+        }
+    } catch (const ov::Exception&) {
+        GTEST_SKIP() << "Requires discoverable CPU and GPU plugins.";
+    }
 }

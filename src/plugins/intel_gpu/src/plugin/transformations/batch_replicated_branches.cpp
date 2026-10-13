@@ -192,6 +192,14 @@ bool is_batch_safe_operation(const NodePtr& node, size_t replica_count) {
            ov::is_type<ov::op::v14::MaxPool>(node) || ov::is_type<ov::op::v0::Convert>(node);
 }
 
+bool max_pool_indices_are_unused(const NodePtr& node) {
+    if (!ov::is_type<ov::op::v1::MaxPool>(node) && !ov::is_type<ov::op::v8::MaxPool>(node) &&
+        !ov::is_type<ov::op::v14::MaxPool>(node)) {
+        return true;
+    }
+    return node->get_output_size() < 2 || node->output(1).get_target_inputs().empty();
+}
+
 bool scalar_i64_constant(const ov::Output<ov::Node>& value, int64_t expected) {
     const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
     if (!constant || constant->get_element_type() != ov::element::i64 ||
@@ -440,13 +448,22 @@ bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
     collect_branch_nodes(endpoint, info.nodes, visiting);
 
     std::vector<std::shared_ptr<ov::op::v8::Gather>> gathers;
+    bool has_convolution = false;
+    bool has_relu = false;
     for (auto* raw_node : info.nodes) {
         const auto node = raw_node->shared_from_this();
         if (const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node)) {
             gathers.push_back(gather);
         } else if (!is_batch_safe_operation(node, replica_count)) {
             return false;
+        } else if (!max_pool_indices_are_unused(node)) {
+            return false;
         }
+        has_convolution |= ov::is_type<ov::op::v1::Convolution>(node);
+        has_relu |= ov::is_type<ov::op::v0::Relu>(node);
+    }
+    if (has_relu && !has_convolution) {
+        return false;
     }
     if (gathers.size() != 1) {
         return false;

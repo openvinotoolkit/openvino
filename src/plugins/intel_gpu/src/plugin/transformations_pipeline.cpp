@@ -850,9 +850,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
-        if (config.get_enable_camera_replica_batch_fusion()) {
-            manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
-        }
+        manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
