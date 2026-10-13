@@ -202,7 +202,7 @@ the following setup options:
 |                                              | Enables compiling the model to all candidate devices in the        |
 |                                              | background (in addition to the actual and CPU helper devices)      |
 |                                              | to populate cache blobs for faster subsequent loading. Only        |
-|                                              | takes effect when a cache directory (``ov::cache_dir``) is         |
+|                                              | takes effect when a cache path (``ov::cache_path``) is             |
 |                                              | configured.                                                        |
 |                                              |                                                                    |
 |                                              | The default value is ``false``.                                    |
