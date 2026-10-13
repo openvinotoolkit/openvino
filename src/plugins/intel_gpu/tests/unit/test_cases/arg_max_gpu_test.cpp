@@ -1131,7 +1131,7 @@ TEST(arg_max_min_test, check_second_output_data_type) {
 
 // =============================================================================
 // Tests for arg_max_min_topk_radix kernel
-// Conditions: f16/f32 input, SORT_VALUES, N >= 2, SLM fits
+// Conditions: f16/f32 input, N >= 2, SLM fits
 // =============================================================================
 
 inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine, format::type fmt = format::bfyx) {
@@ -1964,6 +1964,90 @@ TYPED_TEST(arg_max_gpu_topk_radix, nan_and_signed_zero_order) {
                                                        mode,
                                                        16,
                                                        generate));
+    }
+}
+
+// Without SORT_VALUES the selected elements come out in index order. SORT_NONE is treated as SORT_INDICES.
+TYPED_TEST(arg_max_gpu_topk_radix, sort_by_indices) {
+    using T = TypeParam;
+    constexpr int32_t vocab_size = 248320;
+    for (const auto sort : {ov::op::TopKSortType::SORT_INDICES, ov::op::TopKSortType::NONE}) {
+        SCOPED_TRACE(sort == ov::op::TopKSortType::NONE ? "NONE" : "SORT_INDICES");
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+            ov::PartialShape{3, 10000, 1, 1}, {{3, 10000, 1, 1}}, 1, ov::op::TopKMode::MAX, 64,
+            [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 8, 5); },
+            sort));
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+            ov::PartialShape{2, 40001, 1, 1}, {{2, 40001, 1, 1}}, 1, ov::op::TopKMode::MIN, 20,
+            [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 64, 3); },
+            sort));
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+            ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), vocab_size, 1},
+            {{1, 1, vocab_size, 1}, {1, 7, vocab_size, 1}},
+            2,
+            ov::op::TopKMode::MAX,
+            16,
+            [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 2000, 7); },
+            sort));
+    }
+}
+
+// Index-ordered output when 30 values tie at the K-th value ahead of 18 better values in the middle of
+// the row: every better value is selected, and only the ties with the smallest indices fill the rest.
+TYPED_TEST(arg_max_gpu_topk_radix, sort_by_indices_ties_before_better_values) {
+    using T = TypeParam;
+    for (const auto mode : {ov::op::TopKMode::MAX, ov::op::TopKMode::MIN}) {
+        SCOPED_TRACE(mode == ov::op::TopKMode::MAX ? "MAX" : "MIN");
+        const float sign = mode == ov::op::TopKMode::MAX ? 1.f : -1.f;
+        const auto generate = [sign](size_t rows, size_t row_size) {
+            std::vector<float> values(rows * row_size, -2.f * sign);
+            for (size_t row = 0; row < rows; ++row) {
+                float* row_values = values.data() + row * row_size;
+                std::fill_n(row_values, 30, sign);
+                std::fill_n(row_values + row_size / 2, 18, 2.f * sign);
+            }
+            return values;
+        };
+        for (const auto sort : {ov::op::TopKSortType::SORT_INDICES, ov::op::TopKSortType::NONE}) {
+            SCOPED_TRACE(sort == ov::op::TopKSortType::NONE ? "NONE" : "SORT_INDICES");
+            ASSERT_NO_FATAL_FAILURE(
+                run_topk_radix_case<T>(ov::PartialShape{2, 1000, 1, 1}, {{2, 1000, 1, 1}}, 1, mode, 20, generate, sort));
+            ASSERT_NO_FATAL_FAILURE(
+                run_topk_radix_case<T>(ov::PartialShape{1, 40000, 1, 1}, {{1, 40000, 1, 1}}, 1, mode, 20, generate, sort));
+            ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+                ov::PartialShape{ov::Dimension::dynamic(), 40000, 1, 1}, {{3, 40000, 1, 1}}, 1, mode, 20, generate, sort));
+        }
+    }
+}
+
+// Index-ordered output when 30 ties at indices 0..29 come before 18 better zeros at 500..517, K=20. The
+// 20000-value row is chunked on every device, with the ties and the zeros in its first chunk; the
+// 1000-value row runs in a single stage.
+TYPED_TEST(arg_max_gpu_topk_radix, sort_by_indices_ties_before_better_zeros) {
+    using T = TypeParam;
+    for (const auto mode : {ov::op::TopKMode::MAX, ov::op::TopKMode::MIN}) {
+        SCOPED_TRACE(mode == ov::op::TopKMode::MAX ? "MAX" : "MIN");
+        const auto generate = [mode](size_t rows, size_t row_size) {
+            const float sign = mode == ov::op::TopKMode::MAX ? -1.0f : 1.0f;
+            std::vector<float> values(rows * row_size, sign);
+            for (size_t row = 0; row < rows; ++row) {
+                std::fill_n(values.begin() + row * row_size, 30, 0.25f * sign);
+                std::fill_n(values.begin() + row * row_size + 500, 18, 0.0f);
+            }
+            return values;
+        };
+        for (const auto sort : {ov::op::TopKSortType::SORT_INDICES, ov::op::TopKSortType::NONE}) {
+            SCOPED_TRACE(sort == ov::op::TopKSortType::NONE ? "NONE" : "SORT_INDICES");
+            for (const int32_t row_size : {1000, 20000}) {
+                ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(ov::PartialShape{2, row_size, 1, 1},
+                                                               {{2, row_size, 1, 1}},
+                                                               1,
+                                                               mode,
+                                                               20,
+                                                               generate,
+                                                               sort));
+            }
+        }
     }
 }
 
