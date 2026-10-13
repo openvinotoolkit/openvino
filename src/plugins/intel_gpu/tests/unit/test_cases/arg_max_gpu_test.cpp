@@ -1967,6 +1967,43 @@ TYPED_TEST(arg_max_gpu_topk_radix, nan_and_signed_zero_order) {
     }
 }
 
+// The axis kernel orders NaN and signed zeros like radix in all of its sorting paths.
+TYPED_TEST(arg_max_gpu_topk_radix, axis_kernel_nan_and_signed_zero_order) {
+    using T = TypeParam;
+    const std::string axis_kernel = "arg_max_min_axis";
+    for (const auto mode : {ov::op::TopKMode::MAX, ov::op::TopKMode::MIN}) {
+        SCOPED_TRACE(mode == ov::op::TopKMode::MAX ? "MAX" : "MIN");
+        const auto generate = [mode](size_t rows, size_t row_size) {
+            return topk_radix_special_values(rows, row_size, mode);
+        };
+        for (const auto sort : {ov::op::TopKSortType::SORT_VALUES, ov::op::TopKSortType::SORT_INDICES}) {
+            SCOPED_TRACE(sort == ov::op::TopKSortType::SORT_VALUES ? "SORT_VALUES" : "SORT_INDICES");
+            // Rank-based, partial and merge sorting, the k=1 search, and K=N, where MIN also selects the NaNs
+            for (const auto& [row_size, top_k] :
+                 std::vector<std::pair<int32_t, int32_t>>{{4096, 16}, {64, 40}, {4096, 1}, {64, 64}}) {
+                ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(ov::PartialShape{2, row_size, 1, 1},
+                                                               {{2, row_size, 1, 1}},
+                                                               1,
+                                                               mode,
+                                                               top_k,
+                                                               generate,
+                                                               sort,
+                                                               axis_kernel));
+            }
+        }
+        // Short MoE router rows keep the axis kernel by default
+        ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(ov::PartialShape{ov::Dimension::dynamic(), 128, 1, 1},
+                                                       {{64, 128, 1, 1}},
+                                                       1,
+                                                       mode,
+                                                       8,
+                                                       generate,
+                                                       ov::op::TopKSortType::SORT_VALUES,
+                                                       axis_kernel,
+                                                       false));
+    }
+}
+
 // Without SORT_VALUES the selected elements come out in index order. SORT_NONE is treated as SORT_INDICES.
 TYPED_TEST(arg_max_gpu_topk_radix, sort_by_indices) {
     using T = TypeParam;
