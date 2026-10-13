@@ -88,7 +88,7 @@ GroupedMatMulPattern::GroupedMatMulPattern()
                           return false;
                       }
                       const auto is_supported_type = [](const ov::element::Type& type) {
-                          return type == ov::element::f64 || type == ov::element::f32 || type == ov::element::f16 || type == ov::element::bf16;
+                          return type == ov::element::f16 || type == ov::element::bf16;
                       };
                       if (!is_supported_type(output.get_element_type()) || !is_supported_type(node->get_input_element_type(0)) ||
                           !is_supported_type(node->get_input_element_type(1))) {
