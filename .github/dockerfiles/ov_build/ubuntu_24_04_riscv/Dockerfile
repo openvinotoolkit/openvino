@@ -17,6 +17,7 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 
 # Install RISC-V native debian packages
 RUN dpkg --add-architecture riscv64 && \
+    rm -f /etc/apt/sources.list.d/ubuntu.sources && \
     echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble main restricted > sources.list && \
     echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-updates main restricted >> sources.list && \
     echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble universe >> sources.list && \
@@ -61,7 +62,6 @@ RUN apt-get update && \
     # Compilers
     gcc \
     g++ \
-    # For clang-tidy validation
     clang-format-18 \
     clang-tidy-18 \
     libomp-18-dev && \
@@ -104,5 +104,4 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Install newer ninja (apt ships 1.11.1 on 24.04; pin for consistency)
 RUN python3 -m pip install --no-cache-dir cmake==3.26.4 ninja==1.13.0
