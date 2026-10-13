@@ -139,14 +139,9 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
             if (bias_shape.rank().get_length() == 1 && bias_shape[0].compatible(hidden_size)) {
                 bias_node = bias_input;
             } else {
-                else if (bias_shape.is_static() && ov::shape_size(bias_shape.to_shape()) != hidden_size) {
+                if (bias_shape.is_static() && ov::shape_size(bias_shape.to_shape()) != hidden_size) {
                     // Validate that the total element count matches hidden_size
                     return false;
-                }
-                    // Validate that the total element count matches hidden_size
-                    if (ov::shape_size(bias_shape.to_shape()) != hidden_size) {
-                        return false;
-                    }
                 }
                 const auto bias_shape_node =
                     v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
