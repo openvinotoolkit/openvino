@@ -1,0 +1,13 @@
+---
+sidebar_position: 11
+sidebar_label: "Plugin API Reference"
+description: "Learn about extra API references required for the development of plugins in OpenVINO."
+---
+
+# Plugin API Reference
+
+
+The guides below provides extra API references needed for OpenVINO plugin development:
+
+- [OpenVINO Plugin API](https://docs.openvino.ai/2026/api/c_cpp_api/group__ov__dev__api.html)
+- [OpenVINO Transformation API](https://docs.openvino.ai/2026/api/c_cpp_api/group__ie__transformation__api.html)

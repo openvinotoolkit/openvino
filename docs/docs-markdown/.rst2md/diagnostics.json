@@ -1,0 +1,3895 @@
+{
+  "diagnostics": [
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:fas",
+      "line": 19,
+      "lossy": true,
+      "message": "icon role fas has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/contributing.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:fas",
+      "line": 43,
+      "lossy": true,
+      "message": "icon role fas has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/contributing.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:fas",
+      "line": 95,
+      "lossy": true,
+      "message": "icon role fas has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/contributing.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:fas",
+      "line": 130,
+      "lossy": true,
+      "message": "icon role fas has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/contributing.rst",
+      "unsupported": true
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 16,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../openvino-workflow-generative/inference-with-genai",
+      "severity": "info",
+      "source": "about-openvino/key-features.rst",
+      "unsupported": false
+    },
+    {
+      "code": "dropdown_options_dropped",
+      "construct": "directive:dropdown",
+      "lossy": true,
+      "message": "dropdown option(s) animate have no Docusaurus <details> equivalent and were dropped",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "10 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 34,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../openvino-workflow-generative/inference-with-optimum-intel",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 165,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../openvino-workflow-generative/inference-with-optimum-intel",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "4 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations/openvino-adoptions.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-info",
+      "line": 11,
+      "lossy": true,
+      "message": "badge-link role bdg-link-info was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations/openvino-adoptions.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 18,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations/openvino-adoptions.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 26,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations/openvino-adoptions.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-info",
+      "line": 26,
+      "lossy": true,
+      "message": "badge-link role bdg-link-info was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations/openvino-adoptions.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 34,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-integrations/openvino-adoptions.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "6 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 18,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-success",
+      "line": 18,
+      "lossy": true,
+      "message": "badge-link role bdg-link-success was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 26,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-success",
+      "line": 26,
+      "lossy": true,
+      "message": "badge-link role bdg-link-success was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 34,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-success",
+      "line": 34,
+      "lossy": true,
+      "message": "badge-link role bdg-link-success was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 42,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-success",
+      "line": 42,
+      "lossy": true,
+      "message": "badge-link role bdg-link-success was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 49,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-success",
+      "line": 49,
+      "lossy": true,
+      "message": "badge-link role bdg-link-success was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-dark",
+      "line": 58,
+      "lossy": true,
+      "message": "badge-link role bdg-link-dark was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "badge_link_role_flattened",
+      "construct": "role:bdg-link-success",
+      "line": 58,
+      "lossy": true,
+      "message": "badge-link role bdg-link-success was rendered as a plain link",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "3 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"3\" (ordinal 3)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"4\" (ordinal 4)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"5\" (ordinal 5)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"6\" (ordinal 6)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"7\" (ordinal 7)",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 20,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../../model-server/ovms_what_is_openvino_model_server",
+      "severity": "error",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": true
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 358,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 363,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on.rst",
+      "unsupported": false
+    },
+    {
+      "code": "button_style_options_dropped",
+      "construct": "directive:button-link",
+      "lossy": true,
+      "message": "button-link/button-ref color/outline/class styling has no Docusaurus equivalent; rendered as a plain bold link",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 19,
+      "lossy": false,
+      "message": "document link escapes source root: ../../model-server/ovms_what_is_openvino_model_server",
+      "severity": "error",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 44,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 54,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 64,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 74,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 144,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 151,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks.rst",
+      "unsupported": true
+    },
+    {
+      "code": "button_style_options_dropped",
+      "construct": "directive:button-link",
+      "lossy": true,
+      "message": "button-link/button-ref color/outline/class styling has no Docusaurus equivalent; rendered as a plain bold link",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV llm_models_5-330.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV llm_models_7-255H.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV llm_models_7-258V.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV llm_models_7-368H.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": false
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 72,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 79,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 86,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 93,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": true
+    },
+    {
+      "code": "icon_role_dropped",
+      "construct": "role:material-regular",
+      "line": 100,
+      "lossy": true,
+      "message": "icon role material-regular has no Docusaurus equivalent and was dropped",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/generative-ai-performance.rst",
+      "unsupported": true
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/getting-performance-numbers.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 149,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/getting-performance-numbers.rst:149: (INFO/1) Duplicate implicit target name: \"openvino benchmarking (general)\".",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/getting-performance-numbers.rst",
+      "unsupported": false
+    },
+    {
+      "code": "complex_table_rendered_as_html",
+      "construct": "table",
+      "lossy": true,
+      "message": "complex table was rendered as HTML to retain spans and text; inline cell semantics require review",
+      "severity": "warning",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 135,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:135: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 136,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:136: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 137,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:137: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 138,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:138: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 145,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:145: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 150,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:150: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 152,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:152: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 158,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:158: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 163,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:163: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 164,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:164: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 165,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:165: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 166,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:166: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 207,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:207: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 220,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst:220: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/model-accuracy-int8-fp32.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/performance-benchmarks/performance-benchmarks-faq.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 331,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../physical-ai/how-to/runtime/upgrade-from-0-1-x",
+      "severity": "info",
+      "source": "about-openvino/release-notes-openvino.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 101,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/install-openvino",
+      "severity": "error",
+      "source": "about-openvino/release-notes-openvino/release-policy.rst",
+      "unsupported": true
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "about-openvino/release-notes-openvino/system-requirements.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/release-notes-openvino/system-requirements.rst:2: (INFO/1) Duplicate explicit target name: \"cmake 3.26 or higher, 64-bit\".",
+      "severity": "info",
+      "source": "about-openvino/release-notes-openvino/system-requirements.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/release-notes-openvino/system-requirements.rst:2: (INFO/1) Duplicate explicit target name: \"homebrew\".",
+      "severity": "info",
+      "source": "about-openvino/release-notes-openvino/system-requirements.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/about-openvino/release-notes-openvino/system-requirements.rst:2: (INFO/1) Duplicate explicit target name: \"python 3.10 - 3.14, 64-bit\".",
+      "severity": "info",
+      "source": "about-openvino/release-notes-openvino/system-requirements.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 166,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/release-policy",
+      "severity": "error",
+      "source": "about-openvino/release-notes-openvino/system-requirements.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_target_missing",
+      "construct": "role:doc",
+      "line": 25,
+      "lossy": true,
+      "message": "document link target does not exist under the source root: api/api_reference",
+      "severity": "warning",
+      "source": "documentation.rst",
+      "unsupported": true
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 25,
+      "lossy": false,
+      "message": "link target is outside the converted section: api/api_reference",
+      "severity": "info",
+      "source": "documentation.rst",
+      "unsupported": false
+    },
+    {
+      "code": "complex_table_rendered_as_html",
+      "construct": "table",
+      "lossy": true,
+      "message": "complex table was rendered as HTML to retain spans and text; inline cell semantics require review",
+      "severity": "warning",
+      "source": "documentation/compatibility-and-support/supported-devices.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV supported_models_onnx.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "documentation/compatibility-and-support/supported-models-onnx.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV supported_models_263.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "documentation/compatibility-and-support/supported-models.rst",
+      "unsupported": false
+    },
+    {
+      "code": "button_style_options_dropped",
+      "construct": "directive:button-link",
+      "lossy": true,
+      "message": "button-link/button-ref color/outline/class styling has no Docusaurus equivalent; rendered as a plain bold link",
+      "severity": "info",
+      "source": "documentation/compatibility-and-support/supported-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV paddlepaddle_ops.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "documentation/compatibility-and-support/supported-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV pytorch_ops.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "documentation/compatibility-and-support/supported-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "data_table_flattened_to_static_html",
+      "construct": "directive:data-table",
+      "lossy": true,
+      "message": "data-table CSV tensorflow_ops.csv was rendered as a static HTML table; the original DataTables.js sort/search/pagination behavior is not preserved and needs an editorial/component decision if required",
+      "severity": "info",
+      "source": "documentation/compatibility-and-support/supported-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"3\" (ordinal 3)",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"4\" (ordinal 4)",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility.rst",
+      "unsupported": false
+    },
+    {
+      "code": "complex_table_rendered_as_html",
+      "construct": "table",
+      "lossy": true,
+      "message": "complex table was rendered as HTML to retain spans and text; inline cell semantics require review",
+      "severity": "warning",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "5 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 86,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/custom-gpu-operations.rst:86: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 118,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/custom-gpu-operations.rst:118: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 137,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/custom-gpu-operations.rst:137: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 178,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/custom-gpu-operations.rst:178: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 199,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/custom-gpu-operations.rst:199: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 225,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/custom-gpu-operations.rst:225: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 243,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/custom-gpu-operations.rst:243: (INFO/1) Unexpected possible title overline or transition.",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/custom-gpu-operations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/frontend-extensions.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/frontend-extensions.rst",
+      "unsupported": false
+    },
+    {
+      "code": "unresolved_ref_preserved",
+      "construct": "role:ref",
+      "line": 326,
+      "lossy": true,
+      "message": "reference target is outside the selected label map: ov_ug_build_model",
+      "severity": "warning",
+      "source": "documentation/openvino-extensibility/frontend-extensions.rst",
+      "unsupported": true
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "4 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/openvino-plugin-library/advanced-guides/low-precision-transformations/step3-main/arithmetic/add.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/openvino-plugin-library/advanced-guides/low-precision-transformations/step3-main/convolution/convolution.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/openvino-plugin-library/plugin-testing.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"3\" (ordinal 3)",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/openvino-plugin-library/plugin-testing.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-extensibility/openvino-plugin-library/plugin-testing.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"4\" (ordinal 4)",
+      "severity": "info",
+      "source": "documentation/openvino-extensibility/openvino-plugin-library/plugin-testing.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 120,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/broadcast-rules.rst:120: (INFO/1) Duplicate implicit target name: \"description\".",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/broadcast-rules.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 125,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/broadcast-rules.rst:125: (INFO/1) Duplicate implicit target name: \"rules\".",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/broadcast-rules.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/clamp-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/elu-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/exp-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/gelu-2.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "3 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/gelu-7.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/hard-sigmoid-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/hsigmoid-5.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/hswish-4.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/log-soft-max-5.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/mish-4.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/prelu-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/relu-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/selu-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/sigmoid-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/softmax-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/softmax-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/softplus-4.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/softsign-9.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/activation/swish-4.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/abs-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/acos-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/acosh-3.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/add-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/asin-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/asinh-3.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/atan-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "3 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/atanh-3.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/ceiling-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/cos-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/cosh-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/divide-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/erf-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/erfinv-17.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/floor-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/floormod-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/log-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/maximum-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/minimum-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/mod-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/multiply-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/negative-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/power-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/segment-max-16.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/sign-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/sin-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/sinh-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/sqrt-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/squared-difference-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/subtract-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/tan-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/tanh-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/bitwise/bitwise-left-shift-15.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/bitwise/bitwise-right-shift-15.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/comparison/equal-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/comparison/greater-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/comparison/greater-equal-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/comparison/less-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/comparison/lessequal-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/comparison/notequal-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "5 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/convolution/convolution-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/convolution/deformable-convolution-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/convolution/deformable-convolution-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/detection/experimental-detectron-detection-output-6.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/experimental-detectron-detection-output-6.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/experimental-detectron-generate-proposals-single-image-6.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/experimental-detectron-prior-grid-generator-6.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/experimental-detectron-roi-feature-extractor-6.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/generate-proposals-9.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "7 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-1.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-1.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"3\" (ordinal 3)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "8 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-8.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-8.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"3\" (ordinal 3)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "9 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/detection/prior-box-clustered-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/generation/multinomial-13.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/generation/multinomial-13.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "11 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/generation/random-uniform-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/generation/random-uniform-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "3 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/generation/range-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "4 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/generation/range-4.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/image/i420-to-rgb-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/image/nv12-to-rgb-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/image/rgb-to-nv12-17.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 17,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../../../../openvino-workflow/running-inference/inference-request/stateful-models",
+      "severity": "error",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 18,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../../../../openvino-workflow/running-inference/inference-request/stateful-models",
+      "severity": "error",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6.rst",
+      "unsupported": true
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/internal/paged-attention.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 847,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/internal/paged-attention.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "5 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/internal/selective-ssm.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/logical/logical-and-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/logical/logical-not-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/logical/logical-or-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/logical/logical-xor-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "6 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/matrix/inverse-14.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/matrix/inverse-14.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "4 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/batch-to-space-2.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/movement/batch-to-space-2.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/batch-to-space-2.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/movement/batch-to-space-2.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"3\" (ordinal 3)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/batch-to-space-2.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/movement/batch-to-space-2.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"4\" (ordinal 4)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/batch-to-space-2.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "5 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/extract-image-patches-3.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "2 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/gather-nd-5.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/scatter-nd-update-15.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/scatter-nd-update-3.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/scatter-update-3.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/shuffle-channels-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "4 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/space-to-batch-2.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/split-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "5 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/strided-slice-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/tile-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/transpose-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/movement/variadic-split-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "8 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/normalization/batch-norm-inference-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "8 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/normalization/batch-norm-inference-5.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/normalization/grn-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/normalization/group-normalization-12.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/normalization/lrn-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "4 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/normalization/mvn-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "3 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/normalization/mvn-6.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/adaptive-avg-pool-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/adaptive-max-pool-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/avg-pool-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 90,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 95,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 100,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 105,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 110,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 115,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 129,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 134,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 139,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 144,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/max-pool-8.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 11,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/pooling_shape_rules.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 16,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/pooling_shape_rules.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 21,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/pooling_shape_rules.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 22,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/pooling_shape_rules.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 27,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/pooling/pooling_shape_rules.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/sequence/ctc-greedy-decoder-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "4 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/sequence/ctc-loss-4.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/ctc-loss-4.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/sequence/ctc-loss-4.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/ctc-loss-4.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"3\" (ordinal 3)",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/sequence/ctc-loss-4.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "4 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/signals/dft-7.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "3 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/signals/idft-7.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "3 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/signals/irdft-9.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 29,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/signals/istft-16.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "2 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/signals/rdft-9.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 37,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/sparse/fill-empty-rows-16.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 47,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/sparse/fill-empty-rows-16.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_math_block_preserved",
+      "construct": "math_block",
+      "lossy": false,
+      "message": "1 `$$...$$` math block(s) passed through as real math, typeset by the remark-math/rehype-katex plugins configured in edge-manage-docs",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/type/convert-1.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 21,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/type/string-tensor-unpack-15.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 26,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/type/string-tensor-unpack-15.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 31,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "documentation/openvino-ir-format/operation-sets/operation-specs/type/string-tensor-unpack-15.rst",
+      "unsupported": false
+    },
+    {
+      "code": "relative_html_link_rendered_as_html",
+      "construct": "link",
+      "lossy": false,
+      "message": "relative HTML hyperlink was rendered as an HTML anchor to prevent MyST from treating it as a document xref: ../api/c_cpp_api/group__ov__dev__exec__model.html#classov_1_1_core_1ae0576a95f841c3a6f5e46e4802716981",
+      "severity": "info",
+      "source": "documentation/openvino-security.rst",
+      "unsupported": false
+    },
+    {
+      "code": "relative_html_link_rendered_as_html",
+      "construct": "link",
+      "lossy": false,
+      "message": "relative HTML hyperlink was rendered as an HTML anchor to prevent MyST from treating it as a document xref: ../api/c_cpp_api/group__ov__runtime__cpp__api.html#_CPPv4N2ov4Core12import_modelERNSt7istreamERKNSt6stringERK6AnyMap",
+      "severity": "info",
+      "source": "documentation/openvino-security.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "2 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "get-started.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "get-started/install-openvino.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 35,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../openvino-workflow-generative",
+      "severity": "info",
+      "source": "get-started/install-openvino.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 35,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../openvino-workflow-generative/inference-with-genai",
+      "severity": "info",
+      "source": "get-started/install-openvino.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 9,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/get-started/install-openvino/configurations.rst:9: (INFO/1) Duplicate implicit target name: \"additional configurations\".",
+      "severity": "info",
+      "source": "get-started/install-openvino/configurations.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 30,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../../openvino-workflow-generative/ov-tokenizers",
+      "severity": "info",
+      "source": "get-started/install-openvino/configurations/genai-dependencies.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "get-started/install-openvino/configurations/troubleshooting-install-config.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/get-started/install-openvino/install-openvino-apt.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 17,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 151,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 211,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/get-started-demos",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 219,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 220,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-classification",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 224,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 225,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 227,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 228,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-apt.rst",
+      "unsupported": true
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 32,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 230,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/interactive-tutorials-python",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 240,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/get-started-demos",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 246,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 248,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 249,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-classification",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 280,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 281,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 282,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-linux.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 19,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-macos.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 145,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/interactive-tutorials-python",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-macos.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 154,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/get-started-demos",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-macos.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 161,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-macos.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 162,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-classification",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-macos.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 187,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation/convert-model-to-ir",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-macos.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 188,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-macos.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 189,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-macos.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 18,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-windows.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 190,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/interactive-tutorials-python",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-windows.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 199,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/get-started-demos",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-windows.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 206,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-windows.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 207,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-classification",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-windows.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 240,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation/convert-model-to-ir",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-windows.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 241,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-windows.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 242,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-archive-windows.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 17,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-brew.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 67,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-brew.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 68,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-brew.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 70,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-brew.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 71,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-brew.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 18,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conan.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 80,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conan.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 81,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conan.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 82,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conan.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 83,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conan.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 19,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conda.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 157,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/get-started-demos",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conda.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 163,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conda.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 165,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conda.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 166,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-classification",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-conda.rst",
+      "unsupported": true
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 4,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../openvino-workflow-generative/inference-with-genai",
+      "severity": "info",
+      "source": "get-started/install-openvino/install-openvino-genai.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 48,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../openvino-workflow-generative/ov-tokenizers",
+      "severity": "info",
+      "source": "get-started/install-openvino/install-openvino-genai.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 18,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-npm.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_target_missing",
+      "construct": "role:doc",
+      "line": 40,
+      "lossy": true,
+      "message": "document link target does not exist under the source root: ../../api/nodejs_api/nodejs_api",
+      "severity": "warning",
+      "source": "get-started/install-openvino/install-openvino-npm.rst",
+      "unsupported": true
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 40,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../api/nodejs_api/nodejs_api",
+      "severity": "info",
+      "source": "get-started/install-openvino/install-openvino-npm.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 19,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-pip.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 152,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/interactive-tutorials-python",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-pip.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 17,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-vcpkg.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 89,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-vcpkg.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 90,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-vcpkg.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 92,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-vcpkg.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 93,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-vcpkg.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 21,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-winget.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 147,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-winget.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 167,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/get-started-demos",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-winget.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 169,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-winget.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 171,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-winget.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 172,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-classification",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-winget.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 17,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 68,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/get-started/install-openvino/install-openvino-yum.rst:68: (INFO/1) Duplicate implicit target name: \"install openvino runtime\".",
+      "severity": "info",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 118,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 177,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/get-started-demos",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 185,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 186,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-classification",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 190,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 191,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 193,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 194,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-yum.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 18,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../about-openvino/release-notes-openvino/system-requirements",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 45,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/get-started/install-openvino/install-openvino-zypper.rst:45: (INFO/1) Duplicate implicit target name: \"install openvino runtime\".",
+      "severity": "info",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 71,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 130,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/get-started-demos",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 138,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 139,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples/hello-classification",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 143,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 144,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/model-preparation",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 146,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow/running-inference",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 147,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../get-started/learn-openvino/openvino-samples",
+      "severity": "error",
+      "source": "get-started/install-openvino/install-openvino-zypper.rst",
+      "unsupported": true
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "get-started/learn-openvino/interactive-tutorials-python.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "2 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "get-started/learn-openvino/interactive-tutorials-python/notebooks-installation.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "2 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "get-started/learn-openvino/openvino-samples/get-started-demos.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 281,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/get-started/learn-openvino/openvino-samples/get-started-demos.rst:281: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "get-started/learn-openvino/openvino-samples/get-started-demos.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/get-started/learn-openvino/openvino-samples/hello-reshape-ssd.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"4\" (ordinal 4)",
+      "severity": "info",
+      "source": "get-started/learn-openvino/openvino-samples/hello-reshape-ssd.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/get-started/learn-openvino/openvino-samples/image-classification-async.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"4\" (ordinal 4)",
+      "severity": "info",
+      "source": "get-started/learn-openvino/openvino-samples/image-classification-async.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 91,
+      "lossy": false,
+      "message": "document link escapes source root: ../model-server/ovms_what_is_openvino_model_server",
+      "severity": "error",
+      "source": "openvino-workflow.rst",
+      "unsupported": true
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "openvino-workflow/deployment-locally/integrate-openvino-with-ubuntu-snap.rst",
+      "unsupported": false
+    },
+    {
+      "code": "complex_table_rendered_as_html",
+      "construct": "table",
+      "lossy": true,
+      "message": "complex table was rendered as HTML to retain spans and text; inline cell semantics require review",
+      "severity": "warning",
+      "source": "openvino-workflow/deployment-locally/local-distribution-libraries.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 265,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/openvino-workflow/deployment-locally/optimial-binary-size-conditional-compilation.rst:265: (INFO/1) Duplicate implicit target name: \"stage 2: build resulting openvino package\".",
+      "severity": "info",
+      "source": "openvino-workflow/deployment-locally/optimial-binary-size-conditional-compilation.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 107,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../openvino-workflow-generative/inference-with-optimum-intel",
+      "severity": "info",
+      "source": "openvino-workflow/model-optimization-guide/weight-compression.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 224,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../openvino-workflow-generative/inference-with-optimum-intel",
+      "severity": "error",
+      "source": "openvino-workflow/model-optimization-guide/weight-compression.rst",
+      "unsupported": true
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 339,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../openvino-workflow-generative/inference-with-genai",
+      "severity": "info",
+      "source": "openvino-workflow/model-optimization-guide/weight-compression.rst",
+      "unsupported": false
+    },
+    {
+      "code": "complex_table_rendered_as_html",
+      "construct": "table",
+      "lossy": true,
+      "message": "complex table was rendered as HTML to retain spans and text; inline cell semantics require review",
+      "severity": "warning",
+      "source": "openvino-workflow/model-optimization-guide/weight-compression/microscaling-quantization.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 113,
+      "lossy": false,
+      "message": "document link escapes source root: ../../documentation/openvino-ir-format",
+      "severity": "error",
+      "source": "openvino-workflow/model-optimization.rst",
+      "unsupported": true
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 35,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/openvino-workflow/model-preparation/convert-model-onnx.rst:35: (INFO/1) Duplicate implicit target name: \"converting an onnx model\".",
+      "severity": "info",
+      "source": "openvino-workflow/model-preparation/convert-model-onnx.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/openvino-workflow/model-preparation/convert-model-tensorflow.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"2\" (ordinal 2)",
+      "severity": "info",
+      "source": "openvino-workflow/model-preparation/convert-model-tensorflow.rst",
+      "unsupported": false
+    },
+    {
+      "code": "rst_parse_message",
+      "construct": "rst-parser",
+      "line": 2,
+      "lossy": false,
+      "message": "/home/michalx/openvino/docs/articles_en/openvino-workflow/model-preparation/convert-model-tensorflow.rst:2: (INFO/1) Enumerated list start value not ordinal-1: \"3\" (ordinal 3)",
+      "severity": "info",
+      "source": "openvino-workflow/model-preparation/convert-model-tensorflow.rst",
+      "unsupported": false
+    },
+    {
+      "code": "relative_html_link_rendered_as_html",
+      "construct": "link",
+      "lossy": false,
+      "message": "relative HTML hyperlink was rendered as an HTML anchor to prevent MyST from treating it as a document xref: ./../../notebooks/openvino-api-with-output.html",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "14 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "3 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/inference-devices-and-modes/cpu-device/performance-hint-and-thread-scheduling.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.rst",
+      "unsupported": false
+    },
+    {
+      "code": "complex_table_rendered_as_html",
+      "construct": "table",
+      "lossy": true,
+      "message": "complex table was rendered as HTML to retain spans and text; inline cell semantics require review",
+      "severity": "warning",
+      "source": "openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution.rst",
+      "unsupported": false
+    },
+    {
+      "code": "definition_list_rendered_as_labeled_blocks",
+      "construct": "definition-list",
+      "line": 29,
+      "lossy": false,
+      "message": "definition list was mapped to bold labels and blockquotes",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution.rst",
+      "unsupported": false
+    },
+    {
+      "code": "relative_html_link_rendered_as_html",
+      "construct": "link",
+      "lossy": false,
+      "message": "relative HTML hyperlink was rendered as an HTML anchor to prevent MyST from treating it as a document xref: ../../../api/ie_python_api/api.html",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/inference-request/python-api-exclusives.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 69,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../../openvino-workflow-generative/inference-with-optimum-intel",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/inference-request/stateful-models.rst",
+      "unsupported": false
+    },
+    {
+      "code": "link_target_outside_selected_section",
+      "construct": "role:doc",
+      "line": 11,
+      "lossy": false,
+      "message": "link target is outside the converted section: ../../../../openvino-workflow-generative",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/inference-request/stateful-models/obtaining-stateful-openvino-model.rst",
+      "unsupported": false
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 228,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../documentation/openvino-ir-format/operation-sets/available-opsets",
+      "severity": "error",
+      "source": "openvino-workflow/running-inference/model-representation.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 229,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../documentation/openvino-extensibility",
+      "severity": "error",
+      "source": "openvino-workflow/running-inference/model-representation.rst",
+      "unsupported": true
+    },
+    {
+      "code": "doc_link_escapes_source_root",
+      "construct": "role:doc",
+      "line": 230,
+      "lossy": false,
+      "message": "document link escapes source root: ../../../documentation/openvino-extensibility/transformation-api",
+      "severity": "error",
+      "source": "openvino-workflow/running-inference/model-representation.rst",
+      "unsupported": true
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/layout-api-overview.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/optimize-inference/optimizing-latency.rst",
+      "unsupported": false
+    },
+    {
+      "code": "complex_table_rendered_as_html",
+      "construct": "table",
+      "lossy": true,
+      "message": "complex table was rendered as HTML to retain spans and text; inline cell semantics require review",
+      "severity": "warning",
+      "source": "openvino-workflow/running-inference/optimize-inference/optimizing-low-level-implementation.rst",
+      "unsupported": false
+    },
+    {
+      "code": "relative_html_link_rendered_as_html",
+      "construct": "link",
+      "lossy": false,
+      "message": "relative HTML hyperlink was rendered as an HTML anchor to prevent MyST from treating it as a document xref: ../../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html#_CPPv417range_for_streams",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/optimize-inference/optimizing-throughput/advanced_throughput_options.rst",
+      "unsupported": false
+    },
+    {
+      "code": "relative_html_link_rendered_as_html",
+      "construct": "link",
+      "lossy": false,
+      "message": "relative HTML hyperlink was rendered as an HTML anchor to prevent MyST from treating it as a document xref: ../../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html#_CPPv418optimal_batch_size",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/optimize-inference/optimizing-throughput/advanced_throughput_options.rst",
+      "unsupported": false
+    },
+    {
+      "code": "relative_html_link_rendered_as_html",
+      "construct": "link",
+      "lossy": false,
+      "message": "relative HTML hyperlink was rendered as an HTML anchor to prevent MyST from treating it as a document xref: ../../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html#_CPPv432optimal_number_of_infer_requests",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/optimize-inference/optimizing-throughput/advanced_throughput_options.rst",
+      "unsupported": false
+    },
+    {
+      "code": "relative_html_link_rendered_as_html",
+      "construct": "link",
+      "lossy": false,
+      "message": "relative HTML hyperlink was rendered as an HTML anchor to prevent MyST from treating it as a document xref: ../../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html#_CPPv44AUTO",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/optimize-inference/optimizing-throughput/advanced_throughput_options.rst",
+      "unsupported": false
+    },
+    {
+      "code": "mdx_safety_escaping_applied",
+      "construct": "mdx_safety",
+      "lossy": true,
+      "message": "1 line(s) had MDX-unsafe raw `<`/`{`/`style=\"...\"` content escaped or rewritten so the page compiles as valid MDX (see reports/full-corpus-autopilot-2026-09-29.md)",
+      "severity": "info",
+      "source": "openvino-workflow/running-inference/optimize-inference/precision-control.rst",
+      "unsupported": false
+    },
+    {
+      "code": "unresolved_ref_preserved",
+      "construct": "role:ref",
+      "line": 36,
+      "lossy": true,
+      "message": "reference target is outside the selected label map: enabling-runtime-optimizations",
+      "severity": "warning",
+      "source": "openvino-workflow/running-inference/optimize-inference/precision-control.rst",
+      "unsupported": true
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "assets": 96,
+    "construct_counts": {
+      "admonition:important": 20,
+      "admonition:note": 279,
+      "admonition:tip": 7,
+      "admonition:warning": 6,
+      "bullet_list": 2531,
+      "comment": 21,
+      "directive:button-link": 13,
+      "directive:code": 11,
+      "directive:code-block": 1301,
+      "directive:container": 4,
+      "directive:data-table": 9,
+      "directive:doxygensnippet": 591,
+      "directive:dropdown": 85,
+      "directive:grid": 14,
+      "directive:grid-item": 29,
+      "directive:image": 105,
+      "directive:important": 21,
+      "directive:list-table": 32,
+      "directive:math": 207,
+      "directive:meta": 416,
+      "directive:note": 282,
+      "directive:raw": 7,
+      "directive:rst-class": 3,
+      "directive:rubric": 10,
+      "directive:scrollbox": 22,
+      "directive:tab": 1,
+      "directive:tab-item": 858,
+      "directive:tab-set": 375,
+      "directive:tip": 7,
+      "directive:toctree": 56,
+      "directive:warning": 6,
+      "enumerated_list": 218,
+      "heading": 1393,
+      "image": 146,
+      "line_block": 240,
+      "literal_block": 11,
+      "math_block": 211,
+      "paragraph": 18890,
+      "role:bdg-link-dark": 9,
+      "role:bdg-link-info": 2,
+      "role:bdg-link-success": 6,
+      "role:doc": 3593,
+      "role:fas": 4,
+      "role:material-regular": 11,
+      "role:math": 218,
+      "role:ref": 62,
+      "substitution_definition": 24,
+      "table": 60
+    },
+    "diagnostics": 400,
+    "diagnostics_by_severity": {
+      "error": 93,
+      "info": 296,
+      "warning": 11
+    },
+    "lossy_diagnostics": 94,
+    "pages": 511,
+    "unsupported_diagnostics": 112
+  }
+}

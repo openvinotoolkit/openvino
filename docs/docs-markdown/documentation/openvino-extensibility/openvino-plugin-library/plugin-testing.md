@@ -1,0 +1,116 @@
+---
+sidebar_position: 9
+sidebar_label: "Plugin Testing"
+description: "Use the openvino::funcSharedTests library, which includes a predefined set of functional tests and utilities to verify a plugin."
+---
+
+# Plugin Testing
+
+OpenVINO tests infrastructure provides a predefined set of functional tests and utilities. They are used to verify a plugin using the OpenVINO public API.
+All the tests are written in the [Google Test C++ framework](https://github.com/google/googletest).
+
+OpenVINO Plugin tests are included in the `openvino::funcSharedTests` CMake target which is built within the OpenVINO repository
+(see [Build Plugin Using CMake](build-plugin-using-cmake.md) guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
+
+Test definitions are split into tests class declaration (see `src/tests/functional/plugin/shared/include`) and tests class implementation (see `src/tests/functional/plugin/shared/src`) and include the following scopes of plugin conformance tests:
+
+1. **Behavior tests** (`behavior` sub-folder), which are a separate test group to check that a plugin satisfies basic OpenVINO concepts: plugin creation, multiple compiled models support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
+2. **Single layer tests** (`single_layer_tests` sub-folder). This groups of tests checks that a particular single layer can be inferenced on a device. An example of test instantiation based on test definition from `openvino::funcSharedTests` library:
+
+- From the declaration of convolution test class we can see that it's a parametrized GoogleTest based class with the `convLayerTestParamsSet` tuple of parameters:
+
+```cpp
+typedef std::tuple<
+        std::vector<size_t>,    // Kernel size
+        std::vector<size_t>,    // Strides
+        std::vector<ptrdiff_t>, // Pad begin
+        std::vector<ptrdiff_t>, // Pad end
+        std::vector<size_t>,    // Dilation
+        size_t,                 // Num out channels
+        ov::op::PadType         // Padding type
+> convSpecificParams;
+typedef std::tuple<
+        convSpecificParams,
+        ov::element::Type,        // Model type
+        std::vector<InputShape>,  // Input shapes
+        std::string               // Device name
+> convLayerTestParamsSet;
+
+class ConvolutionLayerTest : public testing::WithParamInterface<convLayerTestParamsSet>,
+                             virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<convLayerTestParamsSet>& obj);
+
+protected:
+    void SetUp() override;
+};
+```
+
+- Based on that, define a set of parameters for `Template` plugin functional test instantiation:
+
+```cpp
+const std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
+    ov::element::f16,
+};
+
+/* ============= 2D Convolution ============= */
+
+const std::vector<std::vector<size_t>> kernels = {{3, 3}, {3, 5}};
+const std::vector<std::vector<size_t>> strides = {{1, 1}, {1, 3}};
+const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}, {0, 3}};
+const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0}, {0, 3}};
+const std::vector<std::vector<size_t>> dilations = {{1, 1}, {3, 1}};
+const std::vector<size_t> numOutChannels = {1, 5};
+const std::vector<ov::op::PadType> padTypes = {ov::op::PadType::EXPLICIT, ov::op::PadType::VALID};
+
+const auto conv2DParams_ExplicitPadding = ::testing::Combine(::testing::ValuesIn(kernels),
+                                                             ::testing::ValuesIn(strides),
+                                                             ::testing::ValuesIn(padBegins),
+                                                             ::testing::ValuesIn(padEnds),
+                                                             ::testing::ValuesIn(dilations),
+                                                             ::testing::ValuesIn(numOutChannels),
+                                                             ::testing::Values(ov::op::PadType::EXPLICIT));
+```
+
+- Instantiate the test itself using standard GoogleTest macro `INSTANTIATE_TEST_SUITE_P`:
+
+```cpp
+INSTANTIATE_TEST_SUITE_P(
+    Convolution2D_ExplicitPadding,
+    ConvolutionLayerTest,
+    ::testing::Combine(conv2DParams_ExplicitPadding,
+                       ::testing::ValuesIn(model_types),
+                       ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 30, 30}})),
+                       ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
+    ConvolutionLayerTest::getTestCaseName);
+```
+
+3. **Sub-graph tests** (`subgraph_tests` sub-folder). This group of tests is designed to tests small patterns or combination of layers. E.g. when a particular topology is being enabled in a plugin e.g. TF ResNet-50, there is no need to add the whole topology to test tests. In opposite way, a particular repetitive subgraph or pattern can be extracted from `ResNet-50` and added to the tests. The instantiation of the sub-graph tests is done in the same way as for single layer tests.
+
+:::note
+Such sub-graphs or patterns for sub-graph tests should be added to `openvino::ov_models` library first (this library is a pre-defined set of small `ov::Model`) and re-used in sub-graph tests after.
+:::
+
+4. **HETERO tests** (`subgraph_tests` sub-folder) contains tests for `HETERO` scenario (manual or automatic affinities settings, tests for `query_model`).
+5. **Other tests**, which contain tests for other scenarios and has the following types of tests:
+   
+   - Tests for execution graph
+   - Other
+
+To use these tests for your own plugin development, link the `openvino::funcSharedTests` library to your test binary and instantiate required test cases with desired parameters values.
+
+:::note
+A plugin may contain its own tests for use cases that are specific to hardware or need to be extensively tested.
+:::
+
+To build test binaries together with other build artifacts, use the `make all` command. For details, see [Build Plugin Using CMake](build-plugin-using-cmake.md).
+
+## How to Extend OpenVINO Plugin Tests
+
+OpenVINO Plugin tests are open for contribution.
+Add common test case definitions applicable for all plugins to the `openvino::funcSharedTests` target within the OpenVINO repository. Then, any other plugin supporting corresponding functionality can instantiate the new test.
+
+:::note
+When implementing a new subgraph test, add new single-layer tests for each operation of the subgraph if such test does not exist.
+:::
