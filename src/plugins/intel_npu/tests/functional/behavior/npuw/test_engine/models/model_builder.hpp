@@ -175,6 +175,7 @@ struct LoRAConfig : public BaseModelConfig {
     size_t lora_rank = 8;
     std::vector<std::string> lora_targets;  ///< Empty = q,k,v,o,gate,up,down.
     bool lora_stateful = false;             ///< true = ReadValue/Assign states.
+    ov::element::Type lora_precision = ov::element::dynamic;
 };
 
 struct LLMConfig : public BaseModelConfig {

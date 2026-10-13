@@ -613,8 +613,8 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 
             // Disable adapter by setting alpha to 0
             if (ov::npuw::util::matchLoRAMatMulAlphaString(state_name)) {
-                ov::npuw::util::fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
-                ov::npuw::util::fill_tensor<float>(kvcach_lora_in_tensor, 0.0f);
+                ov::npuw::util::fill_tensor_bytes(prefill_lora_in_tensor, 0u);
+                ov::npuw::util::fill_tensor_bytes(kvcach_lora_in_tensor, 0u);
             }
         } else {
             // Generate with LoRA
@@ -641,7 +641,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             bool has_padding = state_tensor_rank != target_lora_rank;
             if (has_padding) {
                 // Clear padding tensor in infer request
-                ov::npuw::util::fill_tensor<float>(new_infer_tensor, 0.0f);
+                ov::npuw::util::fill_tensor_bytes(new_infer_tensor, 0u);
             }
 
             // Fill LoRA into infer request
