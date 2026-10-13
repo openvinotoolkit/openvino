@@ -10,6 +10,7 @@
 #include <unordered_map>
 
 #include "lazy_tensor.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -20,12 +21,59 @@
 
 namespace ov {
 namespace npuw {
+namespace weights {
+class Bank;
+}  // namespace weights
+namespace orc {
+void serialize(ov::npuw::orc::Stream& stream, ov::npuw::weights::Bank& var);
+}  // namespace orc
+}  // namespace npuw
+}  // namespace ov
+
+namespace ov {
+namespace npuw {
 // Forward declaration
 class LLMCompiledModel;
 class CompiledModel;
 namespace weights {
 
-class Bank {
+class WeightSharingContextAccessor {
+public:
+    WeightSharingContextAccessor(const std::shared_ptr<ov::weight_sharing::Context>& context) : m_context(context) {}
+
+    struct Handle {
+        friend WeightSharingContextAccessor;
+        ~Handle() = default;
+        Handle(Handle&&) noexcept = default;
+        Handle& operator=(Handle&&) noexcept = default;
+        Handle(const Handle&) = delete;
+        Handle& operator=(const Handle&) = delete;
+        
+        std::shared_ptr<ov::weight_sharing::Context> context;
+    private:
+        Handle(std::mutex& m, std::shared_ptr<ov::weight_sharing::Context> ctx) : lock(m), context(ctx) {}
+        std::lock_guard<std::mutex> lock;
+    };
+
+    Handle get_handle() {
+        return Handle(m_mutex, m_context);
+    }
+
+    ov::weight_sharing::WeightBuffer request_shared_weight_source_buffer(size_t source_id, size_t size, const std::string &device, Handle &handle);
+    void register_shared_weight_source_for_weight(ov::weight_sharing::WeightBuffer source_buffer,
+                                                  size_t source_id,
+                                                  const std::string& device,
+                                                  Handle& handle);
+
+    static ov::weight_sharing::WeightBuffer create_shared_buffer(int64_t source_id, std::size_t size);
+private:
+    std::mutex m_mutex;
+    std::shared_ptr<ov::weight_sharing::Context> m_context = nullptr;
+    std::unordered_map<size_t, ov::weight_sharing::WeightBuffer> m_shared_sources;
+};
+
+
+class Bank : public WeightSharingContextAccessor {
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType =
         static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::WeightsBank::ID);
@@ -33,7 +81,8 @@ public:
     // must be introduced through a new versioned payload rather than by mutating v0.
     static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
-    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
+    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name,
+         std::shared_ptr<ov::weight_sharing::Context> weight_sharing_context = nullptr);
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
@@ -75,13 +124,14 @@ private:
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
-    int64_t uid_count = 0;
+    int64_t uid_count = 1;
     std::string m_bank_name;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,
                            const std::shared_ptr<const ov::ICore>& core,
-                           const std::string& alloc_device);
+                           const std::string& alloc_device,
+                           std::shared_ptr<ov::weight_sharing::Context> weight_shared_context = nullptr);
 
 }  // namespace weights
 }  // namespace npuw
