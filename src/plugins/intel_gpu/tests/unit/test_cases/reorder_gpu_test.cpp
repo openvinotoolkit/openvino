@@ -2331,7 +2331,7 @@ TEST(reorder_gpu, basic_convert_f8e4m3_f32_f8e4m3) {
     cldnn::mem_lock<ov::float8_e4m3, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 0x100; ++i)
     {
-        ASSERT_TRUE(are_equal(static_cast<uint8_t>(expected_values[i]), static_cast<uint8_t>(output_ptr[i])));
+        ASSERT_EQ(expected_values[i].to_bits(), output_ptr[i].to_bits());
     }
 }
 

@@ -544,6 +544,15 @@ inline float16 _convert_as_fp8e8m0_t16_float16(uchar16 source) {
                      _intel_convert_e8m0_to_f32(source.sf));
 }
 
+inline uchar _convert_fp8e4m3_t1_as_uchar1(half source) { return _intel_convert_f16_to_hf8(source); }
+inline uchar _convert_fp8e4m3_t1_as_uchar1_sat(half source) { return _intel_convert_f16_to_hf8_sat(source); }
+inline half _convert_as_fp8e4m3_t1_half1(uchar source) { return _intel_convert_hf8_to_f16(source); }
+inline uchar _convert_fp8e5m2_t1_as_uchar1(half source) { return _intel_convert_f16_to_bf8(source); }
+inline uchar _convert_fp8e5m2_t1_as_uchar1_sat(half source) { return _intel_convert_f16_to_bf8_sat(source); }
+inline half _convert_as_fp8e5m2_t1_half1(uchar source) { return _intel_convert_bf8_to_f16(source); }
+inline uchar _convert_fp8e8m0_t1_as_uchar1(float source) { return _intel_convert_f32_to_e8m0(source); }
+inline float _convert_as_fp8e8m0_t1_float1(uchar source) { return _intel_convert_e8m0_to_f32(source); }
+
 #define CONVERT_F8E4M3_AS_UCHAR(val, size) CAT(_convert_fp8e4m3_t, CAT(size, CAT(_as_uchar, size)))(val)
 #define CONVERT_F8E4M3_AS_UCHAR_SAT(val, size) CAT(_convert_fp8e4m3_t, CAT(size, CAT(_as_uchar, CAT(size, _sat))))(val)
 #define CONVERT_AS_F8E4M3_HALF(val, size)  CAT(_convert_as_fp8e4m3_t, CAT(size, CAT(_half, size)))(val)
