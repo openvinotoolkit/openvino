@@ -52,6 +52,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
 #    include "openvino/core/shape.hpp"
 #    include "utils/arm_isa_support.h"
 #endif
@@ -458,6 +459,15 @@ void FullyConnected::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool FullyConnected::canFuse(const NodePtr& node) const {
+#if defined(OV_CPU_WITH_KLEIDIAI)
+    // Compressed weights are executed only by the KleidiAI executor, which supports a single fused activation.
+    // Fusing anything else would leave no executor that can run the node.
+    if (getAlgorithm() == Algorithm::FullyConnectedCompressed &&
+        (!fusedWith.empty() || node->getType() != Type::Eltwise ||
+         !MatMulKleidiAIExecutor::isSupportedActivation(node->getAlgorithm()))) {
+        return false;
+    }
+#endif
     if (node->getType() == Type::FakeQuantize) {
         auto* fq = dynamic_cast<FakeQuantize*>(node.get());
         if (!fq) {

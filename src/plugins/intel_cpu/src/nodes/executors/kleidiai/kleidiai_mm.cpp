@@ -4,6 +4,12 @@
 
 #include "kleidiai_mm.hpp"
 
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/NEON/functions/NEActivationLayer.h>
+
+#include <any>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -21,6 +27,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
+#include "nodes/executors/acl/acl_utils.hpp"
 #include "nodes/executors/common/offset_helper.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
@@ -28,6 +35,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
 #include "utils/arm_isa_support.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
@@ -57,8 +65,26 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
            weightDesc->getPrecision() == element::u4;
 }
 
+// Only a single activation is supported as a post-op. It is applied in place on the output by ACL.
+static const ActivationPostOp* getActivationPostOp(const PostOps& postOps) {
+    if (postOps.size() != 1) {
+        return nullptr;
+    }
+    const auto* const activation = std::any_cast<ActivationPostOp>(postOps.data());
+    if (activation == nullptr ||
+        !MatMulKleidiAIExecutor::isSupportedActivation(convertToEltwiseAlgorithm(activation->type()))) {
+        return nullptr;
+    }
+    return activation;
+}
+
+bool MatMulKleidiAIExecutor::isSupportedActivation(Algorithm algorithm) {
+    return checkActivationLayerInfo(algorithm);
+}
+
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
     VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
+    VERIFY(config.attrs.postOps.empty() || getActivationPostOp(config.attrs.postOps) != nullptr, UNSUPPORTED_POST_OPS);
 
     // ASYM INT4 groupwise kernel is N×K only (no K×N variant); it cannot
     // consume non-transposed weights, and scale/zero-point repacking for that
@@ -106,6 +132,13 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
 
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
         aclfcAttrs.isConvertedWeights = true;
+    }
+
+    if (const auto* const activation = getActivationPostOp(attrs.postOps)) {
+        activationInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
+                                                activation->alpha(),
+                                                activation->beta(),
+                                                activation->gamma());
     }
 
     auto originalWeightsDesc = memory.at(ARG_WEI)->getDescPtr();
@@ -253,6 +286,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
 }
 
 void MatMulKleidiAIExecutor::setKaiExecutorImplAsGatherMatmul() {
+    OPENVINO_ASSERT(!activationInfo, "Fused activation is not supported for GatherMatmul Implementation");
     KaiExecutorImpl = IMPL_TYPE::GatherMatmul;
 }
 
@@ -300,6 +334,18 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
         auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({totalScratchpadSize}));
         lhsPackedMem = scratchPad->createScratchPadMem(lhsPackedDesc);
     }
+
+    activation.reset();
+    if (activationInfo && M > 0) {
+        // ACL lists the dims from the innermost one, so the [M, N] output is (N, M)
+        dstTensor.allocator()->init(
+            arm_compute::TensorInfo(arm_compute::TensorShape(N, M), 1, arm_compute::DataType::F32));
+        activation = std::make_unique<arm_compute::NEActivationLayer>();
+        configureThreadSafe([&] {
+            // nullptr output means that the activation is computed in place
+            activation->configure(&dstTensor, nullptr, *activationInfo);
+        });
+    }
     return true;
 }
 
@@ -337,6 +383,12 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
         K_value = srcDims[1];
     }
     _kernel->execute(executorContext->getCpuParallel(), M_value, K_value, dstMem, srcMem);
+
+    if (activation) {
+        dstTensor.allocator()->import_memory(dstMem->getData());
+        activation->run();
+        dstTensor.allocator()->free();
+    }
 
     if (KaiExecutorImpl == IMPL_TYPE::GatherMatmul) {
         dstMem = memory.at(ARG_DST);
