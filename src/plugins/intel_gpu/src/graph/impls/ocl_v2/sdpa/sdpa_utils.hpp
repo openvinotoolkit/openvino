@@ -53,8 +53,6 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
     // attn_mask_val is provided or no mask is used at all) or has rank 2 or more. Shape canonicalization
     // (SDPABase::static_canonicalize_shapes) keeps such a placeholder's shape at rank 0 instead of padding
     // it up to rank 4, so a plain rank check is sufficient here.
-    // Note: with this approach, a real static mask with shape [1,1,1,1] would be silently ignored, since it
-    // is indistinguishable from an empty placeholder in terms of rank/order - do not use this in that case.
     return attn_mask_pshape.rank().get_length() > 1;
 }
 

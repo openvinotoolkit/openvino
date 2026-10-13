@@ -207,7 +207,7 @@ size_t get_max_context_len(const kernel_impl_params& params) {
     return paged_attention_max_len;
 }
 
-size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage, size_t k_head_size = 0) {
+size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage, size_t k_head_size) {
     size_t partition_size = 0;
     if (stage == PagedAttentionStage::PREFILL) {
         partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, k_head_size);
