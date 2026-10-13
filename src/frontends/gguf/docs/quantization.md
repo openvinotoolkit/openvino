@@ -10,16 +10,22 @@ decompression algorithm, storage overhead and numerical or execution costs.
 
 ## Native weight formats
 
-| GGUF weight type | OpenVINO weight representation |
-|---|---|
-| `F32`, `F16`, `BF16` | Floating-point constants; converter-facing values are F32 |
-| `Q1_0` | u1 binary codes with per-128 F16 scales; `(2 * bit - 1) * scale` |
-| `Q3_K`, `Q4_0` | i4 codes with grouped scales |
-| `Q5_0`, `Q5_1`, `Q6_K`, `Q8_0`, `Q8_K` | i8 codes with scales and format-specific zero points |
-| `Q2_K`, `Q2_0`, `PQ2_0`, `PTQ1_0` | u2 codes with grouped scales/zero points |
-| `Q4_1`, `Q4_K` | u4 codes; ordinary matmul weights use integer-zero-point requantization by default |
-| `Q5_K` | u8 requantization with integer zero points for ordinary matmul weights |
-| `MXFP4` | f4e2m1 codes and f8e8m0 per-32 scales |
+These are the stored Constant types after native frontend conversion. Weight nodes expose
+F32 values to graph consumers; device compilation determines the execution representation.
+
+| GGUF weight type | OpenVINO weight/code type | Scale type | Zero-point type | Representation |
+|---|---|---|---|---|
+| `F32`, `F16`, `BF16` | `f32`, `f16`, `bf16` respectively | — | — | Floating-point Constants |
+| `Q1_0` | `u1` | `f16` | — | Binary codes, per-128 scale; `(2 * bit - 1) * scale` |
+| `Q3_K`, `Q4_0` | `i4` | `f16` | — | Signed codes with grouped scales |
+| `Q5_0`, `Q6_K`, `Q8_0` | `i8` | `f16` | — | Signed codes with grouped scales |
+| `Q5_1` | `i8` | `f16` | `f16` | Five-bit codes widened to eight bits, fractional zero point |
+| `Q8_K` | `i8` | `f32` | — | Signed codes with per-256 scales |
+| `Q2_K` | `u2` | `f16` | `f16` | Two-bit codes with per-16 scales and fractional zero points |
+| `Q2_0`, `PQ2_0`, `PTQ1_0` | `u2` | `f16` | `u8` | Per-64 or per-128 scales, zero point 1 |
+| `Q4_1`, `Q4_K` | `u4` | `f16` | `u8` or `f16` | Ordinary matmul weights use integer-zero-point requantization by default |
+| `Q5_K` | `u8` | `f16` | `u8` or `f16` | Ordinary matmul weights use eight-bit requantization with integer zero points |
+| `MXFP4` | `f4e2m1` | `f8e8m0` | — | Four-bit float codes with per-32 scales |
 
 Widening codes to a supported storage type is different from requantizing values. Native Q6_K
 uses explicit F32 decompression arithmetic. Embedding/output tensors retain fractional zero

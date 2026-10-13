@@ -39,29 +39,33 @@ buffer is stored by the frontend.
 but exclude object metadata, shape Constants, allocator alignment and file padding. Each row
 compares the same number of logical weights; a negative change means smaller storage.
 
-| Format | Weights per GGUF block | GGUF bytes | Native OpenVINO bytes (`W + S + Z`) | Change |
-|---|---:|---:|---:|---:|
-| F32 | 1 | 4 | 4 | 0% |
-| F16, BF16 | 1 | 2 | 2 | 0% |
-| Q1_0 | 128 | 18 | `16 + 2` = 18 | 0% |
-| Q2_0 (per-64) | 64 | 18 | `16 + 2 + 1` = 19 | +5.6% |
-| PQ2_0 | 128 | 34 | `32 + 2 + 1` = 35 | +2.9% |
-| PTQ1_0 | 128 | 28 | `32 + 2 + 1` = 35 | +25.0% |
-| Q2_K | 256 | 84 | `64 + 32 + 32` = 128 | +52.4% |
-| Q3_K | 256 | 110 | `128 + 32` = 160 | +45.5% |
-| Q4_0 | 32 | 18 | `16 + 2` = 18 | 0% |
-| Q4_1, integer zero point | 32 | 20 | `16 + 2 + 1` = 19 | -5.0% |
-| Q4_1, fractional zero point | 32 | 20 | `16 + 2 + 2` = 20 | 0% |
-| Q4_K, integer zero point | 256 | 144 | `128 + 16 + 8` = 152 | +5.6% |
-| Q4_K, fractional zero point | 256 | 144 | `128 + 16 + 16` = 160 | +11.1% |
-| Q5_0 | 32 | 22 | `32 + 2` = 34 | +54.5% |
-| Q5_1 | 32 | 24 | `32 + 2 + 2` = 36 | +50.0% |
-| Q5_K, integer zero point | 256 | 176 | `256 + 16 + 8` = 280 | +59.1% |
-| Q5_K, fractional zero point | 256 | 176 | `256 + 16 + 16` = 288 | +63.6% |
-| Q6_K | 256 | 210 | `256 + 32` = 288 | +37.1% |
-| Q8_0 | 32 | 34 | `32 + 2` = 34 | 0% |
-| Q8_K | 256 | 292 | `256 + 4` = 260 | -11.0% |
-| MXFP4 | 32 | 17 | `16 + 1` = 17 | 0% |
+The type columns describe stored OpenVINO Constants after frontend conversion. All listed
+weight nodes expose F32 values to graph consumers through decompression or a Convert; that
+output type is separate from the stored Constant types.
+
+| Format | Weights per GGUF block | GGUF bytes | Weight type (`W`) | Scale type (`S`) | Zero-point type (`Z`) | Native OpenVINO bytes (`W + S + Z`) | Change |
+|---|---:|---:|---|---|---|---:|---:|
+| F32 | 1 | 4 | `f32` | — | — | 4 | 0% |
+| F16, BF16 | 1 | 2 | `f16`, `bf16` respectively | — | — | 2 | 0% |
+| Q1_0 | 128 | 18 | `u1` | `f16` | — | `16 + 2` = 18 | 0% |
+| Q2_0 (per-64) | 64 | 18 | `u2` | `f16` | `u8` | `16 + 2 + 1` = 19 | +5.6% |
+| PQ2_0 | 128 | 34 | `u2` | `f16` | `u8` | `32 + 2 + 1` = 35 | +2.9% |
+| PTQ1_0 | 128 | 28 | `u2` | `f16` | `u8` | `32 + 2 + 1` = 35 | +25.0% |
+| Q2_K | 256 | 84 | `u2` | `f16` | `f16` | `64 + 32 + 32` = 128 | +52.4% |
+| Q3_K | 256 | 110 | `i4` | `f16` | — | `128 + 32` = 160 | +45.5% |
+| Q4_0 | 32 | 18 | `i4` | `f16` | — | `16 + 2` = 18 | 0% |
+| Q4_1, integer zero point | 32 | 20 | `u4` | `f16` | `u8` | `16 + 2 + 1` = 19 | -5.0% |
+| Q4_1, fractional zero point | 32 | 20 | `u4` | `f16` | `f16` | `16 + 2 + 2` = 20 | 0% |
+| Q4_K, integer zero point | 256 | 144 | `u4` | `f16` | `u8` | `128 + 16 + 8` = 152 | +5.6% |
+| Q4_K, fractional zero point | 256 | 144 | `u4` | `f16` | `f16` | `128 + 16 + 16` = 160 | +11.1% |
+| Q5_0 | 32 | 22 | `i8` | `f16` | — | `32 + 2` = 34 | +54.5% |
+| Q5_1 | 32 | 24 | `i8` | `f16` | `f16` | `32 + 2 + 2` = 36 | +50.0% |
+| Q5_K, integer zero point | 256 | 176 | `u8` | `f16` | `u8` | `256 + 16 + 8` = 280 | +59.1% |
+| Q5_K, fractional zero point | 256 | 176 | `u8` | `f16` | `f16` | `256 + 16 + 16` = 288 | +63.6% |
+| Q6_K | 256 | 210 | `i8` | `f16` | — | `256 + 32` = 288 | +37.1% |
+| Q8_0 | 32 | 34 | `i8` | `f16` | — | `32 + 2` = 34 | 0% |
+| Q8_K | 256 | 292 | `i8` | `f32` | — | `256 + 4` = 260 | -11.0% |
+| MXFP4 | 32 | 17 | `f4e2m1` | `f8e8m0` | — | `16 + 1` = 17 | 0% |
 
 Ordinary native Q4_1/Q4_K and Q5_K matrix weights use integer zero points by default.
 `token_embd.weight` and `output.weight` use fractional zero points for these affine formats;
