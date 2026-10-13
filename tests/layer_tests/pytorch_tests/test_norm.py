@@ -215,11 +215,49 @@ class TestLinalgVectorNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.precommit_torch_export
     def test_linalg_vector_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None,
                                            "dim": dim, "keepdim": keepdim})
+
+
+class TestLinalgVectorNormZeroOrder(PytorchLayerTest):
+    def _prepare_input(self, input_shape):
+        # Include zeros and both signs, with different nonzero counts per slice.
+        data = np.array([0, -2, 0, 3, 4, 0, 0, 0, 0, -1, 2, 3], dtype=np.float32)
+        return (data.reshape(input_shape),)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("input_shape,dim", [
+        ((3, 4), 1),
+        ((3, 4), -1),
+        ((2, 2, 3), 1),
+        ((2, 2, 3), (0, 2)),
+        ((2, 2, 3), None),
+    ])
+    @pytest.mark.parametrize("keepdim", [False, True])
+    @pytest.mark.parametrize("dynamic_shapes", [False, True])
+    def test_zero_order(self, input_shape, dim, keepdim, dynamic_shapes,
+                        ie_device, precision, ir_version):
+        """ord=0 counts nonzeros along the reduction axes for inputs of any rank."""
+        class ZeroOrderNorm(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.dim = dim
+                self.keepdim = keepdim
+
+            def forward(self, x):
+                return torch.linalg.vector_norm(x, ord=0, dim=self.dim, keepdim=self.keepdim)
+
+        self._test(ZeroOrderNorm(), "aten::linalg_vector_norm", ie_device, precision, ir_version,
+                   dynamic_shapes=dynamic_shapes,
+                   dynamic_shapes_for_export={"x": tuple(torch.export.Dim.DYNAMIC for _ in input_shape)}
+                   if dynamic_shapes else {},
+                   kwargs_to_prepare_input={"input_shape": input_shape})
 
 
 class TestLinalgMatrixNorm(PytorchLayerTest):
@@ -290,6 +328,7 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122715')
+    @pytest.mark.precommit_torch_export
     def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
@@ -385,6 +424,7 @@ class TestLinalgNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.precommit_torch_export
     def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,

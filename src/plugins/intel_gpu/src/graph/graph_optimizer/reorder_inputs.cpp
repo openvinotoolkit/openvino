@@ -14,6 +14,7 @@
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
 #include "mvn_inst.h"
+#include "reduce_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -698,15 +699,17 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                         auto expected_format = format::any;
 
                         if (data_type_traits::is_i8_u8(d_layout.data_type)) {
-                            if (d_format == format::b_fs_yx_fsv16)
+                            if (d_format == format::b_fs_yx_fsv16) {
                                 expected_format = format::b_fs_yx_fsv32;
-                            else if (d_format == format::bs_fs_yx_bsv32_fsv16)
+                            } else if (d_format == format::bs_fs_yx_bsv32_fsv16) {
                                 expected_format = format::bs_fs_yx_bsv32_fsv32;
+                            }
                         } else if (data_type_traits::is_floating_point(d_layout.data_type)) {
-                            if (d_format == format::b_fs_yx_fsv32)
+                            if (d_format == format::b_fs_yx_fsv32) {
                                 expected_format = format::b_fs_yx_fsv16;
-                            else if (d_format == format::bs_fs_yx_bsv32_fsv32)
+                            } else if (d_format == format::bs_fs_yx_bsv32_fsv32) {
                                 expected_format = format::bs_fs_yx_bsv32_fsv16;
+                            }
                         }
 
                         if (expected_format != format::any && d_layout.format != expected_format) {
@@ -802,6 +805,28 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             }
         }
     };
+
+    // Reduce input format is selected from the output rank, so it may not match the input shape rank.
+    // oneDNN reduction rejects such a layout, thus realign the format to the input rank here.
+    const auto reorder_input_reduce = [&p, &rf](typed_program_node<reduce>& reduce_node) {
+        auto dep = reduce_node.get_dependency_with_port(0);
+        const auto& input = dep.first;
+        auto input_layout = input->get_output_layout();
+
+        if (input_layout.is_dynamic())
+            return;
+
+        auto new_layout = input_layout;
+        new_layout.format = format::adjust_to_rank(input_layout.format, input_layout.get_partial_shape().size());
+        if (new_layout.format == input_layout.format)
+            return;
+
+        auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
+        if (new_input.first) {
+            p.add_intermediate(new_input.first, reduce_node, 0, !new_input.second);
+            reduce_node.recalc_output_layouts(false);
+        }
+    };
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const auto reorder_input_gemm = [&p, &rf](typed_program_node<gemm>& gemm_node) {
         if (gemm_node.get_preferred_impl_type() != impl_types::onednn || gemm_node.is_dynamic()
@@ -837,14 +862,15 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     for (const auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, mvn>(
+        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, mvn, reduce>(
             *prim,
             reorder_input_detection_output,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
             reorder_input_pooling,
-            reorder_input_mvn);
+            reorder_input_mvn,
+            reorder_input_reduce);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         program_helpers::do_for_types<gemm>(

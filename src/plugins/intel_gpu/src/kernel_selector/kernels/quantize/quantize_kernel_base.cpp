@@ -11,8 +11,9 @@ namespace kernel_selector {
 
 bool QuantizeKernelBase::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
-    if (params.inputs.size() != 5)
+    if (params.inputs.size() != 5) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

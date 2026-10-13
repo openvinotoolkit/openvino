@@ -23,7 +23,7 @@ std::string make_numbered_block_input_name(const std::string& kv_type, const std
 
 // Classify a port name into its KV block role.
 // Returns Key/Value for numbered blocks, Tail for block_tail ports,
-// and Skip for contiguous KV params or unrelated ports.
+// and Skip for contiguous KV params, SWA managed ports, or unrelated ports.
 ov::npuw::BlockParamKind classify_block_param(const std::string& name) {
     using ov::npuw::BlockParamKind;
     namespace uu = ov::npuw::util;
@@ -33,6 +33,9 @@ ov::npuw::BlockParamKind classify_block_param(const std::string& name) {
         return ov::npuw::BlockParamKind::Skip;
     }
     if (uu::isPastKeyValuesKeyContiguous(name).has_value() || uu::isPastKeyValuesValueContiguous(name).has_value()) {
+        return ov::npuw::BlockParamKind::Skip;
+    }
+    if (uu::is_swa_kv_cache_name(name)) {
         return ov::npuw::BlockParamKind::Skip;
     }
     if (name.find("block_tail") != std::string::npos) {

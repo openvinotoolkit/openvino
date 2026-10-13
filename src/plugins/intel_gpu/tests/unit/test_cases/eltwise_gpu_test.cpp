@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/layout.hpp"
-#include "test_utils.h"
-#include "random_generator.hpp"
-#include "openvino/core/type/bfloat16.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
+#include <cstring>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gather.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
-#include <intel_gpu/primitives/data.hpp>
 
+#include "eltwise/eltwise_kernel_vload8.h"
 #include "eltwise_inst.h"
+#include "intel_gpu/runtime/layout.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "random_generator.hpp"
 #include "reshape_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1342,6 +1343,91 @@ TEST(eltwise_gpu_f32, isnan_in1_float_out1_int) {
     for (size_t i = 0; i < answers.size(); ++i) {
         ASSERT_EQ(answers[i], output_ptr[i]);
     }
+}
+
+// Maximum/Minimum must follow the OpenVINO reference (std::max/std::min):
+// max(a, b) == ((a < b) ? b : a) and min(a, b) == ((b < a) ? b : a), so a NaN
+// in the first operand propagates to the output while a NaN in the second
+// operand loses to the finite first operand. OpenCL fmax/fmin return the
+// non-NaN operand in both orders and silently dropped NaN (ticket 37730).
+template <typename T>
+void run_extremum_nan_propagation_test(cldnn::eltwise_mode mode) {
+    auto& engine = get_test_engine();
+
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+    const std::vector<float> in0 = {nan, 1.f, nan, 2.f, nan, 1.f, nan, 2.f,
+                                    nan, 1.f, nan, 2.f, nan, 1.f, nan, 2.f};
+    const std::vector<float> in1 = {1.5f, 1.5f, 1.5f, 1.5f,
+                                    -1.5f, -1.5f, -1.5f, -1.5f,
+                                    nan, nan, nan, nan,
+                                    1.f, 3.f, 0.5f, 2.5f};
+
+    std::vector<float> expected;
+    expected.reserve(in0.size());
+    for (size_t i = 0; i < in0.size(); ++i) {
+        const float a = in0[i];
+        const float b = in1[i];
+        expected.push_back(mode == eltwise_mode::max ? (a < b ? b : a) : (b < a ? b : a));
+    }
+
+    std::vector<T> buf0, buf1;
+    for (size_t i = 0; i < in0.size(); ++i) {
+        buf0.push_back(static_cast<T>(in0[i]));
+        buf1.push_back(static_cast<T>(in1[i]));
+    }
+
+    auto input1 = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 4, 1, 4 } });
+    auto input2 = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 4, 1, 4 } });
+    set_values(input1, buf0);
+    set_values(input2, buf1);
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise", { input_info("input1"), input_info("input2") }, mode, DEFAULT_BROADCAST_SPEC));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (std::isnan(expected[i])) {
+            ASSERT_TRUE(std::isnan(static_cast<float>(output_ptr[i]))) << "at index " << i << ": expected NaN";
+        } else {
+            ASSERT_TRUE(floating_point_equal(static_cast<T>(expected[i]), output_ptr[i])) << "at index " << i;
+        }
+    }
+}
+
+TEST(eltwise_gpu_f32, nan_propagation_max) {
+    run_extremum_nan_propagation_test<float>(eltwise_mode::max);
+}
+
+TEST(eltwise_gpu_f32, nan_propagation_min) {
+    run_extremum_nan_propagation_test<float>(eltwise_mode::min);
+}
+
+TEST(eltwise_gpu_f16, nan_propagation_max) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "float16 combinations are skipped (cl_khr_fp16 is not supported).";
+    }
+    run_extremum_nan_propagation_test<ov::float16>(eltwise_mode::max);
+}
+
+TEST(eltwise_gpu_f16, nan_propagation_min) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "float16 combinations are skipped (cl_khr_fp16 is not supported).";
+    }
+    run_extremum_nan_propagation_test<ov::float16>(eltwise_mode::min);
 }
 
 TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
@@ -4698,6 +4784,224 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_precision,
                                 ::testing::ValuesIn(inputs)
                                 ));
 
+class eltwise_kernel_vload8_for_test : public kernel_selector::EltwiseKernel_vload8 {
+public:
+    using EltwiseKernel_vload8::Validate;
+};
+
+struct vload8_padding_options {
+    int64_t upper_batch = 0;
+    bool pad_weights = true;
+};
+
+static kernel_selector::eltwise_params make_vload8_feature_broadcast_params(size_t x, size_t y) {
+    kernel_selector::eltwise_params params;
+    params.inputs = {
+        kernel_selector::DataTensor(std::vector<size_t>{x, y, 4, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
+        kernel_selector::DataTensor(std::vector<size_t>{x, y, 1, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
+    };
+    params.outputs = {
+        kernel_selector::DataTensor(std::vector<size_t>{x, y, 4, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
+    };
+    params.operations.push_back({
+        {kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1)},
+        kernel_selector::EltwiseMode::MUL,
+    });
+    return params;
+}
+
+template <typename T>
+void test_vload8_feature_broadcast(data_types data_type,
+                                   bool broadcast_first,
+                                   const tensor& values_size = tensor(2, 4, 16, 3),
+                                   const tensor& weights_size = tensor(2, 1, 16, 3),
+                                   bool expect_vload8 = true,
+                                   bool pad_broadcast = false,
+                                   bool pad_output = false,
+                                   format::type broadcast_format = format::bfyx,
+                                   const vload8_padding_options& padding_options = {}) {
+    auto& engine = get_test_engine();
+    const layout values_layout(data_type, format::bfyx, values_size);
+    const layout weights_layout(data_type, format::bfyx, weights_size);
+    const bool matching_batch_padding = padding_options.upper_batch != 0;
+    const padding matching_padding({0, 0, 0, 0}, {padding_options.upper_batch, 0, 0, 0});
+    const bool reorder_output = pad_output || matching_batch_padding;
+
+    auto values = engine.allocate_memory(values_layout);
+    auto weights = engine.allocate_memory(weights_layout);
+    VF<T> values_data(values_layout.count());
+    VF<T> weights_data(weights_layout.count());
+    for (size_t i = 0; i < values_data.size(); ++i)
+        values_data[i] = T((static_cast<int>(i % 29) - 14) * 0.125f);
+    for (size_t i = 0; i < weights_data.size(); ++i)
+        weights_data[i] = T((static_cast<int>(i % 13) - 6) * 0.0625f);
+    set_values(values, values_data);
+    set_values(weights, weights_data);
+
+    auto make_topology = [&](const primitive_id& eltwise_id) {
+        topology topo;
+        topo.add(input_layout("values", values_layout));
+        topo.add(input_layout("weights", weights_layout));
+        primitive_id values_id = "values";
+        primitive_id weights_id = "weights";
+        if (matching_batch_padding) {
+            values_id = "values_prepared";
+            topo.add(reorder(values_id, input_info("values"), values_layout.with_padding(matching_padding)));
+            if (padding_options.pad_weights) {
+                weights_id = "weights_prepared";
+                topo.add(reorder(weights_id, input_info("weights"), weights_layout.with_padding(matching_padding)));
+            }
+        } else if (pad_broadcast || broadcast_format != format::bfyx) {
+            weights_id = "weights_prepared";
+            const layout prepared_layout(data_type, broadcast_format, weights_size, pad_broadcast ? padding{{0, 0, 0, 1}, 0} : padding{});
+            topo.add(reorder(weights_id, input_info("weights"), prepared_layout));
+        }
+        const std::vector<input_info> inputs = broadcast_first ? std::vector<input_info>{input_info(weights_id), input_info(values_id)}
+                                                               : std::vector<input_info>{input_info(values_id), input_info(weights_id)};
+        auto eltwise_prim = eltwise(eltwise_id, inputs, eltwise_mode::prod, DEFAULT_BROADCAST_SPEC);
+        if (pad_output)
+            eltwise_prim.output_paddings = {padding({0, 0, 0, 1}, {0, 0, 0, 0})};
+        if (matching_batch_padding)
+            eltwise_prim.output_paddings = {matching_padding};
+        topo.add(eltwise_prim);
+        if (reorder_output)
+            topo.add(reorder(eltwise_id + "_out", input_info(eltwise_id), layout(data_type, format::bfyx, values_size)));
+        return topo;
+    };
+
+    const auto opt_output_id = reorder_output ? primitive_id("eltwise_opt_out") : primitive_id("eltwise_opt");
+    ExecutionConfig opt_config = get_test_default_config(engine);
+    opt_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{opt_output_id}));
+    network opt_network(engine, make_topology("eltwise_opt"), opt_config);
+    opt_network.set_input_data("values", values);
+    opt_network.set_input_data("weights", weights);
+    const auto opt_info = opt_network.get_primitive_info("eltwise_opt");
+    if (expect_vload8) {
+        ASSERT_NE(opt_info.find("eltwise_simple_vload8"), std::string::npos) << opt_info;
+    } else {
+        ASSERT_EQ(opt_info.find("eltwise_simple_vload8"), std::string::npos) << opt_info;
+    }
+    auto opt_output = opt_network.execute().at(opt_output_id).get_memory();
+
+    const auto ref_output_id = reorder_output ? primitive_id("eltwise_ref_out") : primitive_id("eltwise_ref");
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ref_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ref_output_id}));
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"eltwise_ref", {format::bfyx, "generic_eltwise_ref"}}}));
+    network ref_network(engine, make_topology("eltwise_ref"), ref_config);
+    ref_network.set_input_data("values", values);
+    ref_network.set_input_data("weights", weights);
+    auto ref_output = ref_network.execute().at(ref_output_id).get_memory();
+
+    mem_lock<T, mem_lock_type::read> opt_ptr(opt_output, get_test_stream());
+    mem_lock<T, mem_lock_type::read> ref_ptr(ref_output, get_test_stream());
+    ASSERT_EQ(opt_output->get_layout().count(), ref_output->get_layout().count());
+    ASSERT_EQ(std::memcmp(opt_ptr.data(), ref_ptr.data(), opt_output->get_layout().bytes_count()), 0);
+}
+
+TEST(eltwise_gpu, vload8_f16_feature_broadcast_bit_exact) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false);
+}
+
+TEST(eltwise_gpu, vload8_f16_feature_broadcast_first_bit_exact) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, true);
+}
+
+TEST(eltwise_gpu, vload8_f32_feature_broadcast_bit_exact) {
+    test_vload8_feature_broadcast<float>(data_types::f32, false);
+}
+
+TEST(eltwise_gpu, vload8_f32_feature_broadcast_first_bit_exact) {
+    test_vload8_feature_broadcast<float>(data_types::f32, true);
+}
+
+TEST(eltwise_gpu, vload8_bf16_feature_broadcast_bit_exact) {
+    test_vload8_feature_broadcast<ov::bfloat16>(data_types::bf16, false);
+}
+
+TEST(eltwise_gpu, vload8_bf16_feature_broadcast_first_bit_exact) {
+    test_vload8_feature_broadcast<ov::bfloat16>(data_types::bf16, true);
+}
+
+TEST(eltwise_gpu, vload8_rejects_unaligned_feature_plane) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 5, 3), tensor(2, 1, 5, 3), false);
+}
+
+TEST(eltwise_gpu, vload8_rejects_padded_broadcast_input) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 16, 3), false, true);
+}
+
+TEST(eltwise_gpu, vload8_same_shape_regression_bit_exact) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 4, 16, 3));
+}
+
+TEST(eltwise_gpu, vload8_scalar_first_broadcast_bit_exact) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, true, tensor(2, 4, 16, 3), tensor(1, 1, 1, 1));
+}
+
+TEST(eltwise_gpu, vload8_rejects_padded_output) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 16, 3), false, false, true);
+}
+
+TEST(eltwise_gpu, vload8_matching_batch_padding_regression_bit_exact) {
+    vload8_padding_options padding_options;
+    padding_options.upper_batch = 1;
+    test_vload8_feature_broadcast<float>(data_types::f32, false, tensor(2, 4, 16, 3), tensor(2, 4, 16, 3), true, false, false, format::bfyx, padding_options);
+}
+
+TEST(eltwise_gpu, vload8_rejects_unaligned_logical_size_with_matching_batch_padding) {
+    vload8_padding_options padding_options;
+    padding_options.upper_batch = 3;
+    padding_options.pad_weights = false;
+    test_vload8_feature_broadcast<float>(data_types::f32, false, tensor(1, 1, 10, 1), tensor(1, 1, 1, 1), false, false, false, format::bfyx, padding_options);
+}
+
+TEST(eltwise_gpu, vload8_accepts_aligned_logical_size_with_unaligned_physical_padding) {
+    const layout padded_output(data_types::f32, format::bfyx, tensor(8, 1, 1, 1), padding({0, 0, 0, 0}, {1, 0, 0, 0}));
+    ASSERT_EQ(padded_output.count(), size_t(8));
+    ASSERT_EQ(padded_output.get_linear_size(), size_t(9));
+
+    vload8_padding_options padding_options;
+    padding_options.upper_batch = 1;
+    padding_options.pad_weights = false;
+    test_vload8_feature_broadcast<float>(data_types::f32, false, tensor(8, 1, 1, 1), tensor(1, 1, 1, 1), true, false, false, format::bfyx, padding_options);
+}
+
+TEST(eltwise_gpu, vload8_rejects_shape_agnostic_feature_broadcast) {
+    auto params = make_vload8_feature_broadcast_params(16, 3);
+    eltwise_kernel_vload8_for_test kernel;
+    params.is_shape_agnostic = true;
+    ASSERT_FALSE(kernel.Validate(params));
+    params.is_shape_agnostic = false;
+    ASSERT_TRUE(kernel.Validate(params));
+}
+
+TEST(eltwise_gpu, vload8_rejects_empty_feature_broadcast) {
+    eltwise_kernel_vload8_for_test kernel;
+    ASSERT_FALSE(kernel.Validate(make_vload8_feature_broadcast_params(0, 3)));
+    ASSERT_FALSE(kernel.Validate(make_vload8_feature_broadcast_params(16, 0)));
+}
+
+TEST(eltwise_gpu, vload8_rejects_batch_broadcast) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(1, 1, 16, 3), false);
+}
+
+TEST(eltwise_gpu, vload8_rejects_spatial_broadcast) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 1, 3), false);
+}
+
+TEST(eltwise_gpu, vload8_rejects_blocked_feature_broadcast) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 16, 3), false, false, false, format::b_fs_yx_fsv16);
+}
 
 struct eltwise_layout_test_params {
     eltwise_mode mode;

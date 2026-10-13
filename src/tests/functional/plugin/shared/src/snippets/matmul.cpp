@@ -139,59 +139,41 @@ std::shared_ptr<MatMulFunctionBase> MatMulEltwiseChainCascade::get_builder(const
 }
 
 TEST_P(MatMul, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MatMulTransposeB, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MatMulFQ, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     abs_threshold = 0.5;
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MatMulBias, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MatMulBiasQuantized, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MatMulsQuantized, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MatMulsQuantizedSoftmax, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     abs_threshold = 4e-6;
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MatMulEltwiseChain, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MatMulEltwiseChainCascade, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

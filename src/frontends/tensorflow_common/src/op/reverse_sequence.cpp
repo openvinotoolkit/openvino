@@ -10,10 +10,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_reverse_sequence_op(const NodeContext& node) {
     default_op_checks(node, 2, {"ReverseSequence", "REVERSE_SEQUENCE"}, true);
     auto input = node.get_input(0);
@@ -38,7 +35,4 @@ OutputVector translate_reverse_sequence_op(const NodeContext& node) {
     set_node_name(node.get_name(), reverse_sequence);
     return {reverse_sequence};
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

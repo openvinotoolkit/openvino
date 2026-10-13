@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "ocl_common.hpp"
+#include "ocl_device_clock.hpp"
 #include "ocl_engine.hpp"
 
 #include <memory>
@@ -18,6 +19,9 @@ namespace ocl {
 class ocl_stream : public stream {
 public:
     const ocl_queue_type& get_cl_queue() const { return _command_queue; }
+#ifdef ENABLE_MLIR_FOR_GPU
+    void* get_native_handle() const override { return static_cast<void*>(get_cl_queue().get()); }
+#endif
 
     ocl_stream(const ocl_engine& engine, const ExecutionConfig& config);
     ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle);
@@ -28,7 +32,7 @@ public:
         , _queue_counter(other._queue_counter.load())
         , _last_barrier(other._last_barrier.load())
         , _last_barrier_ev(other._last_barrier_ev)
-        , _profiling_device(other._profiling_device) {}
+        , _device_clock(other._device_clock) {}
 
     ~ocl_stream() override = default;
 
@@ -48,6 +52,9 @@ public:
     void enqueue_barrier() override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
+#ifdef ENABLE_MLIR_FOR_GPU
+    event::ptr create_base_event(void* handle) override;
+#endif
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
@@ -66,7 +73,9 @@ private:
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};
     cl::Event _last_barrier_ev;
-    cl::Device _profiling_device;
+    // Non-null only when profiling is enabled; shared with user events, which may
+    // outlive the stream.
+    std::shared_ptr<device_clock_sync> _device_clock;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;

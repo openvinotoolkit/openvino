@@ -60,22 +60,18 @@ std::shared_ptr<SnippetsFunctionBase> SoftSign::get_subgraph(const std::vector<P
 
 TEST_P(Exp, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ExpReciprocal, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(HSigmoid, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(SoftSign, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

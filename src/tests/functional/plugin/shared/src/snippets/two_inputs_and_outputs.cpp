@@ -53,12 +53,10 @@ void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
 
 TEST_P(TwoInputsAndOutputs, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(TwoInputsAndOutputsWithReversedOutputs, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

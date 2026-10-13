@@ -40,14 +40,16 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params) const {
     bool bCheckSizes = true;
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
-        if ((ewParams.inputs[0] != ewParams.inputs[i] || ewParams.inputs[i] != ewParams.outputs[0]) && ewParams.inputs[i].PhysicalSize() != 1)
+        if ((ewParams.inputs[0] != ewParams.inputs[i] || ewParams.inputs[i] != ewParams.outputs[0]) && ewParams.inputs[i].PhysicalSize() != 1) {
             bCheckSizes = false;
+        }
     }
 
     // TODO: add support to this implementation when user requests input values updates
     bool bCheckUpdateInput = true;
-    if (!ewParams.updateInputIds.empty())
+    if (!ewParams.updateInputIds.empty()) {
         bCheckUpdateInput = false;
+    }
 
     // TODO: add support for reading from output buffer and using its values in computation
     bool bCheckUseOutput = true;
@@ -60,8 +62,9 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params) const {
         }
     }
 
-    if (IsUnsupportedModeForVecCode(ewParams))
+    if (IsUnsupportedModeForVecCode(ewParams)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if (!bCheckSizes || !bSupportedCount || !bCheckUpdateInput || !bCheckUseOutput) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);

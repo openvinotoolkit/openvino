@@ -66,6 +66,6 @@ protected:
 std::shared_ptr<ov::IBufferDescriptor> ov::detail::create_mmap_descriptor(
     const std::shared_ptr<ov::MappedMemory>& mmap) {
     return std::make_shared<MMapDescriptor>(std::weak_ptr<ov::MappedMemory>(mmap),
-                                            mmap ? static_cast<size_t>(mmap->get_id()) : 0);
+                                            mmap ? static_cast<size_t>(mmap->get_id().value_or(0)) : 0);
 }
 }  // namespace ov

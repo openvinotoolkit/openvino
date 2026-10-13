@@ -958,7 +958,6 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
     const DequantizationOperations::Convert& convert2,
     const DequantizationOperations& dequantization2,
     const std::vector<ov::Any>& concatAttributes,
-    const ov::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationAfter,
     const std::int64_t& axis,
     const bool addNotPrecisionPreservedOperation) {
@@ -1043,7 +1042,6 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
     const DequantizationOperations& dequantization2,
     const bool addReshape2,
     const std::vector<ov::Any>& concatAttributes,
-    const ov::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationAfter,
     const std::int64_t& axis,
     const bool addNotPrecisionPreservedOperation) {
@@ -1164,7 +1162,6 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithNeighbors(
     const FakeQuantizeOnData& fqOnData3,
     const ov::element::Type precisionBeforeOp,
     const DequantizationOperations& dequantizationBefore,
-    const ov::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationOperations1,
     const DequantizationOperations& dequantizationOperations2,
     const std::string& neighborType,
@@ -1327,7 +1324,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediate(
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
     ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionBeforeOp);
     fakeQuantize2->set_friendly_name("fakeQuantize2");
-    const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore1);
+    const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore2);
 
     std::shared_ptr<Node> intermediateOp;
     if (transparentIntermediate) {
@@ -1468,7 +1465,6 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithSplitedIntermediate(
     const ov::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
-    const ov::element::Type precisionBeforeOp,
     const DequantizationOperations& dequantizationBefore1,
     const DequantizationOperations& dequantizationBefore2,
     const ov::element::Type precisionAfterOperation,
@@ -1503,7 +1499,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithSplitedIntermediate(
 
     fakeQuantize2->set_friendly_name("fakeQuantize2");
     ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionAfterOperation);
-    const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore1);
+    const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore2);
 
     std::shared_ptr<ov::op::Op> intermediateOp;
 
@@ -1659,7 +1655,6 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithStridedSlice(
     const FakeQuantizeOnData& fq2,
     const DequantizationOperations& deqBefore,
     const ov::element::Type precisionBeforeConcat,
-    const ov::element::Type precisionAfterConcat,
     const bool ssBeforeConcat,
     const bool ssAfterConcat,
     const DequantizationOperations& deqAfter1,
@@ -1769,7 +1764,6 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithStridedSlice(
 std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithDifferentPrecisionOnChildren(
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
-    const bool multiChannel,
     const std::int64_t axis,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
@@ -1852,8 +1846,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateWithConst
     const ov::element::Type precisionBeforeOp,
     const DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const DequantizationOperations& dequantizationAfter,
-    const ov::element::Type precisionAfterDequantization) {
+    const DequantizationOperations& dequantizationAfter) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input");
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);

@@ -202,12 +202,7 @@ ov::npuw::Flux2CompiledModel::Flux2CompiledModel(PreparedState prepared,
 
 void ov::npuw::Flux2CompiledModel::export_model(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
-    write(stream, NPUW_SERIALIZATION_INDICATOR);
-    write(stream, NPUW_FLUX2_COMPILED_MODEL_INDICATOR);
-    write(stream, OPENVINO_VERSION_MAJOR);
-    write(stream, OPENVINO_VERSION_MINOR);
-    write(stream, OPENVINO_VERSION_PATCH);
-    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    write_header(stream, NPUW_FLUX2_COMPILED_MODEL_INDICATOR);
     m_compiled_model->export_model(stream);
 }
 
@@ -220,40 +215,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::Flux2CompiledModel::import_m
 
     using namespace ov::npuw::s11n;
 
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    read(stream, serialization_indicator);
-    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR);
-
-    ov::npuw::s11n::IndicatorType flux2_indicator;
-    read(stream, flux2_indicator);
-    NPUW_ASSERT(flux2_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR);
-
-    int vmajor, vminor, vpatch;
-    std::string s11n_version;
-    read(stream, vmajor);
-    read(stream, vminor);
-    read(stream, vpatch);
-    read(stream, s11n_version);
-
-    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
-        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
-        OPENVINO_THROW("Flux2 blob was serialized with a different OV version (",
-                       vmajor,
-                       '.',
-                       vminor,
-                       '.',
-                       vpatch,
-                       " / NPUW s11n ",
-                       s11n_version,
-                       "); current is ",
-                       OPENVINO_VERSION_MAJOR,
-                       '.',
-                       OPENVINO_VERSION_MINOR,
-                       '.',
-                       OPENVINO_VERSION_PATCH,
-                       " / NPUW s11n ",
-                       NPUW_SERIALIZATION_VERSION);
-    }
+    read_and_check_header(stream, NPUW_FLUX2_COMPILED_MODEL_INDICATOR, "Flux2CompiledModel");
 
     // The rest of the stream is the inner CompiledModel ORC blob.
     // After import it is fully self-contained; no outer Flux2 wrapper is needed

@@ -651,13 +651,13 @@ TEST_P(ov_remote_context_ocl, compile_model_with_context_props) {
                                         cl_queue.get()));
     EXPECT_NE(nullptr, context);
 
-    const ov_property_t props[] = {{ov_property_key_hint_performance_mode, "THROUGHPUT"}};
+    const ov_property_t props[] = {{ov_property_key_hint_performance_mode, "LATENCY"}};
     OV_EXPECT_OK(ov_core_compile_model_with_context_props(core, model, context, 1, props, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     char* result = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, ov_property_key_hint_performance_mode, &result));
-    EXPECT_STREQ("THROUGHPUT", result);
+    EXPECT_STREQ("LATENCY", result);
     ov_free(result);
 }
 

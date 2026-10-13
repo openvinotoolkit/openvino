@@ -93,12 +93,10 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
     auto skip_last_dim = [](const ov::PartialShape& shape) {
         return ov::PartialShape(std::vector<ov::Dimension>{shape.begin(), shape.end() - 1});
     };
-
     for (auto input : interm_op->inputs()) {
-        auto broadcast = ov::as_type_ptr<ov::opset1::Broadcast>(input.get_source_output().get_node_shared_ptr());
+        const auto broadcast = input.get_source_output().get_node_shared_ptr();
         // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
-        if (broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY &&
-            broadcast->get_output_target_inputs(0).size() == 1) {
+        if (ov::snippets::utils::is_numpy_broadcast(broadcast) && broadcast->get_output_target_inputs(0).size() == 1) {
             // TODO: Add support of Broadcast with ShapeOf subgraph on second input
             if (!ov::is_type<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr())) {
                 continue;
