@@ -65,21 +65,16 @@ private:
     bool is_set_impl() override;
 
     void update_last_sycl_event(const event::ptr& ev) {
-        // A user event only exposes its underlying ::sycl::event once it is set, so one which is
-        // not set yet can't become _last_sycl_event and must be rejected here.
-        if (auto user_ev = dynamic_cast<sycl_user_event*>(ev.get())) {
-            OPENVINO_ASSERT(user_ev->is_set(),
-                            "[GPU] A user event which is not set yet can't be grouped: SYCL runtime "
-                            "can't represent its completion state.");
-            return;
-        }
-
         if (auto base_ev = dynamic_cast<sycl_event*>(ev.get())) {
             auto current_ev_queue_stamp = base_ev->get_queue_stamp();
             if ((_queue_stamp == 0) || (current_ev_queue_stamp > _queue_stamp)) {
                 _queue_stamp = current_ev_queue_stamp;
                 _last_sycl_event = base_ev->get();
             }
+        } else if (auto user_ev = dynamic_cast<sycl_user_event*>(ev.get())) {
+            OPENVINO_ASSERT(user_ev->is_set(),
+                            "[GPU] A user event which is not set yet can't be grouped: SYCL runtime "
+                            "can't represent its completion state.");
         }
     }
 
