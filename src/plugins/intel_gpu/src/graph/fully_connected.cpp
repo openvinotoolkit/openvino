@@ -333,7 +333,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
 
         // A 4-bit FC with 2..4 rows has a 128-register gemm kernel (4 columns); padding the rows to 16 sends it
         // to the 256-register systolic kernel, which runs half the hardware threads per EU.
-        if (batch_size <= 4 && orig_impl_param.weights_layout.has_value()) {
+        if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu && batch_size <= 4 && orig_impl_param.weights_layout.has_value()) {
             const auto small_row_wdt = orig_impl_param.weights_layout.value().data_type;
             if (small_row_wdt == data_types::i4 || small_row_wdt == data_types::u4) {
                 return std::move(orig_impl_param);
