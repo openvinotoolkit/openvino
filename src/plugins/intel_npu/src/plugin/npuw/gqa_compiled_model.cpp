@@ -927,9 +927,21 @@ std::optional<size_t> ov::npuw::GQAInferRequest::read_total_sequence_length_lock
     return static_cast<size_t>(*value);
 }
 
-// Refreshes outer present_key/present_value tensors after infer(): trims the inner
-// buffer's valid prefix into a dense tensor, or aliases it directly when no trimming
-// is needed (see m_dynamic_kv_cache_output_aliased).
+// Refreshes outer present_key/present_value tensors after infer(): copies the inner
+// buffer's valid prefix into a dense tensor, or aliases it directly when the whole
+// buffer is already valid and no copy is needed (see m_dynamic_kv_cache_output_aliased).
+//
+// Each output name is in one of 3 states across infer() calls: (1) never allocated yet,
+// (2) aliased -- m_dynamic_kv_cache_output_tensors[name] IS the inner request's own live
+// buffer (valid_len == capacity, nothing to exclude), or (3) private -- a separate,
+// densely-shaped buffer holding just the valid prefix (valid_len < capacity). The state
+// can flip either way between calls as valid_len/capacity change. Below,
+// m_dynamic_kv_cache_output_aliased.erase(name) reports (via its return value) whether
+// state (2) applied a moment ago: if so, the cached tensor is literally the inner
+// buffer and must be discarded and freshly allocated rather than reused, since writing
+// through it would corrupt the inner request's working buffer; otherwise it is already
+// a private buffer and can simply be resized in place, keeping its identity stable for
+// callers that cache the tensor pointer/object.
 void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
     const auto& output_axes = m_compiled_model->m_dynamic_kv_cache_output_axes;
     if (output_axes.empty()) {
@@ -949,7 +961,8 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         }
         if (m_dynamic_kv_cache_output_externally_set.count(name) != 0) {
             // Already set_tensor()'d by the caller (IO-binding); don't republish a
-            // trimmed copy under this name, or get_tensor() would diverge from it.
+            // separately-copied valid prefix under this name, or get_tensor() would
+            // diverge from it.
             continue;
         }
         const auto inner_tensor = m_inner_request->get_tensor(map_port_locked(*port_it));
@@ -970,9 +983,9 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         }
 
         if (valid_len == capacity) {
-            // No trimming needed: alias the outer tensor onto the inner buffer directly.
-            // NEVER set_shape() this entry while aliased -- it's the inner request's own
-            // live working buffer.
+            // Whole buffer valid, no copy needed: alias the outer tensor onto the inner
+            // buffer directly. NEVER set_shape() this entry while aliased -- it's the
+            // inner request's own live working buffer.
             m_dynamic_kv_cache_output_tensors[name] = inner_tensor;
             m_dynamic_kv_cache_output_aliased.insert(name);
             continue;
@@ -1075,7 +1088,7 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
     GQA_TRACE("GQAInferRequest::set_tensor(port='" << name << "', shape=" << tensor->get_shape() << ")");
 
     // Forward present_* outputs as-is (zero-copy IO-binding), but mark externally owned
-    // so refresh_present_tensors_locked() won't later republish a diverging trimmed copy.
+    // so refresh_present_tensors_locked() won't later republish a diverging, separately-copied tensor.
     if (m_compiled_model->m_dynamic_kv_cache_output_axes.count(name) != 0) {
         GQA_TRACE("    -> dynamic-axis present output, forwarding to inner request and marking externally owned");
         m_inner_request->set_tensor(map_port_locked(port), tensor);
@@ -1110,7 +1123,7 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
                     capacity,
                     ") it was compiled with");
     if (requested_len == capacity) {
-        // Exact match: alias instead of copying, nothing to trim.
+        // Exact match: alias instead of copying, nothing to carve out.
         if (m_dynamic_kv_cache_input_aliased.count(name) == 0) {
             // First alias of this port: stash the inner request's own buffer so a later,
             // shorter set_tensor() can restore it.

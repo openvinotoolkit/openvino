@@ -56,11 +56,11 @@ private:
     // Outer-facing tensors for dynamic present_key/present_value outputs; allocated
     // lazily and refreshed from the inner static buffer after every infer().
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_output_tensors;
-    // Names currently aliased directly onto the inner tensor (no trimming needed);
-    // never set_shape() these.
+    // Names currently aliased directly onto the inner tensor (no copy needed because the
+    // whole buffer is valid); never set_shape() these.
     mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_aliased;
     // Present-output names the caller explicitly set_tensor()'d; refresh_present_tensors_locked()
-    // must not republish a trimmed copy under these names.
+    // must not republish a separately-copied valid prefix under these names.
     mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_externally_set;
 
     ov::SoPtr<ov::ITensor> get_present_tensor_locked(const std::string& name) const;

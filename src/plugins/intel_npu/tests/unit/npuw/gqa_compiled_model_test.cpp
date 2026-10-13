@@ -1324,7 +1324,7 @@ TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTenso
 TEST_F(GQACompiledModelTest, SetTensorOnDynamicPresentOutputIsHonoredByGetTensorAfterInfer) {
     // Regression test: present_* outputs (not tracked by m_dynamic_kv_cache_axes, which
     // only covers inputs) fell through to the generic "forward as-is" branch, but
-    // refresh_present_tensors_locked() still republished its own separately-trimmed
+    // refresh_present_tensors_locked() still republished its own separately-copied
     // tensor under the same name once past_len < capacity -- diverging from the exact
     // tensor object the caller set.
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
@@ -1353,7 +1353,8 @@ TEST_F(GQACompiledModelTest, SetTensorOnDynamicPresentOutputIsHonoredByGetTensor
     ASSERT_TRUE(present_key_port.get_node());
 
     // A short past tensor (4 of 16 capacity) normally makes
-    // refresh_present_tensors_locked() trim the present output to a fresh buffer.
+    // refresh_present_tensors_locked() copy the valid prefix of the present output into a
+    // fresh buffer.
     auto short_past = make_f16_kv_cache_tensor({1, 2, 4, 16}, /*start_val=*/0.f);
     request->set_tensor(past_key_port, short_past);
 
@@ -1365,7 +1366,7 @@ TEST_F(GQACompiledModelTest, SetTensorOnDynamicPresentOutputIsHonoredByGetTensor
     ASSERT_NO_THROW(request->infer());
 
     // get_tensor() must keep returning the exact same tensor object the caller set --
-    // not a separate, internally-trimmed copy.
+    // not a separate, internally-copied prefix.
     auto returned = request->get_tensor(present_key_port);
     EXPECT_EQ(returned._ptr.get(), caller_present._ptr.get());
 }
@@ -1735,7 +1736,7 @@ TEST(GQACompiledModelPresentAxisTest, MatchesSinkPortSuffixedFriendlyName) {
 TEST(GQACompiledModelPresentAxisTest, MatchesDotStylePresentNamingScheme) {
     // Regression test: identify_case() accepts dot-style present naming (e.g.
     // "present.0.key"), but find_dynamic_kv_cache_output_axes() used to only match
-    // "present_key"/"present_value" -- leaving dot-style present outputs untrimmed and
+    // "present_key"/"present_value" -- leaving dot-style present outputs uncopied and
     // get_tensor() returning the full static inner tensor.
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     for (const auto& result : model->get_results()) {
@@ -1772,7 +1773,7 @@ TEST(GQACompiledModelPresentToPastParamNamesTest, MapsUnderscoreStyleNames) {
 // Regression test: onnxruntime-genai dot-style naming has present outputs
 // "present.0.key"/"present.0.value" but past inputs "past_key_values.0.key"/
 // "past_key_values.0.value" -- a naive substring swap would wrongly produce "past.0.key",
-// matching no real Parameter and silently defeating trimming.
+// matching no real Parameter and silently defeating the present->past length lookup.
 TEST(GQACompiledModelPresentToPastParamNamesTest, MapsDotStyleNamesNotMatchingSubstringSwap) {
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     for (const auto& parameter : model->get_parameters()) {
