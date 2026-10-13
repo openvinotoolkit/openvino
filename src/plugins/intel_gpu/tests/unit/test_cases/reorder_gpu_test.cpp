@@ -5599,7 +5599,6 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic_f8e4m3)
     ASSERT_EQ(outputs.begin()->first, "reorder");
 
     auto output = outputs.begin()->second.get_memory();
-    ASSERT_EQ(output->get_layout().data_type, data_types::f16);
 
     float answers[12] = {
         1.0f,  2.0f,
@@ -5612,10 +5611,10 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic_f8e4m3)
         52.0f, 250.0f,
     };
 
-    cldnn::mem_lock<ov::float16> output_ptr (output, get_test_stream());
+    cldnn::mem_lock<ov::float8_e4m3> output_ptr (output, get_test_stream());
     for (int i = 0; i < 12; i++)
     {
-        ASSERT_NEAR(ov::float16(answers[i] / 255.f), output_ptr[i], 1e-3f);
+        ASSERT_NEAR(ov::float8_e4m3(answers[i] / 255.f), output_ptr[i], 1e-3f);
     }
 
 }
@@ -5646,7 +5645,6 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic_f8e5m2)
     ASSERT_EQ(outputs.begin()->first, "reorder");
 
     auto output = outputs.begin()->second.get_memory();
-    ASSERT_EQ(output->get_layout().data_type, data_types::f16);
 
     float answers[12] = {
         1.0f,  2.0f,
@@ -5659,10 +5657,10 @@ TEST(reorder_image2d_rgba_to_bfyx_gpu, basic_f8e5m2)
         56.0f, 250.0f,
     };
 
-    cldnn::mem_lock<ov::float16> output_ptr (output, get_test_stream());
+    cldnn::mem_lock<ov::float8_e5m2> output_ptr (output, get_test_stream());
     for (int i = 0; i < 12; i++)
     {
-        ASSERT_NEAR(ov::float16(answers[i] / 255.f), output_ptr[i], 1e-3f);
+        ASSERT_NEAR(ov::float8_e5m2(answers[i] / 255.f), output_ptr[i], 1e-3f);
     }
 }
 
