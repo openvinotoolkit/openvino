@@ -162,6 +162,9 @@ TEST_P(OVPropertiesDefaultSupportedTests, CanSetDefaultValueBackToPlugin) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core.get_property(target_device, ov::supported_properties));
     for (auto& supported_property : supported_properties) {
+        if (supported_property.get_mutability() == ov::PropertyMutability::WO) {
+            continue;
+        }
         Any property;
         OV_ASSERT_NO_THROW(property = core.get_property(target_device, supported_property));
         ASSERT_FALSE(property.empty());
@@ -660,6 +663,9 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
     OV_ASSERT_NO_THROW(configValues = ie.get_property(target_device, ov::supported_properties));
 
     for (auto &&confKey : configValues) {
+        if (confKey.get_mutability() == ov::PropertyMutability::WO) {
+            continue;
+        }
         ov::Any defaultValue;
         OV_ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
