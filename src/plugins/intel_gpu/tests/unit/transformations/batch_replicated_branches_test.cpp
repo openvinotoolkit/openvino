@@ -52,7 +52,8 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
                                              bool use_distinct_endpoint_names = false,
                                              bool use_v14_max_pool = false,
                                              bool add_external_endpoint_user = false,
-                                             bool add_max_pool_indices_user = false) {
+                                             bool add_max_pool_indices_user = false,
+                                             bool add_port_runtime_info = false) {
     const auto input_shape = dynamic_camera_height
                                  ? ov::PartialShape{1, 4, 3, ov::Dimension::dynamic(), 640}
                                  : ov::PartialShape{1, 4, 3, 480, 640};
@@ -113,6 +114,11 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
             ov::CoordinateDiff{0, 0},
             ov::CoordinateDiff{0, 0},
             ov::Strides{1, 1});
+        if (add_port_runtime_info) {
+            convolution->input(0).get_rt_info()["camera_input_port"] = int64_t{1};
+            convolution->input(1).get_rt_info()["camera_weights_port"] = std::string{"weights"};
+            convolution->output(0).get_rt_info()["camera_output_port"] = int64_t{2};
+        }
         if (different_branch_runtime_info && i == 1) {
             convolution->get_rt_info()["camera_branch"] = static_cast<int64_t>(i);
         }
@@ -319,7 +325,21 @@ std::shared_ptr<ov::Model> make_small_fp16_camera_model() {
 }  // namespace
 
 TEST(BatchReplicatedBranches, FusesExactCameraOrderAndRepackagesWidth) {
-    auto model = make_camera_model({0, 1, 2, 3});
+    auto model = make_camera_model({0, 1, 2, 3},
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   true);
 
     ov::pass::Manager manager;
     manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
@@ -336,6 +356,9 @@ TEST(BatchReplicatedBranches, FusesExactCameraOrderAndRepackagesWidth) {
     auto batched_branch = ov::as_type_ptr<ov::op::v1::Convolution>(
         transpose->input_value(0).get_node_shared_ptr());
     ASSERT_NE(batched_branch, nullptr);
+    EXPECT_EQ(batched_branch->input(0).get_rt_info()["camera_input_port"].as<int64_t>(), 1);
+    EXPECT_EQ(batched_branch->input(1).get_rt_info()["camera_weights_port"].as<std::string>(), "weights");
+    EXPECT_EQ(batched_branch->output(0).get_rt_info()["camera_output_port"].as<int64_t>(), 2);
     const ov::PartialShape expected_batched_shape{4, 512, 15, 20};
     EXPECT_EQ(batched_branch->get_output_partial_shape(0), expected_batched_shape);
 
@@ -720,35 +743,59 @@ TEST(BatchReplicatedBranches, ValidatesFp16GpuNumericalTolerance) {
     manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
     manager.run_passes(transformed_model);
 
+    auto repacked = ov::as_type_ptr<ov::op::v1::Reshape>(
+        transformed_model->get_results().front()->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(repacked, nullptr);
+    auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(repacked->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(transpose, nullptr);
+    auto batched_branch =
+        ov::as_type_ptr<ov::op::v1::Convolution>(transpose->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(batched_branch, nullptr);
+    auto camera_batch =
+        ov::as_type_ptr<ov::op::v0::Concat>(batched_branch->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(camera_batch, nullptr);
+    EXPECT_EQ(camera_batch->get_input_size(), 2);
+
     ov::Tensor input(ov::element::f16, ov::Shape{1, 2, 1, 4, 4});
     auto* input_values = input.data<ov::float16>();
     for (size_t i = 0; i < input.get_size(); ++i) {
         input_values[i] = static_cast<float>(i + 1) * 0.125f;
     }
 
-    try {
-        ov::Core core;
-        auto cpu_model = core.compile_model(reference_model, "CPU");
-        auto gpu_model = core.compile_model(transformed_model, "GPU");
-
-        auto cpu_request = cpu_model.create_infer_request();
-        cpu_request.set_input_tensor(input);
-        cpu_request.infer();
-        const auto cpu_output = cpu_request.get_output_tensor(0);
-
-        auto gpu_request = gpu_model.create_infer_request();
-        gpu_request.set_input_tensor(input);
-        gpu_request.infer();
-        const auto gpu_output = gpu_request.get_output_tensor(0);
-
-        ASSERT_EQ(cpu_output.get_size(), gpu_output.get_size());
-        const auto* cpu_values = cpu_output.data<ov::float16>();
-        const auto* gpu_values = gpu_output.data<ov::float16>();
-        for (size_t i = 0; i < cpu_output.get_size(); ++i) {
-            EXPECT_NEAR(static_cast<float>(cpu_values[i]), static_cast<float>(gpu_values[i]), 1e-2f)
-                << "at output index " << i;
-        }
-    } catch (const ov::Exception&) {
+    ov::Core core;
+    const auto available_devices = core.get_available_devices();
+    const auto has_device = [&available_devices](const std::string& device_name) {
+        return std::any_of(available_devices.begin(),
+                           available_devices.end(),
+                           [&device_name](const std::string& available_device) {
+                               return available_device == device_name ||
+                                      (available_device.size() > device_name.size() &&
+                                       available_device.compare(0, device_name.size(), device_name) == 0 &&
+                                       available_device[device_name.size()] == '.');
+                           });
+    };
+    if (!has_device("CPU") || !has_device("GPU")) {
         GTEST_SKIP() << "Requires discoverable CPU and GPU plugins.";
+    }
+
+    auto cpu_model = core.compile_model(reference_model, "CPU");
+    auto gpu_model = core.compile_model(transformed_model, "GPU");
+
+    auto cpu_request = cpu_model.create_infer_request();
+    cpu_request.set_input_tensor(input);
+    cpu_request.infer();
+    const auto cpu_output = cpu_request.get_output_tensor(0);
+
+    auto gpu_request = gpu_model.create_infer_request();
+    gpu_request.set_input_tensor(input);
+    gpu_request.infer();
+    const auto gpu_output = gpu_request.get_output_tensor(0);
+
+    ASSERT_EQ(cpu_output.get_size(), gpu_output.get_size());
+    const auto* cpu_values = cpu_output.data<ov::float16>();
+    const auto* gpu_values = gpu_output.data<ov::float16>();
+    for (size_t i = 0; i < cpu_output.get_size(); ++i) {
+        EXPECT_NEAR(static_cast<float>(cpu_values[i]), static_cast<float>(gpu_values[i]), 1e-2f)
+            << "at output index " << i;
     }
 }

@@ -534,7 +534,11 @@ void copy_node_metadata(const NodePtr& original, const NodePtr& replacement) {
     if (precision_marker != original->get_rt_info().end()) {
         replacement->get_rt_info()[kRequiresPrecisionConversionKey] = precision_marker->second;
     }
+    for (size_t i = 0; i < std::min(original->get_input_size(), replacement->get_input_size()); ++i) {
+        replacement->input(i).get_rt_info() = original->input(i).get_rt_info();
+    }
     for (size_t i = 0; i < std::min(original->get_output_size(), replacement->get_output_size()); ++i) {
+        replacement->output(i).get_rt_info() = original->output(i).get_rt_info();
         replacement->output(i).set_names(original->output(i).get_names());
     }
 }
