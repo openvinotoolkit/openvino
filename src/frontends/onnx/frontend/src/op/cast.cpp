@@ -8,11 +8,7 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 
 ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
@@ -24,7 +20,7 @@ ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
     // truncating.
     const ov::element::Type data_type = data.get_element_type();
     if (data_type.is_real() && (elem_type == ov::element::i4 || elem_type == ov::element::u4)) {
-        auto data_rounded = std::make_shared<v5::Round>(data, v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+        auto data_rounded = std::make_shared<v5::Round>(data, v5::Round::RoundMode::HALF_TO_EVEN);
         return {std::make_shared<v0::Convert>(data_rounded, elem_type)};
     }
 
@@ -32,8 +28,4 @@ ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Cast", OPSET_SINCE(1), ai_onnx::opset_1::cast);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

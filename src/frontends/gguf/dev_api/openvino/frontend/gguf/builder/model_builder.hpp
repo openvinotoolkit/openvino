@@ -10,11 +10,10 @@
 #include "openvino/frontend/gguf/builder/metadata.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Opaque graph produced by GgufGraphContext; defined in builder/gguf_graph.hpp.
+class ProjectorRegistry;
 struct GgufGraph;
 
 namespace detail {
@@ -31,10 +30,11 @@ struct GGUF_FRONTEND_API BuildContext {
 
     // Opaque weight tables accessed through GgufTensors.
     detail::WeightStore* weights = nullptr;
+    const ProjectorRegistry* projectors = nullptr;
 };
 
 // Whole-model builder for any family, registered through ArchitectureDefinition.
-// See docs/porting_a_llama_cpp_model.md for external and built-in registration.
+// See docs/architectures.md for external and built-in registration.
 class GGUF_FRONTEND_API ModelBuilder {
 public:
     virtual ~ModelBuilder();
@@ -43,6 +43,4 @@ public:
     virtual std::shared_ptr<GgufGraph> build() = 0;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

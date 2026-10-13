@@ -140,19 +140,14 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
                                                                    gdn_node->get_k_l2_norm_eps());
 
         paged_gdn->set_friendly_name(gdn_node->get_friendly_name() + "/PagedGatedDeltaNet");
-        const auto query_shape = std::make_shared<ov::op::v3::ShapeOf>(pm.at(query), ov::element::i64);
+
+        // PagedGatedDeltaNet output is [B*L, v_num_heads, value_head_dim]; restore the matched
+        // GatedDeltaNet output layout [B, L, v_num_heads, value_head_dim], which equals the value shape.
         const auto value_shape = std::make_shared<ov::op::v3::ShapeOf>(pm.at(value), ov::element::i64);
-        const auto axis_0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-        const auto idx_q = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 2});
-        const auto idx_v = v0::Constant::create(ov::element::i64, ov::Shape{1}, {3});
-        const auto q_dims = std::make_shared<ov::op::v8::Gather>(query_shape, idx_q, axis_0);
-        const auto v_dim = std::make_shared<ov::op::v8::Gather>(value_shape, idx_v, axis_0);
-        const auto out0_shape = std::make_shared<v0::Concat>(ov::OutputVector{q_dims, v_dim}, 0);
-        const auto paged_gdn_out = std::make_shared<ov::op::v1::Reshape>(paged_gdn, out0_shape, false);
+        const auto paged_gdn_out = std::make_shared<ov::op::v1::Reshape>(paged_gdn, value_shape, false);
         paged_gdn_out->set_friendly_name(gdn_node->get_friendly_name());
 
-        ov::copy_runtime_info(gdn_node,
-                              {paged_gdn, query_shape, value_shape, q_dims, v_dim, out0_shape, paged_gdn_out});
+        ov::copy_runtime_info(gdn_node, {paged_gdn, value_shape, paged_gdn_out});
 
         // Disconnect GDN state output consumers; cleanup is driven by ReadValue variable ids.
         for (const auto& state_consumer : state_consumers) {

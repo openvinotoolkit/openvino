@@ -19,9 +19,7 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "place.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
+namespace ov::frontend::paddle {
 
 ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type& type);
 
@@ -69,6 +67,4 @@ private:
     }
 };
 
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle
