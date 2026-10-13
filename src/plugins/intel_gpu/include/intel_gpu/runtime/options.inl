@@ -84,6 +84,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_grouped_gemm_prefill, t
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_batched_gemv_threshold, 32, "MoE 3-GEMM: token count (<=) that selects the batched GEMV decode path instead of the prefill path")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_disable_fusion, false, "Disable fusion of MoE subgraph to composite MoE operation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, disable_ternocl_int2, false, "Disable the TernOCL implementation of FullyConnected with ternary (u2) weights; the stock kernels are used instead")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_rms_rope_fusion, true, "Enable/Disable the pass which folds per-head Q/K RMSNorm into RoPE")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, ternocl_int2_int8_prefill, false, "TernOCL ternary FullyConnected: run M > 8 on the int2 x int8 DPAS GEMM, quantizing activations to int8 per 128-group")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
@@ -120,7 +121,6 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disa
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_gated_mlp_fusion, true, "Disable pass which fuses FC+SwiGLU to GatedMLP")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_hadamard_fc_fusion, false, "Disable pass which folds a Hadamard input rotation into a ternary FullyConnected")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_rms_rope_fusion, false, "Disable pass which folds per-head Q/K RMSNorm into RoPE")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")

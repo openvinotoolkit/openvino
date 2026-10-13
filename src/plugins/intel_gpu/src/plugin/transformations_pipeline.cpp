@@ -1638,7 +1638,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
-        if (!GPU_DEBUG_VALUE_OR(config.get_disable_rms_rope_fusion(), false)) {
+        if (config.get_enable_rms_rope_fusion()) {
             manager.register_pass<ov::intel_gpu::FuseRMSRoPE>();
         }
 

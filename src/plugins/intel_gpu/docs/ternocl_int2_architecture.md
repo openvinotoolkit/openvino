@@ -48,7 +48,7 @@ the input transform `hadamard/hadamard_fwht.cl` in front of either.
 | `impls/ocl_v2/CMakeLists.txt` | Embeds the TernOCL sources (up-convert, int2 x int8, FWHT, epilogue) as chunked string literals at configure time |
 | `thirdparty/TernOCL` | Submodule: [TernOCL](https://github.com/libxsmm/TernOCL) kernels, drivers, validation, tuning scripts |
 | `plugin/transformations/fuse_hadamard_fc.cpp` | Folds the graph-level rotation of rotated-basis checkpoints into the FC (section 7) |
-| `plugin/transformations/fuse_rms_rope.cpp` | Folds the per-head Q/K RMSNorm into RoPE when the rotation covers the whole head (Bonsai 1.7B-8B; Bonsai 2 27B's partial-rotary heads stay unfused). On by default; `GPU_DISABLE_RMS_ROPE_FUSION` in debug-caps builds |
+| `plugin/transformations/fuse_rms_rope.cpp` | Folds the per-head Q/K RMSNorm into RoPE when the rotation covers the whole head (Bonsai 1.7B-8B; Bonsai 2 27B's partial-rotary heads stay unfused). Controlled by `GPU_ENABLE_RMS_ROPE_FUSION` (default on) |
 | `registry/fully_connected_impls.cpp` | Priority relative to oneDNN/OpenCL |
 | `primitive_inst.cpp` | Lets `ternocl_int2` keep its fused chain under dynamic shapes (section 4) |
 
