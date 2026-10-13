@@ -148,6 +148,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roi_align_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roi_pooling_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roll_si_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scaled_dot_product_attention_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scatter_nd_update_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scatter_update_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/select_si_test.cpp
@@ -321,6 +322,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_rms_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_sin_gen_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_fp16_compression_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/dynamic_quantize_fully_connected_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/dynamic_quantize_sharing_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/dynamic_same_padding_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/expand_broadcast_reshape_sdpa_fusion_test.cpp
