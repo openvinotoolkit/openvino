@@ -80,8 +80,9 @@ using TLVValueScanner = std::unordered_map<TLVTraits::TagType, TLVValueReader>;
  * @param stream Input stream to read records from. It should be positioned at the beginning of a record.
  * @param scanners Map of tag to value reader callable. Value reader will be called with the stream positioned at
  * the beginning of record value and size of the value as parameters. Value reader is expected to read exactly size
- * bytes from the stream. Failure to do so may result in incorrect parsing of subsequent records.
- * @return False if an error occurred during scanning, true otherwise.
+ * bytes from the stream. Reading fewer or more bytes is treated as an error.
+ * @return False if an error occurred during scanning (including a record length exceeding the stream end or a value
+ * reader not consuming exactly the record size), true otherwise.
  */
 bool scan_tlv_records(std::istream& stream, const TLVValueScanner& scanners);
 

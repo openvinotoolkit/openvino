@@ -89,19 +89,26 @@ bool scan_tlv_records(std::istream& stream, const TLVValueScanner& scanners) {
             return false;
         }
         stream.read(reinterpret_cast<char*>(&size), sizeof(size));
-        if (!stream.good() || (stream_end - stream.tellg() < static_cast<std::streamoff>(size))) {
+        if (!stream.good()) {
             return false;
         }
+        // Compare in unsigned space: casting a corrupted size >= 2^63 to streamoff would make it negative
+        const auto value_pos = stream.tellg();
+        if (size > static_cast<TLVTraits::LengthType>(stream_end - value_pos)) {
+            return false;
+        }
+        const auto record_end = value_pos + static_cast<std::streamoff>(size);
 
         if (auto scanner_it = scanners.find(tag); scanner_it != scanners.end()) {
             if (!scanner_it->second(stream, size)) {
                 return false;
             }
         } else {
-            stream.seekg(size, std::ios::cur);
-            if (!stream.good()) {
-                return false;
-            }
+            stream.seekg(record_end);
+        }
+        // Each record value must be consumed exactly, otherwise the next record would be parsed out of sync
+        if (!stream.good() || stream.tellg() != record_end) {
+            return false;
         }
     }
     return true;
