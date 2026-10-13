@@ -68,7 +68,6 @@ std::shared_ptr<ov::Model> build_unary_chain_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 }
 
-<<<<<<< HEAD
 void set_output_bound(const std::shared_ptr<ov::Model>& model, const std::string& node_name) {
     const auto ops = model->get_ordered_ops();
     const auto node_it = std::find_if(ops.begin(), ops.end(),
@@ -81,7 +80,8 @@ void set_output_bound(const std::shared_ptr<ov::Model>& model, const std::string
     ov::Tensor bound(output.get_element_type(), output.get_shape());
     output.get_tensor().set_lower_value(bound);
     output.get_tensor().set_upper_value(bound);
-=======
+}
+
 std::shared_ptr<ov::Model> build_shared_const_convert_model() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32});
     input->set_friendly_name("input");
@@ -98,7 +98,6 @@ std::shared_ptr<ov::Model> build_shared_const_convert_model() {
     auto add_result = std::make_shared<ov::op::v0::Result>(add);
     auto multiply_result = std::make_shared<ov::op::v0::Result>(multiply);
     return std::make_shared<ov::Model>(ov::ResultVector{add_result, multiply_result}, ov::ParameterVector{input});
->>>>>>> eff607f42a (Add support for isolating shared constant converts in partitioning)
 }
 
 std::shared_ptr<ov::Model> build_static_llm_model(const int64_t query_len, const int64_t past_len) {
