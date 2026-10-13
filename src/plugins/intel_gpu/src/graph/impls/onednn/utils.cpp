@@ -1032,6 +1032,11 @@ bool is_supported_pad(const layout& layout) {
     return (no_spatial_padding && no_batch_padding);
 }
 
+bool is_reference_impl(const dnnl::primitive_desc_base& pd) {
+    const std::string name = pd.impl_info_str();
+    return name.rfind("ocl:ref", 0) == 0;
+}
+
 int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
                                 const std::function<layout(int32_t)>& get_input_layout,
                                 int32_t slope_input_idx) {
