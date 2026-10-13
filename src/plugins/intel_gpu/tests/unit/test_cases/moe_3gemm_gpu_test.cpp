@@ -2130,8 +2130,8 @@ TEST_P(moe_3gemm_compressed_gpu_u2, mixed_zp_form_accuracy) {
             all_zero = false;
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "i = " << i;
     }
-    // A u2 prefill that fails at runtime falls back silently, and an all-zero output would
-    // otherwise satisfy every tolerance check above.
+    // The prefill path silently falls back when the native u2 GEMM fails to launch, and an
+    // all-zero output would otherwise satisfy every tolerance check above.
     ASSERT_FALSE(all_zero) << "output is all zeros - the MoE stage was silently skipped";
 }
 
@@ -2156,10 +2156,15 @@ INSTANTIATE_TEST_SUITE_P(
         MoeU2ZpParams{1, 128, 256, 32, false, false, true, false, "down_scalar_rest_per_group"},
         MoeU2ZpParams{1, 128, 256, 128, false, false, true, false, "down_scalar_rest_per_group"},
         MoeU2ZpParams{16, 128, 256, 32, false, false, false, false, "all_per_group"},
-        // Above the 32-token batched-GEMV threshold, i.e. the prefill path (u2 unpacked to u4,
-        // then the oneDNN grouped GEMM) rather than the GEMV kernels.
+        // Above the 32-token batched-GEMV threshold, i.e. the prefill GEMM rather than the GEMV
+        // kernels. inter_size 256 keeps the down GEMM's N below DPAS_N_PER_WG, so this is the
+        // FMA variant; the square case below is the one that qualifies for DPAS.
         MoeU2ZpParams{64, 128, 256, 64, false, false, false, false, "prefill_all_per_group"},
         MoeU2ZpParams{64, 128, 256, 64, true, true, true, false, "prefill_all_scalar"},
+        // hidden == inter == 256 makes N a multiple of DPAS_N_PER_WG for all three GEMMs, which is
+        // what selects the DPAS variant of the u2 GEMM.
+        MoeU2ZpParams{64, 256, 256, 64, false, false, false, false, "prefill_dpas_all_per_group"},
+        MoeU2ZpParams{64, 256, 256, 32, false, false, false, false, "prefill_dpas_gs32"},
         // u4 down with u2 gate/up. The first row is the shipped recipe: INT2_SYM gate/up (scalar
         // zp), INT4_ASYM down (per-group zp). No group_size 32 here: a layer that is not all-u2
         // needs FAKE_GROUP_SIZE >= 2 * SUBGROUP_SIZE, which 32 does not meet on xe2.
@@ -2169,8 +2174,8 @@ INSTANTIATE_TEST_SUITE_P(
         // Batched GEMV (MTP-style token counts).
         MoeU2ZpParams{4, 128, 256, 64, true, true, false, true, "down_u4_rest_scalar"},
         MoeU2ZpParams{16, 128, 256, 64, false, false, false, true, "down_u4_rest_per_group"},
-        // Prefill: the u2 GEMMs are unpacked to u4 scratch next to the native u4 down, after which
-        // all three reach the grouped GEMM as u4.
+        // Prefill: not all-u2, so the native u2 GEMM declines and the u2 GEMMs are unpacked to u4
+        // scratch next to the native u4 down -- after which all three reach the grouped GEMM as u4.
         MoeU2ZpParams{64, 128, 256, 64, true, true, false, true, "prefill_down_u4_rest_scalar"},
         MoeU2ZpParams{64, 256, 256, 64, false, false, false, true, "prefill_down_u4_rest_per_group"}),
     moe_3gemm_compressed_gpu_u2::GetTestCaseName);
@@ -2183,6 +2188,10 @@ INSTANTIATE_TEST_SUITE_P(
 // NNCF mixed precision any SUBSET of the three projections is u2 and the unpack is driven by a
 // per-projection flag, so a subset is what has to be covered -- a layer-wide flag would either
 // unpack a u8 projection (reading it at a quarter of its true stride) or leave a u2 one packed.
+//
+// The routed experts are all u2 here so the native u2 GEMM owns them, which makes the prefill
+// cases below also cover the skip_routed argument of the unpack: the routed weights must NOT be
+// unpacked while the shared ones must.
 // ============================================================================
 
 struct MoeU2SharedParams {
@@ -2488,8 +2497,9 @@ INSTANTIATE_TEST_SUITE_P(
         // prefill-only until that happens.
         MoeU2SharedParams{true, true, true, 1, 64, "all_u2"},
         // Above the 32-token batched-GEMV threshold the shared expert goes through the oneDNN
-        // primitives, which do resolve its dtype per projection. down has the transposed shape of
-        // gate/up, so it is covered on its own.
+        // primitives, which do resolve its dtype per projection. The routed experts take the native
+        // u2 GEMM here, so these are also the cases where skip_routed has to unpack the shared
+        // weights only. down has the transposed shape of gate/up, so it is covered on its own.
         MoeU2SharedParams{true, true, true, 64, 64, "all_u2_prefill"},
         MoeU2SharedParams{false, false, false, 64, 64, "none_u2_prefill"},
         MoeU2SharedParams{true, false, false, 64, 64, "gate_u2_prefill"},
