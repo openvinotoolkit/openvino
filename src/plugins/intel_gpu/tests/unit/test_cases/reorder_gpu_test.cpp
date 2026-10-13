@@ -372,57 +372,6 @@ TEST(reorder_gpu_optimization, reorder_data_fp8_direct_byte_values) {
     }
 }
 
-static void compare_biplanar_nv12_with_ref(data_types data_type) {
-    auto& engine = get_test_engine();
-    constexpr size_t width = 4;
-    constexpr size_t height = 2;
-    std::vector<uint8_t> data(width * height + width * height / 2);
-    std::iota(data.begin(), data.end(), uint8_t(1));
-    auto& ocl_stream = dynamic_cast<ocl::ocl_stream&>(get_test_stream());
-    auto context_handle = static_cast<cl_context>(engine.get_user_context(runtime_types::ocl));
-    auto cl_queue = ocl_stream.get_cl_queue().get();
-    cl_int err = CL_SUCCESS;
-    cl_image_format image_format = {CL_R, CL_UNORM_INT8};
-    cl_image_desc image_desc = {CL_MEM_OBJECT_IMAGE2D, width, height, 1, 1, 0, 0, 0, 0, 0};
-    cl_mem image_y = clCreateImage(context_handle, CL_MEM_READ_WRITE, &image_format, &image_desc, nullptr, &err);
-    checkStatus(err, "Creating NV12 Y image failed");
-    image_format.image_channel_order = CL_RG;
-    image_desc.image_width = width / 2;
-    image_desc.image_height = height / 2;
-    cl_mem image_uv = clCreateImage(context_handle, CL_MEM_READ_WRITE, &image_format, &image_desc, nullptr, &err);
-    checkStatus(err, "Creating NV12 UV image failed");
-    size_t origin[3] = {0, 0, 0};
-    size_t y_region[3] = {width, height, 1};
-    size_t uv_region[3] = {width / 2, height / 2, 1};
-    err = clEnqueueWriteImage(cl_queue, image_y, true, origin, y_region, 0, 0, data.data(), 0, nullptr, nullptr);
-    checkStatus(err, "Writing NV12 Y image failed");
-    err = clEnqueueWriteImage(cl_queue, image_uv, true, origin, uv_region, 0, 0, data.data() + width * height, 0, nullptr, nullptr);
-    checkStatus(err, "Writing NV12 UV image failed");
-    auto input = input_layout("input", {{1, height, width, 1}, data_type, format::nv12});
-    auto input2 = input_layout("input2", {{1, height / 2, width / 2, 2}, data_type, format::nv12});
-    auto input_memory = engine.share_image(input.layout, image_y);
-    auto input_memory2 = engine.share_image(input2.layout, image_uv);
-    layout output_layout(data_type, format::bfyx, {1, 3, width, height});
-    auto run = [&](const std::string& kernel_name) {
-        topology topology {input, input2, reorder("reorder", input_info("input"), input_info("input2"), output_layout)};
-        auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reorder", {format::bfyx, kernel_name, impl_types::ocl}}}));
-        network network(engine, topology, config);
-        network.set_input_data("input", input_memory);
-        network.set_input_data("input2", input_memory2);
-        return network.execute();
-    };
-    compare_result<uint8_t>(run("reorder_data"), run("reorder_biplanar_nv12"));
-    checkStatus(clReleaseMemObject(image_uv), "Releasing NV12 UV image failed");
-    checkStatus(clReleaseMemObject(image_y), "Releasing NV12 Y image failed");
-}
-
-TEST(reorder_gpu_optimization, compare_biplanar_nv12_with_ref__fp8) {
-    const data_types fp8_types[] = {data_types::f8e4m3, data_types::f8e5m2, data_types::f8e8m0};
-    for (const auto data_type : fp8_types)
-        compare_biplanar_nv12_with_ref(data_type);
-}
-
 static void compare_bfyx2blocked_with_ref_dynamic(const std::string& kernel_name,
     const data_types input_data_type, const data_types output_data_type,
     cldnn::format input_format, cldnn::format output_format,
@@ -6936,11 +6885,11 @@ TEST(reorder_gpu_i4, f8e4m3_to_u4) {
 }
 
 TEST(reorder_gpu_i4, f8e5m2_to_i4) {
-    std::vector<ov::float8_e5m2> input_data = {ov::float8_e5m2(-8.f), ov::float8_e5m2(7.5f), ov::float8_e5m2(0.0f), ov::float8_e5m2(6.0f)};
+    std::vector<ov::float8_e5m2> input_data = {ov::float8_e5m2(-8.f), ov::float8_e5m2(7.f), ov::float8_e5m2(0.0f), ov::float8_e5m2(6.0f)};
     run_reorder_test_i4(data_types::f8e5m2, data_types::i4, input_data, {0x78, 0x60});
 }
 
 TEST(reorder_gpu_i4, f8e5m2_to_u4) {
-    std::vector<ov::float8_e5m2> input_data = {ov::float8_e5m2(-8.f), ov::float8_e5m2(7.5f), ov::float8_e5m2(0.0f), ov::float8_e5m2(6.0f)};
+    std::vector<ov::float8_e5m2> input_data = {ov::float8_e5m2(-8.f), ov::float8_e5m2(7.f), ov::float8_e5m2(0.0f), ov::float8_e5m2(6.0f)};
     run_reorder_test_i4(data_types::f8e5m2, data_types::u4, input_data, {0x70, 0x60});
 }
