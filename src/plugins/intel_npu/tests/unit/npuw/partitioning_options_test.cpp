@@ -464,8 +464,14 @@ TEST(PartitioningOptionsTest, IsolatesSharedConvertConstantAcrossFunctionCalls) 
                          {"NPUW_CWAI", "YES"}});
 
     auto partitioning = ov::npuw::getPartitioning(build_shared_const_convert_model(), cfg);
+    std::size_t result_count = 0;
+    for (const auto& subgraph : partitioning.subgraphs) {
+        result_count += subgraph._results.size();
+    }
+    EXPECT_EQ(result_count, 2u);
 
     std::size_t functions_with_convert = 0;
+    std::set<const ov::Node*> function_convert_nodes;
     for (const auto& [_, function] : partitioning.functions) {
         const auto ordered_ops = function._model->get_ordered_ops();
         const bool is_consumer_function = std::any_of(ordered_ops.begin(),
@@ -486,6 +492,13 @@ TEST(PartitioningOptionsTest, IsolatesSharedConvertConstantAcrossFunctionCalls) 
             continue;
         }
         functions_with_convert++;
+        function_convert_nodes.insert(convert->get());
+        const auto convert_readers = (*convert)->output(0).get_target_inputs();
+        EXPECT_FALSE(std::any_of(convert_readers.begin(),
+                                 convert_readers.end(),
+                                 [](const ov::Input<ov::Node>& reader) {
+                                     return ov::op::util::is_output(reader.get_node());
+                                 }));
         const auto parameter = (*convert)->input(0).get_source_output().get_node_shared_ptr();
         EXPECT_TRUE(ov::op::util::is_parameter(parameter));
         EXPECT_TRUE(std::any_of(function._model->get_parameters().begin(),
@@ -495,6 +508,7 @@ TEST(PartitioningOptionsTest, IsolatesSharedConvertConstantAcrossFunctionCalls) 
                                 }));
     }
     EXPECT_EQ(functions_with_convert, 2u);
+    EXPECT_EQ(function_convert_nodes.size(), 1u);
 }
 
 TEST(PartitioningOptionsTest, FoldCreatesFunctionCallsForRepeatedBlocks) {
