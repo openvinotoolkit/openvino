@@ -39,15 +39,15 @@ bool isOp(const std::shared_ptr<ov::Node>& node) {
         return false;
     }
     if (ov::is_type<ov::opset1::Convert>(node)) {
-        if (node->output(0).get_target_inputs().size() > 1) {
-            // If a Convert node has > 1 reader(s), it is not a simple straight Weight
-            // convert we could discard from the partitioning
-            return true;
-        }
         auto target_input = node->get_input_source_output(0);
         auto parent_node = target_input.get_node()->shared_from_this();
         if (ov::op::util::is_constant(parent_node)) {
             return false;
+        }
+        if (node->output(0).get_target_inputs().size() > 1) {
+            // A non-constant-backed Convert with > 1 readers is not a simple straight Weight
+            // convert we could discard from the partitioning.
+            return true;
         }
     }
     return true;
