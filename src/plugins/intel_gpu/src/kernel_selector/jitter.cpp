@@ -1680,11 +1680,11 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             is_fp = true;
             break;
         case Datatype::F8E4M3:
-            type = "char";
-            max_val = "_intel_convert_hf8_to_f16((char)0x7E)"; // 448.0
-            min_val = "_intel_convert_hf8_to_f16((char)0xFE)"; // -448.0
-            val_one = "_intel_convert_hf8_to_f16((char)0x38)";
-            val_zero = "_intel_convert_hf8_to_f16((char)0x0)";
+            type = "uchar";
+            max_val = "_intel_convert_hf8_to_f16((uchar)0x7E)"; // 448.0
+            min_val = "_intel_convert_hf8_to_f16((uchar)0xFE)"; // -448.0
+            val_one = "_intel_convert_hf8_to_f16((uchar)0x38)";
+            val_zero = "_intel_convert_hf8_to_f16((uchar)0x0)";
             to_type = "_intel_convert_f16_to_hf8(convert_half(v))";
             to_type_sat = "_intel_convert_f16_to_hf8_sat(convert_half(v))";
             to_vector_type = "CONVERT_F8E4M3_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";

@@ -43,7 +43,7 @@ half _intel_convert_bf8_to_f16(uchar val) {
     return temp_fp16;
 }
 
-char _f16_to_hf8_universal(half val, bool is_saturation) {
+uchar _f16_to_hf8_universal(half val, bool is_saturation) {
     half val_fp16 = val;
     ushort *p = (ushort *)&val_fp16;
     ushort src = p[0];
@@ -104,17 +104,17 @@ char _f16_to_hf8_universal(half val, bool is_saturation) {
     return src_sign << (exp_size + mant_size) | dst_val;
 }
 
-char _intel_convert_f16_to_hf8(half val) {
+uchar _intel_convert_f16_to_hf8(half val) {
     return _f16_to_hf8_universal(val, false);
 }
 
-char _intel_convert_f16_to_hf8_sat(half val) {
+uchar _intel_convert_f16_to_hf8_sat(half val) {
     return _f16_to_hf8_universal(val, true);
 }
 
-half _intel_convert_hf8_to_f16(char val) {
+half _intel_convert_hf8_to_f16(uchar val) {
     const short exp_bias = 7;
-    char data = val;
+    uchar data = val;
     ushort sign = data >> 7;
     ushort exp = (data >> 3) & 0b1111;
     ushort mant = data & 0x07;
@@ -160,26 +160,26 @@ float _intel_convert_e8m0_to_f32(uchar val) {
     return temp_fp32;
 }
 
-inline char2 _convert_fp8e4m3_t2_as_char2(half2 source) {
-    return (char2)(_intel_convert_f16_to_hf8(source.s0),
+inline uchar2 _convert_fp8e4m3_t2_as_uchar2(half2 source) {
+    return (uchar2)(_intel_convert_f16_to_hf8(source.s0),
                      _intel_convert_f16_to_hf8(source.s1));
 }
 
-inline char3 _convert_fp8e4m3_t3_as_char3(half3 source) {
-    return (char3)(_intel_convert_f16_to_hf8(source.s0),
+inline uchar3 _convert_fp8e4m3_t3_as_uchar3(half3 source) {
+    return (uchar3)(_intel_convert_f16_to_hf8(source.s0),
                      _intel_convert_f16_to_hf8(source.s1),
                      _intel_convert_f16_to_hf8(source.s2));
 }
 
-inline char4 _convert_fp8e4m3_t4_as_char4(half4 source) {
-    return (char4)(_intel_convert_f16_to_hf8(source.s0),
+inline uchar4 _convert_fp8e4m3_t4_as_uchar4(half4 source) {
+    return (uchar4)(_intel_convert_f16_to_hf8(source.s0),
                      _intel_convert_f16_to_hf8(source.s1),
                      _intel_convert_f16_to_hf8(source.s2),
                      _intel_convert_f16_to_hf8(source.s3));
 }
 
-inline char8 _convert_fp8e4m3_t8_as_char8(half8 source) {
-    return (char8)(_intel_convert_f16_to_hf8(source.s0),
+inline uchar8 _convert_fp8e4m3_t8_as_uchar8(half8 source) {
+    return (uchar8)(_intel_convert_f16_to_hf8(source.s0),
                      _intel_convert_f16_to_hf8(source.s1),
                      _intel_convert_f16_to_hf8(source.s2),
                      _intel_convert_f16_to_hf8(source.s3),
@@ -189,8 +189,8 @@ inline char8 _convert_fp8e4m3_t8_as_char8(half8 source) {
                      _intel_convert_f16_to_hf8(source.s7));
 }
 
-inline char16 _convert_fp8e4m3_t16_as_char16(half16 source) {
-    return (char16)(_intel_convert_f16_to_hf8(source.s0),
+inline uchar16 _convert_fp8e4m3_t16_as_uchar16(half16 source) {
+    return (uchar16)(_intel_convert_f16_to_hf8(source.s0),
                       _intel_convert_f16_to_hf8(source.s1),
                       _intel_convert_f16_to_hf8(source.s2),
                       _intel_convert_f16_to_hf8(source.s3),
@@ -208,26 +208,26 @@ inline char16 _convert_fp8e4m3_t16_as_char16(half16 source) {
                       _intel_convert_f16_to_hf8(source.sf));
 }
 
-inline char2 _convert_fp8e4m3_t2_as_char2_sat(half2 source) {
-    return (char2)(_intel_convert_f16_to_hf8_sat(source.s0),
+inline uchar2 _convert_fp8e4m3_t2_as_uchar2_sat(half2 source) {
+    return (uchar2)(_intel_convert_f16_to_hf8_sat(source.s0),
                      _intel_convert_f16_to_hf8_sat(source.s1));
 }
 
-inline char3 _convert_fp8e4m3_t3_as_char3_sat(half3 source) {
-    return (char3)(_intel_convert_f16_to_hf8_sat(source.s0),
+inline uchar3 _convert_fp8e4m3_t3_as_uchar3_sat(half3 source) {
+    return (uchar3)(_intel_convert_f16_to_hf8_sat(source.s0),
                      _intel_convert_f16_to_hf8_sat(source.s1),
                      _intel_convert_f16_to_hf8_sat(source.s2));
 }
 
-inline char4 _convert_fp8e4m3_t4_as_char4_sat(half4 source) {
-    return (char4)(_intel_convert_f16_to_hf8_sat(source.s0),
+inline uchar4 _convert_fp8e4m3_t4_as_uchar4_sat(half4 source) {
+    return (uchar4)(_intel_convert_f16_to_hf8_sat(source.s0),
                      _intel_convert_f16_to_hf8_sat(source.s1),
                      _intel_convert_f16_to_hf8_sat(source.s2),
                      _intel_convert_f16_to_hf8_sat(source.s3));
 }
 
-inline char8 _convert_fp8e4m3_t8_as_char8_sat(half8 source) {
-    return (char8)(_intel_convert_f16_to_hf8_sat(source.s0),
+inline uchar8 _convert_fp8e4m3_t8_as_uchar8_sat(half8 source) {
+    return (uchar8)(_intel_convert_f16_to_hf8_sat(source.s0),
                      _intel_convert_f16_to_hf8_sat(source.s1),
                      _intel_convert_f16_to_hf8_sat(source.s2),
                      _intel_convert_f16_to_hf8_sat(source.s3),
@@ -237,8 +237,8 @@ inline char8 _convert_fp8e4m3_t8_as_char8_sat(half8 source) {
                      _intel_convert_f16_to_hf8_sat(source.s7));
 }
 
-inline char16 _convert_fp8e4m3_t16_as_char16_sat(half16 source) {
-    return (char16)(_intel_convert_f16_to_hf8_sat(source.s0),
+inline uchar16 _convert_fp8e4m3_t16_as_uchar16_sat(half16 source) {
+    return (uchar16)(_intel_convert_f16_to_hf8_sat(source.s0),
                       _intel_convert_f16_to_hf8_sat(source.s1),
                       _intel_convert_f16_to_hf8_sat(source.s2),
                       _intel_convert_f16_to_hf8_sat(source.s3),
@@ -256,25 +256,25 @@ inline char16 _convert_fp8e4m3_t16_as_char16_sat(half16 source) {
                       _intel_convert_f16_to_hf8_sat(source.sf));
 }
 
-inline half2 _convert_as_fp8e4m3_t2_half2(char2 source) {
+inline half2 _convert_as_fp8e4m3_t2_half2(uchar2 source) {
     return (half2)(_intel_convert_hf8_to_f16(source.s0),
                     _intel_convert_hf8_to_f16(source.s1));
 }
 
-inline half3 _convert_as_fp8e4m3_t3_half3(char3 source) {
+inline half3 _convert_as_fp8e4m3_t3_half3(uchar3 source) {
     return (half3)(_intel_convert_hf8_to_f16(source.s0),
                     _intel_convert_hf8_to_f16(source.s1),
                     _intel_convert_hf8_to_f16(source.s2));
 }
 
-inline half4 _convert_as_fp8e4m3_t4_half4(char4 source) {
+inline half4 _convert_as_fp8e4m3_t4_half4(uchar4 source) {
     return (half4)(_intel_convert_hf8_to_f16(source.s0),
                     _intel_convert_hf8_to_f16(source.s1),
                     _intel_convert_hf8_to_f16(source.s2),
                     _intel_convert_hf8_to_f16(source.s3));
 }
 
-inline half8 _convert_as_fp8e4m3_t8_half8(char8 source) {
+inline half8 _convert_as_fp8e4m3_t8_half8(uchar8 source) {
     return (half8)(_intel_convert_hf8_to_f16(source.s0),
                     _intel_convert_hf8_to_f16(source.s1),
                     _intel_convert_hf8_to_f16(source.s2),
@@ -285,7 +285,7 @@ inline half8 _convert_as_fp8e4m3_t8_half8(char8 source) {
                     _intel_convert_hf8_to_f16(source.s7));
 }
 
-inline half16 _convert_as_fp8e4m3_t16_half16(char16 source) {
+inline half16 _convert_as_fp8e4m3_t16_half16(uchar16 source) {
     return (half16)(_intel_convert_hf8_to_f16(source.s0),
                      _intel_convert_hf8_to_f16(source.s1),
                      _intel_convert_hf8_to_f16(source.s2),
@@ -544,8 +544,8 @@ inline float16 _convert_as_fp8e8m0_t16_float16(uchar16 source) {
                      _intel_convert_e8m0_to_f32(source.sf));
 }
 
-#define CONVERT_F8E4M3_AS_UCHAR(val, size) CAT(_convert_fp8e4m3_t, CAT(size, CAT(_as_char, size)))(val)
-#define CONVERT_F8E4M3_AS_UCHAR_SAT(val, size) CAT(_convert_fp8e4m3_t, CAT(size, CAT(_as_char, CAT(size, _sat))))(val)
+#define CONVERT_F8E4M3_AS_UCHAR(val, size) CAT(_convert_fp8e4m3_t, CAT(size, CAT(_as_uchar, size)))(val)
+#define CONVERT_F8E4M3_AS_UCHAR_SAT(val, size) CAT(_convert_fp8e4m3_t, CAT(size, CAT(_as_uchar, CAT(size, _sat))))(val)
 #define CONVERT_AS_F8E4M3_HALF(val, size)  CAT(_convert_as_fp8e4m3_t, CAT(size, CAT(_half, size)))(val)
 #define CONVERT_F8E5M2_AS_UCHAR(val, size) CAT(_convert_fp8e5m2_t, CAT(size, CAT(_as_uchar, size)))(val)
 #define CONVERT_F8E5M2_AS_UCHAR_SAT(val, size) CAT(_convert_fp8e5m2_t, CAT(size, CAT(_as_uchar, CAT(size, _sat))))(val)
