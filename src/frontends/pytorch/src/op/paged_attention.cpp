@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Translator for torch.ops.openvino.paged_attention.default. KV cache/block
+// Translator for torch.ops.ov_ext.paged_attention.default. KV cache/block
 // tables aren't in the FX graph; creates side-channel Parameters instead.
 
 #include "openvino/op/paged_attention.hpp"
@@ -28,14 +28,11 @@
 #include "translate_session.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op::ext {
 
 using namespace ov::op;
 
-OutputVector translate_openvino_paged_attention(const NodeContext& context) {
+OutputVector translate_paged_attention(const NodeContext& context) {
     // Args: (query, key, value, layer_name[, scale, kv_sharing_target]).
     // The trailing two are optional so graphs produced by an older
     // paged_attention.py still translate; both then fall back to derivation.
@@ -382,7 +379,4 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     return {pa_out};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op::ext

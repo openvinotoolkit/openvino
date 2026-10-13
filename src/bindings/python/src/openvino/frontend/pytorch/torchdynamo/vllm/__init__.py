@@ -22,16 +22,16 @@ def maybe_register_pa_op(support_dict, options):
     """
     from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
     if bool_opt(options, "pa_translate", False):
-        support_dict["torch.ops.openvino.paged_attention.default"] = None
-        support_dict["torch.ops.openvino.gdn_attention.default"] = None
+        support_dict["torch.ops.ov_ext.paged_attention.default"] = None
+        support_dict["torch.ops.ov_ext.gdn_attention.default"] = None
 
 
 def maybe_rewrite_paged_attention(graph_module, options):
     """Rewrite vLLM's opaque attention, Gated DeltaNet and fused-MoE ops into OV-translatable ones.
 
     Each turns an auto_functionalized_v2 call site OV cannot hold into an op it can keep inside its
-    partition: unified_attention_with_output -> openvino.paged_attention, cpu_gdn_attention_core ->
-    openvino.gdn_attention ("gdn_translate"), and _C.cpu_fused_moe -> grouped matmuls ("moe_translate").
+    partition: unified_attention_with_output -> ov_ext.paged_attention, cpu_gdn_attention_core ->
+    ov_ext.gdn_attention ("gdn_translate"), and _C.cpu_fused_moe -> grouped matmuls ("moe_translate").
     All are off when "paged_attention" is. Returns the total number of rewrites; a failing rewrite
     leaves its call sites on vLLM's op.
     """

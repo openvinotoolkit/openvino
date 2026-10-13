@@ -344,8 +344,6 @@ OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
-OP_CONVERTER(translate_openvino_gdn_attention);
-OP_CONVERTER(translate_openvino_paged_attention);
 OP_CONVERTER(translate_search_sorted);
 OP_CONVERTER(translate_select_scatter_fx);
 OP_CONVERTER(translate_slice_fx);
@@ -372,6 +370,13 @@ OP_CONVERTER(translate_linear_ct);
 OP_CONVERTER(translate_embedding_ct);
 OP_CONVERTER(translate_linear_ext);
 OP_CONVERTER(translate_linear_gptq);
+
+// Translators of custom operations registered by integrations (torch.compile vLLM path). They may produce
+// internal operations, so the converted model can't always be serialized.
+namespace ext {
+OP_CONVERTER(translate_gdn_attention);
+OP_CONVERTER(translate_paged_attention);
+}  // namespace ext
 }  // namespace op
 
 // Supported ops for TorchScript
@@ -881,8 +886,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._safe_softmax.default", op::translate_softmax_fx},
         {"aten._scaled_dot_product_flash_attention.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._scaled_dot_product_flash_attention_for_cpu.default", op::translate_scaled_dot_product_attention_fx},
-        {"openvino.gdn_attention.default", op::translate_openvino_gdn_attention},
-        {"openvino.paged_attention.default", op::translate_openvino_paged_attention},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::translate_to_fx},
         {"aten._unsafe_view.default", op::translate_reshape},
@@ -987,6 +990,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"ov_ext.ct_gemm.default", op::translate_linear_ct},
         {"ov_ext.ct_embedding.default", op::translate_embedding_ct},
         {"ov_ext.gptq_gemm.default", op::translate_linear_gptq},
+        {"ov_ext.gdn_attention.default", op::ext::translate_gdn_attention},
+        {"ov_ext.paged_attention.default", op::ext::translate_paged_attention},
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},

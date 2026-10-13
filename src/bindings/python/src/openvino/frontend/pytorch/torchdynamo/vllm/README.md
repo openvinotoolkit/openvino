@@ -373,7 +373,7 @@ beam search, speculative decoding, prefix caching, custom logits processors).
 | File | Role |
 |---|---|
 | `plugin.py` | `vllm.general_plugins` entry point. Patches `CPUModelRunner.load_model` to wrap `model.forward` with `torch.compile(backend="openvino", options={"vllm": True})`. |
-| `paged_attention.py` | Custom `torch.ops.openvino.paged_attention` op + FX rewrite that converts vLLM's `auto_functionalized_v2(unified_attention_with_output, ...)` HOP nodes into it, so the OV pytorch frontend translates the call to `PagedAttentionExtension`. |
+| `paged_attention.py` | Custom `torch.ops.ov_ext.paged_attention` op + FX rewrite that converts vLLM's `auto_functionalized_v2(unified_attention_with_output, ...)` HOP nodes into it, so the OV pytorch frontend translates the call to `PagedAttentionExtension`. |
 | `side_channel.py` | At infer time, binds the `__pa__<layer>__<field>` Parameters (KV cache, block tables, past_lens, ...) from `vllm.forward_context.get_forward_context()`. |
 | `lm_head.py` | Optional OV-compiled `lm_head`, gated on `OV_LM_HEAD`. |
 | `sampler.py` | Optional OV-fused fast path for `vllm.v1.sample.sampler.Sampler`. |
