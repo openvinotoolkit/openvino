@@ -207,16 +207,13 @@ class InputModel::InputModelIRImpl {
     std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
-    std::filesystem::path m_weights_path;
 
 public:
     InputModelIRImpl(std::istream& model,
                      std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::filesystem::path weights_path)
+                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
         : m_weights_provider(std::move(weights_provider)),
-          m_extensions(extensions),
-          m_weights_path(std::move(weights_path)) {
+          m_extensions(extensions) {
         pugi::xml_parse_result res = m_xml_doc.load(model);
         OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
         init_opset();
@@ -224,11 +221,9 @@ public:
 
     InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model,
                      std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::filesystem::path weights_path)
+                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
         : m_weights_provider(std::move(weights_provider)),
-          m_extensions(extensions),
-          m_weights_path(std::move(weights_path)) {
+          m_extensions(extensions) {
         auto res = m_xml_doc.load_buffer(model->get_ptr(), model->size(), pugi::parse_default, pugi::encoding_utf8);
         OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
         init_opset();
@@ -248,15 +243,15 @@ private:
 InputModel::InputModel(std::istream& model,
                        std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::filesystem::path weights_path) {
-    _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions, std::move(weights_path));
+                       std::filesystem::path) {
+    _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::filesystem::path weights_path) {
-    _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions, std::move(weights_path));
+                       std::filesystem::path) {
+    _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
 }
 
 std::shared_ptr<ov::Model> InputModel::convert() {
@@ -275,9 +270,12 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     // `__weights_path` is an internal, legacy bridge and not part of the IR format: it hands the weights file the
     // frontend resolved to plugins that need it after read_model (GPU MoE offload, weightless cache import) until
     // they receive the path through an explicit property or compilation context, when it is to be removed.
-    // m_weights_path is the only source: every provider FrontEnd::load_impl builds from a file is built from it.
-    if (!m_weights_path.empty())
-        model->get_rt_info()["__weights_path"] = ov::util::path_to_string(m_weights_path);
+    // The provider carries the path of the file it was built from, whether file-backed or a buffer loaded from it.
+    if (m_weights_provider) {
+        const auto weights_path = m_weights_provider->path();
+        if (!weights_path.empty())
+            model->get_rt_info()["__weights_path"] = ov::util::path_to_string(weights_path);
+    }
     parse_pre_process(m_root, m_weights_provider, model);
 
     return model;
