@@ -233,13 +233,6 @@ jobs:
           popd
 
       # Setup additional Python versions for wheels building
-      - name: Setup Python 3.10
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: "3.10"
-          set-pip-install-path: 'false'
-          self-hosted-runner: 'false'
-
       - name: Setup Python 3.12
         uses: ./openvino/.github/actions/setup_python
         with:
@@ -269,9 +262,9 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'false'
 
-      - name: Build additional Python wheels (3.10-3.14t)
+      - name: Build additional Python wheels (3.11-3.14t)
         run: |
-          for py_version in "3.10" "3.11" "3.12" "3.13" "3.14" "3.14t"
+          for py_version in "3.11" "3.12" "3.13" "3.14" "3.14t"
           do
             echo "Building Python API and wheels for Python ${py_version}"
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
@@ -449,7 +442,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14', '3.14t' ]
+        python-version: [ '3.11', '3.12', '3.13', '3.14', '3.14t' ]
     with:
       runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}

@@ -11,6 +11,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/divide.hpp"
@@ -219,4 +220,56 @@ INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScaling_basic,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions)),
                          ActivationsScaling::getTestCaseName);
+
+class ActivationsScalingFeatureAxisRMS : public ov::test::SubgraphBaseTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        init_input_shapes({{{-1, 3, -1, -1}, {{1, 3, 16, 16}}}});
+        inType = outType = ov::element::f32;
+
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
+        auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{8, 3, 3, 3}, {1.f});
+        auto convolution = std::make_shared<ov::op::v1::Convolution>(input,
+                                                                     weights,
+                                                                     ov::Strides{1, 1},
+                                                                     ov::CoordinateDiff{1, 1},
+                                                                     ov::CoordinateDiff{1, 1},
+                                                                     ov::Strides{1, 1});
+
+        auto power = std::make_shared<ov::op::v1::Power>(
+            convolution,
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f}));
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(
+            power,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+            true);
+        auto add = std::make_shared<ov::op::v1::Add>(
+            mean,
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f}));
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add);
+        auto reciprocal = std::make_shared<ov::op::v1::Divide>(
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f}),
+            sqrt);
+        auto normalized = std::make_shared<ov::op::v1::Multiply>(convolution, reciprocal);
+
+        function = std::make_shared<ov::Model>(ov::OutputVector{normalized}, ov::ParameterVector{input});
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& function_inputs = function->inputs();
+        ov::Tensor tensor(function_inputs[0].get_element_type(), target_input_static_shapes[0]);
+        auto* data = tensor.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); ++i) {
+            data[i] = 10000.f;
+        }
+        inputs.insert({function_inputs[0].get_node_shared_ptr(), tensor});
+    }
+};
+
+TEST_F(ActivationsScalingFeatureAxisRMS, Inference) {
+    core->set_property(targetDevice, ov::hint::activations_scale_factor(8.f));
+    run();
+}
 } // namespace

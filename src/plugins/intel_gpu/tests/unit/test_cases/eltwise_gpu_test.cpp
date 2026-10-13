@@ -1345,6 +1345,91 @@ TEST(eltwise_gpu_f32, isnan_in1_float_out1_int) {
     }
 }
 
+// Maximum/Minimum must follow the OpenVINO reference (std::max/std::min):
+// max(a, b) == ((a < b) ? b : a) and min(a, b) == ((b < a) ? b : a), so a NaN
+// in the first operand propagates to the output while a NaN in the second
+// operand loses to the finite first operand. OpenCL fmax/fmin return the
+// non-NaN operand in both orders and silently dropped NaN (ticket 37730).
+template <typename T>
+void run_extremum_nan_propagation_test(cldnn::eltwise_mode mode) {
+    auto& engine = get_test_engine();
+
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+    const std::vector<float> in0 = {nan, 1.f, nan, 2.f, nan, 1.f, nan, 2.f,
+                                    nan, 1.f, nan, 2.f, nan, 1.f, nan, 2.f};
+    const std::vector<float> in1 = {1.5f, 1.5f, 1.5f, 1.5f,
+                                    -1.5f, -1.5f, -1.5f, -1.5f,
+                                    nan, nan, nan, nan,
+                                    1.f, 3.f, 0.5f, 2.5f};
+
+    std::vector<float> expected;
+    expected.reserve(in0.size());
+    for (size_t i = 0; i < in0.size(); ++i) {
+        const float a = in0[i];
+        const float b = in1[i];
+        expected.push_back(mode == eltwise_mode::max ? (a < b ? b : a) : (b < a ? b : a));
+    }
+
+    std::vector<T> buf0, buf1;
+    for (size_t i = 0; i < in0.size(); ++i) {
+        buf0.push_back(static_cast<T>(in0[i]));
+        buf1.push_back(static_cast<T>(in1[i]));
+    }
+
+    auto input1 = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 4, 1, 4 } });
+    auto input2 = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 4, 1, 4 } });
+    set_values(input1, buf0);
+    set_values(input2, buf1);
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(eltwise("eltwise", { input_info("input1"), input_info("input2") }, mode, DEFAULT_BROADCAST_SPEC));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (std::isnan(expected[i])) {
+            ASSERT_TRUE(std::isnan(static_cast<float>(output_ptr[i]))) << "at index " << i << ": expected NaN";
+        } else {
+            ASSERT_TRUE(floating_point_equal(static_cast<T>(expected[i]), output_ptr[i])) << "at index " << i;
+        }
+    }
+}
+
+TEST(eltwise_gpu_f32, nan_propagation_max) {
+    run_extremum_nan_propagation_test<float>(eltwise_mode::max);
+}
+
+TEST(eltwise_gpu_f32, nan_propagation_min) {
+    run_extremum_nan_propagation_test<float>(eltwise_mode::min);
+}
+
+TEST(eltwise_gpu_f16, nan_propagation_max) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "float16 combinations are skipped (cl_khr_fp16 is not supported).";
+    }
+    run_extremum_nan_propagation_test<ov::float16>(eltwise_mode::max);
+}
+
+TEST(eltwise_gpu_f16, nan_propagation_min) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "float16 combinations are skipped (cl_khr_fp16 is not supported).";
+    }
+    run_extremum_nan_propagation_test<ov::float16>(eltwise_mode::min);
+}
+
 TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
     auto& engine = get_test_engine();
 
@@ -1637,6 +1722,42 @@ TEST(eltwise_cpu_impl_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
     }
 }
 
+TEST(eltwise_cpu_impl, multiply_mixed_f32_f16) {
+    auto& engine = get_test_engine();
+
+    const auto input_layout_f32 = layout{{1, 1, 1, 4}, data_types::f32, format::bfyx};
+    const auto input_layout_f16 = layout{{1, 1, 1, 4}, data_types::f16, format::bfyx};
+    auto input_f32 = engine.allocate_memory(input_layout_f32);
+    auto input_f16 = engine.allocate_memory(input_layout_f16);
+
+    topology topology;
+    topology.add(input_layout("input_f32", input_layout_f32));
+    topology.add(input_layout("input_f16", input_layout_f16));
+    topology.add(eltwise("eltwise",
+                         {input_info("input_f32"), input_info("input_f16")},
+                         eltwise_mode::prod,
+                         data_types::f32));
+
+    set_values(input_f32, {1.f, 2.f, 3.f, 4.f});
+    set_values(input_f16, {ov::float16(0.5f), ov::float16(1.5f), ov::float16(2.f), ov::float16(4.f)});
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"eltwise", {format::bfyx, "", impl_types::cpu}}}));
+    network network(engine, topology, config);
+    network.set_input_data("input_f32", input_f32);
+    network.set_input_data("input_f16", input_f16);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<float> expected = {0.5f, 3.f, 6.f, 16.f};
+    ASSERT_EQ(output->count(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_EQ(output_ptr[i], expected[i]);
+    }
+}
 
 // This pattern occurs wrong output index due to miss the dyn_pad offset calculation.
 //
