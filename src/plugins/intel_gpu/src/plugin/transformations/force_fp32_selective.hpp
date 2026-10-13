@@ -30,9 +30,13 @@ namespace intel_gpu {
  * Empty filters or no matching FP16 outputs produce no changes.
  * Parameter, Result, Placeholder, and outputless nodes are not initial targets.
  *
- * Connected pass-through operations with FP16 outputs are repeatedly added
- * to the region, including branches outside the filters. Region-internal edges stay FP32;
- * external FP16 inputs are converted and region exits restore FP16.
+ * No automatic region expansion is performed. PASSTHROUGH_OPS is a type-list
+ * alias for the documented data movement types across the model; the name
+ * filter still applies. For example:
+ *   OV_GPU_FORCE_FP32_LAYER_TYPES="RMS PASSTHROUGH_OPS" ./benchmark_app -m model.xml -d GPU
+ * Region-internal edges stay FP32; external FP16 inputs are converted and
+ * region exits restore FP16. Unselected intermediate operations keep FP16
+ * boundaries, which can introduce rounding between selected operations.
  * Only originally FP16 outputs are promoted; other output types are preserved.
  * Recognized FP16 precision attributes are updated on supported operations.
  *
