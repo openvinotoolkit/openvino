@@ -84,7 +84,7 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
 #define TERNOCL_REJECT(reason)                                                                               \
     do {                                                                                                     \
         GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] reject " << fc_node.id() << ": " << (reason) << std::endl; \
-        /* a fused Hadamard input exists only here; another impl would ignore it */                          \
+        /* no other impl accepts a fused Hadamard input: fail here with the reason */                        \
         OPENVINO_ASSERT(fc_prim->hadamard_block == 0,                                                        \
                         "[GPU] ternocl int2: ",                                                              \
                         fc_node.id(),                                                                        \

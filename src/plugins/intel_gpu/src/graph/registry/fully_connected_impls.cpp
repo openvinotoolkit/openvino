@@ -26,17 +26,24 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
     static const auto ocl_supports_weights_layout = [](const program_node& node) {
         return node.as<fully_connected>().get_primitive()->weights_transposed;
     };
+    // A fused Hadamard input transform is applied only by the TernOCL impl.
+    static const auto no_hadamard_input = [](const program_node& node) {
+        return node.as<fully_connected>().get_primitive()->hadamard_block == 0;
+    };
 
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::static_shape)
-        OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape, ocl_supports_weights_layout)
+        OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape,
+            [](const program_node& node) {
+                return ocl_supports_weights_layout(node) && no_hadamard_input(node);
+        })
         OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::dynamic_shape,
             [](const program_node& node) {
                 if (node.can_use(impl_types::onednn))
                     return false;
-                if (!ocl_supports_weights_layout(node))
+                if (!ocl_supports_weights_layout(node) || !no_hadamard_input(node))
                     return false;
                 return node.get_output_pshape().size() <= 3;
         })
