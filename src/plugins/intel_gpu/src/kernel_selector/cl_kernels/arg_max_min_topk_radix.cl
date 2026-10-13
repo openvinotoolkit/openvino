@@ -7,7 +7,8 @@
 //   Phase 0: Read input ONCE -> cache sortable keys in global buffer
 //   Phase 1: Two-level histogram in SLM to find the K-th threshold value
 //   Phase 2: Gather top-K elements directly into SLM
-//   Phase 3: Bitonic sort in SLM (45 barriers for K<=512 vs 3000+ for iterative)
+//   Phase 3: Bitonic sort in SLM (45 barriers for K<=512 vs 3000+ for iterative),
+//            by value or, without SORT_BY_VALUE, by index
 //   Phase 4: Write sorted results to output
 //
 // Chunked mode (RADIX_CHUNK_STAGE + RADIX_MERGE_STAGE kernels):
@@ -74,12 +75,27 @@
 // Coarse-to-fine radix select: one 8-bit digit per pass, MSD first.
 #define NUM_PASSES (SORTABLE_BITS / 8)
 
-// Ordering of (key, index) pairs. Equal values are broken by the smallest original index,
-// matching TF/ONNX TopK behaviour.
-#ifdef MAX_OUT
-    #define PAIR_GT(key_a, idx_a, key_b, idx_b) ((key_a) != (key_b) ? (key_a) > (key_b) : (idx_a) < (idx_b))
+// Ordering of (key, index) pairs; the sort puts the "greatest" pair first for MAX and last for MIN.
+// Equal values are broken by the smallest original index, matching TF/ONNX TopK behaviour.
+// Without SORT_BY_VALUE the selected elements are ordered by index only.
+#ifdef SORT_BY_VALUE
+    #ifdef MAX_OUT
+        #define PAIR_GT(key_a, idx_a, key_b, idx_b) ((key_a) != (key_b) ? (key_a) > (key_b) : (idx_a) < (idx_b))
+    #else
+        #define PAIR_GT(key_a, idx_a, key_b, idx_b) ((key_a) != (key_b) ? (key_a) > (key_b) : (idx_a) > (idx_b))
+    #endif
 #else
-    #define PAIR_GT(key_a, idx_a, key_b, idx_b) ((key_a) != (key_b) ? (key_a) > (key_b) : (idx_a) > (idx_b))
+    #ifdef MAX_OUT
+        #define PAIR_GT(key_a, idx_a, key_b, idx_b) ((idx_a) < (idx_b))
+    #else
+        #define PAIR_GT(key_a, idx_a, key_b, idx_b) ((idx_a) > (idx_b))
+    #endif
+#endif
+// Ordering by index alone can't tell surplus threshold ties from better elements, so only K are gathered.
+#ifdef SORT_BY_VALUE
+    #define GATHER_LIMIT PADDED_K
+#else
+    #define GATHER_LIMIT TOP_K
 #endif
 #define FILL_IDX 0xFFFFFFFFu
 
@@ -356,15 +372,15 @@ KERNEL(arg_max_min_topk_radix)(
     //     (matching TF/ONNX behavior) without a single work-item scan.
     // histogram[threshold & 0xFF] still holds the fine histogram count from Phase 1.
     // ============================================================
-    uint current_count = min(gather_count, (uint)PADDED_K);
+    uint current_count = min(gather_count, (uint)GATHER_LIMIT);
     if (lid == 0) {
         gather_count = current_count;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if (current_count < PADDED_K) {
+    if (current_count < GATHER_LIMIT) {
         uint at_count = histogram[threshold & 0xFF];
-        uint available_slots = PADDED_K - current_count;
+        uint available_slots = GATHER_LIMIT - current_count;
 
         if (at_count <= available_slots) {
             // Fast path: all at-threshold elements fit, parallel gather is safe
@@ -372,7 +388,7 @@ KERNEL(arg_max_min_topk_radix)(
                 uint sortable = my_sortable[i];
                 if (sortable == threshold) {
                     uint pos = atomic_add(&gather_count, 1);
-                    if (pos < PADDED_K) {
+                    if (pos < GATHER_LIMIT) {
                         sort_keys[pos] = sortable;
                         sort_idxs[pos] = i;
                     }
@@ -409,7 +425,7 @@ KERNEL(arg_max_min_topk_radix)(
                     pos += tie_counts[j];
                 }
 
-                for (uint i = block_begin; i < block_end && pos < PADDED_K; i++) {
+                for (uint i = block_begin; i < block_end && pos < GATHER_LIMIT; i++) {
                     if (my_sortable[i] == threshold) {
                         sort_keys[pos] = threshold;
                         sort_idxs[pos] = i;
@@ -516,4 +532,5 @@ KERNEL(arg_max_min_topk_radix)(
 #undef NAN_KEY
 #undef NUM_PASSES
 #undef PAIR_GT
+#undef GATHER_LIMIT
 #undef FILL_IDX

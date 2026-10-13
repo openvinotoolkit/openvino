@@ -174,10 +174,6 @@ bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (params.argMaxMinSortType != ArgMaxMinSortType::VALUE) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
     const size_t sort_size = GetSortSize(params);
 
     if (sort_size < 2) {
