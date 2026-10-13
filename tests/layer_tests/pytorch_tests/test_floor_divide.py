@@ -152,7 +152,8 @@ class TestFloorDivideNegativeInt(PytorchLayerTest):
     def test_floor_divide_negative_int(self, dtype, input_data, other_data, ie_device, precision, ir_version):
         self.input_tensor = np.array(input_data, dtype=dtype)
         self.other_tensor = np.array(other_data, dtype=dtype)
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        # Tracing gives the inputs a static integer type, which the correction needs at conversion time.
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
 
 
 class TestFloorDivideNegativeIntScalar(PytorchLayerTest):
