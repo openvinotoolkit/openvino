@@ -38,19 +38,11 @@ static const char out_of_range_txt[] = "' out of range";
 // constant offload policy.
 ov::Allocator constant_fold_output_allocator(const ov::Output<ov::Node>& output) {
     // Checked first to keep constant folding free of shape and size queries when the feature is disabled.
-    if (!ov::get_constant_memory_budget() || output.get_partial_shape().is_dynamic()) {
+    if (!ov::is_constant_offload_enabled() || output.get_partial_shape().is_dynamic() ||
+        output.get_element_type() == ov::element::string) {
         return {};
     }
-
-    const auto& element_type = output.get_element_type();
-    const auto byte_size = ov::util::get_memory_size_safe(element_type, output.get_shape());
-    if (!byte_size) {
-        return {};
-    }
-    if (ov::should_offload_constant(element_type, *byte_size)) {
-        return ov::Allocator{ov::TemporaryFileBackedAllocator{}};
-    }
-    return ov::Allocator{ov::BudgetedHeapAllocator{}};
+    return ov::Allocator{ov::TemporaryFileBackedAllocator{}};
 }
 }  // namespace
 

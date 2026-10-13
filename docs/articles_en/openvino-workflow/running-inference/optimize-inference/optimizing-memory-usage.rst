@@ -21,13 +21,12 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
     instead of reading it one more time from storage.
 
   * Temporary mapping for generated constants - constants allocated by OpenVINO while reading
-    a model or running graph transformations can use temporary ``mmap``-backed files. Set
-    ``ov::max_memory(BYTES)`` to budget their RAM usage; when the budget is exhausted, further
-    constants are backed by files in ``ov::offloading_path(PATH)``. Freed constants return their
-    bytes to the budget. Omitting the budget disables offloading; explicitly setting it to zero
-    offloads all eligible constants. An empty path uses the system temporary directory; a
-    non-empty path requires a budget. These properties can be set on ``ov::Core`` or passed to
-    ``ov::Core::read_model()`` or ``ov::Core::compile_model()``. The budget does not cap total
+    a model or running graph transformations can use temporary ``mmap``-backed files. Setting
+    ``ov::hint::const_offload(CONFIG)`` enables offloading. ``CONFIG.max_size`` caps bytes allocated
+    for file-backed constants; zero snapshots available space on the selected filesystem when the
+    operation starts. Exceeding the limit fails. An empty path or ``"default"`` selects the system
+    temporary directory. The property can be set on ``ov::Core`` or passed to
+    ``ov::Core::read_model()`` or ``ov::Core::compile_model()``. The limit does not cap total
     process RSS: file-backed pages still count towards RSS but can be reclaimed by the OS.
     This mode is supported on Linux, macOS, and Windows. Use a directory with enough disk space,
     not a RAM-backed temporary filesystem. Each offloaded constant needs its own mapping; on
@@ -41,8 +40,7 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
           .. code-block:: cpp
 
              ov::Core core;
-             core.set_property({ov::max_memory(16ULL * 1024ULL * 1024ULL * 1024ULL),
-                                ov::offloading_path("/path/to/offload")});
+             core.set_property({ov::hint::const_offload({"/path/to/offload", 16ULL * 1024ULL * 1024ULL * 1024ULL})});
              auto model = core.read_model("model.xml");
 
        .. tab-item:: Python
@@ -54,8 +52,8 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
              from openvino import properties as props
 
              core = ov.Core()
-             core.set_property({props.max_memory: 16 * 1024**3,
-                                props.offloading_path: "/path/to/offload"})
+             config = props.hint.ConstOffloadConfig("/path/to/offload", 16 * 1024**3)
+             core.set_property(props.hint.const_offload(config))
              model = core.read_model("model.xml")
 
   * Decrease the number of threads for compilation - to change the number of threads, specify

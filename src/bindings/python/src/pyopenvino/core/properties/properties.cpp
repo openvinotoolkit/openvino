@@ -4,6 +4,7 @@
 
 #include "pyopenvino/core/properties/properties.hpp"
 
+#include <pybind11/stl/filesystem.h>
 #include <pybind11/stl.h>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -44,8 +45,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
-    wrap_property_RW(m_properties, ov::max_memory, "max_memory");
-    wrap_property_RW(m_properties, ov::offloading_path, "offloading_path");
     wrap_property_RW(m_properties, ov::weights_path, "weights_path");
     wrap_property_RW(m_properties, ov::key_cache_precision, "key_cache_precision");
     wrap_property_RW(m_properties, ov::value_cache_precision, "value_cache_precision");
@@ -71,6 +70,14 @@ void regmodule_properties(py::module m) {
     // Submodule hint
     py::module m_hint =
         m_properties.def_submodule("hint", "openvino.properties.hint submodule that simulates ov::hint");
+
+    py::class_<ov::hint::ConstOffloadConfig>(m_hint, "ConstOffloadConfig")
+        .def(py::init<>())
+        .def(py::init<std::filesystem::path, uint64_t>(),
+             py::arg("path"),
+             py::arg("max_size") = 0)
+        .def_readwrite("path", &ov::hint::ConstOffloadConfig::path)
+        .def_readwrite("max_size", &ov::hint::ConstOffloadConfig::max_size);
 
     // Submodule hint - enums
     py::enum_<ov::hint::Priority>(m_hint, "Priority", py::arithmetic())
@@ -98,6 +105,7 @@ void regmodule_properties(py::module m) {
         .value("ACCURACY", ov::hint::ExecutionMode::ACCURACY);
 
     // Submodule hint - properties
+    wrap_property_WO(m_hint, ov::hint::const_offload, "const_offload");
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");

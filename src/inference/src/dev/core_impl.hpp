@@ -16,6 +16,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 
 namespace ov {
@@ -50,9 +51,7 @@ public:
 
     bool get_enable_mmap() const;
 
-    std::optional<uint64_t> get_max_memory() const;
-
-    const std::string& get_offloading_path() const;
+    const std::optional<ov::hint::ConstOffloadConfig>& get_const_offload_config() const;
 
     // Creating thread-safe copy of global config including shared_ptr to ICacheManager
     CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
@@ -65,8 +64,7 @@ private:
     CacheConfig m_cache_config{};
     std::map<std::string, CacheConfig> m_devices_cache_config{};
     bool m_flag_enable_mmap{true};
-    std::optional<uint64_t> m_max_memory{};
-    std::string m_offloading_path{};
+    std::optional<ov::hint::ConstOffloadConfig> m_const_offload_config{};
 };
 
 struct Parsed {

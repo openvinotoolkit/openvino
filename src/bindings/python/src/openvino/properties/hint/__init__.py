@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Enums
+from openvino._pyopenvino.properties.hint import ConstOffloadConfig
 from openvino._pyopenvino.properties.hint import Priority
 from openvino._pyopenvino.properties.hint import SchedulingCoreType
 from openvino._pyopenvino.properties.hint import ModelDistributionPolicy

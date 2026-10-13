@@ -23,8 +23,8 @@ def convert_model(
         verbose: bool = False,
         share_weights: bool = True,
         dynamo: bool = False,
-        max_memory: Optional[int] = None,
-        offloading_path: str = "",
+        max_size: Optional[int] = None,
+        offloading_path: Optional[str] = None,
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -108,31 +108,28 @@ def convert_model(
             dimensions set to -1 or Dimension(-1) become fully dynamic
             (torch.export.Dim.AUTO), and bounded dimensions such as Dimension(1, 10)
             are exported with explicit min/max constraints.
-        :param max_memory:
-            Budget in bytes for constants built during conversion. While they fit
-            within it they stay in RAM; once it is exhausted further constants are
-            backed by files under offloading_path. 0 offloads all eligible
-            constants. None (the default) disables offloading.
+        :param max_size:
+            Maximum bytes of constants backed by temporary files. When offloading
+            is enabled and max_size is None or 0, the available space on the
+            selected filesystem is used as the limit. Exceeding the limit fails.
         :param offloading_path:
-            Directory holding offloaded constants. Empty uses the system temporary
-            directory. Default is "".
+            Directory for offloaded constants. Setting this enables offloading;
+            "default" or an empty path uses the system temporary directory.
 
     Returns:
         openvino.Model
     """
     params = locals()
-    if max_memory is not None and max_memory < 0:
-        raise ValueError("max_memory must be non-negative")
-    if offloading_path and max_memory is None:
-        raise ValueError("offloading_path requires max_memory")
+    if max_size is not None and max_size < 0:
+        raise ValueError("max_size must be non-negative")
 
     logger_state = get_logger_state()
     cli_parser = get_all_cli_parser()
     mmap_scope = None
-    if max_memory is not None:
+    if offloading_path is not None:
         from openvino._pyopenvino import _TemporaryConstantOffloadScope
 
-        mmap_scope = _TemporaryConstantOffloadScope(max_memory, offloading_path)
+        mmap_scope = _TemporaryConstantOffloadScope(offloading_path, max_size or 0)
     try:
         ov_model, _ = _convert(cli_parser, params, True)
     finally:

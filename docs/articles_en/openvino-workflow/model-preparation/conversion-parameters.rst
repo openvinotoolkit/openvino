@@ -119,14 +119,13 @@ For details on how plugins handle compressed ``FP16`` models, see
      ``ovc`` does not have ``share_weights`` option and always uses sharing to reduce
      conversion time and consume less amount of memory during the conversion.
 
-- ``max_memory`` and ``offloading_path`` parameters in Python ``openvino.convert_model``
-   control temporary storage for constants allocated by OpenVINO during conversion and graph
-   transformations. ``max_memory`` is a budget in bytes for those constants in RAM. Once the
-   budget is exhausted, further constants use temporary ``mmap``-backed files in
-   ``offloading_path``. Freed constants return their bytes to the budget. Omitting ``max_memory``
-   disables offloading; explicitly setting ``max_memory=0`` offloads all eligible constants.
-   An empty ``offloading_path`` uses the system temporary directory. A non-empty path requires
-   ``max_memory``. These options do not cap total process RSS or memory owned by the source framework.
+- ``offloading_path`` and ``max_size`` in Python ``openvino.convert_model`` control temporary
+   storage for constants allocated by OpenVINO during conversion and graph transformations. Setting
+   ``offloading_path`` enables offloading; ``"default"`` or an empty path selects the system
+   temporary directory. ``max_size`` caps bytes allocated for file-backed constants. When omitted
+   or set to zero, the available space on the selected filesystem is snapshotted when conversion
+   starts. Exceeding the limit fails conversion. Omitting ``offloading_path`` disables the feature.
+   These options do not cap total process RSS or memory owned by the source framework.
 
    Offloading can reduce anonymous memory usage at the cost of disk space and conversion time;
    file-backed pages still count towards RSS. Use a filesystem with enough free space rather
@@ -143,8 +142,8 @@ For details on how plugins handle compressed ``FP16`` models, see
 
      ov_model = ov.convert_model(
          "large_model.onnx",
-             max_memory=16 * 1024**3,
-             offloading_path="/path/to/offload",
+       max_size=16 * 1024**3,
+       offloading_path="/path/to/offload",
      )
      ov.save_model(ov_model, "large_model.xml")
 

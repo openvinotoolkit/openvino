@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <filesystem>
 #include <iomanip>
 #include <istream>
 #include <limits>
@@ -272,6 +273,24 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
  * @brief Namespace with hint properties
  */
 namespace hint {
+
+/**
+ * @brief Configuration for offloading generated constant tensors to disk.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct ConstOffloadConfig {
+    std::filesystem::path path{};  //!< Directory for offloaded constants; empty or "default" uses OS temp.
+    uint64_t max_size{0};          //!< Maximum live offload size in bytes; 0 uses available filesystem space.
+};
+
+/**
+ * @brief Enables offloading of eligible constants while reading or compiling a model.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Setting this write-only property enables offloading. An empty path uses the OS temporary directory. A zero
+ * max_size uses the available space on the selected filesystem as the offload limit. Exceeding the limit fails.
+ */
+static constexpr Property<ConstOffloadConfig, PropertyMutability::WO> const_offload{"CONST_OFFLOAD"};
 
 /**
  * @brief Hint for device to use specified precision for inference
@@ -992,31 +1011,6 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
-
-/**
- * @brief Read-write property that caps the heap memory used by constants created during model conversion
- * and graph transformations.
- *
- * The value is a budget in bytes. While the constants built by conversion fit within it they are allocated
- * normally; once the budget is exhausted, further constants are backed by temporary files instead of RAM, and
- * freeing a constant returns its bytes to the budget. Setting it to 0 offloads every eligible constant.
- * Omitting the property disables offloading.
- *
- * value type: uint64_t
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<uint64_t, PropertyMutability::RW> max_memory{"MAX_MEMORY"};
-
-/**
- * @brief Read-write property that selects the directory holding constants offloaded by ov::max_memory.
- *
- * An empty value, which is the default, uses the system temporary directory. Point it at a large, fast
- * filesystem; a tmpfs mount would place the data back in RAM and defeat the purpose.
- *
- * value type: std::string
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<std::string, PropertyMutability::RW> offloading_path{"OFFLOADING_PATH"};
 
 /**
  * @brief Namespace with device properties

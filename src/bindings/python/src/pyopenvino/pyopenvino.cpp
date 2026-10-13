@@ -3,6 +3,7 @@
 //
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl/filesystem.h>
 #include <pybind11/stl.h>
 
 #include <openvino/core/graph_util.hpp>
@@ -111,9 +112,9 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     m.def("get_version", &get_version);
     py::class_<ov::ScopedConstantOffloadConfig>(m, "_TemporaryConstantOffloadScope")
-        .def(py::init<std::optional<uint64_t>, const std::string&>(),
-             py::arg("max_memory") = py::none(),
-             py::arg("offloading_path") = std::string{});
+           .def(py::init<std::optional<std::filesystem::path>, uint64_t>(),
+               py::arg("path") = py::none(),
+               py::arg("max_size") = 0);
     m.def(
         "serialize",
         [](py::object& ie_api_model,

@@ -25,6 +25,8 @@ namespace {
 struct AllocationHeader {
     void* base = nullptr;
     size_t map_size = 0;
+    size_t reserved_size = 0;
+    uint64_t reservation_generation = 0;
     int fd = -1;
 };
 
@@ -44,7 +46,7 @@ size_t get_page_size() {
 }
 
 std::filesystem::path get_temporary_directory() {
-    const auto& configured = ov::get_constant_offload_path();
+    const auto configured = ov::get_constant_offload_path();
     if (!configured.empty()) {
         std::error_code error;
         const std::filesystem::path path{configured};
@@ -136,6 +138,11 @@ void* TemporaryFileBackedAllocator::allocate(size_t bytes, size_t alignment) {
 
     int fd = -1;
     void* base = MAP_FAILED;
+    const bool reserved = is_constant_offload_enabled();
+    uint64_t reservation_generation = 0;
+    if (reserved) {
+        reservation_generation = reserve_constant_offload(request);
+    }
     try {
         fd = create_temporary_file(temp_dir, request);
         base = ::mmap(nullptr, request, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -153,6 +160,8 @@ void* TemporaryFileBackedAllocator::allocate(size_t bytes, size_t alignment) {
         auto* header = reinterpret_cast<AllocationHeader*>(aligned_address - sizeof(AllocationHeader));
         header->base = base;
         header->map_size = request;
+        header->reserved_size = reserved ? request : 0;
+        header->reservation_generation = reservation_generation;
         header->fd = fd;
         return reinterpret_cast<void*>(aligned_address);
     } catch (...) {
@@ -161,6 +170,9 @@ void* TemporaryFileBackedAllocator::allocate(size_t bytes, size_t alignment) {
         }
         if (fd >= 0) {
             (void)::close(fd);
+        }
+        if (reserved) {
+            release_constant_offload(request, reservation_generation);
         }
         throw;
     }
@@ -180,6 +192,7 @@ void TemporaryFileBackedAllocator::deallocate(void* handle, size_t, size_t) noex
     if (header.fd >= 0) {
         (void)::close(header.fd);
     }
+    release_constant_offload(header.reserved_size, header.reservation_generation);
 }
 
 }  // namespace ov
