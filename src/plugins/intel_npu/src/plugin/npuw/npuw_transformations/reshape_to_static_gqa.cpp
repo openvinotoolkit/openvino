@@ -26,22 +26,27 @@ std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::sh
     const auto resolve_dynamic_axis =
         [](const std::shared_ptr<ov::op::v0::Parameter>& parameter) -> std::optional<size_t> {
         const auto& partial_shape = parameter->get_partial_shape();
-        if (partial_shape.rank().is_dynamic()) {
-            return std::nullopt;
+        if (auto axis = ov::npuw::util::find_single_dynamic_axis(partial_shape)) {
+            return axis;
         }
-        std::optional<size_t> dynamic_axis;
-        for (size_t i = 0; i < partial_shape.size(); ++i) {
-            if (partial_shape[i].is_dynamic()) {
-                OPENVINO_ASSERT(!dynamic_axis.has_value(),
-                                "GQA parameter '",
-                                parameter->get_friendly_name(),
-                                "' has more than one dynamic dimension; can't resolve its max_seq_len axis");
-                dynamic_axis = i;
-            }
+        if (partial_shape.rank().is_static()) {
+            const auto dynamic_count = std::count_if(partial_shape.begin(), partial_shape.end(), [](const auto& dim) {
+                return dim.is_dynamic();
+            });
+            OPENVINO_ASSERT(dynamic_count <= 1,
+                            "GQA parameter '",
+                            parameter->get_friendly_name(),
+                            "' has more than one dynamic dimension; can't resolve its max_seq_len axis");
         }
-        return dynamic_axis;
+        return std::nullopt;
     };
 
+    // GroupQueryAttentionDecomposition reads/writes the KV-cache capacity dimension at
+    // axis 2 of the rank-4 [batch, kv_num_heads, capacity, head_size] past_key/past_value
+    // layout, or axis 3 when --transpose_v folds the value's transpose into the layout
+    // ([batch, kv_num_heads, head_size, capacity]). Axis 0 (batch) or axis 1 (kv_heads) are
+    // never the capacity dimension, so a dynamic dimension there isn't the max_seq_len axis
+    // and pinning it to the static context length would silently corrupt the parameter's shape.
     for (const auto& parameter : model->get_parameters()) {
         const auto& name = parameter->get_friendly_name();
         if (!ov::npuw::util::contains_ignore_case(name, "past_key") &&
@@ -49,6 +54,18 @@ std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::sh
             continue;
         }
         if (auto axis = resolve_dynamic_axis(parameter)) {
+            const auto rank = parameter->get_partial_shape().size();
+            OPENVINO_ASSERT(ov::npuw::util::is_supported_kv_cache_capacity_axis(*axis, rank),
+                            "GQA KV-cache parameter '",
+                            name,
+                            "' has its dynamic dimension at axis ",
+                            *axis,
+                            " of a rank-",
+                            rank,
+                            " shape, but GroupQueryAttentionDecomposition only ever reads/writes the "
+                            "KV-cache capacity at axis 2 ([batch, kv_heads, capacity, head_size]) or axis 3 "
+                            "(--transpose_v layout). Refusing to pin a non-capacity axis to the static "
+                            "context length.");
             result.emplace(name, *axis);
         }
     }

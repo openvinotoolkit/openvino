@@ -260,6 +260,26 @@ std::unordered_set<int64_t> ov::npuw::util::parse_layer_index_list(const std::st
     return result;
 }
 
+std::optional<size_t> ov::npuw::util::find_single_dynamic_axis(const ov::PartialShape& shape) {
+    if (shape.rank().is_dynamic()) {
+        return std::nullopt;
+    }
+    std::optional<size_t> dynamic_axis;
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (shape[i].is_dynamic()) {
+            if (dynamic_axis.has_value()) {
+                return std::nullopt;  // more than one dynamic axis -- ambiguous
+            }
+            dynamic_axis = i;
+        }
+    }
+    return dynamic_axis;
+}
+
+bool ov::npuw::util::is_supported_kv_cache_capacity_axis(size_t axis, size_t rank) {
+    return rank == 4 && (axis == 2 || axis == 3);
+}
+
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
     const auto& shape = p.get_shape();
     return p.get_node()->get_friendly_name() == "position_ids" &&

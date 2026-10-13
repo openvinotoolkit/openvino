@@ -1084,6 +1084,20 @@ TEST(GQACompiledModelDynamicKvCacheTest, DetectsDynamicSeqLenAtAxis3) {
     EXPECT_TRUE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
 }
 
+TEST(GQACompiledModelDynamicKvCacheTest, IgnoresDynamicBatchAxis) {
+    // Regression test: axis 0 (batch) is never the KV-cache capacity dimension (see
+    // GroupQueryAttentionDecomposition, which always reads/writes capacity at axis 2 or 3).
+    // A dynamic batch dim must NOT be mistaken for a reshapable max_seq_len axis.
+    auto model = build_gqa_model_with_dynamic_kv_cache(0);
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
+}
+
+TEST(GQACompiledModelDynamicKvCacheTest, IgnoresDynamicKvHeadsAxis) {
+    // Same as above for axis 1 (kv_heads) -- also never the capacity dimension.
+    auto model = build_gqa_model_with_dynamic_kv_cache(1);
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
+}
+
 TEST(GQACompiledModelDynamicKvCacheTest, DetectsDynamicAttentionBias) {
     // Speculative-decode-style wiring: the KV-cache itself is static, only the
     // attention mask/bias fed into ATTENTION_BIAS carries a dynamic max_seq_len.

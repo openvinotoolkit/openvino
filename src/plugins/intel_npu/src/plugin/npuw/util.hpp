@@ -62,6 +62,18 @@ bool reaches(const ov::Node* start, const ov::Node* target);
 // indices. Returns an empty set for a missing/malformed value instead of throwing.
 std::unordered_set<int64_t> parse_layer_index_list(const std::string& text);
 
+// Returns the single dynamic axis of `shape`, or nullopt if the rank is dynamic, no axis is
+// dynamic, or more than one axis is dynamic (ambiguous -- the caller can't tell which
+// dimension to treat as the resizable one).
+std::optional<size_t> find_single_dynamic_axis(const ov::PartialShape& shape);
+
+// True if `axis` is a plausible GQA KV-cache capacity axis for a rank-4
+// [batch, kv_heads, ...] past_key/past_value parameter: axis 2 in the plain
+// [N,H,S,E] layout, or axis 3 in the --transpose_v-applied [N,H,E,S] layout. Axis 0
+// (batch) or 1 (kv_heads) are never the capacity dimension, so a dynamic dimension there
+// isn't something NPUW's GQA reshape can resolve as max_seq_len.
+bool is_supported_kv_cache_capacity_axis(size_t axis, size_t rank);
+
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
 // matches a "position_ids" input of a supported shape - flat [seq_len], regular
 // [1, seq_len], or 3D mrope [num_sections, 1, seq_len] (e.g. Qwen2.5-VL uses 3

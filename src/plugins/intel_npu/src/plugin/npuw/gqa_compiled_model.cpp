@@ -358,7 +358,8 @@ std::optional<std::string> find_total_sequence_length_param_name(const std::shar
         if (!gqa || gqa->get_input_size() <= total_seq_len_idx) {
             continue;
         }
-        if (auto param = ov::npuw::util::trace_back_to_parameter(gqa->input_value(total_seq_len_idx).get_node_shared_ptr())) {
+        if (auto param =
+                ov::npuw::util::trace_back_to_parameter(gqa->input_value(total_seq_len_idx).get_node_shared_ptr())) {
             return param->get_friendly_name();
         }
     }
@@ -473,25 +474,20 @@ bool ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(const std::shared_ptr<c
         }
         for (auto kv_input : {GroupQueryAttentionInputs::PAST_KEY, GroupQueryAttentionInputs::PAST_VALUE}) {
             const auto& shape = gqa->input_value(static_cast<size_t>(kv_input)).get_partial_shape();
-            if (shape.rank().is_dynamic()) {
-                continue;
-            }
-            for (const auto& dim : shape) {
-                if (dim.is_dynamic()) {
-                    return true;
-                }
+            if (auto axis = util::find_single_dynamic_axis(shape);
+                axis && util::is_supported_kv_cache_capacity_axis(*axis, shape.size())) {
+                return true;
             }
         }
         // The attention bias/mask (if present) carries the same max_seq_len dimension as
-        // the KV-cache and must be reshaped alongside it.
+        // the KV-cache and must be reshaped alongside it. Its capacity dimension is always
+        // the LAST axis (see the matching comment in reshape_to_static_gqa.cpp).
         if (gqa->get_input_size() > static_cast<size_t>(GroupQueryAttentionInputs::ATTENTION_BIAS)) {
             const auto& bias_shape =
                 gqa->input_value(static_cast<size_t>(GroupQueryAttentionInputs::ATTENTION_BIAS)).get_partial_shape();
             if (bias_shape.rank().is_static()) {
-                for (const auto& dim : bias_shape) {
-                    if (dim.is_dynamic()) {
-                        return true;
-                    }
+                if (auto axis = util::find_single_dynamic_axis(bias_shape); axis && *axis == bias_shape.size() - 1) {
+                    return true;
                 }
             }
         }
@@ -511,25 +507,13 @@ std::unordered_map<std::string, size_t> ov::npuw::GQACompiledModel::find_dynamic
         if (!is_present_kv_cache_output_name(bare_name)) {
             continue;
         }
-        const auto& shape = output.get_partial_shape();
-        if (shape.rank().is_dynamic()) {
+        auto axis = util::find_single_dynamic_axis(output.get_partial_shape());
+        if (!axis || !util::is_supported_kv_cache_capacity_axis(*axis, output.get_partial_shape().size())) {
+            // No resolvable (or non-capacity) dynamic axis; leave it out, get_tensor()
+            // will fall back.
             continue;
         }
-        std::optional<size_t> dynamic_axis;
-        bool ambiguous = false;
-        for (size_t i = 0; i < shape.size(); ++i) {
-            if (shape[i].is_dynamic()) {
-                if (dynamic_axis.has_value()) {
-                    ambiguous = true;
-                    break;
-                }
-                dynamic_axis = i;
-            }
-        }
-        if (ambiguous || !dynamic_axis.has_value()) {
-            continue;  // no resolvable dynamic axis; leave it out, get_tensor() will fall back
-        }
-        result.emplace(full_name, *dynamic_axis);
+        result.emplace(full_name, *axis);
     }
     return result;
 }
