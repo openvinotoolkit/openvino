@@ -1023,7 +1023,15 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         if (!outer_tensor || was_aliased) {
             // Never allocated, or aliased onto the inner tensor: allocate a fresh,
             // privately-owned buffer instead of resizing in place.
-            // FIXME: CPU allocation here
+            //
+            // Investigated using the inner model's own device context here (the same
+            // remote/host-tensor mechanism as the weights bank, via
+            // ov::npuw::util::allocMem()) instead of a plain host allocation. Measured
+            // as a ~2x decode-throughput regression end-to-end: unlike weights (written
+            // once, read many times), this buffer is rewritten by copy_kv_cache_prefix()
+            // on every refresh, and repeated host-side writes into NPU-host-accessible
+            // memory were far slower than into plain process memory. Kept as a plain
+            // CPU allocation.
             outer_tensor = ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor->get_element_type(), out_shape));
         } else if (outer_tensor->get_shape() != out_shape) {
             // Resize in place to keep this tensor's identity stable across calls (cached
@@ -1081,6 +1089,10 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
             for (const auto& dim : port_shape) {
                 private_shape.push_back(dim.is_static() ? dim.get_length() : 0u);
             }
+            // Same reasoning as refresh_present_tensors_locked()'s fresh present buffer:
+            // investigated device-context allocation here too, but kept as a plain CPU
+            // allocation since the host-write path is what matters, not device-read
+            // locality (see that function's comment for the measured regression).
             auto private_tensor =
                 ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor->get_element_type(), private_shape));
             it = m_dynamic_kv_cache_tensors.emplace(name, private_tensor).first;
