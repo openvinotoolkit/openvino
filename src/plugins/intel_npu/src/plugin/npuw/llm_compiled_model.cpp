@@ -1908,9 +1908,20 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
 
     // A zero chunk size with chunking enabled is its own hazard: infer_chunked_prefill()'s
     // `current_prompts_len = min(remaining_prompts, chunk_prompt_len)` would always be 0, so
-    // `remaining_prompts` never reaches 0 and the chunk loop never terminates.
-    OPENVINO_ASSERT(!m_use_chunk_prefill || m_prefill_chunk_size > 0,
-                    "NPUW blob: chunked prefill is enabled but the declared prefill chunk size is 0.");
+    // `remaining_prompts` never reaches 0 and the chunk loop never terminates. A chunk size
+    // larger than max_prompt_size is unreachable on the compile path (it falls back to whole
+    // prefill instead), but import restores both scalars independently with no such relation
+    // enforced - and port extents alone can't catch it either, since a blob can simply enlarge
+    // the restored child ports to match it. PrefixCachingHelper::find_cached_blocks() computes
+    // `max_prompt_size - m_prefill_chunk_size` unconditionally whenever prefix caching is
+    // enabled, so validate both scalar hazards directly together.
+    OPENVINO_ASSERT(
+        !m_use_chunk_prefill || (m_prefill_chunk_size > 0 && m_prefill_chunk_size <= m_kvcache_desc.max_prompt_size),
+        "NPUW blob: chunked prefill is enabled with an invalid prefill chunk size (",
+        m_prefill_chunk_size,
+        "); it must be greater than 0 and no larger than the declared max prompt size (",
+        m_kvcache_desc.max_prompt_size,
+        ").");
 
     // Every port here is [BATCH, SEQ_LEN] (or [.., BATCH, SEQ_LEN] for the 3-D VLM variant of
     // position_ids), so the sequence extent is the last axis - except `inputs_embeds`, which
@@ -2016,7 +2027,18 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
             const auto& top_dim = top->get_partial_shape()[i];
             if (!top_dim.is_static()) {
                 // A dynamic top-level dimension (e.g. a dynamic batch) carries no fixed value
-                // the runtime copies could have mistakenly relied on - nothing to cross-check.
+                // the runtime copies could have mistakenly relied on - nothing to cross-check,
+                // EXCEPT inputs_embeds' trailing embedding-width axis: infer_chunked_prefill()/
+                // infer_whole_prefill() scale their copy byte counts by that axis's CONCRETE
+                // runtime tensor value (input_ids->get_shape().back()), so a dynamic top-level
+                // declaration would let a future inference call supply a wider tensor than the
+                // statically-compiled child port actually has storage for, underflowing the
+                // right-aligned copy regardless of what this import already validated.
+                OPENVINO_ASSERT(std::strcmp(name, layer_names::inputs_embeds) != 0 || i != rank - 1,
+                                "NPUW blob: input '",
+                                name,
+                                "' embedding-width dimension is dynamic in the top-level model; "
+                                "cannot safely bound the runtime staging copy.");
                 continue;
             }
             OPENVINO_ASSERT(child.get_partial_shape()[i] == top_dim,

@@ -1022,4 +1022,84 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedGenerateAttentionMaskSiz
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
 
+// PrefixCachingHelper::find_cached_blocks() computes max_prompt_size - m_prefill_chunk_size
+// unconditionally whenever prefix caching is enabled (llm_prefix_caching.cpp). Both scalars are
+// independently deserialized, and nothing but the compile path's own "chunk covers the whole
+// prompt" fallback normally keeps chunk size <= max prompt size. Oversizing every restored port
+// can't mask this - the scalar relationship must be validated directly.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedPrefillChunkSizeLargerThanMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    const uint32_t oversized_chunk = max_prompt_size + 1u;
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, oversized_chunk);
+
+    // Sized to satisfy the attention_mask extent check (required == oversized_chunk here) on its
+    // own, so only the direct chunk-size-vs-max-prompt-size scalar check can still catch this.
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, oversized_chunk});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// infer_chunked_prefill()/infer_whole_prefill() multiply or size their copy byte counts off
+// inputs_embeds' CONCRETE runtime tensor width (input_ids->get_shape().back()), not off anything
+// declared at import time. A dynamic top-level embedding-width dimension can't be cross-checked
+// against the restored child port, since a future inference call could supply any width - reject
+// the blob outright rather than let an unboundable future call underflow the staging copy.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedTopLevelInputsEmbedsWithDynamicEmbSize) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto top_level_model = std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids), std::make_shared<ov::op::v0::Result>(embeds)},
+        ov::ParameterVector{input_ids, embeds});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+
+    auto child_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 4096});
+    child_embeds->output(0).set_names({"inputs_embeds"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_embeds)},
+                                    ov::ParameterVector{child_embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control for the above: a dynamic top-level BATCH dimension must still be tolerated
+// (the pre-existing, intentional policy) - only the embedding-width axis is rejected when
+// dynamic, proving the new check is scoped to that one axis.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedTopLevelInputsEmbedsWithDynamicBatchButStaticEmbSize) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 4096});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto top_level_model = std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids), std::make_shared<ov::op::v0::Result>(embeds)},
+        ov::ParameterVector{input_ids, embeds});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+
+    auto child_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 4096});
+    child_embeds->output(0).set_names({"inputs_embeds"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_embeds)},
+                                    ov::ParameterVector{child_embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
 }  // namespace
