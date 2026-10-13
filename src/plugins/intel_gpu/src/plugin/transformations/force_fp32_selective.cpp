@@ -111,7 +111,7 @@ OriginalOutputTypes record_output_types(const std::shared_ptr<ov::Model>& model,
                                        const std::unordered_set<ov::Node*>& f32_region) {
     OriginalOutputTypes original_types;
     for (const auto& node : model->get_ops()) {
-        if (!f32_region.count(node.get()))
+        if (f32_region.count(node.get()) == 0)
             continue;
         auto& types = original_types[node.get()];
         for (const auto& output : node->outputs())
@@ -167,7 +167,7 @@ std::unordered_set<ov::Node*> collect_seeds(
 ov::Output<ov::Node> find_fp32_source(ov::Output<ov::Node> source,
                                     const OriginalOutputTypes& original_types) {
     const auto original_source = source;
-    while (!original_types.count(source.get_node())) {
+    while (original_types.count(source.get_node()) == 0) {
         const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source.get_node_shared_ptr());
         if (!convert)
             break;
@@ -200,7 +200,7 @@ std::pair<bool, size_t> promote_inputs(
 
     // Pass 1: Connect region nodes directly; convert only external f16 inputs.
     for (const auto& node : ordered_ops) {
-        if (!original_types.count(node.get()))
+        if (original_types.count(node.get()) == 0)
             continue;
 
         for (const auto& input : node->inputs()) {
@@ -235,7 +235,7 @@ std::pair<bool, size_t> promote_inputs(
 
     // Pass 2: Update explicit precision attributes and force FP16 outputs to f32.
     for (const auto& node : ordered_ops) {
-        if (!original_types.count(node.get()))
+        if (original_types.count(node.get()) == 0)
             continue;
 
         promote_precision_attributes(node);
@@ -260,7 +260,7 @@ void restore_outputs(const std::shared_ptr<ov::Model>& model,
     const auto desired_et = ov::element::f32;
 
     for (const auto& node : model->get_ops()) {
-        if (!original_types.count(node.get()))
+        if (original_types.count(node.get()) == 0)
             continue;
 
         const auto& types = original_types.at(node.get());
@@ -270,12 +270,12 @@ void restore_outputs(const std::shared_ptr<ov::Model>& model,
                 continue;
             std::vector<ov::Input<ov::Node>> outside_consumers;
             for (const auto& target_input : output.get_target_inputs()) {
-                if (!original_types.count(target_input.get_node())) {
+                if (original_types.count(target_input.get_node()) == 0) {
                     outside_consumers.push_back(target_input);
                 }
             }
             for (auto& target_input : outside_consumers) {
-                const auto existing_convert = ov::as_type<ov::op::v0::Convert>(target_input.get_node());
+                auto* const existing_convert = ov::as_type<ov::op::v0::Convert>(target_input.get_node());
                 if (existing_convert && existing_convert->get_destination_type() == original_type)
                     continue;
 
