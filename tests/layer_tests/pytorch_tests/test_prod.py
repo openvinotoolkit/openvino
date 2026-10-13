@@ -140,4 +140,5 @@ class TestProdIntegerDtypePromotion(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input={'input_values': input_values, 'input_dtype': input_dtype},
+            use_convert_model=True,
         )
