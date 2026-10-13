@@ -36,7 +36,8 @@ std::shared_ptr<IVCLCompiler> CompilerAdapterFactory::makePluginCompiler(
 std::shared_ptr<IProfilingDecoder> CompilerAdapterFactory::makeProfilingDecoderIfAvailable() const {
     try {
         return makeVCLProfilingDecoder(resolveVCLFunctions());
-    } catch (const std::exception&) {
+    } catch (const std::exception& ex) {
+        Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s", ex.what());
         return nullptr;
     }
 }
