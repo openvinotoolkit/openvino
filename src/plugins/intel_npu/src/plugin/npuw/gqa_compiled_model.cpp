@@ -526,37 +526,6 @@ std::unordered_map<std::string, std::string> ov::npuw::GQACompiledModel::find_pr
     return result;
 }
 
-void ov::npuw::GQAInferRequest::copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src,
-                                                     const ov::SoPtr<ov::ITensor>& dst,
-                                                     size_t axis) {
-    OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type());
-    const auto& src_shape = src->get_shape();
-    const auto& dst_shape = dst->get_shape();
-    OPENVINO_ASSERT(src_shape.size() == 4u && dst_shape.size() == 4u, "Expected rank-4 KV-cache tensors");
-    OPENVINO_ASSERT(axis == 2 || axis == 3, "Unsupported dynamic KV-cache axis ", axis);
-    if (axis == 2) {
-        // Axis 2 (not transposed): reuse the per-plane KV-cache copy helper.
-        ov::npuw::util::copy_by_planes(src, dst);
-        return;
-    }
-    // Axis 3 (transposed V-cache): copy each row's valid-length prefix, left-aligned.
-    OPENVINO_ASSERT(src_shape[0] == 1u, "Expected batch size 1");
-    OPENVINO_ASSERT(src_shape[0] == dst_shape[0] && src_shape[1] == dst_shape[1] && src_shape[2] == dst_shape[2]);
-    const auto* src_p = reinterpret_cast<const uint8_t*>(src->data());
-    auto* dst_p = reinterpret_cast<uint8_t*>(dst->data());
-    const auto rows = src_shape[1] * src_shape[2];
-    const auto src_row_stride = src->get_strides()[2];
-    const auto dst_row_stride = dst->get_strides()[2];
-    // Use the tensors' reported shape, not get_strides(): a ROI view's stride reflects
-    // the parent's full row length, not the (possibly shorter) valid length.
-    const auto row_bytes = std::min(src_shape[3], dst_shape[3]) * src->get_element_type().size();
-    for (size_t i = 0; i < rows; ++i) {
-        std::copy_n(src_p, row_bytes, dst_p);
-        src_p += src_row_stride;
-        dst_p += dst_row_stride;
-    }
-}
-
 ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties,
@@ -925,6 +894,37 @@ std::optional<size_t> ov::npuw::GQAInferRequest::read_total_sequence_length_lock
         return std::nullopt;
     }
     return static_cast<size_t>(*value);
+}
+
+void ov::npuw::GQAInferRequest::copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src,
+                                                     const ov::SoPtr<ov::ITensor>& dst,
+                                                     size_t axis) {
+    OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type());
+    const auto& src_shape = src->get_shape();
+    const auto& dst_shape = dst->get_shape();
+    OPENVINO_ASSERT(src_shape.size() == 4u && dst_shape.size() == 4u, "Expected rank-4 KV-cache tensors");
+    OPENVINO_ASSERT(axis == 2 || axis == 3, "Unsupported dynamic KV-cache axis ", axis);
+    if (axis == 2) {
+        // Axis 2 (not transposed): reuse the per-plane KV-cache copy helper.
+        ov::npuw::util::copy_by_planes(src, dst);
+        return;
+    }
+    // Axis 3 (transposed V-cache): copy each row's valid-length prefix, left-aligned.
+    OPENVINO_ASSERT(src_shape[0] == 1u, "Expected batch size 1");
+    OPENVINO_ASSERT(src_shape[0] == dst_shape[0] && src_shape[1] == dst_shape[1] && src_shape[2] == dst_shape[2]);
+    const auto* src_p = reinterpret_cast<const uint8_t*>(src->data());
+    auto* dst_p = reinterpret_cast<uint8_t*>(dst->data());
+    const auto rows = src_shape[1] * src_shape[2];
+    const auto src_row_stride = src->get_strides()[2];
+    const auto dst_row_stride = dst->get_strides()[2];
+    // Use the tensors' reported shape, not get_strides(): a ROI view's stride reflects
+    // the parent's full row length, not the (possibly shorter) valid length.
+    const auto row_bytes = std::min(src_shape[3], dst_shape[3]) * src->get_element_type().size();
+    for (size_t i = 0; i < rows; ++i) {
+        std::copy_n(src_p, row_bytes, dst_p);
+        src_p += src_row_stride;
+        dst_p += dst_row_stride;
+    }
 }
 
 // Refreshes outer present_key/present_value tensors after infer(): copies the inner
