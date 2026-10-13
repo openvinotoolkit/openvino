@@ -349,10 +349,15 @@ static void rope_chatglm_ref(const memory::ptr input, const memory::ptr cos, con
 
 enum class rope_variant { rotate_half, interleaved, interleaved_input, qwen_per_head, chatglm };
 
-static void run_rope(data_types dt, const ov::PartialShape& in_shape, size_t head_cnt, size_t head_size,
-                     bool input_trans0213, bool dynamic,
+static void run_rope(data_types dt,
+                     const ov::PartialShape& in_shape,
+                     size_t head_cnt,
+                     size_t head_size,
+                     bool input_trans0213,
+                     bool dynamic,
                      rope_variant variant = rope_variant::rotate_half,
-                     bool use_rope_cache = false) {
+                     bool use_rope_cache = false,
+                     bool is_caching_test = false) {
     auto& engine = get_test_engine();
     size_t batch = in_shape[0].get_length();
     size_t seq;
@@ -452,16 +457,16 @@ static void run_rope(data_types dt, const ov::PartialShape& in_shape, size_t hea
     ExecutionConfig cfg = get_test_default_config(engine);
     if (dynamic)
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, cfg);
-    network.set_input_data("input", input);
+    auto network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
     if (variant == rope_variant::chatglm && use_rope_cache) {
-        network.set_input_data("cos_sin", cos);
+        network->set_input_data("cos_sin", cos);
     } else {
-        network.set_input_data("cos", cos);
-        network.set_input_data("sin", sin);
+        network->set_input_data("cos", cos);
+        network->set_input_data("sin", sin);
     }
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "rope");
 
@@ -541,6 +546,18 @@ TEST_P(rope_gpu_test, rope_interleaved_input) {
 
 TEST_P(rope_gpu_test, rope_interleaved_input_large) {
     run_rope(GetParam(), ov::PartialShape{1, 8, 16, 64}, 8, 64, false, false, rope_variant::interleaved_input);
+}
+
+TEST_P(rope_gpu_test, rope_interleaved_input_cached) {
+    run_rope(GetParam(), ov::PartialShape{2, 2, 4, 8}, 2, 8, false, false, rope_variant::interleaved_input, false, true);
+}
+
+TEST(rope_gpu_test_config, rejects_input_interleaved_with_incompatible_mode) {
+    ov::op::internal::RoPE::Config config;
+    config.input_interleaved = true;
+    config.is_interleaved = true;
+
+    EXPECT_THROW(rope("rope", {input_info("input"), input_info("cos"), input_info("sin")}, config), ov::Exception);
 }
 
 // RoPE QWEN per-head variant (input [b, seq, H*HS], per-head cos/sin tables), small head - VEC_SIZE=1 path
