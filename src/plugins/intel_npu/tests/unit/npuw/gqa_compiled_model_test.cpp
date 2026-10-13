@@ -1791,16 +1791,45 @@ TEST(GQACompiledModelPresentAxisTest, MatchesDotStylePresentNamingScheme) {
     EXPECT_EQ(axes.at("present.0.value"), 2u);
 }
 
-TEST(GQACompiledModelPresentToPastNameTest, StripsSinkPortSuffixAndSwapsPresentForPast) {
-    EXPECT_EQ(ov::npuw::GQAInferRequest::present_to_past_name("present_keys_0/sink_port_0"), "past_keys_0");
-    EXPECT_EQ(ov::npuw::GQAInferRequest::present_to_past_name("present_values_3"), "past_values_3");
-    // Matching is case-insensitive, but the replacement literal ("past") is not
-    // case-adapted to the matched substring's original casing.
-    EXPECT_EQ(ov::npuw::GQAInferRequest::present_to_past_name("Present.3"), "past.3");
+// find_present_to_past_param_names() derives the present->past mapping from the GQA
+// op's own graph connections (output 1/2 = present_key/present_value, input
+// PAST_KEY/PAST_VALUE = past_key/past_value), not from string name-rewriting -- so it
+// works for the model's actual naming, whatever it is.
+TEST(GQACompiledModelPresentToPastParamNamesTest, MapsUnderscoreStyleNames) {
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    auto map = ov::npuw::GQACompiledModel::find_present_to_past_param_names(model);
+    ASSERT_EQ(map.count("present_keys_0"), 1u);
+    ASSERT_EQ(map.count("present_values_0"), 1u);
+    EXPECT_EQ(map.at("present_keys_0"), "past_keys_0");
+    EXPECT_EQ(map.at("present_values_0"), "past_values_0");
 }
 
-TEST(GQACompiledModelPresentToPastNameTest, ReturnsNulloptWhenNoPresentSubstring) {
-    EXPECT_FALSE(ov::npuw::GQAInferRequest::present_to_past_name("input_hidden_states").has_value());
+// Regression test: onnxruntime-genai's dot-style naming names present outputs
+// "present.0.key"/"present.0.value" but past inputs "past_key_values.0.key"/
+// "past_key_values.0.value" -- "present" does not map onto "past" by simple substring
+// substitution here (the old present_to_past_name() would have wrongly produced
+// "past.0.key", which doesn't match any real Parameter, silently defeating trimming).
+TEST(GQACompiledModelPresentToPastParamNamesTest, MapsDotStyleNamesNotMatchingSubstringSwap) {
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "past_keys_0") {
+            parameter->set_friendly_name("past_key_values.0.key");
+        } else if (parameter->get_friendly_name() == "past_values_0") {
+            parameter->set_friendly_name("past_key_values.0.value");
+        }
+    }
+    for (const auto& result : model->get_results()) {
+        if (result->get_friendly_name() == "present_keys_0") {
+            result->set_friendly_name("present.0.key");
+        } else if (result->get_friendly_name() == "present_values_0") {
+            result->set_friendly_name("present.0.value");
+        }
+    }
+    auto map = ov::npuw::GQACompiledModel::find_present_to_past_param_names(model);
+    ASSERT_EQ(map.count("present.0.key"), 1u);
+    ASSERT_EQ(map.count("present.0.value"), 1u);
+    EXPECT_EQ(map.at("present.0.key"), "past_key_values.0.key");
+    EXPECT_EQ(map.at("present.0.value"), "past_key_values.0.value");
 }
 
 }  // namespace

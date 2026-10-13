@@ -379,28 +379,48 @@ bool is_present_kv_cache_output_name(const std::string& name) {
            ov::npuw::util::contains_ignore_case(name, "present.");
 }
 
-std::shared_ptr<ov::op::internal::GroupQueryAttention> find_valid_gqa_op(
-    const std::shared_ptr<const ov::Model>& model) {
-    using ov::op::internal::GroupQueryAttention;
+// True if `gqa` has well-formed, self-consistent attributes/inputs to count as real
+// evidence of a GQA model (as opposed to a malformed/partial instance that happens to
+// share the op type) -- shared by find_valid_gqa_op() (first-match, used for dispatch
+// family detection) and find_all_valid_gqa_ops() (every instance, used to build the
+// per-layer present->past Parameter map).
+bool is_valid_gqa_op(const ov::op::internal::GroupQueryAttention& gqa) {
     using ov::op::internal::GroupQueryAttentionInputs;
     constexpr size_t mandatory_inputs = static_cast<size_t>(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH) + 1;
 
+    const auto num_heads = gqa.get_num_heads();
+    const auto kv_num_heads = gqa.get_kv_num_heads();
+    if (num_heads <= 0 || kv_num_heads <= 0 || num_heads % kv_num_heads != 0 ||
+        gqa.get_input_size() < mandatory_inputs) {
+        return false;  // malformed instance, doesn't count as evidence
+    }
+    if (gqa.get_do_rotary() && gqa.get_input_size() <= static_cast<size_t>(GroupQueryAttentionInputs::SIN_CACHE)) {
+        return false;  // rotary requires the cos/sin cache inputs
+    }
+    return true;
+}
+
+std::vector<std::shared_ptr<ov::op::internal::GroupQueryAttention>> find_all_valid_gqa_ops(
+    const std::shared_ptr<const ov::Model>& model) {
+    using ov::op::internal::GroupQueryAttention;
+    std::vector<std::shared_ptr<GroupQueryAttention>> result;
     for (const auto& node : model->get_ordered_ops()) {
         auto gqa = ov::as_type_ptr<GroupQueryAttention>(node);
-        if (!gqa) {
-            continue;
+        if (gqa && is_valid_gqa_op(*gqa)) {
+            result.push_back(std::move(gqa));
         }
-        const auto num_heads = gqa->get_num_heads();
-        const auto kv_num_heads = gqa->get_kv_num_heads();
-        if (num_heads <= 0 || kv_num_heads <= 0 || num_heads % kv_num_heads != 0 ||
-            gqa->get_input_size() < mandatory_inputs) {
-            continue;  // malformed instance, doesn't count as evidence
+    }
+    return result;
+}
+
+std::shared_ptr<ov::op::internal::GroupQueryAttention> find_valid_gqa_op(
+    const std::shared_ptr<const ov::Model>& model) {
+    using ov::op::internal::GroupQueryAttention;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto gqa = ov::as_type_ptr<GroupQueryAttention>(node);
+        if (gqa && is_valid_gqa_op(*gqa)) {
+            return gqa;
         }
-        if (gqa->get_do_rotary() &&
-            gqa->get_input_size() <= static_cast<size_t>(GroupQueryAttentionInputs::SIN_CACHE)) {
-            continue;  // rotary requires the cos/sin cache inputs
-        }
-        return gqa;
     }
     return nullptr;
 }
@@ -518,22 +538,32 @@ std::unordered_map<std::string, size_t> ov::npuw::GQACompiledModel::find_dynamic
     return result;
 }
 
-std::optional<std::string> ov::npuw::GQAInferRequest::present_to_past_name(const std::string& name) {
-    const auto slash_pos = name.find('/');
-    const auto bare_name = slash_pos == std::string::npos ? name : name.substr(0, slash_pos);
-    static const std::string kPresentToken = "present";
-    auto it = std::search(bare_name.begin(),
-                          bare_name.end(),
-                          kPresentToken.begin(),
-                          kPresentToken.end(),
-                          [](unsigned char a, unsigned char b) {
-                              return std::tolower(a) == std::tolower(b);
-                          });
-    if (it == bare_name.end()) {
-        return std::nullopt;
+std::unordered_map<std::string, std::string> ov::npuw::GQACompiledModel::find_present_to_past_param_names(
+    const std::shared_ptr<const ov::Model>& model) {
+    using ov::op::internal::GroupQueryAttentionInputs;
+    std::unordered_map<std::string, std::string> result;
+    for (const auto& gqa : find_all_valid_gqa_ops(model)) {
+        // output 1/PAST_KEY and output 2/PAST_VALUE are present_key/past_key and
+        // present_value/past_value, respectively -- same GQA op instance (see
+        // group_query_attention.cpp's validate_and_infer_types()).
+        static constexpr std::pair<size_t, GroupQueryAttentionInputs> kPresentPastPairs[] = {
+            {1, GroupQueryAttentionInputs::PAST_KEY},
+            {2, GroupQueryAttentionInputs::PAST_VALUE},
+        };
+        for (const auto& [output_idx, past_input] : kPresentPastPairs) {
+            const auto past_idx = static_cast<size_t>(past_input);
+            if (gqa->get_output_size() <= output_idx || gqa->get_input_size() <= past_idx) {
+                continue;
+            }
+            auto past_param = ov::npuw::util::trace_back_to_parameter(gqa->input_value(past_idx).get_node_shared_ptr());
+            auto present_result = ov::npuw::util::trace_forward_to_result(gqa->output(output_idx));
+            if (!past_param || !present_result) {
+                continue;
+            }
+            result.emplace(present_result->get_friendly_name(), past_param->get_friendly_name());
+        }
     }
-    const auto pos = static_cast<size_t>(std::distance(bare_name.begin(), it));
-    return bare_name.substr(0, pos) + "past" + bare_name.substr(pos + kPresentToken.size());
+    return result;
 }
 
 void ov::npuw::GQAInferRequest::copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src,
@@ -592,6 +622,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
     m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
+    m_present_to_past_param_names = find_present_to_past_param_names(m_outer_model);
 }
 
 // Used by import_model() only: wraps an already-deserialized inner compiled model
@@ -611,6 +642,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
     m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
+    m_present_to_past_param_names = find_present_to_past_param_names(m_outer_model);
 }
 
 // NB: We hand-roll port serialization here instead of serializing the outer carcass as a real
@@ -1024,9 +1056,15 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         // just appended. total_sequence_length is read from the Parameter feeding the
         // GQA op's TOTAL_SEQUENCE_LENGTH input (resolved once at compile time); if that
         // couldn't be resolved or isn't readable, fall back to past_len alone.
+        // The present->past name mapping itself is derived from the GQA op's own graph
+        // connections at compile time (see find_present_to_past_param_names()), not from
+        // string name-rewriting -- the latter silently breaks for naming schemes where
+        // "present" doesn't map onto "past" by simple substring substitution (e.g.
+        // onnxruntime-genai's dot-style "present.0.key" vs "past_key_values.0.key").
         size_t valid_len = capacity;
-        if (auto past_name = ov::npuw::GQAInferRequest::present_to_past_name(name)) {
-            auto past_it = m_dynamic_kv_cache_tensors.find(*past_name);
+        const auto& present_to_past = m_compiled_model->m_present_to_past_param_names;
+        if (auto past_name_it = present_to_past.find(name); past_name_it != present_to_past.end()) {
+            auto past_it = m_dynamic_kv_cache_tensors.find(past_name_it->second);
             if (past_it != m_dynamic_kv_cache_tensors.end()) {
                 const auto past_len = past_it->second->get_shape().at(axis);
                 const auto total_len = read_total_sequence_length_locked().value_or(past_len);

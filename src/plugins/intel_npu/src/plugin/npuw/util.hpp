@@ -14,6 +14,7 @@
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -52,6 +53,13 @@ std::optional<int64_t> parse_positive_int_env_var(const std::string& str);
 // reaches a Parameter, or gives up (nullptr) if the chain branches or dead-ends on
 // something else.
 std::shared_ptr<ov::op::v0::Parameter> trace_back_to_parameter(std::shared_ptr<ov::Node> node);
+
+// Walks forward from `output` along pass-through ops (single consumer, single-output node)
+// until it reaches a Result, or gives up (nullptr) if the chain branches (more than one
+// consumer at any point) or dead-ends on something else. The forward analog of
+// trace_back_to_parameter(), used to map a GroupQueryAttention op's present_key/
+// present_value output directly to its model-level Result, independent of naming.
+std::shared_ptr<ov::op::v0::Result> trace_forward_to_result(const ov::Output<ov::Node>& output);
 
 // Forward data-flow reachability: true if `target` can be reached from `start` by following
 // output->target_input edges.

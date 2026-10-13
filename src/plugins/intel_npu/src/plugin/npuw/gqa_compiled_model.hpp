@@ -34,13 +34,6 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    // Best-effort match of a present_key/present_value output's friendly name back to
-    // its corresponding past_key/past_value input's friendly name, by swapping the
-    // "present" substring (case-insensitive) for "past". `name` may still carry a
-    // node-name suffix (e.g. the ONNX frontend's "/sink_port_0"); it is stripped
-    // before matching. Returns nullopt if "present" isn't found. Exposed for testing.
-    static std::optional<std::string> present_to_past_name(const std::string& name);
-
     // Copies the valid prefix of a smaller, dynamically-sized rank-4 tensor (KV-cache or
     // attention bias) into a larger statically-shaped one, left-aligned, along `axis` (2
     // for [N,H,S,E], 3 for the transpose_v-applied [N,H,E,S]/[N,H,X,S] layout). Exposed
@@ -136,6 +129,17 @@ public:
     static std::unordered_map<std::string, size_t> find_dynamic_kv_cache_output_axes(
         const std::vector<ov::Output<const ov::Node>>& outer_outputs);
 
+    // Maps every present_key/present_value Result's friendly name back to its
+    // corresponding past_key/past_value Parameter's friendly name, derived directly from
+    // each GroupQueryAttention op's own graph connections (output 1/2 = present_key/
+    // present_value, input PAST_KEY/PAST_VALUE = past_key/past_value; same op instance),
+    // rather than string name-rewriting -- the latter silently breaks for naming schemes
+    // where "present" doesn't map onto "past" by simple substring substitution (e.g.
+    // onnxruntime-genai's dot-style "present.0.key" vs "past_key_values.0.key"). Exposed
+    // for testing.
+    static std::unordered_map<std::string, std::string> find_present_to_past_param_names(
+        const std::shared_ptr<const ov::Model>& model);
+
     // Writes/reads outer-facing port metadata (friendly name + element type + partial
     // shape) for export_model()/import_model(). Deliberately keyed by friendly name (not
     // tensor names, which the generic NPUW serialize() overloads for ov::Output<const
@@ -217,6 +221,12 @@ private:
     // "grown" by the newly appended tokens) instead of just mirroring past_key/
     // past_value's own length, which misses the rows appended by the current step.
     std::optional<std::string> m_total_seq_len_param_name;
+    // present_key/present_value outer Result friendly name -> its corresponding
+    // past_key/past_value Parameter friendly name, derived from each GQA op's own graph
+    // connections (see find_present_to_past_param_names()). Like
+    // m_dynamic_kv_cache_output_axes, re-derived from m_outer_model on both the compile
+    // and import paths rather than serialized.
+    std::unordered_map<std::string, std::string> m_present_to_past_param_names;
     // The effective static KV-cache capacity (see PreparedState::effective_max_context_len
     // above); returned from get_property(NPUW_LLM_MAX_CONTEXT_LEN) since the inner
     // CompiledModel no longer carries this property (see prepare()). Serialized across

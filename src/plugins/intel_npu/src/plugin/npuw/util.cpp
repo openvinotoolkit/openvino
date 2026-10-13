@@ -229,6 +229,24 @@ std::shared_ptr<ov::op::v0::Parameter> ov::npuw::util::trace_back_to_parameter(s
     return ov::as_type_ptr<ov::op::v0::Parameter>(node);
 }
 
+std::shared_ptr<ov::op::v0::Result> ov::npuw::util::trace_forward_to_result(const ov::Output<ov::Node>& output) {
+    ov::Output<ov::Node> current = output;
+    while (true) {
+        const auto& targets = current.get_target_inputs();
+        if (targets.size() != 1) {
+            return nullptr;
+        }
+        auto node = targets.begin()->get_node()->shared_from_this();
+        if (auto result = ov::as_type_ptr<ov::op::v0::Result>(node)) {
+            return result;
+        }
+        if (node->get_output_size() != 1) {
+            return nullptr;
+        }
+        current = node->output(0);
+    }
+}
+
 bool ov::npuw::util::reaches(const ov::Node* start, const ov::Node* target) {
     std::unordered_set<const ov::Node*> visited;
     std::vector<const ov::Node*> stack{start};
