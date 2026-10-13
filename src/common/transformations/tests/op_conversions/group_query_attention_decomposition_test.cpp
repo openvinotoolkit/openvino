@@ -795,29 +795,30 @@ size_t count_decomposed_ops(const Dimension& batch,
     return count;
 }
 
-bool is_batched_gather(const std::shared_ptr<ov::Node>& op) {
-    const auto gather = as_type_ptr<op::v8::Gather>(op);
-    return gather && gather->get_batch_dims() == 1;
+// The batched cache write: ScatterUpdate over the cache viewed as [B * Nkv * L, D] rows.
+bool is_flat_scatter_update(const std::shared_ptr<ov::Node>& op) {
+    return is_type<op::v3::ScatterUpdate>(op) && op->get_input_partial_shape(0).rank() == 2;
 }
 
-bool is_scatter_update(const std::shared_ptr<ov::Node>& op) {
-    return is_type<op::v3::ScatterUpdate>(op);
+// The single-batch static cache write: ScatterUpdate on the rank-4 cache along the sequence axis.
+bool is_axis_scatter_update(const std::shared_ptr<ov::Node>& op) {
+    return is_type<op::v3::ScatterUpdate>(op) && op->get_input_partial_shape(0).rank() == 4;
 }
 }  // namespace
 
 // A static batch of 1 keeps the scalar-length graph (ScatterUpdate / Slice + Concat, which plugins and the NPU compiler
-// pattern-match); any other batch assembles each batch's rows with one batched Gather over [past, new] per K/V.
+// pattern-match); any other batch writes each batch's rows with one flat ScatterUpdate per K/V.
 TEST(GroupQueryAttentionValues, batch_one_keeps_scalar_cache_update) {
     for (const auto& past : {Dimension(8), Dimension::dynamic()})
-        EXPECT_EQ(count_decomposed_ops(1, past, is_batched_gather), 0u) << past;
-    EXPECT_EQ(count_decomposed_ops(1, 8, is_scatter_update), 2u);
+        EXPECT_EQ(count_decomposed_ops(1, past, is_flat_scatter_update), 0u) << past;
+    EXPECT_EQ(count_decomposed_ops(1, 8, is_axis_scatter_update), 2u);
 }
 
 TEST(GroupQueryAttentionValues, batched_cache_update_is_per_batch) {
     for (const auto& batch : {Dimension(2), Dimension::dynamic()}) {
         for (const auto& past : {Dimension(8), Dimension::dynamic()}) {
-            EXPECT_EQ(count_decomposed_ops(batch, past, is_batched_gather), 2u) << batch << " " << past;
-            EXPECT_EQ(count_decomposed_ops(batch, past, is_scatter_update), 0u) << batch << " " << past;
+            EXPECT_EQ(count_decomposed_ops(batch, past, is_flat_scatter_update), 2u) << batch << " " << past;
+            EXPECT_EQ(count_decomposed_ops(batch, past, is_axis_scatter_update), 0u) << batch << " " << past;
         }
     }
 }

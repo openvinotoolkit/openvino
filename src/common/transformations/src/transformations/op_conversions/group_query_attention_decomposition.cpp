@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 
 #include <memory>
+#include <numeric>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -372,40 +373,55 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                 register_new_node<v0::Unsqueeze>(register_new_node<v1::Subtract>(abs_past_scalar, end_before), zero);
         }
     } else if (batched) {
-        // Per-batch cache assembly (ORT ConcatStateChunkGQA): batch b keeps its first kv_past_b rows and gets its S_kv
-        // new keys at rows [kv_past_b, kv_past_b + S_kv). A single batched Gather over [past, new] picks, per batch and
-        // row, the past row or the new key, so the cache is moved once (no Slice + Concat + scatter). The present keeps
-        // the buffer capacity for a static cache, else max(kv_past_b) + S_kv rows (ORT's max(total)); rows past a
-        // batch's total are unspecified, as in ORT.
+        // Per-batch cache write (ORT ConcatStateChunkGQA, left-aligned): batch b keeps its first kv_past_b rows and
+        // gets its S_kv new rows at [kv_past_b, kv_past_b + S_kv). The cache is viewed as [B * Nkv * L, D] rows and
+        // written with one ScatterUpdate(axis 0) at row (b * Nkv + h) * L + kv_past_b + s: in place on a static buffer,
+        // after a single Concat(past, new) for a growing cache (L = past rows + S_kv; rows past a batch's total are
+        // unspecified, as in ORT). Index arithmetic stays rank 4 ([B, Nkv, S_kv, 1]) so plugins broadcast it in their
+        // native layout.
         const auto kv_rows = independent_kv_len ? kv_seqlen : current_seqlen;
-        const auto past_rows = get_dimensions(past_key.get_node_shared_ptr(), {2});
-        const auto present_rows =
-            is_static_input ? past_rows : register_new_node<v1::Add>(max_over_batch(kv_past_b), kv_rows);
-        // Index arithmetic stays rank 4 ([B, 1, L, 1]); only the final Gather indices are [B, L].
-        const auto as_4d = [&](const ov::Output<ov::Node>& value, std::initializer_list<int64_t> shape) {
-            return register_new_node<v1::Reshape>(
-                value,
-                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, shape)),
-                false);
+        const auto as_shape = [&](std::initializer_list<int64_t> shape) {
+            return register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{shape.size()}, shape));
         };
-        const auto rows = as_4d(register_new_node<v4::Range>(zero_without_shape,
-                                                             register_new_node<v0::Squeeze>(present_rows),
-                                                             one_without_shape,
-                                                             ov::element::i64),
-                                {1, 1, -1, 1});
-        const auto offset = register_new_node<v1::Subtract>(rows, as_4d(kv_past_b, {-1, 1, 1, 1}));  // [B, 1, L, 1]
-        const auto is_new = register_new_node<v1::LogicalAnd>(register_new_node<v1::GreaterEqual>(offset, zero),
-                                                              register_new_node<v1::Less>(offset, kv_rows));
-        const auto new_row = register_new_node<v1::Add>(past_rows, offset);
-        const auto last_row = register_new_node<v1::Subtract>(register_new_node<v1::Add>(past_rows, kv_rows), one);
-        const auto past_row = register_new_node<v1::Minimum>(rows, last_row);
-        const auto gather_idx = register_new_node<v1::Reshape>(
-            register_new_node<v1::Select>(is_new, new_row, past_row),
-            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, -1})),
-            true);  // [B, L]
+        const auto batch = register_new_node<v0::Squeeze>(get_dimensions(register_new_node<v3::ShapeOf>(K), {0}));
+        const auto batch_idx = register_new_node<v1::Reshape>(
+            register_new_node<v4::Range>(zero_without_shape, batch, one_without_shape, ov::element::i64),
+            as_shape({-1, 1, 1, 1}),
+            false);
+        std::vector<int64_t> heads(static_cast<size_t>(kv_num_heads));
+        std::iota(heads.begin(), heads.end(), int64_t{0});
+        const auto head_idx = register_new_node(
+            v0::Constant::create(ov::element::i64, ov::Shape{1, static_cast<size_t>(kv_num_heads), 1, 1}, heads));
+        const auto bh_idx = register_new_node<v1::Add>(
+            register_new_node<v1::Multiply>(
+                batch_idx,
+                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {kv_num_heads}))),
+            head_idx);  // [B, Nkv, 1, 1]
+        const auto new_row = register_new_node<v1::Add>(
+            register_new_node<v1::Reshape>(kv_past_b, as_shape({-1, 1, 1, 1}), false),
+            register_new_node<v1::Reshape>(register_new_node<v4::Range>(zero_without_shape,
+                                                                        register_new_node<v0::Squeeze>(kv_rows),
+                                                                        one_without_shape,
+                                                                        ov::element::i64),
+                                           as_shape({1, 1, -1, 1}),
+                                           false));  // [B, 1, S_kv, 1]
         const auto write = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
-            const auto buffer = register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
-            return register_new_node<v8::Gather>(buffer, gather_idx, two, 1);
+            const ov::Output<ov::Node> buffer =
+                is_static_input ? past : register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2)->output(0);
+            const auto buffer_shape = register_new_node<v3::ShapeOf>(buffer);
+            const auto rows_per_head = get_dimensions(buffer_shape, {2});
+            const auto flat_idx = register_new_node<v1::Reshape>(
+                register_new_node<v1::Add>(register_new_node<v1::Multiply>(bh_idx, rows_per_head), new_row),
+                as_shape({-1}),
+                false);  // [B * Nkv * S_kv]
+            const auto row_shape =
+                register_new_node<v0::Concat>(ov::OutputVector{as_shape({-1}), get_dimensions(buffer_shape, {3})}, 0);
+            const auto rows =
+                register_new_node<v3::ScatterUpdate>(register_new_node<v1::Reshape>(buffer, row_shape, false),
+                                                     flat_idx,
+                                                     register_new_node<v1::Reshape>(current, row_shape, false),
+                                                     zero);
+            return register_new_node<v1::Reshape>(rows, buffer_shape, false);
         };
         K = write(past_key, K);
         V = write(past_value, V);
