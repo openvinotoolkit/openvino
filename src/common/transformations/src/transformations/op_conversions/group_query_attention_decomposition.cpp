@@ -237,8 +237,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             present_v = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_v, scatter_axis);
             present_v = register_new_node<v3::ScatterUpdate>(present_v, new_idx, V, scatter_axis);
 
-            K = present_k;
-            V = present_v;
+            // Attention runs on the trimmed [survivors, new] buffer (end_after rows, no trailing padding), so
+            // the kernel's native LOWER_RIGHT + window sees the newest token as the last row. present_k/present_v
+            // (left-aligned, padded to capacity C) stay the ORT-compatible op outputs. Mirrors the staging path.
+            K = register_new_node<v0::Concat>(ov::OutputVector{survivor_k, K}, 2);
+            V = register_new_node<v0::Concat>(ov::OutputVector{survivor_v, V}, 2);
             mask_past_seqlen = register_new_node<v0::Unsqueeze>(kept, zero);
             // First resident slot holds absolute key P - kept (the survivors start there).
             bias_col_offset =
