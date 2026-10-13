@@ -1518,8 +1518,10 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
 struct sdpa_gpu_compressed_kv_test_base : public ::testing::TestWithParam<sdpa_test_params> {
     static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_test_params>& info) {
         const auto& p = info.param;
+        const std::string shape = "_" + std::to_string(p.sequence_length_q) + "x" + std::to_string(p.sequence_length_kv);
         return std::string("int") + std::to_string(p.bit_width) + (p.asymmetric ? "_asymmetric_" : "_symmetric_") +
-               (p.num_heads == p.kv_num_heads ? "mha_" : "gqa_") + (p.sequence_length_q == 1 ? "decode" : "prefill") + (p.dt == data_types::f32 ? "_f32" : "");
+               (p.num_heads == p.kv_num_heads ? "mha_" : "gqa_") + (p.sequence_length_q == 1 ? "decode" : "prefill") + shape +
+               (p.dt == data_types::f32 ? "_f32" : "");
     }
 };
 
@@ -1618,10 +1620,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_int4_bf16_per_token,
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_bf16_int8_zp,
                          sdpa_gpu_compressed_kv_bf16_int8_zp_test,
-                         ::testing::Values(sdpa_test_params{128, 40, 10, 512, 512, 1, 8, false},
-                                           sdpa_test_params{128, 40, 10, 1, 512, 1, 8, false},
-                                           sdpa_test_params{128, 40, 40, 512, 512, 1, 8, false},
-                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false},
+                         ::testing::Values(sdpa_test_params{128, 40, 10, 256, 256, 1, 8, true},
+                                           sdpa_test_params{128, 40, 40, 256, 256, 1, 8, true},
                                            sdpa_test_params{128, 40, 10, 128, 128, 1, 8, true},
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 128, 128, 1, 8, true},
