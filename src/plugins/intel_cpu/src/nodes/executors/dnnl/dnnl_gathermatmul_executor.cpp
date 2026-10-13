@@ -227,6 +227,9 @@ private:
 
 namespace {
 
+// Below this many routed rows the gather/scatter and M padding cost more than re-reading the weights per row.
+constexpr size_t kMinRowsForGemm = 4;
+
 // ---- normalizeM helper -------------------------------------------------------
 
 Dim normalizeM(Dim M) {
@@ -402,10 +405,6 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
 }
 
 bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
-    if (!m_bf16AmxMode) {
-        return true;
-    }
-
     const auto& srcMem = memory.at(ARG_SRC);
     const auto& srcShape = srcMem->getStaticDims();
     // srcShape is [B, M, K]
@@ -454,11 +453,18 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
         }
     }
 
-    InnerProductKey key{src_md,
-                        weights_md,
-                        makeBiasMd(static_cast<dnnl::memory::dim>(weights_md.get_dims()[0]), memory.at(ARG_BIAS)),
-                        scale_shape,
-                        zp_shape};
+    auto bias_md = makeBiasMd(static_cast<dnnl::memory::dim>(weights_md.get_dims()[0]), memory.at(ARG_BIAS));
+    if (!m_bf16AmxMode) {
+        // Without AMX each expert runs its own GEMM over only its routed rows, see gemmImplFor
+        m_srcDataType = DnnlExtensionUtils::ElementTypeToDataType(srcPrc);
+        m_K = static_cast<dnnl::memory::dim>(srcShape[2]);
+        m_biasMd = bias_md;
+        m_scaleShape = scale_shape;
+        m_zpShape = zp_shape;
+        return true;
+    }
+
+    InnerProductKey key{src_md, weights_md, bias_md, scale_shape, zp_shape};
     const auto& eng = m_context->getEngine();
     const auto threadPool = m_context->getThreadPool();
     auto cache = m_context->getRuntimeCache();
@@ -466,6 +472,17 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
         return std::make_shared<InnerProduct>(eng, threadPool, k);
     });
     return true;
+}
+
+GatherMatmulDnnlExecutor::InnerProductPtr GatherMatmulDnnlExecutor::gemmImplFor(size_t rows) {
+    dnnl::memory::desc src_md({static_cast<dnnl::memory::dim>(rows), m_K}, m_srcDataType, dnnl::memory::format_tag::ab);
+    InnerProductKey key{src_md, m_gemvImpl->get_weights_md(), m_biasMd, m_scaleShape, m_zpShape};
+    const auto& eng = m_context->getEngine();
+    const auto threadPool = m_context->getThreadPool();
+    auto [impl, _] = m_context->getRuntimeCache()->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
+        return std::make_shared<InnerProduct>(eng, threadPool, k);
+    });
+    return impl;
 }
 
 void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
@@ -563,14 +580,46 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             }
         } else {
             OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");
+            OPENVINO_ASSERT(m_tmpInpBuffer, "Temporary input/output memory is not created");
+
+            const auto element_size = m_tmpInputDesc->getPrecision().size();
+            const auto K_size = m_tmpInputDesc->getShape().getStaticDims()[1];
+            const auto N_size = dstMem->getStaticDims()[2];
+
+            auto* input_ptr = m_tmpInpBuffer->getDataAs<uint8_t>();
+            auto* output_ptr = input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
+
             for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
-                if (0 == elements_per_gather_indx[gather_axis_index]) {
+                const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
+                if (0 == num_valid_rows) {
                     continue;
                 }
                 auto* wei = wei_offset(gather_axis_index);
                 auto* bias = bias_offset(gather_axis_index);
                 auto* scale = scale_offset(gather_axis_index);
                 auto* zp = zp_offset(gather_axis_index);
+                if (num_valid_rows >= kMinRowsForGemm) {
+                    const size_t rows = normalizeM(num_valid_rows);
+                    cpu_parallel->parallel_for(rows, [&](size_t m) {
+                        auto* dst_row = input_ptr + m * K_size * element_size;
+                        if (m < num_valid_rows) {
+                            const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                            const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                            std::memcpy(dst_row, src_offset(batch_index, row_id), K_size * element_size);
+                        } else {
+                            std::memset(dst_row, 0, K_size * element_size);
+                        }
+                    });
+                    gemmImplFor(rows)->exec(input_ptr, output_ptr, wei, bias, scale, zp);
+                    cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
+                        const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                        const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                        std::memcpy(dst_offset(batch_index, row_id),
+                                    output_ptr + m * N_size * element_size,
+                                    N_size * element_size);
+                    });
+                    continue;
+                }
                 for (int32_t m = 0; m < elements_per_gather_indx[gather_axis_index]; ++m) {
                     const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                     const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
