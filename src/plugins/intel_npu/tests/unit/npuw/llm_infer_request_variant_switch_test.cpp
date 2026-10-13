@@ -781,4 +781,94 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsZeroPrefillChunkSizeWhenChunkedP
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
 
+// AddPositionIdsParam() synthesizes a `position_ids` child port even when the top-level model has
+// none of its own (the LFM-2 case); LLMInferRequest::infer() then synthesizes its own rank-2 i64
+// source tensor at runtime. A rank-1 child must still be rejected even though no top-level port
+// exists to cross-check it against, since pad_position_ids() would index it using that
+// synthesized source's rank.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsSynthesizedPositionIdsRankMismatchWithNoTopLevelPort) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Same no-top-level-port trust boundary, but for element type: the synthesized source is always
+// i64.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsSynthesizedPositionIdsElementTypeMismatchWithNoTopLevelPort) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control for the two tests above: a child honoring the synthesized-position contract
+// (i64, rank 2, non-zero batch) must be accepted even with no top-level port to compare against.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsSynthesizedPositionIdsMatchingContractWithNoTopLevelPort) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// Matching the top-level dimensions does not prove the destination tensor has storage: a [0,
+// chunk_size] child agrees with the (dynamic) top-level batch dimension and still satisfies the
+// sequence-extent check, yet get_size() == 0 for the whole tensor - infer_chunked_prefill()'s
+// right-aligned staging copy then underflows subtracting chunk_prompt_len from it.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedAttentionMaskWithZeroBatchDimension) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{0, 512});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
 }  // namespace

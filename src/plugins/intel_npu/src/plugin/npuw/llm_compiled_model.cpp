@@ -4,6 +4,7 @@
 #include "llm_compiled_model.hpp"
 
 #include <algorithm>
+#include <cstring>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -1948,6 +1949,29 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
     auto validate_matches_top_level = [&](const ov::Output<const ov::Node>& child, const char* name) {
         auto top = ov::npuw::util::find_port_by_name(inputs(), name);
         if (!top.has_value()) {
+            if (std::strcmp(name, layer_names::position_ids) == 0) {
+                // AddPositionIdsParam synthesizes this child port even when the original model
+                // has no `position_ids` input of its own (the LFM-2 case); LLMInferRequest::
+                // infer() then synthesizes a matching rank-2 i64 source tensor at runtime (see
+                // `position_ids = ov::make_tensor(...)` there), batched off `input_ids`.
+                // pad_position_ids() indexes the destination using that source's rank, so the
+                // restored child must honor the same contract even with no top-level port to
+                // cross-check it against.
+                OPENVINO_ASSERT(child.get_element_type() == ov::element::i64,
+                                "NPUW blob: synthesized input 'position_ids' element type (",
+                                child.get_element_type(),
+                                ") must be i64.");
+                const auto& rank = child.get_partial_shape().rank();
+                OPENVINO_ASSERT(rank.is_static() && rank.get_length() == 2,
+                                "NPUW blob: synthesized input 'position_ids' rank (",
+                                rank,
+                                ") must be 2.");
+                const auto& batch_dim = child.get_partial_shape()[0];
+                OPENVINO_ASSERT(batch_dim.is_static() && batch_dim.get_length() >= 1,
+                                "NPUW blob: synthesized input 'position_ids' batch dimension (",
+                                batch_dim,
+                                ") must be a static, non-zero extent.");
+            }
             return;  // no corresponding top-level input to cross-check against
         }
         OPENVINO_ASSERT(child.get_element_type() == top->get_element_type(),
@@ -1975,8 +1999,22 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                 continue;  // the sequence axis is intentionally resized; checked separately
             }
             const auto& child_dim = child.get_partial_shape()[i];
+            // Matching the top-level dimension doesn't prove the destination tensor actually
+            // has storage: e.g. a [0, chunk_size] child agrees with a dynamic top-level batch
+            // and still satisfies the sequence-extent check, yet get_size() == 0 for the whole
+            // tensor - the right-aligned staging copies then underflow subtracting from it.
+            // Require every non-sequence child dimension to be static and non-zero regardless
+            // of what the top-level model says about that axis.
+            OPENVINO_ASSERT(child_dim.is_static() && child_dim.get_length() >= 1,
+                            "NPUW blob: input '",
+                            name,
+                            "' dimension ",
+                            i,
+                            " (",
+                            child_dim,
+                            ") must be a static, non-zero extent.");
             const auto& top_dim = top->get_partial_shape()[i];
-            if (!child_dim.is_static() || !top_dim.is_static()) {
+            if (!top_dim.is_static()) {
                 // A dynamic top-level dimension (e.g. a dynamic batch) carries no fixed value
                 // the runtime copies could have mistakenly relied on - nothing to cross-check.
                 continue;
