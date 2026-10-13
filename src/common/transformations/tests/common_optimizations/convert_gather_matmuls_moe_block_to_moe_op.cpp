@@ -1015,7 +1015,9 @@ TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, uniform_i8_fuses) {
 }
 
 // C6. The full admission table. Uniform is allowed for every dtype the producer can emit; mixing
-// is allowed only within {u2, u8}, which is what moe_3gemm's per-GEMM dispatch actually decodes.
+// is allowed within {u2, u4, u8}, which is what moe_3gemm's per-GEMM dispatch actually decodes,
+// provided gate and up agree on whether they are u4 -- they share one SLM activation copy whose
+// layout (interleaved for u4, plain otherwise) is picked from the gate dtype.
 struct DtypeGateParams {
     ov::element::Type gate_dt;
     ov::element::Type up_dt;
@@ -1025,7 +1027,7 @@ struct DtypeGateParams {
 
 class MoeOpFusionDtypeGate : public ::testing::TestWithParam<DtypeGateParams> {};
 
-TEST_P(MoeOpFusionDtypeGate, admits_uniform_and_u2_u8_mixes_only) {
+TEST_P(MoeOpFusionDtypeGate, admits_uniform_and_unsigned_mixes_only) {
     const auto& p = GetParam();
     CompressedMoeSpec spec;
     spec.gate_dt = p.gate_dt;
@@ -1057,11 +1059,23 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              DtypeGateParams{ov::element::u2, ov::element::u8, ov::element::u2, true},
                              DtypeGateParams{ov::element::u8, ov::element::u2, ov::element::u8, true},
                              DtypeGateParams{ov::element::u2, ov::element::u2, ov::element::u8, true},
-                             // Mixed involving anything else: no per-GEMM decode exists, so it must stay unfused.
+                             // u4 on down only: down stages its own activation copy, so it may differ from gate/up.
+                             // The first row is the recipe this exists for -- gate/up u2, down u4.
+                             DtypeGateParams{ov::element::u2, ov::element::u2, ov::element::u4, true},
+                             DtypeGateParams{ov::element::u8, ov::element::u8, ov::element::u4, true},
+                             DtypeGateParams{ov::element::u2, ov::element::u8, ov::element::u4, true},
+                             // u4 on both gate and up: they agree, so their shared activation copy is interleaved
+                             // for both.
+                             DtypeGateParams{ov::element::u4, ov::element::u4, ov::element::u2, true},
+                             DtypeGateParams{ov::element::u4, ov::element::u4, ov::element::u8, true},
+                             // gate and up disagree on u4: one of them would read the other's activation layout.
                              DtypeGateParams{ov::element::u4, ov::element::u8, ov::element::u8, false},
-                             DtypeGateParams{ov::element::i8, ov::element::u8, ov::element::i8, false},
                              DtypeGateParams{ov::element::u2, ov::element::u4, ov::element::u2, false},
+                             DtypeGateParams{ov::element::u4, ov::element::u2, ov::element::u4, false},
+                             // Signed types mix with nothing: WEIGHT_IS_SIGNED is layer-wide, set from the gate.
+                             DtypeGateParams{ov::element::i8, ov::element::u8, ov::element::i8, false},
                              DtypeGateParams{ov::element::u4, ov::element::i4, ov::element::u4, false},
+                             DtypeGateParams{ov::element::u2, ov::element::u2, ov::element::i4, false},
                              // Not producible by the pipeline today; documents that the gate is a whitelist.
                              DtypeGateParams{ov::element::f16, ov::element::f16, ov::element::f16, false}));
 
