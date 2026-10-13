@@ -18,9 +18,11 @@
 #include <array>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <tuple>
 #include <iostream>
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -1964,4 +1966,376 @@ TEST(sdpa_gpu_custom, scalar_placeholder_mask_matches_scale_only) {
             << std::endl;
     }
 }
+
+struct sdpa_ref_scratch_test : public ::testing::TestWithParam<std::tuple<data_types, int, bool>> {};
+
+TEST_P(sdpa_ref_scratch_test, native_q_broadcast) {
+    const auto dt = std::get<0>(GetParam());
+    const auto order_kind = std::get<1>(GetParam());
+    const auto dynamic_batch = std::get<2>(GetParam());
+    auto& engine = get_test_engine();
+
+    auto dims = [&](int64_t batch, int64_t sequence, int64_t head_size) {
+        switch (order_kind) {
+        case 1:
+            return ov::PartialShape{batch, sequence, 4, head_size};
+        case 2:
+            return ov::PartialShape{sequence, batch, 4, head_size};
+        default:
+            return ov::PartialShape{batch, 4, sequence, head_size};
+        }
+    };
+    const std::vector<std::vector<int64_t>> orders = {{0, 1, 2, 3}, {0, 2, 1, 3}, {1, 2, 0, 3}};
+    const auto& order = orders.at(order_kind);
+    const int64_t kv_batch = dynamic_batch ? -1 : 2;
+    topology topo;
+    topo.add(input_layout("q", layout(dims(1, 2, 64), dt, format::bfyx)));
+    topo.add(input_layout("k", layout(dims(kv_batch, 16, 64), dt, format::bfyx)));
+    // A dynamic V head size naturally selects SDPARef, without implementation forcing.
+    topo.add(input_layout("v", layout(dims(kv_batch, 16, -1), dt, format::bfyx)));
+    topo.add(
+        scaled_dot_product_attention("sdpa", {input_info("q"), input_info("k"), input_info("v")}, false, -1, order, order, order, {0, 1, 2, 3}, {}, false));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+    auto& stream = net->get_stream();
+    const auto sdpa = net->get_primitive("sdpa");
+    ASSERT_EQ(sdpa->get_impl()->m_manager->get_type_info(), ov::intel_gpu::ocl::SDPARef::get_type_info_static());
+    const auto initial_descriptors = sdpa->get_impl()->get_internal_buffer_descs(*sdpa->get_impl_params());
+    ASSERT_EQ(initial_descriptors.size(), 1u);
+    ASSERT_EQ(initial_descriptors[0].m_layout.count(), 1u);
+
+    const std::vector<int64_t> batches = dynamic_batch ? std::vector<int64_t>{1, 2, 1} : std::vector<int64_t>{2};
+    for (const auto batch : batches) {
+        SCOPED_TRACE(::testing::Message() << "KV batch=" << batch);
+        auto set_input = [&](const std::string& id, int64_t input_batch, int64_t sequence, int64_t head_size) {
+            const layout input_layout(dims(input_batch, sequence, head_size), dt, format::bfyx);
+            auto memory = engine.allocate_memory(input_layout);
+            std::vector<float> values(input_layout.count(), 0.f);
+            if (id == "v") {
+                for (size_t i = 0; i < values.size(); ++i) {
+                    const auto b = order_kind == 2 ? (i / (4 * head_size)) % input_batch : i / (4 * sequence * head_size);
+                    values[i] = 0.25f + 0.5f * static_cast<float>(b);
+                }
+            }
+            if (dt == data_types::f32) {
+                set_values(memory, values);
+            } else if (dt == data_types::f16) {
+                set_values(memory, std::vector<ov::float16>(values.begin(), values.end()));
+            } else {
+                set_values(memory, std::vector<ov::bfloat16>(values.begin(), values.end()));
+            }
+            net->set_input_data(id, memory);
+        };
+        // Keep Q at batch 1: no tiling or oversized backing allocations.
+        set_input("q", 1, 2, 64);
+        set_input("k", batch, 16, 64);
+        set_input("v", batch, 16, 32);
+
+        // Check the normal allocation before enqueue, so the regression fails without an out-of-bounds write.
+        net->set_arguments();
+        for (const auto& id : net->get_executed_primitive_ids()) {
+            const auto instance = net->get_primitive(id);
+            instance->reset_events();
+            instance->prepare_primitive();
+            if (id == "sdpa") {
+                ASSERT_EQ(instance->get_impl()->m_manager->get_type_info(), ov::intel_gpu::ocl::SDPARef::get_type_info_static());
+                ASSERT_EQ(instance->get_output_layout().get_shape(), (ov::Shape{static_cast<size_t>(batch), 4, 2, 32}));
+                const auto descriptors = instance->get_impl()->get_internal_buffer_descs(*instance->get_impl_params());
+                ASSERT_EQ(descriptors.size(), 1u);
+                const data_types scratch_type = dt == data_types::bf16 ? data_types::f32 : dt;
+                const size_t required_elements = static_cast<size_t>(batch) * 4 * 2 * 16;
+                ASSERT_EQ(descriptors[0].m_layout.data_type, scratch_type);
+                ASSERT_EQ(descriptors[0].m_layout.count(), required_elements) << "SDPARef scratch must cover the broadcast output batch";
+                // Descriptor-only checks: output transposes and padding do not change the scratch geometry.
+                // Do not enqueue the reference kernel with these synthetic output layouts.
+                for (const auto& output_order : std::vector<std::vector<int64_t>>{{}, {0, 2, 1, 3}, {3, 0, 1, 2}}) {
+                    auto params = *instance->get_impl_params();
+                    auto desc = std::make_shared<scaled_dot_product_attention>(*params.typed_desc<scaled_dot_product_attention>());
+                    desc->output_transpose_order = output_order;
+                    params.desc = desc;
+                    const auto shape = params.output_layouts[0].get_shape();
+                    auto transposed_shape = shape;
+                    for (size_t i = 0; i < output_order.size(); ++i) {
+                        transposed_shape[i] = shape[output_order[i]];
+                    }
+                    params.output_layouts[0] = layout(transposed_shape, dt, format::bfyx, padding{{0, 0, 1, 1}, {0, 0, 1, 1}});
+                    ASSERT_EQ(instance->get_impl()->get_internal_buffer_descs(params)[0].m_layout.count(), required_elements);
+                }
+                const auto& memories = instance->get_intermediates_memories();
+                ASSERT_EQ(memories.size(), 1u);
+                ASSERT_GE(memories[0]->size(), descriptors[0].m_layout.bytes_count());
+            }
+            instance->execute();
+        }
+        stream.finish();
+        const auto kernels = sdpa->get_impl()->get_kernels_dump_info(*sdpa->get_impl_params()).get_entries();
+        ASSERT_NE(kernels.find("sdpa_ref"), std::string::npos) << kernels;
+
+        auto check_output = [&](const auto& output) {
+            ASSERT_EQ(output.size(), static_cast<size_t>(batch) * 4 * 2 * 32);
+            for (size_t i = 0; i < output.size(); ++i) {
+                const float expected = 0.25f + 0.5f * static_cast<float>(i / (4 * 2 * 32));
+                ASSERT_FLOAT_EQ(static_cast<float>(output[i]), expected) << "Output index " << i;
+            }
+        };
+        const auto output = sdpa->output_memory_ptr();
+        if (dt == data_types::f32) {
+            check_output(mem_lock<float, mem_lock_type::read>(output, stream));
+        } else if (dt == data_types::f16) {
+            check_output(mem_lock<ov::float16, mem_lock_type::read>(output, stream));
+        } else {
+            check_output(mem_lock<ov::bfloat16, mem_lock_type::read>(output, stream));
+        }
+        for (const auto& id : net->get_executed_primitive_ids()) {
+            net->get_primitive(id)->reset_flags();
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(sdpa_ref_scratch,
+                         sdpa_ref_scratch_test,
+                         ::testing::Combine(::testing::Values(data_types::f32, data_types::f16, data_types::bf16),
+                                            ::testing::Values(0, 1, 2),
+                                            ::testing::Bool()));
+
+// Compare FP16 optimized SDPA batch broadcasting with the FP32 reference implementation.
+
+struct sdpa_broadcast_test_params {
+    int q_batch;
+    int k_batch;
+    int v_batch;
+    int num_heads;
+    int seq_q;
+    int seq_kv;
+    int head_size;
+    bool dynamic_batch;  // batch dim is dynamic in the network (tensors are static)
+    int order_kind;      // 0: [B,H,L,E] default order; 1: [B,L,H,E] order {0,2,1,3}; 2: [L,B,H,E] order {1,2,0,3}
+
+    sdpa_broadcast_test_params(int qb, int kb, int vb, int nh, int sq, int sk, int hs, bool dyn_batch, int kind)
+        : q_batch(qb), k_batch(kb), v_batch(vb), num_heads(nh), seq_q(sq), seq_kv(sk), head_size(hs),
+          dynamic_batch(dyn_batch), order_kind(kind) {}
+};
+
+struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    // Select SDPARef through a dynamic V head size; verify the actual implementation on both paths.
+    cldnn::memory::ptr run_broadcast_network(const cldnn::layout& q_layout,
+                                             const cldnn::layout& k_layout,
+                                             const cldnn::layout& v_layout,
+                                             cldnn::memory::ptr q_mem,
+                                             cldnn::memory::ptr k_mem,
+                                             cldnn::memory::ptr v_mem,
+                                             const std::string& impl,
+                                             int order_kind) {
+        auto& engine = get_test_engine();
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        auto v_shape = v_layout.get_partial_shape();
+        if (impl == "sdpa_ref")
+            v_shape[3] = ov::Dimension::dynamic();
+        topo.add(input_layout("v", cldnn::layout(v_shape, v_layout.data_type, v_layout.format)));
+
+        const std::vector<std::vector<int64_t>> orders = {{0, 1, 2, 3}, {0, 2, 1, 3}, {1, 2, 0, 3}};
+        const std::vector<int64_t>& in_order = orders.at(order_kind);
+        auto sdpa_prim = scaled_dot_product_attention("sdpa",
+                                                      {input_info("q"), input_info("k"), input_info("v")},
+                                                      false,
+                                                      -1,
+                                                      in_order,
+                                                      in_order,
+                                                      in_order,
+                                                      {0, 1, 2, 3},
+                                                      {},
+                                                      false);
+        topo.add(sdpa_prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, q_layout.data_type));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        if (!impl.empty() && impl != "sdpa_ref") {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"sdpa", {format::type::bfyx, impl}}}));
+        }
+
+        auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        // A removable output reorder may rename the SDPA node to "result".
+        std::string sdpa_id;
+        for (const auto& info : net->get_primitives_info()) {
+            if (info.type_id == "scaled_dot_product_attention")
+                sdpa_id = info.original_id;
+        }
+        EXPECT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
+        if (sdpa_id.empty())
+            return nullptr;
+        auto verify_manager = [&]() {
+            const auto& manager = net->get_primitive(sdpa_id)->get_impl()->m_manager;
+            const auto& expected_type =
+                impl == "sdpa_ref" ? ov::intel_gpu::ocl::SDPARef::get_type_info_static() : ov::intel_gpu::ocl::SDPAOpt::get_type_info_static();
+            EXPECT_EQ(manager->get_type_info(), expected_type) << "Unexpected SDPA implementation";
+        };
+        verify_manager();
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        auto result = net->execute().at("result").get_memory();
+        verify_manager();
+        const auto instance = net->get_primitive(sdpa_id);
+        const auto executed_kernels = instance->get_impl()->get_kernels_dump_info(*instance->get_impl_params()).get_entries();
+        const bool is_reference = impl == "sdpa_ref";
+        EXPECT_EQ(executed_kernels.find("sdpa_ref") != std::string::npos, is_reference) << "Executed kernels: " << executed_kernels;
+        EXPECT_EQ(executed_kernels.find("sdpa_micro") != std::string::npos || executed_kernels.find("sdpa_opt") != std::string::npos, !is_reference)
+            << "Executed kernels: " << executed_kernels;
+        RecordProperty(is_reference ? "reference_kernels" : "optimized_kernels", executed_kernels);
+        EXPECT_EQ(result->get_layout().data_type, q_layout.data_type);
+        return result;
+    }
+
+    void check_broadcast() {
+        const auto& p = GetParam();
+        auto& engine = get_test_engine();
+
+        auto dims = [&](int64_t b, int64_t seq) {
+            switch (p.order_kind) {
+            case 1: return ov::PartialShape{b, seq, p.num_heads, p.head_size};
+            case 2: return ov::PartialShape{seq, b, p.num_heads, p.head_size};
+            default: return ov::PartialShape{b, p.num_heads, seq, p.head_size};
+            }
+        };
+        const auto q_layout = cldnn::layout(dims(p.q_batch, p.seq_q), data_types::f16, format::bfyx);
+        const auto k_layout = cldnn::layout(dims(p.k_batch, p.seq_kv), data_types::f16, format::bfyx);
+        const auto v_layout = cldnn::layout(dims(p.v_batch, p.seq_kv), data_types::f16, format::bfyx);
+        const auto net_q_layout = p.dynamic_batch ? cldnn::layout(dims(-1, p.seq_q), data_types::f16, format::bfyx) : q_layout;
+        const auto net_k_layout = p.dynamic_batch ? cldnn::layout(dims(-1, p.seq_kv), data_types::f16, format::bfyx) : k_layout;
+        const auto net_v_layout = p.dynamic_batch ? cldnn::layout(dims(-1, p.seq_kv), data_types::f16, format::bfyx) : v_layout;
+
+        // Bound logits to reduce FP16 rounding sensitivity; V values distinguish logical batches.
+        auto q_data = rg.generate_random_1d<ov::float16>(q_layout.count(), -1.0f, 1.0f);
+        auto k_data = rg.generate_random_1d<ov::float16>(k_layout.count(), -1.0f, 1.0f);
+        auto v_data = rg.generate_random_1d<ov::float16>(v_layout.count(), 0.25f, 0.75f);
+
+        const auto v_shape = v_layout.get_shape();
+        for (size_t i = 0; i < v_data.size(); ++i) {
+            const size_t batch = p.order_kind == 2 ? (i / (v_shape[2] * v_shape[3])) % v_shape[1] : i / (v_shape[1] * v_shape[2] * v_shape[3]);
+            v_data[i] = ov::float16(static_cast<float>(v_data[i]) + 0.5f * static_cast<float>(batch));
+        }
+
+        // Fill the space after the real Q/K/V data with NaN, so any read past the batch shows up as NaN.
+        const int max_batch = std::max({p.q_batch, p.k_batch, p.v_batch});
+        std::vector<cldnn::memory::ptr> keep_alive;
+        auto make_guarded = [&](const cldnn::layout& real_layout, const std::vector<ov::float16>& data) {
+            auto shape = real_layout.get_shape();
+            shape[p.order_kind == 2 ? 1 : 0] = static_cast<size_t>(max_batch);
+            cldnn::layout big_layout(shape, real_layout.data_type, real_layout.format);
+            auto big = engine.allocate_memory(big_layout);
+            std::vector<ov::float16> padded(big_layout.count(), ov::float16(std::numeric_limits<float>::quiet_NaN()));
+            std::copy(data.begin(), data.end(), padded.begin());
+            set_values(big, padded);
+            keep_alive.push_back(big);
+            return engine.reinterpret_buffer(*big, real_layout);
+        };
+        auto q_mem = make_guarded(q_layout, q_data);
+        auto k_mem = make_guarded(k_layout, k_data);
+        auto v_mem = make_guarded(v_layout, v_data);
+
+        // sdpa_micro on systolic devices, sdpa_opt otherwise (micro is disabled on xe3p for head_size <= 64).
+        auto& device_info = engine.get_device_info();
+        const bool micro_eligible = device_info.supports_immad && !(device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64);
+        const std::string opt_impl = micro_eligible ? "sdpa_micro" : "sdpa_opt";
+
+        // Static batches that are neither equal nor 1 cannot be broadcast: kernel generation must reject them.
+        auto batches_conflict = [](int a, int b) { return a != 1 && b != 1 && a != b; };
+        if (!p.dynamic_batch && (batches_conflict(p.q_batch, p.k_batch) || batches_conflict(p.q_batch, p.v_batch) ||
+                                 batches_conflict(p.k_batch, p.v_batch))) {
+            EXPECT_ANY_THROW(run_broadcast_network(net_q_layout, net_k_layout, net_v_layout, q_mem, k_mem, v_mem, opt_impl, p.order_kind));
+            return;
+        }
+
+        // Compute the reference in FP32 from the exact FP16 input values, not unrounded random values.
+        auto as_f32_layout = [](cldnn::layout input) {
+            input.data_type = data_types::f32;
+            return input;
+        };
+        auto make_f32_memory = [&](const cldnn::layout& input_layout, const std::vector<ov::float16>& input_data) {
+            auto memory = engine.allocate_memory(as_f32_layout(input_layout));
+            set_values(memory, std::vector<float>(input_data.begin(), input_data.end()));
+            return memory;
+        };
+        auto ref_q_mem = make_f32_memory(q_layout, q_data);
+        auto ref_k_mem = make_f32_memory(k_layout, k_data);
+        auto ref_v_mem = make_f32_memory(v_layout, v_data);
+        auto mem_ref = run_broadcast_network(as_f32_layout(net_q_layout),
+                                             as_f32_layout(net_k_layout),
+                                             as_f32_layout(net_v_layout),
+                                             ref_q_mem,
+                                             ref_k_mem,
+                                             ref_v_mem,
+                                             "sdpa_ref",
+                                             p.order_kind);
+        auto mem_opt = run_broadcast_network(net_q_layout, net_k_layout, net_v_layout, q_mem, k_mem, v_mem, opt_impl, p.order_kind);
+
+        ASSERT_NE(mem_ref, nullptr);
+        ASSERT_NE(mem_opt, nullptr);
+        cldnn::mem_lock<float, mem_lock_type::read> ref_ptr(mem_ref, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(mem_opt, get_test_stream());
+
+        ASSERT_EQ(mem_ref->get_layout().get_shape(), mem_opt->get_layout().get_shape());
+        ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
+        // Keep the reference away from zero so invalid reads cannot hide within the tolerance.
+        float max_abs_ref = 0.f;
+        for (size_t i = 0; i < ref_ptr.size(); ++i) {
+            ASSERT_TRUE(std::isfinite(static_cast<float>(ref_ptr[i]))) << "Reference output is not finite at index " << i;
+            max_abs_ref = std::max(max_abs_ref, std::abs(static_cast<float>(ref_ptr[i])));
+        }
+        ASSERT_GT(max_abs_ref, 0.3f) << "Reference output too small: the test would not detect wrong K/V reads";
+        for (size_t i = 0; i < ref_ptr.size(); ++i) {
+            ASSERT_TRUE(std::isfinite(static_cast<float>(opt_ptr[i]))) << "Optimized output is not finite at index " << i;
+            ASSERT_NEAR(static_cast<float>(opt_ptr[i]), static_cast<float>(ref_ptr[i]), 1e-2f)
+                << "Broadcast SDPA mismatch at index " << i
+                << ", opt=" << static_cast<float>(opt_ptr[i])
+                << " ref=" << static_cast<float>(ref_ptr[i])
+                << " (Q batch=" << p.q_batch << " K batch=" << p.k_batch << " V batch=" << p.v_batch << ")"
+                << std::endl;
+        }
+    }
+};
+
+TEST_P(sdpa_broadcast_test, matches_reference) {
+    check_broadcast();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    sdpa_broadcast,
+    sdpa_broadcast_test,
+    ::testing::Values(
+        // K/V batch = 1 (K and V broadcast, then each alone), default layout [B,H,L,E]
+        sdpa_broadcast_test_params(2, 1, 1, 16, 1, 1024, 64, true, 0),
+        sdpa_broadcast_test_params(2, 1, 1, 16, 64, 1024, 64, true, 0),
+        sdpa_broadcast_test_params(2, 1, 1, 16, 1, 1024, 64, false, 0),
+        sdpa_broadcast_test_params(2, 2, 1, 16, 1, 1024, 64, true, 0),
+        sdpa_broadcast_test_params(2, 1, 2, 16, 1, 1024, 64, true, 0),
+        // transposed layout [B,L,H,E] with order {0,2,1,3}
+        sdpa_broadcast_test_params(2, 1, 1, 16, 64, 1024, 64, true, 1),
+        sdpa_broadcast_test_params(2, 1, 1, 16, 1, 1024, 64, false, 1),
+        // layout [L,B,H,E] with order {1,2,0,3}: the logical batch is not layout dim 0
+        sdpa_broadcast_test_params(2, 1, 1, 16, 1, 1024, 64, true, 2),
+        sdpa_broadcast_test_params(2, 1, 1, 16, 1, 1024, 64, false, 2),
+        sdpa_broadcast_test_params(2, 2, 2, 16, 1, 1, 64, false, 2),
+        // incompatible static batches are rejected
+        sdpa_broadcast_test_params(4, 2, 2, 16, 64, 1024, 64, false, 0),
+        // Q batch 1 is broadcast to K/V batch
+        sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, true, 0),
+        sdpa_broadcast_test_params(1, 2, 2, 16, 64, 1024, 64, true, 0),
+        sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, false, 0),
+        sdpa_broadcast_test_params(1, 4, 1, 16, 1, 1024, 64, true, 0),
+        sdpa_broadcast_test_params(1, 1, 4, 16, 1, 1024, 64, true, 0),
+        sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, true, 2),
+        sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, false, 1)));
+
 } // namespace

@@ -11,7 +11,6 @@
 #include <variant>
 #include <vector>
 
-#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -86,15 +85,11 @@ struct GgufTensor {
 using GGUFMetaData =
     std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
 
-// GGUFLoad result: (metadata, tensor arrays, qtype map, mmap, quant_buf).
-// - mmap: must stay alive while arrays tensors are used (non-quantized tensors are mmap views).
-// - quant_buf: single AlignedBuffer holding all repacked quantized weight/scale/bias data;
-//   tensors in `arrays` for quantized weights are SharedBuffer slices into this buffer.
+// Parsed arrays own repacked quantized buffers and keep non-quantized mmap views alive.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::unordered_map<std::string, ov::Tensor>,
                             std::unordered_map<std::string, GgufTensorType>,
-                            std::shared_ptr<ov::MappedMemory>,
-                            std::shared_ptr<ov::AlignedBuffer>>;
+                            std::shared_ptr<ov::MappedMemory>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
 // (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights packed as u8).
@@ -134,10 +129,7 @@ void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
-// Parse a GGUF file: returns (metadata, tensors-by-ggml-name, qtype map, mmap, quant_buf).
-// Non-quantized tensors are zero-copy views into the mmap (mmap must outlive arrays use).
-// Quantized tensors are SharedBuffer slices of a single AlignedBuffer (quant_buf) so all
-// repacked weight/scale/bias data lives in one allocation (IR-frontend pattern).
+// Parse GGUF metadata and tensors. Each repacked quantized tensor owns its buffer.
 GGUFLoad get_gguf_data(const std::string& file);
 
 // Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,

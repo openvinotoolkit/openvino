@@ -319,6 +319,9 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
         jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
         jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_k_transpose_order)));
+        jit.make("Q_BATCH_NUM", q_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_q_transpose_order)));
+        jit.make("K_BATCH_NUM", k_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_k_transpose_order)));
+        jit.make("V_BATCH_NUM", v_jitter.dim(get_transposed_channel(ChannelName::BATCH, extended_input_v_transpose_order)));
 
         auto get_static_or_runtime_dim = [](int64_t dim, std::string runtime_dim, const char* dim_name) {
             if (dim < 0)
