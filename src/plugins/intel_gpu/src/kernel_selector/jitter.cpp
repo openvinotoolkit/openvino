@@ -2532,14 +2532,15 @@ std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size, size_t idx) co
 
 std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, size_t vec_size) const {
     std::string ret = "convert_" + GetType(dt, vec_size) + "(" + var + ")";
-    if (dt == Datatype::BF16)
+    if (dt == Datatype::BF16) {
         ret = "CONVERT_BFLOAT16_AS_USHORT(" + var + ", " + toCodeString(vec_size) + ")";
-    else if (dt == Datatype::F8E4M3)
+    } else if (dt == Datatype::F8E4M3) {
         ret = "CONVERT_F8E4M3_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
-    else if (dt == Datatype::F8E5M2)
+    } else if (dt == Datatype::F8E5M2) {
         ret = "CONVERT_F8E5M2_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
-    else if (dt == Datatype::F8E8M0)
+    } else if (dt == Datatype::F8E8M0) {
         ret = "CONVERT_F8E8M0_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
+    }
     return ret;
 }
 
@@ -2553,14 +2554,15 @@ std::string FusedOpsCodeGenerator::ConvertToOutputType(std::string var, size_t v
 
 std::string FusedOpsCodeGenerator::DecodeComputeType(std::string var, Datatype dt, size_t vec_size) const {
     std::string ret = var;
-    if (dt == Datatype::BF16)
+    if (dt == Datatype::BF16) {
         ret = "CONVERT_AS_BFLOAT16_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
-    else if (dt == Datatype::F8E4M3)
+    } else if (dt == Datatype::F8E4M3) {
         ret = "CONVERT_AS_F8E4M3_HALF(" + var + ", " + toCodeString(vec_size) + ")";
-    else if (dt == Datatype::F8E5M2)
+    } else if (dt == Datatype::F8E5M2) {
         ret = "CONVERT_AS_F8E5M2_HALF(" + var + ", " + toCodeString(vec_size) + ")";
-    else if (dt == Datatype::F8E8M0)
+    } else if (dt == Datatype::F8E8M0) {
         ret = "CONVERT_AS_F8E8M0_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
+    }
     return ret;
 }
 
