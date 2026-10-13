@@ -19,6 +19,10 @@
 
 namespace intel_npu {
 
+class IVCLCompiler;
+class IProfilingDecoder;
+struct VCLFunctionTable;
+
 class CompilerAdapterFactory final {
 public:
     std::unique_ptr<ICompilerAdapter> getCompiler(
@@ -41,6 +45,14 @@ private:
         const std::shared_ptr<OptionSupportCache>& optionSupportCache,
         const std::shared_ptr<intel_npu::IDevice>& device,
         std::string_view platform) const;
+
+    std::shared_ptr<IVCLCompiler> makePluginCompiler(
+        const std::shared_ptr<IDevice>& device,
+        const std::shared_ptr<OptionSupportCache>& optionSupportCache) const;
+
+    std::shared_ptr<IProfilingDecoder> makeProfilingDecoderIfAvailable() const;
+
+    std::shared_ptr<const VCLFunctionTable> resolveVCLFunctions() const;
 
     enum class PluginCompilerPresence : std::uint8_t {
         UNKNOWN = 0,

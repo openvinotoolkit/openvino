@@ -10,7 +10,6 @@
 #include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 
@@ -36,9 +35,9 @@ private:
 };
 
 /**
- * @brief Resolves the VCL function table via VCLLoader and wraps the decoder together with the VCL library, the
- * same way makeVCLCompiler() does for the compiler-in-plugin. Throws if the VCL compiler library cannot be loaded.
+ * @brief Constructs a profiling decoder dispatching into the given VCL function table.
+ * @param functions The resolved VCL function table. Must expose the profiling entry points.
  */
-ov::SoPtr<IProfilingDecoder> makeVCLProfilingDecoder();
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions);
 
 }  // namespace intel_npu

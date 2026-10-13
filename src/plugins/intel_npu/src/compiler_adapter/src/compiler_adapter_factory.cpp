@@ -7,20 +7,25 @@
 #include "compiler_impl.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 #include "plugin_compiler_adapter.hpp"
 #include "vcl_profiling_decoder.hpp"
 
 namespace intel_npu {
 
-namespace {
-// Loads the compiler-in-plugin, translating any failure into the aborting message callers expect.
-// Composing the compiler here, rather than inside PluginCompilerAdapter, keeps the adapter free of
-// any knowledge of how a compiler is obtained.
-std::shared_ptr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& device,
-                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
+std::shared_ptr<const VCLFunctionTable> CompilerAdapterFactory::resolveVCLFunctions() const {
+    auto vclLoader = VCLLoader::getInstance();
+    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+    return vclLoader->sharedFunctions();
+}
+
+std::shared_ptr<IVCLCompiler> CompilerAdapterFactory::makePluginCompiler(
+    const std::shared_ptr<IDevice>& device,
+    const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
     try {
         return makeVCLCompiler(
+            resolveVCLFunctions(),
             device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
             optionSupportCache);
     } catch (const std::exception& vclException) {
@@ -28,14 +33,13 @@ std::shared_ptr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>&
     }
 }
 
-ov::SoPtr<IProfilingDecoder> makeProfilingDecoderIfAvailable() {
+std::shared_ptr<IProfilingDecoder> CompilerAdapterFactory::makeProfilingDecoderIfAvailable() const {
     try {
-        return makeVCLProfilingDecoder();
+        return makeVCLProfilingDecoder(resolveVCLFunctions());
     } catch (const std::exception&) {
-        return {};
+        return nullptr;
     }
 }
-}  // namespace
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,

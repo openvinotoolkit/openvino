@@ -120,12 +120,8 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
-ov::SoPtr<IProfilingDecoder> makeVCLProfilingDecoder() {
-    auto vclLoader = VCLLoader::getInstance();
-    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-
-    // The function table is an aliasing shared_ptr over the loader, so it keeps the library loaded.
-    return std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions) {
+    return std::make_shared<VCLProfilingDecoder>(std::move(functions));
 }
 
 }  // namespace intel_npu

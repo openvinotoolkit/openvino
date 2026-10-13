@@ -133,16 +133,14 @@ private:
 };
 
 /**
- * @brief Loads the VCL compiler library and returns a compiler dispatching into it.
- *
- * The returned compiler holds the loader's function table, which is an aliasing `shared_ptr` over
- * the loader itself, so the library stays loaded for exactly as long as the compiler needs it.
- *
+ * @brief Constructs a compiler dispatching into the given VCL function table.
+ * @param functions The resolved VCL function table. Must be non-null.
  * @param optionSupportCache Bound here to the compiler-in-plugin's own cache key. Callers hand over
  *        the shared cache rather than a pre-bound one, so a compiler can never be paired with a key
  *        that belongs to a different compiler's answers.
  */
 std::shared_ptr<IVCLCompiler> makeVCLCompiler(
+    std::shared_ptr<const VCLFunctionTable> functions,
     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
     const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 

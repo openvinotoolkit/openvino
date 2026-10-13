@@ -34,7 +34,7 @@ public:
      */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                           std::shared_ptr<IVCLCompiler> compiler,
-                          ov::SoPtr<IProfilingDecoder> profilingDecoder = {});
+                          std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const Config& config,
@@ -57,7 +57,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     std::shared_ptr<IVCLCompiler> _compiler;
-    ov::SoPtr<IProfilingDecoder> _profilingDecoder;
+    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 
     Logger _logger;
 };

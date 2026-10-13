@@ -20,7 +20,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent,
-             ov::SoPtr<IProfilingDecoder> profilingDecoder)
+             std::shared_ptr<IProfilingDecoder> profilingDecoder)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),

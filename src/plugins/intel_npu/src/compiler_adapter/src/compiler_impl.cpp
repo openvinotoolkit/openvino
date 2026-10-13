@@ -595,13 +595,10 @@ constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
     static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
 }  // namespace
 
-std::shared_ptr<IVCLCompiler> makeVCLCompiler(const std::optional<IDevice::DeviceProperties>& deviceProperties,
+std::shared_ptr<IVCLCompiler> makeVCLCompiler(std::shared_ptr<const VCLFunctionTable> functions,
+                                              const std::optional<IDevice::DeviceProperties>& deviceProperties,
                                               const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
-    auto vclLoader = VCLLoader::getInstance();
-    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-
-    // The function table is an aliasing shared_ptr over the loader, so it keeps the library loaded.
-    return std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
+    return std::make_shared<VCLCompilerImpl>(std::move(functions),
                                              deviceProperties,
                                              ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
 }

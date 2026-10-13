@@ -26,13 +26,6 @@ ov::Tensor makeNetworkTensor() {
     return ov::Tensor(ov::element::u8, ov::Shape{4});
 }
 
-class NoopProfilingDecoder final : public ::intel_npu::IProfilingDecoder {
-public:
-    std::vector<ov::ProfilingInfo> decode(const std::vector<uint8_t>&, const ov::Tensor&) const override {
-        return {};
-    }
-};
-
 }  // namespace
 
 struct VCLProfilingDecoderTest : public ::testing::Test {
@@ -51,29 +44,6 @@ TEST_F(VCLProfilingDecoderTest, ConstructionDoesNotTriggerACompilerCreateGetDest
     EXPECT_FALSE(fake.called("vclCompilerCreate"));
     EXPECT_FALSE(fake.called("vclCompilerGetProperties"));
     EXPECT_EQ(fake.compilerDestroyCount, 0);
-}
-
-TEST_F(VCLProfilingDecoderTest, InterfaceSoPtrKeepsItsSharedLibraryAlive) {
-    // makeVCLProfilingDecoder() pairs the decoder with the loaded VCL library via this same ov::SoPtr
-    // aliasing constructor, but it cannot be exercised directly without a real, dlopen'd library. A
-    // plain int and a no-op decoder stand in for "the library" and "the decoder" to verify the pairing
-    // mechanism itself keeps both alive together.
-    auto library = std::make_shared<int>(0);
-    std::weak_ptr<int> weakLibrary = library;
-    auto decoder = std::make_shared<NoopProfilingDecoder>();
-    std::weak_ptr<::intel_npu::IProfilingDecoder> weakDecoder = decoder;
-    ov::SoPtr<::intel_npu::IProfilingDecoder> decoderWithLibrary(
-        std::static_pointer_cast<::intel_npu::IProfilingDecoder>(decoder),
-        library);
-
-    decoder.reset();
-    library.reset();
-    EXPECT_FALSE(weakDecoder.expired());
-    EXPECT_FALSE(weakLibrary.expired());
-
-    decoderWithLibrary = {};
-    EXPECT_TRUE(weakDecoder.expired());
-    EXPECT_TRUE(weakLibrary.expired());
 }
 
 TEST_F(VCLProfilingDecoderTest, NullFunctionTableIsRejected) {

@@ -71,7 +71,7 @@ struct PluginCompilerAdapterTest : public ::testing::Test {
     // The adapter is built with a null ZeroInitStructsHolder throughout: that is the no-driver path,
     // which is the only one reachable without an NPU.
     std::unique_ptr<PluginCompilerAdapter> makeAdapter(
-        ov::SoPtr<::intel_npu::IProfilingDecoder> profilingDecoder = {}) {
+        std::shared_ptr<::intel_npu::IProfilingDecoder> profilingDecoder = nullptr) {
         return std::make_unique<PluginCompilerAdapter>(nullptr, compiler, std::move(profilingDecoder));
     }
 
@@ -127,7 +127,7 @@ TEST_F(PluginCompilerAdapterTest, CompileProducesAGraphEvenWithoutADriver) {
 
 TEST_F(PluginCompilerAdapterTest, CompiledGraphUsesInjectedProfilingDecoder) {
     auto decoder = std::make_shared<RecordingProfilingDecoder>();
-    auto adapter = makeAdapter(ov::SoPtr<::intel_npu::IProfilingDecoder>(decoder));
+    auto adapter = makeAdapter(decoder);
     auto config = makeConfig();
     const auto graph = adapter->compile(makeModel(), config, AdapterDescriptor{});
     const std::vector<uint8_t> profData{1, 2, 3};
@@ -163,7 +163,7 @@ TEST_F(PluginCompilerAdapterTest, GraphWithDecoderButNoBlobThrowsOnProfilingOutp
                              /* blob = */ std::nullopt,
                              std::nullopt,
                              false,
-                             ov::SoPtr<::intel_npu::IProfilingDecoder>(decoder));
+                             decoder);
 
     EXPECT_TRUE(graph.has_profiling_decoder());
     try {

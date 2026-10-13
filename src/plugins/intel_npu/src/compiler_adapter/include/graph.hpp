@@ -14,7 +14,6 @@
 #include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -28,7 +27,7 @@ public:
           std::optional<ov::Tensor> blob,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false,
-          ov::SoPtr<IProfilingDecoder> profilingDecoder = {});
+          std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -94,7 +93,7 @@ protected:
     std::optional<ov::Tensor> _blob;
     std::optional<std::string> _compatibilityDescriptor;
 
-    ov::SoPtr<IProfilingDecoder> _profilingDecoder;
+    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
