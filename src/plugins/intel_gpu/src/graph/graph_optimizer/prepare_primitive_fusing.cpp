@@ -1,57 +1,57 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "program_helpers.h"
-#include "pass_manager.h"
-
-#include "pooling_inst.h"
-#include "proposal_inst.h"
-#include "roi_pooling_inst.h"
-#include "quantize_inst.h"
-#include "activation_inst.h"
-#include "batch_to_space_inst.h"
-#include "crop_inst.h"
-#include "eltwise_inst.h"
-#include "gemm_inst.h"
-#include "lrn_inst.h"
-#include "mvn_inst.h"
-#include "rms_inst.h"
-#include "pooling_inst.h"
-#include "normalize_inst.h"
-#include "permute_inst.h"
-#include "reshape_inst.h"
-#include "softmax_inst.h"
-#include "resample_inst.h"
-#include "depth_to_space_inst.h"
-#include "fully_connected_inst.h"
-#include "space_to_depth_inst.h"
-#include "gather_inst.h"
-#include "gather_nd_inst.h"
-#include "gather_elements_inst.h"
-#include "scatter_update_inst.h"
-#include "scatter_nd_update_inst.h"
-#include "scatter_elements_update_inst.h"
-#include "reverse_sequence_inst.h"
-#include "shuffle_channels_inst.h"
-#include "space_to_batch_inst.h"
-#include "strided_slice_inst.h"
-#include "cum_sum_inst.h"
-#include "embedding_bag_inst.h"
-#include "swiglu_inst.h"
-#include "gather_matmul_inst.h"
-#include "extract_image_patches_inst.h"
-#include "reduce_inst.h"
-#include "group_normalization_inst.h"
-#include "lora_inst.h"
-#include "broadcast_inst.h"
-#include <vector>
-#include <map>
+#include <deque>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
-#include <deque>
+#include <vector>
+
+#include "activation_inst.h"
+#include "batch_to_space_inst.h"
+#include "broadcast_inst.h"
+#include "crop_inst.h"
+#include "cum_sum_inst.h"
+#include "depth_to_space_inst.h"
+#include "dynamic_quantize_inst.h"
+#include "eltwise_inst.h"
+#include "embedding_bag_inst.h"
+#include "extract_image_patches_inst.h"
+#include "fully_connected_inst.h"
+#include "gather_elements_inst.h"
+#include "gather_inst.h"
+#include "gather_matmul_inst.h"
+#include "gather_nd_inst.h"
+#include "gemm_inst.h"
+#include "group_normalization_inst.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "lora_inst.h"
+#include "lrn_inst.h"
+#include "mvn_inst.h"
+#include "normalize_inst.h"
+#include "pass_manager.h"
+#include "permute_inst.h"
+#include "pooling_inst.h"
+#include "program_helpers.h"
+#include "proposal_inst.h"
+#include "quantize_inst.h"
+#include "reduce_inst.h"
+#include "resample_inst.h"
+#include "reshape_inst.h"
+#include "reverse_sequence_inst.h"
+#include "rms_inst.h"
+#include "roi_pooling_inst.h"
+#include "scatter_elements_update_inst.h"
+#include "scatter_nd_update_inst.h"
+#include "scatter_update_inst.h"
+#include "shuffle_channels_inst.h"
+#include "softmax_inst.h"
+#include "space_to_batch_inst.h"
+#include "space_to_depth_inst.h"
+#include "strided_slice_inst.h"
+#include "swiglu_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
 #endif
@@ -536,6 +536,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto node_itr = itr++;
         const auto& node = (*node_itr);
 
+        auto& fused_primitives = node->get_fused_primitives();
+        if (std::any_of(fused_primitives.begin(), fused_primitives.end(), [](const fused_primitive_desc& f_desc) {
+                return f_desc.is_type<dynamic_quantize>();
+            })) {
+            GPU_DEBUG_TRACE_DETAIL << node->id() << " has fused dynamic_quantize. Skip fusing more primitives" << std::endl;
+            continue;
+        }
+
         if (node->is_output() || node->is_constant())
             continue;
 
@@ -830,13 +838,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
-            if (activation_func == cldnn::activation_func::softplus && activation_node.get_output_layout().data_type == data_types::f16) {
-                // This is WA :
-                // - SoftPlus can overflow on f16 so that jitter.cpp currently resolves by typecasting to f32
-                // - But it doesn't guarantee the case of fusion.
-                // - For now it needs to disable fusion for SoftPlus.
-                return;
-            }
 
             auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
@@ -1404,11 +1405,42 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
-        // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
-        program_helpers::do_for_types<activation, quantize, eltwise>(*node,
+        auto fuse_dynamic_quantize_f = [&](dynamic_quantize_node& dynamic_quantize_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 14)
+                    return;
+            }
+            auto& input_data = dynamic_quantize_node.get_dependency(0);
+            if (!input_data.is_type<rms>() || input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
+                return;
+
+            if (input_data.in_shape_of_subgraph || dynamic_quantize_node.in_shape_of_subgraph)
+                return;
+
+            // Incompatible with feature axis.
+            const auto rms_prim = input_data.as<rms>().get_primitive();
+            if (rms_prim->axis != static_cast<int64_t>(input_data.get_output_layout().get_rank()) - 1 && rms_prim->axis != -1)
+                return;
+
+            auto dyn_quan_prim = dynamic_quantize_node.get_primitive();
+            auto attrs = dyn_quan_prim->attrs;
+
+            bool is_mxfp8 = attrs.scale_dt == ov::element::f8e8m0 &&
+                            (attrs.quantization_dt == ov::element::f8e4m3 || attrs.quantization_dt == ov::element::f8e5m2) && attrs.group_sizes.back() == 32;
+
+            if (!is_mxfp8) {
+                return;
+            }
+
+            p.fuse_nodes(input_data, dynamic_quantize_node, &fusing_history);
+        };
+
+        // Debug config DISABLE_POST_OPS_FUSION=11 to 14 specify enabling only one of fusions activation, quantize, eltwise and dynamic quantize
+        program_helpers::do_for_types<activation, quantize, eltwise, dynamic_quantize>(*node,
                 fuse_activation_f,
                 fuse_quantize_f,
-                fuse_eltwise_f);
+                fuse_eltwise_f,
+                fuse_dynamic_quantize_f);
     }
 
     // Need to update processing order to handle cases when peer node processing number is greater
@@ -1594,7 +1626,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
                 const auto& act_prim = fp.typed_desc<activation>();
                 const auto& quant_param = fp_next.get_typed_fuse_params<QuantizeFuseParams>();
 
-                bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.output_layout.data_type);
+                bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.get_output_layout().data_type);
                 can_skip &= ((act_prim->activation_function == activation_func::relu) && (act_prim->additional_params.a == 0.0f));
                 can_skip &= (quant_param->_scale_shift_opt && !quant_param->_need_pre_shift);
 
