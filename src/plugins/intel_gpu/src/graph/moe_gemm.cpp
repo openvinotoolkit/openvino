@@ -6,7 +6,7 @@
 #include "primitive_type_base.h"
 #include "json_object.h"
 #include "to_string_utils.h"
-#include "openvino/util/common_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include <string>
 #include <vector>
 

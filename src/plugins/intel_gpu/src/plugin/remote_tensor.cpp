@@ -9,7 +9,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 #include <cstdint>
 #include <memory>

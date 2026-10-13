@@ -18,7 +18,7 @@
 #include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/core/validation_util.hpp"
 // clang-format on
 namespace ov::intel_gpu::ocl {
 namespace {

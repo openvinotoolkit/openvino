@@ -6,7 +6,7 @@
 
 #include "primitive_type_base.h"
 #include "json_object.h"
-#include "openvino/util/common_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include <string>
 
 namespace cldnn {
