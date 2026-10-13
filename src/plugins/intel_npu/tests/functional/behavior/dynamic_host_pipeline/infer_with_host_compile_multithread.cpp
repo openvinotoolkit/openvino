@@ -629,11 +629,12 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
 
         std::vector<ov::CompiledModel> compiledModels;
         compiledModels.reserve(kModelCount);
-        auto producer = std::async(std::launch::async, [this, &compiledModels, &model, &cfg]() {
-            for (size_t i = 0; i < kModelCount; ++i) {
-                compiledModels.emplace_back(core.compile_model(model, target_device, cfg));
-            }
-        });
+        auto producer =
+            std::async(std::launch::async, [this, &compiledModels, &model, &cfg, kModelCount = kModelCount]() {
+                for (size_t i = 0; i < kModelCount; ++i) {
+                    compiledModels.emplace_back(core.compile_model(model, target_device, cfg));
+                }
+            });
         producer.get();
 
         ASSERT_EQ(compiledModels.size(), kModelCount);
@@ -654,7 +655,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                  &referenceRequests,
                  &inputs,
                  &shape,
-                 inferIdx](size_t threadIdx) {
+                 inferIdx,
+                 kRequestsPerModel = kRequestsPerModel](size_t threadIdx) {
                     if (requests[threadIdx].empty()) {
                         requests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
                         referenceRequests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
@@ -936,32 +938,40 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
             },
             [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone, &producerException, &producer](
                 const std::shared_future<void>& start) {
-                producer = std::async(
-                    std::launch::async,
-                    [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone, &producerException, start]() {
-                        start.wait();
-                        try {
-                            for (size_t i = 0; i < kModelCount; ++i) {
-                                auto compiledModel = core.compile_model(model, target_device, cfg);
-                                {
-                                    std::lock_guard<std::mutex> lock(mutex);
-                                    compiledModels.push_back(compiledModel);
-                                }
-                                cv.notify_all();
-                            }
-                        } catch (...) {
-                            std::lock_guard<std::mutex> lock(mutex);
-                            producerException = std::current_exception();
-                            producerDone = true;
-                            cv.notify_all();
-                            return;
-                        }
-                        {
-                            std::lock_guard<std::mutex> lock(mutex);
-                            producerDone = true;
-                        }
-                        cv.notify_all();
-                    });
+                producer = std::async(std::launch::async,
+                                      [this,
+                                       &cfg,
+                                       &model,
+                                       &compiledModels,
+                                       &mutex,
+                                       &cv,
+                                       &producerDone,
+                                       &producerException,
+                                       start,
+                                       kModelCount = kModelCount]() {
+                                          start.wait();
+                                          try {
+                                              for (size_t i = 0; i < kModelCount; ++i) {
+                                                  auto compiledModel = core.compile_model(model, target_device, cfg);
+                                                  {
+                                                      std::lock_guard<std::mutex> lock(mutex);
+                                                      compiledModels.push_back(compiledModel);
+                                                  }
+                                                  cv.notify_all();
+                                              }
+                                          } catch (...) {
+                                              std::lock_guard<std::mutex> lock(mutex);
+                                              producerException = std::current_exception();
+                                              producerDone = true;
+                                              cv.notify_all();
+                                              return;
+                                          }
+                                          {
+                                              std::lock_guard<std::mutex> lock(mutex);
+                                              producerDone = true;
+                                          }
+                                          cv.notify_all();
+                                      });
             });
         producer.get();
 
