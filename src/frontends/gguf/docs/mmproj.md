@@ -30,6 +30,11 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Audio | `gemma4ua` | raw 640-sample waveform frames |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
 
+Bonsai-27B, Ternary-Bonsai-27B and Ternary-Bonsai-2-27B BF16 and Q8_0 projector files are
+supported by the built-in `qwen3vl_merger` projector. They use patch size 16, spatial merge 2,
+output width 5120 and no DeepStack outputs. Load these files directly through the native GGUF
+frontend.
+
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
 Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`, `lfm2`,
@@ -259,12 +264,3 @@ they do not construct tokenizers, media preprocessing, or a complete GenAI pipel
 Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or replace one
 vision/audio branch under the `clip` coordinator; the [examples](../examples/architecture_extension/README.md)
 build and run one. A different whole-model format needs an `ArchitectureExtension`.
-
-The Bonsai-27B, Ternary-Bonsai-27B and Ternary-Bonsai-2-27B BF16 and Q8_0 projectors use
-`qwen3vl_merger`. All six files passed native CPU comparison against Prism llama.cpp
-`e8fd209c975c80aa7fb36a8423571ff3b1b7e955` using F32 expansions of their represented weights.
-Each ran grids 256×128 and 128×192 on one compiled request; the largest normalized MSE was
-`9.8e-7`. This covers encoder features, with patch size 16, spatial merge 2, output width 5120
-and no DeepStack outputs. Application preprocessing and end-to-end image chat need separate
-integration validation. The pinned checkpoint inventory is in
-[`bonsai_models.json`](../../../../tests/model_hub_tests/gguf/bonsai_models.json).

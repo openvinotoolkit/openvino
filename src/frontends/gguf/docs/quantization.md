@@ -25,8 +25,7 @@ Mixed file labels such as `Q4_K_M` describe a checkpoint's tensor mix, not one t
 
 Prism `PQ2_0` (type 142) stores 128 ternary codes and an F16 scale in 34 bytes.
 `PTQ1_0` (type 143) stores 128 dense trits and an F16 scale in 28 bytes. Both decode to u2
-codes with integer zero point 1 and per-128 scales, without requantization. Independent
-Prism CPU raw-byte fixtures verify both unpackers bit exactly.
+codes with integer zero point 1 and per-128 scales, without requantization.
 
 Older Bonsai files used type 42 (`Q2_0`) for both per-64 and per-128 packing. The native parser
 identifies the payload using tensor dimensions and aligned descriptor spans, and maps per-128
