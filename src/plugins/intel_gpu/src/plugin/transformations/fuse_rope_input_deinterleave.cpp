@@ -13,6 +13,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 namespace {
@@ -69,7 +70,7 @@ FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() {
     using namespace ov::pass::pattern;
 
     auto rope_pattern = wrap_type<ov::op::internal::RoPE>();
-    ov::matcher_pass_callback callback = [this](Matcher& matcher) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
         auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(matcher.get_match_root());
         if (!rope || transformation_callback(rope) || rope->get_input_size() != 3) {
             return false;
