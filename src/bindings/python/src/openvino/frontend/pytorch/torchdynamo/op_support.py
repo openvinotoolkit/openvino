@@ -283,6 +283,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.quantized_decomposed.quantize_per_channel.default": None,
             "torch.ops.quantized_decomposed.dequantize_per_tensor.default": None,
             "torch.ops.quantized_decomposed.dequantize_per_channel.default": None,
+            "torch.ops.ov_ext.ct_gemm.default": None,
         }
 
         self.enabled_op_names = []
