@@ -685,6 +685,10 @@ jobs:
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      SSL_CERT_FILE: 'C:\certs\IntelProxyRootCA.crt'
+      CURL_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
+      REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
+      NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
     steps:
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
