@@ -1455,9 +1455,6 @@ void Transformations::MainSnippets() {
             return false;
         }
 #endif
-        if (ignoreCallback) {
-            return true;
-        }
         // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
         // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
@@ -1488,7 +1485,7 @@ void Transformations::MainSnippets() {
                                                                  const ov::op::v1::ReduceMax,
                                                                  const ov::op::v1::ReduceSum>(n));
         };
-        return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
+        return !is_unsupported(n) && (ignoreCallback || !is_unsupported_by_common_tokenization(n));
     };
 
     auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {

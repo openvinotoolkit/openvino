@@ -5,9 +5,7 @@
 
 #include "snippets_helpers.hpp"
 
-namespace ov {
-namespace test {
-namespace snippets {
+namespace ov::test::snippets {
 
 class BitwiseFunction : public SnippetsFunctionBase {
 public:
@@ -18,6 +16,4 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 };
 
-}  // namespace snippets
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::snippets
