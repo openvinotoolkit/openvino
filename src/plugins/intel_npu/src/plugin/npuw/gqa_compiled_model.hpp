@@ -34,10 +34,8 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    // Copies the valid prefix of a smaller, dynamically-sized rank-4 tensor (KV-cache or
-    // attention bias) into a larger statically-shaped one, left-aligned, along `axis` (2
-    // for [N,H,S,E], 3 for the transpose_v-applied [N,H,E,S]/[N,H,X,S] layout). Exposed
-    // for testing.
+    // Copies the valid prefix of a smaller rank-4 tensor into a larger static one,
+    // left-aligned along `axis` (2 for [N,H,S,E], 3 for transposed [N,H,E,S]).
     static void copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst, size_t axis);
 
 private:
@@ -47,45 +45,34 @@ private:
     std::shared_ptr<const GQACompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_inner_request;
-    // Outer-facing tensor for dynamic KV-cache/attention-bias ports (see
-    // GQACompiledModel::m_dynamic_kv_cache_axes); only its valid prefix is copied into
-    // the inner request's static buffer. Keyed by port friendly name.
+    // Outer-facing tensor for dynamic KV-cache/attention-bias ports, keyed by port name.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_tensors;
-    // Names of dynamic-axis inputs currently bound directly onto the caller's own
-    // (exact-capacity) tensor inside the inner request, rather than a private buffer.
-    // set_tensor() with a shorter tensor on the same port must restore the stashed
-    // private buffer below before the inner request is used again.
+    // Dynamic-axis inputs currently bound directly onto the caller's exact-capacity
+    // tensor; must be restored before a shorter set_tensor() reuses the port.
     mutable std::unordered_set<std::string> m_dynamic_kv_cache_input_aliased;
-    // The inner request's own, privately-owned static-capacity buffer for a dynamic-axis
-    // input, stashed away the first time that port gets aliased directly onto a caller's
-    // exact-capacity tensor (see set_tensor()); restored once a shorter tensor is bound
-    // to the same port, so a stale caller tensor from a previous call is never written
-    // into or left dangling inside the inner request.
+    // Private static-capacity buffer stashed when a port gets aliased (see above);
+    // restored once a shorter tensor is bound to the same port.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_private_buffers;
     // Outer-facing tensors for dynamic present_key/present_value outputs; allocated
     // lazily and refreshed from the inner static buffer after every infer().
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_output_tensors;
-    // Names currently aliased directly onto the inner request's own tensor (no
-    // trimming needed) rather than a private buffer; never set_shape() these.
+    // Names currently aliased directly onto the inner tensor (no trimming needed);
+    // never set_shape() these.
     mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_aliased;
-    // Present-output names the caller explicitly set_tensor()'d (IO-binding style):
-    // forwarded straight to the inner request's own port, so refresh_present_tensors_locked()
-    // must not republish a separately-trimmed copy under this name afterwards.
+    // Present-output names the caller explicitly set_tensor()'d; refresh_present_tensors_locked()
+    // must not republish a trimmed copy under these names.
     mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_externally_set;
 
     ov::SoPtr<ov::ITensor> get_present_tensor_locked(const std::string& name) const;
-    // Reads the live value of the Parameter feeding the GQA op's TOTAL_SEQUENCE_LENGTH
-    // input, if one was resolved at compile time; see gqa_compiled_model.cpp.
+    // Reads the live TOTAL_SEQUENCE_LENGTH Parameter value; see gqa_compiled_model.cpp.
     std::optional<size_t> read_total_sequence_length_locked() const;
     void refresh_present_tensors_locked() const;
-    // Copies each dynamic-axis input's user-owned tensor into the inner request's
-    // static buffer, right before infer() (not inside set_tensor(), since the caller
-    // may keep writing into it afterwards). No-op for ports already aliased.
+    // Copies each dynamic-axis input into the inner request's static buffer right before
+    // infer(). No-op for ports already aliased.
     void sync_dynamic_kv_cache_tensors_locked() const;
-    // Diagnostic-only: traces sequence-length-style inputs (seqlens_k / past_seq_len /
-    // total_seq_len) right before infer(); see gqa_compiled_model.cpp.
+    // Diagnostic-only: traces sequence-length-style inputs before infer().
     void trace_sequence_length_inputs_locked() const;
-    // Diagnostic-only: traces attention bias/mask stats right before infer().
+    // Diagnostic-only: traces attention bias/mask stats before infer().
     void trace_attention_mask_stats_locked() const;
 };
 
@@ -107,45 +94,29 @@ public:
         const std::shared_ptr<const ov::IPlugin>& plugin,
         const ov::AnyMap& properties);
 
-    // Identifies which known GQA model family (if any) `model` belongs to, purely from its
-    // Parameter/Result/op structure -- independent of whether any dimension is dynamic.
+    // Classifies `model`'s GQA family, independent of dynamic shapes.
     static Case identify_case(const std::shared_ptr<const ov::Model>& model);
 
-    // True if `model` should be auto-dispatched to GQACompiledModel: it must match a known
-    // GQA family (identify_case() != Case::Unknown) AND actually have a dynamic max_seq_len
-    // (has_dynamic_max_seq_len()) -- a fully static model of a known family doesn't need this
-    // wrapper.
+    // True if `model` should auto-dispatch to GQACompiledModel: a known GQA family with
+    // an actually dynamic max_seq_len.
     static bool supports(const std::shared_ptr<const ov::Model>& model);
 
-    // True if any GroupQueryAttention op's past_key/past_value or attention bias input has a
-    // dynamic (unbounded) max_seq_len dimension, which the NPU compiler cannot handle directly.
+    // True if any GQA op's KV-cache/bias input has a dynamic max_seq_len dimension.
     static bool has_dynamic_max_seq_len(const std::shared_ptr<const ov::Model>& model);
 
     // Scans `outer_outputs` for present_key/present_value ports with a single dynamic
-    // axis (the output-side mirror of the past_key/past_value scan done for
-    // m_dynamic_kv_cache_axes). Re-derivable from outer output ports alone (no
-    // serialization needed), so it's recomputed on both the compile and import paths.
-    // Exposed for testing.
+    // axis (output-side mirror of m_dynamic_kv_cache_axes). Exposed for testing.
     static std::unordered_map<std::string, size_t> find_dynamic_kv_cache_output_axes(
         const std::vector<ov::Output<const ov::Node>>& outer_outputs);
 
-    // Maps every present_key/present_value Result's friendly name back to its
-    // corresponding past_key/past_value Parameter's friendly name, derived directly from
-    // each GroupQueryAttention op's own graph connections (output 1/2 = present_key/
-    // present_value, input PAST_KEY/PAST_VALUE = past_key/past_value; same op instance),
-    // rather than string name-rewriting -- the latter silently breaks for naming schemes
-    // where "present" doesn't map onto "past" by simple substring substitution (e.g.
-    // onnxruntime-genai's dot-style "present.0.key" vs "past_key_values.0.key"). Exposed
-    // for testing.
+    // Maps each present_key/present_value Result's name to its past_key/past_value
+    // Parameter's name, derived from each GQA op's own graph connections (not string
+    // rewriting, which breaks for dot-style naming). Exposed for testing.
     static std::unordered_map<std::string, std::string> find_present_to_past_param_names(
         const std::shared_ptr<const ov::Model>& model);
 
-    // Writes/reads outer-facing port metadata (friendly name + element type + partial
-    // shape) for export_model()/import_model(). Deliberately keyed by friendly name (not
-    // tensor names, which the generic NPUW serialize() overloads for ov::Output<const
-    // ov::Node>/Parameter/Node rely on and which aren't guaranteed to be set) because
-    // GQAInferRequest's dynamic-axis lookups key off get_friendly_name() too. Exposed
-    // publicly (static) so the wire-format round trip can be exercised directly in tests.
+    // Writes/reads outer-facing port metadata for export_model()/import_model(), keyed by
+    // friendly name (GQAInferRequest's dynamic-axis lookups key off it too).
     static void write_port_list(std::ostream& stream, const std::vector<ov::Output<const ov::Node>>& ports);
     static ov::ParameterVector read_input_port_list(std::istream& stream);
     static ov::NodeVector read_output_port_list(std::istream& stream);
@@ -170,14 +141,10 @@ private:
         std::shared_ptr<ov::Model> model;
         std::shared_ptr<ov::Model> compiled_model;
         ov::AnyMap properties;
-        // KV-cache/attention-bias Parameter friendly name -> axis pinned to kMaxSeqLen
-        // (only populated when has_dynamic_max_seq_len() is true for the model).
+        // KV-cache/attention-bias Parameter name -> axis pinned to kMaxSeqLen.
         std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
-        // The static KV-cache capacity actually used to reshape the model (either the
-        // OPENVINO_NPUW_GQA_CTX_LEN env override or the NPUW_LLM_MAX_CONTEXT_LEN
-        // property; see prepare()). NPUW_LLM_MAX_CONTEXT_LEN itself is stripped from
-        // the inner CompiledModel's properties (it only registers ROOT options), so
-        // this is the only way to read the effective capacity back afterwards.
+        // Static KV-cache capacity actually used to reshape the model; stripped from the
+        // inner CompiledModel's properties, so this is the only way to read it back.
         uint32_t effective_max_context_len = 0;
     };
 
@@ -187,8 +154,8 @@ private:
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      CompiledModelFactory factory);
 
-    // Used by import_model() to reconstruct a GQACompiledModel from an
-    // already-deserialized inner compiled model (see gqa_compiled_model.cpp).
+    // Used by import_model() to reconstruct a GQACompiledModel from a deserialized inner
+    // compiled model.
     GQACompiledModel(const std::shared_ptr<ov::Model>& outer_model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
@@ -200,37 +167,23 @@ private:
     friend class GQAInferRequest;
 
     std::shared_ptr<ov::npuw::ICompiledModel> m_inner_compiled_model;
-    // The outer-facing model (Parameters/Results as seen by the caller, dynamic
-    // KV-cache/attention-bias axes as originally presented -- i.e. before the
-    // reshape-to-static done in prepare()). Set on both the compile path (the
-    // pre-reshape PreparedState::model) and the import path (rebuilt from the
-    // exported port lists). Returned as-is from get_runtime_model(): callers care
-    // about the outer contract, not the inner (already-partitioned) implementation.
+    // The outer-facing model (as seen by the caller, pre-reshape-to-static). Returned
+    // as-is from get_runtime_model(); callers care about the outer contract.
     std::shared_ptr<const ov::Model> m_outer_model;
     std::unordered_map<std::string, size_t> m_dynamic_kv_cache_axes;
-    // present_key/present_value outer output friendly name -> axis. Unlike
-    // m_dynamic_kv_cache_axes this is *not* serialized: it's cheaply re-derivable from
-    // the (already round-tripped) outer output ports on both the compile and import
-    // paths, so there's no need to grow the wire format for it.
+    // present_key/present_value outer output name -> axis. Not serialized: cheaply
+    // re-derivable from the outer output ports on both compile and import paths.
     std::unordered_map<std::string, size_t> m_dynamic_kv_cache_output_axes;
-    // Friendly name of the Parameter feeding the GroupQueryAttention op's
-    // TOTAL_SEQUENCE_LENGTH input, if one can be traced back from it (nullopt
-    // otherwise). Like m_dynamic_kv_cache_output_axes, this is re-derived from
-    // m_outer_model on both the compile and import paths rather than serialized.
-    // Used to compute an accurate present_key/present_value length (past length
-    // "grown" by the newly appended tokens) instead of just mirroring past_key/
-    // past_value's own length, which misses the rows appended by the current step.
+    // TOTAL_SEQUENCE_LENGTH Parameter name, if resolved. Used to compute an accurate
+    // present_key/present_value length instead of mirroring past_key/past_value's own
+    // (stale) length. Re-derived from m_outer_model, not serialized.
     std::optional<std::string> m_total_seq_len_param_name;
-    // present_key/present_value outer Result friendly name -> its corresponding
-    // past_key/past_value Parameter friendly name, derived from each GQA op's own graph
-    // connections (see find_present_to_past_param_names()). Like
-    // m_dynamic_kv_cache_output_axes, re-derived from m_outer_model on both the compile
-    // and import paths rather than serialized.
+    // present_key/present_value outer Result name -> its past_key/past_value Parameter
+    // name (see find_present_to_past_param_names()). Re-derived, not serialized.
     std::unordered_map<std::string, std::string> m_present_to_past_param_names;
-    // The effective static KV-cache capacity (see PreparedState::effective_max_context_len
-    // above); returned from get_property(NPUW_LLM_MAX_CONTEXT_LEN) since the inner
-    // CompiledModel no longer carries this property (see prepare()). Serialized across
-    // export_model()/import_model() so a cache hit reports the same value.
+    // Effective static KV-cache capacity; returned from get_property(NPUW_LLM_MAX_CONTEXT_LEN)
+    // since the inner CompiledModel no longer carries this property. Serialized across
+    // export_model()/import_model().
     uint32_t m_effective_max_context_len = 0;
 };
 

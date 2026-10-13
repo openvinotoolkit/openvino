@@ -41,23 +41,18 @@ bool starts_with(const std::string& str, const std::string& prefix);
 // Case-insensitive substring search.
 bool contains_ignore_case(const std::string& str, const std::string& substr);
 
-// Strictly parses `str` as a positive (non-zero) base-10 integer via std::from_chars: the
-// whole string must be consumed and no sign is accepted (unlike std::stoull, which would
-// happily accept "8oops" as 8, or silently wrap a leading '-' into a huge unsigned value).
-// Returns nullopt for anything that doesn't satisfy that, including an empty string or 0 --
-// the caller decides what message/exception to raise and how to further bound/convert the
-// result (e.g. to size_t), since the right wording/bounds differ per call site.
+// Strictly parses `str` as a positive base-10 integer (std::from_chars; whole string
+// consumed, no sign accepted, unlike std::stoull). Returns nullopt for anything else,
+// including an empty string or 0.
 std::optional<int64_t> parse_positive_int_env_var(const std::string& str);
 
 // Walks back from `node`'s single input along pass-through ops (e.g. Convert) until it
-// reaches a Parameter, or gives up (nullptr) if the chain branches or dead-ends on
-// something else.
+// reaches a Parameter, or gives up (nullptr) if the chain branches or dead-ends.
 std::shared_ptr<ov::op::v0::Parameter> trace_back_to_parameter(std::shared_ptr<ov::Node> node);
 
-// Walks forward from `output` along pass-through ops (single consumer, single-output node)
-// until it reaches a Result, or gives up (nullptr) if the chain branches (more than one
-// consumer at any point) or dead-ends on something else. The forward analog of
-// trace_back_to_parameter(), used to map a GroupQueryAttention op's present_key/
+// Forward analog of trace_back_to_parameter(): walks from `output` along pass-through ops
+// until it reaches a Result, or gives up (nullptr) on a branch/dead-end. Used to map a
+// GroupQueryAttention op's present_key/
 // present_value output directly to its model-level Result, independent of naming.
 std::shared_ptr<ov::op::v0::Result> trace_forward_to_result(const ov::Output<ov::Node>& output);
 
@@ -65,21 +60,16 @@ std::shared_ptr<ov::op::v0::Result> trace_forward_to_result(const ov::Output<ov:
 // output->target_input edges.
 bool reaches(const ov::Node* start, const ov::Node* target);
 
-// Parses a bracketed, comma-separated list of integers (the format ONNX metadata_props
-// values take once converted to a string rt_info value, e.g. "[0, 1, 5, 6]") into a set of
-// indices. Returns an empty set for a missing/malformed value instead of throwing.
+// Parses a bracketed, comma-separated integer list (ONNX metadata_props stored as a
+// string rt_info value, e.g. "[0, 1, 5, 6]"). Returns an empty set if missing/malformed.
 std::unordered_set<int64_t> parse_layer_index_list(const std::string& text);
 
-// Returns the single dynamic axis of `shape`, or nullopt if the rank is dynamic, no axis is
-// dynamic, or more than one axis is dynamic (ambiguous -- the caller can't tell which
-// dimension to treat as the resizable one).
+// Returns the single dynamic axis of `shape`, or nullopt if rank is dynamic, no axis is
+// dynamic, or more than one is (ambiguous).
 std::optional<size_t> find_single_dynamic_axis(const ov::PartialShape& shape);
 
-// True if `axis` is a plausible GQA KV-cache capacity axis for a rank-4
-// [batch, kv_heads, ...] past_key/past_value parameter: axis 2 in the plain
-// [N,H,S,E] layout, or axis 3 in the --transpose_v-applied [N,H,E,S] layout. Axis 0
-// (batch) or 1 (kv_heads) are never the capacity dimension, so a dynamic dimension there
-// isn't something NPUW's GQA reshape can resolve as max_seq_len.
+// True if `axis` is a plausible GQA KV-cache capacity axis for a rank-4 past_key/
+// past_value parameter: axis 2 ([N,H,S,E]) or axis 3 (--transpose_v's [N,H,E,S]).
 bool is_supported_kv_cache_capacity_axis(size_t axis, size_t rank);
 
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:

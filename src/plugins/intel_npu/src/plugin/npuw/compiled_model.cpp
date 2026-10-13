@@ -331,10 +331,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     const bool gqa_explicitly_set = properties.count(use_gqa_key) > 0;
     const bool gqa_explicitly_disabled = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == false;
     const bool gqa_requested = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == true;
-    // Auto-detect GQA models (GroupQueryAttention op present) so they take the
-    // GQACompiledModel route without requiring the NPUW_GQA property to be set, unless the
-    // caller has explicitly opted out via NPUW_GQA=NO, or has explicitly requested a
-    // different NPUW front-end -- an explicit request must always win over auto-detection.
+    // Auto-detect GQA models unless NPUW_GQA=NO or another front-end was explicitly requested.
     const bool gqa_detected = !gqa_explicitly_disabled && !flux2_requested && !llm_requested && !pa_requested &&
                               !kokoro_requested && ov::npuw::GQACompiledModel::supports(model);
 
@@ -2439,12 +2436,8 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
     }
 
     if (ov::npuw::util::starts_with(device, "NPU")) {
-        // This is an internal NPUW submodel recompilation, not a fresh
-        // top-level request. The submodel may still carry ops (e.g. an
-        // un-decomposed GroupQueryAttention) that would otherwise make
-        // Plugin::compile_model's zero-config auto-detect re-enter the NPUW
-        // path recursively. Explicitly mark NPUW as "not requested here" so
-        // this call takes the plain (non-NPUW) compile path instead.
+        // Internal submodel recompilation; prevent re-entering NPUW auto-detect
+        // (e.g. on an un-decomposed GroupQueryAttention op).
         device_config[ov::intel_npu::use_npuw.name()] = false;
     }
 

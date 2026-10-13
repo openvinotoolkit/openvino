@@ -70,13 +70,10 @@ std::shared_ptr<ov::Model> build_group_query_attention_model() {
     return std::make_shared<ov::Model>(results, params, "gqa_model");
 }
 
-// Builds a model with a well-formed GQA op *and* the surrounding transformer
-// traits (activation input, position_ids, named past/present KV cache
-// Parameters/Results) that ov::npuw::GQACompiledModel::supports() looks for.
-// `position_signal` selects which of the two known ways a model conveys the
-// RoPE position: an explicit `position_ids` Parameter (V1),
-// or a `past_seq_len`/`total_seq_len` Parameter pair with the position
-// implied by the cache length and no `position_ids` input at all (V0).
+// Builds a model with a well-formed GQA op plus the surrounding transformer traits
+// (activation input, position_ids, named past/present KV cache Parameters/Results)
+// that supports() looks for. `position_signal` picks between an explicit `position_ids`
+// Parameter (V1) or a `past_seq_len`/`total_seq_len` pair with no position_ids input (V0).
 enum class PositionSignal {
     PositionIds,
     SeqLenPair,
@@ -86,10 +83,9 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
                                                             int64_t kv_num_heads = 2,
                                                             bool do_rotary = true,
                                                             PositionSignal position_signal = PositionSignal::PositionIds) {
-    // Shaped {1, num_heads, 16} (rather than a plain hidden-size vector) purely so it can be
-    // Unsqueeze'd below into the QUERY input's own {1, num_heads, 1, 16} shape without a
-    // volume mismatch -- identify_case() now requires this Parameter to actually be
-    // data-connected to the GQA op, not just present by name somewhere in the model.
+    // Shaped {1, num_heads, 16} so it Unsqueeze's below into QUERY's {1, num_heads, 1, 16}
+    // without a volume mismatch -- identify_case() requires this Parameter to be
+    // data-connected to the GQA op, not just present by name.
     auto input_hidden_states =
         std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, static_cast<size_t>(num_heads), 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
@@ -115,9 +111,8 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
     if (position_signal == PositionSignal::SeqLenPair) {
-        // The V0 wiring: no position_ids input at all --
-        // the op's own seqlens_k/total_sequence_length inputs double as the
-        // "past_seq_len"/"total_seq_len" model-level naming evidence.
+        // V0 wiring: no position_ids input; seqlens_k/total_sequence_length double as the
+        // "past_seq_len"/"total_seq_len" naming evidence.
         seqlens_k->set_friendly_name("past_seq_len");
         total_sequence_length->set_friendly_name("total_seq_len");
     }
@@ -127,8 +122,7 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
     ov::OutputVector gqa_inputs{query, key, value, past_key, past_value, seqlens_k, total_sequence_length,
                                cos_cache, sin_cache};
     if (position_ids) {
-        // POSITION_IDS (input index 9) -- wiring it here (rather than leaving it a
-        // disconnected Parameter) is what identify_case() now requires as evidence.
+        // POSITION_IDS (index 9) -- wiring it here is what identify_case() requires as evidence.
         gqa_inputs.push_back(position_ids);
     }
     auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(gqa_inputs,
@@ -153,11 +147,8 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
     return std::make_shared<ov::Model>(results, params, "gqa_full_transformer_model");
 }
 
-// Leaves past_key/past_value's KV-cache dimension dynamic at `axis` (2 for the plain
-// [N,H,S,E] layout, 3 for the transpose_v-applied [N,H,E,S] layout) on an existing model,
-// to exercise has_dynamic_max_seq_len()/prepare(). Real deployed GQA models always have a
-// dynamic KV-cache (that's the entire premise of this wrapper), so tests exercising
-// supports()'s auto-dispatch decision should use a dynamic-shaped model like this one.
+// Leaves past_key/past_value's KV-cache dimension dynamic at `axis` (2 plain [N,H,S,E],
+// 3 transpose_v [N,H,E,S]) to exercise has_dynamic_max_seq_len()/prepare().
 void make_kv_cache_dynamic(const std::shared_ptr<ov::Model>& model, size_t axis) {
     for (const auto& parameter : model->get_parameters()) {
         const auto& name = parameter->get_friendly_name();
@@ -171,20 +162,17 @@ void make_kv_cache_dynamic(const std::shared_ptr<ov::Model>& model, size_t axis)
     model->validate_nodes_and_infer_types();
 }
 
-// Same wiring as build_full_gqa_transformer_model(), but past_key/past_value's
-// KV-cache dimension is left dynamic at `axis` (2 for the plain [N,H,S,E] layout, 3 for
-// the transpose_v-applied [N,H,E,S] layout) to exercise has_dynamic_max_seq_len()/prepare().
+// Same wiring as build_full_gqa_transformer_model(), but with the KV-cache dimension left
+// dynamic at `axis` to exercise has_dynamic_max_seq_len()/prepare().
 std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_kv_cache(size_t axis) {
     auto model = build_full_gqa_transformer_model();
     make_kv_cache_dynamic(model, axis);
     return model;
 }
 
-// Same wiring as build_full_gqa_transformer_model(), but with an extra `attention_mask`
-// Parameter feeding the GQA op's ATTENTION_BIAS input (index 10) with a dynamic last
-// dimension -- mirroring speculative-decode dumps where the mask's own max_seq_len
-// dimension must be reshaped alongside (or instead of) the KV-cache's. POSITION_IDS
-// (index 9) is left "not provided" via a zero-size Constant, matching the V0 wiring.
+// Same wiring, but with an extra `attention_mask` feeding ATTENTION_BIAS (index 10) with
+// a dynamic last dimension, mirroring speculative-decode dumps. POSITION_IDS (index 9)
+// is "not provided" via a zero-size Constant, matching the V0 wiring.
 std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dynamic_kv_cache = false) {
     auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
@@ -254,11 +242,9 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dyna
     return model;
 }
 
-// Same wiring as build_gqa_model_with_dynamic_kv_cache(), but the GQA op has
-// sliding_window_cache=true -- its physical KV-cache ring buffer eviction/repacking
-// depends on the buffer's own runtime capacity, so a dynamic axis here must be pinned by
-// ReshapeToStaticGQA to its own small, local_window_size-derived capacity instead of the
-// model-wide max_seq_len.
+// Same wiring as build_gqa_model_with_dynamic_kv_cache(), but with sliding_window_cache=
+// true -- a dynamic axis here must be pinned by ReshapeToStaticGQA to its own
+// local_window_size-derived capacity, not the model-wide max_seq_len.
 std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis) {
     auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
@@ -317,10 +303,9 @@ std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis
 }
 
 // A single model with TWO independent GQA layers sharing the same dynamic axis: a
-// "global" layer (sliding_window_cache=false, ordinary growing cache -- should still take
-// the model-wide max_seq_len) and a "sliding" layer (sliding_window_cache=true,
-// local_window_size=6 -- should get its own small capacity). Proves the two don't bleed
-// into each other once ReshapeToStaticGQA resolves per-layer capacities.
+// "global" layer (sliding_window_cache=false, should take the model-wide max_seq_len)
+// and a "sliding" layer (sliding_window_cache=true, local_window_size=6, should get its
+// own small capacity). Proves the two don't bleed into each other.
 std::shared_ptr<ov::Model> build_gqa_model_with_mixed_global_and_sliding_layers() {
     auto make_layer = [](const std::string& suffix, bool sliding) {
         auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
@@ -379,25 +364,19 @@ std::shared_ptr<ov::Model> build_gqa_model_with_mixed_global_and_sliding_layers(
 }
 
 // Same two-layer wiring as build_gqa_model_with_mixed_global_and_sliding_layers(), but
-// neither GQA op sets sliding_window_cache/local_window_size at all (this app's actual
-// models never do) -- instead the model carries rt_info["framework"]["sliding_window_layers"
-// / "sliding_window_size"], mirroring how ONNX metadata_props survive conversion. The
-// second ("sliding") layer's query input is derived from the first ("global") layer's
-// attention output via a real data dependency, exactly as consecutive layers of an actual
-// sequential transformer stack would be wired -- this is what makes ov::Model's
-// topological op order deterministically match the model's own layer numbering (0, 1,
-// ...), the same assumption index_gqa_layers() relies on in reshape_to_static_gqa.cpp. Two
-// independent/unconnected GQA branches (as a naively-simpler test model would have) leave
-// their relative topological order implementation-defined, which isn't representative of
-// a real model and would make this test flaky.
+// neither GQA op sets sliding_window_cache/local_window_size; instead the model carries
+// rt_info["framework"]["sliding_window_layers"/"sliding_window_size"] (mirroring ONNX
+// metadata_props). The "sliding" layer's query is wired via a real data dependency on the
+// "global" layer's output, so topological op order matches layer numbering (0, 1, ...) --
+// the same assumption index_gqa_layers() relies on. Unconnected branches would leave
+// relative order implementation-defined and make this test flaky.
 std::shared_ptr<ov::Model> build_gqa_model_with_rt_info_sliding_window_layers(size_t declared_sliding_window_size) {
     auto make_layer = [](const std::string& suffix, const ov::Output<ov::Node>& prev_attention_output) {
         ov::Output<ov::Node> query_input;
         auto query_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
         if (prev_attention_output.get_node()) {
-            // Previous layer's output(0) is [B, S, N*H] == [1, 1, 64]; reshape it back to
-            // [B, N, S, H] == [1, 4, 1, 16] and fold it into this layer's query so this
-            // layer's GQA op only becomes schedulable once the previous one has run.
+            // Previous layer's output is [1, 1, 64]; reshape to [1, 4, 1, 16] and fold
+            // into this layer's query so this GQA op depends on the previous one.
             auto reshaped_prev = std::make_shared<ov::op::v1::Reshape>(
                 prev_attention_output,
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 1, 16}),
@@ -469,13 +448,10 @@ std::shared_ptr<ov::Model> build_gqa_model_with_rt_info_sliding_window_layers(si
     return model;
 }
 
-// Same two-independent-layer shape as build_gqa_model_with_mixed_global_and_sliding_layers(),
-// but carries NEITHER sliding_window_cache/local_window_size attributes NOR any rt_info --
-// the only signal available is each layer's own SEQLENS_K/TOTAL_SEQUENCE_LENGTH Parameter
-// name, optionally hinting "sliding" (mirroring the real model's actual
-// past_seq_len_sliding/past_seq_len_full exporter convention). When `name_hint` is false,
-// the names carry no "sliding"/"full" substring at all, so the fallback has nothing to go
-// on and must leave every layer at the model-wide max_seq_len.
+// Same two-independent-layer shape, but with neither sliding_window_cache/
+// local_window_size attributes nor rt_info -- only each layer's SEQLENS_K/
+// TOTAL_SEQUENCE_LENGTH Parameter name optionally hints "sliding". When `name_hint` is
+// false, no hint exists and the fallback must leave every layer at max_seq_len.
 std::shared_ptr<ov::Model> build_gqa_model_with_seqlens_name_hint(bool name_hint) {
     auto make_layer = [&](const std::string& suffix, bool sliding) {
         auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
@@ -847,8 +823,8 @@ TEST_F(GQACompiledModelTest, PassesGqaModelThroughWithoutDecomposition) {
     ASSERT_NO_THROW(compiled = create_compiled_model(model, {}, recorder));
     ASSERT_NE(compiled, nullptr);
 
-    // GQA model is passed through unchanged — the online partitioner handles
-    // isolation and folding of GQA blocks via the NPUW_FOLD_ONLY=attn path.
+    // GQA model is passed through unchanged -- the online partitioner handles isolation
+    // and folding of GQA blocks via the NPUW_FOLD_ONLY=attn path.
     const auto& call = recorder.only_call();
     EXPECT_GT(count_ops<ov::op::internal::GroupQueryAttention>(call.model), 0u);
 }
@@ -933,20 +909,17 @@ TEST(GQACompiledModelSupportsTest, ReturnsTrueForWellFormedGqaTransformerModel) 
 }
 
 TEST(GQACompiledModelSupportsTest, ReturnsFalseForFullyStaticGqaTransformerModel) {
-    // identify_case() still classifies a fully static model as a known GQA family (it's
-    // the value of GQA family classification decoupled from shape-dynamism), but
-    // supports() -- the auto-dispatch gate -- must not route it here: this wrapper only
-    // exists to bridge a dynamic max_seq_len to the NPU's static-shape requirement, so a
-    // fully static model of a known family doesn't need it.
+    // identify_case() still classifies a fully static model as a known GQA family, but
+    // supports() must not route it here -- this wrapper only bridges a dynamic max_seq_len
+    // to the NPU's static-shape requirement.
     auto model = build_full_gqa_transformer_model();  // no dynamic dims anywhere
     EXPECT_NE(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::Unknown);
     EXPECT_FALSE(ov::npuw::GQACompiledModel::supports(model));
 }
 
 TEST(GQACompiledModelSupportsTest, ReturnsFalseForBareGqaOpWithoutSurroundingModelContext) {
-    // The op alone (no input_hidden_states/position_ids/past-present KV cache
-    // naming) is not enough evidence -- avoid false positives on unrelated
-    // graphs that happen to use the op.
+    // The op alone (no input_hidden_states/position_ids/KV cache naming) isn't enough
+    // evidence -- avoid false positives on unrelated graphs using the op.
     EXPECT_FALSE(ov::npuw::GQACompiledModel::supports(build_group_query_attention_model()));
 }
 
@@ -956,12 +929,9 @@ TEST(GQACompiledModelSupportsTest, ReturnsFalseWhenHeadCountsAreInconsistent) {
 }
 
 TEST(GQACompiledModelSupportsTest, ReturnsFalseForUnconnectedActivationAndPositionIds) {
-    // A generic decoder that merely happens to reuse the "input_hidden_states"/
-    // "position_ids" names for unrelated, disconnected tensors must not be mistaken for a
-    // GQA model: name matches alone are not enough evidence, the ports must actually be
-    // wired to the GQA op. Mirrors build_full_gqa_transformer_model()'s valid wiring, but
-    // input_hidden_states/position_ids are left as free-floating Parameters instead of
-    // feeding the GQA op.
+    // A generic decoder reusing "input_hidden_states"/"position_ids" names for
+    // unrelated, disconnected tensors must not be mistaken for a GQA model: ports must
+    // actually be wired to the GQA op, not just name-matched.
     auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
@@ -1086,8 +1056,7 @@ TEST(GQACompiledModelDynamicKvCacheTest, DetectsDynamicSeqLenAtAxis3) {
 
 TEST(GQACompiledModelDynamicKvCacheTest, IgnoresDynamicBatchAxis) {
     // Regression test: axis 0 (batch) is never the KV-cache capacity dimension (see
-    // GroupQueryAttentionDecomposition, which always reads/writes capacity at axis 2 or 3).
-    // A dynamic batch dim must NOT be mistaken for a reshapable max_seq_len axis.
+    // GroupQueryAttentionDecomposition, which reads/writes capacity at axis 2 or 3).
     auto model = build_gqa_model_with_dynamic_kv_cache(0);
     EXPECT_FALSE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
 }
@@ -1133,8 +1102,8 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis2) {
         }
     }
 
-    // The outer, user-facing model (compiled_model's own ports) is untouched -- it must
-    // stay dynamic so the infer request still accepts variable-length KV-cache input.
+    // The outer, user-facing model stays dynamic so the infer request still accepts
+    // variable-length KV-cache input.
     EXPECT_TRUE(compiled->inputs().front().get_partial_shape().is_dynamic() ||
                std::any_of(compiled->inputs().begin(), compiled->inputs().end(), [](const auto& input) {
                    return input.get_partial_shape().is_dynamic();
@@ -1161,12 +1130,9 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis3) {
 
 TEST_F(GQACompiledModelTest, GetPropertyReturnsEffectiveMaxContextLenInsteadOfThrowing) {
     // Regression test for review comment AlexanderKalistratov#4246978192 on PR
-    // openvinotoolkit/openvino#38304: NPUW_LLM_MAX_CONTEXT_LEN is stripped from the
-    // inner CompiledModel's properties before it's created (it only registers ROOT
-    // options), so forwarding get_property("NPUW_LLM_MAX_CONTEXT_LEN") there throws
-    // "Unsupported configuration key" even though compilation succeeded with an
-    // effective capacity. It must be answered directly from the wrapper instead,
-    // reflecting whatever capacity was actually used to reshape the model.
+    // openvinotoolkit/openvino#38304: NPUW_LLM_MAX_CONTEXT_LEN is stripped before the
+    // inner CompiledModel is created, so forwarding get_property() there throws. It must
+    // be answered directly from the wrapper, reflecting the effective capacity used.
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
@@ -1201,17 +1167,13 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
 
 TEST_F(GQACompiledModelTest, RejectsDynamicAttentionBiasAxisThatIsNotTheCapacityAxis) {
     // Regression test for review comment AlexanderKalistratov#4246980391 on PR
-    // openvinotoolkit/openvino#38304: GroupQueryAttentionDecomposition always reads the
-    // external attention_bias as [1, num_heads, curr_query_len, max_kv_len] -- the
-    // KV-cache-capacity dimension is always the LAST axis, never the query-length axis.
-    // A model whose attention_bias instead leaves axis 2 (query length) dynamic, with
-    // axis 3 (max_kv) static, must be rejected rather than have its query-length axis
-    // silently pinned to the full static capacity.
+    // openvinotoolkit/openvino#38304: attention_bias's capacity dimension is always the
+    // LAST axis, never query-length. A model leaving axis 2 (query length) dynamic
+    // instead must be rejected, not silently pinned.
     auto model = build_gqa_model_with_dynamic_attention_bias(/*dynamic_kv_cache=*/true);
     for (const auto& parameter : model->get_parameters()) {
         if (parameter->get_friendly_name() == "attention_mask") {
-            // [1, 1, dynamic (query length), 8] -- dynamic axis moved off the last
-            // position, which is now statically 8 (not the KV-cache capacity axis).
+            // Dynamic axis moved off the last position, which is now statically 8.
             parameter->set_partial_shape(ov::PartialShape{1, 1, ov::Dimension::dynamic(), 8});
         }
     }
@@ -1222,11 +1184,10 @@ TEST_F(GQACompiledModelTest, RejectsDynamicAttentionBiasAxisThatIsNotTheCapacity
 }
 
 namespace {
-// A minimal, fully working fake "inner" compiled model / infer request pair, used to
-// exercise GQAInferRequest::set_tensor()/get_tensor() end-to-end (as opposed to
-// RecordingFactory/MockSubCompiledModel, whose create_sync_infer_request() returns
-// nullptr and so cannot be infer()'d against). Every port gets a real, pre-allocated
-// tensor at construction time -- mirroring the TestInferRequest pattern in failsafe.cpp.
+// A minimal fake "inner" compiled model / infer request pair for exercising
+// GQAInferRequest::set_tensor()/get_tensor() end-to-end (unlike RecordingFactory/
+// MockSubCompiledModel, whose create_sync_infer_request() returns nullptr). Every port
+// gets a real, pre-allocated tensor -- mirrors TestInferRequest in failsafe.cpp.
 class FakeInnerSyncInferRequest final : public ov::ISyncInferRequest {
 public:
     explicit FakeInnerSyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
@@ -1305,12 +1266,10 @@ std::vector<float> to_vec(const ov::SoPtr<ov::ITensor>& t) {
 }  // namespace
 
 TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTensorAfterShortTensor) {
-    // Regression test for a bug where, after a port's inner request got aliased onto a
-    // full-capacity caller tensor, a later set_tensor() with a *shorter* tensor for the
-    // same port left the inner request still pointing at the stale (now orphaned) full
-    // tensor; the subsequent sync then wrote the new, shorter data straight into that
-    // stale caller tensor instead of into a buffer NPUW owns, silently corrupting memory
-    // the original caller might still hold a reference to.
+    // Regression test: after a port's inner request got aliased onto a full-capacity
+    // caller tensor, a later set_tensor() with a *shorter* tensor left the inner request
+    // pointing at the stale, orphaned full tensor; the subsequent sync then wrote the
+    // new data straight into it, silently corrupting memory the caller might still hold.
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
         model,
@@ -1341,17 +1300,16 @@ TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTenso
         full_data[i] = ov::float16(-1.0f);
     }
 
-    // 2) Short caller tensor for the very same port -- this used to leave the inner
-    // request pointing at `full_tensor` while bookkeeping moved on to the short one.
+    // 2) Short caller tensor for the same port -- used to leave the inner request
+    // pointing at `full_tensor` while bookkeeping moved on to the short one.
     const size_t short_len = 4;
     auto short_tensor = make_f16_kv_cache_tensor({1, num_heads, short_len, head_size}, /*start_val=*/0.f);
     request->set_tensor(past_key_port, short_tensor);
 
     ASSERT_NO_THROW(request->infer());
 
-    // The stale, full-capacity caller tensor from step (1) must be left untouched: it is
-    // no longer part of the live request, and the original caller may still hold a
-    // reference to it expecting its own data back.
+    // The stale full-capacity caller tensor must be left untouched: it's no longer part
+    // of the live request, and the caller may still hold a reference to it.
     for (size_t i = 0; i < full_tensor->get_size(); ++i) {
         EXPECT_FLOAT_EQ(static_cast<float>(full_data[i]), -1.0f)
             << "stale full-capacity caller tensor was corrupted at index " << i;
@@ -1364,13 +1322,11 @@ TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTenso
 }
 
 TEST_F(GQACompiledModelTest, SetTensorOnDynamicPresentOutputIsHonoredByGetTensorAfterInfer) {
-    // Regression test for a bug where present_* outputs (not tracked by
-    // m_dynamic_kv_cache_axes, which only covers inputs) fell through to the generic
-    // "forward as-is" branch: the caller's tensor got bound to the inner request's port
-    // (fine, matches real IO-binding usage), but refresh_present_tensors_locked() would
-    // then still republish its own *separately-trimmed* tensor under the same name once
-    // past_len < capacity -- silently diverging from the exact tensor object the caller
-    // set and keeps reading from.
+    // Regression test: present_* outputs (not tracked by m_dynamic_kv_cache_axes, which
+    // only covers inputs) fell through to the generic "forward as-is" branch, but
+    // refresh_present_tensors_locked() still republished its own separately-trimmed
+    // tensor under the same name once past_len < capacity -- diverging from the exact
+    // tensor object the caller set.
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
         model,
@@ -1396,9 +1352,8 @@ TEST_F(GQACompiledModelTest, SetTensorOnDynamicPresentOutputIsHonoredByGetTensor
     ASSERT_TRUE(past_key_port.get_node());
     ASSERT_TRUE(present_key_port.get_node());
 
-    // A short past tensor (4 of 16 capacity) would normally make
-    // refresh_present_tensors_locked() trim the present output down to a fresh,
-    // separately-allocated buffer.
+    // A short past tensor (4 of 16 capacity) normally makes
+    // refresh_present_tensors_locked() trim the present output to a fresh buffer.
     auto short_past = make_f16_kv_cache_tensor({1, 2, 4, 16}, /*start_val=*/0.f);
     request->set_tensor(past_key_port, short_past);
 
@@ -1416,14 +1371,10 @@ TEST_F(GQACompiledModelTest, SetTensorOnDynamicPresentOutputIsHonoredByGetTensor
 }
 
 TEST_F(GQACompiledModelTest, GetTensorBeforeSetTensorReturnsZeroSizedDynamicAxisNotFullCapacity) {
-    // Regression test: get_tensor() on a dynamic-axis KV-cache input, called before any
-    // set_tensor() for that port, used to allocate its private fallback tensor shaped at
-    // the port's full static capacity -- indistinguishable from "fully populated" to a
-    // caller who forgot (or didn't know they needed) to call tensor->set_shape() first.
-    // Every other OV plugin's analogous lazy-allocation path (e.g. intel_cpu's
-    // SyncInferRequest::get_tensor()) instead zeroes out the dynamic dim, leaving static
-    // dims at their real extent -- so callers get an unambiguous "nothing written yet"
-    // signal and must resize before writing.
+    // Regression test: get_tensor() on a dynamic-axis input, called before set_tensor(),
+    // used to allocate a fallback tensor at full static capacity -- indistinguishable
+    // from "fully populated". Other OV plugins instead zero the dynamic dim, giving an
+    // unambiguous "nothing written yet" signal.
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
         model,
@@ -1481,11 +1432,9 @@ TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis3LeftAligned) {
     EXPECT_EQ(std::vector<float>(dst_values.begin() + 4, dst_values.begin() + 6), (std::vector<float>{2, 3}));
 }
 
-// Exercises the wire-format round trip that GQACompiledModel::export_model()/import_model()
-// rely on: outer-facing ports (Output<const Node> -> Parameter/Result reconstruction) plus
-// the dynamic-axis map must survive a write/read cycle through the same ov::npuw::orc::Stream
-// machinery, so that import_model() can rebuild an outer model whose dynamic KV-cache/
-// attention-bias axes match what was exported -- instead of silently losing them.
+// Exercises the wire-format round trip that export_model()/import_model() rely on: outer
+// ports and the dynamic-axis map must survive a write/read cycle through the same
+// ov::npuw::orc::Stream machinery without losing data.
 TEST(GQACompiledModelSerializationTest, RoundTripsOuterModelPortsAndDynamicAxisMap) {
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
 
@@ -1519,10 +1468,8 @@ TEST(GQACompiledModelSerializationTest, RoundTripsOuterModelPortsAndDynamicAxisM
     ASSERT_EQ(read_results.size(), outer_outputs.size());
     EXPECT_EQ(read_axis_map, axis_map);
 
-    // Positional correspondence matters: GQAInferRequest::map_port_locked() and the
-    // dynamic-axis lookups assume outer_inputs/outer_outputs line up index-by-index with
-    // what's read back, and that friendly names + element types + shapes are preserved
-    // exactly (not just "some Parameter with a plausible name").
+    // Positional correspondence matters: map_port_locked() assumes outer_inputs/outputs
+    // line up index-by-index with what's read back, with names/types/shapes preserved.
     for (size_t i = 0; i < outer_inputs.size(); ++i) {
         EXPECT_EQ(read_parameters[i]->get_friendly_name(), outer_inputs[i].get_node()->get_friendly_name());
         EXPECT_EQ(read_parameters[i]->get_element_type(), outer_inputs[i].get_element_type());
@@ -1534,8 +1481,7 @@ TEST(GQACompiledModelSerializationTest, RoundTripsOuterModelPortsAndDynamicAxisM
         EXPECT_EQ(read_results[i]->get_output_partial_shape(0), outer_outputs[i].get_partial_shape());
     }
 
-    // The reconstructed vectors must also form a valid ov::Model (this is exactly what
-    // import_model() does with them) with inputs()/outputs() preserving the same order.
+    // The reconstructed vectors must form a valid ov::Model preserving input/output order.
     auto rebuilt_model =
         std::make_shared<ov::Model>(ov::as_output_vector(read_results), read_parameters, "gqa_outer_model");
     ASSERT_EQ(rebuilt_model->inputs().size(), outer_inputs.size());
@@ -1556,12 +1502,9 @@ TEST(GQACompiledModelSerializationTest, RoundTripsOuterModelPortsAndDynamicAxisM
     EXPECT_TRUE(found_dynamic_past_key);
 }
 
-// Regression test for a real crash: ORT/OVEP matches its own input/output names to
-// OpenVINO ports via *tensor names* (Output::get_names()), not the node's friendly name.
-// A reconstructed port with an empty tensor-name set (friendly name restored, tensor
-// names dropped) passes every friendly-name-keyed assertion above yet still breaks
-// ORT-side name lookup -- this is what previously crashed with ACCESS_VIOLATION right
-// after infer request creation on a real cache-hit deserialize.
+// Regression test: ORT/OVEP matches ports via tensor names (Output::get_names()), not
+// friendly name. A reconstructed port with dropped tensor names passes friendly-name
+// assertions but still breaks ORT-side lookup -- crashed with ACCESS_VIOLATION before.
 TEST(GQACompiledModelSerializationTest, RoundTripsTensorNamesSeparatelyFromFriendlyName) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, 64});
     param->set_friendly_name("past_keys_0");
@@ -1577,9 +1520,9 @@ TEST(GQACompiledModelSerializationTest, RoundTripsTensorNamesSeparatelyFromFrien
     EXPECT_EQ(read_back[0]->output(0).get_names(), std::unordered_set<std::string>{"past_key_values.0.key"});
 }
 
-// Guards the string-based shape/type round trip specifically for a *bounded* dynamic
-// dimension (e.g. "1..8192", as opposed to the fully-unbounded "?" used above) and a
-// non-f32 element type, since real attention-mask/KV-cache ports commonly use both.
+// Guards the string-based shape/type round trip for a *bounded* dynamic dimension
+// (e.g. "1..8192") and a non-f32 element type, both common for real attention-mask/
+// KV-cache ports.
 TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF32Type) {
     const ov::PartialShape shape{1, 32, ov::Dimension(1, 8192), 64};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape);
@@ -1601,12 +1544,8 @@ TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF
 TEST(ReshapeToStaticGQATest, PinsSlidingWindowCacheToItsOwnSmallerCapacityNotModelWideMax) {
     // Regression test for review comment ankitm3k#4230466592 on PR
     // openvinotoolkit/openvino#38304: sliding_window_cache=true means the KV-cache is a
-    // fixed-capacity ring buffer whose own runtime capacity drives the eviction/repacking
-    // math (GroupQueryAttentionDecomposition). Forcing it to the model-wide max_seq_len
-    // (as for an ordinary growing/global-attention cache) would silently diverge from the
-    // op's own, much smaller local_window_size=6. ReshapeToStaticGQA must instead pin it
-    // to its own small capacity (16-aligned + one alignment block of headroom: 6 -> 16 ->
-    // 32), independent of the much larger model-wide max_seq_len.
+    // fixed-capacity ring buffer, so it must get its own 16-aligned+headroom capacity
+    // (6 -> 16 -> 32), independent of the much larger model-wide max_seq_len.
     auto model = build_gqa_model_with_sliding_window_cache(/*axis=*/2);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
@@ -1643,13 +1582,10 @@ TEST(ReshapeToStaticGQATest, MixedGlobalAndSlidingLayersKeepDistinctCapacities) 
 }
 
 TEST(ReshapeToStaticGQATest, UsesRtInfoSlidingWindowLayersAsExactCapacityNotMaxSeqLen) {
-    // This app's actual models never set sliding_window_cache/local_window_size -- a
-    // layer's windowing is instead declared via rt_info["framework"]["sliding_window_layers"
-    // / "sliding_window_size"] (preserved from ONNX metadata_props). The declared
-    // sliding_window_size (2048) must be used VERBATIM as the sliding layer's capacity,
-    // not rounded/padded, since it's an exact contract with the host's own eviction
-    // logic -- while the model-wide max_seq_len (8192) must still apply to the layer not
-    // listed in sliding_window_layers.
+    // Models declare windowing via rt_info["framework"]["sliding_window_layers"/
+    // "sliding_window_size"] instead of op attributes. The declared size (2048) must be
+    // used VERBATIM (exact contract with host eviction logic), while max_seq_len (8192)
+    // still applies to the layer not listed in sliding_window_layers.
     auto model = build_gqa_model_with_rt_info_sliding_window_layers(/*declared_sliding_window_size=*/2048);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
@@ -1685,10 +1621,9 @@ TEST(ReshapeToStaticGQATest, RtInfoSlidingWindowSizeIsCappedByMaxSeqLen) {
 }
 
 TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackAppliesConfiguredDefaultCapacity) {
-    // Last-resort case: no rt_info, no sliding_window_cache/local_window_size attribute --
-    // only a shared SEQLENS_K/TOTAL_SEQUENCE_LENGTH Parameter name hinting "sliding", and a
-    // caller-configured default_sliding_window_capacity. The sliding layer must be pinned
-    // to that configured default, while the plain ("full") layer keeps max_seq_len.
+    // Last-resort case: no rt_info, no op attribute -- only a shared SEQLENS_K/
+    // TOTAL_SEQUENCE_LENGTH name hinting "sliding" plus a caller-configured default.
+    // The sliding layer gets the configured default; the full layer keeps max_seq_len.
     auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/true);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*default_sliding_window_capacity=*/2048);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
@@ -1709,10 +1644,8 @@ TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackAppliesConfiguredDefaultCapa
 }
 
 TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackIsOptInOnly) {
-    // Even with the "sliding"-hinting Parameter names present, the fallback must do
-    // nothing unless the caller actually configured a default_sliding_window_capacity --
-    // it's never guessed implicitly, to avoid silently reshaping a model the caller never
-    // asked to be treated this way.
+    // The fallback must do nothing unless the caller configured a default -- never
+    // guessed implicitly, to avoid silently reshaping a model that wasn't asked for.
     auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/true);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
@@ -1726,9 +1659,8 @@ TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackIsOptInOnly) {
 }
 
 TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackDoesNothingWithoutNameHint) {
-    // No rt_info, no op attribute, no "sliding" substring anywhere in the SEQLENS_K/
-    // TOTAL_SEQUENCE_LENGTH Parameter names either -- there's no signal to act on, so even
-    // a configured default_sliding_window_capacity must not affect either layer.
+    // No rt_info, no op attribute, no "sliding" name hint -- no signal to act on, so a
+    // configured default must not affect either layer.
     auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/false);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*default_sliding_window_capacity=*/2048);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
@@ -1747,18 +1679,16 @@ TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackDoesNothingWithoutNameHint) 
 }
 
 TEST(ReshapeToStaticGQATest, AllowsOrdinaryDynamicKvCacheWithoutSlidingWindowCache) {
-    // Sanity check: the ordinary (sliding_window_cache=false) dynamic KV-cache models
-    // used throughout this file must keep reshaping successfully -- the new check must
-    // not become overly broad.
+    // Sanity check: ordinary (sliding_window_cache=false) dynamic KV-cache models must
+    // keep reshaping successfully -- the new check must not become overly broad.
     auto model = build_gqa_model_with_dynamic_kv_cache(/*axis=*/2);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 }
 
 TEST(GQACompiledModelPresentAxisTest, FindsDynamicPresentOutputsAtAxis2) {
-    // build_gqa_model_with_dynamic_kv_cache() leaves past_keys_0/past_values_0 dynamic
-    // at `axis`, which propagates (via GroupQueryAttention::validate_and_infer_types(),
-    // present = past + current) to present_keys_0/present_values_0 becoming dynamic too.
+    // past_keys_0/past_values_0's dynamic axis propagates (present = past + current) to
+    // present_keys_0/present_values_0 becoming dynamic too.
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     std::vector<ov::Output<const ov::Node>> outputs;
     for (const auto& result : model->get_results()) {
@@ -1784,9 +1714,8 @@ TEST(GQACompiledModelPresentAxisTest, IgnoresFullyStaticPresentOutputs) {
 }
 
 TEST(GQACompiledModelPresentAxisTest, MatchesSinkPortSuffixedFriendlyName) {
-    // Mirrors the ONNX frontend's Result-node convention (translate_session.cpp),
-    // which appends "/sink_port_0" to the friendly name while the tensor's *name*
-    // stays clean -- find_dynamic_kv_cache_output_axes() must still recognize it.
+    // Mirrors the ONNX frontend's Result-node convention: appends "/sink_port_0" to the
+    // friendly name while the tensor name stays clean.
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     for (const auto& result : model->get_results()) {
         if (result->get_friendly_name() == "present_keys_0") {
@@ -1804,11 +1733,10 @@ TEST(GQACompiledModelPresentAxisTest, MatchesSinkPortSuffixedFriendlyName) {
 }
 
 TEST(GQACompiledModelPresentAxisTest, MatchesDotStylePresentNamingScheme) {
-    // Regression test: identify_case() accepts HuggingFace-ONNX dot-style present naming
-    // (e.g. "present.0.key") via a bare "present." match, but find_dynamic_kv_cache_output_axes()
-    // used to only match "present_key"/"present_value" -- so a model using dot-style naming got
-    // auto-dispatched into GQA yet its present outputs were never registered for trimming,
-    // and get_tensor() silently returned the full static (e.g. 8192-row) inner tensor instead.
+    // Regression test: identify_case() accepts dot-style present naming (e.g.
+    // "present.0.key"), but find_dynamic_kv_cache_output_axes() used to only match
+    // "present_key"/"present_value" -- leaving dot-style present outputs untrimmed and
+    // get_tensor() returning the full static inner tensor.
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     for (const auto& result : model->get_results()) {
         if (result->get_friendly_name() == "present_keys_0") {
@@ -1830,9 +1758,8 @@ TEST(GQACompiledModelPresentAxisTest, MatchesDotStylePresentNamingScheme) {
 }
 
 // find_present_to_past_param_names() derives the present->past mapping from the GQA
-// op's own graph connections (output 1/2 = present_key/present_value, input
-// PAST_KEY/PAST_VALUE = past_key/past_value), not from string name-rewriting -- so it
-// works for the model's actual naming, whatever it is.
+// op's own graph connections, not string name-rewriting -- so it works regardless of
+// the model's actual naming convention.
 TEST(GQACompiledModelPresentToPastParamNamesTest, MapsUnderscoreStyleNames) {
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     auto map = ov::npuw::GQACompiledModel::find_present_to_past_param_names(model);
@@ -1842,11 +1769,10 @@ TEST(GQACompiledModelPresentToPastParamNamesTest, MapsUnderscoreStyleNames) {
     EXPECT_EQ(map.at("present_values_0"), "past_values_0");
 }
 
-// Regression test: onnxruntime-genai's dot-style naming names present outputs
+// Regression test: onnxruntime-genai dot-style naming has present outputs
 // "present.0.key"/"present.0.value" but past inputs "past_key_values.0.key"/
-// "past_key_values.0.value" -- "present" does not map onto "past" by simple substring
-// substitution here (the old present_to_past_name() would have wrongly produced
-// "past.0.key", which doesn't match any real Parameter, silently defeating trimming).
+// "past_key_values.0.value" -- a naive substring swap would wrongly produce "past.0.key",
+// matching no real Parameter and silently defeating trimming.
 TEST(GQACompiledModelPresentToPastParamNamesTest, MapsDotStyleNamesNotMatchingSubstringSwap) {
     auto model = build_gqa_model_with_dynamic_kv_cache(2);
     for (const auto& parameter : model->get_parameters()) {

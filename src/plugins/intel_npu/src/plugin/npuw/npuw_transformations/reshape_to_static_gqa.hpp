@@ -13,17 +13,9 @@ namespace ov::npuw {
 
 // Reshapes a GQA model's dynamic KV-cache (past_key/past_value) and attention-bias/mask
 // Parameters to a static capacity, as required for NPU compilation. Most layers get the
-// model-wide `max_seq_len`; a sliding-window layer instead gets its own, smaller capacity,
-// resolved via whichever of these mechanisms a model uses to declare it, in priority order
-// (see the .cpp for details):
-//  1. rt_info["framework"]["sliding_window_layers"/"sliding_window_size"] (derived from
-//     ONNX metadata_props -- this app's actual models' authoritative mechanism);
-//  2. a GQA op's own sliding_window_cache=true + local_window_size attributes (the
-//     ONNX-standard, in-graph ring-buffer eviction case);
-//  3. if neither is present and the caller configured `default_sliding_window_capacity`, a
-//     best-effort fallback that detects sliding-window layers purely from a shared
-//     SEQLENS_K/TOTAL_SEQUENCE_LENGTH input name hint and pins them to that caller-supplied
-//     default (never a value read from the model itself).
+// model-wide `max_seq_len`; a sliding-window layer gets its own, smaller capacity instead,
+// resolved in priority order (rt_info metadata, op attributes, seqlens-name fallback --
+// see the .cpp for details).
 // Intended to run on a private clone of the original (still-dynamic) model, since it
 // mutates the model it's given in place -- the caller keeps the original around for
 // tensor-shape bookkeeping.
