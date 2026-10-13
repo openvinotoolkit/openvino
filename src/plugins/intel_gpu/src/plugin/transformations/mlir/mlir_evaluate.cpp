@@ -19,13 +19,13 @@ namespace ov::intel_gpu::mlir {
 using namespace ::mlir;
 
 class MLIREvaluateGcGPU final : public MLIREvaluateBase {
-    std::unique_ptr<const gc::gpu::OclModule> module;
+    std::unique_ptr<const gc::gpu::OclModule> ocl_module;
 
 public:
     MLIREvaluateGcGPU(OwningOpRef<ModuleOp> module, const std::shared_ptr<ov::EvaluationContext>& loweringContext);
 
     [[nodiscard]] bool requires_packed_args() const override {
-        return !module->isStatic();
+        return !ocl_module->isStatic();
     }
     bool invoke(const ov::TensorVector& inputs,
                 ov::TensorVector& outputs,
@@ -78,7 +78,7 @@ MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module, cons
     auto* device = extract_device_from_context(context);
 
     if (auto mod = builder.build(device, context)) {
-        module = std::make_unique<const gc::gpu::OclModule>(*mod);
+        ocl_module = std::make_unique<const gc::gpu::OclModule>(*mod);
     } else {
         OPENVINO_THROW("Failed to build gc::gpuOclModule module");
     }
@@ -86,7 +86,7 @@ MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module, cons
 
 bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector& outputs, const ov::EvaluationContext& evaluationContext) {
     gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
-    gc::gpu::StaticExecutor<> exec(*module);
+    gc::gpu::StaticExecutor<> exec(*ocl_module);
 
     auto it = evaluationContext.find(ov::internal::mlir_meta::is_kernel_arg_usm.name());
     if (it == evaluationContext.end()) {
@@ -111,7 +111,7 @@ bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector&
 
 bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) {
     gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
-    gc::gpu::DynamicExecutor<> exec(*module);
+    gc::gpu::DynamicExecutor<> exec(*ocl_module);
 
     // Layout (5 pointers per memref, see MemRefDescriptor::append_to_packed_args
     // in transformations/op/mlir_op.cpp):
@@ -178,7 +178,7 @@ gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationCon
     }
 
     const bool createEvents = evaluationContext.count(ov::internal::mlir_meta::result_events.name()) != 0;
-    return gc::gpu::OclContext(module->runtime, queue, createEvents, waitListLen, reinterpret_cast<cl_event*>(waitList.data()));
+    return gc::gpu::OclContext(ocl_module->runtime, queue, createEvents, waitListLen, reinterpret_cast<cl_event*>(waitList.data()));
 }
 
 std::shared_ptr<MLIREvaluateBase> create_mlir_evaluator(
