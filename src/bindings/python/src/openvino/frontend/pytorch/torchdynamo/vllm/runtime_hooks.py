@@ -78,7 +78,12 @@ def should_skip_pa_infer() -> bool:
     There the side channel can only supply zero-length metadata, so the OV
     PA kernel would read uninitialized memory. Neither caller of this state
     (determine_available_memory, dummy_run) consumes the output, so skipping
-    to eager is safe. Any exception falls through to False.
+    to eager is safe.
+
+    A missing forward context is not such a state and returns False on
+    purpose: the eager path can't write the KV cache (the OV attention op
+    owns that write), so skipping a real step would decode garbage silently,
+    while running PA without a context fails loudly in the binder.
     """
     try:
         from vllm.forward_context import get_forward_context
