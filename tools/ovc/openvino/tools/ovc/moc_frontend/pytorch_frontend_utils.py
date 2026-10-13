@@ -374,36 +374,18 @@ def extract_input_info_from_example(args, inputs):
         if len(inputs) == len(input_arg):
             # we can update input argument with info from examples
             new_input = []
-            # example_inputs is a dict, so input_arg's order follows its keys, which
-            # doesn't have to match the order names were listed in 'input'. Match
-            # named inputs by name instead of position so shapes/dtypes don't get
-            # swapped between inputs.
             input_arg_by_name = {example.name: example for example in input_arg if example.name is not None}
-            for i in range(len(input_arg)):
-                input_desc = args.input[i]
-                name = input_desc.name
-                dtype = input_desc.type
-                shape = input_desc.shape
-                positional_example = input_arg[i]
-                # Try an exact name match first: input_arg can be a mix of named and
-                # unnamed entries (flatten_inputs drops the name on a nested
-                # list/tuple/dict value), so the real match for a named input might
-                # not sit at the same index at all.
-                example = input_arg_by_name.get(name) if name is not None else None
-                if example is None:
-                    if name is None or positional_example.name is None:
-                        # At least one side has no name, so position is the only
-                        # signal there is, same as before named matching was added.
-                        example = positional_example
-                    # else: both sides are named but don't match each other, don't
-                    # guess by position, leave this input's metadata unset instead.
-                if example is not None:
-                    if name is None:
-                        name = example.name
-                    if dtype is None:
-                        dtype = example.type
-                    if shape is None:
-                        shape = example.shape
+            for input_desc, positional_example in zip(args.input, input_arg):
+                example = input_arg_by_name.get(input_desc.name)
+                if example is None and (
+                    input_desc.name is None or positional_example.name is None
+                ):
+                    example = positional_example
+
+                name = input_desc.name or (example.name if example else None)
+                dtype = input_desc.type or (example.type if example else None)
+                shape = input_desc.shape or (example.shape if example else None)
+
                 new_input.append(_InputCutInfo(name, shape, dtype, input_desc.value))
             input_arg = new_input
         else:
