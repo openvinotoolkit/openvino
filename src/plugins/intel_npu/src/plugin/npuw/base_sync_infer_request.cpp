@@ -290,7 +290,7 @@ void ov::npuw::IBaseInferRequest::alloc_quant_gather() {
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;  // Optimized out
         }
-        alloc_quant_gather_tensors(i, m_subrequests[i]);
+        alloc_quant_gather_tensors(i);
     }
 }
 
@@ -515,22 +515,19 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx, RqPtr request) {
+void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
 
     if (quant_unpack_gather.dst_idx != -1) {
         NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
 
+        // Only element types and shapes are needed, so read them from the compiled model's ports: querying the
+        // subrequest's tensors would allocate full-vocab device buffers before unpack_closure() binds the weights.
         const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
-        const auto& lookup = request->get_tensor(lport);
-
-        // Only the element type and shape of the vocab inputs are needed here, so read them from the compiled
-        // model's ports. Asking the request for these tensors would make it allocate a device tensor the size of
-        // the whole vocab for each of them, before unpack_closure() has bound the real weights to those ports.
         const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
 
-        auto ids_shape = lookup->get_shape();
+        auto ids_shape = lport.get_shape();
 
         auto get_gathered_shape = [&ids_shape](const ov::Shape& shape) {
             return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};
