@@ -9,13 +9,19 @@
 
 #include "gguf.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <iomanip>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string_view>
+#include <type_traits>
+#include <unordered_set>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -423,10 +429,26 @@ ov::Shape get_shape(const GgufTensor& tensor) {
     return shape;
 }
 
-GGUFLoad get_gguf_data(const std::string& file) {
+namespace {
+
+struct TensorInfo {
+    std::string name;
+    uint32_t type = 0;
+    uint32_t ndim = 0;
+    uint64_t dim[4] = {1, 1, 1, 1};
+    uint64_t offset = 0;
+};
+
+struct GgufFile {
     std::unordered_map<std::string, GGUFMetaData> metadata;
-    std::unordered_map<std::string, ov::Tensor> arrays;
-    std::unordered_map<std::string, GgufTensorType> qtype;
+    std::vector<TensorInfo> infos;
+    std::shared_ptr<ov::MappedMemory> mapped;
+    uint64_t alignment;
+    uint64_t data_off;
+};
+
+GgufFile read_gguf_file(const std::string& file) {
+    std::unordered_map<std::string, GGUFMetaData> metadata;
 
     auto mapped = ov::load_mmap_object(file);
     OPENVINO_ASSERT(mapped && mapped->data(), "[load_gguf] failed to mmap '", file, "'");
@@ -465,13 +487,6 @@ GGUFLoad get_gguf_data(const std::string& file) {
                     alignment);
 
     // ---- Tensor info section ----
-    struct TensorInfo {
-        std::string name;
-        uint32_t type = 0;
-        uint32_t ndim = 0;
-        uint64_t dim[4] = {1, 1, 1, 1};
-        uint64_t offset = 0;
-    };
     // A minimal tensor-info record (0-length name, ndim=0) is 8 (name len) + 4 (ndim) + 4 (type) +
     // 8 (offset) = 24 bytes; bound the file-controlled `tensor_count` by that before sizing the
     // vector, so a tiny malformed file can't request an effectively unbounded allocation.
@@ -494,6 +509,16 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
     // Tensor data starts at the next `alignment`-aligned offset after the info section.
     uint64_t data_off = cur.offset() + ov::util::align_padding_size(alignment, cur.offset());
+    OPENVINO_ASSERT(data_off <= fsize, "[load_gguf] tensor data section starts past EOF");
+    return {std::move(metadata), std::move(infos), std::move(mapped), alignment, data_off};
+}
+
+void load_gguf_tensors(GgufFile& file,
+                       std::unordered_map<std::string, ov::Tensor>& arrays,
+                       std::unordered_map<std::string, GgufTensorType>& qtype) {
+    auto& [metadata, infos, mapped, alignment, data_off] = file;
+    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+    const uint64_t fsize = mapped->size();
 
     // Validate file-controlled shapes before allocating repacked tensors.
     auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
@@ -617,8 +642,157 @@ GGUFLoad get_gguf_data(const std::string& file) {
         }
         qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
     }
+}
 
-    return {std::move(metadata), std::move(arrays), std::move(qtype), std::move(mapped)};
+uint64_t split_value(const GgufFile& file, const std::string& key, const ov::element::Type& type) {
+    const auto& value = metadata_scalar_tensor(file.metadata, key, type);
+    OPENVINO_ASSERT(value.get_shape().empty(), "[load_gguf] '", key, "' must be a scalar");
+    if (type == ov::element::u16) {
+        return *value.data<const uint16_t>();
+    }
+    const auto count = *value.data<const int32_t>();
+    OPENVINO_ASSERT(count >= 0, "[load_gguf] '", key, "' must be nonnegative");
+    return static_cast<uint64_t>(count);
+}
+
+uint64_t split_count(const GgufFile& file) {
+    return file.metadata.count("split.count") ? split_value(file, "split.count", ov::element::u16) : 0;
+}
+
+bool same_metadata(const GGUFMetaData& lhs, const GGUFMetaData& rhs) {
+    if (lhs.index() != rhs.index()) {
+        return false;
+    }
+    if (const auto* a = std::get_if<ov::Tensor>(&lhs)) {
+        const auto& b = std::get<ov::Tensor>(rhs);
+        return a->get_element_type() == b.get_element_type() && a->get_shape() == b.get_shape() &&
+               (a->get_byte_size() == 0 || std::memcmp(a->data(), b.data(), a->get_byte_size()) == 0);
+    }
+    return std::visit(
+        [&](const auto& a) {
+            using T = std::decay_t<decltype(a)>;
+            if constexpr (std::is_same_v<T, ov::Tensor>) {
+                return false;
+            } else {
+                return a == std::get<T>(rhs);
+            }
+        },
+        lhs);
+}
+
+std::string split_suffix(uint64_t index, uint64_t count) {
+    std::ostringstream suffix;
+    suffix << '-' << std::setfill('0') << std::setw(5) << index + 1 << "-of-" << std::setw(5) << count << ".gguf";
+    return suffix.str();
+}
+
+GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
+    const uint64_t count = split_count(files.front());
+    if (count != 0) {
+        OPENVINO_ASSERT(files.size() == count, "[load_gguf] expected ", count, " GGUF shards, got ", files.size());
+        std::vector<bool> seen(count);
+        uint64_t tensor_count = 0;
+        const auto total = split_value(files.front(), "split.tensors.count", ov::element::i32);
+        for (const auto& file : files) {
+            OPENVINO_ASSERT(split_count(file) == count, "[load_gguf] inconsistent split.count across GGUF shards");
+            const auto index = split_value(file, "split.no", ov::element::u16);
+            OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
+            OPENVINO_ASSERT(!seen[index], "[load_gguf] duplicate GGUF shard index: ", index);
+            seen[index] = true;
+            OPENVINO_ASSERT(split_value(file, "split.tensors.count", ov::element::i32) == total,
+                            "[load_gguf] inconsistent split.tensors.count across GGUF shards");
+            tensor_count += file.infos.size();
+        }
+        OPENVINO_ASSERT(tensor_count == total,
+                        "[load_gguf] split.tensors.count declares ",
+                        total,
+                        " tensors, found ",
+                        tensor_count);
+        std::sort(files.begin(), files.end(), [](const auto& a, const auto& b) {
+            return split_value(a, "split.no", ov::element::u16) < split_value(b, "split.no", ov::element::u16);
+        });
+    } else {
+        OPENVINO_ASSERT(files.size() == 1, "[load_gguf] multiple inputs must belong to one split GGUF model");
+    }
+
+    const auto& metadata = files.front().metadata;
+    std::unordered_set<std::string> names;
+    for (const auto& file : files) {
+        for (const auto& [key, value] : file.metadata) {
+            if (key.compare(0, 6, "split.") == 0) {
+                continue;
+            }
+            const auto it = metadata.find(key);
+            OPENVINO_ASSERT(it != metadata.end() && same_metadata(it->second, value),
+                            "[load_gguf] inconsistent metadata across GGUF shards: '",
+                            key,
+                            "'");
+        }
+        for (const auto& info : file.infos) {
+            OPENVINO_ASSERT(names.insert(info.name).second, "[load_gguf] duplicate tensor name '", info.name, "'");
+        }
+    }
+
+    std::unordered_map<std::string, ov::Tensor> arrays;
+    std::unordered_map<std::string, GgufTensorType> qtype;
+    std::vector<std::shared_ptr<ov::MappedMemory>> mappings;
+    mappings.reserve(files.size());
+    for (auto& file : files) {
+        load_gguf_tensors(file, arrays, qtype);
+        mappings.push_back(std::move(file.mapped));
+    }
+    return {std::move(files.front().metadata), std::move(arrays), std::move(qtype), std::move(mappings)};
+}
+
+}  // namespace
+
+GGUFLoad get_gguf_data(const std::string& file) {
+    auto initial = read_gguf_file(file);
+    const auto count = split_count(initial);
+    if (count <= 1) {
+        std::vector<GgufFile> files;
+        files.push_back(std::move(initial));
+        return load_gguf_files(std::move(files));
+    }
+    const auto index = split_value(initial, "split.no", ov::element::u16);
+    OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
+    const std::filesystem::path path(file);
+    const auto filename = path.filename().string();
+    const auto suffix = split_suffix(index, count);
+    OPENVINO_ASSERT(filename.size() >= suffix.size() &&
+                        filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0,
+                    "[load_gguf] split GGUF filename does not match its metadata; provide an explicit list of shards");
+    const auto prefix = filename.substr(0, filename.size() - suffix.size());
+    std::vector<GgufFile> files;
+    files.reserve(count);
+    for (uint64_t i = 0; i < count; ++i) {
+        if (i == index) {
+            files.push_back(std::move(initial));
+            continue;
+        }
+        const auto sibling = path.parent_path() / (prefix + split_suffix(i, count));
+        OPENVINO_ASSERT(std::filesystem::is_regular_file(sibling),
+                        "[load_gguf] missing GGUF shard: '",
+                        sibling.string(),
+                        "'");
+        auto next = read_gguf_file(sibling.string());
+        OPENVINO_ASSERT(split_value(next, "split.no", ov::element::u16) == i,
+                        "[load_gguf] split.no does not match shard filename: '",
+                        sibling.string(),
+                        "'");
+        files.push_back(std::move(next));
+    }
+    return load_gguf_files(std::move(files));
+}
+
+GGUFLoad get_gguf_data(const std::vector<std::string>& paths) {
+    OPENVINO_ASSERT(!paths.empty(), "[load_gguf] GGUF shard list is empty");
+    std::vector<GgufFile> files;
+    files.reserve(paths.size());
+    for (const auto& path : paths) {
+        files.push_back(read_gguf_file(path));
+    }
+    return load_gguf_files(std::move(files));
 }
 
 std::map<std::string, GGUFMetaData> decoder_config_from_meta(

@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/gguf/frontend.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 
@@ -74,6 +75,24 @@ bool has_gguf_magic(const std::filesystem::path& path) {
     char magic[4] = {};
     f.read(magic, sizeof(magic));
     return f.gcount() == 4 && magic[0] == 'G' && magic[1] == 'G' && magic[2] == 'U' && magic[3] == 'F';
+}
+
+std::optional<std::vector<std::filesystem::path>> model_paths(const std::vector<ov::Any>& variants) {
+    const auto size = variants.size() - (variants.back().is<bool>() ? 1 : 0);
+    if (size == 1) {
+        if (auto paths = ov::frontend::get_path_vec_from_any(variants.front())) {
+            return paths;
+        }
+    }
+    std::vector<std::filesystem::path> paths;
+    for (size_t i = 0; i < size; ++i) {
+        auto path = ov::frontend::get_path_from_any(variants[i]);
+        if (!path) {
+            return std::nullopt;
+        }
+        paths.push_back(std::move(*path));
+    }
+    return paths;
 }
 
 }  // namespace
@@ -151,9 +170,10 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::shared_ptr<GgufDecoder>>()) {
         return true;
     }
-    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
-        std::filesystem::path model_path = std::move(*path);
-        return model_path.extension() == ".gguf" && has_gguf_magic(model_path);
+    if (auto paths = model_paths(variants)) {
+        return !paths->empty() && std::all_of(paths->begin(), paths->end(), [](const auto& path) {
+            return path.extension() == ".gguf" && has_gguf_magic(path);
+        });
     }
     return false;
 }
@@ -169,19 +189,25 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return std::make_shared<InputModel>(decoder);
     }
 
-    // Path 2: a .gguf file path -> native builder -> GgufBuilderDecoder.
-    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
-        std::filesystem::path model_path = std::move(*path);
-        FRONT_END_GENERAL_CHECK(model_path.extension() == ".gguf",
-                                "GGUF Frontend file loading expects a .gguf file, got: ",
-                                model_path.string());
-        return std::make_shared<InputModel>(load_gguf_builder(model_path.string(), m_impl->arch_registry),
-                                            m_extensions);
+    // Path 2: GGUF file paths -> native builder -> GgufBuilderDecoder.
+    if (auto paths = model_paths(variants)) {
+        FRONT_END_GENERAL_CHECK(!paths->empty(), "GGUF Frontend file list is empty");
+        std::vector<std::string> files;
+        for (const auto& path : *paths) {
+            FRONT_END_GENERAL_CHECK(path.extension() == ".gguf",
+                                    "GGUF Frontend file loading expects a .gguf file, got: ",
+                                    path.string());
+            files.push_back(path.string());
+        }
+        const auto discover = files.size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
+        const auto builder = discover ? load_gguf_builder(files.front(), m_impl->arch_registry)
+                                      : load_gguf_builder(files, m_impl->arch_registry);
+        return std::make_shared<InputModel>(builder, m_extensions);
     }
 
     FRONT_END_GENERAL_CHECK(false,
                             "GGUF Frontend doesn't support the provided model representation. Provide a GgufDecoder "
-                            "or a path to a .gguf file.");
+                            "or paths to GGUF files.");
 }
 
 }  // namespace ov::frontend::gguf

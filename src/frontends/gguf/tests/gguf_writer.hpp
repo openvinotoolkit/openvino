@@ -18,7 +18,9 @@ namespace ov_gguf_test {
 
 // GGUF metadata value types (gguf.h GGUF_VALUE_TYPE_*).
 enum : uint32_t {
+    GGUF_TYPE_UINT16 = 2,
     GGUF_TYPE_UINT32 = 4,
+    GGUF_TYPE_INT32 = 5,
     GGUF_TYPE_FLOAT32 = 6,
     GGUF_TYPE_BOOL = 7,
     GGUF_TYPE_STRING = 8,
@@ -30,6 +32,14 @@ constexpr uint32_t GGML_TYPE_F32 = 0;
 
 class GgufWriter {
 public:
+    void kv_u16(const std::string& key, uint16_t v) {
+        kv_key(key, GGUF_TYPE_UINT16);
+        put(v);
+    }
+    void kv_i32(const std::string& key, int32_t v) {
+        kv_key(key, GGUF_TYPE_INT32);
+        put(v);
+    }
     void kv_u32(const std::string& key, uint32_t v) {
         kv_key(key, GGUF_TYPE_UINT32);
         put(v);
@@ -50,6 +60,13 @@ public:
     void kv_u32_array(const std::string& key, const std::vector<uint32_t>& values) {
         kv_key(key, GGUF_TYPE_ARRAY);
         put(uint32_t(GGUF_TYPE_UINT32));
+        put(uint64_t(values.size()));
+        for (auto value : values)
+            put(value);
+    }
+    void kv_u16_array(const std::string& key, const std::vector<uint16_t>& values) {
+        kv_key(key, GGUF_TYPE_ARRAY);
+        put(uint32_t(GGUF_TYPE_UINT16));
         put(uint64_t(values.size()));
         for (auto value : values)
             put(value);

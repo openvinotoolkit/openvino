@@ -89,7 +89,7 @@ using GGUFMetaData =
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::unordered_map<std::string, ov::Tensor>,
                             std::unordered_map<std::string, GgufTensorType>,
-                            std::shared_ptr<ov::MappedMemory>>;
+                            std::vector<std::shared_ptr<ov::MappedMemory>>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
 // (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights packed as u8).
@@ -131,6 +131,7 @@ void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
 // Parse GGUF metadata and tensors. Each repacked quantized tensor owns its buffer.
 GGUFLoad get_gguf_data(const std::string& file);
+GGUFLoad get_gguf_data(const std::vector<std::string>& files);
 
 // Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,
 // head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base, file_type, ...)

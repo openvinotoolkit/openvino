@@ -3,12 +3,16 @@
 //
 
 #include <array>
+#include <filesystem>
 #include <fstream>
 #include <utility>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/frontend/gguf/frontend.hpp"
 #include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
@@ -176,6 +180,262 @@ TEST_F(GGUFParser, RejectsMXFP4WithZeroColumns) {
     } catch (const ov::Exception& e) {
         EXPECT_NE(std::string(e.what()).find("zero-sized dimension"), std::string::npos);
     }
+}
+
+class GGUFShards : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_base = ov::test::utils::generateTestFilePrefix();
+    }
+
+    void TearDown() override {
+        for (const auto& path : m_paths) {
+            if (std::filesystem::exists(path)) {
+                EXPECT_TRUE(std::filesystem::is_regular_file(path)) << path;
+                ov::test::utils::removeFile(path);
+            }
+        }
+    }
+
+    std::string path(size_t index) const {
+        return m_base + "-0000" + std::to_string(index + 1) + "-of-00002.gguf";
+    }
+
+    void write_shard(size_t index,
+                     uint16_t number,
+                     uint16_t count = 2,
+                     int32_t total = 2,
+                     const std::string& name = {},
+                     const std::string& architecture = {}) {
+        GgufWriter writer;
+        writer.kv_u16("split.no", number);
+        writer.kv_u16("split.count", count);
+        writer.kv_i32("split.tensors.count", total);
+        if (index == 0 || !architecture.empty()) {
+            writer.kv_str("general.architecture", architecture.empty() ? "qwen3" : architecture);
+        }
+        writer.tensor(name.empty() ? "weight" + std::to_string(index) + ".weight" : name,
+                      {2},
+                      {float(index + 1), float(index + 2)});
+        const auto file = path(index);
+        m_paths.push_back(file);
+        ASSERT_TRUE(writer.write(file));
+    }
+
+    std::string m_base;
+    std::vector<std::string> m_paths;
+};
+
+TEST_F(GGUFShards, DiscoversSiblingsFromEitherShardAndKeepsMappingsAlive) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1));
+    ov::Tensor retained;
+    for (size_t index : {0, 1}) {
+        const auto loaded = get_gguf_data(path(index));
+        EXPECT_EQ(std::get<3>(loaded).size(), 2);
+        EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
+        const auto& arrays = std::get<1>(loaded);
+        ASSERT_EQ(arrays.size(), 2);
+        EXPECT_FLOAT_EQ(arrays.at("weight0.weight").data<const float>()[0], 1.f);
+        EXPECT_FLOAT_EQ(arrays.at("weight1.weight").data<const float>()[0], 2.f);
+        retained = arrays.at("weight1.weight");
+    }
+    EXPECT_FLOAT_EQ(retained.data<const float>()[1], 3.f);
+}
+
+TEST_F(GGUFShards, ExplicitListAllowsRenamedFilesInDifferentDirectoriesAndReversedOrder) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1));
+    const auto renamed =
+        (std::filesystem::temp_directory_path() / (std::filesystem::path(m_base).filename().string() + "_renamed.gguf"))
+            .string();
+    std::filesystem::rename(path(1), renamed);
+    m_paths.push_back(renamed);
+    const auto loaded = get_gguf_data(std::vector<std::string>{renamed, path(0)});
+    EXPECT_EQ(std::get<1>(loaded).size(), 2);
+    EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
+    OV_EXPECT_THROW(get_gguf_data(renamed), ov::Exception, testing::HasSubstr("explicit list"));
+}
+
+TEST_F(GGUFShards, ReportsMissingSibling) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("missing GGUF shard"));
+}
+
+TEST_F(GGUFShards, RejectsIncompleteExplicitList) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    OV_EXPECT_THROW(get_gguf_data(std::vector<std::string>{path(0)}),
+                    ov::Exception,
+                    testing::HasSubstr("expected 2 GGUF shards"));
+    ov::frontend::gguf::FrontEnd frontend;
+    OV_EXPECT_THROW(frontend.load(std::vector<std::string>{path(0)}),
+                    ov::Exception,
+                    testing::HasSubstr("expected 2 GGUF shards"));
+}
+
+TEST_F(GGUFShards, RejectsDuplicateShardIndices) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 0));
+    OV_EXPECT_THROW(get_gguf_data(std::vector<std::string>{path(0), path(1)}),
+                    ov::Exception,
+                    testing::HasSubstr("duplicate GGUF shard index"));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("split.no does not match"));
+}
+
+TEST_F(GGUFShards, RejectsInconsistentShardCounts) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 3));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("inconsistent split.count"));
+}
+
+TEST_F(GGUFShards, RejectsInconsistentTensorCounts) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, 3));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("inconsistent split.tensors.count"));
+}
+
+TEST_F(GGUFShards, RejectsMissingTensors) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0, 2, 3));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, 3));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("declares 3 tensors, found 2"));
+}
+
+TEST_F(GGUFShards, RejectsDuplicateTensorNames) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, 2, "weight0.weight"));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("duplicate tensor name"));
+}
+
+TEST_F(GGUFShards, RejectsConflictingModelMetadata) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, 2, {}, "llama"));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("inconsistent metadata"));
+}
+
+TEST_F(GGUFShards, RejectsOutOfRangeShardNumber) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 2));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("split.no is out of range"));
+}
+
+TEST_F(GGUFShards, RejectsInvalidSplitMetadataType) {
+    GgufWriter writer;
+    writer.kv_u32("split.count", 2);
+    m_paths.push_back(path(0));
+    ASSERT_TRUE(writer.write(path(0)));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("split.count"));
+}
+
+TEST_F(GGUFShards, RejectsNegativeTensorCountAndArraySplitMetadata) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0, 2, -1));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, -1));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("must be nonnegative"));
+    GgufWriter invalid;
+    invalid.kv_u16("split.count", 2);
+    invalid.kv_u16_array("split.no", {0});
+    ASSERT_TRUE(invalid.write(path(0)));
+    OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("must be a scalar"));
+}
+
+TEST_F(GGUFShards, AcceptsMetadataOnlyFirstShard) {
+    GgufWriter writer;
+    writer.kv_str("general.architecture", "qwen3");
+    writer.kv_u16("split.no", 0);
+    writer.kv_u16("split.count", 2);
+    writer.kv_i32("split.tensors.count", 1);
+    m_paths.push_back(path(0));
+    ASSERT_TRUE(writer.write(path(0)));
+    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, 1));
+    const auto loaded = get_gguf_data(path(1));
+    EXPECT_EQ(std::get<1>(loaded).size(), 1);
+    EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
+}
+
+TEST_F(GGUFShards, AcceptsSingleShardAndMergedSplitMetadata) {
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0, 1, 1));
+    EXPECT_EQ(std::get<1>(get_gguf_data(path(0))).size(), 1);
+    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0, 0, 1));
+    EXPECT_EQ(std::get<1>(get_gguf_data(path(0))).size(), 1);
+}
+
+TEST_F(GGUFShards, RejectsUnrelatedModelsAndEmptyLists) {
+    GgufWriter writer;
+    writer.tensor("weight", {1}, {1.f});
+    for (size_t index : {0, 1}) {
+        m_paths.push_back(path(index));
+        ASSERT_TRUE(writer.write(path(index)));
+    }
+    OV_EXPECT_THROW(get_gguf_data(std::vector<std::string>{path(0), path(1)}),
+                    ov::Exception,
+                    testing::HasSubstr("one split GGUF model"));
+    OV_EXPECT_THROW(get_gguf_data(std::vector<std::string>{}), ov::Exception, testing::HasSubstr("empty"));
+}
+
+TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {
+    GgufWriter complete;
+    GgufWriter first;
+    GgufWriter second;
+    for (auto* writer : {&complete, &first}) {
+        writer->kv_str("general.architecture", "qwen3");
+        writer->kv_u32("qwen3.block_count", 1);
+        writer->kv_u32("qwen3.embedding_length", 8);
+        writer->kv_u32("qwen3.attention.head_count", 2);
+        writer->kv_u32("qwen3.attention.head_count_kv", 1);
+        writer->kv_u32("qwen3.rope.dimension_count", 4);
+        writer->kv_u32("qwen3.context_length", 32);
+        writer->kv_f32("qwen3.attention.layer_norm_rms_epsilon", 1e-5f);
+    }
+    const std::vector<std::pair<std::string, std::vector<uint64_t>>> tensors{
+        {"token_embd.weight", {8, 16}},
+        {"output_norm.weight", {8}},
+        {"blk.0.attn_norm.weight", {8}},
+        {"blk.0.attn_q.weight", {8, 8}},
+        {"blk.0.attn_k.weight", {8, 4}},
+        {"blk.0.attn_v.weight", {8, 4}},
+        {"blk.0.attn_output.weight", {8, 8}},
+        {"blk.0.attn_q_norm.weight", {4}},
+        {"blk.0.attn_k_norm.weight", {4}},
+        {"blk.0.ffn_norm.weight", {8}},
+        {"blk.0.ffn_gate.weight", {8, 12}},
+        {"blk.0.ffn_up.weight", {8, 12}},
+        {"blk.0.ffn_down.weight", {12, 8}},
+    };
+    size_t i = 0;
+    for (auto* writer : {&first, &second}) {
+        writer->kv_u16("split.no", i++);
+        writer->kv_u16("split.count", 2);
+        writer->kv_i32("split.tensors.count", tensors.size());
+    }
+    i = 0;
+    for (const auto& [name, shape] : tensors) {
+        const auto norm = name.find("norm") != std::string::npos;
+        complete.filled_tensor(name, shape, norm);
+        (i++ % 2 == 0 ? first : second).filled_tensor(name, shape, norm);
+    }
+    const auto reference_path = m_base + ".gguf";
+    m_paths = {reference_path, path(0), path(1)};
+    ASSERT_TRUE(complete.write(reference_path));
+    ASSERT_TRUE(first.write(path(0)));
+    ASSERT_TRUE(second.write(path(1)));
+    ov::frontend::gguf::FrontEnd frontend;
+    const auto reference = frontend.convert(frontend.load(reference_path));
+    auto comparator = FunctionsComparator::with_default();
+    comparator.enable(FunctionsComparator::CONST_VALUES).enable(FunctionsComparator::ATTRIBUTES);
+    const std::vector<ov::AnyVector> representations{
+        {path(0), true},
+        {path(1)},
+        {std::vector<std::string>{path(1), path(0)}, true},
+        {path(0), path(1)},
+        {std::vector<std::filesystem::path>{path(1), path(0)}},
+    };
+    for (const auto& representation : representations) {
+        EXPECT_TRUE(frontend.supported(representation));
+        const auto model = frontend.convert(frontend.load(representation));
+        EXPECT_EQ(model->get_ordered_ops().size(), reference->get_ordered_ops().size());
+        const auto comparison = comparator.compare(model, reference);
+        EXPECT_TRUE(comparison.valid) << comparison.message;
+    }
+    EXPECT_FALSE(frontend.supported(std::vector<std::string>{}));
+    EXPECT_FALSE(frontend.supported(std::vector<std::string>{path(0), m_base + "_missing.gguf"}));
 }
 
 }  // namespace
