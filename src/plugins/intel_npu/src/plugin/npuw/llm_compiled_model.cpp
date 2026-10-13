@@ -1947,30 +1947,48 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
     // still underflow those computations if its element type, rank or any other dimension
     // disagrees with the top-level port - reject that mismatch too.
     auto validate_matches_top_level = [&](const ov::Output<const ov::Node>& child, const char* name) {
+        const auto& child_rank_dim = child.get_partial_shape().rank();
+        OPENVINO_ASSERT(child_rank_dim.is_static(), "NPUW blob: input '", name, "' does not have a static rank.");
+        const auto rank = static_cast<size_t>(child_rank_dim.get_length());
+        const auto axis = sequence_axis(child, rank);
+
+        // Require every non-sequence CHILD dimension to be static and non-zero, unconditionally
+        // - whether or not a top-level port of the same name even exists to compare it against.
+        // Matching (or merely not disagreeing with) the top-level shape doesn't by itself prove
+        // the destination tensor has storage: e.g. a [0, chunk_size] child still satisfies the
+        // sequence-extent check below, yet get_size() == 0 for the whole tensor, so the
+        // right-aligned staging copies underflow subtracting from it regardless of what (if
+        // anything) the top-level model declares for that axis.
+        for (size_t i = 0; i < rank; ++i) {
+            if (i == axis) {
+                continue;  // the sequence axis is intentionally resized; checked separately
+            }
+            const auto& child_dim = child.get_partial_shape()[i];
+            OPENVINO_ASSERT(child_dim.is_static() && child_dim.get_length() >= 1,
+                            "NPUW blob: input '",
+                            name,
+                            "' dimension ",
+                            i,
+                            " (",
+                            child_dim,
+                            ") must be a static, non-zero extent.");
+        }
+
         auto top = ov::npuw::util::find_port_by_name(inputs(), name);
         if (!top.has_value()) {
             if (std::strcmp(name, layer_names::position_ids) == 0) {
                 // AddPositionIdsParam synthesizes this child port even when the original model
                 // has no `position_ids` input of its own (the LFM-2 case); LLMInferRequest::
                 // infer() then synthesizes a matching rank-2 i64 source tensor at runtime (see
-                // `position_ids = ov::make_tensor(...)` there), batched off `input_ids`.
-                // pad_position_ids() indexes the destination using that source's rank, so the
-                // restored child must honor the same contract even with no top-level port to
-                // cross-check it against.
+                // `position_ids = ov::make_tensor(...)` there), batched off `input_ids`. The
+                // batch dimension was already checked above; pad_position_ids() also indexes
+                // the destination using the source's rank, so the restored child must honor
+                // that part of the contract too, even with no top-level port to cross-check.
                 OPENVINO_ASSERT(child.get_element_type() == ov::element::i64,
                                 "NPUW blob: synthesized input 'position_ids' element type (",
                                 child.get_element_type(),
                                 ") must be i64.");
-                const auto& rank = child.get_partial_shape().rank();
-                OPENVINO_ASSERT(rank.is_static() && rank.get_length() == 2,
-                                "NPUW blob: synthesized input 'position_ids' rank (",
-                                rank,
-                                ") must be 2.");
-                const auto& batch_dim = child.get_partial_shape()[0];
-                OPENVINO_ASSERT(batch_dim.is_static() && batch_dim.get_length() >= 1,
-                                "NPUW blob: synthesized input 'position_ids' batch dimension (",
-                                batch_dim,
-                                ") must be a static, non-zero extent.");
+                OPENVINO_ASSERT(rank == 2, "NPUW blob: synthesized input 'position_ids' rank (", rank, ") must be 2.");
             }
             return;  // no corresponding top-level input to cross-check against
         }
@@ -1982,50 +2000,32 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                         ") disagrees with the top-level model's (",
                         top->get_element_type(),
                         ").");
-        const auto& child_rank = child.get_partial_shape().rank();
-        const auto& top_rank = top->get_partial_shape().rank();
-        OPENVINO_ASSERT(child_rank.is_static() && top_rank.is_static() && child_rank == top_rank,
+        const auto& top_rank_dim = top->get_partial_shape().rank();
+        OPENVINO_ASSERT(top_rank_dim.is_static() && static_cast<size_t>(top_rank_dim.get_length()) == rank,
                         "NPUW blob: input '",
                         name,
                         "' rank (",
-                        child_rank,
+                        rank,
                         ") disagrees with the top-level model's (",
-                        top_rank,
+                        top_rank_dim,
                         ").");
-        const auto rank = static_cast<size_t>(child_rank.get_length());
-        const auto axis = sequence_axis(child, rank);
         for (size_t i = 0; i < rank; ++i) {
             if (i == axis) {
                 continue;  // the sequence axis is intentionally resized; checked separately
             }
-            const auto& child_dim = child.get_partial_shape()[i];
-            // Matching the top-level dimension doesn't prove the destination tensor actually
-            // has storage: e.g. a [0, chunk_size] child agrees with a dynamic top-level batch
-            // and still satisfies the sequence-extent check, yet get_size() == 0 for the whole
-            // tensor - the right-aligned staging copies then underflow subtracting from it.
-            // Require every non-sequence child dimension to be static and non-zero regardless
-            // of what the top-level model says about that axis.
-            OPENVINO_ASSERT(child_dim.is_static() && child_dim.get_length() >= 1,
-                            "NPUW blob: input '",
-                            name,
-                            "' dimension ",
-                            i,
-                            " (",
-                            child_dim,
-                            ") must be a static, non-zero extent.");
             const auto& top_dim = top->get_partial_shape()[i];
             if (!top_dim.is_static()) {
                 // A dynamic top-level dimension (e.g. a dynamic batch) carries no fixed value
                 // the runtime copies could have mistakenly relied on - nothing to cross-check.
                 continue;
             }
-            OPENVINO_ASSERT(child_dim == top_dim,
+            OPENVINO_ASSERT(child.get_partial_shape()[i] == top_dim,
                             "NPUW blob: input '",
                             name,
                             "' dimension ",
                             i,
                             " (",
-                            child_dim,
+                            child.get_partial_shape()[i],
                             ") disagrees with the top-level model's (",
                             top_dim,
                             ").");

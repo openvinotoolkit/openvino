@@ -678,6 +678,28 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedInputsEmbedsWhenSeqAxisM
     EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
 }
 
+// The non-sequence-dimension floor must hold even when there is no top-level port to compare
+// against: a dynamic embedding width leaves the destination tensor's real storage unknown at
+// import time, even though its own sequence axis (axis 1) still satisfies the declared limit.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputsEmbedsWithDynamicEmbSizeAndNoTopLevelPort) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, 16u);
+
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 16, -1});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
 // The sequence axis alone isn't enough: infer_chunked_prefill()'s VLM `inputs_embeds` byte-count
 // scaling multiplies by the *top-level* port's embedding width (see llm_infer_request.cpp). A
 // prefill child whose embedding width disagrees with the top-level model's must be rejected even
