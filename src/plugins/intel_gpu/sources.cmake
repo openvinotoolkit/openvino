@@ -170,8 +170,11 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fc_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fc_per_layer_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fold_activation_transpose.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fold_rms_transposes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_atan2_decomposed.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_avg_down.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_gated_mlp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_grouped_depth_to_space.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_router.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_router_scale.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_shared_expert.cpp
@@ -207,6 +210,8 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/gated_mlp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/gemm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/grouped_depth_to_space.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/grouped_space_to_depth.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/indirect_gemm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/indirect_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/kv_cache.cpp
