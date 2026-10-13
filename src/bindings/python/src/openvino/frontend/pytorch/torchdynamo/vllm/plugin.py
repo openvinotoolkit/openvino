@@ -447,6 +447,21 @@ def _patch_lazy_kv_cache():
     logger.info("[OV plugin] KV cache pool allocated lazily (OV_LAZY_KVCACHE=1)")
 
 
+def _register_quantization():
+    """Teach vLLM the weight-only integer methods in quantization.py.
+
+    Unconditional, unlike the patches below: the registry is read when
+    ModelConfig is built, long before load_model can tell whether the OV
+    backend was requested, and registering a name changes nothing for a model
+    that does not ask for it.
+    """
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import quantization as _q
+        _q.register()
+    except Exception as _e:
+        logger.debug("[OV plugin] quantization registration skipped: %s", _e)
+
+
 def register():
     """Entry point for `vllm.general_plugins`.
 
@@ -454,6 +469,7 @@ def register():
     real compilation_config.backend instead of guessing from env vars.
     """
     _apply_default_env()
+    _register_quantization()
     _check_layername()
     _warn_if_unpinned()
     _patch_cpu_model_runner()
