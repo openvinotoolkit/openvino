@@ -19,8 +19,9 @@ public:
     }
 
     void push_task(kernel_impl_params key, Task&& task) override {
-        if (_stop_compilation)
+        if (_stop_compilation) {
             return;
+        }
 
         auto promise = std::make_shared<std::promise<void>>();
 
@@ -57,8 +58,9 @@ public:
     }
 
     void cancel() noexcept override {
-        if (_stop_compilation)
+        if (_stop_compilation) {
             return;
+        }
 
         _stop_compilation = true;
 
@@ -67,8 +69,9 @@ public:
 
         {
             std::lock_guard<std::recursive_mutex> lock(_mutex);
-            if (_task_executor != nullptr)
+            if (_task_executor != nullptr) {
                 _task_executor.reset();
+            }
             _task_keys.clear();
         }
     }

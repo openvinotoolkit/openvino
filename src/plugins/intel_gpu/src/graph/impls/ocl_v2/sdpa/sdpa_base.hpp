@@ -28,6 +28,7 @@ struct sdpa_configuration {
     int64_t broadcast_axis = -1;
 
     bool is_causal = false;
+    bool causal_lower_right = false;
     bool has_alibi_input = false;
     bool is_kv_compressed = false;
     bool use_asymmetric_quantization = false;

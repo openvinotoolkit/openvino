@@ -12,10 +12,7 @@
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 using namespace std;
@@ -87,7 +84,4 @@ OutputVector translate_add_(const NodeContext& context) {
     return translate_add_common(context, true);
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

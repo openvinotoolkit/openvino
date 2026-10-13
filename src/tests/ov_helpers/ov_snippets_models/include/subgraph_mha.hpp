@@ -30,30 +30,42 @@ namespace snippets {
  *                     \       /
  * Transpose0[0,2,1,3] Multiply [with_mul = true]
  *              \     /
- *              MatMul0
- *                 \   /
- *                  Add
- *                Reshape0
+ *              MatMul0                AddParam
+ *                 \                    |
+ *                  Add <--- Broadcast [with_broadcast = true]
+ *                   |
+ *                Reshape0 [with_reshape = true]
+ *                   |
  *                Softmax
- *                Reshape1  Transpose2[0,2,1,3]
- *                    \      /
+ *                   |
+ *                Reshape1 [with_reshape = true]  Transpose2[0,2,1,3]
+ *                    \                              /
  *                     MatMul1
  *                   Transpose3[0,2,1,3]
  */
 class MHAFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                         bool with_mul = true, bool with_reshape = true)
-        : SnippetsFunctionBase(inputShapes), with_mul(with_mul), with_reshape(with_reshape), precisions(precisions) {
+    explicit MHAFunction(const std::vector<PartialShape>& inputShapes,
+                         const std::vector<ov::element::Type>& precisions,
+                         bool with_mul = true,
+                         bool with_reshape = true,
+                         bool with_broadcast = false)
+        : SnippetsFunctionBase(inputShapes),
+          with_mul(with_mul),
+          with_reshape(with_reshape),
+          with_broadcast(with_broadcast),
+          precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
     const bool with_mul = true;
     const bool with_reshape = true;
+    const bool with_broadcast = false;
     const std::vector<ov::element::Type> precisions;
 };
 

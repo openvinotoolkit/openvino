@@ -281,24 +281,49 @@ static const std::vector<std::vector<InputShape>> bitwise_in_shapes_2D_broadcast
     {{{-1, -1}, {{32, 256}, {1, 1}}}, {{32, 256}, {{32, 256}}}},
 };
 
+static std::string bitwiseExpectedPrimitive() {
+#if defined(OPENVINO_ARCH_ARM64)
+    return "jit";
+#else
+    return {};
+#endif
+}
+
+static std::string bitwiseI32ExpectedPrimitive() {
+#if defined(OPENVINO_ARCH_ARM64)
+    return "jit.+$/";
+#else
+    return "*_I32";
+#endif
+}
+
 static const std::vector<CPUSpecificParams>& bitwiseCpuParams() {
-    static const std::vector<CPUSpecificParams> params = {CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
-                                                          CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})};
+    static const std::vector<CPUSpecificParams> params = {
+        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, bitwiseExpectedPrimitive()),
+        CPUSpecificParams({nchw, nchw}, {nchw}, {}, bitwiseExpectedPrimitive())};
     return params;
 }
 static const std::vector<CPUSpecificParams>& bitwiseCpuParamsI32() {
-    static const std::vector<CPUSpecificParams> params = {CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, "*_I32"),
-                                                          CPUSpecificParams({nchw, nchw}, {nchw}, {}, "*_I32")};
+    static const std::vector<CPUSpecificParams> params = {
+        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, bitwiseI32ExpectedPrimitive()),
+        CPUSpecificParams({nchw, nchw}, {nchw}, {}, bitwiseI32ExpectedPrimitive())};
     return params;
 }
 static const std::vector<CPUSpecificParams>& bitwiseNotCpuParams() {
-    static const std::vector<CPUSpecificParams> params = {CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-                                                          CPUSpecificParams({nchw}, {nchw}, {}, {})};
+    static const std::vector<CPUSpecificParams> params = {
+        CPUSpecificParams({nhwc}, {nhwc}, {}, bitwiseExpectedPrimitive()),
+        CPUSpecificParams({nchw}, {nchw}, {}, bitwiseExpectedPrimitive())};
     return params;
 }
 static const std::vector<CPUSpecificParams>& bitwiseNotCpuParamsI32() {
-    static const std::vector<CPUSpecificParams> params = {CPUSpecificParams({nhwc}, {nhwc}, {}, "*_I32"),
-                                                          CPUSpecificParams({nchw}, {nchw}, {}, "*_I32")};
+    static const std::vector<CPUSpecificParams> params = {
+        CPUSpecificParams({nhwc}, {nhwc}, {}, bitwiseI32ExpectedPrimitive()),
+        CPUSpecificParams({nchw}, {nchw}, {}, bitwiseI32ExpectedPrimitive())};
+    return params;
+}
+
+static const std::vector<CPUSpecificParams>& bitwiseBroadcastCpuParams() {
+    static const std::vector<CPUSpecificParams> params = {CPUSpecificParams({}, {}, {}, bitwiseExpectedPrimitive())};
     return params;
 }
 
@@ -333,7 +358,7 @@ const auto params_2D_bitwise_broadcast =
                                           ::testing::Values(ov::element::Type_t::dynamic),
                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
                                           ::testing::Values(ov::AnyMap())),
-                       ::testing::Values(CPUSpecificParams({}, {}, {}, {})),
+                       ::testing::ValuesIn(bitwiseBroadcastCpuParams()),
                        ::testing::Values(emptyFusingSpec),
                        ::testing::Values(false));
 

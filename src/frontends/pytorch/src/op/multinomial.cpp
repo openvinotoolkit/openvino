@@ -12,10 +12,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -49,7 +46,4 @@ OutputVector translate_multinomial(const NodeContext& context) {
     }
     return {multinomial};
 };
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

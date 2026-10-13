@@ -14,10 +14,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_truncate_div_op(const NodeContext& node) {
     default_op_checks(node, 2, {"TruncateDiv"});
     auto x = node.get_input(0);
@@ -31,7 +28,4 @@ OutputVector translate_truncate_div_op(const NodeContext& node) {
     set_node_name(node.get_name(), final_res);
     return final_res->outputs();
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

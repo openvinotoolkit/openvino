@@ -18,9 +18,7 @@
 #include "openvino/frontend/tensorflow/visibility.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 class TENSORFLOW_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
@@ -73,6 +71,4 @@ protected:
     TranslatorDictionaryType m_op_translators;
 };
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

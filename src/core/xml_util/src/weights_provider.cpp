@@ -4,20 +4,23 @@
 
 #include "openvino/xml_util/weights_provider.hpp"
 
+#include <limits>
+
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/native_stream.hpp"
 #include "openvino/util/parallel_io.hpp"
 
 namespace ov::util {
 
 namespace {
 
+// CVS-193798: unreachable on purpose, mmap must stay disabled here.
 size_t get_mmap_region_threshold() {
-    const auto page_size = ov::util::get_system_page_size();
-    return page_size > 0 ? static_cast<size_t>(page_size) : 1024 * 1024;
+    return std::numeric_limits<size_t>::max();
 }
 
 }  // namespace
@@ -77,7 +80,11 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
     } else {
         auto file_region = std::make_shared<ov::AlignedBuffer>(size);
         if (size > 0) {
-            OPENVINO_ASSERT(ov::util::positional_read(m_weights_handle, file_region->get_ptr<char>(), size, offset),
+            ov::util::NativeIfstream weights_stream(m_weights_handle,
+                                                    static_cast<std::streamoff>(offset),
+                                                    static_cast<std::streamoff>(size));
+            weights_stream.read(file_region->get_ptr<char>(), static_cast<std::streamsize>(size));
+            OPENVINO_ASSERT(weights_stream && static_cast<size_t>(weights_stream.gcount()) == size,
                             "Failed to read weights from ",
                             m_weights_path);
         }

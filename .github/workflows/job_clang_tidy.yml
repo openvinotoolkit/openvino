@@ -43,6 +43,10 @@ on:
         type: boolean
         required: false
         default: true
+      cmake-build-parallel-level:
+        description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -75,6 +79,9 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-prefix }}
+      # Hard-coded at workflow call site; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
@@ -119,7 +126,7 @@ jobs:
         run: |
           cmake \
             --build "${BUILD_DIR}" \
-            --parallel "$(($(nproc) - 1))" \
+            --parallel "${CMAKE_BUILD_PARALLEL_LEVEL}" \
             --config "${CMAKE_BUILD_TYPE}" \
             --target "${BUILD_TARGET}" \
             -- ${BUILD_EXTRA_ARGS}
