@@ -5,7 +5,10 @@
 #include "weights_bank.hpp"
 
 #include "logging.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 
@@ -28,7 +31,8 @@ public:
     // Public API
     std::shared_ptr<Bank> getBank(const std::string& bank_name,
                                   const std::shared_ptr<const ov::ICore>& core,
-                                  const std::string& alloc_device);
+                                  const std::string& alloc_device,
+                                  std::shared_ptr<ov::weight_sharing::Context> weight_shared_context = nullptr);
 
 private:
     // Data
@@ -36,8 +40,63 @@ private:
     std::mutex m_mutex;
 };
 
-Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
-    : m_core(core),
+
+
+ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::create_shared_buffer(
+    int64_t source_id,
+    std::size_t size) {
+    // Create page aligned buffer to satisfy further GPU-NPU memory sharing requirements
+    auto raw = std::make_shared<ov::AlignedBuffer>(size, ov::util::get_system_page_size());
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+            raw->get_ptr<char>(),
+            raw->size(),
+            raw,
+            ov::create_base_descriptor(source_id, 0, raw));
+}
+
+ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::request_shared_weight_source_buffer(
+    size_t source_id,
+    size_t size,
+    const std::string& device,
+    Handle& handle) {
+    if (!handle.context) {
+        return {};
+    }
+
+    auto shared_weight_source = ov::weight_sharing::get_runtime_weight_source(*handle.context, source_id);
+    if (auto shared_buffer = shared_weight_source.m_weights.lock()) {
+        OPENVINO_ASSERT(shared_weight_source.m_device == device,
+                        "Shared weight source exists for the wrong device, expected: ",
+                        device,
+                        " actual: ",
+                        shared_weight_source.m_device);
+                m_shared_sources[source_id] = shared_buffer;
+        return shared_buffer;
+    }
+
+    OPENVINO_ASSERT(shared_weight_source.m_device.empty() || shared_weight_source.m_device == device,
+                    "Shared weight source exists for the wrong device, expected: ",
+                    device,
+                    " actual: ",
+                    shared_weight_source.m_device);
+    auto shared_buffer = WeightSharingContextAccessor::create_shared_buffer(source_id, size);
+    register_shared_weight_source_for_weight(shared_buffer, source_id, device, handle);
+    return shared_buffer;
+}
+
+void ov::npuw::weights::WeightSharingContextAccessor::register_shared_weight_source_for_weight(
+    ov::weight_sharing::WeightBuffer source_buffer,
+    size_t source_id,
+    const std::string& device,
+    Handle& handle) {
+    m_shared_sources[source_id] = source_buffer;
+    ov::weight_sharing::set_runtime_weight_source(*handle.context, source_buffer, device);
+}
+
+Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name, 
+           std::shared_ptr<ov::weight_sharing::Context> weight_sharing_ctx)
+    : WeightSharingContextAccessor(weight_sharing_ctx),
+      m_core(core),
       m_alloc_device(alloc_device),
       m_bank_name(bank_name) {
     if (m_bank_name.empty()) {
@@ -122,9 +181,29 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
         auto t = lt.eval();
-        device_bank.storage.at(uid).tensor = ov::Tensor(t.get_element_type(), t.get_shape());
+
+        auto& stored_tensor = device_bank.storage.at(uid);
+
+        // check whether the constant shared buffer was already allocated or not if yes, reuse it automatically.
+        // Somewhere else in the code, there must be a check on "device_bank.storage.at(uid).tensor"
+        // whether it was already allocated or not before evaluate anything.
+        // Therefore, for the simplicity I will not check it again here, assuming it has been handled elsewhere.
+        // If the tensor was already allocated, its memory will be reused and new ov::Tensor as a wrapper over that memory
+        // will be created as assigned to "device_bank.storage.at(uid).tensor".
+        // I assume that it is safe.
+        auto handle = this->get_handle();
+        auto size = ov::util::get_memory_size_safe(t.get_element_type(), t.get_shape());
+        OPENVINO_ASSERT(size.has_value(), "LazyTensor size overflow, uid: ", uid, " device: CPU");
+        auto shared_source = this->request_shared_weight_source_buffer(uid, *size, "CPU", handle);
+
+        if (shared_source) {
+            stored_tensor.tensor = ov::Tensor(t.get_element_type(), t.get_shape(), shared_source->get_ptr());
+        } else {
+            stored_tensor.tensor = ov::Tensor(t.get_element_type(), t.get_shape());
+        }
+
         // Get ownership of the weights, might be a mmaped object during import
-        t.copy_to(device_bank.storage.at(uid).tensor);
+        t.copy_to(stored_tensor.tensor);
         const_cast<LazyTensor&>(lt).detach();
     });
 }
@@ -161,9 +240,31 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
     // Allocate memory sequentially - in order of UID
     auto remote_ctx = m_core->get_default_context(device)._ptr;
     for (auto&& allocated : uids_to_allocated) {
-        ov::SoPtr<ov::ITensor> remote_tensor =
-            remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
-        allocated = {allocated.meta, ov::make_tensor(remote_tensor), allocated.uid};
+        const auto evaluated_byte_size = ov::util::get_memory_size_safe(allocated.meta.type, allocated.meta.shape);
+        OPENVINO_ASSERT(evaluated_byte_size.has_value(), "LazyTensor size overflow, uid: ", allocated.uid);
+
+        // check whether the constant shared buffer was already allocated or not if yes, reuse it automatically.
+        // Somewhere else in the code, there must be a check on "device_bank.storage.at(uid).tensor"
+        // whether it was already allocated or not before evaluate anything.
+        // Therefore, for the simplicity I will not check it again here, assuming it has been handled elsewhere.
+        // If the tensor was already allocated, its memory will be reused and new ov::Tensor as a wrapper over that memory
+        // will be created as assigned to "device_bank.storage.at(uid).tensor".
+        // I assume that it is safe.
+        auto handle = this->get_handle();
+        auto weight_shared_source_buffer = this->request_shared_weight_source_buffer(allocated.uid, *evaluated_byte_size, device, handle);
+
+        ov::Tensor tensor;
+        if (weight_shared_source_buffer) {
+            ov::AnyMap params{
+                ov::intel_npu::mem_type(ov::intel_npu::MemType::CPU_VA),
+                ov::intel_npu::mem_handle(weight_shared_source_buffer->get_ptr()),
+                ov::intel_npu::tensor_type(ov::intel_npu::TensorType::BINDED),
+            };
+            tensor = ov::make_tensor(remote_ctx->create_tensor(allocated.meta.type, allocated.meta.shape, params));
+        } else {
+            tensor = ov::make_tensor(remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape));
+        }
+        allocated = {allocated.meta, std::move(tensor), allocated.uid};
     }
 
     // Evaluate and copy into the device memory
@@ -290,12 +391,13 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::weights::Bank& var) {
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,
-                                           const std::string& alloc_device) {
+                                           const std::string& alloc_device,
+                                           std::shared_ptr<ov::weight_sharing::Context> weight_shared_context) {
     std::unique_lock guard(m_mutex);
 
     auto iter = m_bank_map.find(bank_name);
     if (iter == m_bank_map.end() || iter->second.expired()) {
-        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name);
+        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name, weight_shared_context);
         m_bank_map[bank_name] = bank;
         return bank;
     }
@@ -304,12 +406,13 @@ std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
 
 std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
                                               const std::shared_ptr<const ov::ICore>& core,
-                                              const std::string& alloc_device) {
+                                              const std::string& alloc_device,
+                                              std::shared_ptr<ov::weight_sharing::Context> weight_shared_context) {
     if (bank_name.empty()) {
         // Don't share this bank in manager
-        return std::make_shared<Bank>(core, alloc_device, bank_name);
+        return std::make_shared<Bank>(core, alloc_device, bank_name, weight_shared_context);
     }
 
     auto& instance = BankManager::getInstance();
-    return instance.getBank(bank_name, core, alloc_device);
+    return instance.getBank(bank_name, core, alloc_device, weight_shared_context);
 }
