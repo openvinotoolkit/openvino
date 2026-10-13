@@ -1167,11 +1167,24 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
             // get_tensor() was called before set_tensor() for this port -- this is a
             // legitimate pattern for IO-binding-style callers that query/allocate the
             // outer request's tensors up front. There's no user tensor yet, so allocate
-            // a private one shaped/typed like the inner request's static-capacity
-            // buffer; a later set_tensor() call simply replaces this entry.
+            // a private one. Size it like every other OV plugin sizes a never-set
+            // dynamic-shape tensor (see e.g. intel_cpu's SyncInferRequest::get_tensor()):
+            // static dims keep their real extent, the dynamic (KV-cache) dim is 0. Handing
+            // back a tensor already shaped at full capacity would silently misrepresent
+            // "nothing written yet" as "fully populated" -- both to the caller (who'd have
+            // no signal they must still call set_shape()) and internally, since
+            // refresh_present_tensors_locked() reads this same tensor's shape back as
+            // past_len. The caller is expected to tensor->set_shape() this to the actual
+            // valid length before writing data and calling infer().
             const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
+            const auto& port_shape = port.get_partial_shape();
+            ov::Shape private_shape;
+            private_shape.reserve(port_shape.size());
+            for (const auto& dim : port_shape) {
+                private_shape.push_back(dim.is_static() ? dim.get_length() : 0u);
+            }
             auto private_tensor =
-                ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor->get_element_type(), inner_tensor->get_shape()));
+                ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor->get_element_type(), private_shape));
             it = m_dynamic_kv_cache_tensors.emplace(name, private_tensor).first;
             GQA_TRACE(
                 "    -> no set_tensor() yet, allocated private fallback tensor, shape=" << private_tensor->get_shape());

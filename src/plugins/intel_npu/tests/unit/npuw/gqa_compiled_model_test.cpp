@@ -1415,6 +1415,44 @@ TEST_F(GQACompiledModelTest, SetTensorOnDynamicPresentOutputIsHonoredByGetTensor
     EXPECT_EQ(returned._ptr.get(), caller_present._ptr.get());
 }
 
+TEST_F(GQACompiledModelTest, GetTensorBeforeSetTensorReturnsZeroSizedDynamicAxisNotFullCapacity) {
+    // Regression test: get_tensor() on a dynamic-axis KV-cache input, called before any
+    // set_tensor() for that port, used to allocate its private fallback tensor shaped at
+    // the port's full static capacity -- indistinguishable from "fully populated" to a
+    // caller who forgot (or didn't know they needed) to call tensor->set_shape() first.
+    // Every other OV plugin's analogous lazy-allocation path (e.g. intel_cpu's
+    // SyncInferRequest::get_tensor()) instead zeroes out the dynamic dim, leaving static
+    // dims at their real extent -- so callers get an unambiguous "nothing written yet"
+    // signal and must resize before writing.
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+        model,
+        m_plugin,
+        ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+        fake_inner_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+
+    ov::Output<const ov::Node> past_key_port;
+    for (const auto& input : compiled->inputs()) {
+        if (input.get_node()->get_friendly_name() == "past_keys_0") {
+            past_key_port = input;
+        }
+    }
+    ASSERT_TRUE(past_key_port.get_node());
+
+    auto tensor = request->get_tensor(past_key_port);
+    ASSERT_NE(tensor, nullptr);
+    const auto shape = tensor->get_shape();
+    ASSERT_EQ(shape.size(), 4u);
+    EXPECT_EQ(shape[0], 1u);        // N: static
+    EXPECT_EQ(shape[1], 2u);        // H: static
+    EXPECT_EQ(shape[2], 0u);        // S: dynamic KV-cache axis -- must be 0, not 16
+    EXPECT_EQ(shape[3], 16u);       // E: static
+}
+
 TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis2LeftAligned) {
     // [N=1, H=2, S, E=3]: src has S1=2, dst has capacity S2=4.
     auto src = make_kv_cache_tensor({1, 2, 2, 3}, 0.f);
