@@ -8,7 +8,7 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <unordered_set>
+#include <unordered_map>
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
@@ -2748,24 +2748,33 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_re
     return wrap_async_infer_request(create_base_infer_request());
 }
 
+namespace {
+// Validates a user-supplied value and returns it in the property's typed form
+using PropertyNormalizer = ov::Any (*)(const ov::Any&);
+
+template <typename T, ov::PropertyMutability M>
+std::pair<std::string, PropertyNormalizer> typed_property(const ov::Property<T, M>& property) {
+    return {property.name(), [](const ov::Any& value) {
+                return ov::Any(value.as<T>());
+            }};
+}
+}  // anonymous namespace
+
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
     // Properties which can be changed after compilation.
-    static const std::unordered_set<std::string> runtime_mutable = {ov::hint::model_priority.name()};
+    static const std::unordered_map<std::string, PropertyNormalizer> runtime_mutable = {
+        typed_property(ov::hint::model_priority)};
 
     ov::AnyMap updates;
     for (const auto& [key, value] : properties) {
-        if (!runtime_mutable.count(key)) {
+        const auto it = runtime_mutable.find(key);
+        if (it == runtime_mutable.end()) {
             OPENVINO_THROW("NPUW CompiledModel: '", key, "' cannot be changed after the model is compiled");
         }
-        updates.emplace(key, value);
+        updates.emplace(key, it->second(value));
     }
     if (updates.empty()) {
         return;
-    }
-
-    // Validate the value and store it in its typed form
-    if (auto it = updates.find(ov::hint::model_priority.name()); it != updates.end()) {
-        it->second = it->second.as<ov::hint::Priority>();
     }
 
     // Collect every device-level compiled model owned by this partitioned model, once.
@@ -2951,6 +2960,7 @@ void ov::npuw::CompiledModel::implement_properties() {
 
     // 1.
     // OV Public
+
     m_prop_to_opt = {
         {ov::supported_properties.name(),
          {ov::PropertyMutability::RO,
@@ -3013,15 +3023,19 @@ void ov::npuw::CompiledModel::implement_properties() {
           [&](const ::intel_npu::Config&) {
               GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
           }}},
-        {ov::hint::model_priority.name(), {ov::PropertyMutability::RW, [&](const ::intel_npu::Config&) -> ov::Any {
-                                               // Report the priority the submodels actually use (set at compile time
-                                               // or via set_property), falling back to the plugin's default
-                                               if (auto it = m_non_npuw_props.find(ov::hint::model_priority.name());
-                                                   it != m_non_npuw_props.end()) {
-                                                   return it->second.as<ov::hint::Priority>();
-                                               }
-                                               GET_PLUGIN_PROP(ov::hint::model_priority);
-                                           }}}};
+        // clang-format off
+        {ov::hint::model_priority.name(),
+         {ov::PropertyMutability::RW,
+          [&](const ::intel_npu::Config&) -> ov::Any {
+              // Report the priority the submodels actually use (set at compile time or via set_property), falling back to the plugin's default
+              if (auto it = m_non_npuw_props.find(ov::hint::model_priority.name()); it != m_non_npuw_props.end()) {
+                  return it->second.as<ov::hint::Priority>();
+              }
+              GET_PLUGIN_PROP(ov::hint::model_priority);
+          }}}
+        // clang-format on
+    };
+
 #undef GET_PLUGIN_PROP
 
     // 2.
