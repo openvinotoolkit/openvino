@@ -37,7 +37,6 @@
 #include <openvino/op/tanh.hpp>
 #include <openvino/op/transpose.hpp>
 #include <openvino/op/unsqueeze.hpp>
-#include <ov_ops/grouped_matmul_compressed.hpp>
 #include <ov_ops/rms.hpp>
 
 #include "../common/converters/binary_eltwise.hpp"
@@ -75,46 +74,9 @@ GatherPattern::GatherPattern() : MarkPattern(wrap_type<v8::Gather>({any_input(),
 // linalgx.grouped_matmul covers the 2Dx3D (MoE forward pass) case of GroupedMatMul-17 only:
 // its lhs must be rank 2.
 GroupedMatMulPattern::GroupedMatMulPattern()
-    : MarkPattern(wrap_type<v17::GroupedMatMul>([](const Output<Node>& output) {
-                      auto node = ov::as_type_ptr<v17::GroupedMatMul>(output.get_node_shared_ptr());
-                      if (!node || has_dynamic_rank(node)) {
-                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << output.get_node()->get_friendly_name() << " — dynamic rank");
-                          return false;
-                      }
-                      // Low-precision variants are not supported yet. wrap_type also matches subclasses,
-                      // so GroupedMatMulCompressed has to be rejected explicitly.
-                      if (ov::is_type<ov::op::internal::GroupedMatMulCompressed>(node)) {
-                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name() << " — compressed weights");
-                          return false;
-                      }
-                      const auto is_supported_type = [](const ov::element::Type& type) {
-                          return type == ov::element::f16 || type == ov::element::bf16;
-                      };
-                      if (!is_supported_type(output.get_element_type()) || !is_supported_type(node->get_input_element_type(0)) ||
-                          !is_supported_type(node->get_input_element_type(1))) {
-                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected "
-                                                    << node->get_friendly_name() << " — unsupported element type, got mat_a " << node->get_input_element_type(0)
-                                                    << " x mat_b " << node->get_input_element_type(1) << " -> " << output.get_element_type());
-                          return false;
-                      }
-
-                      const auto& a_shape = node->get_input_partial_shape(0);
-                      const auto& b_shape = node->get_input_partial_shape(1);
-                      if (node->get_input_size() != 3 || a_shape.size() != 2 || b_shape.size() != 3) {
-                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected "
-                                                    << node->get_friendly_name() << " — only the 2Dx3D case is supported, got mat_a " << a_shape << " x mat_b "
-                                                    << b_shape);
-                          return false;
-                      }
-
-                      const auto& offsets_shape = node->get_input_partial_shape(2);
-                      if (offsets_shape.size() != 1 || !are_equal_dimensions(offsets_shape[0], b_shape[0])) {
-                          OPENVINO_MLIR_DEBUG_PRINT("GroupedMatMulPattern: rejected " << node->get_friendly_name() << " — offsets " << offsets_shape
-                                                                                      << " does not hold one entry per expert (" << b_shape[0] << ")");
-                          return false;
-                      }
-                      return true;
-                  }),
+    : MarkPattern(wrap_type<v17::GroupedMatMul>({any_input(rank_equals(2) && type_matches_any({element::f16, element::bf16})),
+                                                 any_input(shape_matches("E, N, K") && type_matches_any({element::f16, element::bf16})),
+                                                 any_input(shape_matches("E"))}),
                   ConvertGroupedMatMul()) {}
 
 MatMulPattern::MatMulPattern()

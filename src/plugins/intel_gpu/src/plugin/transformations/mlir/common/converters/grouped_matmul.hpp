@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <algorithm>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/grouped_matmul.hpp>
+#include "openvino/op/grouped_matmul.hpp"
 
 #include "../convert_common.hpp"
 #include "gc/Dialect/Linalgx/LinalgxDialect.h"
@@ -59,17 +57,10 @@ struct ConvertGroupedMatMul {
                                                 lhs,
                                                 weights,
                                                 offsets,
-                                                max_group_size(builder, loc, node),
+                                                // Optional perf hint (rows-per-group bound, as in oneDNN); not available from ov::opset yet.
+                                                /*max_group_size=*/Value{},
                                                 init,
                                                 builder.getAffineMapArrayAttr(maps));
-    }
-
-private:
-    // Optional perf hint: upper bound on rows per group (oneDNN and linalgx both have it).
-    // ov::opset has no way to pass it yet, so this is a stub; a null Value omits the hint.
-    static Value max_group_size(OpBuilder& builder, Location loc, const NodePtr& node) {
-        // TODO: no idea what to put here for runtime offsets yet.
-        return nullptr;
     }
 };
 
