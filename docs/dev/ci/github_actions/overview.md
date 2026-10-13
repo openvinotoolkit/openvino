@@ -33,10 +33,12 @@ They include:
 
 
 You can find all workflows for this repository in the [workflows folder](/.github/workflows).
-The three main ones, providing most coverage for different operating systems, are:
-* [Linux](/.github/workflows/ubuntu_22.yml)
+The main workflows providing broad coverage for different operating systems are:
+* [Linux Ubuntu 22.04](/.github/workflows/ubuntu_22.yml)
+* [Linux Ubuntu 24.04](/.github/workflows/ubuntu_24.yml)
+* [Linux Ubuntu 26.04](/.github/workflows/ubuntu_26.yml)
 * [Windows](/.github/workflows/windows_vs2022_release.yml)
-* [macOS](/.github/workflows/mac_arm64.yml)
+* [macOS ARM64](/.github/workflows/mac_arm64.yml) (post-commit and scheduled validation)
 
 Additionally, several supporting workflows build and test OpenVINO for other operating systems and processor architectures:
 * [Android](/.github/workflows/android.yml)
@@ -56,22 +58,21 @@ and see what and how to [obtain additional actions](https://github.com/marketpla
 
 Workflows run whenever they are triggered by predefined [events](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows).
 These triggers **are not** mutually exclusive and multiple can be used by one workflow.
-The OpenVINO repository has three, and as you may see in the example below, they are all
-included in the [Linux workflow](/.github/workflows/ubuntu_22.yml). They are:
+The [Linux workflow](/.github/workflows/ubuntu_22.yml) uses the following triggers:
 
 * `on: schedule` - schedule trigger
   * This trigger runs the workflow on a specified interval (e.g., nightly).
   * In the example below: `'0 0 * * 3,6'` - learn more on [cron syntax](https://crontab.guru/)
+* `on: workflow_dispatch` - manual trigger
 * `on: pull_request` - pre-commit trigger
   * This trigger runs the workflow when a pull request (PR) is created targeting the `master` or `release`
     branch and every time the PR is updated with new commits.
-  * In the example below, it additionally requires that the changed files conform to the path
-    globs specified under the `paths` key.
+* `on: merge_group` - merge queue validation trigger
 * `on: push` - post-commit trigger.
   * This trigger runs the workflow when a commit is pushed to the `master` or `release` branch
     (e.g., when a PR is merged).
-  * In the example below, it additionally requires that the changed files conform to the path
-    globs specified under the `paths` key.
+
+Expensive validation is selected by [Smart CI](./smart_ci.md) instead of workflow-level path filters.
 
 The triggers for each workflow can be found at the beginning of a workflow file, in the `on`
 key. You should also learn how to use
@@ -83,24 +84,15 @@ key. You should also learn how to use
 ```yaml
 on:
   schedule:
-    # at 00:00 on Wednesday and Saturday
+    # Wednesday and Saturday with the latest oneDNN
     - cron: '0 0 * * 3,6'
+    # Tuesday and Thursday without the latest oneDNN
+    - cron: '0 0 * * 2,4'
+  workflow_dispatch:
   pull_request:
-    paths:
-      - '**'
-      - '!**/docs/**'
-      - '!docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
   push:
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!**/docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
     branches:
       - master
       - 'releases/**'
@@ -109,9 +101,9 @@ on:
 ---
 **NOTE**
 
-The workflows listed above are **required** for OpenVINO contributions. If they fail the PR
-cannot be merged. It is always a good idea to check their
-[results](#finding-results-artifacts-and-logs) while working within the OpenVINO repository.
+Required checks are configured with branch protection and may change independently of this
+document. Check the required status checks shown on the pull request. Post-commit and scheduled
+workflows, such as the macOS ARM64 workflow, do not validate pull requests.
 
 ---
 
@@ -135,17 +127,24 @@ There are several jobs present:
 
 ```yaml
 jobs:
+  Smart_CI: ...
+  Docker: ...
   Build: ...
   Debian_Packages: ...
   Samples: ...
   Conformance: ...
-  ONNX_Runtime: ...
   CXX_Unit_Tests: ...
   Python_Unit_Tests: ...
+  Python_API_Tests: ...
   CPU_Functional_Tests: ...
-  TensorFlow_Hub_Models_Tests: ...
+  TensorFlow_Models_Tests_Precommit: ...
   PyTorch_Models_Tests: ...
+  JAX_Models_Tests_Precommit: ...
+  GGUF_Models_Tests_Precommit: ...
   NVIDIA_Plugin: ...
+  Openvino_tokenizers: ...
+  iGPU: ...
+  Overall_Status: ...
 ```
 
 The `Build` job executes the first 4 steps:
@@ -172,34 +171,23 @@ Overview of the [Linux workflow's](/.github/workflows/ubuntu_22.yml) `Python_Uni
 ```yaml
   Python_Unit_Tests:
     name: Python unit tests
-    needs: Build
-    timeout-minutes: 40
-    defaults:
-      run:
-        shell: bash
-    runs-on: aks-linux-4-cores-16gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount/caches:/mount/caches
-    env:
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      INSTALL_DIR: /__w/openvino/openvino/install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
-
-    steps: ...
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_python_unit_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
 ```
 
-* All the test jobs have the `needs: Build` which means that they wait for the `Build` job to
-  finish as they require artifacts from it.
+* Test jobs that consume build artifacts have `Build` in `needs`. Jobs using custom images also
+  depend on `Docker`, and component-aware jobs depend on `Smart_CI`.
 * The machine that is used for a job is specified using the `runs-on` key.
   * In this case `aks-linux-4-cores-16gb` is used. [Read more](#machines) on what machines are
     available and how to choose one for a job.
-* Some jobs could run inside a Docker container. The image could be specified using the `image`
-  key under the `container` key.
-  * In this case, `openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04` is used.
-    [Read more](#docker-images) on what images are available and when to use one.
+* Some jobs run inside a Docker container. Reusable workflows receive the image through an
+  `image` input and configure the container internally.
+  * [Read more](#docker-images) on what images are available and when to use one.
 * Some jobs may benefit from caching, for example, Python dependencies or `cmake` build artifacts.
   * [Read more](#caches) on how to utilize cache for a job.
 * A job must define `steps` - a series of commands to execute in the predefined environment.
