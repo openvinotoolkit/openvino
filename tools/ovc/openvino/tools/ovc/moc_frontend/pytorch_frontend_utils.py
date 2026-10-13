@@ -372,21 +372,23 @@ def extract_input_info_from_example(args, inputs):
             input_arg.append(single_input_to_input_cut_info((shape, dtype)))
     if inputs is not None and len(inputs) != 0:
         if len(inputs) == len(input_arg):
-            # we can update input argument with info from examples
+            # Pass 1: exact name matches. Pass 2: unmatched descriptors take leftover
+            # examples in order; a named descriptor may only take an unnamed example.
+            by_name = {ex.name: ex for ex in input_arg if ex.name is not None}
+            matched = [by_name.get(desc.name) for desc in args.input]
+            used = {id(ex) for ex in matched if ex is not None}
+            leftover = [ex for ex in input_arg if id(ex) not in used]
             new_input = []
-            input_arg_by_name = {example.name: example for example in input_arg if example.name is not None}
-            for input_desc, positional_example in zip(args.input, input_arg):
-                example = input_arg_by_name.get(input_desc.name)
-                if example is None and (
-                    input_desc.name is None or positional_example.name is None
-                ):
-                    example = positional_example
-
-                name = input_desc.name or (example.name if example else None)
-                dtype = input_desc.type or (example.type if example else None)
-                shape = input_desc.shape if input_desc.shape is not None else (example.shape if example else None)
-
-                new_input.append(_InputCutInfo(name, shape, dtype, input_desc.value))
+            for desc, ex in zip(args.input, matched):
+                if ex is None:
+                    ex = next((e for e in leftover if desc.name is None or e.name is None), None)
+                    if ex is not None:
+                        leftover.remove(ex)
+                name, shape, dtype = (ex.name, ex.shape, ex.type) if ex is not None else (None, None, None)
+                new_input.append(_InputCutInfo(desc.name if desc.name is not None else name,
+                                               desc.shape if desc.shape is not None else shape,
+                                               desc.type if desc.type is not None else dtype,
+                                               desc.value))
             input_arg = new_input
         else:
             # we can't update args.input
