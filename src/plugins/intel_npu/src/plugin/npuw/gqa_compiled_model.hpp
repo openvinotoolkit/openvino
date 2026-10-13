@@ -146,6 +146,10 @@ private:
         // Static KV-cache capacity actually used to reshape the model; stripped from the
         // inner CompiledModel's properties, so this is the only way to read it back.
         uint32_t effective_max_context_len = 0;
+        // Resolved sliding-window fallback capacity (see resolve_default_sliding_window_capacity()),
+        // 0 if NPUW_LLM_SWA_LEN wasn't configured. Also stripped from the inner
+        // CompiledModel's properties.
+        uint32_t effective_sliding_window_capacity = 0;
     };
 
     static PreparedState prepare(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties);
@@ -160,7 +164,8 @@ private:
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
                      std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
-                     uint32_t effective_max_context_len);
+                     uint32_t effective_max_context_len,
+                     uint32_t effective_sliding_window_capacity);
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
@@ -185,6 +190,10 @@ private:
     // since the inner CompiledModel no longer carries this property. Serialized across
     // export_model()/import_model().
     uint32_t m_effective_max_context_len = 0;
+    // Effective sliding-window fallback capacity (0 if unconfigured); returned from
+    // get_property(NPUW_LLM_SWA_LEN) for the same reason. Serialized across
+    // export_model()/import_model().
+    uint32_t m_effective_sliding_window_capacity = 0;
 };
 
 }  // namespace ov::npuw

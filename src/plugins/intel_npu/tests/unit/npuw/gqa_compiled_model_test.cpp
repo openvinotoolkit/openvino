@@ -1145,6 +1145,24 @@ TEST_F(GQACompiledModelTest, GetPropertyReturnsEffectiveMaxContextLenInsteadOfTh
     EXPECT_EQ(max_context_len.as<uint32_t>(), 4096u);
 }
 
+TEST_F(GQACompiledModelTest, GetPropertyReturnsEffectiveSlidingWindowCapacityInsteadOfThrowing) {
+    // Same class of bug as GetPropertyReturnsEffectiveMaxContextLenInsteadOfThrowing:
+    // NPUW_LLM_SWA_LEN is also a ROOT-only option stripped before the inner
+    // CompiledModel is created, so it must likewise be answered directly from the
+    // wrapper instead of being forwarded (and throwing).
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16"}, {"NPUW_LLM_SWA_LEN", "8"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    ov::Any sliding_window_len;
+    ASSERT_NO_THROW(sliding_window_len = compiled->get_property("NPUW_LLM_SWA_LEN"));
+    EXPECT_EQ(sliding_window_len.as<uint32_t>(), 8u);
+}
+
 TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
