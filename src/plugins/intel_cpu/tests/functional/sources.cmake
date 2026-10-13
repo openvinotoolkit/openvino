@@ -209,6 +209,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/stateful_sdpa_bool_mask.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/stateful_sdpa_bool_mask.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/undefined_et.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/add_convert_to_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/align_matmul_input_ranks.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/any_layout.cpp
@@ -294,7 +295,6 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/rms_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/softmax.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/transpose.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_convert_saturation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_embed_tokens_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_rotary_emb_matmul.cpp
@@ -746,6 +746,7 @@ set(TMP_LIST_OF_ARM_SUBGRAPH_TESTS
 )
 
 set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/add_convert_to_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/align_matmul_input_ranks.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/any_layout.cpp
