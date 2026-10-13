@@ -20,8 +20,9 @@ as `[..., K/G, G]` and scales/zero points as `[..., K/G, 1]`. It computes
 back to `[..., K]`. Codes, scales and zero points are separate Constants. GGUF type identifiers
 select the import algorithm; they do not become new OpenVINO element types.
 
-Sub-byte Constants remain packed: `u2` holds four codes per byte, and `i4`/`u4` hold two per
-byte, with the first element in the least significant bits. The loader's `u32` tensors for
+Sub-byte Constants remain packed: `u1` holds eight binary codes per byte, with the first element
+in the most significant bit. `u2` holds four codes per byte, and `i4`/`u4` hold two per byte,
+with the first element in the least significant bits. The loader's `u32` tensors for
 Q4_1/Q4_K are backing buffers for eight nibbles per word; their graph Constants use `u4`.
 Unpacking into `u2` or `i4` therefore does not mean allocating one byte per weight.
 
@@ -42,7 +43,7 @@ compares the same number of logical weights; a negative change means smaller sto
 |---|---:|---:|---:|---:|
 | F32 | 1 | 4 | 4 | 0% |
 | F16, BF16 | 1 | 2 | 2 | 0% |
-| Q1_0 | 128 | 18 | `64 + 2` = 66 | +266.7% |
+| Q1_0 | 128 | 18 | `16 + 2` = 18 | 0% |
 | Q2_0 (per-64) | 64 | 18 | `16 + 2 + 1` = 19 | +5.6% |
 | PQ2_0 | 128 | 34 | `32 + 2 + 1` = 35 | +2.9% |
 | PTQ1_0 | 128 | 28 | `32 + 2 + 1` = 35 | +25.0% |
@@ -85,13 +86,22 @@ integer tensors and F64 tensors likewise have no quantized block decomposition.
 
 ### Q1_0
 
-A block is an F16 scale followed by 16 bytes of binary codes for 128 weights. A zero bit becomes
-the signed `i4` code -1 (`0xF`), and a set bit becomes +1 (`0x1`). Two codes are packed into each
-output byte; the scale is copied unchanged. The graph computes `code * scale` with group 128.
+A block is an F16 scale followed by 16 bytes of binary codes for 128 weights. Import reverses
+the bits in each byte from GGML's least-significant-bit-first order to OpenVINO's
+most-significant-bit-first `u1` order. The scale is copied unchanged. Eight weights remain
+packed per byte, without a zero-point tensor or requantization.
 
-There is no requantization, but the code payload grows from 16 to 64 bytes. This frontend
-representation uses the existing `i4` decompression path rather than preserving one-bit
-storage or implementing a binary dot product.
+The graph converts bits to F16, computes `2 * bit - 1`, multiplies by the per-128 F16 scale,
+reshapes to the logical weight dimensions and converts to F32. Forming the sign before
+applying the scale avoids doubling the stored scale and overflowing large finite F16 scales.
+The scale/code payload stays at 18 bytes per block; the sign expression adds only two scalar
+Constants shared across groups. Both native and raw-byte input paths preserve `u1`, including
+embedding/output tensors.
+
+Device plugins need compressed binary matrix and lookup kernels to preserve this storage
+through compilation. The current CPU compressed FullyConnected and Gather paths do not
+support `u1`, so compilation expands these weights to floating point. This can substantially
+increase execution and compilation memory despite the compact frontend representation.
 
 ### Q2_0 and PQ2_0
 
@@ -266,7 +276,8 @@ currently differs as follows:
 | Case | Raw-byte representation | Drawback |
 |---|---|---|
 | Q4_1, Q5_1 | Full F32 Constant decoded with `d*q + m` before other format handling | 128 bytes per 32 weights: +540% for Q4_1, +433.3% for Q5_1 |
-| Quantized `token_embd.weight` / `output.weight`, except the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
+| Q1_0, including embedding/output | Packed `u1` plus per-128 F16 scales, as in native loading | Requires plugin binary decompression support to remain packed at execution |
+| Quantized `token_embd.weight` / `output.weight`, except Q1_0 and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
 | Q5_K ordinary matrices | The same channel-wise Q8_0_C representation | Additional lossy quantization; different scale grouping from native Q5_K |
 | Q4_K/Q5_K/Q6_K selected for Q8_0_C | Stream original F32-dequantized rows directly into channel-wise quantization | Per-worker F32 row scratch; avoids allocating a full temporary F32 matrix |
 | Rank greater than two MXFP4 experts | Packed `u8` blocks retaining scale/code interleaving; expert selection and decompression happen on the graph | Different graph layout; device fusion and temporary storage depend on expert execution |

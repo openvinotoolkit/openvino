@@ -70,6 +70,32 @@ protected:
     std::string m_path;
 };
 
+TEST_F(GGUFParser, Q1_0PreservesBinaryStorageAndScaleValues) {
+    const auto bytes = load_npy<uint8_t>("q1_0_qbytes");
+    const auto reference = load_npy<float>("q1_0_deq");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("token_embd.weight", GGUF_TYPE_Q1_0, 256, 4, bytes));
+    const auto loaded = get_gguf_data(m_path);
+    const auto& arrays = std::get<1>(loaded);
+    const auto& weights = arrays.at("token_embd.weight");
+    const auto& scales = arrays.at("token_embd.scales");
+    ASSERT_EQ(weights.get_element_type(), ov::element::u1);
+    EXPECT_EQ(weights.get_shape(), (ov::Shape{4, 256}));
+    EXPECT_EQ(weights.get_byte_size(), 128);
+    EXPECT_EQ(scales.get_byte_size(), 16);
+    EXPECT_EQ(arrays.count("token_embd.zp"), 0);
+    for (size_t group = 0; group < scales.get_size(); ++group) {
+        uint16_t bits;
+        std::memcpy(&bits, bytes.data() + group * 18, sizeof(bits));
+        EXPECT_EQ(scales.data<ov::float16>()[group].to_bits(), bits);
+    }
+    const auto node = make_weight_node({weights, scales, {}}, GGUF_TYPE_Q1_0);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i)
+        EXPECT_FLOAT_EQ(output.data<const float>()[i], reference[i]);
+}
+
 TEST_F(GGUFParser, Q2_0KeepsIntegerZeroPointsForAllWeightNames) {
     const auto bytes = load_npy<uint8_t>("q2_0_qbytes");
     const auto reference = load_npy<float>("q2_0_deq");

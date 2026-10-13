@@ -13,7 +13,8 @@ decompression algorithm, storage overhead and numerical or execution costs.
 | GGUF weight type | OpenVINO weight representation |
 |---|---|
 | `F32`, `F16`, `BF16` | Floating-point constants; converter-facing values are F32 |
-| `Q1_0`, `Q3_K`, `Q4_0` | i4 codes with grouped scales |
+| `Q1_0` | u1 binary codes with per-128 F16 scales; `(2 * bit - 1) * scale` |
+| `Q3_K`, `Q4_0` | i4 codes with grouped scales |
 | `Q5_0`, `Q5_1`, `Q6_K`, `Q8_0`, `Q8_K` | i8 codes with scales and format-specific zero points |
 | `Q2_K`, `Q2_0`, `PQ2_0`, `PTQ1_0` | u2 codes with grouped scales/zero points |
 | `Q4_1`, `Q4_K` | u4 codes; ordinary matmul weights use integer-zero-point requantization by default |
@@ -35,6 +36,10 @@ identifies the payload using tensor dimensions and aligned descriptor spans, and
 payloads to `PQ2_0` internally. The supplied-cgraph path must provide the actual quantization
 type because raw bytes do not carry descriptor spans. Bonsai-2 also requires its
 `prism.hadamard.*` metadata for activation transforms, including F16 checkpoints.
+
+Q1_0 preserves binary storage in both input paths, including embedding/output tensors. Plugins
+need compressed u1 matrix and lookup implementations to retain that storage during compilation;
+the current CPU plugin expands these weights to floating point.
 
 The supplied-cgraph/raw-byte weight path can have different representation choices, including
 channel-wise Q8_0_C requantization for embedding/output and selected formats. Record which

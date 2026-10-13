@@ -66,7 +66,7 @@ WeightFormat get_weight_format(GgufTensorType qtype) {
     case GGUF_TYPE_MXFP4:
         return {FillKind::MXFP4, 32, ov::element::f4e2m1};
     case GGUF_TYPE_Q1_0:
-        return {FillKind::SYMMETRIC, 128, ov::element::i4};
+        return {FillKind::SYMMETRIC, 128, ov::element::u1};
     case GGUF_TYPE_Q4_0:
         return {FillKind::SYMMETRIC, 32, ov::element::i4};
     case GGUF_TYPE_Q3_K:
@@ -193,6 +193,16 @@ std::shared_ptr<ov::Node> make_compressed(const WeightTensors& tensors, ov::elem
             : nullptr;
     auto final_shape_node =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{orig_shape.size()}, orig_shape);
+
+    if (et == ov::element::u1) {
+        const auto precision = tensors.scales.get_element_type();
+        auto bits = std::make_shared<ov::op::v0::Convert>(weights_node, precision);
+        auto doubled = std::make_shared<ov::op::v1::Multiply>(bits, ov::op::v0::Constant::create(precision, {}, {2}));
+        auto signs = std::make_shared<ov::op::v1::Subtract>(doubled, ov::op::v0::Constant::create(precision, {}, {1}));
+        auto scaled = std::make_shared<ov::op::v1::Multiply>(signs, scales_node);
+        auto reshaped = std::make_shared<ov::op::v1::Reshape>(scaled, final_shape_node, false);
+        return std::make_shared<ov::op::v0::Convert>(reshaped, ov::element::f32);
+    }
 
     if (explicit_f32) {
         ov::Output<ov::Node> values = std::make_shared<ov::op::v0::Convert>(weights_node, ov::element::f32);
@@ -344,7 +354,7 @@ bool is_embedding_or_output(const std::string& name) {
 // Decide whether a weight is requantized to Q8_0_C, mirroring llama.cpp's
 // ggml_openvino_get_requant_type for the CPU/GPU (non-NPU) path.
 bool needs_q8_0_c_requant(const std::string& name, GgufTensorType qtype) {
-    return is_embedding_or_output(name) || qtype == GGUF_TYPE_Q5_K;
+    return qtype != GGUF_TYPE_Q1_0 && (is_embedding_or_output(name) || qtype == GGUF_TYPE_Q5_K);
 }
 
 // Keep an exact-decode escape hatch for strict validation against ggml's original Q4_K / Q4_1 values.
