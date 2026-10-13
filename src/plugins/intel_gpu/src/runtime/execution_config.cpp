@@ -18,6 +18,7 @@
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
+#include "ocl/device_descriptor.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -169,6 +170,10 @@ ExecutionConfig ExecutionConfig::clone() const {
 }
 
 void ExecutionConfig::finalize(cldnn::engine& engine) {
+    // PluginConfig::finalize would early-return anyway, so skip building a context that would have to
+    // run engine::create on a device the stub offline engine cannot provide.
+    if (m_is_finalized)
+        return;
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
     PluginConfig::finalize(ctx.get(), nullptr);
 }
@@ -356,6 +361,11 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
         m_use_onednn = true;
     }
+    // onednn JITs its kernels against the driver and bypasses kernels_cache, so it cannot be compiled
+    // HW-free yet. Force everything onto the ocl path; this costs XMX performance on dGPU.
+    if (get_offline_compile() && m_use_onednn) {
+        m_use_onednn = false;
+    }
     if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;
     }
@@ -400,6 +410,13 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_profiling = true;
     }
 #endif // ENABLE_DEBUG_CAPS
+    if (std::getenv("OV_GPU_DUMP_CFG"))  // TEMP diagnostic
+        std::cerr << "[cfg] offline=" << get_offline_compile() << " use_onednn=" << get_use_onednn()
+                  << " queue_type=" << static_cast<int>(get_queue_type())
+                  << " optimize_data=" << get_optimize_data()
+                  << " weightless=" << get_enable_weightless()
+                  << " lp_transformations=" << get_enable_lp_transformations()
+                  << " dyn_quant_gs=" << get_dynamic_quantization_group_size() << std::endl;
 }
 
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {

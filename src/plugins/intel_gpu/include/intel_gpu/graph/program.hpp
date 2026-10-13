@@ -361,6 +361,9 @@ private:
     void pre_optimize_graph(bool is_internal);
     void post_optimize_graph(bool is_internal);
     void transfer_memory_to_device();
+    // Offline compile: make each constant's memory layout match its node, which transfer does on the
+    // normal path. The blob records the memory layout and import rejects a mismatch.
+    void reconcile_constant_layouts();
 
     /*
     ** Analysis functions

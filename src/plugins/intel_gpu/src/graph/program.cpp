@@ -248,6 +248,9 @@ void program::init_program() {
                                                                       kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
+    // Only the top-level offline program exports placeholders; internal helper networks execute during
+    // their own build and need runnable kernels.
+    _kernels_cache->set_offline_export(_config.get_offline_compile() && !is_internal);
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -516,8 +519,13 @@ void program::build_program(bool is_internal) {
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        if (get_engine().get_device_info().has_separate_cache)
+        if (_config.get_offline_compile()) {
+            // No device to transfer to, but the layout reconciliation that transfer does as a side
+            // effect is still needed: the blob records the memory layout and import checks it.
+            reconcile_constant_layouts();
+        } else if (get_engine().get_device_info().has_separate_cache) {
             transfer_memory_to_device();
+        }
     }
 }
 
@@ -620,13 +628,16 @@ void program::post_optimize_graph(bool is_internal) {
     apply_opt_pass<remove_redundant_reorders>(false, true);  // TODO: do we need it at this place also?
 
     auto partial_build = _config.get_partial_build_program();
+    // Offline (HW-free) compile runs the same pass, but defers the value computation (which needs a
+    // GPU) to import time. The resulting graph is identical either way.
+    auto offline_compile = _config.get_offline_compile();
 #ifdef GPU_DEBUG_CONFIG
     if (!is_internal && (!partial_build || !_config.get_dry_run_path().empty())) {
 #else
     if (!is_internal && !partial_build) {
 #endif
         // ToDo remove hidden dependencies from propagate_constants pass
-        apply_opt_pass<propagate_constants>();
+        apply_opt_pass<propagate_constants>(offline_compile);
     }
 
     if (optimize_data)
@@ -705,6 +716,21 @@ void program::mark_if_gemm_data_flow() {
                 }
             }
         }
+    }
+}
+
+void program::reconcile_constant_layouts() {
+    for (const auto& node : processing_order) {
+        if (node->is_shape_infer_dep() || !node->is_type<data>())
+            continue;
+        auto& data_node = node->as<data>();
+        const auto node_layout = data_node.get_output_layout();
+        auto& mem = data_node.get_attached_memory();
+        if (mem.get_layout() == node_layout || mem.get_layout().count() == 0)
+            continue;
+        auto fixed = get_engine().reinterpret_buffer(mem, node_layout);
+        data_node.attach_memory(fixed);
+        const_cast<memory::ptr&>(data_node.get_primitive()->mem) = fixed;
     }
 }
 

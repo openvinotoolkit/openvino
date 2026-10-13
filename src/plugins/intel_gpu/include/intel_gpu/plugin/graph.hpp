@@ -47,10 +47,15 @@ public:
 
     bool is_loaded() const;
 
+    // Built for HW-free export: no cldnn::network, must not be executed. Keyed on the construction
+    // path, not on get_offline_compile(), which the env re-enables on the import path too.
+    bool is_compile_only() const { return m_compile_only; }
+
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
     void update_profiling_info();
 
-    cldnn::engine& get_engine() const { return m_context->get_engine(); }
+    // Offline path uses the HW-free stub engine so compile and export never reach a real GPU.
+    cldnn::engine& get_engine() const { return m_offline_engine ? *m_offline_engine : m_context->get_engine(); }
     const ExecutionConfig& get_config() const { return m_config; }
 
     const std::map<size_t, cldnn::layout>& get_input_layouts() const { return m_input_layouts; }
@@ -89,6 +94,12 @@ private:
     std::mutex m_infer_mutex;
 
     std::shared_ptr<cldnn::network> m_network;
+    // Offline compile keeps only the program (no network, no GPU alloc) and exports it from here.
+    std::shared_ptr<cldnn::program> m_program;
+    // Set once at construction; see is_compile_only.
+    bool m_compile_only = false;
+    // Stub engine for the offline program, owned here because program and export hold references.
+    std::shared_ptr<cldnn::engine> m_offline_engine;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<size_t, std::vector<cldnn::primitive_id>> inputPrimitiveIDs;
     std::map<size_t, cldnn::primitive_id> prevPrimitiveIDs;

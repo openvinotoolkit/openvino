@@ -55,7 +55,8 @@ class ocl_kernel_builder : public kernel_builder{
                 break;
             }
             if (err != CL_SUCCESS) {
-                OPENVINO_THROW("[GPU] Failed to create program during kernel build process");
+                OPENVINO_THROW("[GPU] Failed to create program during kernel build process (cl err ", err,
+                               ", format ", static_cast<int>(src_format), ", ", src_bytes, " bytes)");
             }
             cl::Program program(program_handle);
             cl::vector<cl::Kernel> kernels;

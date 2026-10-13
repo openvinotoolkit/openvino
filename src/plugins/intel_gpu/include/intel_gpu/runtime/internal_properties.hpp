@@ -143,6 +143,14 @@ static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONEDNN"};
 static constexpr Property<bool, PropertyMutability::RW> enable_sdpa_micro{"GPU_ENABLE_SDPA_MICRO"};
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
+
+// HW-free compilation: kernels are built by ocloc for the target device, no cldnn::network is
+// created, and the program is exported as a blob for later import on that GPU.
+static constexpr Property<bool, PropertyMutability::RW> offline_compile{"GPU_OFFLINE_COMPILE"};
+// Target descriptor for offline compilation, as returned by device_descriptor on a HW-attached machine.
+static constexpr Property<std::string, PropertyMutability::RW> offline_compile_device{"GPU_OFFLINE_COMPILE_DEVICE"};
+// Enumeration-phase export of the device metadata an offline (HW-free) compile needs.
+static constexpr Property<std::string, PropertyMutability::RO> device_descriptor{"GPU_DEVICE_DESCRIPTOR"};
 static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
 static constexpr Property<bool, PropertyMutability::RW> record_replay{"GPU_RECORD_REPLAY"};
 

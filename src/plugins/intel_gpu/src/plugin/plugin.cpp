@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -28,6 +30,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
+#include "runtime/ocl/offline_engine.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -251,12 +254,27 @@ Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
 
-    cldnn::device_query device_query;
-    m_device_map = device_query.get_available_devices();
+    // The compiler process must load the plugin on a sandbox with no GPU, where enumeration either
+    // returns nothing or throws on a restricted ICD.
+    try {
+        cldnn::device_query device_query;
+        m_device_map = device_query.get_available_devices();
+    } catch (const std::exception& ex) {
+        std::cerr << "[GPU offline] device enumeration failed (" << ex.what()
+                  << "); continuing HW-free" << std::endl;
+    }
 
     // Set default configs for each device
     for (const auto& device : m_device_map) {
         m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
+    }
+
+    // With no GPU enumerated, compile_model's offline branch still needs a config to start from. Dead
+    // code whenever a device was found.
+    if (m_configs_map.empty()) {
+        m_configs_map.insert({m_default_device_id, ExecutionConfig(ov::device::id(m_default_device_id))});
+        std::cerr << "[GPU offline] no GPU enumerated; installed default config for device '"
+                  << m_default_device_id << "'" << std::endl;
     }
 
     // Set common info for compiled_model_runtime_properties
@@ -267,13 +285,40 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
-    auto context = get_default_context(device_id);
-    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
+
+    // Offline compile replaces the default context with a stub one, so nothing here touches a GPU. The
+    // env peek is a development shortcut: finalize() runs too late for this pre-context decision.
+    bool offline = config.get_offline_compile();
+    std::string offline_target = config.get_offline_compile_device();
+    if (!offline) {
+        if (const char* env_off = std::getenv("OV_GPU_OFFLINE_COMPILE")) {
+            std::string v(env_off);
+            offline = (v == "1" || v == "true" || v == "TRUE" || v == "yes" || v == "YES");
+        }
+        if (offline && offline_target.empty()) {
+            if (const char* env_dev = std::getenv("OV_GPU_OFFLINE_COMPILE_DEVICE"))
+                offline_target = env_dev;
+        }
+    }
+
+    std::shared_ptr<RemoteContextImpl> context;
+    if (offline) {
+        // Folded constants have no value at compile time, only a recipe, which is what the weightless
+        // mechanism already serializes. Offline compile needs it regardless of the user's cache mode.
+        config.set_user_property({ov::enable_weightless(true)});
+        auto dev = std::make_shared<cldnn::ocl::offline_device>(
+            cldnn::ocl::make_offline_device_info(offline_target));
+        context = std::make_shared<RemoteContextImpl>(get_device_name() + "." + device_id,
+                                                      std::vector<cldnn::device::ptr>{dev});
+    } else {
+        context = get_default_context(device_id);
+    }
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
@@ -590,10 +635,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return res;
     }
 
-    OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
-                                           "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
-
+    // Only metrics need an enumerated device; config properties come from m_configs_map, which the
+    // compiler process has even with no GPU.
     if (is_metric(name)) {
+        OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
+                                               "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
         return get_metric(name, options);
     }
 
@@ -650,6 +696,10 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     auto device = iter->second;
     auto device_info = device->get_info();
 
+    if (name == ov::intel_gpu::device_descriptor) {
+        // Enumeration-phase export of everything the HW-free compiler process needs (see FR-2).
+        return decltype(ov::intel_gpu::device_descriptor)::value_type {cldnn::ocl::serialize_device_info(device_info)};
+    }
     if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
     }
@@ -815,6 +865,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::pci_info.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_id.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::device_descriptor.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_max_alloc_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},

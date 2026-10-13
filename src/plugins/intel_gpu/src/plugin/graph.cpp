@@ -22,6 +22,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
+#include "runtime/ocl/offline_engine.hpp"
 
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/grouped_matmul.hpp"
@@ -33,6 +34,7 @@
 #include <list>
 #include <set>
 #include <unordered_set>
+#include <iostream>
 #include <sstream>
 #include <chrono>
 #include <cmath>
@@ -83,9 +85,22 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
+    // Build the program on a stub engine so no compile pass reaches a real GPU. Only this ctor runs in
+    // the compiler process; the import ctor leaves m_offline_engine null.
+    if (config.get_offline_compile()) {
+        auto dev = std::make_shared<cldnn::ocl::offline_device>(
+            cldnn::ocl::make_offline_device_info(config.get_offline_compile_device()));
+        m_offline_engine = std::make_shared<cldnn::ocl::offline_engine>(dev);
+        std::cerr << "[GPU offline] using stub device_info engine (" << dev->get_info().dev_name
+                  << ", no cl::Context) for compile-only program" << std::endl;
+    }
+
     auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
     m_config = program_builder->get_config();
 
+    // Compile path: honor the offline (compile-only) request. The import constructor leaves this
+    // false so imported models always build a network and run, regardless of the polluting env var.
+    m_compile_only = m_config.get_offline_compile();
     build(program_builder->get_compiled_program());
 
     primitiveIDs = program_builder->primitive_ids;
@@ -135,6 +150,9 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     m_config.visit_attributes(visitor);
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
     m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
+    // Import always builds a real network; the offline flag applies to the export path only. Deferred
+    // constants carry their own recipe and are materialized by data::load_weights below.
+    m_config.set_user_property({ov::intel_gpu::offline_compile(false)});
     m_config.finalize(context.get(), nullptr);
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
@@ -216,6 +234,13 @@ Graph::~Graph() {
 
 void Graph::build(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::build");
+
+    // Keep the program only: building a network would allocate GPU memory and upload weights, which
+    // is pure waste when all we export is the blob.
+    if (m_compile_only) {
+        m_program = program;
+        return;
+    }
 
     auto* external_queue = m_context->get_external_queue();
     if (external_queue) {
@@ -623,6 +648,14 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
     }
     OstreamAttributeVisitor<cldnn::BinaryOutputBuffer> visitor(ob);
     m_config.visit_attributes(visitor);
+
+    // Offline compile: no network was built; serialize the program directly using a scratch stream.
+    if (m_program) {
+        auto stream = get_engine().create_stream(m_config);
+        ob.set_stream(stream.get());
+        m_program->save(ob);
+        return;
+    }
 
     ob.set_stream(m_network->get_stream_ptr().get());
     m_network->get_program()->save(ob);
