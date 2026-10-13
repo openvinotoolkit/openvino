@@ -1,0 +1,39 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-13-14-46-52-371-38403561271",
+    "timestamp": "2026-10-13T14:46:52Z",
+    "run_id": "38403561271",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38403561271",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "10864ee713c0c1d4f967506bd88eb359b86a5b4a",
+    "pr_number": "34577",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/34577",
+    "author": "reeseliao",
+    "category": "Network",
+    "title": "ONNX Models Tests job fails with getaddrinfo EAI_AGAIN during artifact upload after all tests passed",
+    "signature": "getaddrinfo EAI_AGAIN <HOST> during GitHub Actions artifact upload|Network",
+    "signature_hash": "d877f2bb57b833d0",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "ONNX Models Tests / ONNX Models tests",
+            "conclusion": "failure",
+            "symptom": "All 505 ONNX zoo tests passed (2 skipped, 21 xfailed), but the job was marked failed because uploading onnx_models_tests_logs failed with DNS resolution errors (EAI_AGAIN) against GitHub Actions results/blob-storage endpoints."
+        }
+    ],
+    "key_errors": [
+        "============ 505 passed, 2 skipped, 21 xfailed in 467.69s (0:07:47) ============",
+        "Attempt 1 of 5 failed with error: getaddrinfo EAI_AGAIN results-receiver.actions.githubusercontent.com. Retrying request in 3000 ms...",
+        "##[error]getaddrinfo EAI_AGAIN productionresultssa9.blob.core.windows.net"
+    ],
+    "root_cause": "The ONNX Models Tests test suite itself completed successfully with zero failures. The job was marked as failed purely because the post-test artifact-upload step (ababushk/upload-artifact uploading onnx_models_tests_logs) could not resolve DNS for GitHub Actions' internal results-receiver and blob-storage hostnames (results-receiver.actions.githubusercontent.com and productionresultssa9.blob.core.windows.net), producing getaddrinfo EAI_AGAIN errors. This is a transient runner/network DNS resolution problem in the self-hosted runner environment, unrelated to the PR's code changes (PyTorch frontend support for aten::_fake_quantize_learnable_per_channel_affine).",
+    "reproduction_steps": "N/A - not reproducible locally; this is an infrastructure-side DNS/network failure specific to the GitHub Actions self-hosted runner environment during artifact upload.",
+    "recommended_actions": [
+        "Re-run the failed ONNX Models Tests job; the underlying test suite already passed, so a rerun should succeed once DNS resolution recovers.",
+        "Investigate the self-hosted runner's DNS resolver/network configuration for intermittent failures resolving *.actions.githubusercontent.com and *.blob.core.windows.net.",
+        "Consider adding retry/backoff or marking the artifact-upload step as continue-on-error with if-no-files-found: ignore (already partially configured) so transient upload failures do not fail jobs whose actual tests passed.",
+        "Monitor whether this correlates with runner pool/network maintenance windows."
+    ],
+    "prevention_strategies": "Harden CI runner networking (DNS caching/retry) for the hosted test-log artifact uploads, and consider separating the artifact-upload step's exit status from the overall job conclusion when the test step itself succeeded, so transient network blips during post-test uploads don't mask a fully green test run.",
+    "historical_context": "A similar but distinct Network-category pattern was previously recorded (pattern 4e9cf236bf92d555: 'Upload Test Results fails with ENOTFOUND artifact upload error on Windows runner', count=1, 2026-09-23). That occurrence used ENOTFOUND on Windows; this occurrence uses EAI_AGAIN on a Linux runner against different hostnames, so it is tracked as a new, separate recurring pattern (d877f2bb57b833d0) to keep job-agnostic but still distinguishable network-upload failure signatures separate by concrete DNS error code/behavior."
+}
