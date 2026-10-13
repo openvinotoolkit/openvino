@@ -20,11 +20,7 @@
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 
 ov::OutputVector skip_simplified_layer_normalization(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 3);
@@ -72,8 +68,4 @@ ONNX_OP("SkipSimplifiedLayerNormalization",
         OPSET_SINCE(1),
         com_microsoft::opset_1::skip_simplified_layer_normalization,
         MICROSOFT_DOMAIN);
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

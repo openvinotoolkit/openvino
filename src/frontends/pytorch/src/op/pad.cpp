@@ -20,10 +20,7 @@
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -188,7 +185,4 @@ OutputVector translate_replication_pad_nd(const NodeContext& context) {
     return translate_pad_common(context, data, paddings, pad_value, "replicate");
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
