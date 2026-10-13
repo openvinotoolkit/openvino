@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <sstream>
 #include <vector>
@@ -26,6 +27,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/precision_support.h"
+#include "utils/ssm_reference.hpp"
 
 namespace {
 enum class InputPort : size_t {
@@ -123,7 +125,8 @@ void run_reference(const std::vector<DataT>& A,
                         reduction += static_cast<double>(state[state_base + state_index]) *
                                      static_cast<float>(C[projection_base + state_index]);
                     }
-                    output[(token * num_heads + head) * head_dim + position] = static_cast<DataT>(reduction);
+                    output[(token * num_heads + head) * head_dim + position] =
+                        ov::test::utils::ssm_reference_cast<DataT>(static_cast<float>(reduction));
                 }
 
                 if (interval > 0) {
@@ -141,7 +144,8 @@ void run_reference(const std::vector<DataT>& A,
                         for (size_t position = 0; position < head_dim; ++position) {
                             for (size_t state_index = 0; state_index < state_size; ++state_index) {
                                 recurrent_state_table[state_off(write_block, head, position, state_index)] =
-                                    static_cast<StateT>(state[position * state_size + state_index]);
+                                    ov::test::utils::ssm_reference_cast<StateT>(
+                                        state[position * state_size + state_index]);
                             }
                         }
                     }
@@ -755,8 +759,15 @@ void PagedSelectiveSSMLayerTest::compare(const std::vector<ov::Tensor>& expected
         abs_threshold = 2e-4f;
         rel_threshold = 1e-5f;
     }
-    ov::test::utils::compare(expected[0], actual[0], abs_threshold, rel_threshold);
-    ov::test::utils::compare(expected[1], actual[1], abs_threshold, rel_threshold);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        // FP32 update/reduction orders can straddle an FP16 rounding midpoint. Allow one representable step
+        // for FP16 tensors while keeping FP32 output and state checks at their original tolerance.
+        const double tensor_rel_threshold =
+            expected[i].get_element_type() == ov::element::f16
+                ? std::max(rel_threshold, static_cast<double>(std::numeric_limits<ov::float16>::epsilon()))
+                : rel_threshold;
+        ov::test::utils::compare(expected[i], actual[i], abs_threshold, tensor_rel_threshold);
+    }
 }
 
 TEST_P(PagedSelectiveSSMLayerTest, Inference) {

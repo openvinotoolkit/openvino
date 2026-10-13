@@ -520,6 +520,10 @@ void Reorder::execute(const dnnl::stream& strm) {
         optimizedNcsp2Nspc();
     } else {
         if (prim) {
+            // A producer such as Loop can replace its output memory without changing the tensor shape.
+            // Refresh the memory objects because cached primitives may still reference the previous buffer.
+            primArgs[DNNL_ARG_SRC] = getSrcMemoryAtPort(0)->getPrimitive();
+            primArgs[DNNL_ARG_DST] = getDstMemoryAtPort(0)->getPrimitive();
             prim.execute(strm, primArgs);
         } else {
             CPU_NODE_THROW("doesn't have an initialized primitive.");

@@ -240,6 +240,9 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     cpu_isa_t isa = isa_undef;
     if (use_amx) {
         isa = isa_undef;
+    } else if (is_int8) {
+        // AVX512 VNNI implements u8*s8 and requires compensation for signed A. Use native s8*s8 instead.
+        isa = avx2_vnni_2;
     } else if (mayiuse(avx512_core)) {
         if (ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 && mayiuse(avx512_core_bf16)) {
             isa = avx512_core_bf16;

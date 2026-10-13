@@ -644,6 +644,7 @@ set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/utils/convolution_params.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/cpu_test_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/cpu_test_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/utils/ssm_reference.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/filter_cpu_info.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/fusing_test_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/fusing_test_utils.hpp

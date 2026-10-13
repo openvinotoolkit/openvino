@@ -147,32 +147,21 @@ void jit_selective_ssm_kernel<isa>::emit_state_vector(size_t rows,
 
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::load_projections(size_t active_lanes, size_t projection_offset) {
-    const bool is_full_vector = active_lanes == vector_size;
-
-    if (is_full_vector) {
-        vmovups(vmm_input_projection, ptr[reg_input_projection + projection_offset]);
-        vmovups(vmm_output_projection, ptr[reg_output_projection + projection_offset]);
-    } else {
-        load(vmm_input_projection,
-             reg_input_projection,
-             ov::element::f32,
-             static_cast<int>(active_lanes),
-             projection_offset);
-        load(vmm_output_projection,
-             reg_output_projection,
-             ov::element::f32,
-             static_cast<int>(active_lanes),
-             projection_offset);
-    }
+    load(vmm_input_projection,
+         reg_input_projection,
+         ov::element::f32,
+         static_cast<int>(active_lanes),
+         projection_offset);
+    load(vmm_output_projection,
+         reg_output_projection,
+         ov::element::f32,
+         static_cast<int>(active_lanes),
+         projection_offset);
 }
 
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::load_state(const Vmm& destination, size_t active_lanes, size_t offset) {
-    if (active_lanes == vector_size && m_jcp.state_precision == ov::element::f32) {
-        vmovups(destination, ptr[reg_input_state + offset]);
-    } else {
-        load(destination, reg_input_state, m_jcp.state_precision, static_cast<int>(active_lanes), offset);
-    }
+    load(destination, reg_input_state, m_jcp.state_precision, static_cast<int>(active_lanes), offset);
 }
 
 template <cpu_isa_t isa>
@@ -182,10 +171,12 @@ void jit_selective_ssm_kernel<isa>::compute_state(size_t row, size_t active_lane
     // state[p, n] = decay * state[p, n] + (delta * x[p]) * B[n]
     vmulps(state, state, vmm_decay);
     vfmadd231ps(state, vmm_input_projection, input_scale_vmm(row));
+    // Loads zero-fill inactive state/B/C lanes, but decay and delta*x are broadcast to every lane.
+    // exp(A*delta) may overflow to Inf, or delta*x may be non-finite, so 0*Inf produces NaN in the tail
+    // even with initialized inputs. AVX2 has no masked FMA: replace these lanes with C's zeros here.
+    // AVX-512 excludes them from the masked FMA in accumulate_output instead. Keep active lanes unchanged.
     if constexpr (isa == avx2) {
         if (!is_full_vector) {
-            // Shared loads zero-fill C's tail. Mask state using those zeros before accumulating,
-            // including NaNs produced in inactive lanes by 0 * infinite decay/input.
             const auto inactive_mask = static_cast<uint8_t>(0xFFU << active_lanes);
             vblendps(state, state, vmm_output_projection, inactive_mask);
         }
@@ -216,11 +207,7 @@ void jit_selective_ssm_kernel<isa>::store_state(const Vmm& source, size_t active
     }
     const auto& destination =
         m_jcp.state_mode == jit_selective_ssm_state_mode::separate ? reg_output_state : reg_input_state;
-    if (active_lanes == vector_size && m_jcp.state_precision == ov::element::f32) {
-        vmovups(ptr[destination + offset], source);
-    } else {
-        store(destination, source, m_jcp.state_precision, static_cast<int>(active_lanes), offset);
-    }
+    store(destination, source, m_jcp.state_precision, static_cast<int>(active_lanes), offset);
 }
 
 template <cpu_isa_t isa>

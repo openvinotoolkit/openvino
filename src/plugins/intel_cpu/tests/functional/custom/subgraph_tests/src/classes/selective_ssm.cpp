@@ -10,17 +10,23 @@
 #include <sstream>
 #include <vector>
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#endif
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "utils/ssm_reference.hpp"
 
 namespace {
 
 template <typename T>
 std::vector<ov::Tensor> calculate_selective_ssm_refs(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs,
-                                                     const std::shared_ptr<ov::Model>& function) {
+                                                     const std::shared_ptr<ov::Model>& function,
+                                                     bool native_bf16 = true) {
     const auto& params = function->get_parameters();
     const auto& A_tensor = inputs.at(params[0]);
     const auto& dt_tensor = inputs.at(params[1]);
@@ -96,7 +102,8 @@ std::vector<ov::Tensor> calculate_selective_ssm_refs(const std::map<std::shared_
                         reduction += static_cast<double>(state[state_base + state_index]) *
                                      static_cast<float>(C[projection_base + state_index]);
                     }
-                    output[x_index] = static_cast<T>(reduction);
+                    output[x_index] =
+                        ov::test::utils::ssm_reference_cast<T>(static_cast<float>(reduction), native_bf16);
                 }
             }
         }
@@ -104,7 +111,7 @@ std::vector<ov::Tensor> calculate_selective_ssm_refs(const std::map<std::shared_
 
     ov::Tensor state_tensor(initial_state_tensor.get_element_type(), state_shape);
     std::transform(state.begin(), state.end(), state_tensor.data<T>(), [](float value) {
-        return static_cast<T>(value);
+        return ov::test::utils::ssm_reference_cast<T>(value);
     });
     return {output_tensor, state_tensor};
 }
@@ -162,7 +169,13 @@ std::vector<ov::Tensor> SelectiveSSM::calculate_refs() {
         return calculate_selective_ssm_refs<ov::float16>(inputs, function);
     }
     if (precision == ov::element::bf16) {
-        return calculate_selective_ssm_refs<ov::bfloat16>(inputs, function);
+        // The portable executor stores BF16 outputs through the scalar constructor; the JIT uses native RNE.
+        bool native_bf16 = false;
+#if defined(OPENVINO_ARCH_X86_64)
+        using namespace dnnl::impl::cpu::x64;
+        native_bf16 = (mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2)) && std::get<5>(GetParam()) <= 4096;
+#endif
+        return calculate_selective_ssm_refs<ov::bfloat16>(inputs, function, native_bf16);
     }
     return calculate_selective_ssm_refs<float>(inputs, function);
 }
