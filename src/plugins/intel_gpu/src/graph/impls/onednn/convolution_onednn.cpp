@@ -394,6 +394,12 @@ public:
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
 
+        // The layout of a dynamic node is fixed at compile time; some runtime shapes only get oneDNN's reference impl.
+        if (arg.is_dynamic() && onednn::is_reference_impl(*prim_desc) && arg.type()->has_impl_for(arg, impl_types::ocl, shape_types::static_shape)) {
+            GPU_DEBUG_TRACE_DETAIL << arg.id() << ": oneDNN selected " << prim_desc->impl_info_str() << ", using an OCL impl for this shape" << std::endl;
+            return nullptr;
+        }
+
         auto conv_onednn_impl = std::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
                                                 get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
 
