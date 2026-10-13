@@ -385,15 +385,18 @@ def extract_input_info_from_example(args, inputs):
                 dtype = input_desc.type
                 shape = input_desc.shape
                 positional_example = input_arg[i]
-                if name is not None and positional_example.name is not None:
-                    # Both sides are named: only trust an actual name match. Falling
-                    # back to position here would copy another input's shape/dtype
-                    # whenever the two name sets don't line up 1:1.
-                    example = input_arg_by_name.get(name)
-                else:
-                    # At least one side has no name, so position is the only signal
-                    # there is, same as before named matching was added.
-                    example = positional_example
+                # Try an exact name match first: input_arg can be a mix of named and
+                # unnamed entries (flatten_inputs drops the name on a nested
+                # list/tuple/dict value), so the real match for a named input might
+                # not sit at the same index at all.
+                example = input_arg_by_name.get(name) if name is not None else None
+                if example is None:
+                    if name is None or positional_example.name is None:
+                        # At least one side has no name, so position is the only
+                        # signal there is, same as before named matching was added.
+                        example = positional_example
+                    # else: both sides are named but don't match each other, don't
+                    # guess by position, leave this input's metadata unset instead.
                 if example is not None:
                     if name is None:
                         name = example.name

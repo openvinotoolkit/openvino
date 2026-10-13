@@ -77,3 +77,24 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
         shapes_by_name = {inp.name: inp.shape for inp in args.input}
         self.assertEqual(list(shapes_by_name["input_ids"]), [1, 8])
         self.assertIsNone(shapes_by_name["attn_mask"])
+
+    def test_named_input_matched_by_name_even_off_its_own_position(self):
+        # example_input mixes a plain tensor ("input_ids") with a nested tuple
+        # ("past_key_values"): flatten_inputs() drops the name on the nested one,
+        # so input_arg ends up [unnamed leaf, ("input_ids", shape)] in that order.
+        # The user lists input_ids first, landing it on input_arg's unnamed slot.
+        # Matching must still find input_ids by name instead of grabbing whatever
+        # sits at that position.
+        args = Namespace()
+        args.input_model = FakeInputModel({
+            "past_key_values": (FakeTensor((1, 2)),),
+            "input_ids": FakeTensor((1, 8)),
+        })
+        args.example_input = None
+        args.dynamo = True
+        args.input = input_to_input_cut_info(["input_ids", "unused_name"])
+
+        extract_input_info_from_example(args, args.input)
+
+        shapes_by_name = {inp.name: inp.shape for inp in args.input}
+        self.assertEqual(list(shapes_by_name["input_ids"]), [1, 8])
