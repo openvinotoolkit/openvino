@@ -67,8 +67,8 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    float m_scale_factor;
-    ov::element::Type m_scaled_prec;
+    const float m_scale_factor;
+    const ov::element::Type m_scaled_prec;
 };
 
 // Add scale_down and scale_up layers around Convolution and MatMul nodes
