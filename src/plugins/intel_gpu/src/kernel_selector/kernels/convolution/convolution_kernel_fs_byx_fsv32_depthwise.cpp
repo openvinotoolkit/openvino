@@ -60,8 +60,9 @@ size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getMinRegisterUsage(const convo
 ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_byx_fsv32_depthwise::GetAutoTuneOptions(
     const Params& arg,
     int autoTuneIndex) const {
-    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size()))
+    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size())) {
         return autoTuneOptions[autoTuneIndex];
+    }
 
     const convolution_params& cp = static_cast<const convolution_params&>(arg);
 
@@ -72,8 +73,9 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
 
     // Check if output can be evenly divided into large blocks
     for (auto w : optBlockWidths) {
-        if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
+        if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold) {
             return {w, EXE_MODE_AGE_BASED};
+        }
     }
 
     // Try to find large blocks with smallest offset
@@ -86,13 +88,15 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
         }
     }
 
-    if (foundWidth != 0)
+    if (foundWidth != 0) {
         return {foundWidth, EXE_MODE_AGE_BASED};
+    }
 
     // Check small and memory bound block sizes
     for (auto w : nonOptBlockWidths) {
-        if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
+        if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold) {
             return {w, EXE_MODE_AGE_BASED};
+        }
     }
 
     // This means all previous block sizes consumed too much registers, fallback to block width = 1
@@ -125,23 +129,28 @@ KernelsPriority ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsPriority(con
 }
 
 bool ConvolutionKernel_fs_byx_fsv32_depthwise::Validate(const Params& p) const {
-    if (!ConvolutionKernelBase::Validate(p))
+    if (!ConvolutionKernelBase::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     auto cp = static_cast<const convolution_params&>(p);
-    if (cp.groups < 16)
+    if (cp.groups < 16) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups)
+    if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Output feature padding must be multiple of fsv to keep block alignment
-    if (cp.outputs[0].Feature().pad.before % fsv != 0)
+    if (cp.outputs[0].Feature().pad.before % fsv != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Input feature padding must be multiple of fsv to keep block alignment
-    if (cp.inputs[0].Feature().pad.before % fsv != 0)
+    if (cp.inputs[0].Feature().pad.before % fsv != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

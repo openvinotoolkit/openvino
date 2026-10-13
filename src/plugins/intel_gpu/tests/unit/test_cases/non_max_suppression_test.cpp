@@ -5,11 +5,118 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/non_max_suppression.hpp>
+#include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 
+#include "primitive_inst.h"
 #include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
+
+TEST(non_max_suppression, uses_logical_layout_for_fake_aligned_fully_connected_boxes) {
+    auto& engine = tests::get_test_engine();
+    const auto data_type = data_types::f16;
+
+    const ov::Shape logical_boxes_shape{4, 1, 4};
+    const ov::Shape weights_shape{4, 4};
+    const ov::Shape scores_shape{4, 3, 1};
+    const int selected_class = 2;
+    const auto selected_indices_count = static_cast<int>(logical_boxes_shape[0]);
+
+    const ov::PartialShape dynamic_boxes_pshape{ov::Dimension::dynamic(), 1, 4};
+    const layout boxes_input_layout{logical_boxes_shape, data_type, format::bfyx};
+    const layout dynamic_boxes_input_layout{dynamic_boxes_pshape, data_type, format::bfyx};
+    const layout weights_layout{weights_shape, data_type, format::bfyx};
+    const layout scores_layout{scores_shape, data_type, format::bfyx};
+    const layout num_per_class_layout{ov::PartialShape{}, data_types::f32, format::bfyx};
+
+    auto num_per_class_mem = engine.allocate_memory(num_per_class_layout);
+    auto input_mem = engine.allocate_memory(boxes_input_layout);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    auto scores_mem = engine.allocate_memory(scores_layout);
+
+    tests::set_values(num_per_class_mem, {1.f});
+    // Input boxes per batch before FC, in [y1, x1, y2, x2] order:
+    //
+    //   y
+    //   6 | +---+       +---+
+    //     | |b2 |       |b3 |
+    //   4 | +---+       +---+
+    //     |
+    //   2 | +---+       +---+
+    //     | |b0 |       |b1 |
+    //   0 | +---+       +---+
+    //     +------------------- x
+    //       0   2       4   6
+    tests::set_values(input_mem,
+                      std::vector<ov::float16>{0.f, 0.f, 2.f, 2.f,
+                                               0.f, 4.f, 2.f, 6.f,
+                                               4.f, 0.f, 6.f, 2.f,
+                                               4.f, 4.f, 6.f, 6.f});
+    // Identity weights, so that the FC acts as a pass-through and "boxes" keeps the coordinates above.
+    tests::set_values(weights_mem, std::vector<ov::float16>{1.f, 0.f, 0.f, 0.f,
+                                                            0.f, 1.f, 0.f, 0.f,
+                                                            0.f, 0.f, 1.f, 0.f,
+                                                            0.f, 0.f, 0.f, 1.f});
+    tests::set_values(scores_mem, std::vector<ov::float16>{0.f, 0.f, 1.f,
+                                                           0.f, 0.f, 1.f,
+                                                           0.f, 0.f, 1.f,
+                                                           0.f, 0.f, 1.f});
+
+    topology topology;
+    topology.add(input_layout{"input", dynamic_boxes_input_layout});
+    // The FC input must be produced by another primitive rather than by the network input directly:
+    topology.add(activation{"boxes_input", input_info{"input"}, activation_func::relu});
+    topology.add(data{"weights", weights_mem});
+    // input_size == 3 to match the rank of the boxes tensor ([num_batches, num_boxes, 4]).
+    topology.add(fully_connected{"boxes", input_info{"boxes_input"}, "weights", "", 3});
+    topology.add(input_layout{"scores", scores_layout});
+    topology.add(data{"num_per_class", num_per_class_mem});
+    topology.add(non_max_suppression{"nms",
+                                     input_info{"boxes"},
+                                     input_info{"scores"},
+                                     selected_indices_count,
+                                     false,
+                                     true,
+                                     "num_per_class"});
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network{engine, topology, config};
+    network.set_input_data("input", input_mem);
+    network.set_input_data("scores", scores_mem);
+
+    auto result = network.execute();
+    mem_lock<int32_t, mem_lock_type::read> output(result.at("nms").get_memory(), get_test_stream());
+
+    auto boxes_inst = network.get_primitive("boxes");
+    const auto& boxes_memory_layout = boxes_inst->output_memory().get_layout();
+    const auto& boxes_logical_layout = boxes_inst->get_impl_params()->get_output_layout();
+    ASSERT_NE(boxes_memory_layout, boxes_logical_layout)
+        << "Expected FC 'boxes' output memory layout to differ from its logical output layout "
+        << "due to fake alignment; otherwise this test does not cover the NMS fake-alignment bug.";
+
+    // The output buffer holds one [batch_index, class_index, box_index] triple per potentially
+    // selected box (num_batches * num_classes * num_boxes); unused entries are filled with -1.
+    const size_t max_selected_indices = logical_boxes_shape[0] * scores_shape[1] * logical_boxes_shape[1];
+    ASSERT_EQ(output.size(), max_selected_indices * 3);
+    for (size_t i = 0; i < max_selected_indices; ++i) {
+        const auto output_idx = i * 3;
+        if (i < static_cast<size_t>(selected_indices_count)) {
+            // One box selected per batch, always the single box of the highest scoring class.
+            EXPECT_EQ(output[output_idx], static_cast<int32_t>(i));
+            EXPECT_EQ(output[output_idx + 1], selected_class);
+            EXPECT_EQ(output[output_idx + 2], 0);
+        } else {
+            EXPECT_EQ(output[output_idx], -1);
+            EXPECT_EQ(output[output_idx + 1], -1);
+            EXPECT_EQ(output[output_idx + 2], -1);
+        }
+    }
+}
 
 template <typename DataType, cldnn::format::type l>
 struct TypeWithLayoutFormat {

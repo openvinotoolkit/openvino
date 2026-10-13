@@ -56,6 +56,24 @@ static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests
 static constexpr Property<std::string, PropertyMutability::WO> config_device_id{"CONFIG_DEVICE_ID"};
 
 /**
+ * @brief Renames a plugin's devices to the ids Core exposes for them, as {plugin id -> Core id}.
+ *
+ * Several libraries may be registered under one device name (a "dispatch group"), in which case
+ * Core owns the numbering: it merges what the candidates enumerate and assigns the ".N" ids users
+ * address. A candidate's own enumeration order may differ, so Core pushes this mapping to each
+ * group member before any other property, and the member must address those devices by the given
+ * ids from then on - including in the names it reports back (remote contexts, execution devices).
+ *
+ * The map covers every device the member enumerated, so its id set stays as dense as its own
+ * enumeration; it is not necessarily zero-based. Members must report support for this property in
+ * ov::internal::supported_properties - Core refuses to put a library that does not into a group.
+ * It is never set for a device name served by a single library, whose ids Core does not rename.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::map<std::string, std::string>, PropertyMutability::WO> device_id_map{
+    "DISPATCH_DEVICE_ID_MAP"};
+
+/**
  * @brief Limit \#threads that are used by IStreamsExecutor to execute `parallel_for` calls
  * @ingroup ov_dev_api_plugin_api
  */

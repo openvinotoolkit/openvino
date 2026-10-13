@@ -14,6 +14,9 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -82,6 +85,9 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
     SHAPE_INFER_PREDEFINED(op::Store, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
+    SHAPE_INFER_PREDEFINED(ov::op::v10::IsFinite, PassThroughShapeInfer),
+    SHAPE_INFER_PREDEFINED(ov::op::v10::IsInf, PassThroughShapeInfer),
+    SHAPE_INFER_PREDEFINED(ov::op::v10::IsNaN, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v1::LogicalNot, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v0::PRelu, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),

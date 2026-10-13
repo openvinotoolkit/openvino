@@ -169,9 +169,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
 
         size_t concat_users = 0;
-        for (const auto& user : pred.first->get_users())
+        for (const auto& user : pred.first->get_users()) {
             if (user->is_type<concatenation>())
                 concat_users += 1;
+        }
 
         // If input is used by more than one concatenation then they may require different paddings.
         if (concat_users != 1)
@@ -334,10 +335,11 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
         upper_padd[concat_axis] -= input_length;
 
         // set new padding for input
-        if (is_runtime)
+        if (is_runtime) {
             pred_layout.data_padding = padding(lower_padd, upper_padd, dyn_pad_dims);
-        else
+        } else {
             pred_layout.data_padding = padding(lower_padd, upper_padd);
+        }
         // move lower padd further
         //
         //   |-------------- lower padd -------------|---------- upper padd -----------|
@@ -415,8 +417,10 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
 // input correctly via the standard pitch-aware layout addressing; sdpa's 4 kernels
 // (ref/opt/gen_opt/gen_micro) are the only ones known to assume contiguous memory.
 // If another kernel is found to make the same assumption, add it here too.
+// gemm is here for the same reason (ocl gemm_tiled_opt), reached when a non-f16 precision
+// decomposes sdpa. Unconditional: preferred impl type is not the impl that gets built.
 static bool requires_contiguous_input(const program_node& node) {
-    return node.is_type<scaled_dot_product_attention>();
+    return node.is_type<scaled_dot_product_attention>() || node.is_type<gemm>();
 }
 
 bool crop_in_place_optimization::can_crop_be_optimized_along_feature(const layout& crop_layout,

@@ -1,13 +1,14 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "mutable_data_inst.h"
-#include "primitive_type_base.h"
+#include <algorithm>
+#include <memory>
+#include <string>
+
 #include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
-#include <string>
-#include <memory>
-#include <algorithm>
+#include "mutable_data_inst.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(mutable_data)
@@ -30,8 +31,7 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
 }
 }  // namespace
 
-mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program& prog)
-    : parent(dprim, prog), mem(dprim->mem) {
+mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program& prog) : parent(dprim, prog), mem(dprim->mem) {
     recalc_output_layout(false);
     can_share_buffer(false);
 }
@@ -46,7 +46,7 @@ void mutable_data_node::replace_memory(memory::ptr new_mem, bool invalidate_user
     recalc_output_layout(invalidate_users_if_changed);
 }
 
-std::string mutable_data_inst::to_string(mutable_data_node const& node) {
+std::string mutable_data_inst::to_string(const mutable_data_node& node) {
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;
@@ -74,12 +74,13 @@ event::ptr mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check,
         }
     }
     auto ev = primitive_inst::set_output_memory(mem_new, check);
-    if (input_ev == nullptr)
+    if (input_ev == nullptr) {
         return ev;
+    }
     return _network.get_stream().group_events({ev, input_ev});
 }
 
-mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
+mutable_data_inst::typed_primitive_inst(network& network, const mutable_data_node& node)
     : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {
     const auto& users = get_users();
     for (const auto& usr : users) {

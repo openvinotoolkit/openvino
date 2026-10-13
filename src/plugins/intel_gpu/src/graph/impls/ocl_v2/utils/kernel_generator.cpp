@@ -124,14 +124,16 @@ std::string KernelGenerator::get_build_options(const RuntimeParams& params) cons
     if (device_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
         options = " -cl-mad-enable";
 
-        if (prog.get_config().get_enable_large_allocations())
+        if (prog.get_config().get_enable_large_allocations()) {
             options += " -cl-intel-greater-than-4GB-buffer-required";
+        }
     }
 
-    if (device_info.supports_work_group_collective_functions)
+    if (device_info.supports_work_group_collective_functions) {
         options += " -cl-std=CL3.0";
-    else
+    } else {
         options += " -cl-std=CL2.0";
+    }
     return options;
 }
 

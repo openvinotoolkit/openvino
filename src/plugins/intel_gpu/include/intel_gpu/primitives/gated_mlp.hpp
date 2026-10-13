@@ -111,8 +111,9 @@ struct gated_mlp : public primitive_base<gated_mlp> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto rhs_casted = downcast<const gated_mlp>(rhs);
         return activation == rhs_casted.activation &&
                compressed_weights == rhs_casted.compressed_weights &&
@@ -165,19 +166,25 @@ protected:
         ret[idx++] = &weights_up;
         ret[idx++] = &weights_down;
 
-        if (decompression_scale_gate.is_valid())
+        if (decompression_scale_gate.is_valid()) {
             ret[idx++] = &decompression_scale_gate;
-        if (decompression_scale_up.is_valid())
+        }
+        if (decompression_scale_up.is_valid()) {
             ret[idx++] = &decompression_scale_up;
-        if (decompression_scale_down.is_valid())
+        }
+        if (decompression_scale_down.is_valid()) {
             ret[idx++] = &decompression_scale_down;
+        }
 
-        if (decompression_zero_point_gate.is_valid())
+        if (decompression_zero_point_gate.is_valid()) {
             ret[idx++] = &decompression_zero_point_gate;
-        if (decompression_zero_point_up.is_valid())
+        }
+        if (decompression_zero_point_up.is_valid()) {
             ret[idx++] = &decompression_zero_point_up;
-        if (decompression_zero_point_down.is_valid())
+        }
+        if (decompression_zero_point_down.is_valid()) {
             ret[idx++] = &decompression_zero_point_down;
+        }
 
         return ret;
     }
