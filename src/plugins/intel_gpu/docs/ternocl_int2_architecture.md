@@ -30,7 +30,15 @@ same packed weights:
 | **int2 x f16 up-convert** | `int2_fp16_upcvt/int2_fp16_upcvt.cl` | 2-bit weights dequantized to fp16 in registers (group scale folded in with integer ops), fp16 DPAS, fp32 accumulation, native fp16 activations | all M (default) |
 | **int2 x int8 DPAS** | `int2_via_int2_x_int8_dpas/int2_int8_dpas.cl` | activations quantized to int8 per (row, 128-group), native s8 x s2 DPAS on the 2-bit codes, int32 accumulation, per-group rescale | M > 8 with `GPU_TERNOCL_INT2_INT8_PREFILL` (off by default) |
 
-Both share the epilogue (`common/epilogue.clh`); rotated-basis checkpoints add
+The int8 path is off by default because it changes the numerics. The released
+ternary checkpoints are trained and fine-tuned with fp16 activations, so the
+default up-convert path keeps them in fp16 and the model computes the way it was
+designed. Quantizing activations to int8 makes prefill faster (TTFT at a 1k
+prompt drops about 20% on Bonsai 2 27B) and stays within the standard error on
+GSM8K (96.97% vs 96.89%), but its outputs are no longer those of the fp16 model.
+Decode (M <= 8) always runs the up-convert GEMV.
+
+Both kernel families share the epilogue (`common/epilogue.clh`); rotated-basis checkpoints add
 the input transform `hadamard/hadamard_fwht.cl` in front of either.
 
 | File | Role |
