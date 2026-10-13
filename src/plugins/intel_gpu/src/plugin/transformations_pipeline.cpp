@@ -1757,11 +1757,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 break;
             }
         }
-        const bool int2_merge_mlp = ternocl_int2 && has_u2_weights;
-        // The 128-EU floor excludes the 64-EU integrated Xe2 part, where the
-        // merged int2 projection is still the faster path.
-        bool fuse_mlp_swiglu = (!config.get_use_onednn() || int2_merge_mlp) && (!device_info.supports_immad || int2_merge_mlp) &&
-                               (device_info.execution_units_count >= 128 || int2_merge_mlp) && !disable_fc_swiglu_fusion;
+        const bool int2_merge_mlp = ternocl_int2 && has_u2_weights && !disable_fc_swiglu_fusion;
+        bool fuse_mlp_swiglu = !config.get_use_onednn() &&
+                               !device_info.supports_immad &&
+                               device_info.execution_units_count >= 128 &&
+                               !disable_fc_swiglu_fusion;
+        // Not bound by the 128-EU floor: on the 64-EU integrated Xe2 the merged int2 projection is still faster.
+        fuse_mlp_swiglu |= int2_merge_mlp;
         if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
 
