@@ -46,6 +46,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
@@ -277,6 +278,15 @@ void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
     } else {
         config["NPUW_WEIGHTS_BANK"] = bank_name;
     }
+}
+
+void apply_model_sharing_context(ov::AnyMap& config,
+                                 std::shared_ptr<ov::weight_sharing::Context> shared_ctx_ptr) {
+    if (!shared_ctx_ptr) {
+        return;
+    }
+
+    config[ov::internal::model_sharing_context.name()] = shared_ctx_ptr;
 }
 
 ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
@@ -1245,6 +1255,32 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     apply_weights_bank_name(prefill_config, weights_bank_name);
     apply_weights_bank_name(generate_config, weights_bank_name);
 
+    LOG_VERB("Create an OV Weight Sharing Context for weights bank: " << weights_bank_name);
+    // The context will be passed to each model through its config.
+    // Each model will retain a shared reference to this context during construction of its Bank.
+    // Because all models share the same Bank, they also share the same context.
+    // The context will intercept each LazyTensor evaluation during Bank finalization.
+    // At that point, it will manage the allocation of physical memory for the weights bank
+    // or retrieve a previously allocated memory block for reuse.
+    // Reuse occurs when the same "source_id" is encountered again, which should happen only
+    // when a duplicate LazyTensor is encountered.
+    // The context records each physical memory allocation for the weights bank under a "source_id".
+    // That allocation will serve as the staging buffer for the corresponding ov::Tensor.
+    // By the end of finalization, the context will be set up to manage the physical memory
+    // for the weights bank and provide the "source_id" of each allocation it owns.
+    // In the current implementation, "constant_id" will always be "0" because each
+    // "source_id" effectively identifies a single constant.
+    // If we can estimate the memory requirements for a closure in advance, the context
+    // can preallocate all the physical memory it needs. The allocation would have a
+    // "source_id", while the offset at which a particular LazyTensor is evaluated
+    // would serve as its "constant_id".
+    //
+    // What should be done with the context later, how it is supposed to be serialized/deserialized 
+    // or shared between the plugins - it is currently unclear and may require further design decisions.
+    auto shared_ctx_ptr = std::make_shared<ov::weight_sharing::Context>();
+    apply_model_sharing_context(prefill_config, shared_ctx_ptr);
+    apply_model_sharing_context(generate_config, shared_ctx_ptr);
+
     // Handle attention hints. FIXME: Maybe it makes sense to make those
     // mutually exclusive with the precise configuration sections as well
     const ov::AnyMap dyn_attn_opts = {
@@ -1474,6 +1510,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(lm_head_config, lm_head_config_addition_value);
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
+        apply_model_sharing_context(lm_head_config, shared_ctx_ptr);
 
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
