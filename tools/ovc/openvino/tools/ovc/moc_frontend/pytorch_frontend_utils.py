@@ -384,7 +384,7 @@ def extract_input_info_from_example(args, inputs):
 
                 name = input_desc.name or (example.name if example else None)
                 dtype = input_desc.type or (example.type if example else None)
-                shape = input_desc.shape or (example.shape if example else None)
+                shape = input_desc.shape if input_desc.shape is not None else (example.shape if example else None)
 
                 new_input.append(_InputCutInfo(name, shape, dtype, input_desc.value))
             input_arg = new_input
