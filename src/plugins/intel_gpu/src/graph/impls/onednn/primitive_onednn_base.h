@@ -569,6 +569,11 @@ protected:
         _args[instance.get_network().get_id()] = get_arguments(instance, args);
     }
 
+    // Enqueues all oneDNN primitives of one execution on the in-order stream.
+    virtual void execute_primitives(dnnl::stream& stream, uint32_t net_id) {
+        _prim.execute(stream, _args[net_id]);
+    }
+
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
                             typed_primitive_inst<PType>& instance) override {
 #ifdef OV_GPU_WITH_ZE_RT
@@ -594,7 +599,7 @@ protected:
                 // To be removed once MFDNN-15356 is resolved
                 std::lock_guard<std::mutex> lock(execute_mutex);
 #endif
-                _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+                execute_primitives(stream.get_onednn_stream(), net_id);
             } catch (dnnl::error& err) {
                 OPENVINO_THROW("[", instance.id(), "] ", err.what());
             }
@@ -618,9 +623,11 @@ protected:
                 std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
                 event = stream.create_user_event(true);
                 if (!duration.empty()) {
-                    OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
-                                                      "actual number is ", duration.size());
-                    event->set_profiling_duration(duration[0]);
+                    uint64_t total_duration = 0;
+                    for (const auto d : duration) {
+                        total_duration += d;
+                    }
+                    event->set_profiling_duration(total_duration);
                 }
 
             } else {
