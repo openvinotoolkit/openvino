@@ -4,7 +4,6 @@
 #include "paged_attention_inst.h"
 #include "primitive_type_base.h"
 #include "json_object.h"
-#include "openvino/core/validation_util.hpp"
 
 #include <string>
 #include <sstream>
@@ -30,7 +29,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
 
     if (desc->k_head_size != desc->v_head_size) {
         auto data_shape = { q_layout.get_partial_shape()[0],
-                            ov::Dimension(ov::util::narrow_cast<ov::Dimension::value_type>(desc->heads_num * desc->v_head_size)) };
+                            ov::Dimension(desc->heads_num * desc->v_head_size) };
 
         data_layout = data_layout.clone_with_other_shape(data_shape);
     }
