@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -24,25 +25,37 @@ namespace ocl {
 constexpr size_t kTernoclGroupSize = 128;
 constexpr size_t kTernoclPackFactor = 16;
 
-// Epilogue the kernel runs for a fused chain: 0 none, 1 silu(acc)*other,
-// 2 acc+other, 3 acc+bias, 4 sigmoid(acc); -1 when there is no single-pass
-// equivalent. `other_dep` receives the dependency index of the eltwise operand.
-inline int ternocl_int2_postop(const std::vector<fused_primitive_desc>& fused, bool has_bias, size_t* other_dep = nullptr) {
+// Epilogue folded into the kernel; the value is passed to it as the POSTOP macro.
+enum class TernoclPostop : int {
+    none = 0,
+    silu_mul = 1,      // silu(acc) * other (gate/up)
+    residual_add = 2,  // acc + other
+    bias = 3,          // acc + bias
+    sigmoid = 4,       // sigmoid(acc)
+};
+
+inline bool ternocl_postop_reads_other(TernoclPostop p) {
+    return p == TernoclPostop::silu_mul || p == TernoclPostop::residual_add;
+}
+
+// The epilogue for a fused chain, or nullopt when it has no single-pass equivalent.
+// `other_dep` receives the dependency index of the eltwise operand.
+inline std::optional<TernoclPostop> ternocl_int2_postop(const std::vector<fused_primitive_desc>& fused, bool has_bias, size_t* other_dep = nullptr) {
     if (fused.empty())
-        return has_bias ? 3 : 0;
+        return has_bias ? TernoclPostop::bias : TernoclPostop::none;
     if (has_bias)
-        return -1;
+        return std::nullopt;
     const auto act0 = std::dynamic_pointer_cast<const activation>(fused[0].desc);
     const auto elt_last = std::dynamic_pointer_cast<const eltwise>(fused.back().desc);
     if (elt_last && other_dep != nullptr)
         *other_dep = static_cast<size_t>(fused.back().outer_dep_start_idx);
     if (fused.size() == 2 && act0 && act0->activation_function == activation_func::swish && elt_last && elt_last->mode == eltwise_mode::prod)
-        return 1;
+        return TernoclPostop::silu_mul;
     if (fused.size() == 1 && elt_last && elt_last->mode == eltwise_mode::sum)
-        return 2;
+        return TernoclPostop::residual_add;
     if (fused.size() == 1 && act0 && act0->activation_function == activation_func::logistic)
-        return 4;
-    return -1;
+        return TernoclPostop::sigmoid;
+    return std::nullopt;
 }
 
 // Weight-only-quantized FullyConnected on 2-bit ternary weights, executed by the
@@ -101,7 +114,7 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         if (in_layout.data_padding || out_layout.data_padding)
             TERNOCL_REJECT("padded activations");
 
-        // A constant bias folds into the epilogue (POSTOP 3); it has the output type.
+        // A constant bias folds into the epilogue (TernoclPostop::bias); it has the output type.
         if (fc_prim->bias.is_valid()) {
             if (!fc_node.bias().is_type<data>())
                 TERNOCL_REJECT("bias is not a constant");
@@ -109,10 +122,10 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
                 TERNOCL_REJECT("bias type differs from the output type");
         }
         size_t other_dep = 0;
-        const int postop = ternocl_int2_postop(fc_node.get_fused_primitives(), fc_prim->bias.is_valid(), &other_dep);
-        if (postop < 0)
+        const auto postop = ternocl_int2_postop(fc_node.get_fused_primitives(), fc_prim->bias.is_valid(), &other_dep);
+        if (!postop)
             TERNOCL_REJECT("fused chain has no folded epilogue");
-        if ((postop == 1 || postop == 2) &&
+        if (ternocl_postop_reads_other(*postop) &&
             (other_dep >= fc_node.get_dependencies().size() || fc_node.get_dependency(other_dep).get_output_layout(false).data_type != data_types::f16))
             TERNOCL_REJECT("eltwise operand is not f16");
 

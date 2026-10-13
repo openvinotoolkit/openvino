@@ -304,7 +304,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
     TernoclInt2Packed _own;  // fallback when the node-id lookup misses
     size_t _N = 0;
     size_t _K = 0;
-    int _postop = 0;
+    TernoclPostop _postop = TernoclPostop::none;
     size_t _other_dep = 0;
     bool _out_f32 = false;
     size_t _had_block = 0;
@@ -332,7 +332,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
                                  TernoclInt2Packed own,
                                  size_t N,
                                  size_t K,
-                                 int postop,
+                                 TernoclPostop postop,
                                  size_t other_dep,
                                  bool out_f32,
                                  size_t had_block,
@@ -383,7 +383,7 @@ protected:
     void set_arguments_impl(typed_primitive_inst<fully_connected>&, kernel_arguments_data&) override {}
 
     std::string epi_opts() const {
-        return " -DPOSTOP=" + std::to_string(_postop) + (_out_f32 ? " -DOUT_F32" : "");
+        return " -DPOSTOP=" + std::to_string(static_cast<int>(_postop)) + (_out_f32 ? " -DOUT_F32" : "");
     }
 
     static size_t launch_class(size_t M) {
@@ -477,8 +477,8 @@ protected:
         sc[0].v.s32 = static_cast<int32_t>(M);
         sc[1].v.s32 = static_cast<int32_t>(_N);
         sc[2].v.s32 = static_cast<int32_t>(_K);
-        memory::cptr other = (_postop == 1 || _postop == 2) ? instance.dep_memory_ptr(_other_dep) : in;
-        memory::cptr bias = _postop == 3 ? instance.bias_memory() : in;
+        memory::cptr other = ternocl_postop_reads_other(_postop) ? instance.dep_memory_ptr(_other_dep) : in;
+        memory::cptr bias = _postop == TernoclPostop::bias ? instance.bias_memory() : in;
         kernel_arguments_data a;
         a.inputs = {in, sa, pk.weights, pk.scales, other, bias};
         a.outputs = {instance.output_memory_ptr(0)};
@@ -564,8 +564,8 @@ protected:
         sc[1].v.s32 = static_cast<int32_t>(_N);
         sc[2].v.s32 = static_cast<int32_t>(_K);
         // Unused Other / Bias slots are never read, but need a valid buffer.
-        memory::cptr other = (_postop == 1 || _postop == 2) ? instance.dep_memory_ptr(_other_dep) : in;
-        memory::cptr bias = _postop == 3 ? instance.bias_memory() : in;
+        memory::cptr other = ternocl_postop_reads_other(_postop) ? instance.dep_memory_ptr(_other_dep) : in;
+        memory::cptr bias = _postop == TernoclPostop::bias ? instance.bias_memory() : in;
         kernel_arguments_data a;
         a.inputs = {in, pk->weights, pk->scales, other, bias};
         a.outputs = {instance.output_memory_ptr(0)};
@@ -587,8 +587,8 @@ public:
         const auto& desc = arg.get_primitive();
 
         size_t other_dep = 0;
-        const int postop = ternocl_int2_postop(impl_params.fused_desc, desc->bias.is_valid(), &other_dep);
-        OPENVINO_ASSERT(postop >= 0, "[GPU] ternocl int2: ", arg.id(), " has no folded epilogue for its fused chain");
+        const auto postop = ternocl_int2_postop(impl_params.fused_desc, desc->bias.is_valid(), &other_dep);
+        OPENVINO_ASSERT(postop.has_value(), "[GPU] ternocl int2: ", arg.id(), " has no folded epilogue for its fused chain");
         const bool out_f32 = impl_params.output_layouts[0].data_type == data_types::f32;
 
         const std::string key = std::to_string(prog.get_id()) + "|" + arg.id();
@@ -681,14 +681,14 @@ public:
             std::lock_guard<std::mutex> lock(ternocl_packed_mutex());
             ternocl_packed_cache().try_emplace(key, own);
         }
-        GPU_DEBUG_TRACE << "[ternocl-int2] create " << arg.id() << " N=" << N << " K=" << K << " postop=" << postop << " out_f32=" << out_f32
+        GPU_DEBUG_TRACE << "[ternocl-int2] create " << arg.id() << " N=" << N << " K=" << K << " postop=" << static_cast<int>(*postop) << " out_f32=" << out_f32
                         << " hadamard=" << desc->hadamard_block << " int8_prefill=" << int8 << std::endl;
 
         return std::make_unique<fully_connected_ternocl_int2>(downcast<const ocl_engine>(engine),
                                                               own,
                                                               N,
                                                               K,
-                                                              postop,
+                                                              *postop,
                                                               other_dep,
                                                               out_f32,
                                                               desc->hadamard_block,
