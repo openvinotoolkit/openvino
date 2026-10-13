@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <memory>
 #include <optional>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -14,7 +15,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "ivcl_compiler.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -33,7 +33,7 @@ public:
      * @param profilingDecoder The profiling decoder to hand to every compiled graph; may be empty.
      */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                          ov::SoPtr<IVCLCompiler> compiler,
+                          std::shared_ptr<IVCLCompiler> compiler,
                           ov::SoPtr<IProfilingDecoder> profilingDecoder = {});
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
@@ -56,7 +56,7 @@ public:
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
-    ov::SoPtr<IVCLCompiler> _compiler;
+    std::shared_ptr<IVCLCompiler> _compiler;
     ov::SoPtr<IProfilingDecoder> _profilingDecoder;
 
     Logger _logger;

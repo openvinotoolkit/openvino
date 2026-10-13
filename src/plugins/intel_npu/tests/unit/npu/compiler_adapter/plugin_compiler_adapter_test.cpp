@@ -72,9 +72,7 @@ struct PluginCompilerAdapterTest : public ::testing::Test {
     // which is the only one reachable without an NPU.
     std::unique_ptr<PluginCompilerAdapter> makeAdapter(
         ov::SoPtr<::intel_npu::IProfilingDecoder> profilingDecoder = {}) {
-        return std::make_unique<PluginCompilerAdapter>(nullptr,
-                                                       ov::SoPtr<::intel_npu::IVCLCompiler>(compiler),
-                                                       std::move(profilingDecoder));
+        return std::make_unique<PluginCompilerAdapter>(nullptr, compiler, std::move(profilingDecoder));
     }
 
     static std::shared_ptr<OptionsDesc> makeOptionsDesc() {
@@ -106,10 +104,10 @@ TEST_F(PluginCompilerAdapterTest, InjectedCompilerIsAdapted) {
 }
 
 TEST_F(PluginCompilerAdapterTest, NullCompilerIsRejected) {
+    const std::shared_ptr<::intel_npu::IVCLCompiler> noCompiler;
     EXPECT_THROW(
         {
-            auto adapter =
-                std::make_unique<PluginCompilerAdapter>(nullptr, ov::SoPtr<::intel_npu::IVCLCompiler>(nullptr));
+            auto adapter = std::make_unique<PluginCompilerAdapter>(nullptr, noCompiler);
             (void)adapter;
         },
         ov::Exception);

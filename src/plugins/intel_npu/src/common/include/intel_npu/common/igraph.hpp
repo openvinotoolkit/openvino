@@ -17,7 +17,7 @@
 
 namespace intel_npu {
 
-enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
+enum class BlobType : uint8_t { ELF, BYTECODE };
 
 enum class GraphKind : uint8_t { Weightful, Weightless, Dynamic };
 

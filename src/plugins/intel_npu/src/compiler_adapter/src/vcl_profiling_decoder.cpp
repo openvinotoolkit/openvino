@@ -124,13 +124,8 @@ ov::SoPtr<IProfilingDecoder> makeVCLProfilingDecoder() {
     auto vclLoader = VCLLoader::getInstance();
     OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
 
-    auto decoder = std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
-
-    // Pairing the decoder with the library keeps the .so alive for as long as the decoder is.
-    auto vclLib = vclLoader->getLibrary();
-    OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
-
-    return ov::SoPtr<IProfilingDecoder>(std::static_pointer_cast<IProfilingDecoder>(decoder), vclLib);
+    // The function table is an aliasing shared_ptr over the loader, so it keeps the library loaded.
+    return std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
 }
 
 }  // namespace intel_npu
