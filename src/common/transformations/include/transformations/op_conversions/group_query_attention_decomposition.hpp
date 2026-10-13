@@ -41,7 +41,6 @@ protected:
                                                 bool is_causal,
                                                 int64_t local_window_size = -1,
                                                 const std::optional<CompressedKV>& compressed_kv = std::nullopt);
-                                                const std::optional<CompressedKV>& compressed_kv);
     // Explicit attention for softcap > 0 (SDPA cannot soft-cap the logits):
     // softmax(softcap * tanh(scale * Q * K^T / softcap) + mask [, sink]) * V. key/value keep kv_num_heads heads;
     // query heads are grouped onto them by MatMul broadcasting, so the KV cache is never replicated.

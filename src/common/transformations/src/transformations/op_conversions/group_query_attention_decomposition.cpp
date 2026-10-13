@@ -429,7 +429,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         if (scale != 0.0f) {
             return register_new_node(v0::Constant::create(T, Shape{}, {scale}));
         }
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, local_window_size, compressed_kv);
         const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
         const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
         return register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
@@ -440,7 +439,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         qga_output = make_softcap_attention(Q, K, V, mask, make_scale_node(), sink, softcap, kv_num_heads);
     } else if (sink.get_node_shared_ptr()) {
         // SDPA's 6-input form requires an explicit scale.
-        qga_output = make_sdpa(Q, K, V, mask, make_scale_node(), sink, false, compressed_kv);
+        qga_output = make_sdpa(Q, K, V, mask, make_scale_node(), sink, false, local_window_size, compressed_kv);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
         qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, local_window_size, compressed_kv);
