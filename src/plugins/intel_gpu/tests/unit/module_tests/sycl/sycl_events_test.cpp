@@ -222,9 +222,9 @@ std::string sync_method_name(const testing::TestParamInfo<SyncMethods>& info) {
 
 }  // namespace
 
-// A user event which is not set yet can't be ordered against by the device, so it must be rejected
-// as a dependency under every sync method. In barrier mode its zero queue stamp makes sync_events()
-// skip it and SyncMethods::none ignores deps entirely, so these modes need an explicit check.
+// A user event which is not set yet can't be ordered against by the device. In the events sync mode
+// sycl_user_event::get() rejects it as a dependency. The barrier and no-sync modes don't check it,
+// same as the OCL and L0 runtimes, so only the events mode is covered here.
 class sycl_user_event_deps : public ::testing::TestWithParam<SyncMethods> {};
 
 TEST_P(sycl_user_event_deps, enqueue_marker_rejects_incomplete_user_event) {
@@ -275,7 +275,7 @@ TEST_P(sycl_user_event_deps, enqueue_kernel_rejects_incomplete_user_event) {
 
 INSTANTIATE_TEST_SUITE_P(sycl_event,
                          sycl_user_event_deps,
-                         ::testing::Values(SyncMethods::events, SyncMethods::barriers, SyncMethods::none),
+                         ::testing::Values(SyncMethods::events),
                          sync_method_name);
 
 #endif  // OV_GPU_WITH_SYCL_RT

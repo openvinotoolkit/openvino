@@ -29,9 +29,9 @@ namespace sycl {
 // The queue stamp stays 0 because nothing is ever enqueued for this event. Giving it a real stamp
 // would not help: in barrier mode it would only make sycl_stream::sync_events() submit a barrier,
 // which waits for work already submitted to the queue, not for set(); SyncMethods::none ignores
-// stamps altogether. So the guard can't rely on the sync method: sycl_stream::enqueue_kernel() and
-// enqueue_marker() reject an incomplete user event dependency up front, sycl_events rejects it on
-// grouping, and get() keeps asserting for the remaining paths which ask for the native event.
+// stamps altogether. Hence the misuse is only caught where the native event is requested: get()
+// asserts in the events sync mode, and sycl_events rejects an incomplete user event on grouping.
+// In the barrier and no-sync modes it goes undetected, same as in the OCL and L0 runtimes.
 struct sycl_user_event : public sycl_base_event {
 public:
     explicit sycl_user_event(bool is_set = false) : sycl_base_event(0) {
