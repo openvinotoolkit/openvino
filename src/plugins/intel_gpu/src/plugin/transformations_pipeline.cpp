@@ -1777,7 +1777,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConstantFolding>();
 
         manager.register_pass<ov::pass::SDPAScaleFusion>();
-        manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
+        manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>(/*support_u2=*/true);
         auto pass_config = manager.get_pass_config();
         pass_config->set_callback<ov::intel_gpu::KVCacheFusionMatcher>([](const_node_ptr& node) -> bool {
             const auto& rank = node->input(0).get_partial_shape().rank().get_length();
