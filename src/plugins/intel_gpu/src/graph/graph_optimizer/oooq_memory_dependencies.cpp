@@ -98,6 +98,8 @@ void oooq_memory_dependencies::run(program& p) {
     bool is_topological = true;
     for (const auto& node : user_map) {
         for (const auto& user : node.first->get_users()) {
+            // ShapeOf reads its input layout without waiting for the producer kernel to finish,
+            // so this edge cannot establish a buffer lifetime ordering.
             if (user->is_type<shape_of>())
                 continue;
             const auto user_id = user_map.at(user);
@@ -122,6 +124,7 @@ void oooq_memory_dependencies::run(program& p) {
         for (auto it = processing_order_except_const.rbegin(); it != processing_order_except_const.rend(); ++it) {
             auto& users = user_bitmap[--node_id];
             for (auto* user : (*it)->get_users()) {
+                // ShapeOf reads only its input layout, so its users can run before the producer kernel finishes.
                 if (!user->is_type<shape_of>())
                     users._or(user_bitmap[user_map.at(user)]);
             }

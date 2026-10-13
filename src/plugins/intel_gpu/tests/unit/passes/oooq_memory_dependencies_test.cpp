@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "pass_manager.h"
+#include "shape_of_inst.h"
 #include "test_utils.h"
 
 using namespace cldnn;
@@ -28,7 +29,8 @@ struct dependency_graph {
                      const std::vector<edge>& edges,
                      std::vector<size_t> order = {},
                      const std::vector<size_t>& constants = {},
-                     const std::vector<size_t>& skippable = {}) {
+                     const std::vector<size_t>& skippable = {},
+                     const std::vector<size_t>& shape_of_nodes = {}) {
         const layout scalar({1, 1, 1, 1}, data_types::f32, format::bfyx);
         for (size_t i = 0; i < count; ++i) {
             const auto id = "node" + std::to_string(i);
@@ -42,6 +44,8 @@ struct dependency_graph {
                 prim = std::make_shared<data>(id, engine_ref.allocate_memory(scalar));
             } else if (inputs.empty()) {
                 prim = std::make_shared<input_layout>(id, scalar);
+            } else if (std::find(shape_of_nodes.begin(), shape_of_nodes.end(), i) != shape_of_nodes.end()) {
+                prim = std::make_shared<shape_of>(id, inputs.at(0), data_types::i64);
             } else {
                 prim = std::make_shared<concatenation>(id, inputs, 1);
             }
@@ -91,15 +95,19 @@ void add_reference_restrictions(program& prog) {
     const auto count = nodes.size();
     std::vector<std::vector<bool>> reachable(count, std::vector<bool>(count, false));
     for (size_t source = 0; source < count; ++source) {
-        std::vector<program_node*> pending(nodes[source]->get_users().begin(), nodes[source]->get_users().end());
+        std::vector<program_node*> pending{nodes[source]};
         while (!pending.empty()) {
             auto* node = pending.back();
             pending.pop_back();
-            const auto target = index.at(node);
-            if (reachable[source][target])
-                continue;
-            reachable[source][target] = true;
-            pending.insert(pending.end(), node->get_users().begin(), node->get_users().end());
+            for (auto* user : node->get_users()) {
+                if (user->is_type<shape_of>())
+                    continue;
+                const auto target = index.at(user);
+                if (reachable[source][target])
+                    continue;
+                reachable[source][target] = true;
+                pending.push_back(user);
+            }
         }
     }
 
@@ -149,9 +157,10 @@ void check_graph(size_t count,
                  const std::vector<edge>& edges,
                  const std::vector<size_t>& order = {},
                  const std::vector<size_t>& constants = {},
-                 const std::vector<size_t>& skippable = {}) {
-    dependency_graph actual(count, edges, order, constants, skippable);
-    dependency_graph expected(count, edges, order, constants, skippable);
+                 const std::vector<size_t>& skippable = {},
+                 const std::vector<size_t>& shape_of_nodes = {}) {
+    dependency_graph actual(count, edges, order, constants, skippable, shape_of_nodes);
+    dependency_graph expected(count, edges, order, constants, skippable, shape_of_nodes);
     add_reference_restrictions(expected.prog);
     oooq_memory_dependencies{}.run(actual.prog);
     EXPECT_EQ(actual.restrictions(), expected.restrictions());
@@ -187,6 +196,18 @@ TEST(oooq_memory_dependencies, wide_layers) {
 
 TEST(oooq_memory_dependencies, connected_join_inputs_and_duplicate_edges) {
     check_graph(7, {{0, 1}, {1, 2}, {1, 2}, {1, 3}, {2, 3}, {2, 4}, {3, 5}, {4, 5}});
+}
+
+TEST(oooq_memory_dependencies, shape_of_does_not_order_input_data) {
+    const std::vector<edge> edges{{0, 1}, {1, 2}, {2, 3}, {1, 4}, {3, 4}};
+    check_graph(5, edges, {}, {}, {}, {2});
+
+    dependency_graph graph(5, edges, {}, {}, {}, {2});
+    oooq_memory_dependencies{}.run(graph.prog);
+    const auto& producer_restrictions = graph.nodes[1]->get_memory_dependencies();
+    EXPECT_NE(std::find(producer_restrictions.begin(), producer_restrictions.end(), graph.nodes[3]->get_unique_id()), producer_restrictions.end());
+    const auto& shape_branch_restrictions = graph.nodes[3]->get_memory_dependencies();
+    EXPECT_NE(std::find(shape_branch_restrictions.begin(), shape_branch_restrictions.end(), graph.nodes[1]->get_unique_id()), shape_branch_restrictions.end());
 }
 
 TEST(oooq_memory_dependencies, constants_and_runtime_skippable_concat) {
