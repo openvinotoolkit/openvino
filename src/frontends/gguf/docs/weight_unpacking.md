@@ -147,7 +147,11 @@ There is also more import work than PQ2_0's direct copy.
 
 Bonsai-2's folded Hadamard weights additionally require the model's activation and inverse
 embedding transforms, even for F16 checkpoints. This is a graph requirement separate from
-unpacking; see [Bonsai and Bonsai-2](supported_models.md#bonsai-and-bonsai-2).
+unpacking. Each block uses a Walsh–Hadamard butterfly with `log2(block_size)` stages of
+sum/difference operations and a final normalization by `1/sqrt(block_size)`. This avoids a
+dense rotation Constant and reduces arithmetic from quadratic to `O(block_size * log2(block_size))`;
+intermediate activation buffers still depend on device compilation. See
+[Bonsai and Bonsai-2](supported_models.md#bonsai-and-bonsai-2).
 
 ## Integer formats
 

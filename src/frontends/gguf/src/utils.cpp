@@ -14,12 +14,12 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -28,6 +28,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -42,7 +43,7 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
         return input;
     using namespace ov::op;
     const auto shape = input.get_partial_shape();
-    FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape[shape.size() - 1].is_static(),
+    FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape.size() > 0 && shape[shape.size() - 1].is_static(),
                                   "Hadamard requires a static feature width");
     const auto width = shape[shape.size() - 1].get_length();
     FRONT_END_OP_CONVERSION_CHECK(block > 0 && block <= 4096 && (block & (block - 1)) == 0 && width % block == 0,
@@ -64,23 +65,16 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     const auto sign_node = signs ? std::make_shared<v0::Constant>(signs) : nullptr;
     if (sign_node && !inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);
-    std::vector<float> matrix(static_cast<size_t>(block * block));
-    const float scale = 1.f / std::sqrt(static_cast<float>(block));
-    for (int64_t row = 0; row < block; ++row) {
-        for (int64_t col = 0; col < block; ++col) {
-            uint64_t bits = row & col;
-            bool odd = false;
-            while (bits) {
-                odd = !odd;
-                bits &= bits - 1;
-            }
-            matrix[row * block + col] = odd ? -scale : scale;
-        }
+    const auto axis = v0::Constant::create(ov::element::i64, {}, {2});
+    for (int64_t stride = 1; stride < block; stride *= 2) {
+        auto grouped = std::make_shared<v1::Reshape>(input, pattern({-1, block / (2 * stride), 2, stride}), false);
+        auto halves = std::make_shared<v1::Split>(grouped, axis, 2);
+        auto sum = std::make_shared<v1::Add>(halves->output(0), halves->output(1));
+        auto difference = std::make_shared<v1::Subtract>(halves->output(0), halves->output(1));
+        input = std::make_shared<v0::Concat>(ov::OutputVector{sum, difference}, 2);
     }
-    const auto rotation =
-        v0::Constant::create(ov::element::f32, {static_cast<size_t>(block), static_cast<size_t>(block)}, matrix);
-    input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
-    input = std::make_shared<v0::MatMul>(input, rotation, false, true);
+    const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
+    input = std::make_shared<v1::Multiply>(input, scale);
     input = std::make_shared<v1::Reshape>(input, original, false);
     if (sign_node && inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);

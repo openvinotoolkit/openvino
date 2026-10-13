@@ -5,6 +5,7 @@
 #include "builder/arch/dspark_builder.hpp"
 
 #include <cmath>
+#include <limits>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/blocks/attention.hpp"
@@ -32,6 +33,7 @@ public:
             return *value;
         };
         const auto block = required_int("block_size");
+        OPENVINO_ASSERT(block <= 4096, "[GGUF] DSpark block_size exceeds the supported maximum of 4096");
         const auto captures = m_metadata.get_int_array("dspark.dspark.target_layers");
         OPENVINO_ASSERT(!captures.empty(), "[GGUF] missing DSpark target_layers");
         OPENVINO_ASSERT(!m_metadata.get_bool("dspark.dspark.hidden_correction").value_or(false),
@@ -57,12 +59,16 @@ public:
             const auto high = m_metadata.get_float("dspark.dspark.max_log_snr");
             OPENVINO_ASSERT(low && high && std::isfinite(*low) && std::isfinite(*high) && *high > *low,
                             "[GGUF] invalid DSpark log-SNR bounds");
-            ov::Tensor features(f32, {1, 1, static_cast<size_t>(block), 128});
-            for (int64_t pos = 0; pos < block; ++pos) {
-                for (int i = 0; i < 64; ++i) {
+            constexpr size_t feature_width = 128;
+            const auto rows = static_cast<size_t>(block);
+            OPENVINO_ASSERT(rows <= std::numeric_limits<size_t>::max() / feature_width / sizeof(float),
+                            "[GGUF] DSpark log-SNR feature byte count overflows size_t");
+            ov::Tensor features(f32, {1, 1, rows, feature_width});
+            for (size_t pos = 0; pos < rows; ++pos) {
+                for (size_t i = 0; i < feature_width / 2; ++i) {
                     const float angle = (pos == 0 ? 1000.f : 0.f) * std::exp(-std::log(10000.f) * i / 64.f);
-                    features.data<float>()[pos * 128 + i] = std::sin(angle);
-                    features.data<float>()[pos * 128 + 64 + i] = std::cos(angle);
+                    features.data<float>()[pos * feature_width + i] = std::sin(angle);
+                    features.data<float>()[pos * feature_width + feature_width / 2 + i] = std::cos(angle);
                 }
             }
             e.weights()["dspark.log_snr_features"] = features;

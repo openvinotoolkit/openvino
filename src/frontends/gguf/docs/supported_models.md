@@ -150,3 +150,4 @@ noncausal round. Outputs include `logits`, `dspark.hidden`, per-layer caches and
 sampled predecessor for each auxiliary-head row. Sequential sampling and target-layer capture
 belong to the caller. Log-SNR uses the round-1 convention (anchor at max, masks at min).
 Hidden-correction checkpoints and generic GenAI decoder adaptation are not supported.
+Draft blocks up to 4096 tokens are supported.
