@@ -50,7 +50,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_CUMSUM", op::translate_cumsum},
         {"GGML_OP_DIAG", op::translate_diag},
         {"GGML_OP_DIV", op::translate_div},
-        {"GGML_OP_DUP", op::translate_cont},
+        {"GGML_OP_DUP", op::translate_dup},
         {"GGML_OP_FILL", op::translate_fill},
         {"GGML_OP_FLASH_ATTN_EXT", op::translate_flash_attn_ext},
         {"GGML_OP_GATED_DELTA_NET", op::translate_gated_delta_net},

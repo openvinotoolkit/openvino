@@ -17,6 +17,7 @@ GGUF_OP_CONVERTER(translate_add);
 // Structural / memory ops.
 GGUF_OP_CONVERTER(translate_concat);
 GGUF_OP_CONVERTER(translate_cont);
+GGUF_OP_CONVERTER(translate_dup);
 GGUF_OP_CONVERTER(translate_cpy);
 GGUF_OP_CONVERTER(translate_get_rows);
 GGUF_OP_CONVERTER(translate_get_rel_pos);

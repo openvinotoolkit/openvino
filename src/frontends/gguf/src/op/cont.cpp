@@ -8,6 +8,7 @@
 #include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
@@ -46,6 +47,18 @@ OutputVector translate_cont(const NodeContext& context) {
     auto pattern = ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target);
     auto res = std::make_shared<ov::op::v1::Reshape>(input, pattern, false);
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+}
+
+// GGML_OP_DUP copies its operand into a tensor of the output's type. The copy is CONT's; a differing output type
+// ("dst_type", the output's element type) is a conversion on top of it.
+OutputVector translate_dup(const NodeContext& context) {
+    auto outputs = translate_cont(context);
+    const auto dst_type = context.get_attribute<ov::element::Type>("dst_type", ov::element::dynamic);
+    if (dst_type.is_static() && outputs[0].get_element_type() != dst_type) {
+        auto res = std::make_shared<ov::op::v0::Convert>(outputs[0], dst_type);
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    }
+    return outputs;
 }
 
 }  // namespace ov::frontend::gguf::op

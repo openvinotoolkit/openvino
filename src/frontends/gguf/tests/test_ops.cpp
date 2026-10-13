@@ -4960,6 +4960,24 @@ TEST(GGUFOps, DupCopiesItsOperand) {
     expect_near(run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 3}, {1, -2, 3})}}), {1, -2, 3});
 }
 
+TEST(GGUFOps, DupConvertsToTheOutputType) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DUP")
+                     .input("x", ov::element::f32, {1, 1, 1, 3})
+                     .output("out", ov::element::f16, {1, 1, 1, 3})
+                     .attr<ov::element::Type>("dst_type", ov::element::f16)
+                     .build();
+    // 0.1f is not representable in f16, so the values show the conversion happened.
+    const std::vector<float> values{0.1f, -2.5f, 3.0f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 3}, values)}});
+    ASSERT_EQ(out.get_element_type(), ov::element::f16);
+    ASSERT_EQ(out.get_size(), values.size());
+    const auto* data = out.data<ov::float16>();
+    for (size_t i = 0; i < values.size(); ++i) {
+        EXPECT_EQ(static_cast<float>(data[i]), static_cast<float>(ov::float16(values[i]))) << "index " << i;
+    }
+}
+
 TEST(GGUFOps, UnaryHardsigmoidExpm1StepRound) {
     const std::vector<float> v{-4.0f, -0.5f, 0.0f, 0.5f, 2.5f};
     const auto run = [&](const char* op) {
