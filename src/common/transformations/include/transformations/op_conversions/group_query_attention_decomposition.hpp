@@ -49,7 +49,8 @@ protected:
                                              const ov::Output<ov::Node>& key,
                                              const ov::Output<ov::Node>& value,
                                              const ov::Output<ov::Node>& seqlens_1d,
-                                             const ov::Output<ov::Node>& past_seqlen,
+                                             const std::shared_ptr<ov::Node>& kv_seqlen,
+                                             const std::shared_ptr<ov::Node>& past_seqlen,
                                              const ov::Output<ov::Node>& current_seqlen_scalar,
                                              KVCacheMetadata& metadata);
     virtual std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
@@ -60,6 +61,18 @@ protected:
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal,
                                                 const KVCacheMetadata& metadata);
+    // Explicit attention for softcap > 0 (SDPA cannot soft-cap the logits):
+    // softmax(softcap * tanh(scale * Q * K^T / softcap) + mask [, sink]) * V. key/value keep kv_num_heads heads;
+    // query heads are grouped onto them by MatMul broadcasting, so the KV cache is never replicated.
+    std::shared_ptr<ov::Node> make_softcap_attention(const ov::Output<ov::Node>& query,
+                                                     const ov::Output<ov::Node>& key,
+                                                     const ov::Output<ov::Node>& value,
+                                                     const ov::Output<ov::Node>& mask,
+                                                     const ov::Output<ov::Node>& scale,
+                                                     const ov::Output<ov::Node>& sink,
+                                                     float softcap,
+                                                     int64_t kv_num_heads);
+
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);

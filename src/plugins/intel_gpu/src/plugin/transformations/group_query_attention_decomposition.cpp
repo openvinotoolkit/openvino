@@ -129,7 +129,8 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const ov::Output<ov::Node>& key,
     const ov::Output<ov::Node>& value,
     const ov::Output<ov::Node>& seqlens_1d,
-    const ov::Output<ov::Node>& past_seqlen,
+    const std::shared_ptr<ov::Node>& kv_seqlen,
+    const std::shared_ptr<ov::Node>& past_seqlen,
     const ov::Output<ov::Node>& current_seqlen_scalar,
     KVCacheMetadata& metadata_) {
     using namespace ov::op;
@@ -194,12 +195,16 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
                                                                                 key,
                                                                                 value,
                                                                                 seqlens_1d,
+                                                                                kv_seqlen,
                                                                                 past_seqlen,
                                                                                 current_seqlen_scalar,
                                                                                 metadata);
     }
 
-    prepare_compressed_kv(node, outputs.sdpa_key, outputs.sdpa_value, metadata);
+    // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
+    if (node->get_softcap() <= 0.0f) {
+        prepare_compressed_kv(node, outputs.sdpa_key, outputs.sdpa_value, metadata);
+    }
     return outputs;
 }
 

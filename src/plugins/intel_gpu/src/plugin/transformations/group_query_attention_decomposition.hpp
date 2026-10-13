@@ -24,7 +24,8 @@ protected:
                                      const ov::Output<ov::Node>& key,
                                      const ov::Output<ov::Node>& value,
                                      const ov::Output<ov::Node>& seqlens_1d,
-                                     const ov::Output<ov::Node>& past_seqlen,
+                                     const std::shared_ptr<ov::Node>& kv_seqlen,
+                                     const std::shared_ptr<ov::Node>& past_seqlen,
                                      const ov::Output<ov::Node>& current_seqlen_scalar,
                                      KVCacheMetadata& metadata) override;
     std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
