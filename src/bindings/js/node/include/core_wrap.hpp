@@ -5,6 +5,7 @@
 #pragma once
 
 #include <napi.h>
+
 #include <sstream>
 #include <thread>
 #include <variant>

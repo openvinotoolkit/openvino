@@ -62,6 +62,7 @@ describe("ov basic tests.", () => {
       assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath));
 
       const savedModel = core.readModelSync(xmlPath);
+      assert.ok(savedModel instanceof ov.Model);
       assert.doesNotThrow(() => compareModels(model, savedModel));
     });
     it("saveModelSync(model, path, compressToFp16=false)", () => {
@@ -455,7 +456,7 @@ describe("ov basic tests.", () => {
       );
     });
 
-    it("Test importModelSync from Buffer", () => {
+    it("Test importModelSync(Buffer, device)", () => {
       const modelBuffer = Buffer.from(userStream);
 
       const newCompiled = core.importModelSync(modelBuffer, "CPU");
@@ -467,7 +468,7 @@ describe("ov basic tests.", () => {
       assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModelSync from Buffer with config", () => {
+    it("Test importModelSync(Buffer, device, config)", () => {
       const modelBuffer = Buffer.from(userStream);
 
       const newCompiled = core.importModelSync(modelBuffer, "CPU", {
@@ -481,7 +482,7 @@ describe("ov basic tests.", () => {
       assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModel from Buffer", async () => {
+    it("Test importModel(Buffer, device)", async () => {
       const modelBuffer = Buffer.from(userStream);
 
       const promise = core.importModel(modelBuffer, "CPU");
@@ -496,7 +497,7 @@ describe("ov basic tests.", () => {
       assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModel from Buffer with config", async () => {
+    it("Test importModel(Buffer, device, config)", async () => {
       const modelBuffer = Buffer.from(userStream);
 
       const newCompiled = await core.importModel(modelBuffer, "CPU", {
