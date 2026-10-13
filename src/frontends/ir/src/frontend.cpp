@@ -28,11 +28,12 @@ namespace ov::frontend::ir {
 namespace {
 
 std::shared_ptr<ov::util::WeightsProvider> make_buffer_weights_provider(
-    const std::shared_ptr<ov::AlignedBuffer>& weights) {
+    const std::shared_ptr<ov::AlignedBuffer>& weights,
+    std::filesystem::path origin_path = {}) {
     if (!weights) {
         return nullptr;
     }
-    return std::make_shared<ov::util::BufferWeightsProvider>(weights);
+    return std::make_shared<ov::util::BufferWeightsProvider>(weights, std::move(origin_path));
 }
 
 size_t get_ir_version(const pugi::xml_document& doc) {
@@ -237,7 +238,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                 auto weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
                                                                                                  mapped_memory->size(),
                                                                                                  mapped_memory);
-                weights_provider = make_buffer_weights_provider(weights);
+                weights_provider = make_buffer_weights_provider(weights, weights_path);
             } else if (std::ifstream bin_stream(weights_path, std::ios::binary); bin_stream.is_open()) {
                 bin_stream.seekg(0, std::ios::end);
                 size_t file_size = bin_stream.tellg();
@@ -254,7 +255,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                         std::hash<std::decay_t<decltype(weights_path.native())>>{}(weights_path.native()),
                         0,
                         aligned_weights_buffer));
-                weights_provider = make_buffer_weights_provider(weights);
+                weights_provider = make_buffer_weights_provider(weights, weights_path);
 
             } else {
                 OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
