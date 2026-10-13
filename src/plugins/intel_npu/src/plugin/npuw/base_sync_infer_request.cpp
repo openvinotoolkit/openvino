@@ -525,8 +525,10 @@ void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx, Rq
         const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
         const auto& lookup = request->get_tensor(lport);
 
+        // Only the element type and shape of the vocab inputs are needed here, so read them from the compiled
+        // model's ports. Asking the request for these tensors would make it allocate a device tensor the size of
+        // the whole vocab for each of them, before unpack_closure() has bound the real weights to those ports.
         const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
-        const auto& vocabw = request->get_tensor(wport);
 
         auto ids_shape = lookup->get_shape();
 
@@ -534,22 +536,18 @@ void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx, Rq
             return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};
         };
 
-        m_quant_gather_tensors.w = ov::Tensor(vocabw->get_element_type(), get_gathered_shape(vocabw->get_shape()));
+        m_quant_gather_tensors.w = ov::Tensor(wport.get_element_type(), get_gathered_shape(wport.get_shape()));
 
         if (quant_unpack_gather.src_z_idx != -1 && quant_unpack_gather.src_s_idx != -1) {
             const auto& zport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_z_idx];
-            const auto& vocabz = request->get_tensor(zport);
-
             const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
-            const auto& vocabs = request->get_tensor(sport);
 
-            m_quant_gather_tensors.z = ov::Tensor(vocabz->get_element_type(), get_gathered_shape(vocabz->get_shape()));
-            m_quant_gather_tensors.s = ov::Tensor(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+            m_quant_gather_tensors.z = ov::Tensor(zport.get_element_type(), get_gathered_shape(zport.get_shape()));
+            m_quant_gather_tensors.s = ov::Tensor(sport.get_element_type(), get_gathered_shape(sport.get_shape()));
         } else if (quant_unpack_gather.src_s_idx != -1) {
             const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
-            const auto& vocabs = request->get_tensor(sport);
 
-            m_quant_gather_tensors.s = ov::Tensor(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+            m_quant_gather_tensors.s = ov::Tensor(sport.get_element_type(), get_gathered_shape(sport.get_shape()));
         }
     }
 }
