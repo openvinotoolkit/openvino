@@ -19,7 +19,8 @@
 //   keys their position order matches the original index order.
 //
 // Design principles:
-//   - Read input exactly ONCE to avoid GPU cache inconsistency
+//   - Read input exactly ONCE to avoid GPU cache inconsistency; Phase 4 only reads back selected
+//     zeros and NaNs, whose keys do not keep the sign or payload
 //   - Single global buffer for sortable keys (N * 4 bytes per operation)
 //   - SLM bitonic sort for Phase 3 (fast, no global memory for sorting)
 //   - Total SLM: ~6KB (histogram 1KB + tie counters 1KB + sort buffers 4KB)
@@ -125,12 +126,19 @@ inline void FUNC(get_indices_from_dims)(OPTIONAL_SHAPE_INFO_ARG
 
 // Convert a float value to a monotonically increasing unsigned integer:
 // for positive values the bit pattern is already ordered, so only the sign bit is flipped;
-// for negative values all bits are flipped.
+// for negative values all bits are flipped. -0.0 gets the key of +0.0 so equal values keep
+// index order, and every NaN gets the largest key: like PyTorch, NaN ranks above +inf.
+// Only these two keys stand for more than one bit pattern.
 #if SORTABLE_BITS == 16
+#define ZERO_KEY 0x8000u
+#define NAN_KEY 0xFFFFu
+
 inline uint FUNC(to_sortable)(INPUT0_TYPE val) {
-    ushort bits = as_ushort(convert_half(val));
+    const half h = convert_half(val);
+    ushort bits = as_ushort(h);
     ushort mask = (bits >> 15) ? (ushort)0xFFFF : (ushort)0x8000;
-    return (uint)(bits ^ mask);
+    const uint key = (uint)(bits ^ mask);
+    return isnan(h) ? NAN_KEY : (h == (half)0 ? ZERO_KEY : key);
 }
 
 inline INPUT0_TYPE FUNC(from_sortable)(uint sortable) {
@@ -139,10 +147,15 @@ inline INPUT0_TYPE FUNC(from_sortable)(uint sortable) {
     return TO_INPUT0_TYPE(as_half((ushort)(bits ^ mask)));
 }
 #else
+#define ZERO_KEY 0x80000000u
+#define NAN_KEY 0xFFFFFFFFu
+
 inline uint FUNC(to_sortable)(INPUT0_TYPE val) {
-    uint bits = as_uint(convert_float(val));
+    const float f = convert_float(val);
+    uint bits = as_uint(f);
     uint mask = (bits >> 31) ? 0xFFFFFFFFu : 0x80000000u;
-    return bits ^ mask;
+    const uint key = bits ^ mask;
+    return isnan(f) ? NAN_KEY : (f == 0.0f ? ZERO_KEY : key);
 }
 
 inline INPUT0_TYPE FUNC(from_sortable)(uint sortable) {
@@ -450,14 +463,22 @@ KERNEL(arg_max_min_topk_radix)(
 #else
     // ============================================================
     // Phase 4: Write sorted top-K results to output
+    // Zero and NaN values are reloaded from the input, because their keys drop the sign of zero
+    // and the NaN payload.
     // ============================================================
     for (uint k = lid; k < TOP_K; k += WG_SIZE) {
-        INPUT0_TYPE val = FUNC_CALL(from_sortable)(sort_keys[k]);
 #ifdef RADIX_MERGE_STAGE
         uint idx = candidate_idxs[output_idx * RADIX_CANDIDATES_NUM + sort_idxs[k]];
 #else
         uint idx = sort_idxs[k];
 #endif
+        const uint key = sort_keys[k];
+        INPUT0_TYPE val = FUNC_CALL(from_sortable)(key);
+        if ((key == ZERO_KEY || key == NAN_KEY) && idx < VALUES_NUM) {
+            base_indices[AXIS] = idx;
+            val = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR
+                base_indices[0], base_indices[1], 0, base_indices[2], base_indices[3], base_indices[4])];
+        }
 
         base_indices[AXIS] = k;
         uint out_offset = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR
@@ -491,6 +512,8 @@ KERNEL(arg_max_min_topk_radix)(
 #undef TIE_GROUP_SIZE
 #undef TIE_GROUPS
 #undef SORTABLE_BITS
+#undef ZERO_KEY
+#undef NAN_KEY
 #undef NUM_PASSES
 #undef PAIR_GT
 #undef FILL_IDX
