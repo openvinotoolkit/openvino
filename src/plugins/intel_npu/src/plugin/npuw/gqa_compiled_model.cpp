@@ -112,9 +112,27 @@ std::optional<size_t> gqa_ctx_len_env_override() {
 // set via the OPENVINO_NPUW_GQA_SLIDING_LEN environment variable. Unset by default: a
 // model without any of the three sliding-window signals simply keeps every layer at the
 // model-wide max_seq_len, exactly as before this mechanism existed. Parsed once and cached.
+// Consulted only when NPUW_LLM_SWA_LEN isn't configured (see
+// resolve_default_sliding_window_capacity() below) -- the env var is a developer-only
+// debug knob, lower priority than the property, which in turn never overrides rt_info or
+// an op's own sliding_window_cache=true attribute.
 std::optional<size_t> gqa_default_sliding_window_len_env_override() {
     static const std::optional<size_t> value = parse_positive_size_env_var("OPENVINO_NPUW_GQA_SLIDING_LEN");
     return value;
+}
+
+// Resolves the sliding-window fallback capacity ReshapeToStaticGQA falls back to when a
+// layer carries neither rt_info metadata nor a sliding_window_cache=true op attribute.
+// Priority (highest first): NPUW_LLM_SWA_LEN property/config value (0 means "not set" --
+// see npuw_option_defs.inc), then the OPENVINO_NPUW_GQA_SLIDING_LEN env var, then nullopt
+// (no fallback). This tier never overrides rt_info or the op's own attribute -- those are
+// checked first, unconditionally, inside ReshapeToStaticGQA itself.
+std::optional<size_t> resolve_default_sliding_window_capacity(const ov::AnyMap& properties) {
+    const uint32_t configured = cfg_get<::intel_npu::NPUW_LLM_SWA_LEN>(properties);
+    if (configured != 0) {
+        return static_cast<size_t>(configured);
+    }
+    return gqa_default_sliding_window_len_env_override();
 }
 
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
@@ -263,6 +281,9 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     // handed to only registers the base/ROOT NPUW options, so leaving it in would make
     // that inner model's Config::update() throw NOT_FOUND on an otherwise-valid property.
     config.erase(std::string(::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN::key()));
+    // NPUW_LLM_SWA_LEN is consumed above (via cfg_get() in prepare()) purely to pick the
+    // sliding-window fallback capacity; same reasoning as NPUW_LLM_MAX_CONTEXT_LEN above.
+    config.erase(std::string(::intel_npu::NPUW_LLM_SWA_LEN::key()));
     return {config, stage};
 }
 
@@ -324,7 +345,8 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
         const size_t max_seq_len = gqa_ctx_len_env_override().value_or(effective_max_context_len);
         effective_max_context_len = static_cast<uint32_t>(max_seq_len);
         compiled_model = model->clone();
-        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len, gqa_default_sliding_window_len_env_override());
+        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len,
+                                                           resolve_default_sliding_window_capacity(properties));
         reshape_to_static_gqa.run_on_model(compiled_model);
         dynamic_kv_cache_axes = reshape_to_static_gqa.dynamic_kv_cache_axes();
     }
