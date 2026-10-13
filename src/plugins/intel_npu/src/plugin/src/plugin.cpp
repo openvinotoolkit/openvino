@@ -378,30 +378,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    // Update stepping w/ information from driver, unless provided by user or we are off-device
-    // Ignore if compilation was requested for a platform that is different from the current one
-    if (!localConfig.has<STEPPING>() &&
-        _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::stepping.name()) &&
-        device != nullptr && device->getName() == compilationPlatform) {
-        try {
-            localConfig.update(ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId()));
-        } catch (...) {
-            _logger.warning("Stepping information not implemented by selected backend. Skipping. Please provide "
-                            "NPU_STEPPING if required.");
-        }
-    }
-    // Update max_tiles w/ information from driver, unless provided by user or we are off-device
-    // Ignore if compilation was requested for a platform that is different from the current one
-    if (!localConfig.has<MAX_TILES>() &&
-        _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::max_tiles.name()) &&
-        device != nullptr && device->getName() == compilationPlatform) {
-        try {
-            localConfig.update(ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices()));
-        } catch (...) {
-            _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
-        }
-    }
-
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
     const bool isWeightlessSupported = [&]() {
