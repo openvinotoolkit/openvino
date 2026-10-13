@@ -655,11 +655,22 @@ TEST(type_prop, group_query_attention_qk_norm_non_positive_epsilon_rejected) {
                     HasSubstr("finite qk_norm_epsilon > 0"));
 }
 
+TEST(type_prop, group_query_attention_non_positive_epsilon_rejected_without_qk_norm) {
+    const auto args = make_valid_gqa_args();
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_qk_norm(args, 0.0f),
+                    ov::NodeValidationFailure,
+                    HasSubstr("finite qk_norm_epsilon > 0"));
+    OV_EXPECT_THROW(std::ignore = make_gqa_with_qk_norm(args, std::numeric_limits<float>::quiet_NaN()),
+                    ov::NodeValidationFailure,
+                    HasSubstr("finite qk_norm_epsilon > 0"));
+}
+
 namespace {
 std::shared_ptr<op::internal::GroupQueryAttention> make_gqa_with_qk_output(
     op::internal::GroupQueryAttentionQKOutput qk_output,
-    bool sliding_window_cache = false) {
-    return std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(),
+    bool sliding_window_cache = false,
+    const ov::OutputVector& args = make_valid_gqa_args()) {
+    return std::make_shared<op::internal::GroupQueryAttention>(args,
                                                                6,
                                                                2,
                                                                1.0f,
@@ -692,6 +703,16 @@ TEST(type_prop, group_query_attention_qk_output_adds_scores_output) {
         EXPECT_EQ(op->get_output_element_type(3), element::f32);
         EXPECT_EQ(op->get_output_partial_shape(3), (PartialShape{1, 6, 4, Dimension::dynamic()}));
     }
+}
+
+// output_qk is laid out over total_sequence_length, so qk_output needs that input.
+TEST(type_prop, group_query_attention_qk_output_requires_total_sequence_length) {
+    auto args = make_valid_gqa_args();
+    args[6] = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OV_EXPECT_THROW(
+        std::ignore = make_gqa_with_qk_output(op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX, false, args),
+        ov::NodeValidationFailure,
+        HasSubstr("requires total_sequence_length"));
 }
 
 TEST(type_prop, group_query_attention_qk_output_with_sliding_window_cache_rejected) {

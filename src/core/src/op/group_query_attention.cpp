@@ -214,7 +214,11 @@ void GroupQueryAttention::validate_and_infer_types() {
                 {4},
                 {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3});
     check_input(GroupQueryAttentionInputs::SEQLENS_K, {1, 2}, integral_types);
-    check_input(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH, {0, 1}, integral_types, false);
+    // output_qk is laid out over total_sequence_length (ORT), so qk_output needs it.
+    check_input(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH,
+                {0, 1},
+                integral_types,
+                m_qk_output != GroupQueryAttentionQKOutput::NONE);
 
     if (m_do_rotary) {
         check_input(GroupQueryAttentionInputs::COS_CACHE, {2}, {}, true);
@@ -246,11 +250,12 @@ void GroupQueryAttention::validate_and_infer_types() {
                           has_qk_norm() == (k_norm_pos < get_input_size() &&
                                             !ov::util::is_empty_constant_tensor(input_value(k_norm_pos))),
                           "GroupQueryAttention: q_norm_weight and k_norm_weight must be provided together.");
+    // Validated with or without QK-Norm weights, as ONNX Runtime does.
+    NODE_VALIDATION_CHECK(this,
+                          std::isfinite(m_qk_norm_epsilon) && m_qk_norm_epsilon > 0.0f,
+                          "GroupQueryAttention expects a finite qk_norm_epsilon > 0, got: ",
+                          m_qk_norm_epsilon);
     if (has_qk_norm()) {
-        NODE_VALIDATION_CHECK(this,
-                              std::isfinite(m_qk_norm_epsilon) && m_qk_norm_epsilon > 0.0f,
-                              "GroupQueryAttention expects a finite qk_norm_epsilon > 0, got: ",
-                              m_qk_norm_epsilon);
         for (const auto input : {GroupQueryAttentionInputs::Q_NORM_WEIGHT, GroupQueryAttentionInputs::K_NORM_WEIGHT}) {
             const auto pos = static_cast<size_t>(input);
             const auto& weight_ps = get_input_partial_shape(pos);
