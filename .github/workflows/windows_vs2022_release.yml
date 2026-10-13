@@ -680,7 +680,7 @@ jobs:
     timeout-minutes: 70
     defaults:
       run:
-        shell: pwsh
+        shell: powershell
     runs-on: [ self-hosted, Windows, ptl ]
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
