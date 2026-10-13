@@ -185,6 +185,10 @@ private:
     NpuVMRuntimeConfigChain _runtimeConfigChain;
     CommandQueueDesc _runtime_config_command_queue_desc;
     bool _runtime_config_command_queue_desc_valid = false;
+    // Keeps the command queue replaced during a queue switch alive until the current push()/pull()
+    // completes, so the VM runtime can migrate off (and destroy) the old queue-bound fence without a
+    // use-after-free. Released at the end of pull().
+    std::shared_ptr<CommandQueue> _retired_command_queue;
     std::unique_ptr<PipelinedCommandLists> _command_list_group;
 };
 
