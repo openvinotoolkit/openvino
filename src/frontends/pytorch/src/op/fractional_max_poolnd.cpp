@@ -15,7 +15,7 @@
 #include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
-#include "openvino/op/greater_equal.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/not_equal.hpp"
@@ -41,19 +41,23 @@ using namespace ov::op;
 namespace {
 
 Output<Node> get_int_list_input(const NodeContext& context, size_t idx) {
+    Output<Node> values;
     if (context.get_input_type(idx).is<type::List>()) {
         const auto list_elems = get_list_as_outputs(context.get_input(static_cast<int>(idx)));
         OutputVector to_concat;
-        auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+        auto flat_shape = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
         for (auto elem : list_elems) {
             if (elem.get_element_type() != element::i32) {
                 elem = context.mark_node(std::make_shared<v0::Convert>(elem, element::i32));
             }
-            to_concat.push_back(context.mark_node(std::make_shared<v0::Unsqueeze>(elem, zero)));
+            to_concat.push_back(context.mark_node(std::make_shared<v1::Reshape>(elem, flat_shape, false)));
         }
-        return context.mark_node(std::make_shared<v0::Concat>(to_concat, 0));
+        values = context.mark_node(std::make_shared<v0::Concat>(to_concat, 0));
+    } else {
+        values = get_input_as_i32(context, idx);
     }
-    return get_input_as_i32(context, idx);
+    auto flat_shape = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    return context.mark_node(std::make_shared<v1::Reshape>(values, flat_shape, false));
 }
 
 Output<Node> generate_intervals(const NodeContext& context,
