@@ -14,7 +14,9 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/dspark_builder.hpp"
+#include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
+#include "builder/graph_emitter.hpp"
 #include "cnpy.h"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -41,6 +43,145 @@
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+
+TEST(GGUFDSparkAccuracy, ConfidenceAndMarkovHeadsAreIndependent) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/dspark.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    for (const auto& [rank, confidence, with_markov] :
+         {std::tuple{0, false, false}, {0, true, false}, {8, false, false}, {8, true, false}, {8, true, true}}) {
+        SCOPED_TRACE(::testing::Message() << rank << ", " << confidence << ", " << with_markov);
+        auto loaded = get_gguf_data(temporary.path);
+        auto& metadata = std::get<0>(loaded);
+        auto& weights = std::get<1>(loaded);
+        auto& qtypes = std::get<2>(loaded);
+        ov::Tensor rank_value(ov::element::u32, {});
+        *rank_value.data<uint32_t>() = static_cast<uint32_t>(rank);
+        metadata["dspark.dspark.markov_rank"] = rank_value;
+        for (const auto& [key, enabled] :
+             {std::pair{"confidence_head", confidence}, {"confidence_head_with_markov", with_markov}}) {
+            ov::Tensor flag(ov::element::boolean, {});
+            *flag.data<char>() = enabled;
+            metadata[std::string("dspark.dspark.") + key] = flag;
+        }
+        if (rank == 0) {
+            weights.erase("dspark.markov_head_a.weight");
+            weights.erase("dspark.markov_head_b.weight");
+        }
+        ov::Tensor projection(ov::element::f32, {1, with_markov ? size_t{72} : size_t{64}});
+        std::copy_n(weights.at("dspark.confidence_head.weight").data<const float>(),
+                    projection.get_size(),
+                    projection.data<float>());
+        weights["dspark.confidence_head.weight"] = projection;
+        detail::MetadataStore store{metadata};
+        detail::WeightStore tensors{weights, qtypes};
+        const BuildContext context{GgufMetadata(store), "dspark", &tensors};
+        const auto graph = make_dspark_builder(context)->build();
+        EXPECT_EQ(graph->model_inputs.count("dspark_prev_tokens"), rank > 0 ? 1u : 0u);
+        FrontEnd frontend;
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(graph);
+        const auto model = frontend.convert(frontend.load(decoder));
+        std::set<std::string> outputs;
+        for (const auto& output : model->outputs())
+            outputs.insert(output.get_names().begin(), output.get_names().end());
+        EXPECT_EQ(outputs.count("dspark.confidence_score"), confidence ? 1u : 0u);
+        EXPECT_EQ(outputs.count("dspark.corrected_logits"), rank > 0 ? 1u : 0u);
+        if (!confidence)
+            continue;
+        ov::Core core;
+        auto compiled = core.compile_model(model,
+                                           "CPU",
+                                           ov::hint::inference_precision(ov::element::f32),
+                                           ov::hint::dynamic_quantization_group_size(0),
+                                           ov::inference_num_threads(4));
+        auto request = compiled.create_infer_request();
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            auto shape = input.get_partial_shape();
+            for (size_t i = 0; i < shape.size(); ++i)
+                if (shape[i].is_dynamic())
+                    shape[i] = name == "dspark_ctx_feat" ? 2 : 6;
+            ov::Tensor value(input.get_element_type(), shape.to_shape());
+            std::memset(value.data(), 0, value.get_byte_size());
+            if (input.get_element_type() == ov::element::i32)
+                for (size_t i = 0; i < value.get_size(); ++i)
+                    value.data<int32_t>()[i] = static_cast<int32_t>(i);
+            request.set_tensor(name, value);
+        }
+        request.infer();
+        const auto hidden = request.get_tensor("dspark.hidden");
+        const auto score = request.get_tensor("dspark.confidence_score");
+        ASSERT_EQ(score.get_size(), 4u);
+        for (size_t token = 0; token < 4; ++token) {
+            double expected = weights.at("dspark.confidence_head.bias").data<const float>()[0];
+            for (size_t feature = 0; feature < 64; ++feature)
+                expected += hidden.data<const float>()[token * 64 + feature] * projection.data<const float>()[feature];
+            if (with_markov)
+                for (size_t feature = 0; feature < 8; ++feature)
+                    expected += weights.at("dspark.markov_head_a.weight").data<const float>()[token * 8 + feature] *
+                                projection.data<const float>()[64 + feature];
+            EXPECT_NEAR(score.data<const float>()[token], expected, 1e-6);
+        }
+    }
+}
+
+TEST(GGUFDSparkAccuracy, ConfidenceWithMarkovRequiresPositiveRank) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/dspark.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    auto& metadata = std::get<0>(loaded);
+    ov::Tensor rank(ov::element::u32, {});
+    *rank.data<uint32_t>() = 0;
+    metadata["dspark.dspark.markov_rank"] = rank;
+    detail::MetadataStore store{metadata};
+    detail::WeightStore tensors{std::get<1>(loaded), std::get<2>(loaded)};
+    const BuildContext context{GgufMetadata(store), "dspark", &tensors};
+    OV_EXPECT_THROW(make_dspark_builder(context)->build(),
+                    ov::Exception,
+                    testing::HasSubstr("confidence_head_with_markov"));
+}
+
+TEST(GGUFHadamardMetadata, MissingAndMistypedFieldsNameTheInvalidKey) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/bonsai2-hadamard.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    const auto config = decoder_config_from_meta(std::get<0>(loaded));
+    GraphEmitter valid(std::get<1>(loaded), std::get<2>(loaded), "qwen35");
+    EXPECT_NO_THROW(valid.configure_hadamard(config));
+    for (const std::string key : {"prism.hadamard.version",
+                                  "prism.hadamard.block_size",
+                                  "prism.hadamard.transform",
+                                  "prism.hadamard.axis",
+                                  "prism.hadamard.weight_names",
+                                  "prism.hadamard.inverse_weight_names",
+                                  "prism.hadamard.sign_mode",
+                                  "prism.hadamard.sign_widths",
+                                  "prism.hadamard.sign_values",
+                                  "prism.hadamard.gdn_v_grouped",
+                                  "ssm_time_step_rank",
+                                  "ssm_group_count"}) {
+        SCOPED_TRACE(key);
+        for (const bool missing : {false, true}) {
+            if (missing && (key == "prism.hadamard.inverse_weight_names" || key == "prism.hadamard.gdn_v_grouped"))
+                continue;
+            auto invalid = config;
+            if (missing)
+                invalid.erase(key);
+            else
+                invalid[key] = std::monostate{};
+            GraphEmitter emitter(std::get<1>(loaded), std::get<2>(loaded), "qwen35");
+            OV_EXPECT_THROW(emitter.configure_hadamard(invalid), ov::Exception, testing::HasSubstr(key));
+        }
+        if (std::holds_alternative<ov::Tensor>(config.at(key))) {
+            auto invalid = config;
+            invalid[key] = ov::Tensor(ov::element::f32, {1});
+            GraphEmitter emitter(std::get<1>(loaded), std::get<2>(loaded), "qwen35");
+            OV_EXPECT_THROW(emitter.configure_hadamard(invalid), ov::Exception, testing::HasSubstr(key));
+        }
+    }
+}
 
 TEST(GGUFDSparkAccuracy, RejectsOversizedDraftBlocksBeforeBuildingTheGraph) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/dspark.npz");

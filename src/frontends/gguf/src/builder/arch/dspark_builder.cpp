@@ -34,6 +34,12 @@ public:
         };
         const auto block = required_int("block_size");
         OPENVINO_ASSERT(block <= 4096, "[GGUF] DSpark block_size exceeds the supported maximum of 4096");
+        const auto markov_rank = m_metadata.get_int("dspark.dspark.markov_rank").value_or(0);
+        const bool confidence_head = m_metadata.get_bool("dspark.dspark.confidence_head").value_or(false);
+        const bool confidence_with_markov =
+            m_metadata.get_bool("dspark.dspark.confidence_head_with_markov").value_or(false);
+        OPENVINO_ASSERT(!confidence_head || !confidence_with_markov || markov_rank > 0,
+                        "[GGUF] DSpark confidence_head_with_markov requires a positive markov_rank");
         const auto captures = m_metadata.get_int_array("dspark.dspark.target_layers");
         OPENVINO_ASSERT(!captures.empty(), "[GGUF] missing DSpark target_layers");
         OPENVINO_ASSERT(!m_metadata.get_bool("dspark.dspark.hidden_correction").value_or(false),
@@ -111,35 +117,33 @@ public:
         auto hidden_value = e.value(hidden);
         hidden_value.set_names({"dspark.hidden"});
         graph.model_output_names.insert(graph.model_output_names.begin(), {logits, hidden});
-        if (m_metadata.get_int("dspark.dspark.markov_rank").value_or(0) > 0) {
+        std::string latent;
+        if (markov_rank > 0) {
             e.add_input("dspark_prev_tokens", i32, ps({1, 1, 1, block}));
             e.add_weight("dspark.markov_head_a.weight");
             e.add_weight("dspark.markov_head_b.weight");
-            const auto latent = e.add_op("GGML_OP_GET_ROWS",
-                                         "dspark.markov_latent",
-                                         {"dspark.markov_head_a.weight", "dspark_prev_tokens"});
+            latent = e.add_op("GGML_OP_GET_ROWS",
+                              "dspark.markov_latent",
+                              {"dspark.markov_head_a.weight", "dspark_prev_tokens"});
             const auto adjustment =
                 e.add_op("GGML_OP_MUL_MAT", "dspark.markov_logits", {"dspark.markov_head_b.weight", latent});
             const auto corrected = e.add_op("GGML_OP_ADD", "dspark.corrected_logits", {logits, adjustment});
             auto corrected_value = e.value(corrected);
             corrected_value.set_names({"dspark.corrected_logits"});
             graph.model_output_names.push_back(corrected);
-            if (m_metadata.get_bool("dspark.dspark.confidence_head").value_or(false)) {
-                auto features = hidden;
-                if (m_metadata.get_bool("dspark.dspark.confidence_head_with_markov").value_or(false))
-                    features = e.add_op("GGML_OP_CONCAT",
-                                        "dspark.confidence_features",
-                                        {hidden, latent},
-                                        0,
-                                        {{"concat_axis", 0}});
-                e.add_weight("dspark.confidence_head.weight");
-                auto confidence =
-                    e.add_op("GGML_OP_MUL_MAT", "dspark.confidence", {"dspark.confidence_head.weight", features});
-                confidence = blocks::add_bias(e, confidence, "dspark.confidence_head.bias", "dspark.confidence_score");
-                auto confidence_value = e.value(confidence);
-                confidence_value.set_names({"dspark.confidence_score"});
-                graph.model_output_names.push_back(confidence);
-            }
+        }
+        if (confidence_head) {
+            auto features = hidden;
+            if (confidence_with_markov)
+                features =
+                    e.add_op("GGML_OP_CONCAT", "dspark.confidence_features", {hidden, latent}, 0, {{"concat_axis", 0}});
+            e.add_weight("dspark.confidence_head.weight");
+            auto confidence =
+                e.add_op("GGML_OP_MUL_MAT", "dspark.confidence", {"dspark.confidence_head.weight", features});
+            confidence = blocks::add_bias(e, confidence, "dspark.confidence_head.bias", "dspark.confidence_score");
+            auto confidence_value = e.value(confidence);
+            confidence_value.set_names({"dspark.confidence_score"});
+            graph.model_output_names.push_back(confidence);
         }
         return e.graph();
     }
