@@ -633,4 +633,49 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedMaxGenerationTokenLenLar
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
 
+// VLM prefill's `inputs_embeds` is [BATCH, SEQ_LEN, EMB_SIZE]: the sequence extent is axis 1,
+// not the trailing axis (the embedding width). A port restored as [1, 8, 4096] must still be
+// rejected against a declared chunk size of 16, even though 16 <= 4096 (the embedding width)
+// would wrongly pass a check that read the last axis instead of axis 1.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputsEmbedsSeqAxisSmallerThanPrefillChunkSize) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, 16u);
+
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8, 4096});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control for the above: a port whose axis-1 (sequence) extent actually meets the
+// declared chunk size must be accepted, proving axis 1 (not just "reject inputs_embeds always")
+// is what gets checked.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedInputsEmbedsWhenSeqAxisMeetsPrefillChunkSize) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, 16u);
+
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 4096});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
 }  // namespace

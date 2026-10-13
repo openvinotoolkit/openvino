@@ -1903,13 +1903,25 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
     // and deserializes the submodels - with their own, independent port shapes - as separate blob
     // fields; reject the blob unless the restored scalar still fits the restored port, so that
     // subtraction can never underflow into an out-of-bounds write.
-    auto last_dim_extent = [](const ov::Output<const ov::Node>& port) -> size_t {
+    using layer_names = ov::npuw::LLMInferBaseRequest::layer_names;
+
+    // Every port here is [BATCH, SEQ_LEN] (or [.., BATCH, SEQ_LEN] for the 3-D VLM variant of
+    // position_ids), so the sequence extent is the last axis - except `inputs_embeds`, which
+    // ReshapeToStatic (see reshape_to_static.cpp) lays out as [BATCH, SEQ_LEN, EMB_SIZE]: its
+    // sequence axis is 1, and the last axis is the embedding width.
+    auto sequence_extent = [](const ov::Output<const ov::Node>& port) -> size_t {
         const auto& rank = port.get_partial_shape().rank();
         OPENVINO_ASSERT(rank.is_static() && rank.get_length() > 0,
                         "NPUW blob: input '",
                         port.get_any_name(),
                         "' does not have a static, non-scalar shape.");
-        const auto& seq_dim = port.get_partial_shape()[rank.get_length() - 1];
+        const auto seq_axis =
+            port.get_names().count(layer_names::inputs_embeds) != 0 ? 1 : static_cast<size_t>(rank.get_length()) - 1;
+        OPENVINO_ASSERT(seq_axis < static_cast<size_t>(rank.get_length()),
+                        "NPUW blob: input '",
+                        port.get_any_name(),
+                        "' does not have a sequence-length dimension.");
+        const auto& seq_dim = port.get_partial_shape()[seq_axis];
         OPENVINO_ASSERT(seq_dim.is_static(),
                         "NPUW blob: input '",
                         port.get_any_name(),
@@ -1923,7 +1935,7 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
             if (!port.has_value()) {
                 return;  // optional input not present on this model
             }
-            const auto extent = last_dim_extent(*port);
+            const auto extent = sequence_extent(*port);
             OPENVINO_ASSERT(required <= extent,
                             "NPUW blob: input '",
                             name,
@@ -1934,7 +1946,6 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                             ").");
         };
 
-    using layer_names = ov::npuw::LLMInferBaseRequest::layer_names;
     if (m_prefill_compiled) {
         const auto& prefill_inputs = m_prefill_compiled->inputs();
         const uint64_t prefill_required = m_use_chunk_prefill ? m_prefill_chunk_size : m_kvcache_desc.max_prompt_size;
