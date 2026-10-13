@@ -365,10 +365,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_stored_tokens_state = std::make_shared<ov::npuw::StoredTokensState>();
     init_lora_states();
 
-    // Wire the continuous prefill negotiation channel when the compiled model
-    // reports the capability. Without it the stored tokens state keeps its
-    // legacy contract untouched.
-    if (compiled_model->compute_continuous_prefill_supported()) {
+    // Wire the continuous prefill negotiation channel when it is enabled for the
+    // compiled model. Without it the stored tokens state keeps its legacy contract.
+    if (compiled_model->m_enable_continuous_prefill) {
         m_continuation.enable(static_cast<uint32_t>(compiled_model->m_prefill_chunk_size),
                               compiled_model->m_kvcache_desc.max_prompt_size);
         m_stored_tokens_state->attach_continuation(&m_continuation);
