@@ -1,0 +1,42 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-13-16-28-23-000-38423494884",
+    "timestamp": "2026-10-13T16:28:23Z",
+    "run_id": "38423494884",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38423494884",
+    "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "529331f083ebed40ccba117ba3a443c5468c8d89",
+    "pr_number": null,
+    "pr_url": null,
+    "author": null,
+    "category": "Network",
+    "title": "C++ unit tests job fails with getaddrinfo EAI_AGAIN during artifact upload after all tests passed",
+    "signature": "getaddrinfo EAI_AGAIN <HOST> during GitHub Actions artifact upload|Network",
+    "signature_hash": "d877f2bb57b833d0",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "C++ unit tests / C++ unit tests",
+            "conclusion": "failure",
+            "symptom": "Upload Test Results step failed: getaddrinfo EAI_AGAIN results-receiver.actions.githubusercontent.com when calling CreateArtifact"
+        },
+        {
+            "name": "ci/gha_overall_status_linux_arm64",
+            "conclusion": "failure",
+            "symptom": "Downstream aggregate status check failed because the C++ unit tests job failed (exit 1 in 'Check status of all jobs')"
+        }
+    ],
+    "key_errors": [
+        "2026-10-13T16:20:47.7976865Z Artifact name is valid!\n2026-10-13T16:21:03.8181764Z Attempt 1 of 5 failed with error: getaddrinfo EAI_AGAIN results-receiver.actions.githubusercontent.com. Retrying request in 3000 ms...\n2026-10-13T16:21:14.8304827Z Attempt 2 of 5 failed with error: getaddrinfo EAI_AGAIN results-receiver.actions.githubusercontent.com. Retrying request in 4993 ms...\n2026-10-13T16:21:23.8358592Z Attempt 3 of 5 failed with error: getaddrinfo EAI_AGAIN results-receiver.actions.githubusercontent.com. Retrying request in 8309 ms...\n2026-10-13T16:21:36.1551846Z Attempt 4 of 5 failed with error: getaddrinfo EAI_AGAIN results-receiver.actions.githubusercontent.com. Retrying request in 14040 ms...\n2026-10-13T16:21:54.2109613Z ##[error]Failed to CreateArtifact: Failed to make request after 5 attempts: getaddrinfo EAI_AGAIN results-receiver.actions.githubusercontent.com"
+    ],
+    "root_cause": "All 26 C++ unit test suites completed successfully (the full gtest run produced no failures, as confirmed by the hint scan showing passing tests). The job then failed purely at the 'Upload Test Results' step, which runs the upload-artifact action inside the job's Docker container. The container's DNS resolver could not resolve results-receiver.actions.githubusercontent.com (getaddrinfo EAI_AGAIN) across all 5 retry attempts, so the artifact upload client gave up and the step (and consequently the job) failed with exit code 1, even though the actual test workload succeeded. The downstream ci/gha_overall_status_linux_arm64 job then failed only because it aggregates job statuses and saw the C++ unit tests job as failed. This is the same DNS-resolution-to-results-receiver symptom recorded previously for the ONNX Models Tests job (pattern d877f2bb57b833d0), indicating an intermittent GitHub-hosted-runner/Docker-container networking or DNS issue rather than a product defect.",
+    "reproduction_steps": "N/A - not reproducible outside CI; this is a transient DNS/networking failure in the GitHub Actions runner's Docker container network when contacting the artifact-upload results-receiver endpoint.",
+    "recommended_actions": [
+        "Re-run the failed C++ unit tests job (and its dependent overall-status job); no code change is required since tests passed.",
+        "Monitor for recurrence; if this DNS failure continues to affect multiple jobs/workflows, file an issue with GitHub Support regarding results-receiver.actions.githubusercontent.com resolution failures inside Docker-exec'd steps on hosted ARM64 runners.",
+        "Consider adding a retry/backoff wrapper or `continue-on-error` + separate verification step around artifact-upload steps that run via `docker exec`, since the built-in 5-attempt retry in upload-artifact already exhausts without success in this environment.",
+        "Check whether the container's DNS configuration (e.g., /etc/resolv.conf inside the ARM64 test container) differs from the host runner's, since the failure is specific to actions invoked via `docker exec` rather than the host-level actions."
+    ],
+    "prevention_strategies": "This is an external GitHub Actions / networking infrastructure flake, not something fixable in repository code. Mitigate impact by: (1) keeping aggregate status jobs resilient to isolated upload-step failures when the underlying test run truly passed (e.g., treat upload-artifact failures as a softer signal), and (2) tracking recurrence of this exact DNS error via the pattern database so repeat occurrences can be escalated to GitHub Support with evidence.",
+    "historical_context": "Identical symptom (getaddrinfo EAI_AGAIN results-receiver.actions.githubusercontent.com during artifact upload, Network category) was previously recorded once for the ONNX Models Tests job on 2026-10-13T14:46:52Z (run 38403561271, commit 10864ee713c0c1d4f967506bd88eb359b86a5b4a). This is the second occurrence of the same underlying pattern, now affecting a different job (C++ unit tests) on a different run, confirming it is a job-agnostic, intermittent runner/container DNS resolution issue rather than isolated to one job."
+}

@@ -2,18 +2,21 @@
     "schema_version": "1.0",
     "signature": "getaddrinfo EAI_AGAIN <HOST> during GitHub Actions artifact upload|Network",
     "signature_hash": "d877f2bb57b833d0",
-    "title": "ONNX Models Tests job fails with getaddrinfo EAI_AGAIN during artifact upload after all tests passed",
+    "title": "C++ unit tests job fails with getaddrinfo EAI_AGAIN during artifact upload after all tests passed",
     "category": "Network",
-    "count": 1,
+    "count": 2,
     "first_seen": "2026-10-13T14:46:52Z",
-    "last_seen": "2026-10-13T14:46:52Z",
+    "last_seen": "2026-10-13T16:28:23Z",
     "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/38423494884",
         "https://github.com/openvinotoolkit/openvino/actions/runs/38403561271"
     ],
     "affected_commits": [
+        "529331f083ebed40ccba117ba3a443c5468c8d89",
         "10864ee713c0c1d4f967506bd88eb359b86a5b4a"
     ],
     "recent_timestamps": [
+        "2026-10-13T16:28:23Z",
         "2026-10-13T14:46:52Z"
     ]
 }
