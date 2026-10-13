@@ -163,6 +163,10 @@ public:
     // length, e.g. 0 for ORT shared KV), so the cache arithmetic must use the key's own length. Packed QKV is
     // excluded: Q/K/V are split from one tensor, so S_kv == S_q even when that length is dynamic.
     bool has_independent_kv_length() const;
+    // True when present keeps the past buffer's own capacity (a preallocated cache written in place): the past is
+    // non-empty and the past, query and key sequence lengths are static. Batch and head dimensions do not matter.
+    // Shape inference and the decomposition both use it, so the inferred and the decomposed present agree.
+    bool has_fixed_kv_capacity() const;
     // Logit soft-capping (Gemma-style): when > 0, scaled scores become softcap * tanh(score / softcap)
     // before the attention bias/mask and softmax. 0 disables it (the ONNX frontend maps ORT's "<= 0 disables" to 0).
     float get_softcap() const {

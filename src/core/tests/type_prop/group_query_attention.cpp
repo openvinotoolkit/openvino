@@ -701,5 +701,32 @@ TEST(type_prop, group_query_attention_qk_output_with_sliding_window_cache_reject
         HasSubstr("qk_output is not supported with sliding_window_cache"));
 }
 
+TEST(type_prop, group_query_attention_fixed_capacity_with_dynamic_batch) {
+    // A preallocated cache keeps its capacity whatever the batch: present stays [?, 2, 5, 8].
+    using op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    args[0] = std::make_shared<Parameter>(element::f32, PartialShape{-1, 6, 4, 8});
+    args[1] = std::make_shared<Parameter>(element::f32, PartialShape{-1, 2, 4, 8});
+    args[2] = std::make_shared<Parameter>(element::f32, PartialShape{-1, 2, 4, 8});
+    args[3] = std::make_shared<Parameter>(element::f32, PartialShape{-1, 2, 5, 8});
+    args[4] = std::make_shared<Parameter>(element::f32, PartialShape{-1, 2, 5, 8});
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(op->has_fixed_kv_capacity());
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{-1, 2, 5, 8}));
+}
+
+TEST(type_prop, group_query_attention_growing_cache_has_no_fixed_capacity) {
+    using op::v0::Parameter;
+    auto dynamic_past = make_valid_gqa_args();
+    dynamic_past[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    dynamic_past[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    EXPECT_FALSE(std::make_shared<op::internal::GroupQueryAttention>(dynamic_past, 6, 2, 1.0f, false, false)
+                     ->has_fixed_kv_capacity());
+    auto dynamic_step = make_valid_gqa_args();
+    dynamic_step[0] = std::make_shared<Parameter>(element::f32, PartialShape{1, 6, -1, 8});
+    EXPECT_FALSE(std::make_shared<op::internal::GroupQueryAttention>(dynamic_step, 6, 2, 1.0f, false, false)
+                     ->has_fixed_kv_capacity());
+}
+
 }  // namespace testing
 }  // namespace ov

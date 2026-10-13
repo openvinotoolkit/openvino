@@ -395,11 +395,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     // A zero-capacity past (absent/empty cache) cannot be written in place either, so present grows by the step.
     // Shared KV (statically empty key, kv_sequence_length == 0) appends nothing: present is the past as is.
     // A key/value of dynamic length cannot be written in place, so present grows by its own length.
-    const bool empty_past = output_kv_len.is_static() && output_kv_len.get_length() == 0;
     const auto& key_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
     const bool dynamic_kv_len = key_ps.rank().is_static() && key_ps[2].is_dynamic();
-    if (!m_sliding_window_cache && !is_shared_kv() &&
-        (output_kv_len.is_dynamic() || sequence_len.is_dynamic() || empty_past || dynamic_kv_len)) {
+    if (!m_sliding_window_cache && !is_shared_kv() && !has_fixed_kv_capacity()) {
         output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;
     }
 
@@ -425,6 +423,18 @@ bool GroupQueryAttention::has_independent_kv_length() const {
     const bool packed_qkv = input_value(static_cast<size_t>(GroupQueryAttentionInputs::QUERY)).get_node() ==
                             input_value(key_idx).get_node();
     return !packed_qkv && key_ps.rank().is_static() && key_ps.rank().get_length() == 4 && key_ps[2].is_dynamic();
+}
+
+bool GroupQueryAttention::has_fixed_kv_capacity() const {
+    const auto& past_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
+    const auto& query_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
+    const auto& key_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
+    if (past_ps.rank().is_dynamic() || past_ps.rank().get_length() != 4 || query_ps.rank().is_dynamic() ||
+        query_ps.rank().get_length() != 4) {
+        return false;
+    }
+    const bool static_key_len = key_ps.rank().is_dynamic() || key_ps[2].is_static();
+    return past_ps[2].is_static() && past_ps[2].get_length() > 0 && query_ps[2].is_static() && static_key_len;
 }
 
 bool GroupQueryAttention::has_qk_norm() const {

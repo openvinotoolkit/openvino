@@ -46,10 +46,12 @@ protected:
     // key/value keep kv_num_heads heads; query heads are grouped onto them by MatMul broadcasting, so the KV cache is
     // never replicated. Returns {attention [B, N, S, D]} plus, when qk_output is set, the [B, N, S, L] scores taken
     // from the same chain: the logits with masked positions zeroed (BEFORE_SOFTMAX) or the probabilities (AFTER).
+    // unbiased_mask is the mask without attention_bias, used to find the masked positions.
     ov::OutputVector make_explicit_attention(const ov::Output<ov::Node>& query,
                                              const ov::Output<ov::Node>& key,
                                              const ov::Output<ov::Node>& value,
                                              const ov::Output<ov::Node>& mask,
+                                             const ov::Output<ov::Node>& unbiased_mask,
                                              const ov::Output<ov::Node>& scale,
                                              const ov::Output<ov::Node>& sink,
                                              float softcap,
@@ -116,6 +118,13 @@ protected:
                                                           bool causal,
                                                           int64_t local_window_size,
                                                           const ov::Output<ov::Node>& external_bias);
+    // attention_bias aligned to the mask's key columns: [num_heads, S, kv_len] from key col_offset (single batch) or
+    // [B or 1, N or 1, S, kv_len] (batched), zero-padded past the bias width.
+    std::shared_ptr<ov::Node> align_attention_bias(const ov::Output<ov::Node>& bias,
+                                                   const ov::Output<ov::Node>& col_offset,
+                                                   const ov::Output<ov::Node>& kv_len_1d,
+                                                   const ov::element::Type& compute_type,
+                                                   bool batched);
     // Reshape a flat KV-cache dequant scale so it broadcasts against a [B, kv_num_heads, S, head_size] tensor:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,

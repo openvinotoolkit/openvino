@@ -259,10 +259,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
         }
     }
-    // A static past is a preallocated max-length buffer written in place. A zero-capacity past (an absent ONNX
-    // past or an empty cache) has nothing to write into, so it grows by concatenation instead.
-    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static() &&
-                                 past_key.get_partial_shape()[2].get_length() > 0;
+    // A preallocated cache (static capacity and step length, whatever the batch) is written in place. A
+    // zero-capacity past (an absent ONNX past or an empty cache) has nothing to write into, so it grows by
+    // concatenation instead. Same rule as the op's present shape inference.
+    const auto is_static_input = node->has_fixed_kv_capacity();
 
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
@@ -500,40 +500,55 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // The explicit chain has no is_causal fallback, and shared KV must hide the past rows beyond `total`, so both
     // always take the explicit (base) mask; overrides may otherwise drop it in favor of SDPA's causal flag.
     const bool explicit_mask = use_explicit_attention || shared_kv;
-    const auto mask = batched ? make_batched_attention_mask(curr_seqlen_scalar,
-                                                            concat_kv_len_scalar,
-                                                            concat_kv_len,
-                                                            q_past_b,
-                                                            total_b,
-                                                            T,
-                                                            causal,
-                                                            local_window_size,
-                                                            external_bias)
-                      : explicit_mask
-                          ? GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
-                                                                                  concat_kv_len_scalar,
-                                                                                  concat_kv_len,
-                                                                                  mask_past_seqlen,
-                                                                                  T,
-                                                                                  causal,
-                                                                                  local_window_size,
-                                                                                  external_bias,
-                                                                                  bias_col_offset,
-                                                                                  node->get_sliding_window_cache(),
-                                                                                  scale,
-                                                                                  has_sink)
-                          : make_attention_mask(curr_seqlen_scalar,
-                                                concat_kv_len_scalar,
-                                                concat_kv_len,
-                                                mask_past_seqlen,
-                                                T,
-                                                causal,
-                                                local_window_size,
-                                                external_bias,
-                                                bias_col_offset,
-                                                node->get_sliding_window_cache(),
-                                                scale,
-                                                has_sink);
+    // qk_output before softmax reports masked positions as 0 (ORT); they are found on the bias-free mask, so a large
+    // negative attention_bias reads logit + bias. The mask is then built once without the bias, and the aligned bias
+    // is added on top (same op count as the fused form).
+    const bool split_bias =
+        qk_output == ov::op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX && external_bias.get_node();
+    const auto mask_bias = split_bias ? ov::Output<ov::Node>() : external_bias;
+    std::shared_ptr<ov::Node> mask =
+        batched         ? make_batched_attention_mask(curr_seqlen_scalar,
+                                              concat_kv_len_scalar,
+                                              concat_kv_len,
+                                              q_past_b,
+                                              total_b,
+                                              T,
+                                              causal,
+                                              local_window_size,
+                                              mask_bias)
+        : explicit_mask ? GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
+                                                                                concat_kv_len_scalar,
+                                                                                concat_kv_len,
+                                                                                mask_past_seqlen,
+                                                                                T,
+                                                                                causal,
+                                                                                local_window_size,
+                                                                                mask_bias,
+                                                                                bias_col_offset,
+                                                                                node->get_sliding_window_cache(),
+                                                                                scale,
+                                                                                has_sink)
+                        : make_attention_mask(curr_seqlen_scalar,
+                                              concat_kv_len_scalar,
+                                              concat_kv_len,
+                                              mask_past_seqlen,
+                                              T,
+                                              causal,
+                                              local_window_size,
+                                              mask_bias,
+                                              bias_col_offset,
+                                              node->get_sliding_window_cache(),
+                                              scale,
+                                              has_sink);
+
+    // qk_output before softmax reports masked positions as 0 (ORT). They are found on the mask without
+    // attention_bias, so a large negative bias value is reported as logit + bias, not as masked.
+    ov::Output<ov::Node> unbiased_mask = mask;
+    if (split_bias) {
+        mask = register_new_node<v1::Add>(
+            mask,
+            align_attention_bias(external_bias, batched ? zero : bias_col_offset, concat_kv_len, T, batched));
+    }
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
@@ -569,8 +584,16 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> qga_output;
     ov::Output<ov::Node> qk_scores;
     if (use_explicit_attention) {
-        const auto attention =
-            make_explicit_attention(Q, K, V, mask, make_scale_node(), sink, softcap, kv_num_heads, qk_output);
+        const auto attention = make_explicit_attention(Q,
+                                                       K,
+                                                       V,
+                                                       mask,
+                                                       unbiased_mask,
+                                                       make_scale_node(),
+                                                       sink,
+                                                       softcap,
+                                                       kv_num_heads,
+                                                       qk_output);
         qga_output = attention[0];
         if (qk_output != ov::op::internal::GroupQueryAttentionQKOutput::NONE) {
             // Keep only the total_sequence_length (past + current) key columns, as ONNX Runtime does; a static or
@@ -631,6 +654,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_explicit_atten
     const ov::Output<ov::Node>& key,
     const ov::Output<ov::Node>& value,
     const ov::Output<ov::Node>& mask,
+    const ov::Output<ov::Node>& unbiased_mask,
     const ov::Output<ov::Node>& scale,
     const ov::Output<ov::Node>& sink,
     float softcap,
@@ -707,10 +731,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::make_explicit_atten
         return {attention, probs};
     }
     if (qk_output == QKOutput::BEFORE_SOFTMAX) {
-        // ONNX Runtime reports masked (future / out-of-window / beyond-total) logits as 0. Masked mask entries are
-        // the type's finite lowest() (plus a negligible bias), so a lowest() / 2 threshold identifies them.
+        // ONNX Runtime reports masked (future / out-of-window / beyond-total) logits as 0. Masked entries of the
+        // bias-free mask are the type's finite lowest(), so a lowest() / 2 threshold identifies them.
         const auto threshold = register_new_node(v0::Constant::create(T, Shape{}, {finite_lowest(T) / 2}));
-        const auto is_masked = register_new_node<v1::Less>(mask, threshold);
+        const auto is_masked = register_new_node<v1::Less>(unbiased_mask, threshold);
         const auto typed_zero = register_new_node(v0::Constant::create(T, Shape{}, {0}));
         return {attention, register_new_node<v1::Select>(is_masked, typed_zero, logits)};
     }
@@ -825,23 +849,9 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
         // of the causal/window mask (broadcasts over the head axis against the [curr, kv_len] mask). The bias
         // is indexed by absolute key position, so the key window starts at bias_col_offset (0 for a
         // full-length cache; P - resident_rows for a windowed cache, whose first slot is not absolute key 0).
-        const auto squeeze_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-        std::shared_ptr<ov::Node> bias = register_new_node<v0::Squeeze>(external_bias, squeeze_axis);
-        const auto bias_stop = register_new_node<v1::Add>(bias_col_offset, kv_len_1d);
-        bias = register_new_node<v8::Slice>(bias, bias_col_offset, bias_stop, one, two);
-
-        // The bias only spans total_sequence_length columns, narrower than kv_len whenever K keeps unused
-        // trailing rows (a windowed cache below capacity, or a static full-length cache whose buffer
-        // exceeds the current total length) - the Slice above then clamps to that narrower width. Zero-pad
-        // back up to kv_len: the trailing gap is always past the causal/window edge (every branch above
-        // places resident/new rows before it), so its bias value is never read.
-        const auto bias_kv_len = get_dimensions(bias, {2});
-        const auto pad_amount = register_new_node<v1::Subtract>(kv_len_1d, bias_kv_len);
-        const auto pads_begin = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0}));
-        const auto pads_end = register_new_node<v0::Concat>(ov::OutputVector{zero, zero, pad_amount}, 0);
-        bias = register_new_node<v1::Pad>(bias, pads_begin, pads_end, typed_zero, ov::op::PadMode::CONSTANT);
-
-        mask = register_new_node<v1::Add>(mask, bias);
+        mask = register_new_node<v1::Add>(
+            mask,
+            align_attention_bias(external_bias, bias_col_offset, kv_len_1d, compute_type, false));
     }
 
     return mask;
@@ -881,6 +891,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_batch
             as_4d(past, {-1, 1, 1, 1}));
         masked = register_new_node<v1::LogicalOr>(masked, register_new_node<v1::Greater>(keys, queries));
         if (local_window_size >= 1) {
+            // Window relative to the query position, as in ORT's flash kernel (MLAS flashattn_gqa.cpp).
             const auto window =
                 register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
             const auto too_old =
@@ -893,16 +904,47 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_batch
         register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {finite_lowest(compute_type)}));
     std::shared_ptr<ov::Node> mask = register_new_node<v1::Select>(masked, lowest, typed_zero);
     if (external_bias.get_node_shared_ptr()) {
-        // attention_bias [B or 1, N or 1, S, total_sequence_length]: take kv_len columns, zero-padding past the
-        // bias width (those keys are beyond every batch's total and already masked).
-        std::shared_ptr<ov::Node> bias = register_new_node<v8::Slice>(external_bias, zero, kv_len_1d, one, three);
-        const auto pad_amount = register_new_node<v1::Subtract>(kv_len_1d, get_dimensions(bias, {3}));
-        const auto pads_begin = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0}));
-        const auto pads_end = register_new_node<v0::Concat>(ov::OutputVector{zero, zero, zero, pad_amount}, 0);
-        bias = register_new_node<v1::Pad>(bias, pads_begin, pads_end, typed_zero, ov::op::PadMode::CONSTANT);
-        mask = register_new_node<v1::Add>(mask, bias);
+        mask =
+            register_new_node<v1::Add>(mask, align_attention_bias(external_bias, zero, kv_len_1d, compute_type, true));
     }
     return mask;
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::align_attention_bias(
+    const ov::Output<ov::Node>& bias,
+    const ov::Output<ov::Node>& col_offset,
+    const ov::Output<ov::Node>& kv_len_1d,
+    const ov::element::Type& compute_type,
+    bool batched) {
+    const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    const auto typed_zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
+    if (batched) {
+        // [B or 1, N or 1, S, total_sequence_length]: take kv_len columns, zero-padding past the bias width (those
+        // keys are beyond every batch's total and already masked).
+        const auto three = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
+        const auto sliced = register_new_node<v8::Slice>(bias, zero, kv_len_1d, one, three);
+        const auto pad_amount = register_new_node<v1::Subtract>(kv_len_1d, get_dimensions(sliced, {3}));
+        const auto pads_begin = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0}));
+        const auto pads_end = register_new_node<v0::Concat>(ov::OutputVector{zero, zero, zero, pad_amount}, 0);
+        return register_new_node<v1::Pad>(sliced, pads_begin, pads_end, typed_zero, ov::op::PadMode::CONSTANT);
+    }
+    // [1, num_heads, curr, max_kv] -> [num_heads, curr, kv_len], broadcasting over the head axis against the
+    // [curr, kv_len] mask. The bias is indexed by absolute key position, so the key window starts at col_offset
+    // (0 for a full-length cache; P - resident_rows for a windowed cache, whose first slot is not absolute key 0).
+    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const auto squeeze_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    const auto squeezed = register_new_node<v0::Squeeze>(bias, squeeze_axis);
+    const auto bias_stop = register_new_node<v1::Add>(col_offset, kv_len_1d);
+    const auto sliced = register_new_node<v8::Slice>(squeezed, col_offset, bias_stop, one, two);
+    // The bias only spans total_sequence_length columns, narrower than kv_len whenever K keeps unused trailing rows
+    // (a windowed cache below capacity, or a static full-length cache whose buffer exceeds the current total
+    // length) - the Slice above then clamps to that narrower width. Zero-pad back up to kv_len: the trailing gap is
+    // always past the causal/window edge, so its bias value is never read.
+    const auto pad_amount = register_new_node<v1::Subtract>(kv_len_1d, get_dimensions(sliced, {2}));
+    const auto pads_begin = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0}));
+    const auto pads_end = register_new_node<v0::Concat>(ov::OutputVector{zero, zero, pad_amount}, 0);
+    return register_new_node<v1::Pad>(sliced, pads_begin, pads_end, typed_zero, ov::op::PadMode::CONSTANT);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(

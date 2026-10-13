@@ -822,3 +822,27 @@ TEST(GroupQueryAttentionValues, batched_cache_update_is_per_batch) {
         }
     }
 }
+
+// A preallocated cache with a dynamic batch is written in place: the decomposed present keeps the op's inferred
+// capacity (no Concat growth).
+TEST(GroupQueryAttentionValues, batched_fixed_capacity_cache_keeps_capacity) {
+    const auto gqa = make_gqa_op(Dimension::dynamic(), 1, 8, /*window*/ -1, /*swc*/ false);
+    const auto inferred_present = gqa->get_output_partial_shape(1);
+    ASSERT_EQ(inferred_present[2], Dimension(8));
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    ParameterVector params;
+    for (const auto& in : gqa->input_values())
+        params.push_back(as_type_ptr<op::v0::Parameter>(in.get_node_shared_ptr()));
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+    EXPECT_EQ(model->get_results()[1]->get_input_partial_shape(0), inferred_present);
+    EXPECT_EQ(model->get_results()[2]->get_input_partial_shape(0), inferred_present);
+    // A cache-growth Concat would join rank-4 [B, Nkv, L, D] tensors on the sequence axis (the rank-5 KV-head
+    // replication Concat is unrelated).
+    for (const auto& op : model->get_ordered_ops())
+        if (const auto concat = as_type_ptr<op::v0::Concat>(op))
+            EXPECT_FALSE(concat->get_output_partial_shape(0).rank() == 4 && concat->get_axis() == 2)
+                << "fixed-capacity cache must not grow by Concat: " << concat;
+}
