@@ -21,7 +21,7 @@ The articles below provide the basic informations about the process of building 
 * [Android](build_android.md)
 * [Raspbian Stretch](./build_raspbian.md)
 * [Web Assembly](./build_webassembly.md)
-* [Docker Image](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles/ubuntu20/build_custom)
+* [Docker Images](https://github.com/openvinotoolkit/docker_ci)
 * [Linux RISC-V](./build_riscv64.md)
 
 > **NOTE**: For the details on how to build static OpenVINO, refer to [Building static OpenVINO libraries](static_libraries.md)
