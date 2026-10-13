@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <openvino/op/squeeze.hpp>
-
 #include "../convert_common.hpp"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
