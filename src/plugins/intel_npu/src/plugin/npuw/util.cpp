@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -14,6 +15,7 @@
 #include <openvino/core/type/nf4.hpp>
 #include <regex>
 #include <sstream>
+#include <unordered_set>
 
 #include "llm_lora_states.hpp"
 #include "logging.hpp"
@@ -201,6 +203,61 @@ bool ov::npuw::util::contains_ignore_case(const std::string& str, const std::str
         return std::tolower(a) == std::tolower(b);
     });
     return it != str.end();
+}
+
+std::optional<int64_t> ov::npuw::util::parse_positive_int_env_var(const std::string& str) {
+    if (str.empty()) {
+        return std::nullopt;
+    }
+    int64_t parsed = 0;
+    const auto* begin = str.data();
+    const auto* end = str.data() + str.size();
+    const auto result = std::from_chars(begin, end, parsed);
+    if (result.ec != std::errc() || result.ptr != end || parsed <= 0) {
+        return std::nullopt;
+    }
+    return parsed;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> ov::npuw::util::trace_back_to_parameter(std::shared_ptr<ov::Node> node) {
+    while (node && !ov::is_type<ov::op::v0::Parameter>(node)) {
+        if (node->get_input_size() != 1) {
+            return nullptr;
+        }
+        node = node->input_value(0).get_node_shared_ptr();
+    }
+    return ov::as_type_ptr<ov::op::v0::Parameter>(node);
+}
+
+bool ov::npuw::util::reaches(const ov::Node* start, const ov::Node* target) {
+    std::unordered_set<const ov::Node*> visited;
+    std::vector<const ov::Node*> stack{start};
+    while (!stack.empty()) {
+        const auto* node = stack.back();
+        stack.pop_back();
+        if (node == target) {
+            return true;
+        }
+        if (!visited.insert(node).second) {
+            continue;
+        }
+        for (const auto& output : node->outputs()) {
+            for (const auto& input : output.get_target_inputs()) {
+                stack.push_back(input.get_node());
+            }
+        }
+    }
+    return false;
+}
+
+std::unordered_set<int64_t> ov::npuw::util::parse_layer_index_list(const std::string& text) {
+    std::unordered_set<int64_t> result;
+    static const std::regex kNumberRe(R"(-?\d+)");
+    for (auto it = std::sregex_iterator(text.begin(), text.end(), kNumberRe), end = std::sregex_iterator(); it != end;
+         ++it) {
+        result.insert(std::stoll(it->str()));
+    }
+    return result;
 }
 
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {

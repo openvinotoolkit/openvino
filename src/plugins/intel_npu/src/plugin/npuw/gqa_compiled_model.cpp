@@ -71,40 +71,39 @@ bool gqa_trace_enabled() {
 #endif
 }
 
+// Strictly parses the environment variable `env_name` as a positive integer via
+// ov::npuw::util::parse_positive_int_env_var() (std::from_chars-based: the whole string
+// must be consumed, no sign accepted, 0 rejected). An unparsable value is NOT silently
+// ignored - it throws so a malformed override is surfaced to the caller instead of
+// silently falling back to the property/default. Like the rest of NPUW's env-based debug
+// knobs (see logging.cpp), this only does anything in NPU_PLUGIN_DEVELOPER_BUILD;
+// production builds never read the environment.
+std::optional<size_t> parse_positive_size_env_var(const char* env_name) {
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    const char* raw = std::getenv(env_name);
+    if (raw == nullptr) {
+        return std::nullopt;
+    }
+    const std::string str(raw);
+    auto parsed = ov::npuw::util::parse_positive_int_env_var(str);
+    if (!parsed) {
+        OPENVINO_THROW(env_name, " must be a positive integer, got: '", str, "'");
+    }
+    return static_cast<size_t>(*parsed);
+#else
+    (void)env_name;
+    return std::nullopt;
+#endif
+}
+
 // Optional override for the GQA KV-cache static reshape target (see
 // NPUW_LLM_MAX_CONTEXT_LEN), set via the OPENVINO_NPUW_GQA_CTX_LEN environment variable.
 // Lets a run be repointed to a different context length without plumbing the property
 // through the app; takes priority over both the NPUW_LLM_MAX_CONTEXT_LEN property and its
-// own default when set. Parsed once and cached; an unparsable value is NOT silently
-// ignored - a malformed override throws so it is surfaced to the caller instead of
-// silently falling back to the property/default. The parse itself is strict: the whole
-// string must be consumed (std::stoull alone would happily accept "8oops" as 8), no sign
-// is accepted (std::stoull would otherwise wrap a leading '-' into a huge unsigned value),
-// and 0 is rejected since it would reach ov::Dimension(0). Like the rest of NPUW's
-// env-based debug knobs (see logging.cpp), this only does anything in
-// NPU_PLUGIN_DEVELOPER_BUILD; production builds never read the environment.
+// own default when set. Parsed once and cached.
 std::optional<size_t> gqa_ctx_len_env_override() {
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    static const std::optional<size_t> value = [] {
-        const char* raw = std::getenv("OPENVINO_NPUW_GQA_CTX_LEN");
-        if (raw == nullptr) {
-            return std::optional<size_t>{};
-        }
-        const std::string str(raw);
-        if (str.empty() || str.find_first_not_of("0123456789") != std::string::npos) {
-            OPENVINO_THROW("OPENVINO_NPUW_GQA_CTX_LEN must be a positive integer, got: '", str, "'");
-        }
-        size_t parsed_chars = 0;
-        const unsigned long long parsed = std::stoull(str, &parsed_chars);
-        if (parsed_chars != str.size() || parsed == 0u) {
-            OPENVINO_THROW("OPENVINO_NPUW_GQA_CTX_LEN must be a positive integer, got: '", str, "'");
-        }
-        return std::optional<size_t>{static_cast<size_t>(parsed)};
-    }();
+    static const std::optional<size_t> value = parse_positive_size_env_var("OPENVINO_NPUW_GQA_CTX_LEN");
     return value;
-#else
-    return std::nullopt;
-#endif
 }
 
 // Best-effort default capacity for sliding-window GQA layers that carry NEITHER rt_info
@@ -112,31 +111,10 @@ std::optional<size_t> gqa_ctx_len_env_override() {
 // ReshapeToStaticGQA::has_sliding_window_seqlens_name() in reshape_to_static_gqa.cpp) --
 // set via the OPENVINO_NPUW_GQA_SLIDING_LEN environment variable. Unset by default: a
 // model without any of the three sliding-window signals simply keeps every layer at the
-// model-wide max_seq_len, exactly as before this mechanism existed. Parsed with the same
-// strict rules as gqa_ctx_len_env_override() above, for the same reasons. Like the rest of
-// NPUW's env-based debug knobs, this only does anything in NPU_PLUGIN_DEVELOPER_BUILD.
+// model-wide max_seq_len, exactly as before this mechanism existed. Parsed once and cached.
 std::optional<size_t> gqa_default_sliding_window_len_env_override() {
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    static const std::optional<size_t> value = [] {
-        const char* raw = std::getenv("OPENVINO_NPUW_GQA_SLIDING_LEN");
-        if (raw == nullptr) {
-            return std::optional<size_t>{};
-        }
-        const std::string str(raw);
-        if (str.empty() || str.find_first_not_of("0123456789") != std::string::npos) {
-            OPENVINO_THROW("OPENVINO_NPUW_GQA_SLIDING_LEN must be a positive integer, got: '", str, "'");
-        }
-        size_t parsed_chars = 0;
-        const unsigned long long parsed = std::stoull(str, &parsed_chars);
-        if (parsed_chars != str.size() || parsed == 0u) {
-            OPENVINO_THROW("OPENVINO_NPUW_GQA_SLIDING_LEN must be a positive integer, got: '", str, "'");
-        }
-        return std::optional<size_t>{static_cast<size_t>(parsed)};
-    }();
+    static const std::optional<size_t> value = parse_positive_size_env_var("OPENVINO_NPUW_GQA_SLIDING_LEN");
     return value;
-#else
-    return std::nullopt;
-#endif
 }
 
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
@@ -367,19 +345,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::make_compi
 
 namespace {
 
-// Walks back from `node`'s single input along pass-through ops (e.g. Convert) until it
-// reaches a Parameter, or gives up (nullptr) if the chain branches or dead-ends on
-// something else. Used to resolve the Parameter feeding a GQA op's input of interest.
-std::shared_ptr<ov::op::v0::Parameter> trace_back_to_parameter(std::shared_ptr<ov::Node> node) {
-    while (node && !ov::is_type<ov::op::v0::Parameter>(node)) {
-        if (node->get_input_size() != 1) {
-            return nullptr;
-        }
-        node = node->input_value(0).get_node_shared_ptr();
-    }
-    return ov::as_type_ptr<ov::op::v0::Parameter>(node);
-}
-
 // Resolves the Parameter feeding the model's GroupQueryAttention op's
 // TOTAL_SEQUENCE_LENGTH input, if any -- used to compute an accurate present_key/
 // present_value length (past length grown by the newly appended tokens) at infer()
@@ -393,7 +358,7 @@ std::optional<std::string> find_total_sequence_length_param_name(const std::shar
         if (!gqa || gqa->get_input_size() <= total_seq_len_idx) {
             continue;
         }
-        if (auto param = trace_back_to_parameter(gqa->input_value(total_seq_len_idx).get_node_shared_ptr())) {
+        if (auto param = ov::npuw::util::trace_back_to_parameter(gqa->input_value(total_seq_len_idx).get_node_shared_ptr())) {
             return param->get_friendly_name();
         }
     }
@@ -439,31 +404,6 @@ std::shared_ptr<ov::op::internal::GroupQueryAttention> find_valid_gqa_op(
     return nullptr;
 }
 
-// Forward data-flow reachability: true if `target` can be reached from `start` by following
-// output->target_input edges. Used to confirm a name-matched Parameter/Result is actually
-// wired to the model's GQA op, not just a same-named but unrelated tensor elsewhere in the
-// graph -- auto-dispatch must not trigger on name coincidence alone.
-bool reaches(const ov::Node* start, const ov::Node* target) {
-    std::unordered_set<const ov::Node*> visited;
-    std::vector<const ov::Node*> stack{start};
-    while (!stack.empty()) {
-        const auto* node = stack.back();
-        stack.pop_back();
-        if (node == target) {
-            return true;
-        }
-        if (!visited.insert(node).second) {
-            continue;
-        }
-        for (const auto& output : node->outputs()) {
-            for (const auto& input : output.get_target_inputs()) {
-                stack.push_back(input.get_node());
-            }
-        }
-    }
-    return false;
-}
-
 }  // namespace
 
 bool ov::npuw::GQACompiledModel::supports(const std::shared_ptr<const ov::Model>& model) {
@@ -495,7 +435,7 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     bool has_past_kv_cache = false;
     for (const auto& parameter : model->get_parameters()) {
         const auto& name = parameter->get_friendly_name();
-        if (!reaches(parameter.get(), gqa_node)) {
+        if (!ov::npuw::util::reaches(parameter.get(), gqa_node)) {
             continue;
         }
         has_activation_input = has_activation_input || (name == "input_hidden_states" || name == "input_ids");
@@ -511,7 +451,7 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     bool has_present_kv_cache = false;
     for (const auto& result : model->get_results()) {
         const auto& name = result->get_friendly_name();
-        if (is_present_kv_cache_output_name(name) && reaches(gqa_node, result.get())) {
+        if (is_present_kv_cache_output_name(name) && ov::npuw::util::reaches(gqa_node, result.get())) {
             has_present_kv_cache = true;
             break;
         }

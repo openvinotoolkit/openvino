@@ -8,6 +8,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <unordered_set>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
@@ -38,6 +39,28 @@ bool starts_with(const std::string& str, const std::string& prefix);
 
 // Case-insensitive substring search.
 bool contains_ignore_case(const std::string& str, const std::string& substr);
+
+// Strictly parses `str` as a positive (non-zero) base-10 integer via std::from_chars: the
+// whole string must be consumed and no sign is accepted (unlike std::stoull, which would
+// happily accept "8oops" as 8, or silently wrap a leading '-' into a huge unsigned value).
+// Returns nullopt for anything that doesn't satisfy that, including an empty string or 0 --
+// the caller decides what message/exception to raise and how to further bound/convert the
+// result (e.g. to size_t), since the right wording/bounds differ per call site.
+std::optional<int64_t> parse_positive_int_env_var(const std::string& str);
+
+// Walks back from `node`'s single input along pass-through ops (e.g. Convert) until it
+// reaches a Parameter, or gives up (nullptr) if the chain branches or dead-ends on
+// something else.
+std::shared_ptr<ov::op::v0::Parameter> trace_back_to_parameter(std::shared_ptr<ov::Node> node);
+
+// Forward data-flow reachability: true if `target` can be reached from `start` by following
+// output->target_input edges.
+bool reaches(const ov::Node* start, const ov::Node* target);
+
+// Parses a bracketed, comma-separated list of integers (the format ONNX metadata_props
+// values take once converted to a string rt_info value, e.g. "[0, 1, 5, 6]") into a set of
+// indices. Returns an empty set for a missing/malformed value instead of throwing.
+std::unordered_set<int64_t> parse_layer_index_list(const std::string& text);
 
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
 // matches a "position_ids" input of a supported shape - flat [seq_len], regular

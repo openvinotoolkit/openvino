@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <map>
 #include <optional>
-#include <regex>
 #include <unordered_set>
 
 #include "../logging.hpp"
@@ -131,7 +130,7 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
 // ATTENTION_BIAS input, or nullptr if none does -- used to look up a dynamic KV-cache/bias
 // Parameter's own target capacity instead of blindly applying the model-wide max_seq_len
 // to every layer regardless of whether it's a local/sliding-window one.
-std::shared_ptr<ov::op::internal::GroupQueryAttention> find_owning_gqa(
+std::shared_ptr<ov::op::internal::GroupQueryAttention> find_gqa_consuming_parameter(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<ov::op::v0::Parameter>& parameter) {
     using ov::op::internal::GroupQueryAttention;
@@ -173,21 +172,6 @@ std::unordered_map<const ov::Node*, int64_t> index_gqa_layers(const std::shared_
     return result;
 }
 
-// Parses a bracketed, comma-separated list of integers (the format ONNX metadata_props
-// values take once converted to a string rt_info value, e.g. "[0, 1, 5, 6]") into a set of
-// layer indices. Returns an empty set for a missing/malformed value instead of throwing --
-// such a model should just fall back to the model-wide max_seq_len rather than fail to
-// compile over a metadata quirk.
-std::unordered_set<int64_t> parse_layer_index_list(const std::string& text) {
-    std::unordered_set<int64_t> result;
-    static const std::regex kNumberRe(R"(-?\d+)");
-    for (auto it = std::sregex_iterator(text.begin(), text.end(), kNumberRe), end = std::sregex_iterator(); it != end;
-         ++it) {
-        result.insert(std::stoll(it->str()));
-    }
-    return result;
-}
-
 // The authoritative source for which GQA layers use a smaller, host-managed sliding-window
 // KV-cache when the GQA ops themselves carry no sliding_window_cache/local_window_size
 // attribute at all (this app's actual models never set those -- windowing is instead
@@ -207,7 +191,8 @@ std::optional<RtInfoSlidingWindowMetadata> find_rt_info_sliding_window_metadata(
         !model->has_rt_info("framework", "sliding_window_size")) {
         return std::nullopt;
     }
-    auto sliding_layers = parse_layer_index_list(model->get_rt_info<std::string>("framework", "sliding_window_layers"));
+    auto sliding_layers =
+        ov::npuw::util::parse_layer_index_list(model->get_rt_info<std::string>("framework", "sliding_window_layers"));
     if (sliding_layers.empty()) {
         return std::nullopt;
     }
@@ -313,7 +298,7 @@ bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>
         OPENVINO_ASSERT(it != params.end(), "KV-cache parameter '", name, "' not found in the model");
 
         size_t target_capacity = m_max_seq_len;
-        auto gqa = find_owning_gqa(model, *it);
+        auto gqa = find_gqa_consuming_parameter(model, *it);
         bool resolved = false;
         if (gqa && rt_info_metadata) {
             auto layer_it = gqa_layer_index.find(gqa.get());
