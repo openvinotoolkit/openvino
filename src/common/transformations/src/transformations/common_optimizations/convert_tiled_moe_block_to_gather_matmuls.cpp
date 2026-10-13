@@ -28,6 +28,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/gather_matmul.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 

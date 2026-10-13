@@ -17,6 +17,7 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
