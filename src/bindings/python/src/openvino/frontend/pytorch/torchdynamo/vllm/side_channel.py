@@ -398,7 +398,15 @@ def _bind_paged_attention_side_channel(compiled):
                     _pa_kv_ovt_cache[cache_key] = (
                         key_cache_ovt, value_cache_ovt, key_cache_np, value_cache_np)
             except Exception:
-                pass
+                # A real step can't continue on the dummy cache below: PA would
+                # read and write blocks it doesn't have.
+                if attn_meta is not None:
+                    logger.error("[OV plugin] KV cache bind failed for layer %r", layer_name)
+                    raise
+        if key_cache_np is None and attn_meta is not None and "key_cache" in fields:
+            raise RuntimeError(
+                f"OpenVINO vLLM backend: no KV cache to bind for attention layer {layer_name!r} "
+                f"(resolved as {meta_layer_name!r}) during a real forward step")
         if key_cache_np is None:
             # Fallback dummy: Hk/S must match real runtime, or CPU PA caches
             # Hk=1, S=1 and later asserts against the real K.
@@ -432,7 +440,9 @@ def _bind_paged_attention_side_channel(compiled):
                     _shared_meta["max_ctx_len_np"] = np.array(int(seq_lens.max().item()), dtype=np.int32)
                 _shared_built = True
             except Exception:
-                pass
+                # Zero-length metadata on a real step would make PA skip the tokens.
+                logger.error("[OV plugin] attention metadata bind failed for layer %r", layer_name)
+                raise
 
         # Per-layer: models with multiple KV-cache groups (Gemma-4 hybrid) have
         # a distinct block_table per group; _bi_cache dedups by table identity.
@@ -478,7 +488,9 @@ def _bind_paged_attention_side_channel(compiled):
                         block_indices_begins_np = begins
                         _bi_cache[_bi_key] = (block_indices_np, block_indices_begins_np)
             except Exception:
-                pass
+                # Empty block tables on a real step point PA at the wrong blocks.
+                logger.error("[OV plugin] block table bind failed for layer %r", layer_name)
+                raise
 
         # Architecture-static, so read from layer_obj.impl once and cache.
         _sw_key = (id(compiled), layer_name)
