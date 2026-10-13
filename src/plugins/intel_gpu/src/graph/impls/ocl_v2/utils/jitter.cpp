@@ -350,8 +350,8 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         break;
     case ov::element::f8e4m3:
         type = "uchar";
-        max_val = "_intel_convert_hf8_to_f16((uchar)0x7E)"; // 448.0
-        min_val = "_intel_convert_hf8_to_f16((uchar)0xFE)"; // -448.0
+        max_val = "_intel_convert_hf8_to_f16((uchar)0x7E)";  // 448.0
+        min_val = "_intel_convert_hf8_to_f16((uchar)0xFE)";  // -448.0
         val_one = "_intel_convert_hf8_to_f16((uchar)0x38)";
         val_zero = "_intel_convert_hf8_to_f16((uchar)0x0)";
         to_type = "_intel_convert_f16_to_hf8(convert_half(v))";
