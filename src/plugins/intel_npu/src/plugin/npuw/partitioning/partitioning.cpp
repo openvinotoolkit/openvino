@@ -563,6 +563,7 @@ void Partitioner::identifySubgraphs() {
         // Input layers may be connected to the same producer nodes, weights,
         // or parameters. Cache those to avoid duplicating the parameters.
         std::unordered_map<ov::Output<ov::Node>, NodeSPtr> input_mapping;
+        std::unordered_map<NodeSPtr, NodeSPtr> isolated_const_converts;
 
         // In several cases a model can be slightly altered after the partitioning
         // plan was done. E.g., new slices or converts may be added on inputs/
@@ -649,7 +650,16 @@ void Partitioner::identifySubgraphs() {
                            ov::op::util::is_constant(input_node->input(0).get_source_output().get_node_shared_ptr())) {
                     // "Just-an-op" case, popped here again
                     // FIXME: Finally introduce my own test routine for that!
-                    // Don't do anything here too.
+                    if (group_nodes.find(input_node) == group_nodes.end()) {
+                        auto cloned_convert = isolated_const_converts.find(input_node);
+                        if (cloned_convert == isolated_const_converts.end()) {
+                            auto clone = input_node->clone_with_new_inputs(input_node->input_values());
+                            clone->set_friendly_name(input_node->get_friendly_name());
+                            ov::copy_runtime_info(input_node, clone);
+                            cloned_convert = isolated_const_converts.emplace(input_node, std::move(clone)).first;
+                        }
+                        input_desc.replace_source_output(cloned_convert->second);
+                    }
                     continue;
                 } else if ((ov::is_type<ov::op::v8::Slice>(input_node) ||
                             ov::is_type<ov::op::v0::Convert>(input_node)) &&
