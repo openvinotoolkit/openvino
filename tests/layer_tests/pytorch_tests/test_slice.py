@@ -127,8 +127,8 @@ class TestSliceListNegativeStep(PytorchLayerTest):
     allows them, and an omitted start/end then means "last element" / "past the first element".
     """
 
-    def _prepare_input(self):
-        return (self.random.randn(2, 3, 4).astype(np.float32), np.array(-1, dtype=np.int32))
+    def _prepare_input(self, step=-1):
+        return (self.random.randn(2, 3, 4).astype(np.float32), np.array(step, dtype=np.int32))
 
     def create_model(self, case):
         class aten_slice_reverse(torch.nn.Module):
@@ -151,7 +151,7 @@ class TestSliceListNegativeStep(PytorchLayerTest):
             def forward(self, x, step):
                 return torch.ones(x.shape[::2]) * x.sum()
 
-        class aten_slice_reverse_dynamic_step(torch.nn.Module):
+        class aten_slice_dynamic_step(torch.nn.Module):
             # The step is only known at runtime, so the bounds are selected in the graph. The sliced
             # list then has a dynamic length, which torch.ones could not consume, so return it as is.
             def forward(self, x, step):
@@ -163,17 +163,25 @@ class TestSliceListNegativeStep(PytorchLayerTest):
             "reverse_to_end": aten_slice_reverse_to_end,
             "reverse_step2": aten_slice_reverse_step2,
             "forward_step2": aten_slice_forward_step2,
-            "reverse_dynamic_step": aten_slice_reverse_dynamic_step,
+            "dynamic_step": aten_slice_dynamic_step,
         }
         return models[case](), "aten::slice"
 
     @pytest.mark.parametrize(
         "case",
-        ["reverse", "reverse_from_start", "reverse_to_end", "reverse_step2", "forward_step2", "reverse_dynamic_step"],
+        ["reverse", "reverse_from_start", "reverse_to_end", "reverse_step2", "forward_step2"],
     )
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_slice_list_negative_step(self, ie_device, precision, ir_version, case):
-        if ie_device == "GPU" and case == "reverse_dynamic_step":
-            pytest.xfail(reason="GPU skips a runtime-strided slice as identity, see openvinotoolkit/openvino#38240")
         self._test(*self.create_model(case), ie_device, precision, ir_version)
+
+    # Both signs, so each arm of the runtime Select on the step sign is checked.
+    @pytest.mark.parametrize("step", [-1, -2, 1, 2])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_slice_list_dynamic_step(self, ie_device, precision, ir_version, step):
+        if ie_device == "GPU" and step != 1:
+            pytest.xfail(reason="GPU skips a runtime-strided slice as identity, see openvinotoolkit/openvino#38240")
+        self._test(*self.create_model("dynamic_step"), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"step": step})
