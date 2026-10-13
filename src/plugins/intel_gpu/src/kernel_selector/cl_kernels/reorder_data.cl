@@ -162,8 +162,6 @@ KERNEL (reorder_data)(
     #elif defined UINT2_INPUT
         const uint uint2_byte_idx = input_idx >> 2;
         OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(convert_as_uint2_float(input[uint2_byte_idx], input_idx));
-    //#elif (INPUT0_IS_F8)
-    //    OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(_convert_float(input[input_idx]));
     #elif F4E2M1_INPUT
         // FP4 unpacking: 2 elements per byte
         const uint byte_idx = input_idx / 2;
@@ -305,10 +303,6 @@ KERNEL (reorder_data)(
 
         atomic_and(&output_u32[main_idx], ~(0x0F << shift));
         atomic_or(&output_u32[main_idx], (val_u32 << shift));
-    //#elif (INPUT0_IS_F8 && OUTPUT_IS_F8)
-    //    // f8->f8 layout reorder: `res` is already the fp8 OUTPUT_TYPE, so store it directly. Re-encoding
-    //    // via TO_OUTPUT_TYPE/ACTIVATION has no overload for the fp8 struct (and a copy needs none).
-    //    output[output_idx] = res_tmp;
     #else
         output[output_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_COMPUTE_TYPE(res_tmp), ACTIVATION_PARAMS_TYPED));
     #endif
