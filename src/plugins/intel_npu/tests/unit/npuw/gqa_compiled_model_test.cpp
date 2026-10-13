@@ -1423,6 +1423,52 @@ TEST_F(GQACompiledModelTest, GetTensorBeforeSetTensorReturnsZeroSizedDynamicAxis
     EXPECT_EQ(shape[3], 16u);       // E: static
 }
 
+TEST_F(GQACompiledModelTest, PresentOutputLenReflectsTotalSeqLenEvenWhenPastInputNeverTouched) {
+    // Regression test: refresh_present_tensors_locked() only consulted
+    // total_sequence_length once a past_key/value tensor had already been looked up
+    // (set_tensor()'d or get_tensor()'d by the caller). A caller that queries every
+    // output tensor without ever touching the past_key/value input at all (e.g.
+    // up-front IO-binding discovery) got back the full, un-copied capacity instead --
+    // the same "ambiguous full tensor" ambiguity already fixed for inputs.
+    auto model = build_full_gqa_transformer_model(4, 2, /*do_rotary=*/true, PositionSignal::SeqLenPair);
+    make_kv_cache_dynamic(model, /*axis=*/2);
+    auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+        model,
+        m_plugin,
+        ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+        fake_inner_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+
+    ov::Output<const ov::Node> total_seq_len_port, present_key_port;
+    for (const auto& input : compiled->inputs()) {
+        if (input.get_node()->get_friendly_name() == "total_seq_len") {
+            total_seq_len_port = input;
+        }
+    }
+    for (const auto& output : compiled->outputs()) {
+        if (output.get_node()->get_friendly_name() == "present_keys_0") {
+            present_key_port = output;
+        }
+    }
+    ASSERT_TRUE(total_seq_len_port.get_node());
+    ASSERT_TRUE(present_key_port.get_node());
+
+    auto total_seq_len_tensor = ov::get_tensor_impl(ov::Tensor(ov::element::i32, ov::Shape{1}));
+    *reinterpret_cast<int32_t*>(total_seq_len_tensor->data()) = 5;
+    request->set_tensor(total_seq_len_port, total_seq_len_tensor);
+
+    // past_keys_0/past_values_0 are deliberately never touched here.
+    ASSERT_NO_THROW(request->infer());
+
+    auto present_tensor = request->get_tensor(present_key_port);
+    ASSERT_NE(present_tensor, nullptr);
+    EXPECT_EQ(present_tensor->get_shape().at(2), 5u);  // total_seq_len, not the 16-capacity
+}
+
+
 TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis2LeftAligned) {
     // [N=1, H=2, S, E=3]: src has S1=2, dst has capacity S2=4.
     auto src = make_kv_cache_tensor({1, 2, 2, 3}, 0.f);

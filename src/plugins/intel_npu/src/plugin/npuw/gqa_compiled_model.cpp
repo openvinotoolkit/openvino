@@ -662,8 +662,8 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     write(stream, m_effective_sliding_window_capacity);
     GQA_TRACE("GQACompiledModel::export_model() -> wrote "
               << outer_inputs.size() << " outer inputs, " << outer_outputs.size() << " outer outputs, "
-              << m_dynamic_kv_cache_axes.size() << " dynamic-axis entries, effective_max_context_len="
-              << m_effective_max_context_len
+              << m_dynamic_kv_cache_axes.size()
+              << " dynamic-axis entries, effective_max_context_len=" << m_effective_max_context_len
               << ", effective_sliding_window_capacity=" << m_effective_sliding_window_capacity
               << "; delegating to inner m_inner_compiled_model->export_model()");
     m_inner_compiled_model->export_model(stream);
@@ -987,15 +987,23 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         // Present length = max(past_len, total_sequence_length), not just past_len (which
         // misses rows just appended). Present->past mapping comes from the GQA op's own
         // graph connections, not string rewriting (breaks for dot-style naming).
-        size_t valid_len = capacity;
+        // total_sequence_length is read independently of past_len -- the caller may
+        // legitimately never have touched the past_key/value input at all (e.g. it
+        // queries every output tensor up front, before any set_tensor()) and
+        // total_sequence_length alone is still enough to answer accurately instead of
+        // silently falling back to the full, un-copied capacity.
+        std::optional<size_t> past_len;
         const auto& present_to_past = m_compiled_model->m_present_to_past_param_names;
         if (auto past_name_it = present_to_past.find(name); past_name_it != present_to_past.end()) {
-            auto past_it = m_dynamic_kv_cache_tensors.find(past_name_it->second);
-            if (past_it != m_dynamic_kv_cache_tensors.end()) {
-                const auto past_len = past_it->second->get_shape().at(axis);
-                const auto total_len = read_total_sequence_length_locked().value_or(past_len);
-                valid_len = std::min<size_t>(capacity, std::max<size_t>(past_len, total_len));
+            if (auto past_it = m_dynamic_kv_cache_tensors.find(past_name_it->second);
+                past_it != m_dynamic_kv_cache_tensors.end()) {
+                past_len = past_it->second->get_shape().at(axis);
             }
+        }
+        const auto total_len = read_total_sequence_length_locked();
+        size_t valid_len = capacity;
+        if (past_len || total_len) {
+            valid_len = std::min<size_t>(capacity, std::max<size_t>(past_len.value_or(0u), total_len.value_or(0u)));
         }
 
         if (valid_len == capacity) {
