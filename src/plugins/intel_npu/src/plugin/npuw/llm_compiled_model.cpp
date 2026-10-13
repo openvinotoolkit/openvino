@@ -1833,6 +1833,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
         // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
         compiled->validate_imported_kvcache_dim();
+        // Reject blobs whose chunk/generation-length scalars disagree with the restored port shapes.
+        compiled->validate_imported_sequence_extents();
 
         return compiled;
     };
@@ -1890,6 +1892,80 @@ void ov::npuw::LLMCompiledModel::validate_imported_kvcache_dim() const {
     if (m_prefill_compiled) {
         validate_ports(m_prefill_compiled->inputs(), m_kvcache_desc.v_tensors_transposed_pre);
         validate_ports(m_prefill_compiled->outputs(), m_kvcache_desc.v_tensors_transposed_pre);
+    }
+}
+
+void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
+    // On the compile path, ReshapeToStatic sizes every prefill sequence-length port to exactly
+    // m_prefill_chunk_size (chunked) or m_kvcache_desc.max_prompt_size (whole), and every generate
+    // variant's to exactly m_kvcache_desc.max_generation_token_len - so the runtime staging copies'
+    // `tensor->get_size() - count` is always a non-negative offset. Import restores those scalars
+    // and deserializes the submodels - with their own, independent port shapes - as separate blob
+    // fields; reject the blob unless the restored scalar still fits the restored port, so that
+    // subtraction can never underflow into an out-of-bounds write.
+    using layer_names = ov::npuw::LLMInferBaseRequest::layer_names;
+
+    // Every port here is [BATCH, SEQ_LEN] (or [.., BATCH, SEQ_LEN] for the 3-D VLM variant of
+    // position_ids), so the sequence extent is the last axis - except `inputs_embeds`, which
+    // ReshapeToStatic (see reshape_to_static.cpp) lays out as [BATCH, SEQ_LEN, EMB_SIZE]: its
+    // sequence axis is 1, and the last axis is the embedding width.
+    auto sequence_extent = [](const ov::Output<const ov::Node>& port) -> size_t {
+        const auto& rank = port.get_partial_shape().rank();
+        OPENVINO_ASSERT(rank.is_static() && rank.get_length() > 0,
+                        "NPUW blob: input '",
+                        port.get_any_name(),
+                        "' does not have a static, non-scalar shape.");
+        const auto seq_axis =
+            port.get_names().count(layer_names::inputs_embeds) != 0 ? 1 : static_cast<size_t>(rank.get_length()) - 1;
+        OPENVINO_ASSERT(seq_axis < static_cast<size_t>(rank.get_length()),
+                        "NPUW blob: input '",
+                        port.get_any_name(),
+                        "' does not have a sequence-length dimension.");
+        const auto& seq_dim = port.get_partial_shape()[seq_axis];
+        OPENVINO_ASSERT(seq_dim.is_static(),
+                        "NPUW blob: input '",
+                        port.get_any_name(),
+                        "' does not have a static sequence-length dimension.");
+        return static_cast<size_t>(seq_dim.get_length());
+    };
+
+    auto validate_extent =
+        [&](const std::vector<ov::Output<const ov::Node>>& ports, const char* name, uint64_t required) {
+            auto port = ov::npuw::util::find_port_by_name(ports, name);
+            if (!port.has_value()) {
+                return;  // optional input not present on this model
+            }
+            const auto extent = sequence_extent(*port);
+            OPENVINO_ASSERT(required <= extent,
+                            "NPUW blob: input '",
+                            name,
+                            "' sequence length (",
+                            extent,
+                            ") is smaller than the declared limit (",
+                            required,
+                            ").");
+        };
+
+    if (m_prefill_compiled) {
+        const auto& prefill_inputs = m_prefill_compiled->inputs();
+        const uint64_t prefill_required = m_use_chunk_prefill ? m_prefill_chunk_size : m_kvcache_desc.max_prompt_size;
+        for (const char* name : {layer_names::input_ids,
+                                 layer_names::inputs_embeds,
+                                 layer_names::attention_mask,
+                                 layer_names::position_ids,
+                                 layer_names::token_type_ids}) {
+            validate_extent(prefill_inputs, name, prefill_required);
+        }
+    }
+
+    for (const auto& variant : m_generate_compiled_variants) {
+        const auto& gen_inputs = variant->inputs();
+        for (const char* name : {layer_names::input_ids,
+                                 layer_names::inputs_embeds,
+                                 layer_names::attention_mask,
+                                 layer_names::position_ids}) {
+            validate_extent(gen_inputs, name, m_kvcache_desc.max_generation_token_len);
+        }
     }
 }
 
