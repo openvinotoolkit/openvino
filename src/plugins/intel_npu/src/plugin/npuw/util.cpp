@@ -14,6 +14,7 @@
 #include <regex>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "llm_lora_states.hpp"
@@ -225,10 +226,27 @@ std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
 }
 
 std::string ov::npuw::util::merge_compilation_mode_params(const std::string& defaults, const std::string& overrides) {
+    // Keys whose value is a comma-separated list that must be extended rather than replaced.
+    static const std::unordered_set<std::string> list_keys = {"compute-layers-with-higher-precision"};
+
+    const auto append_list_values = [](std::string& param, const std::string& extra_values) {
+        std::unordered_set<std::string> existing;
+        std::istringstream current(param.substr(param.find('=') + 1));
+        for (std::string item; std::getline(current, item, ',');) {
+            existing.insert(item);
+        }
+        std::istringstream extra(extra_values);
+        for (std::string item; std::getline(extra, item, ',');) {
+            if (!item.empty() && existing.insert(item).second) {
+                param += (param.back() == '=' ? "" : ",") + item;
+            }
+        }
+    };
+
     std::vector<std::string> params;
     std::unordered_map<std::string, size_t> param_indices;
 
-    const auto add_params = [&params, &param_indices](const std::string& value, bool replace_existing) {
+    const auto add_params = [&](const std::string& value, bool replace_existing) {
         std::istringstream stream(value);
         std::string param;
         while (stream >> param) {
@@ -238,7 +256,12 @@ std::string ov::npuw::util::merge_compilation_mode_params(const std::string& def
             if (inserted) {
                 params.push_back(std::move(param));
             } else if (replace_existing) {
-                params[it->second] = std::move(param);
+                if (separator != std::string::npos && list_keys.count(key) &&
+                    params[it->second].find('=') != std::string::npos) {
+                    append_list_values(params[it->second], param.substr(separator + 1));
+                } else {
+                    params[it->second] = std::move(param);
+                }
             }
         }
     };

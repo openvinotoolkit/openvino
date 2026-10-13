@@ -548,18 +548,34 @@ TEST_F(Flux2CompiledModelTest, UserCompilationParamsAppendAfterArchParams) {
               "compute-layers-with-higher-precision=MVN optimization-level=3 performance-hint-override=latency");
 }
 
-TEST_F(Flux2CompiledModelTest, TransformerUserCompilationParamsOverrideMatchingDefault) {
+TEST_F(Flux2CompiledModelTest, TransformerUserHigherPrecisionLayersAppendToDefault) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
     ASSERT_NO_THROW(
         compiled = create_compiled_model(
             make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
-            {{kCompileParams, "compute-layers-with-higher-precision=Sqrt performance-hint-override=latency"}},
+            {{kCompileParams, "compute-layers-with-higher-precision=Sqrt,MVN performance-hint-override=latency"}},
             recorder));
     ASSERT_NE(compiled, nullptr);
 
     EXPECT_EQ(recorder.only_call().props.at(kCompileParams).as<std::string>(),
-              "compute-layers-with-higher-precision=Sqrt performance-hint-override=latency");
+              "compute-layers-with-higher-precision=MVN,Sqrt performance-hint-override=latency");
+}
+
+TEST_F(Flux2CompiledModelTest, UserCompilationParamsReplaceMatchingArchParam) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("4000", 4);
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                        {{kCompileParams, "optimization-level=2"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.only_call().props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=MVN optimization-level=2");
 }
 
 // User-provided NPU_TILES takes priority over the arch-computed default.
