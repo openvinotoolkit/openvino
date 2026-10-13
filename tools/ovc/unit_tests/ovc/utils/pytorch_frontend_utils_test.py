@@ -98,3 +98,24 @@ class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):
 
         shapes_by_name = {inp.name: inp.shape for inp in args.input}
         self.assertEqual(list(shapes_by_name["input_ids"]), [1, 8])
+
+    def test_extract_input_info_from_example_matches_named_inputs_by_name():
+        args.input = [
+            InputCutInfo(name="b", shape=None, type=None, value="..."),
+            InputCutInfo(name="a", shape=None, type=None, value="..."),
+        ]
+
+        example_input = {
+            "a": torch.randn(1, 3, 224, 224),
+            "b": torch.randint(0, 10, (1,), dtype=torch.int64),
+        }
+
+        result = extract_input_info_from_example(args, example_input)
+
+        assert result[0].name == "b"
+        assert result[0].shape == [1]
+        assert result[0].dtype == "int64"
+
+        assert result[1].name == "a"
+        assert result[1].shape == [1, 3, 224, 224]
+        assert result[1].dtype == "float32"
