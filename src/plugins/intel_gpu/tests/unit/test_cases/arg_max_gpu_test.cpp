@@ -2088,6 +2088,33 @@ TYPED_TEST(arg_max_gpu_topk_radix, sort_by_indices_ties_before_better_zeros) {
     }
 }
 
+// Rows of 1024 values or more use radix for k=1 by default, with equal maxima resolved to the smallest index.
+TYPED_TEST(arg_max_gpu_topk_radix, topk1_selects_radix_from_1024_values) {
+    using T = TypeParam;
+    constexpr int32_t vocab_size = 248320;
+    const std::string radix_kernel = "arg_max_min_topk_radix";
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+        ov::PartialShape{3, 32000, 1, 1}, {{3, 32000, 1, 1}}, 1, ov::op::TopKMode::MAX, 1,
+        [](size_t rows, size_t row_size) { return topk_radix_tied_values(rows, row_size, 3, 9); },
+        ov::op::TopKSortType::SORT_VALUES, radix_kernel, false));
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+        ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), vocab_size, 1},
+        {{1, 1, vocab_size, 1}, {1, 4, vocab_size, 1}},
+        2,
+        ov::op::TopKMode::MIN,
+        1,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 13); },
+        ov::op::TopKSortType::SORT_VALUES, radix_kernel, false));
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+        ov::PartialShape{4, 1024, 1, 1}, {{4, 1024, 1, 1}}, 1, ov::op::TopKMode::MAX, 1,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 15); },
+        ov::op::TopKSortType::SORT_VALUES, radix_kernel, false));
+    ASSERT_NO_FATAL_FAILURE(run_topk_radix_case<T>(
+        ov::PartialShape{4, 1023, 1, 1}, {{4, 1023, 1, 1}}, 1, ov::op::TopKMode::MAX, 1,
+        [](size_t rows, size_t row_size) { return topk_radix_random_values(rows, row_size, 15); },
+        ov::op::TopKSortType::SORT_VALUES, "arg_max_min_axis", false));
+}
+
 // Static shapes whose chunk count depends on the device and the row count, plus large K where
 // the merge stage needs long chunks.
 TYPED_TEST(arg_max_gpu_topk_radix, static_chunk_configs) {
