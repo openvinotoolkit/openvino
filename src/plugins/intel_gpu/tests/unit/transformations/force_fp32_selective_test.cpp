@@ -7,14 +7,12 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/placeholder.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -82,27 +80,44 @@ size_t count_converts(const std::shared_ptr<ov::Model>& model) {
     return count;
 }
 
-class ScopedVerboseCapture {
-public:
-    ScopedVerboseCapture() : stream(ov::intel_gpu::get_verbose_stream()), original(stream.rdbuf(captured.rdbuf())) {}
+void check_filter_selection(const std::string& type_list,
+                            const std::string& name_list,
+                            unsigned int expected_mask) {
+    SCOPED_TRACE(type_list + " / " + name_list);
+    const auto types = type_list.empty() ? std::vector<std::string>{}
+                                        : ov::Any(type_list).as<std::vector<std::string>>();
+    const auto names = name_list.empty() ? std::vector<std::string>{}
+                                        : ov::Any(name_list).as<std::vector<std::string>>();
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
+    auto alpha = std::make_shared<ov::op::v0::Relu>(input);
+    auto beta = std::make_shared<ov::op::v0::Relu>(input);
+    auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-5, ov::element::f16);
+    alpha->set_friendly_name("block_alpha");
+    beta->set_friendly_name("block_beta");
+    rms->set_friendly_name("block_alpha_rms");
+    const ov::NodeVector nodes{alpha, beta, rms};
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{alpha, beta, rms}, ov::ParameterVector{input});
+    const auto original_ops = model->get_ordered_ops();
+    ov::intel_gpu::ForceFP32Selective pass(types, names);
 
-    ~ScopedVerboseCapture() {
-        stream.rdbuf(original);
+    EXPECT_EQ(pass.run_on_model(model), expected_mask != 0u);
+    model->validate_nodes_and_infer_types();
+
+    for (size_t port = 0; port < nodes.size(); port++) {
+        EXPECT_EQ(nodes[port]->get_output_element_type(0),
+                  (expected_mask & (1u << port)) ? ov::element::f32 : ov::element::f16);
+        EXPECT_EQ(model->get_output_element_type(port), ov::element::f16);
+        if (!(expected_mask & (1u << port))) {
+            EXPECT_EQ(nodes[port]->input_value(0), input->output(0));
+            EXPECT_EQ(model->get_results()[port]->input_value(0), nodes[port]->output(0));
+        }
     }
-
-    ScopedVerboseCapture(const ScopedVerboseCapture&) = delete;
-    ScopedVerboseCapture& operator=(const ScopedVerboseCapture&) = delete;
-
-    std::string str() const {
-        return captured.str();
+    EXPECT_EQ(input->get_element_type(), ov::element::f16);
+    if (expected_mask == 0u) {
+        EXPECT_EQ(count_converts(model), 0u);
+        EXPECT_EQ(model->get_ordered_ops(), original_ops);
     }
-
-private:
-    std::ostringstream captured;
-    std::ostream& stream;
-    std::streambuf* original;
-};
-
+}
 
 TEST(ForceFP32Selective, FilterListsPreserveOrAndAndNoOpRules) {
     using FilterCase = std::tuple<std::string, std::string, unsigned int>;
@@ -113,36 +128,24 @@ TEST(ForceFP32Selective, FilterListsPreserveOrAndAndNoOpRules) {
         {"Relu", "alpha", 1u},
         {"Relu", "missing", 0u},
     };
-    for (const auto& [type_list, name_list, expected_mask] : cases) {
-        SCOPED_TRACE(type_list + " / " + name_list);
-        const auto types = type_list.empty() ? std::vector<std::string>{}
-                                            : ov::Any(type_list).as<std::vector<std::string>>();
-        const auto names = name_list.empty() ? std::vector<std::string>{}
-                                            : ov::Any(name_list).as<std::vector<std::string>>();
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4});
-        auto alpha = std::make_shared<ov::op::v0::Relu>(input);
-        auto beta = std::make_shared<ov::op::v0::Relu>(input);
-        auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-5, ov::element::f16);
-        alpha->set_friendly_name("block_alpha");
-        beta->set_friendly_name("block_beta");
-        rms->set_friendly_name("block_alpha_rms");
-        const ov::NodeVector nodes{alpha, beta, rms};
-        auto model = std::make_shared<ov::Model>(ov::OutputVector{alpha, beta, rms}, ov::ParameterVector{input});
-        ov::intel_gpu::ForceFP32Selective pass(types, names);
+    for (const auto& [type_list, name_list, expected_mask] : cases)
+        check_filter_selection(type_list, name_list, expected_mask);
+}
 
-        EXPECT_EQ(pass.run_on_model(model), expected_mask != 0u);
-        model->validate_nodes_and_infer_types();
+TEST(ForceFP32Selective, TypeOnlyFilterMatchesAllNodesOfTheTypeAndUnknownTypeIsNoOp) {
+    check_filter_selection("Relu", "", 3u);
+    check_filter_selection("AbsentOp", "", 0u);
+}
 
-        for (size_t port = 0; port < nodes.size(); port++) {
-            EXPECT_EQ(nodes[port]->get_output_element_type(0),
-                      (expected_mask & (1u << port)) ? ov::element::f32 : ov::element::f16);
-            EXPECT_EQ(model->get_output_element_type(port), ov::element::f16);
-        }
-        EXPECT_EQ(input->get_element_type(), ov::element::f16);
-        if (expected_mask == 0u) {
-            EXPECT_EQ(count_converts(model), 0u);
-        }
-    }
+TEST(ForceFP32Selective, NameOnlyFilterMatchesSubstringsAndMissingNameIsNoOp) {
+    check_filter_selection("", "alpha", 5u);
+    check_filter_selection("", "missing", 0u);
+}
+
+TEST(ForceFP32Selective, CombinedListsIntersectAndDisjointMatchesAreNoOp) {
+    check_filter_selection("Relu RMS", "beta missing", 2u);
+    // Relu matches alpha/beta; the "rms" substring matches only RMS.
+    check_filter_selection("Relu", "rms", 0u);
 }
 
 TEST(ForceFP32Selective, PrecisionAttributesSurviveAutomaticValidationCloneAndReapplication) {
