@@ -60,11 +60,7 @@ const std::vector<conv_geometry> trunk_geometries = {
     {512, 512, 4, 3, 1, 1},
 };
 
-enum class expected_impl { ocl, onednn_jit, onednn_reference };
-
-bool is_onednn_reference(const primitive_impl& impl) {
-    return impl.is_onednn() && impl.get_kernel_name().rfind("ocl:ref", 0) == 0;
-}
+enum class expected_impl { onednn_jit, onednn_jit_reordered };
 
 class conv_dynamic_batch_ref_fallback : public ::testing::Test {
 public:
@@ -142,18 +138,21 @@ protected:
         return topo;
     }
 
-    static ExecutionConfig make_config(const ov::intel_gpu::ImplForcingMap& forcing = {}) {
+    static ExecutionConfig make_config(const ov::intel_gpu::ImplForcingMap& forcing = {}, bool profiling = false) {
         auto config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         if (!forcing.empty()) {
             config.set_property(ov::intel_gpu::force_implementations(forcing));
         }
+        if (profiling) {
+            config.set_property(ov::enable_profiling(true));
+        }
         return config;
     }
 
-    network::ptr build_network(const ov::Dimension& batch, const ov::intel_gpu::ImplForcingMap& forcing = {}) const {
-        return std::make_shared<network>(get_test_engine(), build_topology(batch), make_config(forcing));
+    network::ptr build_network(const ov::Dimension& batch, const ov::intel_gpu::ImplForcingMap& forcing = {}, bool profiling = false) const {
+        return std::make_shared<network>(get_test_engine(), build_topology(batch), make_config(forcing, profiling));
     }
 
     tensors make_inputs(int64_t batch) {
@@ -229,20 +228,18 @@ protected:
         const auto actual = run(net, inputs);
 
         for (const auto& branch : branches) {
-            const auto* impl = net.get_primitive(branch.id)->get_impl();
+            const auto inst = net.get_primitive(branch.id);
+            const auto* impl = inst->get_impl();
             ASSERT_NE(impl, nullptr) << branch.id;
             const auto& name = impl->get_kernel_name();
-            switch (expected) {
-            case expected_impl::ocl:
-                EXPECT_FALSE(impl->is_onednn()) << branch.id << ", batch " << batch << ": " << name;
-                break;
-            case expected_impl::onednn_jit:
-                EXPECT_TRUE(impl->is_onednn()) << branch.id << ", batch " << batch << ": " << name;
-                EXPECT_EQ(name.rfind("jit:ir", 0), 0u) << branch.id << ", batch " << batch << ": " << name;
-                break;
-            case expected_impl::onednn_reference:
-                EXPECT_TRUE(is_onednn_reference(*impl)) << branch.id << ", batch " << batch << ": " << name;
-                break;
+            EXPECT_TRUE(impl->is_onednn()) << branch.id << ", batch " << batch << ": " << name;
+            EXPECT_EQ(name.rfind("jit:ir", 0), 0u) << branch.id << ", batch " << batch << ": " << name;
+            // The src/dst reorder buffers follow the optional scratchpad.
+            const auto buffers = impl->get_internal_buffer_descs(*inst->get_impl_params()).size();
+            if (expected == expected_impl::onednn_jit_reordered) {
+                EXPECT_GE(buffers, 2u) << branch.id << ", batch " << batch;
+            } else {
+                EXPECT_LE(buffers, 1u) << branch.id << ", batch " << batch;
             }
         }
         compare_with_reference(actual, batch, inputs);
@@ -253,24 +250,24 @@ protected:
     bool residual_relu = false;
 };
 
-TEST_F(conv_dynamic_batch_ref_fallback, fused_residual_relu_uses_ocl) {
+TEST_F(conv_dynamic_batch_ref_fallback, fused_residual_relu_uses_jit_with_reorders) {
     add_conv("conv", trunk_geometries[0], true);
     residual_relu = true;
     auto net = build_network(ov::Dimension::dynamic());
     ASSERT_NO_FATAL_FAILURE(check_dynamic_fsv16_onednn_convs(*net));
     ASSERT_EQ(net->get_primitive("conv")->get_node().get_fused_primitives().size(), 2u);
 
-    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 25, expected_impl::ocl));
-    run_and_check(*net, 150, expected_impl::ocl);
+    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 25, expected_impl::onednn_jit_reordered));
+    run_and_check(*net, 150, expected_impl::onednn_jit_reordered);
 }
 
-TEST_F(conv_dynamic_batch_ref_fallback, downsample_convs_use_ocl) {
+TEST_F(conv_dynamic_batch_ref_fallback, downsample_convs_use_jit_with_reorders) {
     add_conv("conv_3x3", trunk_geometries[1], false);
     add_conv("conv_1x1", trunk_geometries[2], false);
     auto net = build_network(ov::Dimension::dynamic());
     ASSERT_NO_FATAL_FAILURE(check_dynamic_fsv16_onednn_convs(*net));
 
-    run_and_check(*net, 25, expected_impl::ocl);
+    run_and_check(*net, 25, expected_impl::onednn_jit_reordered);
 }
 
 TEST_F(conv_dynamic_batch_ref_fallback, impl_follows_batch_and_reuses_cache) {
@@ -288,14 +285,14 @@ TEST_F(conv_dynamic_batch_ref_fallback, impl_follows_batch_and_reuses_cache) {
     };
 
     ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 1, expected_impl::onednn_jit));
-    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 25, expected_impl::ocl));
+    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 25, expected_impl::onednn_jit_reordered));
     const auto kernel_at_batch25 = net->get_primitive("conv")->get_impl()->get_kernel_name();
     ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 8, expected_impl::onednn_jit));
-    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 150, expected_impl::ocl));
+    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 150, expected_impl::onednn_jit_reordered));
     const auto cached_before = cached_conv_impls();
     ASSERT_EQ(cached_before, 4);
 
-    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 25, expected_impl::ocl));
+    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 25, expected_impl::onednn_jit_reordered));
     EXPECT_EQ(cached_conv_impls(), cached_before);
     EXPECT_EQ(net->get_primitive("conv")->get_impl()->get_kernel_name(), kernel_at_batch25);
 }
@@ -308,12 +305,30 @@ TEST_F(conv_dynamic_batch_ref_fallback, batch8_keeps_onednn_jit) {
     run_and_check(*net, 8, expected_impl::onednn_jit);
 }
 
-TEST_F(conv_dynamic_batch_ref_fallback, forced_onednn_keeps_reference_impl) {
+TEST_F(conv_dynamic_batch_ref_fallback, forced_onednn_uses_jit_with_reorders) {
     add_conv("conv", trunk_geometries[0], true);
     auto net = build_network(ov::Dimension::dynamic(), {{"conv", {format::b_fs_yx_fsv16, "", impl_types::onednn}}});
     ASSERT_NO_FATAL_FAILURE(check_dynamic_fsv16_onednn_convs(*net));
 
-    run_and_check(*net, 25, expected_impl::onednn_reference);
+    run_and_check(*net, 25, expected_impl::onednn_jit_reordered);
+}
+
+// The reorders run in the same profiled execution as the convolution.
+TEST_F(conv_dynamic_batch_ref_fallback, profiling_with_reorders) {
+    add_conv("conv", trunk_geometries[0], true);
+    residual_relu = true;
+    auto net = build_network(ov::Dimension::dynamic(), {}, true);
+    ASSERT_NO_FATAL_FAILURE(check_dynamic_fsv16_onednn_convs(*net));
+
+    ASSERT_NO_FATAL_FAILURE(run_and_check(*net, 25, expected_impl::onednn_jit_reordered));
+    const auto executed = net->get_executed_primitives();
+    ASSERT_NE(executed.find("conv"), executed.end());
+    ASSERT_NE(executed.at("conv"), nullptr);
+    const auto intervals = executed.at("conv")->get_profiling_info();
+    ASSERT_EQ(intervals.size(), 1u);
+    EXPECT_EQ(intervals[0].stage, instrumentation::profiling_stage::executing);
+    ASSERT_NE(intervals[0].value, nullptr);
+    EXPECT_GT(intervals[0].value->value().count(), 0);
 }
 
 TEST_F(conv_dynamic_batch_ref_fallback, static_batch_keeps_onednn) {
@@ -326,12 +341,12 @@ TEST_F(conv_dynamic_batch_ref_fallback, static_batch_keeps_onednn) {
 
 class conv_dynamic_batch_ref_fallback_geometry : public conv_dynamic_batch_ref_fallback, public ::testing::WithParamInterface<conv_geometry> {};
 
-TEST_P(conv_dynamic_batch_ref_fallback_geometry, uses_ocl_at_batch25) {
+TEST_P(conv_dynamic_batch_ref_fallback_geometry, uses_jit_with_reorders_at_batch25) {
     add_conv("conv", GetParam(), true);
     auto net = build_network(ov::Dimension::dynamic());
     ASSERT_NO_FATAL_FAILURE(check_dynamic_fsv16_onednn_convs(*net));
 
-    run_and_check(*net, 25, expected_impl::ocl);
+    run_and_check(*net, 25, expected_impl::onednn_jit_reordered);
 }
 
 INSTANTIATE_TEST_SUITE_P(resnet18_trunk,
