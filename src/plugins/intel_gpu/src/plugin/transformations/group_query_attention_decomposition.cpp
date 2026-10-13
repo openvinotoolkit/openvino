@@ -144,24 +144,26 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         const auto key_cache = register_new_node<op::StatelessKV>(past_key, key, seqlens_1d, 2, true);
 
         const auto value_transpose_order = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, transpose_v_order));
-        const auto find_value_transpose = [](const ov::Output<ov::Node>& output) {
+        const auto find_value_transpose = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<v1::Transpose> {
             const auto transpose = ov::as_type_ptr<v1::Transpose>(output.get_node_shared_ptr());
             if (!transpose) {
-                return std::shared_ptr<v1::Transpose>{};
+                return {};
             }
             const auto order = ov::as_type_ptr<v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
             if (!order || order->cast_vector<int64_t>() != transpose_v_order) {
-                return std::shared_ptr<v1::Transpose>{};
+                return {};
             }
             return transpose;
         };
 
-        const auto input_past_value = node->input_value(4);
-        const auto past_value_transpose = find_value_transpose(input_past_value);
+        std::shared_ptr<v1::Transpose> past_value_transpose;
         std::shared_ptr<v1::Transpose> present_value_transpose;
-        if (node->output(2).get_target_inputs().size() == 1) {
-            const auto target = *node->output(2).get_target_inputs().begin();
-            present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
+        if (m_sdpa_support_transpose_v) {
+            past_value_transpose = find_value_transpose(node->input_value(4));
+            if (node->output(2).get_target_inputs().size() == 1) {
+                const auto target = *node->output(2).get_target_inputs().begin();
+                present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
+            }
         }
 
         const auto transpose_v = past_value_transpose && present_value_transpose;

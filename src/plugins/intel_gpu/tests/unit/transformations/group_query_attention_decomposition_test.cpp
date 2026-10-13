@@ -47,6 +47,7 @@ struct GQAConfig {
     int64_t local_window_size = -1;  // >= 1 enables sliding window attention
     bool static_past_cache = false;
     bool transpose_v = false;
+    bool should_fuse_transpose_v = true;
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
@@ -138,7 +139,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
 std::shared_ptr<ov::Model> decompose_gqa_model(const GQAConfig& cfg) {
     auto model = make_gqa_model(cfg);
     ov::pass::Manager manager;
-    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
+    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.should_fuse_transpose_v);
     manager.run_passes(model);
     return model;
 }
@@ -226,28 +227,44 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         }
     }
 
+    const bool fused_transpose_v = cfg.transpose_v && cfg.should_fuse_transpose_v;
     const auto present_key_source = model->output(1).get_node()->input_value(0);
-    const auto present_value_source = model->output(2).get_node()->input_value(0);
+    auto present_value_source = model->output(2).get_node()->input_value(0);
+    if (cfg.transpose_v && !fused_transpose_v) {
+        // Unfused: the output Transpose is kept, so the cache feeds it.
+        const auto output_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(present_value_source.get_node_shared_ptr());
+        ASSERT_NE(output_transpose, nullptr);
+        const auto output_transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(output_transpose->input_value(1).get_node_shared_ptr());
+        ASSERT_NE(output_transpose_order, nullptr);
+        EXPECT_THAT(output_transpose_order->cast_vector<int64_t>(), ::testing::ElementsAre(0, 1, 3, 2));
+        present_value_source = output_transpose->input_value(0);
+    }
     ASSERT_EQ(present_key_source, key->output(0));
     ASSERT_EQ(present_value_source, value->output(0));
     EXPECT_EQ(key->get_concat_axis(), 2);
-    EXPECT_EQ(value->get_concat_axis(), cfg.transpose_v ? 3 : 2);
+    EXPECT_EQ(value->get_concat_axis(), fused_transpose_v ? 3 : 2);
     EXPECT_EQ(key->input_value(0).get_node_shared_ptr(), parameters[3]);
     EXPECT_EQ(key->input_value(1).get_node_shared_ptr(), parameters[1]);
-    if (cfg.transpose_v) {
+    if (fused_transpose_v) {
         const auto value_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(value->input_value(1).get_node_shared_ptr());
         ASSERT_NE(value_transpose, nullptr);
         const auto value_transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(value_transpose->input_value(1).get_node_shared_ptr());
         ASSERT_NE(value_transpose_order, nullptr);
         EXPECT_THAT(value_transpose_order->cast_vector<int64_t>(), ::testing::ElementsAre(0, 1, 3, 2));
         EXPECT_EQ(value_transpose->input_value(0).get_node_shared_ptr(), parameters[2]);
+    } else if (cfg.transpose_v) {
+        // Unfused: the past value Transpose is kept and feeds the cache directly.
+        const auto past_value_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(value->input_value(0).get_node_shared_ptr());
+        ASSERT_NE(past_value_transpose, nullptr);
+        EXPECT_EQ(past_value_transpose->input_value(0).get_node_shared_ptr(), parameters[4]);
+        EXPECT_EQ(value->input_value(1).get_node_shared_ptr(), parameters[2]);
     } else {
         EXPECT_EQ(value->input_value(0).get_node_shared_ptr(), parameters[4]);
         EXPECT_EQ(value->input_value(1).get_node_shared_ptr(), parameters[2]);
     }
     EXPECT_EQ(key->input_value(2).get_node_shared_ptr(), value->input_value(2).get_node_shared_ptr());
 
-    if (cfg.transpose_v) {
+    if (fused_transpose_v) {
         EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
     } else {
         EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
@@ -266,9 +283,18 @@ TEST(GQADecompositionTest, dynamic_input_uses_stateless_kv) {
     expect_stateless_kv_cache_connections(cfg);
 }
 
-TEST(GQADecompositionTest, transposed_value_cache_fuses_transposes) {
+TEST(GQADecompositionTest, transposed_value_cache_fused) {
     GQAConfig cfg;
     cfg.transpose_v = true;
+    cfg.should_fuse_transpose_v = true;
+
+    expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, transposed_value_cache_not_fused) {
+    GQAConfig cfg;
+    cfg.transpose_v = true;
+    cfg.should_fuse_transpose_v = false;
 
     expect_stateless_kv_cache_connections(cfg);
 }

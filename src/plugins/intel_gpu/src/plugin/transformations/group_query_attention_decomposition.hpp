@@ -12,7 +12,7 @@ namespace ov::intel_gpu {
 class GroupQueryAttentionDecomposition : public ov::pass::GroupQueryAttentionDecomposition {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::GroupQueryAttentionDecomposition");
-    GroupQueryAttentionDecomposition() = default;
+    GroupQueryAttentionDecomposition(bool sdpa_support_transpose_v) : m_sdpa_support_transpose_v(sdpa_support_transpose_v) {}
 
 protected:
     struct StatelessKVMetadata;
@@ -52,6 +52,8 @@ protected:
                                const ov::Output<ov::Node>& key,
                                const ov::Output<ov::Node>& value,
                                KVCacheMetadata& metadata);
+
+    bool m_sdpa_support_transpose_v;
 };
 
 }  // namespace ov::intel_gpu
