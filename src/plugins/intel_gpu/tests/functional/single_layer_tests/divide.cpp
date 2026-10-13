@@ -107,4 +107,3 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(ov::element::i16, ov::element::i32),
                        ::testing::Values(true, false)),
     DividePythonDivisionTest::getTestCaseName);
-```
