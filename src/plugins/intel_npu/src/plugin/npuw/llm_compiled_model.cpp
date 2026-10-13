@@ -1908,9 +1908,20 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
 
     // A zero chunk size with chunking enabled is its own hazard: infer_chunked_prefill()'s
     // `current_prompts_len = min(remaining_prompts, chunk_prompt_len)` would always be 0, so
-    // `remaining_prompts` never reaches 0 and the chunk loop never terminates.
-    OPENVINO_ASSERT(!m_use_chunk_prefill || m_prefill_chunk_size > 0,
-                    "NPUW blob: chunked prefill is enabled but the declared prefill chunk size is 0.");
+    // `remaining_prompts` never reaches 0 and the chunk loop never terminates. A chunk size
+    // larger than max_prompt_size is unreachable on the compile path (it falls back to whole
+    // prefill instead), but import restores both scalars independently with no such relation
+    // enforced - and port extents alone can't catch it either, since a blob can simply enlarge
+    // the restored child ports to match it. PrefixCachingHelper::find_cached_blocks() computes
+    // `max_prompt_size - m_prefill_chunk_size` unconditionally whenever prefix caching is
+    // enabled, so validate both scalar hazards directly together.
+    OPENVINO_ASSERT(
+        !m_use_chunk_prefill || (m_prefill_chunk_size > 0 && m_prefill_chunk_size <= m_kvcache_desc.max_prompt_size),
+        "NPUW blob: chunked prefill is enabled with an invalid prefill chunk size (",
+        m_prefill_chunk_size,
+        "); it must be greater than 0 and no larger than the declared max prompt size (",
+        m_kvcache_desc.max_prompt_size,
+        ").");
 
     // Every port here is [BATCH, SEQ_LEN] (or [.., BATCH, SEQ_LEN] for the 3-D VLM variant of
     // position_ids), so the sequence extent is the last axis - except `inputs_embeds`, which
@@ -2016,7 +2027,18 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
             const auto& top_dim = top->get_partial_shape()[i];
             if (!top_dim.is_static()) {
                 // A dynamic top-level dimension (e.g. a dynamic batch) carries no fixed value
-                // the runtime copies could have mistakenly relied on - nothing to cross-check.
+                // the runtime copies could have mistakenly relied on - nothing to cross-check,
+                // EXCEPT inputs_embeds' trailing embedding-width axis: infer_chunked_prefill()/
+                // infer_whole_prefill() scale their copy byte counts by that axis's CONCRETE
+                // runtime tensor value (input_ids->get_shape().back()), so a dynamic top-level
+                // declaration would let a future inference call supply a wider tensor than the
+                // statically-compiled child port actually has storage for, underflowing the
+                // right-aligned copy regardless of what this import already validated.
+                OPENVINO_ASSERT(std::strcmp(name, layer_names::inputs_embeds) != 0 || i != rank - 1,
+                                "NPUW blob: input '",
+                                name,
+                                "' embedding-width dimension is dynamic in the top-level model; "
+                                "cannot safely bound the runtime staging copy.");
                 continue;
             }
             OPENVINO_ASSERT(child.get_partial_shape()[i] == top_dim,
@@ -2055,21 +2077,55 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         const uint64_t prefill_required = m_use_chunk_prefill ? m_prefill_chunk_size : m_kvcache_desc.max_prompt_size;
         for (const char* name : {layer_names::input_ids,
                                  layer_names::inputs_embeds,
-                                 layer_names::attention_mask,
                                  layer_names::position_ids,
                                  layer_names::token_type_ids}) {
             validate_extent(prefill_inputs, name, prefill_required);
         }
+        // ReshapeToStatic always sizes attention_mask to max_prompt_size (the full KV window),
+        // never to the chunk size (see reshape_to_static.cpp). infer_chunked_prefill() copies
+        // each completed chunk's mask forward to an absolute offset of num_stored_tokens, which
+        // grows up to max_prompt_size across chunks. It also computes
+        // attn_mask_in_tensor->get_size() - m_prefill_chunk_size (llm_infer_request.cpp) each
+        // chunk iteration, but only when chunked prefill is actually selected at runtime - a
+        // disabled-chunking blob can legitimately carry a stale chunk size bigger than
+        // max_prompt_size (the compile-time "chunk covers the whole prompt" fallback), so only
+        // fold the chunk size into the requirement when m_use_chunk_prefill is set.
+        validate_extent(prefill_inputs,
+                        layer_names::attention_mask,
+                        m_use_chunk_prefill
+                            ? std::max<uint64_t>(m_kvcache_desc.max_prompt_size, m_prefill_chunk_size)
+                            : m_kvcache_desc.max_prompt_size);
     }
 
-    for (const auto& variant : m_generate_compiled_variants) {
-        const auto& gen_inputs = variant->inputs();
-        for (const char* name : {layer_names::input_ids,
-                                 layer_names::inputs_embeds,
-                                 layer_names::attention_mask,
-                                 layer_names::position_ids}) {
+    for (size_t i = 0; i < m_generate_compiled_variants.size(); ++i) {
+        const auto& gen_inputs = m_generate_compiled_variants[i]->inputs();
+        for (const char* name : {layer_names::input_ids, layer_names::inputs_embeds, layer_names::position_ids}) {
             validate_extent(gen_inputs, name, m_kvcache_desc.max_generation_token_len);
         }
+        // ReshapeToStatic sizes each generate variant's attention_mask to that variant's own
+        // KV window (m_kvcache_sizes[i]), not to max_generation_token_len - infer_generate()
+        // copies the full stored-token history into it starting at offset 0, so the window
+        // size is what has to hold. It also computes
+        // kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len (llm_infer_request.cpp),
+        // so the mask must be at least as large as the generation limit too - both scalars are
+        // independently deserialized and nothing else relates them.
+        uint64_t attention_mask_required =
+            std::max<uint64_t>(m_kvcache_sizes.at(i), m_kvcache_desc.max_generation_token_len);
+        // Whisper is a special case on two counts: ReshapeToStatic gives its generate
+        // attention_mask one extra slot (kvcache_size + 1, see reshape_to_static.cpp's
+        // whisper-only branch), and WhisperInferRequest never switches generate variants - the
+        // base ctor always sets m_kvcache_request = m_generate_requests.back() and nothing in
+        // whisper_infer_request.cpp ever changes it, so only the LAST variant is reachable at
+        // runtime. infer_generate() computes attention_mask_size - 2 and fills up to
+        // num_stored_tokens, which is only ever bounded by kvcache_desc.total_size (the same
+        // scalar the runtime compares num_stored_tokens against) - validate against total_size
+        // directly rather than the independently-forgeable m_kvcache_sizes[i] entry, since a
+        // blob can set that entry arbitrarily low without changing total_size.
+        if (m_is_whisper && i + 1 == m_generate_compiled_variants.size()) {
+            attention_mask_required =
+                std::max<uint64_t>(attention_mask_required, static_cast<uint64_t>(m_kvcache_desc.total_size) + 1);
+        }
+        validate_extent(gen_inputs, layer_names::attention_mask, attention_mask_required);
     }
 }
 
