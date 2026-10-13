@@ -230,6 +230,46 @@ TernOCL's benchmark sweeps (`bench.sh`, `sweep_midm.sh`):
 New entries come from TernOCL's sweeps, which tune each tile on the standalone
 kernels. With debug caps, `OV_VERBOSE=4` prints every built program and the tile chosen.
 
+### 6.1 Other GPUs and new networks
+
+The tables are keyed on the device type, not the architecture: integrated GPUs
+(Lunar Lake, and Panther Lake / Nova Lake, Xe3 / Xe3P) use the Arc 140V
+tables, discrete GPUs use the Arc Pro B70 tables. Any shape without an entry
+gets the default tile of its launch class. Both run correctly, they are just
+not tuned for that GPU or shape.
+
+To tune a new GPU or network:
+
+1. **List the FC shapes.** Run the model once with a debug-caps build and
+   `OV_VERBOSE=3`; every `[ternocl-int2] create ... N=<N> K=<K> ...` line is one
+   shape to tune.
+2. **Build the standalone drivers** in the TernOCL checkout
+   (`thirdparty/TernOCL`, with the oneAPI environment or `CXX=g++`): `make -C int2_fp16_upcvt` and, for int8 prefill,
+   `make -C int2_via_int2_x_int8_dpas`. Each driver runs one kernel over
+   >= 2 GiB of rotating weights, checks it against a host reference, and prints
+   the device time as `Avg dev   time`.
+3. **Sweep each shape** (add `--no-validate` once a tile has passed validation):
+   - decode GEMV (M = 1): `--wgn {16,32,64} --ls {1,2,4,6,8} --u {1,2}`, e.g.
+
+     ```bash
+     cd int2_fp16_upcvt
+     for wn in 16 32 64; do for ls in 1 2 4 6 8; do for u in 1 2; do
+       echo "wgn=$wn ls=$ls u=$u $(./build/int2_fp16_upcvt_ocl --m 1 --k $K --n $N \
+         --wgn $wn --ls $ls --u $u --iters 50 --no-validate | grep 'Avg dev   time')"
+     done; done; done
+     ```
+   - M-tiled GEMM: `--mt-m/--mt-n/--wg-m/--wg-n` at M = 12, 20, 32, 48 (the
+     M < 64 bands) and at a prompt length such as 1024; `sweep_mt.sh <K> <N> <M> <out>`
+     does this for one shape and M;
+   - int8 prefill: the same flags on `int2_int8_dpas_ocl`, per M band.
+
+   Re-measure the best few tiles a few times and keep the median: integrated
+   GPUs share memory bandwidth with the CPU and drift under sustained load.
+4. **Add the winners** to `gemv_tile()`, `mt_tile()` or `int8_tile()` (the
+   integrated or discrete table, or a new table selected from
+   `device_info.arch`), then check the end-to-end tokens and speed with the
+   benchmark from the Bonsai 2 guide.
+
 ---
 
 ## 7. Rotated-basis checkpoints (Hadamard input transform)
