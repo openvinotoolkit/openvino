@@ -370,14 +370,14 @@ OP_CONVERTER(translate_linear_ct);
 OP_CONVERTER(translate_embedding_ct);
 OP_CONVERTER(translate_linear_ext);
 OP_CONVERTER(translate_linear_gptq);
+}  // namespace op
 
 // Translators of custom operations registered by integrations (torch.compile vLLM path). They may produce
 // internal operations, so the converted model can't always be serialized.
-namespace ext {
+namespace op::ext {
 OP_CONVERTER(translate_gdn_attention);
 OP_CONVERTER(translate_paged_attention);
-}  // namespace ext
-}  // namespace op
+}  // namespace op::ext
 
 // Supported ops for TorchScript
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
