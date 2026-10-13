@@ -548,6 +548,20 @@ TEST_F(Flux2CompiledModelTest, UserCompilationParamsAppendAfterArchParams) {
               "compute-layers-with-higher-precision=MVN optimization-level=3 performance-hint-override=latency");
 }
 
+TEST_F(Flux2CompiledModelTest, TransformerUserCompilationParamsOverrideMatchingDefault) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(
+            make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+            {{kCompileParams, "compute-layers-with-higher-precision=Sqrt performance-hint-override=latency"}},
+            recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.only_call().props.at(kCompileParams).as<std::string>(),
+              "compute-layers-with-higher-precision=Sqrt performance-hint-override=latency");
+}
+
 // User-provided NPU_TILES takes priority over the arch-computed default.
 TEST_F(Flux2CompiledModelTest, UserNpuTilesOverrideArchDefault) {
     m_plugin = std::make_shared<ArchAwarePlugin>("5010", 3);

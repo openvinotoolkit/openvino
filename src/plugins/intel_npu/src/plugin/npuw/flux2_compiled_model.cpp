@@ -15,6 +15,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "serialization.hpp"
+#include "util.hpp"
 
 namespace {
 
@@ -30,24 +31,15 @@ auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     for (const auto& [key, value] : rhs) {
         if (auto it = lhs.find(key); it != lhs.end()) {
-            it->second = value;
+            if (key == ::intel_npu::COMPILATION_MODE_PARAMS::key()) {
+                it->second = ov::npuw::util::merge_compilation_mode_params(it->second.as<std::string>(),
+                                                                           value.as<std::string>());
+            } else {
+                it->second = value;
+            }
         } else {
             lhs.emplace(key, value);
         }
-    }
-}
-
-// NPU_COMPILATION_MODE_PARAMS is a space-separated list; append (don't overwrite) so the
-// per-submodel precision hints, arch tuning, and user-provided params all coexist.
-void append_compilation_mode_param(ov::AnyMap& config, const std::string& param) {
-    if (param.empty()) {
-        return;
-    }
-    const auto key = std::string(::intel_npu::COMPILATION_MODE_PARAMS::key());
-    if (auto it = config.find(key); it != config.end() && !it->second.as<std::string>().empty()) {
-        config[key] = it->second.as<std::string>() + " " + param;
-    } else {
-        config[key] = param;
     }
 }
 
@@ -107,7 +99,10 @@ void set_max_tiles_based_on_arch(ov::AnyMap& config, const std::optional<NPUDesc
     if (set_npu_tiles && npudesc->max_tiles > 0) {
         config[std::string(ov::intel_npu::tiles.name())] = npudesc->max_tiles;
     }
-    append_compilation_mode_param(config, arch_added_compilation_param);
+    if (!arch_added_compilation_param.empty()) {
+        merge_config_with(config,
+                          {{std::string(::intel_npu::COMPILATION_MODE_PARAMS::key()), arch_added_compilation_param}});
+    }
 }
 
 // Flux.2-klein pipeline submodels. Each is compiled separately (with NPUW_FLUX2:YES)
@@ -233,16 +228,8 @@ ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model,
     // Compile newer NPU generations across all tiles (mirrors LLMCompiledModel).
     set_max_tiles_based_on_arch(config, extract_npu_descriptor(plugin));
 
-    // User-provided properties take precedence over the defaults above, except
-    // NPU_COMPILATION_MODE_PARAMS which is appended so the per-submodel precision
-    // hints above are preserved rather than overwritten.
-    ov::AnyMap user_props = properties;
-    const auto cmp_key = std::string(::intel_npu::COMPILATION_MODE_PARAMS::key());
-    if (auto it = user_props.find(cmp_key); it != user_props.end()) {
-        append_compilation_mode_param(config, it->second.as<std::string>());
-        user_props.erase(it);
-    }
-    merge_config_with(config, user_props);
+    // User-provided properties take precedence over the defaults above.
+    merge_config_with(config, properties);
     return config;
 }
 

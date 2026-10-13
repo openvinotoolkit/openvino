@@ -49,6 +49,9 @@ bool is_supported_position_ids_input(const ov::Output<const ov::Node>& p);
 
 std::string fmt(std::size_t number, std::size_t total);
 
+// Merges space-separated `key=value` lists; `overrides` replaces tokens with the same key, new keys are appended.
+std::string merge_compilation_mode_params(const std::string& defaults, const std::string& overrides);
+
 // Matches the three DynamicQuantize decomposition implementations declared in
 // kv_cache_compressed.hpp.
 enum class DynamicQuantDecomposeMode {

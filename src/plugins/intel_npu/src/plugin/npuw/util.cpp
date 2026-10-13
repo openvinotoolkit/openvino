@@ -13,6 +13,8 @@
 #include <openvino/core/type/nf4.hpp>
 #include <regex>
 #include <sstream>
+#include <unordered_map>
+#include <vector>
 
 #include "llm_lora_states.hpp"
 #include "logging.hpp"
@@ -220,6 +222,38 @@ std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
     std::stringstream ss;
     ss << std::setfill('0') << std::setw(regs) << number;
     return ss.str();
+}
+
+std::string ov::npuw::util::merge_compilation_mode_params(const std::string& defaults, const std::string& overrides) {
+    std::vector<std::string> params;
+    std::unordered_map<std::string, size_t> param_indices;
+
+    const auto add_params = [&params, &param_indices](const std::string& value, bool replace_existing) {
+        std::istringstream stream(value);
+        std::string param;
+        while (stream >> param) {
+            const auto separator = param.find('=');
+            const auto key = param.substr(0, separator);
+            const auto [it, inserted] = param_indices.emplace(key, params.size());
+            if (inserted) {
+                params.push_back(std::move(param));
+            } else if (replace_existing) {
+                params[it->second] = std::move(param);
+            }
+        }
+    };
+
+    add_params(defaults, false);
+    add_params(overrides, true);
+
+    std::ostringstream result;
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i != 0) {
+            result << ' ';
+        }
+        result << params[i];
+    }
+    return result.str();
 }
 
 void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
