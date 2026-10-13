@@ -2062,9 +2062,17 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         // ReshapeToStatic always sizes attention_mask to max_prompt_size (the full KV window),
         // never to the chunk size (see reshape_to_static.cpp). infer_chunked_prefill() copies
         // each completed chunk's mask forward to an absolute offset of num_stored_tokens, which
-        // grows up to max_prompt_size across chunks - validate it against that limit, not the
-        // chunk size every other prefill port uses.
-        validate_extent(prefill_inputs, layer_names::attention_mask, m_kvcache_desc.max_prompt_size);
+        // grows up to max_prompt_size across chunks. It also computes
+        // attn_mask_in_tensor->get_size() - m_prefill_chunk_size (llm_infer_request.cpp) each
+        // chunk iteration, but only when chunked prefill is actually selected at runtime - a
+        // disabled-chunking blob can legitimately carry a stale chunk size bigger than
+        // max_prompt_size (the compile-time "chunk covers the whole prompt" fallback), so only
+        // fold the chunk size into the requirement when m_use_chunk_prefill is set.
+        validate_extent(prefill_inputs,
+                        layer_names::attention_mask,
+                        m_use_chunk_prefill
+                            ? std::max<uint64_t>(m_kvcache_desc.max_prompt_size, m_prefill_chunk_size)
+                            : m_kvcache_desc.max_prompt_size);
     }
 
     for (size_t i = 0; i < m_generate_compiled_variants.size(); ++i) {
@@ -2075,8 +2083,13 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         // ReshapeToStatic sizes each generate variant's attention_mask to that variant's own
         // KV window (m_kvcache_sizes[i]), not to max_generation_token_len - infer_generate()
         // copies the full stored-token history into it starting at offset 0, so the window
-        // size is what has to hold, not the (generally smaller) per-step generation limit.
-        validate_extent(gen_inputs, layer_names::attention_mask, m_kvcache_sizes.at(i));
+        // size is what has to hold. It also computes
+        // kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len (llm_infer_request.cpp),
+        // so the mask must be at least as large as the generation limit too - both scalars are
+        // independently deserialized and nothing else relates them.
+        validate_extent(gen_inputs,
+                        layer_names::attention_mask,
+                        std::max<uint64_t>(m_kvcache_sizes.at(i), m_kvcache_desc.max_generation_token_len));
     }
 }
 
