@@ -31,16 +31,6 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
     LOG_DEBUG("Calling inference for Whisper prefill model...");
     LOG_BLOCK();
 
-    // The staging copies below use input_ids's raw element/byte count directly, with no
-    // per-axis indexing to catch a mismatched shape: a batch other than 1 (the top-level
-    // declaration's batch dimension is dynamic, so nothing earlier bounds it) would copy
-    // more elements than the compiled [1, max_prompt_size] ports actually hold, overflowing
-    // both padded_input and padded_attention_mask below.
-    OPENVINO_ASSERT(input_ids->get_shape().size() == 2 && input_ids->get_shape()[0] == 1,
-                    "Input ids must have shape [1, seq_len], got ",
-                    input_ids->get_shape(),
-                    ".");
-
     // Unlike the generic LLM infer_prefill(), nothing downstream re-checks this: the staging
     // copy below is a raw copy_n of the caller's own token count, and the "KV-cache full"
     // guard in infer_generate() only compares num_stored_tokens for EQUALITY against total_size
@@ -236,6 +226,16 @@ void ov::npuw::WhisperInferRequest::infer() {
 
     auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, m_input_ids_name).value());
     OPENVINO_ASSERT(ov::element::i64 == input_ids->get_element_type());
+    // The staging copies in both infer_prefill() and infer_generate() use input_ids's raw
+    // element/byte count directly, with no per-axis indexing to catch a mismatched shape - a
+    // batch other than 1 (the top-level declaration's batch dimension is dynamic, so nothing
+    // earlier bounds it) would overflow the compiled [1, N] staging buffer either path writes
+    // into. Checked here, before the axis-1 indexing just below, so a rank-1 input_ids can't
+    // read out of bounds either, and so a post-prefill generate call is covered too.
+    OPENVINO_ASSERT(input_ids->get_shape().size() == 2 && input_ids->get_shape()[0] == 1,
+                    "Input ids must have shape [1, seq_len], got ",
+                    input_ids->get_shape(),
+                    ".");
 
     auto encoder_hidden_states = get_tensor(ov::npuw::util::find_port_by_name(inputs, "encoder_hidden_states").value());
     OPENVINO_ASSERT(ov::element::f32 == encoder_hidden_states->get_element_type());

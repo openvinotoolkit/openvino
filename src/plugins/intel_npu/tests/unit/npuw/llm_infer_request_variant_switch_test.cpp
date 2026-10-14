@@ -1563,4 +1563,72 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsWhisperPrefillInputIdsWithBatchT
     EXPECT_THROW(request->infer(), ov::Exception);
 }
 
+// The batch/rank guard above lived only inside infer_prefill() - WhisperInferRequest::infer()
+// itself indexes input_ids's axis-1 extent directly to decide prefill vs. generate dispatch,
+// so once a valid prefill has run (num_stored_tokens != 0), a [2, 1]-shaped input_ids is routed
+// straight to infer_generate() without ever going through infer_prefill()'s check, and
+// infer_generate()'s own copy_n(input_ids->get_size()) would write 2 elements into the
+// compiled [1, 1] generate staging buffer.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsWhisperGenerateInputIdsWithBatchTwo) {
+    VariantSwitchFactory factory;
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_DEVICES", "CPU"},
+                     {"NPUW_WHISPER", "YES"},
+                     {"NPUW_WHISPER_EOS_TOKEN", "42"}};
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov::test::npuw::build_whisper_decoder_test_model(),
+                                                                 m_plugin,
+                                                                 props,
+                                                                 factory.make_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+
+    const auto& inputs = request->get_inputs();
+    auto input_ids_port = ov::npuw::util::find_port_by_name(inputs, "input_ids").value();
+    auto encoder_port = ov::npuw::util::find_port_by_name(inputs, "encoder_hidden_states").value();
+
+    for (const auto& input : inputs) {
+        if (input == input_ids_port || input == encoder_port) {
+            continue;
+        }
+        const auto& partial_shape = input.get_partial_shape();
+        ov::Shape concrete_shape;
+        for (size_t i = 0; i < partial_shape.size(); ++i) {
+            concrete_shape.push_back(partial_shape[i].is_static() ? static_cast<size_t>(partial_shape[i].get_length())
+                                                                  : 1u);
+        }
+        ov::Tensor filler(input.get_element_type(), concrete_shape);
+        std::memset(filler.data(), 0, filler.get_byte_size());
+        request->set_tensor(input, ov::get_tensor_impl(filler));
+    }
+
+    const auto& encoder_partial_shape = encoder_port.get_partial_shape();
+    ov::Shape encoder_shape;
+    for (size_t i = 0; i < encoder_partial_shape.size(); ++i) {
+        encoder_shape.push_back(
+            encoder_partial_shape[i].is_static() ? static_cast<size_t>(encoder_partial_shape[i].get_length()) : 1u);
+    }
+    ov::Tensor encoder_hidden_states(ov::element::f32, encoder_shape);
+    std::memset(encoder_hidden_states.data(), 0, encoder_hidden_states.get_byte_size());
+    request->set_tensor(encoder_port, ov::get_tensor_impl(encoder_hidden_states));
+
+    // A valid batch-1 prefill first, so the request is past the prefill stage.
+    {
+        ov::Tensor input_ids(ov::element::i64, ov::Shape{1, 4});
+        std::fill_n(input_ids.data<int64_t>(), input_ids.get_size(), 1);
+        request->set_tensor(input_ids_port, ov::get_tensor_impl(input_ids));
+        ASSERT_NO_THROW(request->infer());
+    }
+
+    // Invalid: a post-prefill single-token step with batch 2 instead of the required 1 -
+    // input_ids->get_shape()[1] == 1 here, so the old prefill-only guard never ran at all.
+    {
+        ov::Tensor input_ids(ov::element::i64, ov::Shape{2, 1});
+        std::fill_n(input_ids.data<int64_t>(), input_ids.get_size(), 1);
+        request->set_tensor(input_ids_port, ov::get_tensor_impl(input_ids));
+        EXPECT_THROW(request->infer(), ov::Exception);
+    }
+}
+
 }  // namespace
