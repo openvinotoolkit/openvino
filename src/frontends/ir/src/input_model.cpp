@@ -242,15 +242,13 @@ private:
 
 InputModel::InputModel(std::istream& model,
                        std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::filesystem::path) {
+                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
     _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::filesystem::path) {
+                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
     _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
 }
 
