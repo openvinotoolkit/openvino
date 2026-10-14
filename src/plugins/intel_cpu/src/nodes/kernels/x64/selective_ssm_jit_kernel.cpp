@@ -186,12 +186,11 @@ void jit_selective_ssm_kernel<isa>::compute_state(size_t row, size_t active_lane
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::accumulate_output(size_t row, size_t active_lanes, size_t vector) {
     const auto state = state_vmm(row);
-    const bool is_full_vector = active_lanes == vector_size;
     // output[p] = sum_n(state[p, n] * C[n])
     if constexpr (isa == avx2) {
         vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
     } else {
-        if (is_full_vector) {
+        if (active_lanes == vector_size) {
             vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
         } else {
             // Do not evaluate inactive products, including NaN * 0 from non-finite decay/input.
