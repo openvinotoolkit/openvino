@@ -270,6 +270,8 @@ public:
         int per_oc = PER_OC << shift_size;
         int grouped = (1 << prim->input_size) - 1;
 
+        // floating-point zero point replaced by zp * scale (prepare_quantization): oneDNN's static_sbzp mode
+        const auto qmode = prim->decompression_zero_point_after_scale ? dnnl::quantization_mode::static_sbzp : dnnl::quantization_mode::static_sazp;
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
             ib >> _ds_group_size;
@@ -283,7 +285,7 @@ public:
             } else if (ngroups == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             } else {
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type, false, qmode);
             }
         }
 
@@ -301,7 +303,7 @@ public:
                     if (ngroups == 1) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
-                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
+                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type, false, qmode);
                     }
                 }
             }
@@ -373,6 +375,8 @@ public:
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
             int grouped = (1 << prim->input_size) - 1;
+            // floating-point zero point replaced by zp * scale (prepare_quantization): oneDNN's static_sbzp mode
+            const auto qmode = prim->decompression_zero_point_after_scale ? dnnl::quantization_mode::static_sbzp : dnnl::quantization_mode::static_sazp;
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
@@ -394,7 +398,7 @@ public:
                     // Example:
                     // input[32, 6, 2088], W_t[32, 5760, 2088], scale[32, 1, 5760]
                     // set scale group as [32, 2088, 1]
-                    attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type, false, qmode);
                 }
             }
 
@@ -416,7 +420,7 @@ public:
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type, false, qmode);
                     }
                 }
             }
