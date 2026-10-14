@@ -12,11 +12,13 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
@@ -192,6 +194,99 @@ INSTANTIATE_TEST_SUITE_P(
         DynamicQuantizeFCParams{128, 64, 2, 3, 16, true, false, false, ZeroPointKind::Grouped, ov::element::i8, true, false, false, false},
         DynamicQuantizeFCParams{120, 64, 2, 3, 32, true, false, false, ZeroPointKind::Grouped, ov::element::i8, true, false, false, false}),
     get_test_case_name);
+
+struct PrecomputedReductionParams {
+    ov::element::Type weights_type;
+    ov::element::Type zp_type;
+    bool expect_precomputed_reduction;
+};
+
+class DynamicQuantizeFullyConnectedPrecomputedReductionTests
+    : public TransformationTestsF,
+      public ::testing::WithParamInterface<PrecomputedReductionParams> {
+public:
+    static std::string get_test_case_name(const ::testing::TestParamInfo<PrecomputedReductionParams>& info) {
+        const auto& params = info.param;
+        std::ostringstream name;
+        name << "weights=" << params.weights_type << "_zp=" << params.zp_type
+             << "_precomputed_reduction=" << params.expect_precomputed_reduction;
+        return name.str();
+    }
+
+protected:
+    static constexpr size_t K = 1024;
+    static constexpr size_t N = 256;
+    static constexpr size_t weights_group_size = 64;
+    static constexpr uint64_t dynamic_quantize_group_size = 128;
+
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& params = GetParam();
+        const ov::Shape decompression_shape{N, K / weights_group_size};
+        auto make_weights = [&]() {
+            return ov::OutputVector{std::make_shared<ov::op::v0::Constant>(params.weights_type, ov::Shape{N, K}),
+                                    std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                    std::make_shared<ov::op::v0::Constant>(ov::element::f16, decompression_shape),
+                                    std::make_shared<ov::op::v0::Constant>(params.zp_type, decompression_shape)};
+        };
+        {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, K});
+            const auto weights = make_weights();
+            auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
+                input,
+                weights[0],
+                weights[1],
+                weights[2],
+                weights[3]);
+            model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantize_group_size, false, true);
+        }
+        {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, K});
+            const auto weights = make_weights();
+            ov::op::internal::DynamicQuantize::Attributes attrs;
+            attrs.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+            attrs.quantization_dt = ov::element::i8;
+            attrs.scale_dt = ov::element::f16;
+            attrs.group_sizes = {1, 1, params.expect_precomputed_reduction ? weights_group_size : dynamic_quantize_group_size};
+            if (params.expect_precomputed_reduction) {
+                attrs.precomputed_reduction = true;
+                attrs.precomputed_reduction_dt = ov::element::i32;
+            }
+            auto dq = std::make_shared<ov::op::internal::DynamicQuantize>(input, attrs);
+            auto a_zp = std::make_shared<ov::intel_gpu::op::Placeholder>();
+            auto precomputed_reduction =
+                params.expect_precomputed_reduction ? dq->output(2) : std::make_shared<ov::intel_gpu::op::Placeholder>()->output(0);
+            auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                    weights[0],
+                                                                                    weights[1],
+                                                                                    weights[2],
+                                                                                    weights[3],
+                                                                                    dq->output(1),
+                                                                                    a_zp,
+                                                                                    precomputed_reduction,
+                                                                                    ov::element::f16);
+            model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+        }
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+};
+
+TEST_P(DynamicQuantizeFullyConnectedPrecomputedReductionTests, MatchesExpectedPrecomputedReductionGraph) {}
+
+const std::vector<PrecomputedReductionParams> precomputed_reduction_params = {
+    {ov::element::u8, ov::element::u8, true},
+    {ov::element::i8, ov::element::u8, true},
+    {ov::element::u4, ov::element::u4, false},
+    {ov::element::i4, ov::element::u4, false},
+    {ov::element::u3, ov::element::u8, false},
+    {ov::element::u2, ov::element::u8, false},
+};
+
+INSTANTIATE_TEST_SUITE_P(DynamicQuantizePrecomputedReduction,
+                         DynamicQuantizeFullyConnectedPrecomputedReductionTests,
+                         ::testing::ValuesIn(precomputed_reduction_params),
+                         DynamicQuantizeFullyConnectedPrecomputedReductionTests::get_test_case_name);
 
 }  // namespace
 }  // namespace ov::test::intel_gpu
