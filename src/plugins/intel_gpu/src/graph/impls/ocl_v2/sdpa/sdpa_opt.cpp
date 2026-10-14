@@ -208,7 +208,6 @@ public:
         const auto& params = *instance.get_impl_params();
         auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
         bool is_prefill = is_prefill_stage(new_params);
-        const bool use_multi_tokens = is_prefill || unaligned_head_size(new_params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
@@ -222,11 +221,6 @@ public:
         const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
         const bool is_per_channel_kv = SDPAOpt::has_per_channel_compressed_kv(new_params);
 
-<<<<<<< HEAD
-        if (has_stage(regular_micro_multi_tokens) && use_multi_tokens && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
-            GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens \n";
-            return execute_stage(events, instance, regular_micro_multi_tokens);
-=======
         // At most one lane's pair is staged, so the order of the two checks below does not matter.
         if (is_prefill && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
             if (has_stage(ocl_multi_tokens)) {
@@ -237,7 +231,6 @@ public:
                 GPU_DEBUG_TRACE_DETAIL << "execute micro_multi_tokens for prefill \n";
                 return execute_stage(events, instance, micro_multi_tokens);
             }
->>>>>>> 7c26860ba1 (sdpa: use sdpa_micro again on XMX GPUs that cannot run sdpa_ocl)
         }
 #endif
         // TODO: Unaligned head size is currently supported by only multi tokens kernel.
@@ -247,7 +240,7 @@ public:
         // The sdpa_ocl single-token kernel does support unaligned head sizes (head < d / value < dv /
         // DKS_ACTIVE guards). When it is staged (sdpa_ocl lane, non-indirect decode) it is used instead;
         // when it is not, the ctor stages regular_multi_tokens for a static non-indirect unaligned decode.
-        if (is_prefill || (unaligned_head_size(new_params) && (is_indirect || !has_stage(ocl_single_token)))) {
+        if (is_prefill || (unaligned_head_size(new_params) && !(!is_indirect && has_stage(ocl_single_token)))) {
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
