@@ -93,21 +93,18 @@ FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() {
             const auto axis = ov::util::try_normalize_axis(concat->get_axis(), concat_shape.rank(), *concat);
             return axis == 3 && input_width > 0 && input_width % 2 == 0;
         });
-    auto rope_pattern = wrap_type<ov::op::internal::RoPE>({concat_pattern, any_input(), any_input()}, [](const ov::Output<ov::Node>& output) {
-        const auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
-        const auto& config = rope->get_config();
-        if (config.input_interleaved || !ov::op::internal::is_plain_rotate_half(config)) {
-            return false;
-        }
+    auto rope_pattern = wrap_type<ov::op::internal::RoPE>(
+        {concat_pattern, any_input(), any_input()},
+        rank_equals(4) && has_static_dim(3) && [](const ov::Output<ov::Node>& output) {
+            const auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
+            const auto& config = rope->get_config();
+            if (config.input_interleaved || !ov::op::internal::is_plain_rotate_half(config)) {
+                return false;
+            }
 
-        const auto& input_shape = rope->get_input_partial_shape(0);
-        if (input_shape.rank() != 4 || !input_shape[3].is_static()) {
-            return false;
-        }
-
-        const auto input_width = input_shape[3].get_length();
-        return config.rotary_ndims == static_cast<size_t>(input_width);
-    });
+            const auto input_width = output.get_partial_shape()[3].get_length();
+            return config.rotary_ndims == static_cast<size_t>(input_width);
+        });
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
         const auto& pattern_map = matcher.get_pattern_value_map();
         auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(pattern_map.at(rope_pattern).get_node_shared_ptr());
