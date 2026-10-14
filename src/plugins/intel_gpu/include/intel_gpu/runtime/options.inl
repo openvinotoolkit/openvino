@@ -86,6 +86,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_disable_fusion, false, "Dis
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, disable_ternocl_int2, false, "Disable the TernOCL implementation of FullyConnected with ternary (u2) weights; the stock kernels are used instead")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_rms_rope_fusion, true, "Enable/Disable the pass which folds per-head Q/K RMSNorm into RoPE")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, ternocl_int2_int8_prefill, false, "TernOCL ternary FullyConnected: run M > 8 on the int2 x int8 DPAS GEMM, quantizing activations to int8 per 128-group")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, record_replay, false, "Enable level-zero command list through record and replay for static models")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
@@ -134,3 +135,4 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, pa_integrity_check, false, "Enable in-kernel SDPA micro-GEMM integrity checks (per-row K^T*Q and V*S reference comparisons)")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_workgroup_config, std::vector<int>{}, "Override SDPA micro-kernel workgroup config: 4 ints [wg_m_kq wg_n_kq wg_m_vs wg_n_vs]")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic, false, "Enable level-zero command list through record and replay for all (static and dynamic) models. Feature is work in progress and may produce incorrect results.")

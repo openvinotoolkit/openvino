@@ -1487,15 +1487,23 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
     }
 }
 
-TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
+struct eltwise_dynamic_broadcast_params {
+    format::type input_format;
+    std::vector<float> expected_output;
+};
+
+class eltwise_gpu_f32_dynamic_kernel_broadcast : public ::testing::TestWithParam<eltwise_dynamic_broadcast_params> {};
+
+TEST_P(eltwise_gpu_f32_dynamic_kernel_broadcast, basic) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
     ov::Shape in1_shape = {2, 2, 2, 2};
     ov::Shape in2_shape = {1, 2, 1, 1};
-    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
-    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::bfyx};
-    auto in1_mem_layout = layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx};
-    auto in2_mem_layout = layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx};
+    auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, p.input_format};
+    auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, p.input_format};
+    auto in1_mem_layout = layout{ov::PartialShape(in1_shape), data_types::f32, p.input_format};
+    auto in2_mem_layout = layout{ov::PartialShape(in2_shape), data_types::f32, p.input_format};
     auto input1 = engine.allocate_memory(in1_mem_layout);
     auto input2 = engine.allocate_memory(in2_mem_layout);
 
@@ -1530,18 +1538,33 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
     ASSERT_EQ(outputs.begin()->first, "eltwise");
 
     auto output = outputs.at("eltwise").get_memory();
-
-    float answers[16] = { 1.5f,  0.5f, 5.5f, 2.f,
-                          1.5f, -0.5f, 5.5f, 4.7f,
-                          3.5f,  1.0f, 7.5f, 12.5f,
-                          3.5f, -1.0f, 7.5f, 7.5f };
+    ASSERT_EQ(output->get_layout().format, p.input_format);
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
-    for (int i = 0; i < 16; i++) {
-        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
+    for (size_t i = 0; i < p.expected_output.size(); i++) {
+        ASSERT_TRUE(are_equal(p.expected_output[i], output_ptr[i])) << "i=" << i;
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(eltwise_gpu_f32,
+                         eltwise_gpu_f32_dynamic_kernel_broadcast,
+                         ::testing::Values(eltwise_dynamic_broadcast_params{format::bfyx,
+                                                                            {1.5f,  0.5f, 5.5f, 2.f,
+                                                                             1.5f, -0.5f, 5.5f, 4.7f,
+                                                                             3.5f,  1.0f, 7.5f, 12.5f,
+                                                                             3.5f, -1.0f, 7.5f, 7.5f}},
+                                           // byxf buffer order: features are innermost, so input2 is added alternately
+                                           eltwise_dynamic_broadcast_params{format::byxf,
+                                                                            {1.5f, -0.5f, 5.5f, 1.f,
+                                                                             2.5f, -0.5f, 6.5f, 4.7f,
+                                                                             3.5f,  0.f,  7.5f, 11.5f,
+                                                                             4.5f, -1.0f, 8.5f, 7.5f}}),
+                         [](const ::testing::TestParamInfo<eltwise_dynamic_broadcast_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
+
 
 TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_3d_2d) {
     auto& engine = get_test_engine();
@@ -1722,6 +1745,42 @@ TEST(eltwise_cpu_impl_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
     }
 }
 
+TEST(eltwise_cpu_impl, multiply_mixed_f32_f16) {
+    auto& engine = get_test_engine();
+
+    const auto input_layout_f32 = layout{{1, 1, 1, 4}, data_types::f32, format::bfyx};
+    const auto input_layout_f16 = layout{{1, 1, 1, 4}, data_types::f16, format::bfyx};
+    auto input_f32 = engine.allocate_memory(input_layout_f32);
+    auto input_f16 = engine.allocate_memory(input_layout_f16);
+
+    topology topology;
+    topology.add(input_layout("input_f32", input_layout_f32));
+    topology.add(input_layout("input_f16", input_layout_f16));
+    topology.add(eltwise("eltwise",
+                         {input_info("input_f32"), input_info("input_f16")},
+                         eltwise_mode::prod,
+                         data_types::f32));
+
+    set_values(input_f32, {1.f, 2.f, 3.f, 4.f});
+    set_values(input_f16, {ov::float16(0.5f), ov::float16(1.5f), ov::float16(2.f), ov::float16(4.f)});
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"eltwise", {format::bfyx, "", impl_types::cpu}}}));
+    network network(engine, topology, config);
+    network.set_input_data("input_f32", input_f32);
+    network.set_input_data("input_f16", input_f16);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("eltwise").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<float> expected = {0.5f, 3.f, 6.f, 16.f};
+    ASSERT_EQ(output->count(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_EQ(output_ptr[i], expected[i]);
+    }
+}
 
 // This pattern occurs wrong output index due to miss the dyn_pad offset calculation.
 //
