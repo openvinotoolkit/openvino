@@ -45,13 +45,13 @@ struct OPENVINO_API DiscreteTypeInfo {
         : name(_name),
           version_id(_version_id),
           parent(_parent),
-          hash_value(0) {}
+          hash_value(compute_hash(_name, _version_id)) {}
 
     constexpr DiscreteTypeInfo(const char* _name, const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version_id(nullptr),
           parent(_parent),
-          hash_value(0) {}
+          hash_value(compute_hash(_name, nullptr)) {}
 
     bool is_castable(const DiscreteTypeInfo& target_type) const;
 
@@ -71,6 +71,29 @@ struct OPENVINO_API DiscreteTypeInfo {
     size_t hash();
 
 private:
+    // Murmur-style 64-bit mixer, duplicated from ov::util::u64_hash_combine().
+    static constexpr uint64_t mix_hash(uint64_t h, uint64_t k) {
+        constexpr uint64_t m = 0xc6a4a7935bd1e995;
+        constexpr int r = 47;
+        k *= m;
+        k ^= k >> r;
+        k *= m;
+        h ^= k;
+        h *= m;
+        return h + 0xe6546b64;
+    }
+
+    static constexpr uint64_t hash_c_str(const char* str, uint64_t seed = 0) {
+        for (; str && *str != '\0'; ++str) {
+            seed = mix_hash(seed, static_cast<uint64_t>(static_cast<unsigned char>(*str)));
+        }
+        return seed;
+    }
+
+    static constexpr size_t compute_hash(const char* type_name, const char* type_version_id) {
+        return static_cast<size_t>(mix_hash(hash_c_str(type_name), hash_c_str(type_version_id)));
+    }
+
     size_t hash_value;
 };
 
@@ -129,19 +152,6 @@ struct AsTypePtr<std::shared_ptr<In>> {
         return ov::is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
     }
 };
-
-/// \brief Builds a DiscreteTypeInfo with its hash already computed.
-///
-/// RTTI macros publish the result as a shared function-local static. Caching the hash lazily on that
-/// shared instance would be an unsynchronized write racing with concurrent readers, so it is computed
-/// here, before publication.
-inline DiscreteTypeInfo make_type_info(const char* name,
-                                       const char* version_id = nullptr,
-                                       const DiscreteTypeInfo* parent = nullptr) {
-    DiscreteTypeInfo type_info{name, version_id, parent};
-    type_info.hash();
-    return type_info;
-}
 }  // namespace util
 
 /// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type

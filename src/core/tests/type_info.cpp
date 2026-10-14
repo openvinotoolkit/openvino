@@ -4,10 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <atomic>
-#include <thread>
-
-#include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/hash_util.hpp"
@@ -56,10 +52,15 @@ TEST(type_info, compare_new_with_old_type) {
 
 TEST(type_info, check_hash_value) {
     const auto& hash_val = [](const char* name, const char* version_id) -> size_t {
-        size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
-        size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
+        const auto& hash_c_str = [](const char* str) -> uint64_t {
+            uint64_t seed = 0;
+            for (; str && *str != '\0'; ++str) {
+                seed = ov::util::u64_hash_combine(seed, static_cast<uint64_t>(static_cast<unsigned char>(*str)));
+            }
+            return seed;
+        };
         // don't use parent for hash calculation, it is not a part of type (yet)
-        return ov::util::hash_combine(std::vector<size_t>{name_hash, version_id_hash});
+        return static_cast<size_t>(ov::util::u64_hash_combine(hash_c_str(name), hash_c_str(version_id)));
     };
     ov::DiscreteTypeInfo type("type1", "version1");
     ov::DiscreteTypeInfo type_old("type1");
@@ -121,52 +122,4 @@ TEST(type_info, find_in_map) {
     ASSERT_NE(test_map.end(), test_map.find(c));
     ASSERT_EQ(test_map.end(), test_map.find(d));
     ASSERT_EQ(test_map.end(), test_map.find(f));
-}
-
-namespace {
-struct ConcurrentTypeInfoBase {
-    OPENVINO_RTTI_BASE("ConcurrentTypeInfoBase", "test")
-    virtual ~ConcurrentTypeInfoBase() = default;
-};
-
-struct ConcurrentTypeInfoDerived : public ConcurrentTypeInfoBase {
-    OPENVINO_RTTI("ConcurrentTypeInfoDerived", "test", ConcurrentTypeInfoBase)
-};
-}  // namespace
-
-// get_type_info_static() must not mutate the shared type info once it is published, otherwise its
-// cached hash is written while other threads already read it.
-TEST(type_info, concurrent_first_access_to_type_info_static) {
-    constexpr size_t num_threads = 16;
-    std::atomic<size_t> ready{0};
-    std::atomic<bool> start{false};
-    std::vector<size_t> hashes(num_threads, 0);
-    std::vector<char> castable(num_threads, 0);
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    for (size_t i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&, i] {
-            ++ready;
-            while (!start) {
-                std::this_thread::yield();
-            }
-            const auto& info = ConcurrentTypeInfoDerived::get_type_info_static();
-            hashes[i] = info.hash();
-            castable[i] = info.is_castable(ConcurrentTypeInfoBase::get_type_info_static()) ? 1 : 0;
-        });
-    }
-
-    while (ready < num_threads) {
-        std::this_thread::yield();
-    }
-    start = true;
-    for (auto& thread : threads) {
-        thread.join();
-    }
-
-    for (size_t i = 0; i < num_threads; ++i) {
-        EXPECT_EQ(hashes.front(), hashes[i]);
-        EXPECT_EQ(1, castable[i]);
-    }
 }

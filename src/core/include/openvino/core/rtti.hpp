@@ -13,26 +13,27 @@
 
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                                                   \
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {                           \
-        static const ::ov::DiscreteTypeInfo type_info_static = ::ov::util::make_type_info(TYPE_NAME, VERSION_NAME); \
-        return type_info_static;                                                                                    \
-    }                                                                                                               \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override {                                                  \
-        return get_type_info_static();                                                                              \
+#define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                         \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() { \
+        static const ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, VERSION_NAME};    \
+        return type_info_static;                                                          \
+    }                                                                                     \
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {                        \
+        return get_type_info_static();                                                    \
     }
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
     _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)
 
-#define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)                 \
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {               \
-        static const ::ov::DiscreteTypeInfo type_info_static =                                          \
-            ::ov::util::make_type_info(TYPE_NAME, VERSION_NAME, &PARENT_CLASS::get_type_info_static()); \
-        return type_info_static;                                                                        \
-    }                                                                                                   \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override {                                      \
-        return get_type_info_static();                                                                  \
+#define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)              \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {            \
+        static const ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME,                              \
+                                                             VERSION_NAME,                           \
+                                                             &PARENT_CLASS::get_type_info_static()}; \
+        return type_info_static;                                                                     \
+    }                                                                                                \
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {                                   \
+        return get_type_info_static();                                                               \
     }
 
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
@@ -95,13 +96,13 @@
 
 #define _OPENVINO_RTTI_BASE_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
-#define _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                                              \
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {                           \
-        static const ::ov::DiscreteTypeInfo type_info_static = ::ov::util::make_type_info(TYPE_NAME, VERSION_NAME); \
-        return type_info_static;                                                                                    \
-    }                                                                                                               \
-    virtual const ::ov::DiscreteTypeInfo& get_type_info() const {                                                   \
-        return get_type_info_static();                                                                              \
+#define _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                    \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() { \
+        static const ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, VERSION_NAME};    \
+        return type_info_static;                                                          \
+    }                                                                                     \
+    virtual const ::ov::DiscreteTypeInfo& get_type_info() const {                         \
+        return get_type_info_static();                                                    \
     }
 
 /// Helper macro for base (without rtti parrent) class that provides RTTI block definition.
