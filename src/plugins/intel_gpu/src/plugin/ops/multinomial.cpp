@@ -27,7 +27,7 @@ namespace {
 template<typename T>
 cldnn::data CreateScalarDataPrimitive(ProgramBuilder& p, const cldnn::primitive_id& name, T value) {
     auto mem = p.get_engine().allocate_memory(
-        cldnn::layout{element::from<T>(), cldnn::format::bfyx, {1, 1, 1, 1}}, false);
+        cldnn::layout{element::from<T>(), cldnn::format::bfyx, {1, 1, 1, 1}}, false, p.get_config().get_use_deferred_free());
     cldnn::mem_lock<int8_t> host_mem{mem, p.get_engine().get_service_stream()};
     std::memcpy(host_mem.data(), &value, sizeof value);
     return {name, mem};
@@ -35,7 +35,8 @@ cldnn::data CreateScalarDataPrimitive(ProgramBuilder& p, const cldnn::primitive_
 
 cldnn::data CreateShapeDataPrimitive(ProgramBuilder& p, const cldnn::primitive_id& name, Shape& value) {
     auto mem = p.get_engine().allocate_memory(
-        cldnn::layout{element::Type_t::i64, cldnn::format::bfyx, {1, 1, 1, static_cast<int>(value.size())}}, false);
+        cldnn::layout{element::Type_t::i64, cldnn::format::bfyx, {1, 1, 1, static_cast<int>(value.size())}}, false,
+        p.get_config().get_use_deferred_free());
     cldnn::mem_lock<int8_t> host_mem{mem, p.get_engine().get_service_stream()};
     std::vector<std::int64_t> shape {};
     std::copy(value.begin(), value.end(), std::back_inserter(shape));

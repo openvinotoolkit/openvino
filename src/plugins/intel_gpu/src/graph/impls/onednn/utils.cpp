@@ -48,13 +48,13 @@ std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
 }
 
 template <typename T>
-cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
+cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory, bool use_deferred_free) {
     auto engine = zp_memory->get_engine();
     auto& stream = engine->get_service_stream();
 
     auto zp_s32_layout = zp_memory->get_layout();
     zp_s32_layout.data_type = data_types::i32;
-    auto zp_s32_memory = engine->allocate_memory(zp_s32_layout, false);
+    auto zp_s32_memory = engine->allocate_memory(zp_s32_layout, false, use_deferred_free);
 
     mem_lock<T, mem_lock_type::read> zp_data(zp_memory, stream);
     mem_lock<int32_t, mem_lock_type::write> zp_s32_data(zp_s32_memory, stream);
@@ -65,9 +65,9 @@ cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
     return zp_s32_memory;
 }
 
-template cldnn::memory::ptr convert_zp_data_to_s32<int8_t>(const memory::ptr zp_memory);
-template cldnn::memory::ptr convert_zp_data_to_s32<uint8_t>(const memory::ptr zp_memory);
-template cldnn::memory::ptr convert_zp_data_to_s32<int32_t>(const memory::ptr zp_memory);
+template cldnn::memory::ptr convert_zp_data_to_s32<int8_t>(const memory::ptr zp_memory, bool use_deferred_free);
+template cldnn::memory::ptr convert_zp_data_to_s32<uint8_t>(const memory::ptr zp_memory, bool use_deferred_free);
+template cldnn::memory::ptr convert_zp_data_to_s32<int32_t>(const memory::ptr zp_memory, bool use_deferred_free);
 
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped) {
     switch (dims) {

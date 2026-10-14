@@ -720,7 +720,8 @@ void program::transfer_memory_to_device() {
                                         const memory& mem,
                                         allocation_type target_alloc_type) {
         // Allocate and transfer memory
-        auto device_mem = mem.get_engine()->allocate_memory(target_layout, target_alloc_type, false);
+        auto device_mem = mem.get_engine()->allocate_memory(target_layout, target_alloc_type, false,
+                                    get_config().get_use_deferred_free());
         device_mem->copy_from(get_stream(), mem);
         data_node.attach_memory(device_mem);
         const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();

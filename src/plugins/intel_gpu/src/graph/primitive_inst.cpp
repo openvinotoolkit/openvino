@@ -1354,7 +1354,8 @@ void primitive_inst::set_shape_info_memory(memory::ptr addr) {
 
 void primitive_inst::allocate_shape_info_memory() {
     int64_t shape_elements = get_node().get_total_shape_info_size();
-    _shape_info_memory = get_network().get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx}, false);
+    _shape_info_memory = get_network().get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx}, false,
+                                                                    get_network().get_config().get_use_deferred_free());
 }
 
 void primitive_inst::update_shape_info_tensor(const kernel_impl_params& params) {
@@ -2275,7 +2276,8 @@ void primitive_inst::execute() {
                 if (actual_input_layout.count() != 0) {
                     actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
                 } else {
-                    actual_mem = engine.allocate_memory(actual_input_layout);
+                    actual_mem = engine.allocate_memory(actual_input_layout, true,
+                                                        get_network().get_config().get_use_deferred_free());
                 }
                 auto port_id = tag_port_number(d.first->id(), d.second);
                 GPU_DEBUG_TRACE_DETAIL << "set_input_data " << port_id << "  " << actual_mem << std::endl;
@@ -2411,7 +2413,8 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             if (eltw_node.is_type<input_layout>() && !eltw_inst->outputs_allocated()) {
                 auto eltw_mem = _network.get_engine().allocate_memory(eltw_node.get_output_layout(), 
                                                                       _network.get_engine().get_preferred_memory_allocation_type(), 
-                                                                      /*reset*/false);
+                                                                      /*reset*/false,
+                                                                      _network.get_config().get_use_deferred_free());
                 eltw_inst->set_output_memory(eltw_mem, /*check*/false);
             }
             auto& eltw_mem = eltw_inst->output_memory();
@@ -2629,7 +2632,8 @@ void primitive_inst::update_weights() {
             } else {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": allocate weights memory" << std::endl;
                 auto alloc_type = engine.get_preferred_memory_allocation_type();
-                weights_memory = engine.allocate_memory(expected_layout, alloc_type);
+                weights_memory = engine.allocate_memory(expected_layout, alloc_type, true,
+                                                        get_network().get_config().get_use_deferred_free());
             }
 
             _reordered_weights_cache.add(expected_layout, weights_memory);
@@ -2753,11 +2757,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             if ((node.is_output() && is_reorder_weights) || (!node.is_output() && node.is_type<input_layout>()))
                 reset = false;
             GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
-            return _engine.allocate_memory(layout, alloc_type, reset);
+            return _engine.allocate_memory(layout, alloc_type, reset, _network.get_config().get_use_deferred_free());
         }
     } else if (!node.can_share_buffer() || impl_params.can_be_optimized() || node.is_output()) {
         GPU_DEBUG_LOG << "[" << node.id() << ": output]" << std::endl;
-        return _engine.allocate_memory(layout, alloc_type, reset);
+        return _engine.allocate_memory(layout, alloc_type, reset, _network.get_config().get_use_deferred_free());
     } else {
         return get_memory_from_pool(_engine,
                                     net_id,

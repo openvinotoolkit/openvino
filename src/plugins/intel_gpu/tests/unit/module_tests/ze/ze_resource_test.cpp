@@ -12,6 +12,57 @@
 
 using namespace cldnn::ze;
 
+namespace {
+
+struct usm_free_call {
+    int count = 0;
+    ze_context_handle_t context = nullptr;
+    void* ptr = nullptr;
+    ze_memory_free_ext_desc_t desc{};
+};
+
+usm_free_call free_call;
+usm_free_call regular_free_call;
+ze_result_t free_ext_result = ZE_RESULT_SUCCESS;
+
+ze_result_t ZE_APICALL mock_ze_mem_free(ze_context_handle_t context, void* ptr) {
+    ++regular_free_call.count;
+    regular_free_call.context = context;
+    regular_free_call.ptr = ptr;
+    return ZE_RESULT_SUCCESS;
+}
+
+ze_result_t ZE_APICALL mock_ze_mem_free_ext(ze_context_handle_t context,
+                                            const ze_memory_free_ext_desc_t* desc,
+                                            void* ptr) {
+    ++free_call.count;
+    free_call.context = context;
+    free_call.ptr = ptr;
+    if (desc != nullptr) {
+        free_call.desc = *desc;
+    }
+    return free_ext_result;
+}
+
+class ze_usm_deleter_test : public ::testing::Test {
+protected:
+    void SetUp() override {
+        free_call = {};
+        regular_free_call = {};
+        free_ext_result = ZE_RESULT_SUCCESS;
+        original_free = cldnn::ze::zeMemFree;
+        original_free_ext = cldnn::ze::zeMemFreeExt;
+        cldnn::ze::zeMemFree = mock_ze_mem_free;
+        cldnn::ze::zeMemFreeExt = mock_ze_mem_free_ext;
+    }
+    void TearDown() override {
+        cldnn::ze::zeMemFree = original_free;
+        cldnn::ze::zeMemFreeExt = original_free_ext;
+    }
+    decltype(cldnn::ze::zeMemFree) original_free = nullptr;
+    decltype(cldnn::ze::zeMemFreeExt) original_free_ext = nullptr;
+};
+
 template <ze_resource_type resource_type>
 struct ze_resource_tag {
     static constexpr ze_resource_type value = resource_type;
@@ -212,3 +263,100 @@ TYPED_TEST(ze_resource_with_ocl_types_test, can_share_ocl_handle) {
     ASSERT_TRUE(copied_resource.template has_ocl_handle<ocl_type>());
     ASSERT_EQ(copied_resource.template ocl_handle<ocl_type>(), ocl_handle);
 }
+
+TEST_F(ze_usm_deleter_test, owned_memory_uses_deferred_free_descriptor) {
+    const ov_ze_usm_handle handle{
+        reinterpret_cast<ze_context_handle_t>(0x100),
+        reinterpret_cast<void*>(0x200),
+        true
+    };
+    {
+        ze_owner<ze_resource_type::usm_memory> owner(handle);
+        EXPECT_EQ(free_call.count, 0);
+    }
+    EXPECT_EQ(free_call.count, 1);
+    EXPECT_EQ(free_call.context, handle.context);
+    EXPECT_EQ(free_call.ptr, handle.ptr);
+    EXPECT_EQ(free_call.desc.stype, ZE_STRUCTURE_TYPE_MEMORY_FREE_EXT_DESC);
+    EXPECT_EQ(free_call.desc.pNext, nullptr);
+    EXPECT_EQ(free_call.desc.flags, ZE_DRIVER_MEMORY_FREE_POLICY_EXT_FLAG_DEFER_FREE);
+    EXPECT_EQ(regular_free_call.count, 0);
+}
+
+TEST_F(ze_usm_deleter_test, borrowed_memory_is_not_freed) {
+    const ov_ze_usm_handle handle{
+        reinterpret_cast<ze_context_handle_t>(0x100),
+        reinterpret_cast<void*>(0x200)
+    };
+    { ze_owner<ze_resource_type::usm_memory> owner(handle, true); }
+    EXPECT_EQ(free_call.count, 0);
+    EXPECT_EQ(regular_free_call.count, 0);
+}
+
+TEST_F(ze_usm_deleter_test, owned_memory_uses_regular_free_when_deferred_free_is_disabled) {
+    const ov_ze_usm_handle handle{
+        reinterpret_cast<ze_context_handle_t>(0x100),
+        reinterpret_cast<void*>(0x200),
+        false
+    };
+    { ze_owner<ze_resource_type::usm_memory> owner(handle); }
+    EXPECT_EQ(free_call.count, 0);
+    EXPECT_EQ(regular_free_call.count, 1);
+    EXPECT_EQ(regular_free_call.context, handle.context);
+    EXPECT_EQ(regular_free_call.ptr, handle.ptr);
+}
+
+TEST(ze_usm_config_test, allocation_handle_uses_config_setting) {
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_user_property({ov::intel_gpu::use_deferred_free(true)}, ov::OptionVisibility::RELEASE_INTERNAL);
+    const ov_ze_usm_handle handle{
+        reinterpret_cast<ze_context_handle_t>(0x100),
+        reinterpret_cast<void*>(0x200),
+        config.get_use_deferred_free()
+    };
+    EXPECT_TRUE(handle.use_deferred_free);
+    EXPECT_FALSE(ov::intel_gpu::ExecutionConfig().get_use_deferred_free());
+}
+
+TEST_F(ze_usm_deleter_test, unsupported_deferred_free_falls_back_to_regular_free) {
+    free_ext_result = ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;
+    const ov_ze_usm_handle handle{
+        reinterpret_cast<ze_context_handle_t>(0x100),
+        reinterpret_cast<void*>(0x200),
+        true
+    };
+    { ze_owner<ze_resource_type::usm_memory> owner(handle); }
+    EXPECT_EQ(free_call.count, 1);
+    EXPECT_EQ(regular_free_call.count, 1);
+    EXPECT_EQ(regular_free_call.context, handle.context);
+    EXPECT_EQ(regular_free_call.ptr, handle.ptr);
+}
+
+TEST_F(ze_usm_deleter_test, deferred_free_error_does_not_fall_back) {
+    free_ext_result = ZE_RESULT_ERROR_INVALID_ARGUMENT;
+    const ov_ze_usm_handle handle{
+        reinterpret_cast<ze_context_handle_t>(0x100),
+        reinterpret_cast<void*>(0x200),
+        true
+    };
+    { ze_owner<ze_resource_type::usm_memory> owner(handle); }
+    EXPECT_EQ(free_call.count, 1);
+    EXPECT_EQ(regular_free_call.count, 0);
+}
+
+TEST_F(ze_usm_deleter_test, moved_owner_frees_memory_only_once) {
+    const ov_ze_usm_handle handle{
+        reinterpret_cast<ze_context_handle_t>(0x100),
+        reinterpret_cast<void*>(0x200),
+        true
+    };
+    {
+        ze_owner<ze_resource_type::usm_memory> original(handle);
+        ze_owner<ze_resource_type::usm_memory> moved(std::move(original));
+    }
+    EXPECT_EQ(free_call.count, 1);
+    EXPECT_EQ(free_call.context, handle.context);
+    EXPECT_EQ(free_call.ptr, handle.ptr);
+}
+
+}  // namespace

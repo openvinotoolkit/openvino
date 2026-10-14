@@ -31,7 +31,7 @@ struct lockable_gpu_mem {
 struct gpu_usm : public lockable_gpu_mem, public memory {
     gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource usm_buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
-    gpu_usm(ze_engine* engine, const layout& layout, allocation_type type);
+    gpu_usm(ze_engine* engine, const layout& layout, allocation_type type, bool use_deferred_free);
 
     void* lock(const stream& stream, mem_lock_type type) override;
     void unlock(const stream& stream) override;
@@ -60,7 +60,7 @@ protected:
 
 struct gpu_image2d : public lockable_gpu_mem, public memory {
     gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_resource image, std::shared_ptr<MemoryTracker> mem_tracker);
-    gpu_image2d(ze_engine* engine, const layout& layout);
+    gpu_image2d(ze_engine* engine, const layout& layout, bool use_deferred_free);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
@@ -82,6 +82,7 @@ protected:
     size_t _width;
     size_t _height;
     bool _needs_write_back;
+    bool _use_deferred_free = false;
 };
 
 }  // namespace ze

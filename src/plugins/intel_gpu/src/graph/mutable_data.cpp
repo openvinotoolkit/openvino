@@ -21,7 +21,7 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
         return mem;
     }
 
-    memory::ptr result = engine.allocate_memory(mem->get_layout(), false);
+    memory::ptr result = engine.allocate_memory(mem->get_layout(), false, network.get_config().get_use_deferred_free());
     mem_lock<char, mem_lock_type::read> src(mem, stream);
     mem_lock<char, mem_lock_type::write> dst(result, stream);
     std::copy(src.begin(), src.end(), dst.begin());

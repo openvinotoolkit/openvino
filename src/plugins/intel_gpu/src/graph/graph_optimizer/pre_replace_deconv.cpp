@@ -212,7 +212,7 @@ void pre_replace_deconv::run(program& p) {
 
                 const primitive_id weight_replace_node_id = weight_node_id + "_conv_rpl";
                 {
-                     memory::ptr data_to_allocate = p.get_engine().allocate_memory(target_weights_layout);
+                     memory::ptr data_to_allocate = p.get_engine().allocate_memory(target_weights_layout, true, p.get_config().get_use_deferred_free());
 
                      std::vector<float> weights_vec_float;
 

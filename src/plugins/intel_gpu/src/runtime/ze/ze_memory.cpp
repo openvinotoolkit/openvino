@@ -53,18 +53,23 @@ std::vector<ze_event_handle_t> get_ze_events(const std::vector<event::ptr>& even
     return ze_events;
 }
 
-ze_usm_resource allocate_usm_host(ze_context_resource context, size_t size) {
+ze_usm_resource allocate_usm_host(ze_context_resource context, size_t size, bool use_deferred_free = false) {
     ze_host_mem_alloc_desc_t host_desc = {};
     host_desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
     host_desc.flags = 0;
     host_desc.pNext = nullptr;
     ov_ze_usm_handle usm_handle;
     usm_handle.context = context.handle();
+    usm_handle.use_deferred_free = use_deferred_free;
     OV_ZE_EXPECT(ze::zeMemAllocHost(usm_handle.context, &host_desc, size, 0, &usm_handle.ptr));
     return ze_usm_resource(usm_handle);
 }
 
-ze_usm_resource allocate_usm_shared(ze_context_resource context, ze_device_resource device, size_t size, uint32_t ordinal) {
+ze_usm_resource allocate_usm_shared(ze_context_resource context,
+                                    ze_device_resource device,
+                                    size_t size,
+                                    uint32_t ordinal,
+                                    bool use_deferred_free = false) {
     ze_device_mem_alloc_desc_t device_desc = {};
     device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
     device_desc.flags = 0;
@@ -76,11 +81,16 @@ ze_usm_resource allocate_usm_shared(ze_context_resource context, ze_device_resou
     host_desc.pNext = nullptr;
     ov_ze_usm_handle usm_handle;
     usm_handle.context = context.handle();
+    usm_handle.use_deferred_free = use_deferred_free;
     OV_ZE_EXPECT(ze::zeMemAllocShared(usm_handle.context, &device_desc, &host_desc, size, 0, device.handle(), &usm_handle.ptr));
     return ze_usm_resource(usm_handle);
 }
 
-ze_usm_resource allocate_usm_device(ze_context_resource context, ze_device_resource device, size_t size, uint32_t ordinal) {
+ze_usm_resource allocate_usm_device(ze_context_resource context,
+                                    ze_device_resource device,
+                                    size_t size,
+                                    uint32_t ordinal,
+                                    bool use_deferred_free = false) {
     ze_device_mem_alloc_desc_t device_desc = {};
     device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
     device_desc.flags = 0;
@@ -88,6 +98,7 @@ ze_usm_resource allocate_usm_device(ze_context_resource context, ze_device_resou
     device_desc.pNext = nullptr;
     ov_ze_usm_handle usm_handle;
     usm_handle.context = context.handle();
+    usm_handle.use_deferred_free = use_deferred_free;
     OV_ZE_EXPECT(ze::zeMemAllocDevice(usm_handle.context, &device_desc, size, 0, device.handle(), &usm_handle.ptr));
     return ze_usm_resource(usm_handle);
 }
@@ -271,7 +282,7 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource bu
 gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource buffer, std::shared_ptr<MemoryTracker> mem_tracker)
     : gpu_usm(engine, new_layout, std::move(buffer), detect_allocation_type(engine, buffer), mem_tracker) {}
 
-gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
+gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type, bool use_deferred_free)
     : lockable_gpu_mem()
     , memory(engine, layout, type, nullptr) {
     auto actual_bytes_count = _bytes_count;
@@ -281,14 +292,14 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     auto mem_ordinal = engine->get_device_info().device_memory_ordinal;
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
-        _buffer = allocate_usm_host(engine->get_context(), actual_bytes_count);
+        _buffer = allocate_usm_host(engine->get_context(), actual_bytes_count, use_deferred_free);
         break;
     case allocation_type::usm_shared:
-        _buffer = allocate_usm_shared(engine->get_context(), engine->get_device(), actual_bytes_count, mem_ordinal);
+        _buffer = allocate_usm_shared(engine->get_context(), engine->get_device(), actual_bytes_count, mem_ordinal, use_deferred_free);
         break;
     case allocation_type::cl_mem:
     case allocation_type::usm_device:
-        _buffer = allocate_usm_device(engine->get_context(), engine->get_device(), actual_bytes_count, mem_ordinal);
+        _buffer = allocate_usm_device(engine->get_context(), engine->get_device(), actual_bytes_count, mem_ordinal, use_deferred_free);
         break;
     default:
         OPENVINO_THROW("[GPU] Requested unknown unified shared memory type!");
@@ -305,7 +316,7 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
         if (alloc_type == allocation_type::usm_device || alloc_type == allocation_type::cl_mem) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             auto *zero_engine = downcast<ze_engine>(_engine);
-            _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count);
+            _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count, _buffer.handle().use_deferred_free);
             // Always copy device data to host buffer (treat write as read_write internally).
             // This ensures the host buffer always has valid data, making nested locks safe.
             OV_ZE_EXPECT(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
@@ -519,11 +530,12 @@ shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
     return params;
 }
 
-gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
+gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout, bool use_deferred_free)
     : lockable_gpu_mem()
     , memory(engine, layout, allocation_type::ze_image, nullptr)
     , _width(0)
-    , _height(0) {
+    , _height(0)
+    , _use_deferred_free(use_deferred_free) {
     ze_image_desc_t image_desc = {};
     image_desc.stype = ZE_STRUCTURE_TYPE_IMAGE_DESC;
     image_desc.pNext = nullptr;
@@ -637,7 +649,7 @@ void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
             _needs_write_back = false;
         }
         auto *zero_engine = downcast<ze_engine>(_engine);
-        _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count);
+        _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count, _use_deferred_free);
         if (type != mem_lock_type::write) {
             OV_ZE_EXPECT(ze::zeCommandListAppendImageCopyToMemory(zero_stream.get_queue(),
                 _host_buffer.handle().ptr,
@@ -693,7 +705,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
     auto device = zero_stream.get_engine().get_device();
     auto context = zero_stream.get_engine().get_context();
     auto mem_ordinal = zero_stream.get_engine().get_device_info().device_memory_ordinal;
-    ze_usm_resource fill_buffer = allocate_usm_device(context, device, _bytes_count, mem_ordinal);
+    ze_usm_resource fill_buffer = allocate_usm_device(context, device, _bytes_count, mem_ordinal, _use_deferred_free);
 
     OV_ZE_EXPECT(ze::zeCommandListAppendMemoryFill(zero_stream.get_queue(),
         fill_buffer.handle().ptr,

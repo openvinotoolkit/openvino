@@ -71,7 +71,8 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
         }
         // Only allocate if needed and not already large enough
         if (!_outputs[0] || _outputs[0]->size() < mem->size()) {
-            set_output_memory(engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false), false);
+            set_output_memory(engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false,
+                                                     get_network().get_config().get_use_deferred_free()), false);
         }
         mem_lock<uint8_t> src(mem, stream);
         ev = _outputs[0]->copy_from(stream, src.data(), false);

@@ -71,6 +71,10 @@ allocation_type ze_engine::detect_usm_allocation_type(const void* memory) const 
 }
 
 memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
+    return allocate_memory(layout, type, reset, false);
+}
+
+memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type type, bool reset, bool use_deferred_free) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
 
     check_allocatable(layout, type);
@@ -78,9 +82,9 @@ memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type typ
     try {
         memory::ptr res;
         if (layout.format.is_image_2d()) {
-            res = std::make_shared<ze::gpu_image2d>(this, layout);
+            res = std::make_shared<ze::gpu_image2d>(this, layout, use_deferred_free);
         } else if (memory_capabilities::is_usm_type(type) || type == allocation_type::cl_mem){
-            res = std::make_shared<ze::gpu_usm>(this, layout, type);
+            res = std::make_shared<ze::gpu_usm>(this, layout, type, use_deferred_free);
         } else {
             OPENVINO_THROW("[GPU] Unsupported allocation type: ", type);
         }

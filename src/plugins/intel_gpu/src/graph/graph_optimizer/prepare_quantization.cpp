@@ -83,10 +83,10 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
         }
     }
 
-    auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false);
-    auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false);
-    auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, false);
-    auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
+    auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false, p.get_config().get_use_deferred_free());
+    auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false, p.get_config().get_use_deferred_free());
+    auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, false, p.get_config().get_use_deferred_free());
+    auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false, p.get_config().get_use_deferred_free());
 
     auto get_offset_safe = [](const layout& l, const tensor& idx) -> tensor::value_type {
         auto sizes = l.get_tensor();

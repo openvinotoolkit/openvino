@@ -68,7 +68,7 @@ static void CreateAdaptiveMaxPoolOp(ProgramBuilder& p, const std::shared_ptr<ov:
         const cldnn::layout indices_layout{cldnn::element_type_to_data_type(indices_precision),
                                         cldnn::format::get_default_format(indices_shape.size()),
                                         tensor_from_dims(indices_shape)};
-        const auto indices_memory = p.get_engine().allocate_memory(indices_layout);
+        const auto indices_memory = p.get_engine().allocate_memory(indices_layout, true, p.get_config().get_use_deferred_free());
 
         const cldnn::primitive_id indices_id_w = layer_type_name + "_md_write";
         const cldnn::mutable_data indices_mutable_prim_w{indices_id_w, indices_memory};

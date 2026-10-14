@@ -29,7 +29,9 @@ namespace ov::intel_gpu {
 
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, ov::Shape& shape, cldnn::data_types dtype, int64_t num, int64_t rank) {
-    auto mem = p.get_engine().allocate_memory({ shape, dtype, cldnn::format::get_default_format(rank) });
+    auto mem = p.get_engine().allocate_memory({ shape, dtype, cldnn::format::get_default_format(rank) },
+                                              true,
+                                              p.get_config().get_use_deferred_free());
     if (dtype == cldnn::data_types::i32) {
         cldnn::mem_lock<int32_t> ptr{mem, p.get_engine().get_service_stream()};
         *ptr.begin() = static_cast<int32_t>(num);
@@ -48,7 +50,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(ProgramBuilder &p, const s
     const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
-    auto mem = p.get_engine().allocate_memory(output_layout);
+    auto mem = p.get_engine().allocate_memory(output_layout, true, p.get_config().get_use_deferred_free());
     auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, std::move(mem)); // cldnn::data cannot set dependency
     return md;
 }

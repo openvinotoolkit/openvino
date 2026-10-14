@@ -388,7 +388,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             switch (original_mem->get_layout().data_type) {
                 case data_types::f32: {
-                    cldnn::memory_ptr new_mem = p.get_engine().allocate_memory(original_mem->get_layout());
+                    cldnn::memory_ptr new_mem = p.get_engine().allocate_memory(original_mem->get_layout(), true, p.get_config().get_use_deferred_free());
                     mem_lock<float, mem_lock_type::write> new_bias_mem(new_mem, p.get_stream());
                     mem_lock<float, mem_lock_type::read> original_bias_mem(original_mem, p.get_stream());
                     mem_lock<float, mem_lock_type::read> second_bias_mem(second_mem, p.get_stream());
@@ -401,7 +401,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                     break;
                 }
                 case data_types::f16: {
-                    cldnn::memory_ptr new_mem = p.get_engine().allocate_memory(original_mem->get_layout());
+                    cldnn::memory_ptr new_mem = p.get_engine().allocate_memory(original_mem->get_layout(), true, p.get_config().get_use_deferred_free());
                     mem_lock<ov::float16, mem_lock_type::write> new_bias_mem(new_mem, p.get_stream());
                     mem_lock<ov::float16, mem_lock_type::read> original_bias_mem(original_mem, p.get_stream());
                     mem_lock<ov::float16, mem_lock_type::read> second_bias_mem(second_mem, p.get_stream());

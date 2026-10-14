@@ -63,7 +63,10 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     auto wei_layout = node.get_output_layout();
     auto old_weights_memory = node.get_attached_memory_ptr();
     bool need_reset = static_cast<bool>(wei_layout.data_padding) || wei_layout.format.is_blocked();
-    auto new_weights_memory = old_weights_memory->get_engine()->allocate_memory(wei_layout, old_weights_memory->get_allocation_type(), need_reset);
+    auto new_weights_memory = old_weights_memory->get_engine()->allocate_memory(wei_layout,
+                                                                                old_weights_memory->get_allocation_type(),
+                                                                                need_reset,
+                                                                                node.get_program().get_config().get_use_deferred_free());
 
     auto bytes_per_elem = data_type_traits::size_of(wei_layout.data_type);
     mem_lock<uint8_t, mem_lock_type::read> old_weights_memory_lock{old_weights_memory, stream};

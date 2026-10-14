@@ -163,6 +163,7 @@ struct ze_resource_info<ze_resource_type::module_build_log> {
 struct ov_ze_usm_handle {
     ze_context_handle_t context;
     void* ptr;
+    bool use_deferred_free = false;
 };
 
 template <>
@@ -171,12 +172,21 @@ struct ze_resource_info<ze_resource_type::usm_memory> {
     using handle_t = ov_ze_usm_handle;
     struct deleter_t {
         void operator()(handle_t handle) const {
-            ze_memory_free_ext_desc_t desc {
-                ZE_STRUCTURE_TYPE_MEMORY_FREE_EXT_DESC,
-                nullptr,
-                ZE_DRIVER_MEMORY_FREE_POLICY_EXT_FLAG_DEFER_FREE
-            };
-            OV_ZE_WARN(zeMemFreeExt(handle.context, &desc, handle.ptr));
+            if (handle.use_deferred_free) {
+                ze_memory_free_ext_desc_t desc {
+                    ZE_STRUCTURE_TYPE_MEMORY_FREE_EXT_DESC,
+                    nullptr,
+                    ZE_DRIVER_MEMORY_FREE_POLICY_EXT_FLAG_DEFER_FREE
+                };
+                const auto result = zeMemFreeExt(handle.context, &desc, handle.ptr);
+                if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+                    OV_ZE_WARN(zeMemFree(handle.context, handle.ptr));
+                } else {
+                    OV_ZE_WARN(result);
+                }
+            } else {
+                OV_ZE_WARN(zeMemFree(handle.context, handle.ptr));
+            }
         }
     };
 };

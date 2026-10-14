@@ -154,6 +154,11 @@ memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
     return allocate_memory(layout, type, reset);
 }
 
+memory::ptr engine::allocate_memory(const layout& layout, bool reset, bool use_deferred_free) {
+    allocation_type type = get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
+    return allocate_memory(layout, type, reset, use_deferred_free);
+}
+
 memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
     shared_mem_params params = { shared_mem_type::shared_mem_buffer, nullptr, nullptr, buf,
 #ifdef _WIN32

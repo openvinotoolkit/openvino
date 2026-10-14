@@ -36,7 +36,7 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(ProgramBuilder& p,
             cldnn::format::get_default_format(op->get_output_shape(1).size()),
             tensor_from_dims(op->get_output_shape(1)));
 
-        cldnn::memory::ptr shared_memory {p.get_engine().allocate_memory(mutableLayout)};
+        cldnn::memory::ptr shared_memory {p.get_engine().allocate_memory(mutableLayout, true, p.get_config().get_use_deferred_free())};
 
         cldnn::primitive_id experimental_detectron_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         cldnn::mutable_data experimenta_detectron_mutable_prim(experimental_detectron_mutable_id_w,

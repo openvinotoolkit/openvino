@@ -20,7 +20,7 @@ namespace onednn {
 
 // common utils
 template <typename T>
-cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory);
+cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory, bool use_deferred_free = false);
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped = false);
 
 // cldnn -> onednn

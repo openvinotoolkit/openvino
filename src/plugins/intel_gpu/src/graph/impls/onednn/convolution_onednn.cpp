@@ -210,7 +210,8 @@ protected:
                                                 cldnn::data_node& node, int& zero_point_mask) {
         int32_t zp_val = DNNL_RUNTIME_S32_VAL;
         bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
-        memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
+        memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr(),
+                                    node.get_program().get_config().get_use_deferred_free());
         node.attach_memory(s32_mem, false);
         zero_point_mask = is_per_tensor ? 0 : 2;
         attrs->set_zero_points_mask(DNNL_ARG_SRC, zero_point_mask);

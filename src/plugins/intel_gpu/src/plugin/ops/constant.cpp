@@ -117,12 +117,12 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         if (partial_upload.enabled) {
             mem = partial_upload.memory;
         } else if (constLayout.bytes_count() > 0) {
-            mem = p.get_engine().allocate_memory(constLayout, false);
+            mem = p.get_engine().allocate_memory(constLayout, false, p.get_config().get_use_deferred_free());
         } else {
             // In the case of empty const data with {0} shape, it has zero byte.
             // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
             auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
-            auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false);
+            auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false, p.get_config().get_use_deferred_free());
             mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
         }
 

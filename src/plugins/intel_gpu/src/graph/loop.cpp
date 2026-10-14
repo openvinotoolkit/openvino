@@ -318,7 +318,8 @@ void loop_inst::update_backedge_mapped_memory() {
                             // generally, shouldn't go this way, but...
                             auto output_prim = body_network->get_primitive(back_edge.from);
                             layout output_layout = output_prim->output_memory().get_layout();
-                            backedge_mem = body_network->get_engine().allocate_memory(output_layout, false);
+                            backedge_mem = body_network->get_engine().allocate_memory(output_layout, false,
+                                                                                      body_network->get_config().get_use_deferred_free());
                         }
                     } else {
                         auto external_id = output_mapping.front()->external_id;
@@ -396,7 +397,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
                             << sliced_layout.get_partial_shape().to_string()
                             << " to " << updated_sliced_layout.to_string() << std::endl;
             sliced_layout.set_partial_shape(updated_sliced_layout);
-            inter_mem_ptr = engine.allocate_memory(sliced_layout);
+            inter_mem_ptr = engine.allocate_memory(sliced_layout, true, get_network().get_config().get_use_deferred_free());
             intern_prim->set_output_layout(sliced_layout, internal_id.idx);
         }
 
@@ -407,7 +408,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
             sliced_mems.reserve(num_iterations);
             sliced_mems.push_back(inter_mem_ptr);
             for (int j = 1; j < num_iterations; ++j) {
-                memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
+                memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, true, get_network().get_config().get_use_deferred_free());
                 sliced_mems.push_back(sliced_mem);
             }
         }
@@ -416,6 +417,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     auto concat_data_prim = get_network().get_primitive(external_id.pid);
     auto concat_data_id   = external_id;
     return std::make_shared<concatenated_memory_mapping>(extern_mem_ptr, sliced_mems, stream, engine,
+                                                get_network().get_config().get_use_deferred_free(),
                                                 concat_data_prim, sliced_data_prim, io_prim_map);
 }
 
@@ -498,7 +500,8 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
                 // if internal input memory is in backedge, allocate new memory.
                 // Because internal input memory's data will be updated through backedge process.
                 if (iter != _back_edges.end()) {
-                    internal_input_memory = body_network->get_engine().allocate_memory(memory->get_layout(), false);
+                    internal_input_memory = body_network->get_engine().allocate_memory(memory->get_layout(), false,
+                                                                                       body_network->get_config().get_use_deferred_free());
                     internal_input_memory->copy_from(body_network->get_stream(), *memory);
                     GPU_DEBUG_LOG << "Input memory of internal node(" << internal_id.to_string() << ") is set to new memory("
                                     << internal_input_memory << ", " << internal_input_memory->get_layout().to_short_string()
@@ -726,7 +729,8 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
             } else {
                 if (!output_allocated || get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                     auto concat_layout = _impl_params->get_output_layout(external_id.idx);
-                    auto concat_mem = _network.get_engine().allocate_memory(concat_layout, false);
+                    auto concat_mem = _network.get_engine().allocate_memory(concat_layout, false,
+                                                                            _network.get_config().get_use_deferred_free());
                     external_outputs[external_id.idx] = concat_mem;
                     auto iter = std::find_if(concatenated_output_mem_mappings.begin(),
                                                 concatenated_output_mem_mappings.end(),
@@ -1135,7 +1139,8 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 // Check backedge_to shape needs to be updated by initial_mem
                 OPENVINO_ASSERT(mapping.initial_mem != nullptr, "initial_mem should not be null");
                 if (!mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
-                    to_mem = body_network->get_engine().allocate_memory(mapping.initial_mem->get_layout(), false);
+                    to_mem = body_network->get_engine().allocate_memory(mapping.initial_mem->get_layout(), false,
+                                                                       body_network->get_config().get_use_deferred_free());
 
                     body_network->set_input_data(to_id, to_mem);
                     ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
@@ -1158,7 +1163,8 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
 
                 // Check backedge_to shape needs to be updated by backedge_from
                 if (!from_mem->get_layout().identical(to_mem->get_layout())) {
-                    to_mem = body_network->get_engine().allocate_memory(from_mem->get_layout(), false);
+                    to_mem = body_network->get_engine().allocate_memory(from_mem->get_layout(), false,
+                                                                       body_network->get_config().get_use_deferred_free());
                     GPU_DEBUG_LOG << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
                                     << to_mem << ", " << to_mem->get_layout().to_short_string()
                                     << ") because of shape update from backedge_from()" << from_id

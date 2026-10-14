@@ -343,7 +343,7 @@ void network::preallocate_shape_info_buffers() {
         return;
 
     auto& engine = get_engine();
-    _shape_info_ptr = engine.allocate_memory(layout{{sum}, data_types::i32, format::bfyx}, false);
+    _shape_info_ptr = engine.allocate_memory(layout{{sum}, data_types::i32, format::bfyx}, false, get_config().get_use_deferred_free());
     size_t offset = 0;
     for (auto const& prim : _exec_order) {
         auto& node = prim->get_node();
@@ -1217,7 +1217,8 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         }
 
         // Allocate and transfer memory
-        auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
+        auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false,
+                                     get_config().get_use_deferred_free());
         device_mem->copy_from(get_stream(), inst_mem);
         GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
         _memory_pool->release_memory(&inst_mem, node.get_unique_id(), node.id(), get_id());

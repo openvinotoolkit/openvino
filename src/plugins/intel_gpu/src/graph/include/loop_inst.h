@@ -141,6 +141,7 @@ public:
                                     std::vector<memory::ptr> sliced_mems,
                                     stream& stream,
                                     engine& engine,
+                                    bool use_deferred_free,
                                     std::shared_ptr<primitive_inst> concat_data_prim,
                                     std::shared_ptr<primitive_inst> sliced_data_prim,
                                     const cldnn::loop::io_primitive_map& io_prim_map) :
@@ -148,6 +149,7 @@ public:
             sliced_mems(sliced_mems),
             stream(stream),
             engine(engine),
+            use_deferred_free(use_deferred_free),
             concat_data_prim(std::move(concat_data_prim)),
             sliced_data_prim(std::move(sliced_data_prim)),
             io_prim_map(io_prim_map) {}
@@ -157,6 +159,7 @@ public:
             sliced_mems(o.sliced_mems),
             stream(o.stream),
             engine(o.engine),
+            use_deferred_free(o.use_deferred_free),
             concat_data_prim(o.concat_data_prim),
             sliced_data_prim(o.sliced_data_prim),
             io_prim_map(o.io_prim_map) {}
@@ -178,7 +181,7 @@ public:
 
         memory::ptr get_or_create_sliced_mem(int64_t idx, const layout& mem_layout) const {
             while (sliced_mems.size() <= static_cast<size_t>(idx)) {
-                memory::ptr sliced_mem = engine.allocate_memory(mem_layout, false);
+                memory::ptr sliced_mem = engine.allocate_memory(mem_layout, false, use_deferred_free);
                 sliced_mems.push_back(sliced_mem);
             }
             return sliced_mems.at(idx);
@@ -234,6 +237,7 @@ private:
         mutable std::vector<memory::ptr> sliced_mems;
         cldnn::stream& stream;
         cldnn::engine& engine;
+        bool use_deferred_free;
         std::shared_ptr<primitive_inst> concat_data_prim;
         std::shared_ptr<primitive_inst> sliced_data_prim;
         const cldnn::loop::io_primitive_map& io_prim_map;

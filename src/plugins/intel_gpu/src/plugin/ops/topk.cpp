@@ -53,7 +53,7 @@ static void TopKImpl(ProgramBuilder& p,
                                                         tensor_from_dims(op->get_output_shape(1)));
 
             GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-            auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
+            auto shared_memory = p.get_engine().allocate_memory(mutableLayout, true, p.get_config().get_use_deferred_free());
 
             cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
             auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w,

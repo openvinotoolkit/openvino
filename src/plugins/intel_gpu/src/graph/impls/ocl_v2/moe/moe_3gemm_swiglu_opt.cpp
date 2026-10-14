@@ -749,7 +749,8 @@ public:
         const size_t topk_bytes = topk_count * sizeof(uint32_t);
         if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
             auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
-            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
+            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false,
+                                                                   instance.get_network().get_config().get_use_deferred_free());
         }
         std::vector<uint32_t> slots_u32(lease->size());
         for (size_t i = 0; i < lease->size(); i++)
@@ -787,7 +788,8 @@ public:
         const size_t topk_bytes = topk_count * sizeof(uint32_t);
         if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
             auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
-            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
+            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false,
+                                                                   instance.get_network().get_config().get_use_deferred_free());
         }
         std::vector<uint32_t> slots_u32(lease->size());
         for (size_t i = 0; i < lease->size(); i++)
@@ -903,7 +905,8 @@ public:
         size_t topk_bytes = topk_count * sizeof(uint32_t);
         if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
             auto remap_layout = batch_mem_ptr->get_layout();
-            scratch._expert_index_buffer = engine.allocate_memory(remap_layout, allocation_type::usm_host, false);
+            scratch._expert_index_buffer = engine.allocate_memory(remap_layout, allocation_type::usm_host, false,
+                                                                   instance.get_network().get_config().get_use_deferred_free());
         }
         scratch._expert_index_buffer->copy_from(stream, remapped.data(), 0, 0, topk_bytes, true);
         batch_mem_ptr = scratch._expert_index_buffer;

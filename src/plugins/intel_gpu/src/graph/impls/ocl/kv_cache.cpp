@@ -308,12 +308,14 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 bt_shape[desc->concat_axis] += instance.get_prealloc_iter_num();
                 const layout bt_alloc_layout = {bt_shape, bt_layout.data_type, bt_layout.format};
                 GPU_DEBUG_TRACE_DETAIL << "Realloc beam table to " << bt_alloc_layout.to_short_string() << std::endl;
-                beam_table_new = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false);
+                beam_table_new = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false,
+                                                        instance.get_network().get_config().get_use_deferred_free());
 
                 // Alloc prev mem too as it will be needed in the future
                 // That also simplifies arguments setting a little bit as we don't need to handle an optional past state
                 if (!beam_table_prev) {
-                    beam_table_prev = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false);
+                    beam_table_prev = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false,
+                                                             instance.get_network().get_config().get_use_deferred_free());
                 }
             }
 
