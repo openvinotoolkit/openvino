@@ -80,9 +80,8 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
 
         auto const reshapeInputRank = reshape->get_input_partial_shape(0).rank();
         assert(reshapeInputRank.is_static());
-        // Left-pad the dequantization constant up to the Reshape input rank. rank-1 (per-channel)
-        // non-scalar constants must be padded too, otherwise the channel indexing below
-        // (constantShape[1], getBCastedConst) reads/writes out of bounds.
+        // Left-pad up to the Reshape input rank: rank-1 per-channel constants must be padded too,
+        // otherwise the channel indexing below goes out of bounds.
         while (constantShape.size() < static_cast<size_t>(reshapeInputRank.get_length())) {
             constantShape.insert(constantShape.begin(), 1ul);
         }
@@ -100,8 +99,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
         const auto reshapeOutputPShape = reshape->get_output_partial_shape(0);
         const auto reshapeOutputRank = reshapeOutputPShape.rank();
         assert(reshapeOutputRank.is_static());
-        // In NDEBUG builds the old asserts vanished, letting a rank-1 constant fall through to the
-        // OOB read on constantShape[1]. Guard explicitly instead.
+        // Explicit guard: the equivalent asserts are compiled out under NDEBUG.
         if (reshapeOutputRank.is_dynamic() || reshapeOutputRank.get_length() < 2 ||
             reshapeOutputPShape[1].is_dynamic() || constantShape.size() < 2ul) {
             return;

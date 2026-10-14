@@ -38,8 +38,7 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
     const auto rank = gather->get_input_partial_shape(0).size();
     if (rank != constantShape.size()) {
         // case when constShape without batch
-        // Pad rank-1 (per-channel) constants too: the '> 1' guard used to skip them, leaving
-        // constantShape shorter than rank while the code below indexes it by normalizedAxis.
+        // Pad rank-1 per-channel constants too, else the normalizedAxis indexing below goes out of bounds.
         while (constantShape.size() < rank) {
             constantShape.insert(constantShape.begin(), 1);
         }
