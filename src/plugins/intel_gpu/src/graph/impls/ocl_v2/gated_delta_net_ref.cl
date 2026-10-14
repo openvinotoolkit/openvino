@@ -126,7 +126,8 @@ inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, i
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(gated_delta_net_ref)
-(__global INPUT0_TYPE* q,
+(OPTIONAL_SHAPE_INFO_ARG
+ __global INPUT0_TYPE* q,
  __global INPUT1_TYPE* k,
  __global INPUT2_TYPE* v,
  __global INPUT3_TYPE* initial_state,
@@ -135,6 +136,9 @@ KERNEL(gated_delta_net_ref)
  __global OUTPUT_TYPE* output,
 #if OUTPUT_STATE
  __global OUTPUT1_TYPE* output_state,
+#endif
+#if OUTPUT_SNAPSHOTS
+ __global OUTPUT2_TYPE* snapshots,
 #endif
  int seq_len,
  int query_offset,
@@ -255,6 +259,16 @@ KERNEL(gated_delta_net_ref)
             for (int c = 0; c < K_CHUNKS; c++) {
                 float8 s = fma(b_k[c], (float8)(update_val), h_state[v_idx][c]);
                 h_state[v_idx][c] = s;
+#    if OUTPUT_SNAPSHOTS
+                if (T_len - 1 - t < SNAPSHOT_COUNT) {
+                    const int slot = T_len - 1 - t;
+#        pragma unroll
+                    for (int j = 0; j < 8; j++) {
+                        const int row_idx = lane_k_base + c * 8 + j;
+                        snapshots[OUTPUT2_GET_INDEX(slot, b, h, row_idx, start_iv + v_idx)] = (OUTPUT2_TYPE)(s[j]);
+                    }
+                }
+#    endif
                 dot_part_q += FUNC(dot8_fma)(s, b_q[c]);
             }
             dot_part_q_vec[v_idx] = dot_part_q;
@@ -317,6 +331,12 @@ KERNEL(gated_delta_net_ref)
                 float b_output = 0.0f;
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
                     h_state_f[v_idx][k_idx] += k_norm[k_idx] * update_val;
+#    if OUTPUT_SNAPSHOTS
+                    if (T_len - 1 - t < SNAPSHOT_COUNT) {
+                        const int slot = T_len - 1 - t;
+                        snapshots[OUTPUT2_GET_INDEX(slot, b, h, k_idx, curr_iv)] = (OUTPUT2_TYPE)(h_state_f[v_idx][k_idx]);
+                    }
+#    endif
                     b_output = fma(h_state_f[v_idx][k_idx], q_norm[k_idx], b_output);
                 }
 

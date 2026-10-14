@@ -78,6 +78,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/floor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/framework_node.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_nd.cpp

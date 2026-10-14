@@ -67,22 +67,26 @@ GatedDeltaNet::GatedDeltaNet(const Output<Node>& query,
                              const Output<Node>& beta,
                              bool fuse_qk_l2norm,
                              float q_l2_norm_eps,
-                             float k_l2_norm_eps)
+                             float k_l2_norm_eps,
+                             int64_t snapshot_count)
     : Op({query, key, value, recurrent_state, gate, beta}),
       m_fuse_qk_l2norm(fuse_qk_l2norm),
       m_q_l2_norm_eps(q_l2_norm_eps),
-      m_k_l2_norm_eps(k_l2_norm_eps) {
+      m_k_l2_norm_eps(k_l2_norm_eps),
+      m_snapshot_count(snapshot_count) {
     constructor_validate_and_infer_types();
 }
 
 GatedDeltaNet::GatedDeltaNet(const ov::OutputVector& args,
                              bool fuse_qk_l2norm,
                              float q_l2_norm_eps,
-                             float k_l2_norm_eps)
+                             float k_l2_norm_eps,
+                             int64_t snapshot_count)
     : ov::op::Op(args),
       m_fuse_qk_l2norm(fuse_qk_l2norm),
       m_q_l2_norm_eps(q_l2_norm_eps),
-      m_k_l2_norm_eps(k_l2_norm_eps) {
+      m_k_l2_norm_eps(k_l2_norm_eps),
+      m_snapshot_count(snapshot_count) {
     constructor_validate_and_infer_types();
 }
 
@@ -99,8 +103,12 @@ void GatedDeltaNet::validate_and_infer_types() {
     gdn_input_check(this, 4, "gate", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     gdn_input_check(this, 5, "beta", {3}, {ov::element::f32, ov::element::f16, ov::element::bf16});
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_size(output_shapes.size());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, get_input_element_type(3), output_shapes[1]);
+    if (m_snapshot_count > 1) {
+        set_output_type(2, get_input_element_type(3), output_shapes[2]);
+    }
 }
 
 bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
@@ -108,11 +116,12 @@ bool GatedDeltaNet::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("fuse_qk_l2norm", m_fuse_qk_l2norm);
     visitor.on_attribute("q_l2_norm_eps", m_q_l2_norm_eps);
     visitor.on_attribute("k_l2_norm_eps", m_k_l2_norm_eps);
+    visitor.on_attribute("snapshot_count", m_snapshot_count);
     return true;
 }
 
 std::shared_ptr<ov::Node> GatedDeltaNet::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    auto cloned = std::make_shared<GatedDeltaNet>(new_args, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps);
+    auto cloned = std::make_shared<GatedDeltaNet>(new_args, m_fuse_qk_l2norm, m_q_l2_norm_eps, m_k_l2_norm_eps, m_snapshot_count);
     return cloned;
 }
 

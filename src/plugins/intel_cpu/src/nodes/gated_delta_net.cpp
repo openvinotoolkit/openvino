@@ -122,6 +122,10 @@ bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         errorMessage = "Node is not an instance of ov::op::internal::GatedDeltaNet.";
         return false;
     }
+    if (ov::as_type_ptr<const ov::op::internal::GatedDeltaNet>(op)->get_snapshot_count() > 1) {
+        errorMessage = "GatedDeltaNet snapshots are not supported by the CPU plugin.";
+        return false;
+    }
     return true;
 }
 

@@ -56,12 +56,17 @@ protected:
         jit.make("K_L2_NORM_EPS", desc->k_l2_norm_eps);
         jit.make("SCALE_FACTOR", scale_factor);
         jit.make("OUTPUT_STATE", output_state);
+        jit.make("OUTPUT_SNAPSHOTS", desc->snapshot_count > 1 ? 1 : 0);
+        jit.make("SNAPSHOT_COUNT", desc->snapshot_count);
 
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
 
         for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
             args.push_back({ArgumentDescriptor::Types::INPUT, i});

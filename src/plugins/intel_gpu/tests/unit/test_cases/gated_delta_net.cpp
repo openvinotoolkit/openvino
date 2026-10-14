@@ -26,15 +26,17 @@ struct gated_delta_net_test_params {
     int32_t head_size;
     ov::element::Type precision;
     bool is_caching_test;
+    int64_t snapshot_count;
 
-    gated_delta_net_test_params(int batch, int t, int num_heads, int value_num_heads, int head_size, ov::element::Type precision, bool is_caching_test = false)
+    gated_delta_net_test_params(int batch, int t, int num_heads, int value_num_heads, int head_size, ov::element::Type precision, bool is_caching_test = false, int64_t snapshot_count = 1)
         : batch(batch),
           t(t),
           num_heads(num_heads),
           value_num_heads(value_num_heads),
           head_size(head_size),
           precision(precision),
-          is_caching_test(is_caching_test) {}
+          is_caching_test(is_caching_test),
+          snapshot_count(snapshot_count) {}
 };
 
 struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_net_test_params> {
@@ -105,7 +107,8 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                        const std::vector<T>& beta,
                        const float attn_scale,
                        std::vector<T>& state,
-                       std::vector<T>& output) {
+                       std::vector<T>& output,
+                       std::vector<T>* snapshots = nullptr) {
         for (size_t i_b = 0; i_b < this->B; i_b++) {
             for (size_t i_h = 0; i_h < this->H; i_h++) {
                 for (size_t i_v = 0; i_v < this->V; i_v++) {
@@ -153,6 +156,12 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                         // h = h0 + update
                         add(init_state.data(), b_k.data(), this->K);
                         float b_output = dot_product(init_state.data(), b_q.data(), this->K);
+                        if (snapshots && this->T - 1 - i < size_t(GetParam().snapshot_count)) {
+                            const size_t slot = this->T - 1 - i;
+                            for (size_t j = 0; j < this->K; ++j) {
+                                (*snapshots)[((slot * this->B + i_b) * this->H + i_h) * this->K * this->V + j * this->V + i_v] = init_state[j];
+                            }
+                        }
                         // B, T, H, V
                         output[i_b * this->T * this->H * this->V + i * this->H * this->V + i_h * this->V + i_v] = b_output;
                     }
@@ -178,10 +187,14 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                                                 {input_info("q"), input_info("k"), input_info("v"), input_info("state"), input_info("g"), input_info("beta")},
                                                 true,
                                                 1e-6f,
-                                                1e-6f);
+                                                1e-6f,
+                                                GetParam().snapshot_count);
         topo.add(linear_attn_prim);
         topo.add(reorder("output", input_info("gated_delta_net", 0), format::bfyx, output_dt));
-        // topo.add(reorder("states", input_info("gated_delta_net", 1), format::bfyx, data_types::f16));
+        if (GetParam().snapshot_count > 1) {
+            topo.add(reorder("states", input_info("gated_delta_net", 1), format::bfyx, output_dt));
+            topo.add(reorder("snapshots", input_info("gated_delta_net", 2), format::bfzyx, output_dt));
+        }
         return topo;
     }
 
@@ -263,7 +276,10 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         // execute networks
         auto [mem_opt_ptr, net_opt_ptr] = run_network(opt_topo, q_mem, k_mem, v_mem, state_mem, g_mem, beta_mem, is_caching_test);
         std::vector<T> ref_output(batch * t * v_num_heads * head_size);
-        run_reference<T>(input_q, input_k, input_v, input_g, input_beta, 1 / sqrt(this->K), input_state, ref_output);
+        const auto initial_state = input_state;
+        std::vector<T> ref_snapshots(size_t(p.snapshot_count) * input_state.size());
+        run_reference<T>(input_q, input_k, input_v, input_g, input_beta, 1 / sqrt(this->K), input_state, ref_output,
+                         p.snapshot_count > 1 ? &ref_snapshots : nullptr);
         // validate results
         if (mem_opt_ptr) {
             cldnn::mem_lock<T, mem_lock_type::read> opt_data(mem_opt_ptr, get_test_stream());
@@ -278,7 +294,23 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
             cldnn::mem_lock<T, mem_lock_type::read> state_data(state_mem, get_test_stream());
             const float state_tolerance = tolerance;
             for (size_t i = 0; i < state_mem->count(); i++) {
-                ASSERT_NEAR(state_data[i], input_state[i], state_tolerance) << " at index=" << i;
+                ASSERT_NEAR(state_data[i], p.snapshot_count > 1 ? initial_state[i] : input_state[i], state_tolerance) << " at index=" << i;
+            }
+        }
+        if (p.snapshot_count > 1) {
+            auto outputs = net_opt_ptr->execute();
+            auto states = outputs.at("states").get_memory();
+            auto snapshots = outputs.at("snapshots").get_memory();
+            cldnn::mem_lock<T, mem_lock_type::read> state_data(states, get_test_stream());
+            cldnn::mem_lock<T, mem_lock_type::read> snapshot_data(snapshots, get_test_stream());
+            ASSERT_EQ(states->count(), input_state.size());
+            ASSERT_EQ(snapshots->count(), ref_snapshots.size());
+            for (size_t i = 0; i < input_state.size(); ++i) {
+                ASSERT_NEAR(state_data[i], input_state[i], tolerance) << " at index=" << i;
+            }
+            const size_t valid_size = std::min(size_t(t), size_t(p.snapshot_count)) * input_state.size();
+            for (size_t i = 0; i < valid_size; ++i) {
+                ASSERT_NEAR(snapshot_data[i], ref_snapshots[i], tolerance) << " at index=" << i;
             }
         }
     }
@@ -303,6 +335,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
         std::string result = "gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" + std::to_string(info.param.batch) + "_" +
                              std::to_string(info.param.t) + "_" + std::to_string(info.param.num_heads) + "_" + std::to_string(info.param.value_num_heads) +
                              "_" + std::to_string(info.param.head_size);
+
+        if (info.param.snapshot_count > 1)
+            result += "_snapshots" + std::to_string(info.param.snapshot_count);
 
         if (info.param.is_caching_test)
             result += "_cached";
@@ -342,7 +377,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_gated_delta_net_gpu_test,
                              gated_delta_net_test_params{1, 8, 2, 2, 128, ov::element::f32},
                              gated_delta_net_test_params{2, 8, 2, 2, 128, ov::element::f32},
                              gated_delta_net_test_params{1, 8, 4, 4, 128, ov::element::f32},
-                             gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f16, true}),
+                             gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f16, true},
+                             gated_delta_net_test_params{2, 1, 2, 4, 16, ov::element::f32, false, 3},
+                             gated_delta_net_test_params{2, 2, 2, 4, 16, ov::element::f32, false, 3},
+                             gated_delta_net_test_params{2, 3, 2, 4, 16, ov::element::f32, false, 3},
+                             gated_delta_net_test_params{2, 5, 2, 4, 16, ov::element::f32, true, 3},
+                             gated_delta_net_test_params{2, 1, 2, 4, 128, ov::element::f16, false, 3},
+                             gated_delta_net_test_params{2, 2, 2, 4, 128, ov::element::f16, false, 3},
+                             gated_delta_net_test_params{2, 3, 2, 4, 128, ov::element::f16, false, 3},
+                             gated_delta_net_test_params{2, 5, 2, 4, 128, ov::element::f16, true, 3}),
                          gated_delta_net_gpu_test::PrintToStringParamName);
 
 }  // namespace
