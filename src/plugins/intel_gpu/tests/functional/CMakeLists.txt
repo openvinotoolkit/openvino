@@ -17,15 +17,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
 set(GPU_FUNC_TEST_SOURCES ${GPU_FUNCTIONAL_TEST_SOURCES} ${TEST_COMMON_SOURCE_FILES})
 
-# Files excluded from the completeness check when their corresponding build option is not
-# active for this build configuration - mirrors the conditional list(APPEND) logic above.
-set(GPU_FUNC_TEST_CHECK_SOURCES_EXCLUDE_FILES)
-if(ENABLE_MLIR_FOR_GPU)
-    list(APPEND GPU_FUNC_TEST_SOURCES ${GPU_FUNCTIONAL_TEST_MLIR_SOURCES})
-else()
-    list(APPEND GPU_FUNC_TEST_CHECK_SOURCES_EXCLUDE_FILES ${GPU_FUNCTIONAL_TEST_MLIR_SOURCES})
-endif()
-
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
