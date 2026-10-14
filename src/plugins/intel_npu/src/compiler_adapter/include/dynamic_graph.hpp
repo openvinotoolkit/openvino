@@ -83,8 +83,6 @@ private:
     bool _blobIsReleased = false;
 
     uint32_t _uniqueId = 0;
-    // Mirrors Graph::_lastSubmittedId; submission tracking isn't wired up for DynamicGraph yet.
-    [[maybe_unused]] uint32_t _lastSubmittedId = 0;
 
     Logger _logger;
 
