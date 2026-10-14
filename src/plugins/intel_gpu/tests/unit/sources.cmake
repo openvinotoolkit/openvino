@@ -5,6 +5,7 @@
 # Main GPU unit test sources, always compiled regardless of GPU_RT_TYPE/ENABLE_ONEDNN_FOR_GPU.
 set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/bounded_shape_mem_alloc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/conv_dynamic_batch_per_node_byxf_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/deconv_quantize_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/is_valid_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/memory_realloc_test.cpp
