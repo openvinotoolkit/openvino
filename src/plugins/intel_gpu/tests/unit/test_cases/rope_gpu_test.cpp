@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/rope.hpp>
+
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -168,35 +169,46 @@ static void rope_interleaved_input_ref(const memory::ptr input,
 
     cldnn::mem_lock<ov::bfloat16> src_bf16(input, get_test_stream());
     cldnn::mem_lock<ov::float16> src_f16(input, get_test_stream());
+    cldnn::mem_lock<float> src_f32(input, get_test_stream());
     cldnn::mem_lock<ov::bfloat16> cosv_bf16(cos, get_test_stream());
     cldnn::mem_lock<ov::float16> cosv_f16(cos, get_test_stream());
+    cldnn::mem_lock<float> cosv_f32(cos, get_test_stream());
     cldnn::mem_lock<ov::bfloat16> sinv_bf16(sin, get_test_stream());
     cldnn::mem_lock<ov::float16> sinv_f16(sin, get_test_stream());
+    cldnn::mem_lock<float> sinv_f32(sin, get_test_stream());
     cldnn::mem_lock<ov::bfloat16> dst_bf16(output, get_test_stream());
     cldnn::mem_lock<ov::float16> dst_f16(output, get_test_stream());
+    cldnn::mem_lock<float> dst_f32(output, get_test_stream());
 
-    auto read = [](auto& bf16, auto& f16, bool is_bf16, size_t index) {
-        return is_bf16 ? static_cast<float>(bf16[index]) : static_cast<float>(f16[index]);
+    auto read = [](auto& bf16, auto& f16, auto& f32, data_types dt, size_t index) {
+        if (dt == data_types::bf16)
+            return static_cast<float>(bf16[index]);
+        if (dt == data_types::f16)
+            return static_cast<float>(f16[index]);
+        return f32[index];
     };
-    const bool is_bf16 = input->get_layout().data_type == data_types::bf16;
+    const auto data_type = input->get_layout().data_type;
 
     for (size_t b = 0; b < batch; ++b) {
         for (size_t h = 0; h < head_cnt; ++h) {
             for (size_t p = 0; p < seq; ++p) {
                 const size_t base = is_bshd ? ((b * seq + p) * head_cnt + h) * head_size : ((b * head_cnt + h) * seq + p) * head_size;
                 for (size_t i = 0; i < half; ++i) {
-                    const float even = read(src_bf16, src_f16, is_bf16, base + 2 * i);
-                    const float odd = read(src_bf16, src_f16, is_bf16, base + 2 * i + 1);
-                    const float out1 = read(cosv_bf16, cosv_f16, is_bf16, p * head_size + i) * even -
-                                       read(sinv_bf16, sinv_f16, is_bf16, p * head_size + i) * odd;
-                    const float out2 = read(cosv_bf16, cosv_f16, is_bf16, p * head_size + half + i) * odd +
-                                       read(sinv_bf16, sinv_f16, is_bf16, p * head_size + half + i) * even;
-                    if (is_bf16) {
+                    const float even = read(src_bf16, src_f16, src_f32, data_type, base + 2 * i);
+                    const float odd = read(src_bf16, src_f16, src_f32, data_type, base + 2 * i + 1);
+                    const float out1 = read(cosv_bf16, cosv_f16, cosv_f32, data_type, p * head_size + i) * even -
+                                       read(sinv_bf16, sinv_f16, sinv_f32, data_type, p * head_size + i) * odd;
+                    const float out2 = read(cosv_bf16, cosv_f16, cosv_f32, data_type, p * head_size + half + i) * odd +
+                                       read(sinv_bf16, sinv_f16, sinv_f32, data_type, p * head_size + half + i) * even;
+                    if (data_type == data_types::bf16) {
                         dst_bf16[base + i] = ov::bfloat16(out1);
                         dst_bf16[base + half + i] = ov::bfloat16(out2);
-                    } else {
+                    } else if (data_type == data_types::f16) {
                         dst_f16[base + i] = ov::float16(out1);
                         dst_f16[base + half + i] = ov::float16(out2);
+                    } else {
+                        dst_f32[base + i] = out1;
+                        dst_f32[base + half + i] = out2;
                     }
                 }
             }
@@ -364,7 +376,8 @@ static void run_rope(data_types dt,
                      bool dynamic,
                      rope_variant variant = rope_variant::rotate_half,
                      bool use_rope_cache = false,
-                     bool is_caching_test = false) {
+                     bool is_caching_test = false,
+                     bool unaligned_input = false) {
     auto& engine = get_test_engine();
     size_t batch = in_shape[0].get_length();
     size_t seq;
@@ -419,10 +432,14 @@ static void run_rope(data_types dt,
         tests::set_random_values<ov::bfloat16>(input, true, 7, 4);
         tests::set_random_values<ov::bfloat16>(cos, true, 7, 1);
         tests::set_random_values<ov::bfloat16>(sin, true, 7, 1);
-    } else {
+    } else if (dt == data_types::f16) {
         tests::set_random_values<ov::float16>(input, true, 10, 4);
         tests::set_random_values<ov::float16>(cos, true, 10, 1);
         tests::set_random_values<ov::float16>(sin, true, 10, 1);
+    } else {
+        tests::set_random_values<float>(input, true, 10, 4);
+        tests::set_random_values<float>(cos, true, 10, 1);
+        tests::set_random_values<float>(sin, true, 10, 1);
     }
 
     if (variant == rope_variant::interleaved) {
@@ -455,13 +472,17 @@ static void run_rope(data_types dt,
                  dt, format::bfyx}
         : input->get_layout();
     topology.add(input_layout("input", in_lay));
+    const primitive_id rope_input = unaligned_input ? "input_padded" : "input";
+    if (unaligned_input) {
+        topology.add(reorder(rope_input, input_info("input"), input->get_layout().with_padding(padding({0, 0, 0, 1}, {0, 0, 0, 0}))));
+    }
     if (variant == rope_variant::chatglm && use_rope_cache) {
         topology.add(input_layout("cos_sin", cos->get_layout()));
-        topology.add(rope("rope", {input_info("input"), input_info("cos_sin")}, config));
+        topology.add(rope("rope", {input_info(rope_input), input_info("cos_sin")}, config));
     } else {
         topology.add(input_layout("cos", cos->get_layout()));
         topology.add(input_layout("sin", sin->get_layout()));
-        topology.add(rope("rope", {input_info("input"), input_info("cos"), input_info("sin")}, config));
+        topology.add(rope("rope", {input_info(rope_input), input_info("cos"), input_info("sin")}, config));
     }
 
     ExecutionConfig cfg = get_test_default_config(engine);
@@ -486,13 +507,13 @@ static void run_rope(data_types dt,
     auto compare = [&](auto&& read_gpu) {
         cldnn::mem_lock<ov::bfloat16> ref_bf16(output_ref, get_test_stream());
         cldnn::mem_lock<ov::float16> ref_f16(output_ref, get_test_stream());
+        cldnn::mem_lock<float> ref_f32(output_ref, get_test_stream());
         // BF16 ~7 mantissa bits, F16 ~10; F16 accumulates in half on GPU
-        float abs_floor = 0.02f;
-        float rel_tol = (dt == data_types::bf16) ? 0.02f : 0.04f;
+        float abs_floor = dt == data_types::f32 ? 1e-5f : 0.02f;
+        float rel_tol = dt == data_types::bf16 ? 0.02f : (dt == data_types::f16 ? 0.04f : 1e-5f);
         for (size_t i = 0; i < output_ref->count(); ++i) {
             float gpu_val = read_gpu(i);
-            float ref_val = (dt == data_types::bf16) ? static_cast<float>(ref_bf16[i])
-                                                     : static_cast<float>(ref_f16[i]);
+            float ref_val = dt == data_types::bf16 ? static_cast<float>(ref_bf16[i]) : dt == data_types::f16 ? static_cast<float>(ref_f16[i]) : ref_f32[i];
             float diff = std::abs(gpu_val - ref_val);
             float tolerance = std::max(abs_floor, std::abs(ref_val) * rel_tol);
             ASSERT_LE(diff, tolerance) << "Mismatch at i=" << i
@@ -503,9 +524,14 @@ static void run_rope(data_types dt,
     if (dt == data_types::bf16) {
         cldnn::mem_lock<ov::bfloat16> out_ptr(output, get_test_stream());
         compare([&](size_t i) { return static_cast<float>(out_ptr[i]); });
-    } else {
+    } else if (dt == data_types::f16) {
         cldnn::mem_lock<ov::float16> out_ptr(output, get_test_stream());
         compare([&](size_t i) { return static_cast<float>(out_ptr[i]); });
+    } else {
+        cldnn::mem_lock<float> out_ptr(output, get_test_stream());
+        compare([&](size_t i) {
+            return out_ptr[i];
+        });
     }
 }
 
@@ -558,8 +584,20 @@ TEST_P(rope_gpu_test, rope_interleaved_input_bshd) {
     run_rope(GetParam(), ov::PartialShape{2, 4, 2, 8}, 2, 8, false, false, rope_variant::interleaved_input_bshd);
 }
 
+TEST_P(rope_gpu_test, rope_interleaved_input_bshd_dynamic_large) {
+    run_rope(GetParam(), ov::PartialShape{1, 16, 8, 128}, 8, 128, false, true, rope_variant::interleaved_input_bshd);
+}
+
 TEST_P(rope_gpu_test, rope_interleaved_input_large) {
     run_rope(GetParam(), ov::PartialShape{1, 8, 16, 64}, 8, 64, false, false, rope_variant::interleaved_input);
+}
+
+TEST(rope_gpu_f32_test, rope_interleaved_input_vec8) {
+    run_rope(data_types::f32, ov::PartialShape{1, 8, 16, 32}, 8, 32, false, false, rope_variant::interleaved_input);
+}
+
+TEST_P(rope_gpu_test, rope_interleaved_input_unaligned) {
+    run_rope(GetParam(), ov::PartialShape{1, 8, 16, 64}, 8, 64, false, false, rope_variant::interleaved_input, false, false, true);
 }
 
 TEST_P(rope_gpu_test, rope_interleaved_input_cached) {

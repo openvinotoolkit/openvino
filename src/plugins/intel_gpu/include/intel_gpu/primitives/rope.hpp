@@ -30,10 +30,7 @@ struct rope : public primitive_base<rope> {
             OPENVINO_ASSERT((!config.support_2d_rope
                 || (config.support_2d_rope && config.is_chatglm)),
                 "2D RoPE is currently only supported in Chatglm!");
-            OPENVINO_ASSERT(!config.input_interleaved || (!config.input_trans0213 && !config.output_trans0213 && !config.is_interleaved && !config.is_qwen &&
-                                                          !config.is_chatglm && !config.is_ltx_video && !config.support_2d_rope && !config.support_3d_rope &&
-                                                          config.slice_start == 0 && config.slice_stop == 0 && config.gather_position_arg_id == 0),
-                            "input_interleaved is only supported for plain RotateHalf RoPE");
+            OPENVINO_ASSERT(!config.input_interleaved || config.is_plain_rotate_half(), "input_interleaved is only supported for plain RotateHalf RoPE");
         }
 
     RoPE::Config config;

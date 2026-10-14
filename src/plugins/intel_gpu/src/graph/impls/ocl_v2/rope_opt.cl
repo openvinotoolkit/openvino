@@ -495,8 +495,16 @@ uint cos_sin_p = p;
     output[output_idx + HALF_ROTARY_NDIMS + r] = TO_OUTPUT_TYPE(res);
 #else
 #ifdef INPUT_INTERLEAVED
-    INPUT_VEC_TYPE packed1 = *(INPUT_VEC_TYPE*)(input + input_idx + 2 * r);
-    INPUT_VEC_TYPE packed2 = *(INPUT_VEC_TYPE*)(input + input_idx + 2 * r + VEC_SIZE);
+    const uint packed_offset = input_idx + 2 * r;
+    INPUT_VEC_TYPE packed1;
+    INPUT_VEC_TYPE packed2;
+    if (packed_offset % VEC_SIZE == 0) {
+        packed1 = *(INPUT_VEC_TYPE*)(input + packed_offset);
+        packed2 = *(INPUT_VEC_TYPE*)(input + packed_offset + VEC_SIZE);
+    } else {
+        packed1 = CAT(vload, VEC_SIZE)(0, input + packed_offset);
+        packed2 = CAT(vload, VEC_SIZE)(0, input + packed_offset + VEC_SIZE);
+    }
     #if INPUT0_IS_BF16
     MAKE_VECTOR_TYPE(float, VEC_SIZE) din1;
     MAKE_VECTOR_TYPE(float, VEC_SIZE) din2;

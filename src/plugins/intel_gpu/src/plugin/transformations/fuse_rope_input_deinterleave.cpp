@@ -77,8 +77,7 @@ FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() {
         }
 
         const auto config = rope->get_config();
-        if (config.is_interleaved || config.input_interleaved || config.is_chatglm || config.is_qwen || config.is_ltx_video || config.support_2d_rope ||
-            config.support_3d_rope || config.input_trans0213 || config.output_trans0213 || config.slice_start != 0 || config.slice_stop != 0) {
+        if (config.input_interleaved || !config.is_plain_rotate_half()) {
             return false;
         }
 
