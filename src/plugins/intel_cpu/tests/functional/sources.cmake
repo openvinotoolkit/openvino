@@ -10,6 +10,7 @@ set(CPU_FUNC_TESTS_ONNX_SRCS
 )
 
 set(CPU_FUNC_TESTS_ARM_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/divide_pythondiv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/low_precision_transformations/aarch64/fq_and_avg_pool_transformation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/low_precision_transformations/aarch64/fq_and_max_pool_transformation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/low_precision_transformations/aarch64/fully_connected_transformation.cpp

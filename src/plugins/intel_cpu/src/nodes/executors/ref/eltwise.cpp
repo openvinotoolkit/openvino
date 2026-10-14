@@ -31,6 +31,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/reference/divide.hpp"
 #include "openvino/reference/erfinv.hpp"
 #include "utils/general_utils.h"
 
@@ -79,6 +80,29 @@ bool EltwiseRefKey::operator==(const EltwiseRefKey& rhs) const {
 }
 
 static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key) {
+    if (key.eltwise_data.front().algo == Algorithm::EltwiseDivide) {
+        switch (key.outPrc) {
+        case ov::element::i8:
+            return std::make_shared<EltwiseRefExecutor<int8_t>>(key);
+        case ov::element::u8:
+            return std::make_shared<EltwiseRefExecutor<uint8_t>>(key);
+        case ov::element::i16:
+            return std::make_shared<EltwiseRefExecutor<int16_t>>(key);
+        case ov::element::u16:
+            return std::make_shared<EltwiseRefExecutor<uint16_t>>(key);
+        case ov::element::i32:
+            return std::make_shared<EltwiseRefExecutor<int32_t>>(key);
+        case ov::element::u32:
+            return std::make_shared<EltwiseRefExecutor<uint32_t>>(key);
+        case ov::element::i64:
+            return std::make_shared<EltwiseRefExecutor<int64_t>>(key);
+        case ov::element::u64:
+            return std::make_shared<EltwiseRefExecutor<uint64_t>>(key);
+        default:
+            break;
+        }
+    }
+
     switch (key.outPrc) {
     case ov::element::i8:
         return std::make_shared<BitwiseRefExecutor<int8_t>>(key);
@@ -317,14 +341,9 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = src_f[0] * src_f[1];
                 break;
             case Algorithm::EltwiseDivide:
-                if (this->m_opData.pythondiv) {
-                    if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
-                        const auto quotient = src_f[0] / src_f[1];
-                        const auto remainder = src_f[0] % src_f[1];
-                        *dst_ptr_f = quotient - ((remainder != 0) && ((src_f[0] < 0) != (src_f[1] < 0)));
-                    } else {
-                        *dst_ptr_f = src_f[0] / src_f[1];
-                    }
+                if constexpr (std::is_integral_v<T>) {
+                    *dst_ptr_f = this->m_opData.pythondiv ? ov::reference::func::try_python_div(src_f[0], src_f[1])
+                                                          : ov::reference::func::try_div(src_f[0], src_f[1]);
                 } else {
                     *dst_ptr_f = src_f[0] / src_f[1];
                 }
@@ -504,6 +523,14 @@ template class EltwiseRefBaseExecutor<int32_t>;
 
 template class EltwiseRefExecutor<float>;
 template class EltwiseRefExecutor<dnnl::impl::float16_t>;
+template class EltwiseRefExecutor<int8_t>;
+template class EltwiseRefExecutor<uint8_t>;
+template class EltwiseRefExecutor<int16_t>;
+template class EltwiseRefExecutor<uint16_t>;
+template class EltwiseRefExecutor<int32_t>;
+template class EltwiseRefExecutor<uint32_t>;
+template class EltwiseRefExecutor<int64_t>;
+template class EltwiseRefExecutor<uint64_t>;
 
 template class BitwiseRefExecutor<int8_t>;
 template class BitwiseRefExecutor<uint8_t>;

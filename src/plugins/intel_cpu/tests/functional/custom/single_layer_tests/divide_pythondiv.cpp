@@ -17,7 +17,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         const bool pythondiv = GetParam();
-        init_input_shapes({InputShape{{4}, {{4}}}, InputShape{{4}, {{4}}}});
+        init_input_shapes({InputShape{{8}, {{8}}}, InputShape{{8}, {{8}}}});
 
         ov::ParameterVector parameters;
         for (const auto& shape : inputDynamicShapes) {
@@ -28,7 +28,8 @@ protected:
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        static constexpr std::array<std::array<int32_t, 4>, 2> values = {{{-5, 5, -5, 5}, {2, -2, -2, 2}}};
+        static constexpr std::array<std::array<int32_t, 8>, 2> values = {
+            {{-7, -6, -5, 5, 6, -6, 12, -12}, {3, 3, 3, 3, 3, 3, 3, 3}}};
         const auto& modelInputs = function->inputs();
         for (size_t i = 0; i < modelInputs.size(); ++i) {
             ov::Tensor tensor(ov::element::i32, targetInputStaticShapes[i]);
