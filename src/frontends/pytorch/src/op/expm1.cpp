@@ -5,7 +5,13 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -25,7 +31,19 @@ OutputVector translate_expm1(const NodeContext& context) {
     auto exp = exp_vector[0];
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     const_1 = context.mark_node(std::make_shared<v1::ConvertLike>(const_1, exp));
-    auto expm1 = context.mark_node(std::make_shared<v1::Subtract>(exp, const_1));
+    auto exp_minus_one = context.mark_node(std::make_shared<v1::Subtract>(exp, const_1));
+    // exp(x) - 1 loses all precision for small x, because exp(x) rounds to 1. Compensate the rounding error of
+    // u = exp(x) as (u - 1) * (x / log(u)), and return x itself where u rounds to exactly 1.
+    const auto x = exp.get_node_shared_ptr()->input_value(0);
+    auto log = context.mark_node(std::make_shared<v0::Log>(exp));
+    auto scale = context.mark_node(std::make_shared<v1::Divide>(x, log));
+    Output<Node> expm1 = context.mark_node(std::make_shared<v1::Multiply>(exp_minus_one, scale));
+    auto u_is_one = context.mark_node(std::make_shared<v1::Equal>(exp, const_1));
+    expm1 = context.mark_node(std::make_shared<v1::Select>(u_is_one, x, expm1));
+    // Where exp(x) underflows to 0 (expm1 = -1) or overflows to +inf, log(u) is not finite and the formula
+    // above gives nan, while exp(x) - 1 is already exact.
+    auto log_is_inf = context.mark_node(std::make_shared<v10::IsInf>(log));
+    expm1 = context.mark_node(std::make_shared<v1::Select>(log_is_inf, exp_minus_one, expm1));
 
     if (!context.input_is_none(1)) {
         context.mutate_input(1, expm1);
