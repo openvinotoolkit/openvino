@@ -16,8 +16,9 @@ compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_
     return ov::test::utils::all_close_f(expected, result, static_cast<int>(tolerance_bits));
 }
 
-testing::AssertionResult compare_with_tolerance(const std::vector<float>& expected,
-                                                const std::vector<float>& results,
+template <typename T>
+testing::AssertionResult compare_with_tolerance(const std::vector<T>& expected,
+                                                const std::vector<T>& results,
                                                 const float tolerance) {
     auto comparison_result = testing::AssertionSuccess();
 
@@ -27,7 +28,7 @@ testing::AssertionResult compare_with_tolerance(const std::vector<float>& expect
     bool rc = true;
 
     for (std::size_t j = 0; j < expected.size(); ++j) {
-        float diff = std::fabs(results[j] - expected[j]);
+        T diff = std::fabs(results[j] - expected[j]);
         if (diff > tolerance) {
             msg << expected[j] << " is not close to " << results[j] << " at index " << j << "\n";
             rc = false;
@@ -42,20 +43,27 @@ testing::AssertionResult compare_with_tolerance(const std::vector<float>& expect
     return comparison_result;
 }
 
+// Compares tensors of element type T directly, keeping T's precision in the
+// subtraction: downcasting to f32 first would hide errors well above the
+// requested tolerance (e.g. 1e12 and 1e12 + 1000 collapse to the same f32).
+template <typename T>
 testing::AssertionResult compare_with_fp_tolerance(const ov::Tensor& expected_tensor,
                                                    const ov::Tensor& result_tensor,
                                                    const float tolerance) {
-    OPENVINO_ASSERT(expected_tensor.get_element_type() == ov::element::f32);
+    OPENVINO_ASSERT(expected_tensor.get_element_type() == ov::element::from<T>());
+    OPENVINO_ASSERT(result_tensor.get_element_type() == ov::element::from<T>());
 
-    std::vector<float> expected(expected_tensor.get_size());
+    // The views must keep the element type of the tensor they copy from:
+    // ITensor::copy_to does not convert between element types.
+    std::vector<T> expected(expected_tensor.get_size());
     ov::Tensor expected_view(expected_tensor.get_element_type(), expected_tensor.get_shape(), expected.data());
     expected_tensor.copy_to(expected_view);
 
-    std::vector<float> result(result_tensor.get_size());
+    std::vector<T> result(result_tensor.get_size());
     ov::Tensor result_view(result_tensor.get_element_type(), result_tensor.get_shape(), result.data());
     result_tensor.copy_to(result_view);
 
-    return compare_with_tolerance(expected, result, tolerance);
+    return compare_with_tolerance<T>(expected, result, tolerance);
 }
 
 template <typename T>
@@ -192,13 +200,15 @@ testing::AssertionResult TestCase::compare_results_with_tolerance_as_fp(float to
 
         switch (element_type) {
         case element::Type_t::f32:
-            comparison_result = compare_with_fp_tolerance(exp_result, result_tensor, tolerance);
+            comparison_result = compare_with_fp_tolerance<float>(exp_result, result_tensor, tolerance);
             break;
-        case element::Type_t::f16:
-        case element::Type_t::f64: {
+        case element::Type_t::f64:
+            comparison_result = compare_with_fp_tolerance<double>(exp_result, result_tensor, tolerance);
+            break;
+        case element::Type_t::f16: {
             auto exp_f32 = ov::test::utils::make_tensor_with_precision_convert(exp_result, ov::element::f32);
             auto res_f32 = ov::test::utils::make_tensor_with_precision_convert(result_tensor, ov::element::f32);
-            comparison_result = compare_with_fp_tolerance(exp_f32, res_f32, tolerance);
+            comparison_result = compare_with_fp_tolerance<float>(exp_f32, res_f32, tolerance);
             break;
         }
         case element::Type_t::i32:
