@@ -12,6 +12,7 @@
 #include <streambuf>
 
 #include "custom_stream_buffer.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -733,7 +734,7 @@ std::string serializeConfig(const CompilerProperties& compilerProperties,
 
     for (const auto& [key, value] : properties) {
         if (!content.empty()) {
-            content += " ";
+            content += VALUES_SEPARATOR;
         }
         content += key + KEY_VALUE_SEPARATOR.data() + VALUE_DELIMITER.data() + value + VALUE_DELIMITER.data();
     }
