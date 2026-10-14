@@ -277,11 +277,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> bias_col_offset = zero;
     ov::Output<ov::Node> present_k, present_v;
 
-    if (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0) {
-        // With no past tokens, the current K/V already are the complete present cache.
-        present_k = K;
-        present_v = V;
-    } else if (shared_kv) {
+    if (shared_kv) {
         // Shared KV (ORT kv_sequence_length == 0): attend to the past buffer as is (zero copy) and return it
         // unchanged as present. Rows at or beyond `total` are hidden by the explicit mask (causal offset
         // total - S_q via mask_past_seqlen), so no Slice of the cache is needed.
@@ -289,10 +285,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = past_value;
         present_k = past_key;
         present_v = past_value;
+    } else if (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0) {
+        // With no past tokens, the current K/V already are the complete present cache.
+        present_k = K;
+        present_v = V;
     } else if (node->get_sliding_window_cache()) {
         // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
         // row counts before/after appending the S new tokens (see windowed_cache_end).
-        const auto capacity = get_dimensions(past_key.get_node_shared_ptr(), {2});
+        const auto capacity = get_dimensions(register_new_node<v3::ShapeOf>(past_key), {2});
         const auto capacity_scalar = register_new_node<v0::Squeeze>(capacity);
         const auto abs_past_scalar = register_new_node<v0::Squeeze>(past_seqlen);  // P
         const auto abs_total_scalar = register_new_node<v0::Squeeze>(seqlens_1d);  // P + S
@@ -469,7 +469,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
     }
 
-    const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
+    const auto concat_kv_len = get_dimensions(register_new_node<v3::ShapeOf>(K), {2});
     const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
 
     // Broadcast KV if grouped query attention
