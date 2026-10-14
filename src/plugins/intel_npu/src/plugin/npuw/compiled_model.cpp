@@ -74,17 +74,29 @@ void split_properties(const ov::AnyMap& properties,
                       ov::AnyMap& npuw_path_properties) {
     for (auto it = properties.begin(); it != properties.end(); ++it) {
         if (it->first.find("NPUW") != it->first.npos) {
-            npuw_path_properties.insert(*it);
+            npuw_path_properties[it->first] = it->second;
         } else {
-            npu_plugin_properties.insert(*it);
+            npu_plugin_properties[it->first] = it->second;
         }
     }
 }
 
-std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
+std::map<std::string, std::string> any_copy(const ov::AnyMap& params,
+                                            const std::shared_ptr<const ::intel_npu::OptionsDesc>& desc = nullptr) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
-        result.emplace(value.first, value.second.as<std::string>());
+        if (desc && !desc->has(value.first)) {
+            continue;
+        }
+        if (value.second.is<std::string>()) {
+            result.emplace(value.first, value.second.as<std::string>());
+        } else {
+            try {
+                result.emplace(value.first, value.second.as<std::string>());
+            } catch (...) {
+                // Ignore properties that cannot be converted to string for Config
+            }
+        }
     }
     return result;
 }
@@ -225,8 +237,14 @@ namespace ov {
 namespace npuw {
 
 namespace {
-ov::AnyMap make_submodel_import_config(const std::string& device, const ::intel_npu::Config& cfg) {
+ov::AnyMap make_submodel_import_config(const std::string& device,
+                                       const ::intel_npu::Config& cfg,
+                                       const ov::npuw::DeviceProperties& meta_devices = {}) {
     ov::AnyMap import_config;
+    auto it = meta_devices.find(device);
+    if (it != meta_devices.end()) {
+        import_config = it->second;
+    }
     if (ov::npuw::util::starts_with(device, "NPU") && cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         import_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
     }
@@ -472,7 +490,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     split_properties(properties, m_non_npuw_props, npuw_props);
 
     m_cfg.parseEnvVars();
-    m_cfg.update(any_copy(npuw_props));
+    m_cfg.update(any_copy(npuw_props, m_options_desc));
 
     const std::string dev_list_str = m_cfg.get<::intel_npu::NPUW_DEVICES>();
     m_dev_list = ov::DeviceIDParser::get_hetero_devices(dev_list_str);
@@ -1586,6 +1604,14 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         if (encrypted) {
             meta_stream & encrypted_payload;
         }
+
+        // Merge runtime properties into m_non_npuw_props and update config
+        std::map<std::string, ov::Any> npuw_props;
+        split_properties(properties, compiled->m_non_npuw_props, npuw_props);
+        compiled->m_cfg.update(any_copy(npuw_props, compiled->m_options_desc));
+
+        const std::string dev_list_str = compiled->m_cfg.get<::intel_npu::NPUW_DEVICES>();
+        compiled->m_meta_devices = ov::npuw::get_properties_per_device(plugin, dev_list_str, compiled->m_non_npuw_props);
     };
 
     if (root.header().version == 0) {
@@ -1633,7 +1659,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
                 return compiled->m_dev_list.at(device_index);
             },
             [&](const std::string& device) {
-                return make_submodel_import_config(device, compiled->m_cfg);
+                return make_submodel_import_config(device, compiled->m_cfg, compiled->m_meta_devices);
             });
         submodel.serialize(child_stream, compiled->m_import_weights_ctx, std::nullopt, &submodel_ctx);
         child.expect_end();
@@ -2892,7 +2918,21 @@ void ov::npuw::CompiledModel::implement_properties() {
                        }}},
                      {ov::enable_profiling.name(),
                       {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
+                       [&](const ::intel_npu::Config&) -> ov::Any {
+                           if (m_non_npuw_props.count(ov::enable_profiling.name())) {
+                               return m_non_npuw_props.at(ov::enable_profiling.name()).as<bool>();
+                           }
+                           if (m_non_npuw_props.count("PERF_COUNT")) {
+                               const auto& val = m_non_npuw_props.at("PERF_COUNT");
+                               if (val.is<bool>()) {
+                                   return val.as<bool>();
+                               }
+                               if (val.is<std::string>()) {
+                                   std::string s = val.as<std::string>();
+                                   std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+                                   return s == "YES" || s == "TRUE" || s == "1" || s == "ON";
+                               }
+                           }
                            GET_PLUGIN_PROP(ov::enable_profiling);
                        }}},
                      {ov::model_name.name(),
