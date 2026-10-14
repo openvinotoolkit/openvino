@@ -9,6 +9,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -1397,6 +1398,169 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperCachePositionShap
         std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
 
     EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// The top-level encoder_hidden_states batch is legitimately dynamic
+// (ModelBuilder::build_whisper_decoder() declares it [-1, encoder_seq_len, hidden_size]), while
+// ReshapeToStatic fixes only the child's batch to 1 - requiring the top-level shape to be fully
+// static would reject every real Whisper export.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperEncoderHiddenStatesWithDynamicTopLevelBatch) {
+    auto top_encoder_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1500, 512});
+    top_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_encoder_hidden_states)},
+                                    ov::ParameterVector{top_encoder_hidden_states});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto child_encoder_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    child_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_encoder_hidden_states)},
+                                    ov::ParameterVector{child_encoder_hidden_states});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// infer_whole_prefill()'s attention_mask copy derives both its count and its destination
+// offset from attention_mask->get_size() directly, with no bound against the compiled prefill
+// port's capacity - nothing earlier in infer_prefill() checks it (only input_ids's own length
+// is checked against max_prompt_size). A mask longer than max_prompt_size would write starting
+// before the destination allocation (a negative offset).
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsOversizedAttentionMaskDuringWholePrefill) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    ov::npuw::LLMInferRequest req(compiled);
+    const auto& inputs = req.get_inputs();
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    const size_t prompt_len = 2u;
+
+    ov::Tensor input_ids(ov::element::i64, ov::Shape{1, prompt_len});
+    std::fill_n(input_ids.data<int64_t>(), input_ids.get_size(), 1);
+    // Oversized: exceeds the compiled prefill port's max_prompt_size capacity.
+    ov::Tensor attention_mask(ov::element::i64, ov::Shape{1, static_cast<size_t>(max_prompt_size) + 1u});
+    std::fill_n(attention_mask.data<int64_t>(), attention_mask.get_size(), 1);
+    ov::Tensor position_ids(ov::element::i64, ov::Shape{1, prompt_len});
+    std::iota(position_ids.data<int64_t>(), position_ids.data<int64_t>() + position_ids.get_size(), 0);
+
+    req.set_tensor(ov::npuw::util::find_port_by_name(inputs, "input_ids").value(), ov::get_tensor_impl(input_ids));
+    req.set_tensor(ov::npuw::util::find_port_by_name(inputs, "attention_mask").value(),
+                   ov::get_tensor_impl(attention_mask));
+    req.set_tensor(ov::npuw::util::find_port_by_name(inputs, "position_ids").value(),
+                   ov::get_tensor_impl(position_ids));
+
+    EXPECT_THROW(req.infer(), ov::Exception);
+}
+
+// infer_generate() also derives its history-copy count directly from the caller's own
+// attention_mask (attention_mask->get_size() - input_tokens_len), with no bound against the
+// active generate variant's kv_attn_mask capacity - and the subtraction itself would underflow
+// (wrapping to a huge copy count) if the mask were shorter than the input token count. Neither
+// is checked anywhere else before this copy.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsOversizedAttentionMaskHistoryDuringGenerate) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    ov::npuw::LLMInferRequest req(compiled);
+    const auto& inputs = req.get_inputs();
+    auto input_ids_port = ov::npuw::util::find_port_by_name(inputs, "input_ids").value();
+    auto attention_mask_port = ov::npuw::util::find_port_by_name(inputs, "attention_mask").value();
+    auto position_ids_port = ov::npuw::util::find_port_by_name(inputs, "position_ids").value();
+
+    // A valid whole prefill first, so the request is past the prefill stage.
+    {
+        const size_t prompt_len = 2u;
+        ov::Tensor input_ids(ov::element::i64, ov::Shape{1, prompt_len});
+        std::fill_n(input_ids.data<int64_t>(), input_ids.get_size(), 1);
+        ov::Tensor attention_mask(ov::element::i64, ov::Shape{1, prompt_len});
+        std::fill_n(attention_mask.data<int64_t>(), attention_mask.get_size(), 1);
+        ov::Tensor position_ids(ov::element::i64, ov::Shape{1, prompt_len});
+        std::iota(position_ids.data<int64_t>(), position_ids.data<int64_t>() + position_ids.get_size(), 0);
+        req.set_tensor(input_ids_port, ov::get_tensor_impl(input_ids));
+        req.set_tensor(attention_mask_port, ov::get_tensor_impl(attention_mask));
+        req.set_tensor(position_ids_port, ov::get_tensor_impl(position_ids));
+        ASSERT_NO_THROW(req.infer());
+    }
+
+    // A generate step with a wildly oversized attention mask: input_tokens_len=1, but the mask
+    // claims far more history than the active generate variant's capacity holds.
+    {
+        ov::Tensor input_ids(ov::element::i64, ov::Shape{1, 1});
+        input_ids.data<int64_t>()[0] = 1;
+        ov::Tensor attention_mask(ov::element::i64, ov::Shape{1, 100000});
+        std::fill_n(attention_mask.data<int64_t>(), attention_mask.get_size(), 1);
+        ov::Tensor position_ids(ov::element::i64, ov::Shape{1, 1});
+        position_ids.data<int64_t>()[0] = 2;
+        req.set_tensor(input_ids_port, ov::get_tensor_impl(input_ids));
+        req.set_tensor(attention_mask_port, ov::get_tensor_impl(attention_mask));
+        req.set_tensor(position_ids_port, ov::get_tensor_impl(position_ids));
+        EXPECT_THROW(req.infer(), ov::Exception);
+    }
+}
+
+// infer_prefill()'s staging copies use input_ids's raw element/byte count directly: a batch
+// other than 1 (the top-level declaration's batch dimension is dynamic, so nothing earlier
+// bounds it) would copy more elements than the compiled [1, max_prompt_size] ports actually
+// hold, overflowing both the input_ids and attention_mask staging tensors.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsWhisperPrefillInputIdsWithBatchTwo) {
+    VariantSwitchFactory factory;
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_DEVICES", "CPU"},
+                     {"NPUW_WHISPER", "YES"},
+                     {"NPUW_WHISPER_EOS_TOKEN", "42"}};
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov::test::npuw::build_whisper_decoder_test_model(),
+                                                                 m_plugin,
+                                                                 props,
+                                                                 factory.make_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+
+    const auto& inputs = request->get_inputs();
+    auto input_ids_port = ov::npuw::util::find_port_by_name(inputs, "input_ids").value();
+    auto encoder_port = ov::npuw::util::find_port_by_name(inputs, "encoder_hidden_states").value();
+
+    for (const auto& input : inputs) {
+        if (input == input_ids_port || input == encoder_port) {
+            continue;
+        }
+        const auto& partial_shape = input.get_partial_shape();
+        ov::Shape concrete_shape;
+        for (size_t i = 0; i < partial_shape.size(); ++i) {
+            concrete_shape.push_back(partial_shape[i].is_static() ? static_cast<size_t>(partial_shape[i].get_length())
+                                                                  : 1u);
+        }
+        ov::Tensor filler(input.get_element_type(), concrete_shape);
+        std::memset(filler.data(), 0, filler.get_byte_size());
+        request->set_tensor(input, ov::get_tensor_impl(filler));
+    }
+
+    const auto& encoder_partial_shape = encoder_port.get_partial_shape();
+    ov::Shape encoder_shape;
+    for (size_t i = 0; i < encoder_partial_shape.size(); ++i) {
+        encoder_shape.push_back(
+            encoder_partial_shape[i].is_static() ? static_cast<size_t>(encoder_partial_shape[i].get_length()) : 1u);
+    }
+    ov::Tensor encoder_hidden_states(ov::element::f32, encoder_shape);
+    std::memset(encoder_hidden_states.data(), 0, encoder_hidden_states.get_byte_size());
+    request->set_tensor(encoder_port, ov::get_tensor_impl(encoder_hidden_states));
+
+    // Invalid: batch 2 instead of the required 1.
+    ov::Tensor input_ids(ov::element::i64, ov::Shape{2, 4});
+    std::fill_n(input_ids.data<int64_t>(), input_ids.get_size(), 1);
+    request->set_tensor(input_ids_port, ov::get_tensor_impl(input_ids));
+
+    EXPECT_THROW(request->infer(), ov::Exception);
 }
 
 }  // namespace

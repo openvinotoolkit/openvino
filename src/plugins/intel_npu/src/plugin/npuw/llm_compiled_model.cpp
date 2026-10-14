@@ -2150,11 +2150,12 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                         require_exact_extent);
 
         if (m_is_whisper) {
-            // infer_prefill() copies the top-level 'encoder_hidden_states' tensor's full byte
-            // size into this compiled port with no destination-capacity check (see
-            // whisper/whisper_infer_request.cpp) - both ports are independently restored, so a
-            // child smaller than what the top-level model declares (and a real caller may
-            // therefore supply) writes past its allocation.
+            // infer_prefill() bounds the top-level 'encoder_hidden_states' tensor's actual
+            // byte size against this compiled port's capacity at runtime (see
+            // whisper/whisper_infer_request.cpp) - the top-level batch dimension is
+            // legitimately dynamic (ModelBuilder::build_whisper_decoder() declares it
+            // [-1, encoder_seq_len, hidden_size]), so import time cannot bound it via shape
+            // alone. Pin the FIXED (non-batch) dimensions and element type here instead.
             auto encoder_hidden_states_child =
                 ov::npuw::util::find_port_by_name(prefill_inputs, "encoder_hidden_states");
             if (encoder_hidden_states_child.has_value()) {
@@ -2169,21 +2170,27 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                     encoder_hidden_states_top->get_element_type(),
                     ").");
                 const auto& child_shape = encoder_hidden_states_child->get_partial_shape();
-                const auto& top_shape = encoder_hidden_states_top->get_partial_shape();
+                const auto& top_rank = encoder_hidden_states_top->get_partial_shape().rank();
                 OPENVINO_ASSERT(child_shape.is_static(),
                                 "NPUW blob: input 'encoder_hidden_states' does not have a static shape.");
-                OPENVINO_ASSERT(top_shape.is_static(),
-                                "NPUW blob: top-level input 'encoder_hidden_states' does not have a static shape.");
-                const auto child_bytes =
-                    ov::shape_size(child_shape.to_shape()) * encoder_hidden_states_child->get_element_type().size();
-                const auto top_bytes =
-                    ov::shape_size(top_shape.to_shape()) * encoder_hidden_states_top->get_element_type().size();
-                OPENVINO_ASSERT(child_bytes >= top_bytes,
-                                "NPUW blob: input 'encoder_hidden_states' capacity (",
-                                child_bytes,
-                                " bytes) is smaller than the top-level model's (",
-                                top_bytes,
-                                " bytes).");
+                OPENVINO_ASSERT(
+                    top_rank.is_static() && static_cast<size_t>(top_rank.get_length()) == child_shape.size(),
+                    "NPUW blob: top-level input 'encoder_hidden_states' rank disagrees with the compiled port's.");
+                // Dim 0 (batch) is intentionally dynamic at the top level - the runtime
+                // guard above bounds the actual caller-supplied byte count directly, since
+                // no fixed contract can describe it here. Every other dimension is fixed by
+                // the model architecture (encoder sequence length, hidden size).
+                for (size_t i = 1; i < child_shape.size(); ++i) {
+                    const auto& top_dim = encoder_hidden_states_top->get_partial_shape()[i];
+                    OPENVINO_ASSERT(top_dim.is_static() && child_shape[i] == top_dim,
+                                    "NPUW blob: input 'encoder_hidden_states' dimension ",
+                                    i,
+                                    " (",
+                                    child_shape[i],
+                                    ") disagrees with the top-level model's (",
+                                    top_dim,
+                                    ").");
+                }
             }
         }
     }

@@ -31,6 +31,16 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
     LOG_DEBUG("Calling inference for Whisper prefill model...");
     LOG_BLOCK();
 
+    // The staging copies below use input_ids's raw element/byte count directly, with no
+    // per-axis indexing to catch a mismatched shape: a batch other than 1 (the top-level
+    // declaration's batch dimension is dynamic, so nothing earlier bounds it) would copy
+    // more elements than the compiled [1, max_prompt_size] ports actually hold, overflowing
+    // both padded_input and padded_attention_mask below.
+    OPENVINO_ASSERT(input_ids->get_shape().size() == 2 && input_ids->get_shape()[0] == 1,
+                    "Input ids must have shape [1, seq_len], got ",
+                    input_ids->get_shape(),
+                    ".");
+
     // Unlike the generic LLM infer_prefill(), nothing downstream re-checks this: the staging
     // copy below is a raw copy_n of the caller's own token count, and the "KV-cache full"
     // guard in infer_generate() only compares num_stored_tokens for EQUALITY against total_size
@@ -56,6 +66,16 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
     auto encoder_hidden_states = m_prefill_request->get_tensor(m_prefill_in_ports.at("encoder_hidden_states"));
     auto remote_tensor = std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(enc_hidden_states._ptr);
     void* enc_hidden_states_data = !remote_tensor ? enc_hidden_states->data() : remote_tensor->get_original_memory();
+    // The top-level encoder_hidden_states batch is legitimately dynamic (see
+    // ModelBuilder::build_whisper_decoder()), so nothing validated at import time bounds
+    // the caller's actual tensor size here - check it directly against the compiled
+    // destination's capacity before the raw byte copy.
+    OPENVINO_ASSERT(enc_hidden_states->get_byte_size() <= encoder_hidden_states->get_byte_size(),
+                    "Encoder hidden states (",
+                    enc_hidden_states->get_byte_size(),
+                    " bytes) do not fit the compiled prefill port's capacity (",
+                    encoder_hidden_states->get_byte_size(),
+                    " bytes).");
     std::copy_n(reinterpret_cast<uint8_t*>(enc_hidden_states_data),
                 enc_hidden_states->get_byte_size(),
                 reinterpret_cast<uint8_t*>(encoder_hidden_states->data()));

@@ -1271,6 +1271,16 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
                         input_ids->get_byte_size());
 
         auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+        // The top-level sequence length is legitimately dynamic (callers submit prompts of
+        // varying length), so import-time validation cannot bound it - bound the actual
+        // runtime copy count against the destination's capacity directly, or a mask longer
+        // than padded_attention_mask writes starting before its allocation (negative offset).
+        OPENVINO_ASSERT(attention_mask->get_size() <= padded_attention_mask->get_size(),
+                        "Input attention mask (",
+                        attention_mask->get_size(),
+                        " elements) is longer than the configured prefill capacity (",
+                        padded_attention_mask->get_size(),
+                        ").");
         std::copy_n(
             attention_mask->data<int64_t>(),
             attention_mask->get_size(),
@@ -1582,6 +1592,22 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         //       kv layers) and the set of "1" units of number of previously calculated
         //       tokens on the left (for past kv layers).
         auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
+        // Same reasoning as infer_whole_prefill(): the caller's mask length is not bounded
+        // by anything validated at import time. Check it directly before the subtraction
+        // below, which would otherwise underflow (wrapping to a huge copy count) if the mask
+        // is shorter than input_tokens_len, or overflow kv_attn_mask if it's too long.
+        OPENVINO_ASSERT(attention_mask->get_size() >= input_tokens_len,
+                        "Input attention mask (",
+                        attention_mask->get_size(),
+                        " elements) is shorter than the input token count (",
+                        input_tokens_len,
+                        ").");
+        OPENVINO_ASSERT(attention_mask->get_size() - input_tokens_len <= kv_attn_mask->get_size(),
+                        "Input attention mask history (",
+                        attention_mask->get_size() - input_tokens_len,
+                        " elements) exceeds the generate variant's capacity (",
+                        kv_attn_mask->get_size(),
+                        ").");
         std::copy_n(attention_mask->data<int64_t>(),
                     attention_mask->get_size() - input_tokens_len,
                     kv_attn_mask->data<int64_t>());
