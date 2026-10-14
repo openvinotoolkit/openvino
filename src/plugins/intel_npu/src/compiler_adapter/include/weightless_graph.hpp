@@ -40,7 +40,6 @@ public:
                     std::variant<std::monostate,
                                  std::shared_ptr<const ov::Model>,
                                  std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
-                    const Config& config,
                     const bool blobIsPersistent = false,
                     const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
 
