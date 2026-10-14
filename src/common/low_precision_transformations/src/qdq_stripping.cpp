@@ -33,6 +33,7 @@
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -192,6 +193,24 @@ private:
         ov::op::util::visit_path_forward(root, m_visited, collect_nodes_to_scale, make_skip_predicate(true));
     }
 };
+
+bool has_result_consumers(const ov::Output<ov::Node>& output) {
+    for (const auto& input : output.get_target_inputs()) {
+        if (ov::is_type<ov::op::v0::Result>(input.get_node()))
+            return true;
+    }
+    return false;
+}
+
+// Same check as replace_output_update_name(): FQ on model output can't be removed
+// if its input is Parameter, multi-output node or another model output
+bool can_be_removed(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
+    if (!has_result_consumers(fq->output(0)))
+        return true;
+    const auto input = fq->input_value(0);
+    return input.get_node()->get_output_size() == 1 && !ov::is_type<ov::op::v0::Parameter>(input.get_node()) &&
+           !has_result_consumers(input);
+}
 }  // namespace
 
 FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip,
@@ -255,7 +274,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             continue;
         }
 
-        if (!levels_to_strip.count(fq->get_levels()) || !fq_ranges_are_the_same(fq)) {
+        // Check it before any change, so FQ is either fully removed or kept as is
+        if (!levels_to_strip.count(fq->get_levels()) || !fq_ranges_are_the_same(fq) || !can_be_removed(fq)) {
             continue;
         }
 
