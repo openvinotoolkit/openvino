@@ -326,7 +326,8 @@ TEST(GGUFHadamardTypes, ExplicitF32SignsFollowF16Activations) {
 class GGUFHadamardAccuracy : public ::testing::TestWithParam<std::tuple<int64_t, bool>> {};
 
 TEST_P(GGUFHadamardAccuracy, ButterflyPreservesSylvesterOrderSignsAndDynamicShapes) {
-    const auto [block, inverse] = GetParam();
+    const auto block = std::get<0>(GetParam());
+    const auto inverse = std::get<1>(GetParam());
     const auto width = static_cast<size_t>(2 * block);
     const ov::PartialShape shape{2, -1, 2 * block};
     ov::Tensor signs(ov::element::f32, {width});
