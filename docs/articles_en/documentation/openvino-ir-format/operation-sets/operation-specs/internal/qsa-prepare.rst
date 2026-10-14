@@ -20,7 +20,7 @@ blocks completed by the new tokens are computed.
 
 *QSAPrepare* is the first stage of a QSA layer in a model with
 *ScaledDotProductAttention*-style caches. The graph flow is *QSAPrepare* ->
-:doc:`QSAIndexer <qsa-indexer>` -> :doc:`SparseAttention <sparse-attention>`; the paged
+:doc:`SparseAttentionIndexer <sparse-attention-indexer>` -> :doc:`SparseAttention <sparse-attention>`; the paged
 counterpart is :doc:`PagedQSAPrepare <paged-qsa-prepare>`. It covers the key compression of the
 engines: the "compress K" part of the ``qsa_prepare`` kernel of vLLM and the pooling, normalization
 and rotation of the block keys in ``build_qsa_top_k`` of llama.cpp.
@@ -31,7 +31,7 @@ size ``Di = 128``:
 
 * the index query is prepared by regular operations of the graph, as the query of the main
   attention: every head RMS-normalized with ``q_layernorm`` (*RMS* with the weight ``1 + w``) and
-  rotated with the (M-)RoPE of the query token (*RoPE*). It goes to *QSAIndexer* directly;
+  rotated with the (M-)RoPE of the query token (*RoPE*). It goes to *SparseAttentionIndexer* directly;
 * the raw index keys go to *QSAPrepare*. A block key needs all ``key_block_size`` raw keys of its
   block and is rotated at the first token of the block, not at the position of each token, so it is
   not a per-token normalization and rotation: *QSAPrepare* mean-pools the raw keys of every complete
@@ -47,7 +47,7 @@ new value of the state. A decode step completes at most one block, so the poolin
 and the rotation are done for at most two blocks per decode step instead of for all ``B`` blocks.
 
 **Batches with padding.** The sequences of a batch are aligned to the right (left padding), as for
-:doc:`QSAIndexer <qsa-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
+:doc:`SparseAttentionIndexer <sparse-attention-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
 of the ``S`` key positions. Its blocks start at its first valid token: block ``b`` is formed by the
 key positions ``S - key_length[n] + b * key_block_size ..``, and ``block_index_keys[n, b]`` is the key
 of that block. A padded sequence gets the same block keys as alone in a batch of one, and padding
@@ -143,7 +143,7 @@ Properties that follow from the definition:
      ``max(0, (Bp * key_block_size - pad) // key_block_size)`` rows, a lower bound that needs no
      ``key_length_previous``, and recomputes at most one valid cached block.
 
-   See the note *Padding layout* of :doc:`QSAIndexer <qsa-indexer>` for the query axis and an
+   See the note *Padding layout* of :doc:`SparseAttentionIndexer <sparse-attention-indexer>` for the query axis and an
    example:
 
    .. code-block:: text
@@ -168,7 +168,7 @@ Properties that follow from the definition:
 * *key_block_size*
 
   * **Description**: number of consecutive key tokens that form one block. It must be equal to
-    *key_block_size* of the consuming *QSAIndexer*.
+    *key_block_size* of the consuming *SparseAttentionIndexer*.
   * **Range of values**: a positive integer
   * **Type**: ``int``
   * **Required**: *yes*
@@ -193,7 +193,7 @@ Properties that follow from the definition:
   value. **Required (empty tensor with Bp = 0 = no cached blocks, all blocks are computed).**
 
 * **3**: ``key_length`` - 1D tensor of type *T_IND* and shape ``[N]``: the number of valid key tokens
-  of every sequence, ``key_length[n] <= S``; the same input as ``key_length`` of *QSAIndexer*. A tensor
+  of every sequence, ``key_length[n] <= S``; the same input as ``key_length`` of *SparseAttentionIndexer*. A tensor
   of shape ``[1]`` applies to all sequences; without padding it is ``S``. **Required.**
 
 * **4**: ``rope_cos`` - 3D tensor of type *T* and shape ``[N, S, Dr]``, or an empty tensor: the RoPE
@@ -212,7 +212,7 @@ Properties that follow from the definition:
 * **1**: ``block_index_keys`` - 3D tensor of type *T* and shape ``[N, B, Di]``: one normalized and
   rotated key per complete key block of every sequence: the cached block keys followed by the keys
   of the new blocks, zero after the last complete block of a padded sequence. Input
-  ``block_index_keys`` of *QSAIndexer* and the new value of the block key cache.
+  ``block_index_keys`` of *SparseAttentionIndexer* and the new value of the block key cache.
 
 
 **Types**

@@ -23,7 +23,7 @@ blocks are not a fixed sparsity pattern: they are selected per query token, or p
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
   Hugging Face Transformers), with blocks of ``key_block_size = 4`` tokens selected by
-  :doc:`QSAIndexer <qsa-indexer>`. Most of this document uses it as the
+  :doc:`SparseAttentionIndexer <sparse-attention-indexer>`. Most of this document uses it as the
   example;
 * DeepSeek Sparse Attention (DSA) of DeepSeek-V3.2 and GLM-MoE-DSA, with single-token blocks
   (``key_block_size = 1``). See the note below;
@@ -70,7 +70,7 @@ query head has its own selection. In the causal mode, the incomplete block of th
 by every head.
 
 **Batches with padding.** The sequences of a batch are aligned to the right (left padding), as for
-:doc:`QSAIndexer <qsa-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
+:doc:`SparseAttentionIndexer <sparse-attention-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
 of the ``S`` key positions. The positions, the blocks and the block indices of a sequence are counted
 from its first valid token: block ``b`` of sequence ``n`` is formed by the key positions
 ``S - key_length[n] + b * key_block_size ..``, and its query ``l`` has the position
@@ -134,7 +134,7 @@ Properties that follow from the definition:
 * Causal mode: the ``L`` query tokens are the last ``L`` of the ``key_length[n]`` valid key tokens,
   and query ``l`` has the position ``p = key_length[n] - L + l``. With the valid block indices of a
   row in
-  ``[0, (p + 1) // key_block_size)``, as produced by *QSAIndexer*, every attended token
+  ``[0, (p + 1) // key_block_size)``, as produced by *SparseAttentionIndexer*, every attended token
   is at or before ``p``. A query attends to ``block_count * key_block_size + (p + 1) % key_block_size``
   tokens, so the number of key and value rows of every query is known before any of them is read.
 * With ``causal = false`` a query attends to the ``block_count * key_block_size`` tokens of its
@@ -148,12 +148,12 @@ Properties that follow from the definition:
   count column that the vLLM sparse attention kernel uses as its tile-loop bound.
 * The result does not depend on the order of the valid block indices in a row or on the entries
   after the first ``block_count`` ones, which are ignored.
-* With the rows produced by *QSAIndexer*, the result is identical to causal
+* With the rows produced by *SparseAttentionIndexer*, the result is identical to causal
   *ScaledDotProductAttention* as long as every complete block is selected, that is for the first
   ``token_budget + key_block_size - 1`` positions.
 * A query head attends to nothing, and produces zeros, if the ``block_count`` of its selection is
   ``0`` and, in the causal mode, ``p + 1`` is a multiple of ``key_block_size``, or if it is a padding
-  token. *QSAIndexer* produces such a row only for padding tokens; the FlashVSR selection can.
+  token. *SparseAttentionIndexer* produces such a row only for padding tokens; the FlashVSR selection can.
 * With ``Hs = 1`` every query head of a token attends to the same key and value rows, so an
   implementation can read every selected block once for all heads, as for multi-query attention.
   With ``Hs = Hkv`` the rows are shared within every group of query heads of one key-value head.
@@ -180,7 +180,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
      sequence: block ``b`` is the key positions ``pad + b * key_block_size ..``. A padding query has
      ``block_count = 0``.
 
-   See the note *Padding layout* of :doc:`QSAIndexer <qsa-indexer>` for the fake rows of the block
+   See the note *Padding layout* of :doc:`SparseAttentionIndexer <sparse-attention-indexer>` for the fake rows of the block
    axis and an example:
 
    .. code-block:: text
@@ -203,7 +203,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
    With ``key_block_size = 1``, every block is a single token and the incomplete block is always
    empty, so a query attends to exactly the tokens listed in ``block_indices``. Together with
-   :doc:`QSAIndexer <qsa-indexer>` configured as described there, this covers the sparse attention
+   :doc:`SparseAttentionIndexer <sparse-attention-indexer>` configured as described there, this covers the sparse attention
    of DeepSeek Sparse Attention (DSA) models such as DeepSeek-V3.2 and GLM-MoE-DSA. Their
    multi-head latent attention maps to this operation in its absorbed form, as multi-query
    attention with ``Hkv = 1``, ``E = kv_lora_rank + qk_rope_head_dim`` (``576``) and
@@ -242,7 +242,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * *key_block_size*
 
   * **Description**: number of consecutive key tokens that form one block. It must be equal to
-    *key_block_size* of the *QSAIndexer* that produces ``block_indices``. ``128`` for
+    *key_block_size* of the *SparseAttentionIndexer* that produces ``block_indices``. ``128`` for
     FlashVSR.
   * **Range of values**: a positive integer
   * **Type**: ``int``
@@ -286,15 +286,15 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
   ``block_count`` entries. These entries are unique within a row and, in the causal mode, in
   ``[0, (p + 1) // key_block_size)`` for the position ``p`` of every query token of the row; with
   ``causal = false`` they are in ``[0, ceil(key_length[n] / key_block_size))``. Otherwise the
-  behavior is undefined. The remaining entries are ignored; *QSAIndexer* sets them to ``-1``.
+  behavior is undefined. The remaining entries are ignored; *SparseAttentionIndexer* sets them to ``-1``.
   **Required.**
 
 * **5**: ``block_count`` - 3D tensor of type *T_IND* and shape ``[N, Hs, Lq]``: the number of valid
   entries in every row of ``block_indices``, ``0 <= block_count <= KB``. Normally the
-  ``block_count`` output of *QSAIndexer*. **Required.**
+  ``block_count`` output of *SparseAttentionIndexer*. **Required.**
 
 * **6**: ``key_length`` - 1D tensor of type *T_IND* and shape ``[N]``: the number of valid key tokens
-  of every sequence, ``key_length[n] <= S``, the same input as ``key_length`` of *QSAIndexer*. A
+  of every sequence, ``key_length[n] <= S``, the same input as ``key_length`` of *SparseAttentionIndexer*. A
   tensor of shape ``[1]`` applies to all sequences. If not provided, there is no padding:
   ``key_length[n] = S``. **Optional.**
 
@@ -339,7 +339,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * ``Ev`` - head size of the attention value.
 
 * ``KB`` - maximum number of selected blocks per query row. For the output of
-  *QSAIndexer*, ``KB = token_budget / key_block_size``; for FlashVSR, the number of key
+  *SparseAttentionIndexer*, ``KB = token_budget / key_block_size``; for FlashVSR, the number of key
   windows.
 
 
@@ -371,13 +371,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
                 <dim>-1</dim>   <!-- S -->
                 <dim>256</dim>  <!-- Ev -->
             </port>
-            <port id="3" precision="I32"> <!-- block_indices from QSAIndexer -->
+            <port id="3" precision="I32"> <!-- block_indices from SparseAttentionIndexer -->
                 <dim>1</dim>    <!-- N -->
                 <dim>1</dim>    <!-- Hs -->
                 <dim>-1</dim>   <!-- L -->
                 <dim>512</dim>  <!-- KB -->
             </port>
-            <port id="4" precision="I32"> <!-- block_count from QSAIndexer -->
+            <port id="4" precision="I32"> <!-- block_count from SparseAttentionIndexer -->
                 <dim>1</dim>    <!-- N -->
                 <dim>1</dim>    <!-- Hs -->
                 <dim>-1</dim>   <!-- L -->
@@ -419,13 +419,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
                 <dim>10001</dim> <!-- S -->
                 <dim>256</dim>   <!-- Ev -->
             </port>
-            <port id="3" precision="I32"> <!-- block_indices from QSAIndexer -->
+            <port id="3" precision="I32"> <!-- block_indices from SparseAttentionIndexer -->
                 <dim>2</dim>     <!-- N -->
                 <dim>1</dim>     <!-- Hs -->
                 <dim>1</dim>     <!-- L -->
                 <dim>512</dim>   <!-- KB -->
             </port>
-            <port id="4" precision="I32"> <!-- block_count from QSAIndexer: 512 -->
+            <port id="4" precision="I32"> <!-- block_count from SparseAttentionIndexer: 512 -->
                 <dim>2</dim>     <!-- N -->
                 <dim>1</dim>     <!-- Hs -->
                 <dim>1</dim>     <!-- L -->

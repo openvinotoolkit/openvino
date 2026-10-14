@@ -1,48 +1,48 @@
-PagedQSAIndexer
-===============
+PagedSparseAttentionIndexer
+===========================
 
 
 .. meta::
-  :description: Learn about PagedQSAIndexer - the paged variant of QSAIndexer that selects the key
+  :description: Learn about PagedSparseAttentionIndexer - the paged variant of SparseAttentionIndexer that selects the key
                 blocks each token attends to from the paged block index keys.
 
-**Versioned name**: *PagedQSAIndexer*
+**Versioned name**: *PagedSparseAttentionIndexer*
 
 **Category**: *Internal*
 
-**Short description**: *PagedQSAIndexer* is the paged variant of :doc:`QSAIndexer <qsa-indexer>`.
-For every token of a packed batch it scores the complete key blocks of its sequence, read from the
-paged block index keys, and returns the indices of a budget of the best-scoring blocks together with
-their number.
+**Short description**: *PagedSparseAttentionIndexer* is the paged variant of
+:doc:`SparseAttentionIndexer <sparse-attention-indexer>`. For every token of a packed batch it scores
+the complete key blocks of its sequence, read from the paged block index keys, and returns the
+indices of a budget of the best-scoring blocks together with their number.
 
 **Detailed description**:
 
 The graph flow of a QSA layer with a paged KV cache is :doc:`PagedQSAPrepare <paged-qsa-prepare>` ->
-*PagedQSAIndexer* -> :doc:`PagedSparseAttention <paged-sparse-attention>`.
-*PagedQSAIndexer* only selects. The normalized and rotated index query is computed by regular
+*PagedSparseAttentionIndexer* -> :doc:`PagedSparseAttention <paged-sparse-attention>`.
+*PagedSparseAttentionIndexer* only selects. The normalized and rotated index query is computed by regular
 operations of the graph (*RMS* and *RoPE*, as the query of the main attention). The block keys come
 from ``pa_block_index_keys``, connected to the output of *PagedQSAPrepare*: the buffer updated in place
-for the new tokens. This data dependency orders the two operations. *PagedQSAIndexer* corresponds to
+for the new tokens. This data dependency orders the two operations. *PagedSparseAttentionIndexer* corresponds to
 the ``qsa_select_paged_decode`` / ``qsa_select_paged_prefill`` kernels of vLLM.
 
-The selection is the one of *QSAIndexer*: a token at the position ``p`` of its sequence scores the
+The selection is the one of *SparseAttentionIndexer*: a token at the position ``p`` of its sequence scores the
 ``(p + 1) // key_block_size`` complete blocks at or before it with ``sum_h w[h] * ReLU(q[h] . k)``
 over the index query heads of a selection head, and selects the ``token_budget / key_block_size``
 best ones, or all of them if there are fewer. Ties are broken by the smaller block index (stable
 top-k). It covers Qwen Sparse Attention (``key_block_size = 4``) and DeepSeek Sparse Attention
-(``key_block_size = 1`` with ``index_weights``); see *QSAIndexer* for the model mapping and the
+(``key_block_size = 1`` with ``index_weights``); see *SparseAttentionIndexer* for the model mapping and the
 selection heads.
 
 ``pa_block_index_keys`` uses the block table of the KV cache: the key of the logical block ``b`` of
 the sequence ``s`` is in the physical block that holds the token ``b * key_block_size``, at the row
 ``(b * key_block_size % Bs) / key_block_size``, with ``Bs = key_block_size * pa_block_index_keys.shape[1]``.
 
-*PagedQSAIndexer* provides functionality according to the following pseudo-code using ``numpy``:
+*PagedSparseAttentionIndexer* provides functionality according to the following pseudo-code using ``numpy``:
 
 .. code-block:: py
    :force:
 
-    def PagedQSAIndexer(index_query, pa_block_index_keys, past_lens, subsequence_begins, block_indices,
+    def PagedSparseAttentionIndexer(index_query, pa_block_index_keys, past_lens, subsequence_begins, block_indices,
                         block_indices_begins, index_weights, *, key_block_size, token_budget, num_selection_heads=1):
         T = index_query.shape[0]
         rows_per_block, Di = pa_block_index_keys.shape[1], pa_block_index_keys.shape[2]
@@ -81,7 +81,7 @@ the sequence ``s`` is in the physical block that holds the token ``b * key_block
 
 Properties that follow from the definition:
 
-* For every sequence, the result equals *QSAIndexer* applied to the sequence with
+* For every sequence, the result equals *SparseAttentionIndexer* applied to the sequence with
   ``key_length = past_lens[s] + new_len_s`` and the ``block_index_keys`` of *QSAPrepare*,
   independently of how the tokens of the sequence were split into inference calls and of the
   physical block assignment.
@@ -202,7 +202,7 @@ Properties that follow from the definition:
 .. code-block:: xml
    :force:
 
-    <layer id="2" name="paged_qsa_indexer" type="PagedQSAIndexer" version="extension">
+    <layer id="2" name="paged_sparse_attention_indexer" type="PagedSparseAttentionIndexer" version="extension">
         <data key_block_size="4" token_budget="2048" num_selection_heads="1"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query: RMS + RoPE in the graph -->

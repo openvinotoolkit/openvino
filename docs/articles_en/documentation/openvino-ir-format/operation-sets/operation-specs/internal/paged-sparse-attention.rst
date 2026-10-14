@@ -20,14 +20,14 @@ and of the incomplete block that contains it.
 **Detailed description**:
 
 The graph flow of a QSA layer with a paged KV cache is :doc:`PagedQSAPrepare <paged-qsa-prepare>` ->
-:doc:`PagedQSAIndexer <paged-qsa-indexer>` -> *PagedSparseAttention*.
+:doc:`PagedSparseAttentionIndexer <paged-sparse-attention-indexer>` -> *PagedSparseAttention*.
 
 The attention is the causal mode of *SparseAttention*. Blocks consist of ``key_block_size``
 consecutive tokens of a sequence; a token at the position ``p`` attends to:
 
 * all tokens of the first ``selected_block_count`` blocks listed in its row of
   ``selected_block_indices`` for the selection head of the attention head, produced by
-  *PagedQSAIndexer*;
+  *PagedSparseAttentionIndexer*;
 * the tokens of the incomplete block that contains it,
   ``floor((p + 1) / key_block_size) * key_block_size .. p``: at most ``key_block_size - 1`` tokens,
   including the query itself, and none when ``p + 1`` is a multiple of ``key_block_size``.
@@ -115,11 +115,11 @@ Properties that follow from the definition:
   inference calls and of the physical block assignment.
 * Within a call, all new keys and values are written before the attention, so a token can attend to
   earlier new tokens of its sequence in the same call. Every selected block is complete at the
-  position of the token, as guaranteed by *PagedQSAIndexer*.
+  position of the token, as guaranteed by *PagedSparseAttentionIndexer*.
 * The result does not depend on the order of the valid entries of a row of
   ``selected_block_indices``. The entries after the first ``selected_block_count`` ones are ignored.
 * A token whose row is empty and whose incomplete block is empty produces zeros.
-  *PagedQSAIndexer* never produces such a token.
+  *PagedSparseAttentionIndexer* never produces such a token.
 
 The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the output by a separate
 *Multiply* and is not part of this operation.
@@ -131,7 +131,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
   * **Description**: number of consecutive key tokens that form one key block of the sparse
     selection, not the physical block of the paged caches (``Bs``). It must be equal to
-    *key_block_size* of the *PagedQSAIndexer* that produces ``selected_block_indices``
+    *key_block_size* of the *PagedSparseAttentionIndexer* that produces ``selected_block_indices``
     and divide the block size ``Bs`` of the caches.
   * **Range of values**: a positive integer
   * **Type**: ``int``
@@ -226,7 +226,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * ``Nb`` - total number of entries in ``block_indices``.
 
 * ``KB`` - maximum number of selected blocks per token. For the output of
-  *PagedQSAIndexer*, ``KB = token_budget / key_block_size``.
+  *PagedSparseAttentionIndexer*, ``KB = token_budget / key_block_size``.
 
 
 **Example**
@@ -267,7 +267,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
             <port id="6" precision="I32"> <dim>-1</dim> </port> <!-- subsequence_begins -->
             <port id="7" precision="I32"> <dim>-1</dim> </port> <!-- block_indices -->
             <port id="8" precision="I32"> <dim>-1</dim> </port> <!-- block_indices_begins -->
-            <port id="9" precision="I32"> <!-- selected_block_indices from PagedQSAIndexer -->
+            <port id="9" precision="I32"> <!-- selected_block_indices from PagedSparseAttentionIndexer -->
                 <dim>300</dim>   <!-- T -->
                 <dim>1</dim>     <!-- Hs -->
                 <dim>512</dim>   <!-- KB -->

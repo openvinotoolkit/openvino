@@ -12,15 +12,15 @@ PagedQSAPrepare
 
 **Short description**: *PagedQSAPrepare* is the paged variant of :doc:`QSAPrepare <qsa-prepare>`.
 It processes the raw index keys of the tokens of several sequences packed into one batch and updates
-in place the paged block index keys from which :doc:`PagedQSAIndexer <paged-qsa-indexer>` selects.
+in place the paged block index keys from which :doc:`PagedSparseAttentionIndexer <paged-sparse-attention-indexer>` selects.
 
 **Detailed description**:
 
 The graph flow of a QSA layer with a paged KV cache is *PagedQSAPrepare* ->
-:doc:`PagedQSAIndexer <paged-qsa-indexer>` ->
+:doc:`PagedSparseAttentionIndexer <paged-sparse-attention-indexer>` ->
 :doc:`PagedSparseAttention <paged-sparse-attention>`. The index query is prepared by
 regular operations of the graph (*RMS* and *RoPE*, as the query of the main attention) and goes to
-*PagedQSAIndexer* directly; *PagedQSAPrepare* only computes the block keys.
+*PagedSparseAttentionIndexer* directly; *PagedQSAPrepare* only computes the block keys.
 
 The computation is the one of *QSAPrepare*, but the tokens of a batch belong to sequences at
 different stages, and a block of a sequence may start in one inference call and be completed in a
@@ -29,7 +29,7 @@ place:
 
 * ``index_key_cache``: the raw index key of every token, before normalization and rotation;
 * ``pa_block_index_keys``: the final key of every complete block, mean-pooled, RMS-normalized and
-  rotated with the RoPE of the first token of the block. This is the cache that *PagedQSAIndexer*
+  rotated with the RoPE of the first token of the block. This is the cache that *PagedSparseAttentionIndexer*
   reads;
 * ``index_block_rope_cache``: the RoPE ``cos`` and ``sin`` of the first token of every block, needed
   when the block is completed in a later call.
@@ -63,9 +63,9 @@ works as for the KV cache. When the host rolls back the last tokens of a sequenc
 rejected speculative or MTP draft tokens) by passing a smaller ``past_lens``, the keys of the blocks
 that are no longer complete are recomputed from the raw keys when the blocks are completed again.
 
-**Ordering with PagedQSAIndexer.** The output of *PagedQSAPrepare* is ``pa_block_index_keys`` itself,
+**Ordering with PagedSparseAttentionIndexer.** The output of *PagedQSAPrepare* is ``pa_block_index_keys`` itself,
 the same buffer after the update. It is connected to the ``pa_block_index_keys`` input of
-*PagedQSAIndexer*, so the data dependency makes the selection read the block keys of the new tokens.
+*PagedSparseAttentionIndexer*, so the data dependency makes the selection read the block keys of the new tokens.
 
 *PagedQSAPrepare* provides functionality according to the following pseudo-code using ``numpy``:
 
@@ -127,7 +127,7 @@ Properties that follow from the definition:
 
   * **Description**: number of consecutive key tokens that form one key block of the sparse
     selection, not the physical block of the paged caches (``Bs``). It must divide the block
-    size ``Bs`` of the caches and be equal to *key_block_size* of the consuming *PagedQSAIndexer*.
+    size ``Bs`` of the caches and be equal to *key_block_size* of the consuming *PagedSparseAttentionIndexer*.
   * **Range of values**: a positive integer
   * **Type**: ``int``
   * **Required**: *yes*
@@ -190,7 +190,7 @@ Properties that follow from the definition:
 
 * **0**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
   ``[B, Bs / key_block_size, Di]``: input 2 after the update, the same buffer. It is connected to the
-  ``pa_block_index_keys`` input of *PagedQSAIndexer*.
+  ``pa_block_index_keys`` input of *PagedSparseAttentionIndexer*.
 
 .. note::
 
@@ -269,7 +269,7 @@ Properties that follow from the definition:
             </port>
         </input>
         <output>
-            <port id="11" precision="BF16"> <!-- pa_block_index_keys, updated: to PagedQSAIndexer -->
+            <port id="11" precision="BF16"> <!-- pa_block_index_keys, updated: to PagedSparseAttentionIndexer -->
                 <dim>-1</dim>   <!-- B -->
                 <dim>8</dim>    <!-- Bs / key_block_size -->
                 <dim>128</dim>  <!-- Di -->

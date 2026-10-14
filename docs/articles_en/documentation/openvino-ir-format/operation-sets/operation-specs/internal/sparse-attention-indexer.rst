@@ -1,30 +1,39 @@
-QSAIndexer
-==========
+SparseAttentionIndexer
+======================
 
 
 .. meta::
-  :description: Learn about QSAIndexer - the indexer of dynamic sparse attention that
+  :description: Learn about SparseAttentionIndexer - the indexer of dynamic sparse attention that
                 selects the key blocks each query attends to (Qwen Sparse Attention, DeepSeek Sparse
                 Attention).
 
-**Versioned name**: *QSAIndexer*
+**Versioned name**: *SparseAttentionIndexer*
 
 **Category**: *Sequence processing*
 
-**Short description**: *QSAIndexer* scores the complete key blocks visible to every
+**Short description**: *SparseAttentionIndexer* scores the complete key blocks visible to every
 query token and returns the indices of a budget of the best-scoring blocks together with their
 number.
 
 **Detailed description**:
 
-*QSAIndexer* is the selection stage of dynamic, query-dependent sparse attention. Its
+*SparseAttentionIndexer* is the selection stage of dynamic, query-dependent sparse attention. Its
 output is consumed by :doc:`SparseAttention <sparse-attention>`. It covers:
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
   Hugging Face Transformers), with blocks of ``key_block_size = 4`` tokens. Most of this document
   uses it as the example;
 * DeepSeek Sparse Attention (DSA) of DeepSeek-V3.2 and GLM-MoE-DSA, with single-token blocks
-  (``key_block_size = 1``). See *Relation to DeepSeek Sparse Attention (DSA)* below.
+  (``key_block_size = 1``). See *Relation to DeepSeek Sparse Attention (DSA)* below. The same
+  lightning indexer is used by Hunyuan V4 (``hy_v4``) and AXK2;
+* the block-level variants of the lightning indexer: GLM-5.3-Flash (``glm5_next``), which pools the
+  keys of blocks of ``index_kpool = 16`` tokens (``key_block_size = 16``,
+  ``token_budget = index_topk``), and the compressed sparse attention (CSA) layers of DeepSeek-V4,
+  which score one compressed entry per ``4`` tokens (``key_block_size = 4``,
+  ``token_budget = 4 * index_topk``). Their block keys come from a learned, softmax-gated pooling
+  computed by regular operations of the graph instead of
+  :doc:`QSAPrepare <qsa-prepare>`. DeepSeek-V4 attends to the selected compressed entries rather
+  than to the tokens of the selected blocks, which *SparseAttention* does not cover.
 
 The selection is decoupled from the attention in the same way as in inference engines:
 
@@ -35,7 +44,7 @@ The selection is decoupled from the attention in the same way as in inference en
   takes the top-k, which ``build_attn_qsa`` consumes.
 
 Unlike the engines, which expand the selected blocks into token positions before the attention,
-*QSAIndexer* returns block indices. Expanding the blocks and adding the tokens of the
+*SparseAttentionIndexer* returns block indices. Expanding the blocks and adding the tokens of the
 query's incomplete block is done by *SparseAttention*. This keeps the selection
 ``key_block_size`` times smaller and lets the attention read every selected block as a contiguous
 run of tokens.
@@ -43,7 +52,7 @@ run of tokens.
 The selection works on blocks of ``key_block_size`` consecutive key tokens: block ``b`` holds the
 positions ``b * key_block_size .. b * key_block_size + key_block_size - 1``. Each complete block is
 represented by one index key (``block_index_keys``). For every query token,
-*QSAIndexer*:
+*SparseAttentionIndexer*:
 
 1. Scores every complete block that ends at or before the query position with the multi-head,
    ReLU-rectified dot product of the index query heads and the block key, summed over the heads
@@ -70,12 +79,12 @@ per key-value head shared by its group of query heads, the granularity of Native
 per token and is independent of ``Hi``, the number of index query heads that score: with ``Hs = 1``
 any number of index heads is reduced to one selection.
 
-*QSAIndexer* provides functionality according to the following pseudo-code using ``numpy``:
+*SparseAttentionIndexer* provides functionality according to the following pseudo-code using ``numpy``:
 
 .. code-block:: py
    :force:
 
-    def QSAIndexer(index_query, block_index_keys, key_length, index_weights=None, *,
+    def SparseAttentionIndexer(index_query, block_index_keys, key_length, index_weights=None, *,
                    key_block_size, token_budget, num_selection_heads=1):
         N, Hi, L, Di = index_query.shape
         key_length = numpy.broadcast_to(key_length, (N,))       # valid key tokens of every sequence
@@ -215,21 +224,21 @@ Qwen3.8-Flash-Next, that gives ``Hi`` query heads and one key head of size ``Di`
   tokens, RMS-normalized with ``k_layernorm``, and rotated with the (M-)RoPE position of the first
   token of the block.
 
-The graph flow of a QSA layer is *QSAPrepare* -> *QSAIndexer* ->
+The graph flow of a QSA layer is *QSAPrepare* -> *SparseAttentionIndexer* ->
 :doc:`SparseAttention <sparse-attention>`, with the index query prepared next to
 *QSAPrepare* by *RMS* and *RoPE*. In a stateful model with
 *ScaledDotProductAttention*-style caches, two more states are kept next to the key and value
 caches: the raw index keys of the past tokens, with the shape ``[N, S, Di]``, and the block index
 keys of the past complete blocks, with the shape ``[N, B, Di]``, so that *QSAPrepare* computes only
 the blocks completed by the new tokens. The paged counterparts are
-:doc:`PagedQSAPrepare <paged-qsa-prepare>` -> :doc:`PagedQSAIndexer <paged-qsa-indexer>` ->
+:doc:`PagedQSAPrepare <paged-qsa-prepare>` -> :doc:`PagedSparseAttentionIndexer <paged-sparse-attention-indexer>` ->
 :doc:`PagedSparseAttention <paged-sparse-attention>`.
 
 **Relation to DeepSeek Sparse Attention (DSA)**
 
 .. note::
 
-   With ``key_block_size = 1`` and ``index_weights`` provided, *QSAIndexer* covers the DSA indexer
+   With ``key_block_size = 1`` and ``index_weights`` provided, *SparseAttentionIndexer* covers the DSA indexer
    of DeepSeek-V3.2 and GLM-MoE-DSA (``DeepseekV32Indexer`` in Hugging Face Transformers):
 
    * every block is a single token, so a query at the position ``p`` scores all tokens
@@ -246,7 +255,7 @@ the blocks completed by the new tokens. The paged counterparts are
      be omitted or multiplied into ``index_weights``.
 
    DSA scores the keys with ``sum_h w[h] * ReLU(softmax_scale * q[h] . k)``, which is the score of
-   *QSAIndexer* up to the positive factor. The Hadamard rotation and the FP8 quantization of the
+   *SparseAttentionIndexer* up to the positive factor. The Hadamard rotation and the FP8 quantization of the
    reference DSA indexer are precision optimizations and are not part of the definition. The
    selected tokens are consumed by :doc:`SparseAttention <sparse-attention>` with
    ``key_block_size = 1``.
@@ -349,7 +358,7 @@ the blocks completed by the new tokens. The paged counterparts are
 .. code-block:: xml
    :force:
 
-    <layer id="1" name="indexer" type="QSAIndexer" version="extension">
+    <layer id="1" name="indexer" type="SparseAttentionIndexer" version="extension">
         <data key_block_size="4" token_budget="2048"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->
@@ -385,7 +394,7 @@ the blocks completed by the new tokens. The paged counterparts are
 .. code-block:: xml
    :force:
 
-    <layer id="2" name="indexer" type="QSAIndexer" version="extension">
+    <layer id="2" name="indexer" type="SparseAttentionIndexer" version="extension">
         <data key_block_size="4" token_budget="2048"/>
         <input>
             <port id="0" precision="FP32"> <!-- index_query -->
@@ -422,7 +431,7 @@ the blocks completed by the new tokens. The paged counterparts are
 .. code-block:: xml
    :force:
 
-    <layer id="3" name="dsa_indexer" type="QSAIndexer" version="extension">
+    <layer id="3" name="dsa_indexer" type="SparseAttentionIndexer" version="extension">
         <data key_block_size="1" token_budget="2048"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->
