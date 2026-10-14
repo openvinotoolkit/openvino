@@ -363,6 +363,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
 set(GPU_FUNCTIONAL_TEST_MLIR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/mlir_op/binary_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mlir_op/concat.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mlir_op/grouped_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mlir_op/matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mlir_op/matmul_rms_norm_concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mlir_op/mlir_test_env.hpp
