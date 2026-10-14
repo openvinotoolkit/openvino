@@ -858,6 +858,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
 
             if (threshold_filtered_devices.empty()) {
                 // All candidates were filtered by threshold: keep previous fallback behavior.
+                LOG_DEBUG_TAG("All candidate devices exceed their utilization thresholds. Falling back to %s",
+                              last_device.device_name.c_str());
                 ptr_select_device = &last_device;
             } else {
                 valid_devices = std::move(threshold_filtered_devices);
