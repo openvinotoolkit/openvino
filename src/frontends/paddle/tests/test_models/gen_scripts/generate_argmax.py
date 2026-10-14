@@ -83,6 +83,15 @@ def main():
                       [[3.0, 2.0, 1.0], [8.0, 7.0, 6.0]]]).astype(np.float32)
     paddle_argmax("argmax_keepdim", data2, axis=2, keepdim=True)
     paddle_argmin("argmin_keepdim", data2, axis=2, keepdim=True)
+    # issue 37827: axis=None is exported as flatten=True; with keepdims=True the flattened
+    # reduction keeps the rank of the input, all the dimensions being of size 1 (an (2,3,4)
+    # input gives a (1,1,1) output). The extremes are moved away from the ends so that the
+    # flattened index is not trivially the first or the last element.
+    data3 = np.linspace(-1.0, 1.0, 24, dtype=np.float32).reshape(2, 3, 4)
+    data3[0, 1, 2] = 5.0    # flattened index 6
+    data3[1, 2, 1] = -5.0   # flattened index 21
+    paddle_argmax("argmax_keepdim_flatten", data3, axis=None, keepdim=True)
+    paddle_argmin("argmin_keepdim_flatten", data3, axis=None, keepdim=True)
 
 
 if __name__ == "__main__":
