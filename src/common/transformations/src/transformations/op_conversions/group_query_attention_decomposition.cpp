@@ -347,12 +347,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         qga_output = make_softcap_attention(Q, K, V, mask, make_scale_node(), sink, softcap, kv_num_heads);
     } else if (sink.get_node_shared_ptr()) {
         // SDPA's 6-input form requires an explicit scale.
-        qga_output = make_sdpa(Q, K, V, mask, make_scale_node(), sink, false, *metadata);
+        qga_output = make_sdpa(Q, K, V, mask, make_scale_node(), sink, false, local_window_size, *metadata);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, *metadata);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, local_window_size, *metadata);
     } else {
-        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, *metadata);
+        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, local_window_size, *metadata);
     }
 
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
@@ -441,8 +441,11 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
             outputs.present_value =
                 register_new_node<v3::ScatterUpdate>(outputs.present_value, new_idx, value, scatter_axis);
 
-            outputs.sdpa_key = outputs.present_key;
-            outputs.sdpa_value = outputs.present_value;
+            // Attention runs on the trimmed [survivors, new] buffer (end_after rows, no trailing padding), so
+            // the kernel's native LOWER_RIGHT + window sees the newest token as the last row. present_k/present_v
+            // (left-aligned, padded to capacity C) stay the ORT-compatible op outputs. Mirrors the staging path.
+            outputs.sdpa_key = register_new_node<v0::Concat>(ov::OutputVector{survivor_k, outputs.present_key}, 2);
+            outputs.sdpa_value = register_new_node<v0::Concat>(ov::OutputVector{survivor_v, outputs.present_value}, 2);
             outputs.mask_past_seqlen = register_new_node<v0::Unsqueeze>(kept, zero);
             // First resident slot holds absolute key P - kept (the survivors start there).
             outputs.bias_col_offset =
@@ -517,6 +520,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(
     const ov::Output<ov::Node>& scale,
     const ov::Output<ov::Node>& sink,
     bool is_causal,
+    [[maybe_unused]] int64_t local_window_size,
     [[maybe_unused]] const KVCacheMetadata& metadata) {
     if (sink.get_node()) {
         return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, is_causal);

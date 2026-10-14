@@ -60,6 +60,7 @@ protected:
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal,
+                                                int64_t local_window_size,
                                                 const KVCacheMetadata& metadata);
     // Explicit attention for softcap > 0 (SDPA cannot soft-cap the logits):
     // softmax(softcap * tanh(scale * Q * K^T / softcap) + mask [, sink]) * V. key/value keep kv_num_heads heads;
