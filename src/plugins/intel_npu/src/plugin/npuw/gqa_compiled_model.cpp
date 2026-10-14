@@ -1013,9 +1013,9 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
             continue;
         }
         if (m_dynamic_kv_cache_output_externally_set.count(name) != 0) {
-            // Already set_tensor()'d by the caller (IO-binding); don't republish a
-            // separately-copied valid prefix under this name, or get_tensor() would
-            // diverge from it.
+            // set_tensor() forwarded this exact buffer to the inner request (shape is
+            // asserted to match its compiled capacity); the inner request already wrote
+            // directly into it during infer(), nothing to copy.
             continue;
         }
         const auto inner_tensor = m_inner_request->get_tensor(map_port_locked(*port_it));
@@ -1160,10 +1160,25 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
     const auto& name = port.get_node()->get_friendly_name();
     GQA_TRACE("GQAInferRequest::set_tensor(port='" << name << "', shape=" << tensor->get_shape() << ")");
 
-    // Forward present_* outputs as-is (zero-copy IO-binding), but mark externally owned
-    // so refresh_present_tensors_locked() won't later republish a diverging, separately-copied tensor.
+    // Mark present_* outputs externally owned so refresh_present_tensors_locked() won't
+    // later republish a diverging, separately-copied tensor under this name.
     if (m_compiled_model->m_dynamic_kv_cache_output_axes.count(name) != 0) {
         GQA_TRACE("    -> dynamic-axis present output, forwarding to inner request and marking externally owned");
+        // The inner request is bound to a STATIC compiled model: its own set_tensor()
+        // (IBaseInferRequest::set_tensor()) stores whatever it's given with zero shape
+        // validation (check_tensors() is a no-op too), yet the model can only ever
+        // correctly produce/consume its one compiled shape. Fail early instead of
+        // letting a wrong-sized buffer reach the inner request unchecked. (Caller-driven
+        // dynamic present-output sizing below the compiled capacity is a separate,
+        // more involved problem -- tracked separately, not handled here.)
+        const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
+        OPENVINO_ASSERT(tensor->get_shape() == inner_tensor->get_shape(),
+                        "GQA present output '",
+                        name,
+                        "' shape ",
+                        tensor->get_shape(),
+                        " does not match the compiled static shape ",
+                        inner_tensor->get_shape());
         m_inner_request->set_tensor(map_port_locked(port), tensor);
         m_dynamic_kv_cache_output_tensors[name] = tensor;
         m_dynamic_kv_cache_output_externally_set.insert(name);
@@ -1249,6 +1264,21 @@ void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
         }
         GQA_TRACE("sync_dynamic_kv_cache_tensors_locked(): '"
                   << name << "' axis=" << axis << " copying live prefix, shape=" << tensor_it->second->get_shape());
+        // Re-check here: the tensor can still grow between set_tensor() (which checked
+        // <= capacity at the time) and infer() -- e.g. a private fallback from
+        // get_tensor() followed by set_shape(), or a caller tensor reshaped afterwards.
+        // copy_by_planes() (axis 2) sizes each plane from the source, so an unchecked
+        // over-capacity tensor here would write past the end of the static buffer.
+        const auto src_len = tensor_it->second->get_shape().at(axis);
+        const auto capacity = inner_tensor->get_shape().at(axis);
+        OPENVINO_ASSERT(src_len <= capacity,
+                        "GQA KV-cache '",
+                        name,
+                        "' length ",
+                        src_len,
+                        " exceeds the static capacity (",
+                        capacity,
+                        ") it was compiled with");
         ov::npuw::GQAInferRequest::copy_kv_cache_prefix(tensor_it->second, inner_tensor, axis);
     }
 }
