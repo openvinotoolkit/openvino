@@ -1577,6 +1577,82 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsOversizedAttentionMaskHistoryDur
     }
 }
 
+// pad_position_ids() skips the sequence axis for the same reason attention_mask's copies do
+// (the real prompt length legitimately varies), but it never bounds the actual source length
+// against the destination before subtracting - a source longer than the compiled prefill
+// port's position_ids capacity underflows `padded_shape[diff_dim] - position_shape[diff_dim]`
+// into a huge offset.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsOversizedPositionIdsDuringWholePrefill) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    ov::npuw::LLMInferRequest req(compiled);
+    const auto& inputs = req.get_inputs();
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    const size_t prompt_len = 2u;
+
+    ov::Tensor input_ids(ov::element::i64, ov::Shape{1, prompt_len});
+    std::fill_n(input_ids.data<int64_t>(), input_ids.get_size(), 1);
+    ov::Tensor attention_mask(ov::element::i64, ov::Shape{1, max_prompt_size});
+    std::fill_n(attention_mask.data<int64_t>(), attention_mask.get_size(), 1);
+    // Oversized: exceeds the compiled prefill port's position_ids capacity (max_prompt_size).
+    ov::Tensor position_ids(ov::element::i64, ov::Shape{1, static_cast<size_t>(max_prompt_size) + 1u});
+    std::iota(position_ids.data<int64_t>(), position_ids.data<int64_t>() + position_ids.get_size(), 0);
+
+    req.set_tensor(ov::npuw::util::find_port_by_name(inputs, "input_ids").value(), ov::get_tensor_impl(input_ids));
+    req.set_tensor(ov::npuw::util::find_port_by_name(inputs, "attention_mask").value(),
+                   ov::get_tensor_impl(attention_mask));
+    req.set_tensor(ov::npuw::util::find_port_by_name(inputs, "position_ids").value(),
+                   ov::get_tensor_impl(position_ids));
+
+    EXPECT_THROW(req.infer(), ov::Exception);
+}
+
+// Same gap as above, reached via infer_generate()'s call to pad_position_ids() instead.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsOversizedPositionIdsDuringGenerate) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    ov::npuw::LLMInferRequest req(compiled);
+    const auto& inputs = req.get_inputs();
+    auto input_ids_port = ov::npuw::util::find_port_by_name(inputs, "input_ids").value();
+    auto attention_mask_port = ov::npuw::util::find_port_by_name(inputs, "attention_mask").value();
+    auto position_ids_port = ov::npuw::util::find_port_by_name(inputs, "position_ids").value();
+
+    // A valid whole prefill first, so the request is past the prefill stage.
+    {
+        const size_t prompt_len = 2u;
+        ov::Tensor input_ids(ov::element::i64, ov::Shape{1, prompt_len});
+        std::fill_n(input_ids.data<int64_t>(), input_ids.get_size(), 1);
+        ov::Tensor attention_mask(ov::element::i64, ov::Shape{1, prompt_len});
+        std::fill_n(attention_mask.data<int64_t>(), attention_mask.get_size(), 1);
+        ov::Tensor position_ids(ov::element::i64, ov::Shape{1, prompt_len});
+        std::iota(position_ids.data<int64_t>(), position_ids.data<int64_t>() + position_ids.get_size(), 0);
+        req.set_tensor(input_ids_port, ov::get_tensor_impl(input_ids));
+        req.set_tensor(attention_mask_port, ov::get_tensor_impl(attention_mask));
+        req.set_tensor(position_ids_port, ov::get_tensor_impl(position_ids));
+        ASSERT_NO_THROW(req.infer());
+    }
+
+    // A generate step with a wildly oversized position_ids tensor: input_ids is a single token,
+    // but position_ids claims far more than the generate variant's capacity holds.
+    {
+        ov::Tensor input_ids(ov::element::i64, ov::Shape{1, 1});
+        input_ids.data<int64_t>()[0] = 1;
+        ov::Tensor attention_mask(ov::element::i64, ov::Shape{1, 3});
+        std::fill_n(attention_mask.data<int64_t>(), attention_mask.get_size(), 1);
+        ov::Tensor position_ids(ov::element::i64, ov::Shape{1, 100000});
+        std::iota(position_ids.data<int64_t>(), position_ids.data<int64_t>() + position_ids.get_size(), 0);
+        req.set_tensor(input_ids_port, ov::get_tensor_impl(input_ids));
+        req.set_tensor(attention_mask_port, ov::get_tensor_impl(attention_mask));
+        req.set_tensor(position_ids_port, ov::get_tensor_impl(position_ids));
+        EXPECT_THROW(req.infer(), ov::Exception);
+    }
+}
+
 // infer_prefill()'s staging copies use input_ids's raw element/byte count directly: a batch
 // other than 1 (the top-level declaration's batch dimension is dynamic, so nothing earlier
 // bounds it) would copy more elements than the compiled [1, max_prompt_size] ports actually
