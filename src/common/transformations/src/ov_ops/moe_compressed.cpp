@@ -182,6 +182,12 @@ bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("out_type", m_config.out_type);
     if (m_config.scale_factor.has_value())
         visitor.on_attribute("scale_factor", m_config.scale_factor.value());
+    // Only emitted when it does something, so a dumped graph of every other model stays byte-identical
+    // and a non-1.0 value is visible at a glance when debugging an f8-scale model.
+    if (m_config.wei_scale_global != std::array<float, 3>{1.0f, 1.0f, 1.0f}) {
+        std::vector<float> wsg(m_config.wei_scale_global.begin(), m_config.wei_scale_global.end());
+        visitor.on_attribute("wei_scale_global", wsg);
+    }
     return true;
 }
 

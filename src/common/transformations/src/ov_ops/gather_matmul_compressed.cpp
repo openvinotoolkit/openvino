@@ -19,8 +19,10 @@ GatherMatmulCompressed::GatherMatmulCompressed(const ov::Output<Node>& A,
                                                const ov::Output<Node>& indices,
                                                const ov::Output<Node>& bias,
                                                const ov::Output<Node>& weight_scales,
-                                               const ov::Output<Node>& weight_zero_points)
-    : GatherMatmul(A, B, indices, bias) {
+                                               const ov::Output<Node>& weight_zero_points,
+                                               float weight_scale_global)
+    : GatherMatmul(A, B, indices, bias),
+      m_weight_scale_global(weight_scale_global) {
     set_argument(4, weight_scales);
     set_argument(5, weight_zero_points);
     validate_and_infer_types();
@@ -33,7 +35,8 @@ std::shared_ptr<ov::Node> GatherMatmulCompressed::clone_with_new_inputs(const ov
                                                     new_args.at(2),
                                                     new_args.at(3),
                                                     new_args.at(4),
-                                                    new_args.at(5));
+                                                    new_args.at(5),
+                                                    m_weight_scale_global);
 }
 
 void GatherMatmulCompressed::validate_and_infer_types() {
@@ -41,5 +44,10 @@ void GatherMatmulCompressed::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, input_size == 6, "Number of inputs is incorrect. Current value is: ", input_size);
 
     GatherMatmul::validate_and_infer_types();
+}
+
+bool GatherMatmulCompressed::visit_attributes(ov::AttributeVisitor& visitor) {
+    visitor.on_attribute("weight_scale_global", m_weight_scale_global);
+    return true;
 }
 }  // namespace ov::op::internal

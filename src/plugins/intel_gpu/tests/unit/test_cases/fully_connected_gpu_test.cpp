@@ -6548,3 +6548,179 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            std::make_tuple(2, 8, 4, 4, 3, true)          // 3D with zero-point
                                            ),
                          fully_connected_gpu_u2_validation::GetTestCaseName);
+
+// The fixture above pins "fully_connected_gpu_bfyx_ref", so it never compiles the u2 branches in
+// fully_connected_gpu_bf_tiled.cl -- which is where COMPRESSED_WEIGHTS_UINT2 and the
+// FILTER_ELEMENTS_PER_BYTE / COMPRESSED_WEIGHTS_INT4 jit constants live. This fixture forces the
+// optimized kernel instead. Before the fix those branches keyed on a macro no C++ emitter ever
+// defined, so the u2 bf_tiled program did not build at all.
+class fully_connected_gpu_u2_bf_tiled : public ::testing::TestWithParam<std::tuple<int, int, int, int, bool>> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int, bool>>& obj) {
+        auto name = "b" + std::to_string(std::get<0>(obj.param)) + "_ifm" + std::to_string(std::get<1>(obj.param)) +
+                    "_ofm" + std::to_string(std::get<2>(obj.param)) + "_g" + std::to_string(std::get<3>(obj.param));
+        if (std::get<4>(obj.param))
+            name += "_zp";
+        return name;
+    }
+};
+
+// Shared by the parameterized suite and the osv64_isv2 case below. The two differ only in which of
+// the two u2 weights packings bf_tiled repacks into, and pinning that packing is the point: a shape
+// that quietly fell back to the other one would still produce correct numbers and cover nothing.
+static void run_fc_u2_bf_tiled(int batch_num,
+                               int ifm_num,
+                               int ofm_num,
+                               int scales_group_size,
+                               bool use_zp,
+                               format::type expected_weights_format) {
+    auto& engine = get_test_engine();
+
+    ASSERT_EQ(ifm_num % 4, 0) << "ifm_num must be multiple of 4 for U2";
+    ASSERT_EQ(ifm_num % scales_group_size, 0);
+
+    auto input_shape = ov::PartialShape{batch_num, ifm_num};
+    auto input_mem = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+    auto zp_mem = use_zp
+                      ? engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx})
+                      : nullptr;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+
+    // Random rather than the reference fixture's (ifm_byte * 4 + i) % 4 ramp: that ramp is
+    // identical for every OFM row, so a kernel that mixed up output channels would still match.
+    auto weight_vals = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 3);
+    std::vector<uint8_t> packed_weights;
+    packed_weights.reserve(static_cast<size_t>(ofm_num) * ifm_num / 4);
+    for (int ofm = 0; ofm < ofm_num; ++ofm) {
+        for (int ifm_byte = 0; ifm_byte < ifm_num / 4; ++ifm_byte) {
+            uint8_t packed = 0;
+            for (int i = 0; i < 4; ++i) {
+                packed |= static_cast<uint8_t>(weight_vals[ofm * ifm_num + ifm_byte * 4 + i] << (i * 2));
+            }
+            packed_weights.push_back(packed);
+        }
+    }
+    set_values(weights_mem, packed_weights);
+
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+
+    std::vector<ov::float16> zp_data;
+    if (use_zp) {
+        zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 1.5f);
+        set_values(zp_mem, zp_data);
+    }
+
+    topology topology(input_layout("input", layout{input_shape, data_types::f16, format::bfyx}),
+                      data("weights", weights_mem),
+                      data("scale", scale_mem));
+    if (use_zp)
+        topology.add(data("zp", zp_mem));
+    topology.add(fully_connected("fc_prim",
+                                 input_info("input"),
+                                 "weights",
+                                 "",
+                                 "scale",
+                                 use_zp ? "zp" : "",
+                                 data_types::f16,
+                                 2,
+                                 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    // optimize_data enables allowStaticInputReordering, without which UpdateWeightsParams never
+    // runs and the bf_tiled kernel gets un-repacked weights.
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+
+    auto inst = network->get_primitive("fc_prim");
+    auto impl = inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    // Exact compare, not find(): "fully_connected_gpu_bf_tiled_dyn_b" would also contain the
+    // substring but is a different kernel.
+    ASSERT_EQ(impl->get_kernel_name(), "fully_connected_gpu_bf_tiled")
+        << "forcing did not take effect; this test would not cover the u2 bf_tiled branches";
+
+    // u2 has two weights packings (bf_tiled.cpp:1106-1116) and reorder_weights_int4 has a separate
+    // INT2_PACKED branch for each. Which one runs is decided by a device-dependent heuristic, so
+    // assert it rather than infer it from the shape.
+    auto weights_reorder = impl->get_weights_reorder_params();
+    ASSERT_NE(weights_reorder, nullptr) << "u2 weights are always repacked by reorder_weights_int4";
+    ASSERT_EQ(weights_reorder->get_output_layout().format, expected_weights_format);
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    std::vector<float> expected_output(static_cast<size_t>(batch_num) * ofm_num);
+    for (int n = 0; n < batch_num; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float acc = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                const int group_id = ifm / scales_group_size;
+                const float scale = static_cast<float>(scale_data[ofm * (ifm_num / scales_group_size) + group_id]);
+                const float zp =
+                    use_zp ? static_cast<float>(zp_data[ofm * (ifm_num / scales_group_size) + group_id]) : 0.0f;
+                const float w = (static_cast<float>(weight_vals[ofm * ifm_num + ifm]) - zp) * scale;
+                acc += static_cast<float>(input_data[n * ifm_num + ifm]) * w;
+            }
+            expected_output[n * ofm_num + ofm] = acc;
+        }
+    }
+
+    ASSERT_EQ(output_ptr.size(), expected_output.size());
+    for (size_t i = 0; i < expected_output.size(); ++i) {
+        ASSERT_NEAR(expected_output[i], static_cast<float>(output_ptr[i]), 2.0f) << "Mismatch at index " << i;
+    }
+}
+
+TEST_P(fully_connected_gpu_u2_bf_tiled, various_sizes) {
+    // Every shape below has OFM far under IFM * 3, so is_weight_horizontal() is false on any device
+    // and os_iyx_osv16 is the packing under test.
+    run_fc_u2_bf_tiled(std::get<0>(GetParam()),
+                       std::get<1>(GetParam()),
+                       std::get<2>(GetParam()),
+                       std::get<3>(GetParam()),
+                       std::get<4>(GetParam()),
+                       format::os_iyx_osv16);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_gpu_u2_bf_tiled,
+                         ::testing::Values(std::make_tuple(1, 128, 64, 32, false),
+                                           std::make_tuple(2, 256, 128, 64, false),
+                                           std::make_tuple(8, 512, 256, 128, false),
+                                           std::make_tuple(16, 256, 128, 64, false),
+                                           std::make_tuple(1, 128, 64, 32, true),
+                                           std::make_tuple(4, 256, 128, 64, true)),
+                         fully_connected_gpu_u2_bf_tiled::GetTestCaseName);
+
+// The second u2 weights packing. is_weight_horizontal() requires OFM > IFM * 3 and
+// OFM / 4 > execution_units_count * SIMD * 1.5, so the shape has to be derived from the device:
+// any fixed OFM large enough for this GPU would silently fall back to os_iyx_osv16 on a bigger one,
+// and the test would keep passing while covering nothing.
+TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights) {
+    constexpr size_t simd = 16;
+    const size_t min_num_threads = get_test_engine().get_device_info().execution_units_count * simd;
+
+    const int ifm_num = 128;
+    int ofm_num = static_cast<int>(min_num_threads * 6 + 64);  // OFM / 4 > min_num_threads * 1.5
+    if (ofm_num < ifm_num * 3 + 64) {
+        ofm_num = ifm_num * 3 + 64;
+    }
+    ofm_num = (ofm_num + 63) / 64 * 64;  // whole osv64 blocks
+
+    run_fc_u2_bf_tiled(1, ifm_num, ofm_num, 32, false, format::os_is_yx_osv64_isv2);
+}

@@ -20,6 +20,7 @@ ParamsKey FullyConnected_GEMV::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableInputWeightsType(WeightsType::UINT4);
+    k.EnableInputWeightsType(WeightsType::UINT2);
     k.EnableInputLayout(DataLayout::bf);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bf);
@@ -64,10 +65,29 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    // Data type re-check: only support f16:int4:f16
+    // Data type re-check: only support f16:{int4,uint4,uint2}:f16
     if (input.GetDType() != Datatype::F16 || (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::F32) ||
-        (weights.GetDType() != WeightsType::INT4 && weights.GetDType() != WeightsType::UINT4)) {
+        (weights.GetDType() != WeightsType::INT4 && weights.GetDType() != WeightsType::UINT4 &&
+         weights.GetDType() != WeightsType::UINT2)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
+
+    if (weights.GetDType() == WeightsType::UINT2) {
+        // u2 is implemented for the OSV16 layout only: one per-lane 16-byte block read covers
+        // 64 K values there, which the OSV32/OSV64 k-pair packings do not line up with.
+        const auto wl_u2 = weights.GetLayout();
+        if (wl_u2 != WeightsLayout::oiyx && wl_u2 != WeightsLayout::os_iyx_osv16) {
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
+        if (weights.IFM().v % 64 != 0 || weights.OFM().v % 16 != 0) {
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
+        // Grouped scales must also land on a whole number of 64-value windows; the
+        // channel-wise case takes the SINGLE_GROUP_NUM path and re-splits K by 128.
+        const size_t sgs_u2 = weights.IFM().v / fc_params.decompression_scale.Feature().v;
+        if (sgs_u2 != weights.IFM().v && sgs_u2 % 64 != 0) {
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     // Only support vector data as input, the data size should be aligned by 16 elements
@@ -167,10 +187,18 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
 
     if (params.weights.GetDType() == WeightsType::UINT4) {
         jit.AddConstant(MakeJitConstant("WEI_UINT4", 1));
+        jit.AddConstant(MakeJitConstant("WEI_U2", 0));
     } else if (params.weights.GetDType() == WeightsType::INT4) {
         jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
+        jit.AddConstant(MakeJitConstant("WEI_U2", 0));
+    } else if (params.weights.GetDType() == WeightsType::UINT2) {
+        // unsigned like u4, but 4 values per byte; WEI_UINT4 stays 0 so the signed-int4
+        // sign-extension branch is not taken either
+        jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
+        jit.AddConstant(MakeJitConstant("WEI_U2", 1));
     } else {
-        OPENVINO_THROW("GEMV only support INT4 and UINT4, doesn't support ", static_cast<size_t>(params.weights.GetDType()));
+        OPENVINO_THROW("GEMV only supports INT4, UINT4 and UINT2, doesn't support ",
+                       static_cast<size_t>(params.weights.GetDType()));
     }
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
@@ -201,7 +229,12 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
     auto output_f = get_output_aligned_bf_size(fc_params, false).second;
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (is_swiglu_fused(fc_params)) {
+    if (fc_params.weights.GetDType() == WeightsType::UINT2) {
+        // u2 has one implemented layout here; skip the int4 heuristics entirely so a
+        // horizontal or swiglu-shaped weight cannot land on an osv32/osv64 packing the
+        // u2 path does not decode.
+        weights_layout = WeightsLayout::os_iyx_osv16;
+    } else if (is_swiglu_fused(fc_params)) {
         weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16 &&
                (fc_params.weights.GetLayout() == WeightsLayout::oiyx ||
@@ -229,9 +262,12 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
         weights_layout = WeightsLayout::os_iyx_osv16;
     }
 
-    if ((fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) ||
-        (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) ||
-        (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)) {
+    // Keeping an already-reordered layout must not drag u2 onto osv32/osv64, which it
+    // cannot decode. Validate() already rejects those, so this is belt and braces.
+    if (fc_params.weights.GetDType() != WeightsType::UINT2 &&
+        ((fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) ||
+         (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) ||
+         (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2))) {
         weights_layout = fc_params.weights.GetLayout();
     }
 

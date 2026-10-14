@@ -12,8 +12,10 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -34,8 +36,13 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
     using ov::op::internal::GatherMatmulCompressed;
 
     auto activation = any_input(type_matches_any(supported_activation_types));
-    auto weights_block =
-        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
+    // allow_two_level_scale: the routed MoE experts may carry an 8-bit group scale plus a per-tensor
+    // factor. GatherMatmulCompressed can hold that factor and MOECompressed applies it, so unlike the
+    // FullyConnected path this one may opt in. Without it the block does not match at all and the
+    // experts are never compressed -- the failure is a silent perf collapse, not an error.
+    auto weights_block = std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types,
+                                                                                         std::set<size_t>{3},
+                                                                                         true);
     auto indices = any_input();
     auto bias = any_input();
     auto gather_matmul = wrap_type<GatherMatmul>({activation, weights_block, indices, bias});
@@ -63,12 +70,25 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
                                                                                                   batched_weights,
                                                                                                   result_nodes);
 
+        // A two-level scale leaves the per-tensor factor behind in this anchor; it must ride along or
+        // every weight comes out scaled wrong. Only a scalar is accepted: a tensor-valued factor would
+        // need a real input, and MOECompressed's config cannot carry one.
+        float scale_global = 1.0f;
+        if (auto anchor = weights_block->get_anchor("scale_global_const", pattern_map)) {
+            auto c = ov::as_type_ptr<ov::op::v0::Constant>(anchor.value().get_node_shared_ptr());
+            if (!c || ov::shape_size(c->get_shape()) != 1) {
+                return false;
+            }
+            scale_global = c->cast_vector<float>()[0];
+        }
+
         auto new_bgm = std::make_shared<GatherMatmulCompressed>(pattern_map.at(activation),
                                                                 bgm_input_b,
                                                                 pattern_map.at(indices),
                                                                 pattern_map.at(bias),
                                                                 bgm_input_scale,
-                                                                bgm_input_zp);
+                                                                bgm_input_zp,
+                                                                scale_global);
 
         const size_t IC = *(weights_shape.rbegin());
         const size_t OC = *(weights_shape.rbegin() + 1);

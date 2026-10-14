@@ -37,6 +37,17 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     const auto& zp_layout = params.input_layouts[m_zp_idx];
     const bool is_weight_symmetric_quantized = (zp_layout.count() == 0);
 
+    // This path hands the scale dtype straight to the micro-kernel generator (WEIGHT_SCALE_DT below,
+    // and problem_moe.Ta_scale with a 2-byte alignment further down), so an 8-bit scale would be
+    // read at half its stride -- plausible-looking garbage, not a failure. It would also silently
+    // drop the per-tensor factor that such a scale always comes with. Refuse instead: the native u2
+    // GEMM path handles f8 scales, and if a model ever needs BOTH this path and an f8 scale, the fix
+    // is to widen the scale to f16 into the same scratch the u2->u4 weight unpack already uses.
+    OPENVINO_ASSERT(scale_layout.data_type == ov::element::f16 || scale_layout.data_type == ov::element::f32,
+                    "MoE micro-gemm prefill needs an f16/f32 weight scale, got ",
+                    scale_layout.data_type,
+                    ". An f8 group scale is only supported by the native u2 GEMM path.");
+
     // Internal generator of JIT constants, require intermediate buffers and part of primitive's inputs.
     // JitConstants jit = make_base_jit_constants(params);
     JitConstants jit;

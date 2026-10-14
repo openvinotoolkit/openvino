@@ -169,7 +169,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
 ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 #ifdef OPENVINO_ARCH_X86_64
-    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
+    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::u2};
 #elif defined(OPENVINO_ARCH_ARM64)
     return {Type_t::i8, Type_t::i4};
 #else

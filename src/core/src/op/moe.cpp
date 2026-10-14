@@ -51,11 +51,15 @@ void MOE::validate_and_infer_types() {
     const size_t base_inputs_count = (m_config.expert_type == Expert_type::GEMM3_SWIGLU) ? 6 : 7;
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(3).is_static(), "Weights must have static shape.");
     const auto& num_experts = get_input_shape(3)[0];
+    // MOECompressed delegates to this constructor before its own override is reachable, so inputs
+    // 4.. can be its scale and zero point. Only the u2 kernels broadcast a folded per-tensor
+    // (rank-0) zero point, which has no num_experts dimension to index.
+    const bool u2_weights = get_input_element_type(3) == ov::element::u2;
     for (size_t i = 4; i < base_inputs_count; i++) {
         const auto& ps = get_input_partial_shape(i);
         NODE_VALIDATION_CHECK(this, ps.is_static(), "Weights must have static shape.");
         // Note: dynamic element type means empty zero point input
-        if (get_input_element_type(i) != ov::element::dynamic) {
+        if (get_input_element_type(i) != ov::element::dynamic && !(u2_weights && ps.size() == 0)) {
             NODE_VALIDATION_CHECK(this,
                                   num_experts == get_input_shape(i)[0],
                                   "All weight inputs must have the same first dimension (num_experts).");

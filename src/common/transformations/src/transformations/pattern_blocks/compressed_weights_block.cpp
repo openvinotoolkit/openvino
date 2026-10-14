@@ -30,7 +30,8 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
     const std::vector<ov::element::Type>& supported_weights_types,
-    const std::set<size_t>& supported_weights_ranks)
+    const std::set<size_t>& supported_weights_ranks,
+    bool allow_two_level_scale)
     : Block({}, {}, "CompressedWeightsBlock") {
     auto weights = wrap_type<v0::Constant>(ov::pass::pattern::type_matches_any(supported_weights_types));
     auto convert = wrap_type<v0::Convert>({weights});
@@ -44,6 +45,19 @@ ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
     auto mul_const = wrap_type<v0::Constant>();
     auto mul_convert_const = wrap_type<v0::Convert>({mul_const});
     auto mul_scale = mul_const | mul_convert_const;
+
+    // A group scale that is itself quantized: an 8-bit per-group scale times one per-tensor factor.
+    //     Constant(f8) -> Convert(f32) -> Multiply(Constant f32) -> Convert(f16)
+    // NNCF writes this for NVFP4 and, via --experts-fp8-scale, for INT2 MoE experts. Note the anchors
+    // fall out for free: `mul_const` binds to the 8-bit group scale exactly as in the plain case, so
+    // everything downstream that reads it (combine_groups, the scale_shape checks) is unaffected --
+    // only the new `scale_global_const` anchor is extra. Off by default because a consumer that
+    // ignores that anchor would scale every weight by the wrong factor, silently.
+    auto scale_global_const = wrap_type<v0::Constant>();
+    if (allow_two_level_scale) {
+        auto scale_dequant = wrap_type<v1::Multiply>({mul_convert_const, scale_global_const});
+        mul_scale = mul_scale | wrap_type<v0::Convert>({scale_dequant});
+    }
 
     auto mul_with_sub = wrap_type<v1::Multiply>({subtract, mul_scale});
     auto mul_no_sub = wrap_type<v1::Multiply>({convert, mul_scale});
@@ -79,6 +93,7 @@ ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
                      sub_with_convert,
                      sub_no_convert,
                      mul_const,
+                     scale_global_const,
                      transpose,
                      transpose_const);
 }
