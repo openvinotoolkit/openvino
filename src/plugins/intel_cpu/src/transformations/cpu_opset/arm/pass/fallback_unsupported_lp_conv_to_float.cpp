@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "fallback_unsupported_lp_conv_to_fp16.hpp"
+#include "fallback_unsupported_lp_conv_to_float.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -35,14 +35,16 @@
 using namespace ov::pass;
 
 namespace {
-std::pair<ov::Output<ov::Node>, std::shared_ptr<ov::Node>> ensure_fp16(const ov::Output<ov::Node>& input,
-                                                                       const std::string& convert_name,
-                                                                       const std::shared_ptr<ov::Node>& rt_source) {
-    if (input.get_element_type() == ov::element::f16) {
+std::pair<ov::Output<ov::Node>, std::shared_ptr<ov::Node>> ensure_precision(
+    const ov::Output<ov::Node>& input,
+    const ov::element::Type& precision,
+    const std::string& convert_name,
+    const std::shared_ptr<ov::Node>& rt_source) {
+    if (input.get_element_type() == precision) {
         return {input, nullptr};
     }
 
-    auto convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::f16);
+    auto convert = std::make_shared<ov::op::v0::Convert>(input, precision);
     convert->set_friendly_name(convert_name);
     ov::copy_runtime_info(rt_source, convert);
     return {convert->output(0), convert};
@@ -50,7 +52,7 @@ std::pair<ov::Output<ov::Node>, std::shared_ptr<ov::Node>> ensure_fp16(const ov:
 
 }  // namespace
 
-ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16() {
+ov::intel_cpu::FallbackUnsupportedLPConvToFloat::FallbackUnsupportedLPConvToFloat() {
     auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::ConvMulAddFQBlock>(false);
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -78,25 +80,39 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
+        // Match the floating Add output so ACL receives consistent source, weights,
+        // bias, and destination types. A mixed f16 -> f32 convolution uses reference.
+        const auto precision =
+            add->get_output_element_type(0) == ov::element::f32 ? ov::element::f32 : ov::element::f16;
+        const std::string precision_suffix = precision == ov::element::f32 ? "FP32" : "FP16";
         constexpr size_t scales_port = 1;
         const auto rank_value = conv->get_input_shape(1).size();
-        auto [activation_f16, activation_convert] =
-            ensure_fp16(conv->input_value(0), conv->get_friendly_name() + "/ActivationToFP16", conv);
+        auto [activation_float, activation_convert] =
+            ensure_precision(conv->input_value(0),
+                             precision,
+                             conv->get_friendly_name() + "/ActivationTo" + precision_suffix,
+                             conv);
 
-        auto [weights_f16, weights_convert] =
-            ensure_fp16(conv->input_value(1), conv->get_friendly_name() + "/WeightsToFP16", conv);
-        auto [scales_f16, scales_convert] =
-            ensure_fp16(mul->input_value(scales_port), mul->get_friendly_name() + "/ScalesToFP16", mul);
+        auto [weights_float, weights_convert] =
+            ensure_precision(conv->input_value(1),
+                             precision,
+                             conv->get_friendly_name() + "/WeightsTo" + precision_suffix,
+                             conv);
+        auto [scales_float, scales_convert] =
+            ensure_precision(mul->input_value(scales_port),
+                             precision,
+                             mul->get_friendly_name() + "/ScalesTo" + precision_suffix,
+                             mul);
 
         std::vector<int64_t> reshape_pattern(static_cast<size_t>(rank_value), 1);
         reshape_pattern[0] = -1;
         auto reshape_const = ov::op::v0::Constant::create(ov::element::i64, {reshape_pattern.size()}, reshape_pattern);
-        auto scales_reshape = std::make_shared<ov::op::v1::Reshape>(scales_f16, reshape_const, true);
+        auto scales_reshape = std::make_shared<ov::op::v1::Reshape>(scales_float, reshape_const, true);
         scales_reshape->set_friendly_name(mul->get_friendly_name() + "/ScalesToWeightsShape");
 
-        auto scales_to_weights = std::make_shared<ov::op::v1::Multiply>(weights_f16, scales_reshape);
+        auto scales_to_weights = std::make_shared<ov::op::v1::Multiply>(weights_float, scales_reshape);
         scales_to_weights->set_friendly_name(mul->get_friendly_name() + "/WeightsScaled");
-        auto conv_scaled = conv->clone_with_new_inputs({activation_f16, scales_to_weights->output(0)});
+        auto conv_scaled = conv->clone_with_new_inputs({activation_float, scales_to_weights->output(0)});
         ov::NodeVector rt_info_sources{conv, mul};
         if (activation_convert) {
             rt_info_sources.push_back(activation_convert);
@@ -111,10 +127,10 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
 
         ov::replace_node(mul, conv_scaled);
 
-        // Keep this matched Conv->Mul->Add->FQ pattern in FP16 end-to-end for CPU plugin selection.
-        if (add->get_output_element_type(0) == ov::element::f16) {
+        // Preserve the matched floating output precision after cloning the type-relaxed Convolution.
+        if (add->get_output_element_type(0) == precision) {
             if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(conv_scaled)) {
-                type_relaxed->set_overridden_output_type(ov::element::f16, 0);
+                type_relaxed->set_overridden_output_type(precision, 0);
                 conv_scaled->validate_and_infer_types();
             }
         }
@@ -122,6 +138,6 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
         return true;
     };
 
-    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq, "FallbackUnsupportedLPConvToFP16");
+    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq, "FallbackUnsupportedLPConvToFloat");
     register_matcher(matcher, callback);
 }
