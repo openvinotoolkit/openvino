@@ -1155,7 +1155,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel)
     {
         auto savedCfg = configuration;
         configuration = cfg;
-        setupResult = prepareRuntimeCompareContext(model);
+        setupResult = prepareRuntimeCompareContext(model);//// compile_model + create_infer_requests
         configuration = savedCfg;
     }
     if (setupResult.status == RuntimeCompareStatus::fail) {
@@ -1775,7 +1775,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
 }  // namespace test
 }  // namespace ov
 
-const std::vector<std::string> devices = {"NPU.4000", "NPU.5010"};
+const std::vector<std::string> devices = {"NPU4000", "NPU5010"};
 
 const std::vector<ov::AnyMap> configs = {
     {

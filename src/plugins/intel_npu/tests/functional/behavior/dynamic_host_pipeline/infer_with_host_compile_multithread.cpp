@@ -1008,7 +1008,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Combine(::testing::ValuesIn(mtDevices),
                                             ::testing::ValuesIn(mtConfigs),
                                             ::testing::ValuesIn(mtModelNames)),
-                         InferWithHostCompileMultithreadTests::getTestCaseName);
+                         ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileMultithreadTests>);
 
 }  // namespace behavior
 }  // namespace test
