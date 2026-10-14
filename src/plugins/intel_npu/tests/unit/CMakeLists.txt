@@ -202,6 +202,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_pipeline.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_behavior_infer_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/preserve_const_matmul_pattern_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/compress_dict_matmul_f32_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/add_position_ids_param_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/right_align_mask_slice_for_conv_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/collapse_unqdq_test.cpp
