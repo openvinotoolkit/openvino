@@ -2071,7 +2071,7 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
     };
 
     auto validate_extent =
-        [&](const std::vector<ov::Output<const ov::Node>>& ports, const char* name, uint64_t required) {
+        [&](const std::vector<ov::Output<const ov::Node>>& ports, const char* name, uint64_t required, bool exact) {
             auto port = ov::npuw::util::find_port_by_name(ports, name);
             if (!port.has_value()) {
                 return;  // optional input not present on this model
@@ -2083,12 +2083,13 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
             // a zero-length port - Whisper's raw one-token copies in particular never re-check
             // the caller's token count against anything else, so a zero-sized restored input_ids
             // port alone is enough to write out of bounds on the very first call.
-            OPENVINO_ASSERT(extent > 0 && required <= extent,
+            OPENVINO_ASSERT(extent > 0 && (exact ? required == extent : required <= extent),
                             "NPUW blob: input '",
                             name,
                             "' sequence length (",
                             extent,
-                            ") is zero or smaller than the declared limit (",
+                            exact ? ") does not exactly match the declared limit ("
+                                  : ") is zero or smaller than the declared limit (",
                             required,
                             ").");
         };
@@ -2096,32 +2097,38 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
     if (m_prefill_compiled) {
         const auto& prefill_inputs = m_prefill_compiled->inputs();
         const uint64_t prefill_required = m_use_chunk_prefill ? m_prefill_chunk_size : m_kvcache_desc.max_prompt_size;
+        // ReshapeToStatic always sizes every prefill sequence-length port to EXACTLY its required
+        // value (see reshape_to_static.cpp) - never larger. An oversized restored prefill port isn't
+        // just superfluous: WhisperInferRequest::infer_prefill() trusts the compiled prefill port's
+        // real capacity to reflect max_prompt_size, incrementing num_stored_tokens by however many
+        // tokens the caller's own (separately bounded) input actually contains - letting a blob
+        // declare a bigger port than max_prompt_size would make that relationship (and the
+        // total_size check above) meaningless, since nothing would contradict it at import time.
+        constexpr bool require_exact_extent = true;
         for (const char* name : {layer_names::input_ids,
                                  layer_names::inputs_embeds,
                                  layer_names::position_ids,
                                  layer_names::token_type_ids}) {
-            validate_extent(prefill_inputs, name, prefill_required);
+            validate_extent(prefill_inputs, name, prefill_required, require_exact_extent);
         }
-        // ReshapeToStatic always sizes attention_mask to max_prompt_size (the full KV window),
-        // never to the chunk size (see reshape_to_static.cpp). infer_chunked_prefill() copies
-        // each completed chunk's mask forward to an absolute offset of num_stored_tokens, which
-        // grows up to max_prompt_size across chunks. It also computes
-        // attn_mask_in_tensor->get_size() - m_prefill_chunk_size (llm_infer_request.cpp) each
-        // chunk iteration, but only when chunked prefill is actually selected at runtime - a
-        // disabled-chunking blob can legitimately carry a stale chunk size bigger than
-        // max_prompt_size (the compile-time "chunk covers the whole prompt" fallback), so only
-        // fold the chunk size into the requirement when m_use_chunk_prefill is set.
+        // ReshapeToStatic always sizes attention_mask to EXACTLY max_prompt_size (the full KV
+        // window), regardless of chunking (see reshape_to_static.cpp) - the chunk size is only
+        // ever used as a narrower per-chunk copy length, never as the port's own extent.
         validate_extent(prefill_inputs,
-                        layer_names::attention_mask,
-                        m_use_chunk_prefill
-                            ? std::max<uint64_t>(m_kvcache_desc.max_prompt_size, m_prefill_chunk_size)
-                            : m_kvcache_desc.max_prompt_size);
+                         layer_names::attention_mask,
+                         m_kvcache_desc.max_prompt_size,
+                         require_exact_extent);
     }
 
     for (size_t i = 0; i < m_generate_compiled_variants.size(); ++i) {
         const auto& gen_inputs = m_generate_compiled_variants[i]->inputs();
+        // Generate ports only need a floor: pyramid variant sizing and the Whisper total_size+1
+        // special-case below make an exact per-call contract harder to state, and generate has
+        // no equivalent "unbounded caller tensor length" runtime gap (each step is bounded to
+        // exactly max_generation_token_len, already separately checked).
+        constexpr bool require_exact_extent = false;
         for (const char* name : {layer_names::input_ids, layer_names::inputs_embeds, layer_names::position_ids}) {
-            validate_extent(gen_inputs, name, m_kvcache_desc.max_generation_token_len);
+            validate_extent(gen_inputs, name, m_kvcache_desc.max_generation_token_len, require_exact_extent);
         }
         // ReshapeToStatic sizes each generate variant's attention_mask to that variant's own
         // KV window (m_kvcache_sizes[i]), not to max_generation_token_len - infer_generate()
@@ -2146,7 +2153,7 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
             attention_mask_required =
                 std::max<uint64_t>(attention_mask_required, static_cast<uint64_t>(m_kvcache_desc.total_size) + 1);
         }
-        validate_extent(gen_inputs, layer_names::attention_mask, attention_mask_required);
+        validate_extent(gen_inputs, layer_names::attention_mask, attention_mask_required, require_exact_extent);
     }
 }
 
