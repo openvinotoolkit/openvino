@@ -18,7 +18,7 @@ their number.
 **Detailed description**:
 
 The graph flow of a QSA layer with a paged KV cache is :doc:`PagedQSAPrepare <paged-qsa-prepare>` ->
-*PagedQSAIndexer* -> :doc:`PagedBlockSparseAttention <paged-block-sparse-attention>`.
+*PagedQSAIndexer* -> :doc:`PagedSparseAttention <paged-sparse-attention>`.
 *PagedQSAIndexer* only selects. The normalized and rotated index query is computed by regular
 operations of the graph (*RMS* and *RoPE*, as the query of the main attention). The block keys come
 from ``pa_block_index_keys``, connected to the output of *PagedQSAPrepare*: the buffer updated in place
@@ -86,7 +86,7 @@ Properties that follow from the definition:
   independently of how the tokens of the sequence were split into inference calls and of the
   physical block assignment.
 * ``selected_block_indices`` holds logical block indices of the sequence of the token, not physical
-  block IDs. *PagedBlockSparseAttention* maps them to the physical blocks with the same block table.
+  block IDs. *PagedSparseAttention* maps them to the physical blocks with the same block table.
 * Within a call, a block completed by a later token of the batch is never visible to an earlier
   token: a token at the position ``p`` sees only the blocks that end at or before ``p``.
 * ``selected_block_count`` is ``min(token_budget / key_block_size, (p + 1) // key_block_size)`` for
@@ -100,7 +100,7 @@ Properties that follow from the definition:
 
   * **Description**: number of consecutive key tokens that form one key block of the sparse
     selection, not the physical block of the paged caches (``Bs``). It must be equal to
-    *key_block_size* of *PagedQSAPrepare* and *PagedBlockSparseAttention*.
+    *key_block_size* of *PagedQSAPrepare* and *PagedSparseAttention*.
   * **Range of values**: a positive integer
   * **Type**: ``int``
   * **Required**: *yes*
@@ -119,7 +119,7 @@ Properties that follow from the definition:
     split into ``Hs`` consecutive groups, the scores are summed within each group, and every group
     selects its own blocks. ``1`` for QSA and DSA.
   * **Range of values**: a positive integer that divides ``Hi`` and the number of attention query
-    heads of *PagedBlockSparseAttention*
+    heads of *PagedSparseAttention*
   * **Type**: ``int``
   * **Default value**: ``1``
   * **Required**: *no*

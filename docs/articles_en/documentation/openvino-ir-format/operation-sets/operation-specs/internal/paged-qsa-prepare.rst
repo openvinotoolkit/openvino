@@ -18,7 +18,7 @@ in place the paged block index keys from which :doc:`PagedQSAIndexer <paged-qsa-
 
 The graph flow of a QSA layer with a paged KV cache is *PagedQSAPrepare* ->
 :doc:`PagedQSAIndexer <paged-qsa-indexer>` ->
-:doc:`PagedBlockSparseAttention <paged-block-sparse-attention>`. The index query is prepared by
+:doc:`PagedSparseAttention <paged-sparse-attention>`. The index query is prepared by
 regular operations of the graph (*RMS* and *RoPE*, as the query of the main attention) and goes to
 *PagedQSAIndexer* directly; *PagedQSAPrepare* only computes the block keys.
 

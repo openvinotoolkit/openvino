@@ -1,23 +1,23 @@
-BlockSparseAttention
-====================
+SparseAttention
+===============
 
 
 .. meta::
-  :description: Learn about BlockSparseAttention - grouped-query scaled dot-product attention
+  :description: Learn about SparseAttention - grouped-query scaled dot-product attention
                 restricted to dynamically selected key blocks, optionally causal with the query's
                 incomplete block, with selections per query token or per query block.
 
-**Versioned name**: *BlockSparseAttention*
+**Versioned name**: *SparseAttention*
 
 **Category**: *Sequence processing*
 
-**Short description**: *BlockSparseAttention* computes grouped-query scaled dot-product attention
+**Short description**: *SparseAttention* computes grouped-query scaled dot-product attention
 in which every query token attends only to the tokens of its selected key blocks and, in the causal
 mode, to the tokens of the incomplete block that contains it.
 
 **Detailed description**:
 
-*BlockSparseAttention* is the attention stage of dynamic, query-dependent sparse attention. The
+*SparseAttention* is the attention stage of dynamic, query-dependent sparse attention. The
 blocks are not a fixed sparsity pattern: they are selected per query token, or per block of
 ``query_block_size`` query tokens, and passed in through ``block_indices``. It covers:
 
@@ -86,13 +86,13 @@ tokens. This document covers the
 value tensors hold all tokens of the sequences contiguously, as with a stateful KV cache, rather
 than in a paged cache.
 
-*BlockSparseAttention* provides functionality according to the following pseudo-code using
+*SparseAttention* provides functionality according to the following pseudo-code using
 ``numpy``:
 
 .. code-block:: py
    :force:
 
-    def BlockSparseAttention(query, key, value, block_indices, block_count, key_length=None, scale=None, *,
+    def SparseAttention(query, key, value, block_indices, block_count, key_length=None, scale=None, *,
                              key_block_size, query_block_size=1, causal=True):
         N, H, L, E = query.shape
         Hkv, S = key.shape[1], key.shape[2]
@@ -350,7 +350,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 .. code-block:: xml
    :force:
 
-    <layer id="3" name="sparse_attention" type="BlockSparseAttention" version="extension">
+    <layer id="3" name="sparse_attention" type="SparseAttention" version="extension">
         <data key_block_size="4"/>
         <input>
             <port id="0" precision="BF16"> <!-- query -->
@@ -398,7 +398,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 .. code-block:: xml
    :force:
 
-    <layer id="4" name="sparse_attention" type="BlockSparseAttention" version="extension">
+    <layer id="4" name="sparse_attention" type="SparseAttention" version="extension">
         <data key_block_size="4"/>
         <input>
             <port id="0" precision="FP32"> <!-- query -->
@@ -452,7 +452,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
     <!-- 66 windows of 128 tokens per chunk of 2 latent frames (6 x 11 windows), queries = current chunk,
          keys = 3 cached chunks + the current chunk = 264 windows -->
-    <layer id="5" name="lcsa_attention" type="BlockSparseAttention" version="extension">
+    <layer id="5" name="lcsa_attention" type="SparseAttention" version="extension">
         <data key_block_size="128" query_block_size="128" causal="false"/>
         <input>
             <port id="0" precision="BF16"> <!-- query, tokens in 3D-window order -->

@@ -20,7 +20,7 @@ blocks completed by the new tokens are computed.
 
 *QSAPrepare* is the first stage of a QSA layer in a model with
 *ScaledDotProductAttention*-style caches. The graph flow is *QSAPrepare* ->
-:doc:`QSAIndexer <qsa-indexer>` -> :doc:`BlockSparseAttention <block-sparse-attention>`; the paged
+:doc:`QSAIndexer <qsa-indexer>` -> :doc:`SparseAttention <sparse-attention>`; the paged
 counterpart is :doc:`PagedQSAPrepare <paged-qsa-prepare>`. It covers the key compression of the
 engines: the "compress K" part of the ``qsa_prepare`` kernel of vLLM and the pooling, normalization
 and rotation of the block keys in ``build_qsa_top_k`` of llama.cpp.

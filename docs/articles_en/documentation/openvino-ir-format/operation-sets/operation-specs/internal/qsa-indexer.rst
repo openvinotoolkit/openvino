@@ -18,7 +18,7 @@ number.
 **Detailed description**:
 
 *QSAIndexer* is the selection stage of dynamic, query-dependent sparse attention. Its
-output is consumed by :doc:`BlockSparseAttention <block-sparse-attention>`. It covers:
+output is consumed by :doc:`SparseAttention <sparse-attention>`. It covers:
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
   Hugging Face Transformers), with blocks of ``key_block_size = 4`` tokens. Most of this document
@@ -36,7 +36,7 @@ The selection is decoupled from the attention in the same way as in inference en
 
 Unlike the engines, which expand the selected blocks into token positions before the attention,
 *QSAIndexer* returns block indices. Expanding the blocks and adding the tokens of the
-query's incomplete block is done by *BlockSparseAttention*. This keeps the selection
+query's incomplete block is done by *SparseAttention*. This keeps the selection
 ``key_block_size`` times smaller and lets the attention read every selected block as a contiguous
 run of tokens.
 
@@ -63,7 +63,7 @@ consume it (``num_selection_heads = 1``); this is the case of QSA and DSA, where
 ``Hi`` index query heads are summed into one score per block. With ``num_selection_heads = Hs > 1``
 the ``Hi`` index query heads are split into ``Hs`` consecutive groups of ``Hi / Hs`` heads; the scores
 are summed within each group only, and every group selects its own blocks. The outputs then hold
-``Hs`` selections per query token, and *BlockSparseAttention* applies selection ``g`` to the group
+``Hs`` selections per query token, and *SparseAttention* applies selection ``g`` to the group
 ``g`` of ``H / Hs`` consecutive attention query heads. For example, ``Hs = Hkv`` gives one selection
 per key-value head shared by its group of query heads, the granularity of Native Sparse Attention
 (NSA); ``Hs = H`` gives one selection per attention query head. ``Hs`` is the number of selections
@@ -132,7 +132,7 @@ Properties that follow from the definition:
   query position ``p``, followed by ``-1`` padding. Rows of the first ``key_block_size - 1``
   positions have no valid entries.
 * ``block_count`` holds the number of valid entries of every row of ``block_indices`` and is passed
-  to the ``block_count`` input of *BlockSparseAttention*. The valid
+  to the ``block_count`` input of *SparseAttention*. The valid
   entries are the first ``block_count`` ones, so a consumer can use it as a loop bound instead of
   scanning for ``-1``, like the trailing count column of the vLLM selection buffer. The count depends
   only on the query position ``p``, so without padding it is the same for every sequence of the
@@ -153,7 +153,7 @@ Properties that follow from the definition:
 * ``index_weights`` may be negative. They cannot be folded into ``index_query``, because
   ``w * ReLU(q . k)`` differs from ``ReLU((w * q) . k)`` for ``w < 0``.
 * The valid block indices of a row are ordered by descending score, equal scores by ascending
-  block index. The order does not affect the result of *BlockSparseAttention*.
+  block index. The order does not affect the result of *SparseAttention*.
 
 .. note::
 
@@ -173,7 +173,7 @@ Properties that follow from the definition:
      ``0 .. floor(key_length[n] / key_block_size) - 1`` are valid and the remaining rows at the
      **end** are fake (zeros from *QSAPrepare*). The same holds for the block key cache of
      *QSAPrepare*. The indices in ``block_indices`` are these logical block indices;
-     *BlockSparseAttention* maps block ``b`` back to the key positions ``pad + b * key_block_size ..``.
+     *SparseAttention* maps block ``b`` back to the key positions ``pad + b * key_block_size ..``.
    * The fake rows are never read: a valid query reads only the rows
      ``0 .. (p + 1) // key_block_size - 1``, and ``(p + 1) // key_block_size <=
      floor(key_length[n] / key_block_size)``. Their values therefore do not matter.
@@ -216,14 +216,14 @@ Qwen3.8-Flash-Next, that gives ``Hi`` query heads and one key head of size ``Di`
   token of the block.
 
 The graph flow of a QSA layer is *QSAPrepare* -> *QSAIndexer* ->
-:doc:`BlockSparseAttention <block-sparse-attention>`, with the index query prepared next to
+:doc:`SparseAttention <sparse-attention>`, with the index query prepared next to
 *QSAPrepare* by *RMS* and *RoPE*. In a stateful model with
 *ScaledDotProductAttention*-style caches, two more states are kept next to the key and value
 caches: the raw index keys of the past tokens, with the shape ``[N, S, Di]``, and the block index
 keys of the past complete blocks, with the shape ``[N, B, Di]``, so that *QSAPrepare* computes only
 the blocks completed by the new tokens. The paged counterparts are
 :doc:`PagedQSAPrepare <paged-qsa-prepare>` -> :doc:`PagedQSAIndexer <paged-qsa-indexer>` ->
-:doc:`PagedBlockSparseAttention <paged-block-sparse-attention>`.
+:doc:`PagedSparseAttention <paged-sparse-attention>`.
 
 **Relation to DeepSeek Sparse Attention (DSA)**
 
@@ -248,7 +248,7 @@ the blocks completed by the new tokens. The paged counterparts are
    DSA scores the keys with ``sum_h w[h] * ReLU(softmax_scale * q[h] . k)``, which is the score of
    *QSAIndexer* up to the positive factor. The Hadamard rotation and the FP8 quantization of the
    reference DSA indexer are precision optimizations and are not part of the definition. The
-   selected tokens are consumed by :doc:`BlockSparseAttention <block-sparse-attention>` with
+   selected tokens are consumed by :doc:`SparseAttention <sparse-attention>` with
    ``key_block_size = 1``.
 
 
@@ -275,7 +275,7 @@ the blocks completed by the new tokens. The paged counterparts are
     are split into ``Hs`` consecutive groups, the scores are summed within each group, and every
     group selects its own blocks. ``1`` for QSA (Qwen3.8-Flash-Next) and DSA.
   * **Range of values**: a positive integer that divides ``Hi`` and the number of attention query
-    heads ``H`` of the consuming *BlockSparseAttention*
+    heads ``H`` of the consuming *SparseAttention*
   * **Type**: ``int``
   * **Default value**: ``1``
   * **Required**: *no*

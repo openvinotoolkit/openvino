@@ -1,18 +1,18 @@
-PagedBlockSparseAttention
-=========================
+PagedSparseAttention
+====================
 
 
 .. meta::
-  :description: Learn about PagedBlockSparseAttention - the paged variant of BlockSparseAttention
+  :description: Learn about PagedSparseAttention - the paged variant of SparseAttention
                 that writes the key-value cache in paged blocks and attends to the dynamically
                 selected key blocks and the query's incomplete block.
 
-**Versioned name**: *PagedBlockSparseAttention*
+**Versioned name**: *PagedSparseAttention*
 
 **Category**: *Internal*
 
-**Short description**: *PagedBlockSparseAttention* is the paged variant of
-:doc:`BlockSparseAttention <block-sparse-attention>`. It processes the tokens of several sequences
+**Short description**: *PagedSparseAttention* is the paged variant of
+:doc:`SparseAttention <sparse-attention>`. It processes the tokens of several sequences
 packed into one batch, writes their keys and values into a block-paged KV cache, and computes
 grouped-query attention in which every token attends only to the tokens of its selected key blocks
 and of the incomplete block that contains it.
@@ -20,9 +20,9 @@ and of the incomplete block that contains it.
 **Detailed description**:
 
 The graph flow of a QSA layer with a paged KV cache is :doc:`PagedQSAPrepare <paged-qsa-prepare>` ->
-:doc:`PagedQSAIndexer <paged-qsa-indexer>` -> *PagedBlockSparseAttention*.
+:doc:`PagedQSAIndexer <paged-qsa-indexer>` -> *PagedSparseAttention*.
 
-The attention is the causal mode of *BlockSparseAttention*. Blocks consist of ``key_block_size``
+The attention is the causal mode of *SparseAttention*. Blocks consist of ``key_block_size``
 consecutive tokens of a sequence; a token at the position ``p`` attends to:
 
 * all tokens of the first ``selected_block_count`` blocks listed in its row of
@@ -38,7 +38,7 @@ DSA. There is no other causal mask. With
 ``key_block_size = 4`` this is the attention of Qwen Sparse Attention (QSA, Qwen3.8-Flash-Next);
 with ``key_block_size = 1`` the incomplete block is always empty and this is the sparse attention
 of DeepSeek Sparse Attention (DSA, DeepSeek-V3.2, GLM-MoE-DSA), with the multi-head latent attention
-in its absorbed form as described for *BlockSparseAttention*.
+in its absorbed form as described for *SparseAttention*.
 
 **Paged memory management**
 
@@ -61,13 +61,13 @@ operation maps every selected block to its tokens and the tokens to their slots 
 table. Because a block never spans two physical blocks, a selected block is a contiguous run of
 ``key_block_size`` rows of one physical block of ``key_cache`` and ``value_cache``.
 
-*PagedBlockSparseAttention* provides functionality according to the following pseudo-code using
+*PagedSparseAttention* provides functionality according to the following pseudo-code using
 ``numpy``:
 
 .. code-block:: py
    :force:
 
-    def PagedBlockSparseAttention(query, key, value, key_cache, value_cache, past_lens, subsequence_begins,
+    def PagedSparseAttention(query, key, value, key_cache, value_cache, past_lens, subsequence_begins,
                                   block_indices, block_indices_begins, selected_block_indices,
                                   selected_block_count, scale, *, key_block_size):
         T = query.shape[0]
@@ -110,7 +110,7 @@ table. Because a block never spans two physical blocks, a selected block is a co
 
 Properties that follow from the definition:
 
-* For every sequence, the result equals *BlockSparseAttention* applied to the sequence with all its
+* For every sequence, the result equals *SparseAttention* applied to the sequence with all its
   cached and new keys and values, independently of how the tokens of the sequence were split into
   inference calls and of the physical block assignment.
 * Within a call, all new keys and values are written before the attention, so a token can attend to
@@ -236,7 +236,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 .. code-block:: xml
    :force:
 
-    <layer id="2" name="paged_sparse_attention" type="PagedBlockSparseAttention" version="extension">
+    <layer id="2" name="paged_sparse_attention" type="PagedSparseAttention" version="extension">
         <data key_block_size="4"/>
         <input>
             <port id="0" precision="BF16"> <!-- query -->
