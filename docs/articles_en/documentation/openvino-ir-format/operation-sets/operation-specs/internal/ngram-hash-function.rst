@@ -1,17 +1,17 @@
-QSAHashFunction
-===============
+NGramHashFunction
+=================
 
 
 .. meta::
-  :description: Learn about QSAHashFunction - computes the row indices of the hashed n-gram
+  :description: Learn about NGramHashFunction - computes the row indices of the hashed n-gram
                 embedding table (PLE) of Qwen3.8-Flash-Next with exact 64-bit integer hashing inside
                 the operation.
 
-**Versioned name**: *QSAHashFunction*
+**Versioned name**: *NGramHashFunction*
 
 **Category**: *Sequence processing*
 
-**Short description**: *QSAHashFunction* hashes the bigrams, trigrams and longer n-grams that end at
+**Short description**: *NGramHashFunction* hashes the bigrams, trigrams and longer n-grams that end at
 every token into the row indices of a packed n-gram embedding table. The 64-bit integer arithmetic of
 the hash stays inside the operation; the inputs and outputs fit 32-bit integers.
 
@@ -22,7 +22,7 @@ decoder layer 2: an n-gram embedding looked up by hashes of the last tokens
 (``Qwen4ExpTextNGramEmbedding``). The table has ``H = (ngram_size - 1) * heads_per_ngram`` hashed
 heads, 16 for the model: heads 0-7 hash the bigram and heads 8-15 the trigram that ends at a token.
 Every head has its own prime vocabulary size and its rows are packed into one table at an offset.
-*QSAHashFunction* computes, for every token and head, the row of the table:
+*NGramHashFunction* computes, for every token and head, the row of the table:
 
 * the token and the ``ngram_size - 1`` previous tokens are taken from the token history; a previous
   token before the start of the sequence, or before an EOS token, is replaced by EOS, so that the
@@ -35,19 +35,19 @@ The products of a token id and a multiplier need up to 63 bits (``token < 2^18``
 ``< (2^63 - 1) / vocab_size``), and the modulo is taken of the 63-bit mix. The result rows, below the
 table size of about ``3.2e8`` for the model, fit ``int32``. A device without native 64-bit integer
 arithmetic in the graph (for example a plugin that converts ``i64`` to ``i32``) cannot evaluate the
-hash with regular operations; *QSAHashFunction* keeps the 64-bit arithmetic inside its kernel, and
+hash with regular operations; *NGramHashFunction* keeps the 64-bit arithmetic inside its kernel, and
 the constants as ``int64`` attributes.
 
-The graph flow of the PLE lookup is *QSAHashFunction* -> *Gather* (``table``, ``row_ids``, axis 0)
+The graph flow of the PLE lookup is *NGramHashFunction* -> *Gather* (``table``, ``row_ids``, axis 0)
 -> *Reshape* ``[N, L, H * head_dim]``. The paged counterpart is
-:doc:`PagedQSAHashFunction <paged-qsa-hash-function>`.
+:doc:`PagedNGramHashFunction <paged-ngram-hash-function>`.
 
-*QSAHashFunction* provides functionality according to the following pseudo-code using ``numpy``:
+*NGramHashFunction* provides functionality according to the following pseudo-code using ``numpy``:
 
 .. code-block:: py
    :force:
 
-    def QSAHashFunction(token_ids, history, *, ngram_size, heads_per_ngram, multipliers, head_vocab_sizes,
+    def NGramHashFunction(token_ids, history, *, ngram_size, heads_per_ngram, multipliers, head_vocab_sizes,
                         head_offsets, eos_token_id):
         N, L = token_ids.shape
         c = ngram_size - 1                                      # previous tokens of an n-gram
@@ -187,7 +187,7 @@ Properties that follow from the definition:
 .. code-block:: xml
    :force:
 
-    <layer id="1" name="ple_hash" type="QSAHashFunction" version="extension">
+    <layer id="1" name="ple_hash" type="NGramHashFunction" version="extension">
         <data ngram_size="3" heads_per_ngram="8"
               multipliers="23703573157769,20109073645365,8052911324071"
               head_vocab_sizes="20000003,20000023,20000033,20000047,20000059,20000063,20000069,20000077,20000081,20000093,20000107,20000147,20000153,20000159,20000161,20000171"

@@ -1,25 +1,25 @@
-PagedQSAHashFunction
-====================
+PagedNGramHashFunction
+======================
 
 
 .. meta::
-  :description: Learn about PagedQSAHashFunction - the paged variant of QSAHashFunction that keeps
+  :description: Learn about PagedNGramHashFunction - the paged variant of NGramHashFunction that keeps
                 the previous tokens of every sequence in a paged table and updates it with the new
                 tokens.
 
-**Versioned name**: *PagedQSAHashFunction*
+**Versioned name**: *PagedNGramHashFunction*
 
 **Category**: *Internal*
 
-**Short description**: *PagedQSAHashFunction* is the paged variant of
-:doc:`QSAHashFunction <qsa-hash-function>`. It hashes the n-grams of the tokens of several sequences
+**Short description**: *PagedNGramHashFunction* is the paged variant of
+:doc:`NGramHashFunction <ngram-hash-function>`. It hashes the n-grams of the tokens of several sequences
 packed into one batch into row indices of the packed n-gram embedding table (PLE of
 Qwen3.8-Flash-Next), reads the previous tokens of every sequence from a paged history table and
 updates the table with the new tokens.
 
 **Detailed description**:
 
-The hash is the one of *QSAHashFunction*. The history of a sequence, its last ``ngram_size - 1``
+The hash is the one of *NGramHashFunction*. The history of a sequence, its last ``ngram_size - 1``
 tokens, is a state like the convolution state of :doc:`PagedCausalConv1D <paged-causal-conv1d>`, and
 it is managed in the same way: one row of ``history_table`` holds one state snapshot, and the rows of
 every sequence are given by ``la_block_indices`` / ``la_block_indices_begins``.
@@ -43,16 +43,16 @@ are the ones of *PagedCausalConv1D* and *PagedGatedDeltaNet*. The host (OpenVINO
 rows, together with the states of the other linear-attention layers. The table is updated in place;
 its initial content does not matter, because a new sequence does not read it.
 
-The graph flow of the PLE lookup is *PagedQSAHashFunction* -> *Gather* (``table``, ``row_ids``,
+The graph flow of the PLE lookup is *PagedNGramHashFunction* -> *Gather* (``table``, ``row_ids``,
 axis 0) -> *Reshape* ``[T, H * head_dim]``.
 
-*PagedQSAHashFunction* provides functionality according to the following pseudo-code using ``numpy``
-and the pseudo-code of :doc:`QSAHashFunction <qsa-hash-function>`:
+*PagedNGramHashFunction* provides functionality according to the following pseudo-code using ``numpy``
+and the pseudo-code of :doc:`NGramHashFunction <ngram-hash-function>`:
 
 .. code-block:: py
    :force:
 
-    def PagedQSAHashFunction(token_ids, history_table, subsequence_begins, la_block_indices, la_block_indices_begins,
+    def PagedNGramHashFunction(token_ids, history_table, subsequence_begins, la_block_indices, la_block_indices_begins,
                              num_processed_tokens, cache_interval, *, ngram_size, heads_per_ngram, multipliers,
                              head_vocab_sizes, head_offsets, eos_token_id):
         c = ngram_size - 1
@@ -65,8 +65,8 @@ and the pseudo-code of :doc:`QSAHashFunction <qsa-hash-function>`:
             done, ci = num_processed_tokens[s], cache_interval[s]
             # 1. the previous c tokens: EOS for a new sequence, else the state in the first block
             history = [eos_token_id] * c if done == 0 else [int(x) for x in history_table[blocks[0]]]
-            # 2. hash exactly as QSAHashFunction on one sequence
-            ids, _ = QSAHashFunction(token_ids[None, t_begin:t_end], numpy.array([history]), ngram_size=ngram_size,
+            # 2. hash exactly as NGramHashFunction on one sequence
+            ids, _ = NGramHashFunction(token_ids[None, t_begin:t_end], numpy.array([history]), ngram_size=ngram_size,
                                      heads_per_ngram=heads_per_ngram, multipliers=multipliers,
                                      head_vocab_sizes=head_vocab_sizes, head_offsets=head_offsets,
                                      eos_token_id=eos_token_id)
@@ -82,7 +82,7 @@ and the pseudo-code of :doc:`QSAHashFunction <qsa-hash-function>`:
 
 Properties that follow from the definition:
 
-* For every sequence, ``row_ids`` equals the ``row_ids`` of *QSAHashFunction* over all tokens of the
+* For every sequence, ``row_ids`` equals the ``row_ids`` of *NGramHashFunction* over all tokens of the
   sequence from its start, independently of how the tokens were split into inference calls.
 * After the call, ``history_table[blocks[-1]]`` holds the last ``ngram_size - 1`` tokens of the
   sequence, and every snapshot row holds the last ``ngram_size - 1`` tokens at its position.
@@ -95,9 +95,9 @@ Properties that follow from the definition:
 
 **Attributes**
 
-*PagedQSAHashFunction* has the attributes *ngram_size*, *heads_per_ngram*, *multipliers*,
+*PagedNGramHashFunction* has the attributes *ngram_size*, *heads_per_ngram*, *multipliers*,
 *head_vocab_sizes*, *head_offsets* and *eos_token_id* of
-:doc:`QSAHashFunction <qsa-hash-function>`, with the same meaning.
+:doc:`NGramHashFunction <ngram-hash-function>`, with the same meaning.
 
 
 **Inputs**
@@ -162,7 +162,7 @@ Properties that follow from the definition:
 .. code-block:: xml
    :force:
 
-    <layer id="1" name="paged_ple_hash" type="PagedQSAHashFunction" version="extension">
+    <layer id="1" name="paged_ple_hash" type="PagedNGramHashFunction" version="extension">
         <data ngram_size="3" heads_per_ngram="8"
               multipliers="23703573157769,20109073645365,8052911324071"
               head_vocab_sizes="20000003,20000023,20000033,20000047,20000059,20000063,20000069,20000077,20000081,20000093,20000107,20000147,20000153,20000159,20000161,20000171"
