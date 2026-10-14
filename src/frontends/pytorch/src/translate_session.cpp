@@ -262,6 +262,34 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           converted_outputs.size(),
                                           " respectively.");
 
+            std::map<size_t, size_t> sequence_aliases;
+            for (size_t i = 0; i < raw_inputs.size(); ++i) {
+                const auto elements = node->get_input_sequence(i);
+                if (elements.empty()) {
+                    continue;
+                }
+                const auto alias = m_may_be_alias.find(raw_inputs[i]);
+                const auto element_ids =
+                    alias == m_may_be_alias.end() ? std::vector<size_t>{} : alias->second.element_ids;
+                FRONT_END_OP_CONVERSION_CHECK(element_ids.empty() || element_ids.size() == elements.size(),
+                                              "Sequence extraction must preserve the number of elements.");
+                OutputVector values;
+                for (size_t j = 0; j < elements.size(); ++j) {
+                    const auto output_index = elements[j];
+                    FRONT_END_OP_CONVERSION_CHECK(output_index < fw_outputs.size(),
+                                                  "Sequence element output index is out of range.");
+                    const auto base_id = element_ids.empty() ? raw_inputs[i] : element_ids[j];
+                    FRONT_END_OP_CONVERSION_CHECK(sequence_aliases.emplace(output_index, base_id).second,
+                                                  "A sequence extraction output must identify exactly one element.");
+                    values.push_back(converted_outputs.at(output_index));
+                }
+                if (!ov::is_type<SequenceMark>(tensor_map->at(raw_inputs[i]).get_node_shared_ptr())) {
+                    const auto sequence = make_list_construct(values);
+                    encode_tensor_name(sequence, raw_inputs[i]);
+                    (*tensor_map)[raw_inputs[i]] = sequence;
+                }
+            }
+
             const bool has_inputs = !raw_inputs.empty();
             const size_t first_input_id = has_out ? node->get_named_input("out") : (has_inputs ? raw_inputs.at(0) : 0);
             const auto& op_type = context.get_op_type();
@@ -270,9 +298,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             const auto sequence = m_may_be_alias.find(first_input_id);
             if (sequence != m_may_be_alias.end() && !sequence->second.element_ids.empty()) {
                 const auto& elements = sequence->second.element_ids;
-                if (op_type == "prim::TupleUnpack" || op_type == "prim::ListUnpack") {
-                    unpacked_ids = elements;
-                } else if (op_type == "aten::__getitem__") {
+                if (op_type == "aten::__getitem__") {
                     if (const auto index_node = ov::util::get_constant_from_source(context.get_input(1))) {
                         auto index = index_node->cast_vector<int64_t>().at(0);
                         if (index < 0) {
@@ -286,8 +312,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             }
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = fw_outputs.at(i);
-                const auto in_tensor_id = unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i);
-                if (has_out || (has_inputs && (constructs_sequence || node->may_produce_alias(0, i)))) {
+                const auto extracted = sequence_aliases.find(i);
+                const bool sequence_element = extracted != sequence_aliases.end();
+                const auto in_tensor_id =
+                    sequence_element ? extracted->second : (unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i));
+                if (has_out || sequence_element ||
+                    (has_inputs && (constructs_sequence || node->may_produce_alias(0, i)))) {
                     auto alias_iter = m_may_be_alias.find(fw_tensor_id);
                     // TODO: do we need to check other inputs, not only 0?
                     if (alias_iter != m_may_be_alias.end()) {

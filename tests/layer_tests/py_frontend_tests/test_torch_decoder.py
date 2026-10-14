@@ -821,3 +821,31 @@ def test_pytorch_fx_pool_without_output_metadata(return_indices):
 def test_is_testing_flag(testing_value, expected):
     """Test that the _is_testing flag evaluates correctly."""
     assert _is_testing({"testing": testing_value}) == expected
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("ir,expected", [
+    ("graph(%values : Tensor[]):\n  %a : Tensor, %b : Tensor = prim::ListUnpack(%values)\n  return (%a, %b)\n", [0, 1]),
+    ("graph(%values : (Tensor, Tensor)):\n  %a : Tensor, %b : Tensor = prim::TupleUnpack(%values)\n  return (%a, %b)\n", [0, 1]),
+    ("graph(%values : ((Tensor, Tensor), Tensor)):\n  %a : (Tensor, Tensor), %b : Tensor = prim::TupleUnpack(%values)\n  return (%a, %b)\n", [0, 1]),
+    ("graph(%values : Tensor[]):\n  %index : int = prim::Constant[value=0]()\n  %a : Tensor = aten::__getitem__(%values, %index)\n  return (%a)\n", []),
+    ("graph(%values : Tensor[]):\n  %index : int = prim::Constant[value=0]()\n  %a : Tensor = aten::pop(%values, %index)\n  return (%a)\n", []),
+    ("graph(%value : Tensor):\n  %a : Tensor = aten::alias(%value)\n  return (%a)\n", []),
+])
+def test_pytorch_decoder_input_sequence(ir, expected):
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    graph = torch._C.parse_ir(ir)
+    node = list(graph.nodes())[-1]
+    decoder = TorchScriptPythonDecoder(None, node, alias_db=graph.alias_db())
+    assert decoder.get_input_sequence(0) == expected
+    assert decoder.get_input_sequence(1) == []
+    if not expected:
+        assert decoder.may_produce_alias(0, 0)
+
+
+@pytest.mark.precommit
+def test_pytorch_decoder_input_sequence_default():
+    from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
+
+    assert TorchDecoderBase().get_input_sequence(0) == []

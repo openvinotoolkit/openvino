@@ -32,7 +32,6 @@ OutputVector translate_list_unpack(const NodeContext& context) {
                                  "Lists are not supported yet and can be resolved only in specific cases.");
 
         auto outputs = list_unpack_fw->outputs();
-        context.set_input_sequence(0, outputs);
 
         // Handle quantized nodes
         const auto& input_node = input.get_node_shared_ptr();

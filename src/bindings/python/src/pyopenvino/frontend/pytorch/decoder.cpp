@@ -19,7 +19,8 @@ using ov::Any;
 
 void regclass_frontend_pytorch_decoder(py::module m) {
     py::class_<pytorch::TorchDecoder, IDecoder, PyDecoder, std::shared_ptr<pytorch::TorchDecoder>>(m, "_FrontEndPytorchDecoder")
-        .def(py::init<>());
+        .def(py::init<>())
+        .def("get_input_sequence", &pytorch::TorchDecoder::get_input_sequence);
 
     auto type_module = m.def_submodule("_Type");
 

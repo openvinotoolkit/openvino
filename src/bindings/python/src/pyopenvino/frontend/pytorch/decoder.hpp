@@ -115,6 +115,10 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, may_produce_alias, in_index, out_index);
     }
 
+    std::vector<size_t> get_input_sequence(size_t index) const override {
+        PYBIND11_OVERRIDE(std::vector<size_t>, TorchDecoder, get_input_sequence, index);
+    }
+
     bool is_input_inlined(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, is_input_inlined, index);
     }

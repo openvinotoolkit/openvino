@@ -135,3 +135,65 @@ def test_torch_chunk_cache_mutation():
         assert len(actual) == len(expected)
         for reference, result in zip(expected, actual):
             np.testing.assert_allclose(result, reference.numpy(), rtol=1e-5, atol=1e-6)
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+@pytest.mark.parametrize("sequence_input", [0, 1])
+@pytest.mark.parametrize("mapping,error", [([1, 0], None),
+                                         ([0, 0], "exactly one element"),
+                                         ([0, 2], "out of range")])
+def test_torch_decoder_sequence_output_order(sequence_input, mapping, error):
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    graph = torch._C.parse_ir("""graph(%left : Tensor, %right : Tensor, %source : Tensor):
+      %pair : (Tensor, Tensor) = prim::TupleConstruct(%left, %right)
+      %first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)
+      %blocking : bool = prim::Constant[value=0]()
+      %updated : Tensor = aten::copy_(%first, %source, %blocking)
+      return (%left, %right, %second)
+    """)
+
+    class ReversedSequenceDecoder(TorchScriptPythonDecoder):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            if self.get_op_type() == "custom::reversed_sequence" and sequence_input == 1:
+                self.raw_inputs.insert(0, list(graph.inputs())[0])
+                self._input_ids.insert(0, self.raw_inputs[0].unique())
+
+        def get_op_type(self):
+            if isinstance(self.graph_element, torch.Node) and self.graph_element.kind() == "prim::TupleUnpack":
+                return "custom::reversed_sequence"
+            return super().get_op_type()
+
+        def get_input_sequence(self, index):
+            return mapping if self.get_op_type() == "custom::reversed_sequence" and index == sequence_input else []
+
+        def visit_subgraph(self, visitor):
+            for node in self.graph_element.nodes():
+                decoder = ReversedSequenceDecoder(None, node, alias_db=self.alias_db)
+                self.m_decoders.append(decoder)
+                visitor(decoder)
+
+    decoder = ReversedSequenceDecoder(None, graph, alias_db=graph.alias_db())
+    frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+    frontend.add_extension(ov.frontend.ConversionExtension(
+        "custom::reversed_sequence",
+        lambda context: list(reversed(context.get_input(sequence_input).get_node().input_values()))))
+    input_model = frontend.load(decoder)
+    for place in input_model.get_inputs():
+        input_model.set_element_type(place, ov.Type.f32)
+    if error:
+        with pytest.raises(RuntimeError, match=error):
+            frontend.convert(input_model)
+        return
+    converted = frontend.convert(input_model)
+    converted.reshape({port: ov.PartialShape([-1, 4, 3]) for port in converted.inputs})
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    generator = np.random.default_rng(42)
+    for batch in (1, 2):
+        left, right, source = [generator.standard_normal((batch, 4, 3)).astype(np.float32) for _ in range(3)]
+        actual = list(compiled([left, right, source]).values())
+        assert len(actual) == 3
+        for result, expected in zip(actual, (left, source, left)):
+            np.testing.assert_allclose(result, expected)

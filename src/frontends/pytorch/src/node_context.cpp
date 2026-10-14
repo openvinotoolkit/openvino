@@ -124,13 +124,6 @@ void NodeContext::mutate_input(const std::string& name, Output<Node> ov_output) 
     mutate_tensor(m_decoder->get_named_input(name), ov_output, name);
 }
 
-void NodeContext::set_input_sequence(size_t index, const OutputVector& elements) const {
-    const auto input_id = m_decoder_inputs.at(index);
-    const auto sequence = make_list_construct(elements);
-    m_translate_session->encode_tensor_name(sequence, input_id);
-    (*m_tensor_map)[input_id] = sequence;
-}
-
 void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const std::string& name) const {
     auto tensor_it = m_tensor_map->find(input_id);
     FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input_id, " exist.");

@@ -566,6 +566,12 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
                     return pt_value is None
         return False
 
+    def get_input_sequence(self, index: int) -> list:
+        if (index == 0 and isinstance(self.graph_element, torch.Node)
+                and self.graph_element.kind() in ("prim::ListUnpack", "prim::TupleUnpack")):
+            return list(range(len(self.raw_outputs)))
+        return []
+
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
         try:
             schema_text = self.get_schema()

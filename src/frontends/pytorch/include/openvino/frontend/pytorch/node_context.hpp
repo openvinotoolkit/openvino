@@ -108,9 +108,6 @@ public:
 
     void mutate_input(size_t index, Output<Node> ov_output) const;
 
-    // Expose a sequence input's elements for alias resolution without mutating the input.
-    void set_input_sequence(size_t index, const OutputVector& elements) const;
-
     std::shared_ptr<TorchDecoder> get_decoder() const {
         return m_decoder;
     }
