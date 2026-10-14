@@ -37,6 +37,8 @@ TContainer replace_container(const TContainer& input, const TAxes& axes) {
 
 namespace util {
 
+constexpr size_t bits_per_byte = 8;
+
 Shape reduce(const Shape& input, const AxisSet& axes) {
     return ov::reduce_container(input, axes);
 }
@@ -77,6 +79,30 @@ std::optional<size_t> shape_size_safe(const Shape& shape) {
         }
     }
     return std::make_optional(size);
+}
+
+bool has_byte_strides(const element::Type& type, const Shape& shape) {
+    const auto bitwidth = type.bitwidth();
+    return bitwidth >= bits_per_byte || (bitwidth > 0 && (bits_per_byte % bitwidth) == 0 && !shape.empty() &&
+                                         (shape.back() * bitwidth) % bits_per_byte == 0);
+}
+
+Strides get_dense_byte_strides(const element::Type& type, const Shape& shape) {
+    Strides strides(shape.size());
+    if (!strides.empty()) {
+        const auto bitwidth = type.bitwidth();
+        strides.back() = shape.back() == 0 ? 0 : type.size();
+
+        if (strides.size() > 1) {
+            const auto row_byte_size =
+                bitwidth < bits_per_byte ? shape.back() * bitwidth / bits_per_byte : shape.back() * type.size();
+            strides[strides.size() - 2] = row_byte_size;
+            for (auto i = strides.size() - 2; i > 0; --i) {
+                strides[i - 1] = strides[i] * shape[i];
+            }
+        }
+    }
+    return strides;
 }
 
 }  // namespace util
