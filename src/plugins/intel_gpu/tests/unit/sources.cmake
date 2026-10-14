@@ -73,6 +73,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/memory_dependency_set_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/nodes_ordering_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/primitive_comparison_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/command_list_and_recorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/shape_predictor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_test_context.hpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/test_uqr_distribution.cpp
@@ -147,6 +148,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roi_align_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roi_pooling_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/roll_si_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scaled_dot_product_attention_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scatter_nd_update_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/scatter_update_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/select_si_test.cpp
@@ -249,6 +251,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/quantize_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/random_uniform_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/range_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/record_replay_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/reduce_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/region_yolo_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/removing_output_node_test.cpp
@@ -530,6 +533,7 @@ endif()
 
 # Tests with a dependency on the Level Zero runtime.
 set(GPU_UNIT_TESTS_ZE_RT_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_command_recorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_device_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_engine_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_events_test.cpp
