@@ -646,9 +646,9 @@ TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
     EXPECT_TRUE(any_difference);
 
     // The tail port is a copy, so an in-place turn of the pool alone would leave it stale.
-    const auto& past_names = LLMLongRopeModeTestAccess::past_names(crossing.request());
     size_t tails_checked = 0;
-    for (const auto& name : past_names) {
+    for (const auto& entry : LLMLongRopeModeTestAccess::generate_in_ports(crossing.request())) {
+        const auto& name = entry.first;
         if (!ov::npuw::util::isPastKeyParam(name) || name.find("block_tail") == std::string::npos) {
             continue;
         }
