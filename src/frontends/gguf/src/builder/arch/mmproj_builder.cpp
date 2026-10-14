@@ -36,6 +36,7 @@ enum class EncoderTopology {
     MINICPM46,
     MUSE_GLIMMER,
     PHI4,
+    LFM2,
     GEMMA4_AUDIO,
     OCR,
     OCR2
@@ -65,6 +66,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "deepseekocr2", EncoderTopology::OCR2, RMS_NORM},
     {"vision", "pixtral", EncoderTopology::PIXTRAL, RMS_NORM},
     {"vision", "phi4", EncoderTopology::PHI4},
+    {"vision", "lfm2", EncoderTopology::LFM2},
     {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER},
     {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM},
     {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION},
@@ -178,12 +180,14 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
         }
         if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
             c.topology == EncoderTopology::UNIFIED_VISION || c.topology == EncoderTopology::MINICPM46 ||
-            c.topology == EncoderTopology::PHI4) {
+            c.topology == EncoderTopology::PHI4 || c.topology == EncoderTopology::LFM2) {
             if (c.topology == EncoderTopology::PIXTRAL)
                 c.merge = meta.get_int(key + "spatial_merge_size").value_or(1);
             else if (c.topology != EncoderTopology::PHI4)
                 c.merge = meta.get_int(key + "projector.scale_factor")
-                              .value_or(c.topology == EncoderTopology::MINICPM46 ? 4 : 3);
+                              .value_or(c.topology == EncoderTopology::MINICPM46 ? 4
+                                        : c.topology == EncoderTopology::LFM2    ? 2
+                                                                                 : 3);
             OPENVINO_ASSERT(c.merge > 0, "[GGUF] invalid vision merge size");
             if (c.topology == EncoderTopology::UNIFIED_VISION) {
                 c.patch *= c.merge;
@@ -533,7 +537,8 @@ private:
         if (c.topology == EncoderTopology::OCR || c.topology == EncoderTopology::OCR2)
             return ocr_vision(c);
         if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
-            c.topology == EncoderTopology::UNIFIED_VISION || c.topology == EncoderTopology::PHI4)
+            c.topology == EncoderTopology::UNIFIED_VISION || c.topology == EncoderTopology::PHI4 ||
+            c.topology == EncoderTopology::LFM2)
             return dynamic_vision(c);
         if (c.topology == EncoderTopology::MINICPM46)
             return minicpm46(c);
@@ -636,7 +641,7 @@ private:
             x = patch_embeddings(spatial, c.width, c.topology != EncoderTopology::GEMMA4);
         }
         GgufValue pos_a, pos_b, learned;
-        if (c.topology == EncoderTopology::PHI4) {
+        if (c.topology == EncoderTopology::PHI4 || c.topology == EncoderTopology::LFM2) {
             auto table =
                 resize_square_table(g.tensors().require("v.position_embd.weight"), spatial, c.width, 0x201, "phi4");
             learned = reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width});
@@ -663,6 +668,15 @@ private:
                 c.topology == EncoderTopology::PIXTRAL ? pos_b : pos_a,
                 {},
                 c.topology == EncoderTopology::PIXTRAL ? pos_a : pos_b);
+        if (c.topology == EncoderTopology::LFM2) {
+            x = gather_rows(x, "merge_indices");
+            x = reshape(x, {1, 1, -1, c.width * c.merge * c.merge});
+            if (g.tensors().has("mm.input_norm.weight"))
+                x = norm(x, "mm.input_norm", 1e-5f);
+            else if (auto bias = g.tensors()("mm.input_norm.bias"))
+                x = add(x, bias);
+            return ffn(x, "mm.1", "mm.2", "GGML_UNARY_OP_GELU");
+        }
         if (c.topology == EncoderTopology::PHI4) {
             g.tensors().require("mm.0.bias");
             g.tensors().require("mm.2.bias");

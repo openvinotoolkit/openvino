@@ -23,6 +23,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
 | Vision | `pixtral` | 2D RoPE, patch merger, row separators |
 | Vision | `phi4` | dynamic resolution, resized positions |
+| Vision | `lfm2` | SigLIP, resized positions, pixel unshuffle, optional projector LayerNorm |
 | Vision | `gemma4v`, `gemma4uv` | two-axis positions, per-tensor clipping, pooling; unified patch normalization |
 | Vision | `muse-glimmer` | sparse/global windows, two-axis RoPE, pixel shuffle |
 | Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators |
@@ -32,7 +33,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
-Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`, `lfm2`,
+Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`,
 `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `lfm2a`, `glm4v`, `youtuvl`, `yasa2`,
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
 `granite4_vision`. `gemma3na` has no graph builder in the reference.
@@ -259,3 +260,20 @@ they do not construct tokenizers, media preprocessing, or a complete GenAI pipel
 Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or replace one
 vision/audio branch under the `clip` coordinator; the [examples](../examples/architecture_extension/README.md)
 build and run one. A different whole-model format needs an `ArchitectureExtension`.
+
+## LFM2 vision projectors
+
+The `lfm2` projector supports LFM2-VL and LFM2.5-VL SigLIP encoders, resized square
+position embeddings, spatial pixel unshuffle, optional input LayerNorm and a GELU MLP.
+Native IO is `vision.pixel_values` (NCHW) plus `vision.merge_indices` (row-major indices
+grouped by each spatial merge window). The embedding adapter preserves these inputs and
+exposes `image_features`. An Optimum/GenAI `VISION_ENCODERS` application layout is not
+provided for this projector.
+
+Two nonzero F32 fixtures compare raw and adapted embeddings at multiple rectangular sizes
+on one compiled model, with and without projector input normalization. LFM2-VL-450M's
+Q8_0 projector from `LiquidAI/LFM2-VL-450M-GGUF` revision
+`7cf9679aa137039135e342aa77014f7b5f2bef73` matches a represented-F32 llama.cpp CPU
+reference at 256x128 and 128x192 pixels with NMSE `1.79e-6` and `7.38e-7`. This validates
+the encoder graph, not image preprocessing, chat assembly or full multimodal generation.
+LFM2.5-Audio's separate `lfm2a` projector remains unsupported.

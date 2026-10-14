@@ -7,6 +7,7 @@
 #include <optional>
 #include <utility>
 
+#include "builder/arch/lfm2_builder.hpp"
 #include "builder/arch/mamba_builder.hpp"
 #include "builder/arch/mmproj_builder.hpp"
 #include "openvino/core/except.hpp"
@@ -54,6 +55,8 @@ const ArchitectureEntry architectures[] = {
     {"hunyuan-dense", RopeMode::Neox},
     {"hunyuan-moe", RopeMode::Neox},
     {"jais2", RopeMode::Neox},
+    {"lfm2", make_lfm2_builder},
+    {"lfm2moe", make_lfm2_builder},
     {"llama", RopeMode::Normal},
     {"llama-embed", RopeMode::Normal},
     {"maincoder", RopeMode::Normal},

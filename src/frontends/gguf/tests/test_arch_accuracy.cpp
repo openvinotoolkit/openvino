@@ -25,6 +25,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -85,6 +86,30 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
     compare(infer(batch, 2, {5, 4}, {0, 1, 1, 1, 1, 1, 1, 1}, {2, 3}, {1, 0}), b, a);
 }
 
+TEST(GGUFMultimodalBackboneAdaptation, Lfm2SupportsBatchesAndBeamReordering) {
+    for (const auto* family : {"lfm2", "lfm2-attention-first", "lfm2moe"}) {
+        SCOPED_TRACE(family);
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        ov::frontend::gguf::FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+        auto model = frontend.convert(frontend.load(temporary.path));
+        check_batched_decode(model);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        ASSERT_NO_THROW(manager.run_passes(model));
+        model->reshape({{"input_ids", {5}}, {"position_ids", {5}}});
+        size_t attention = 0, convolution = 0;
+        for (const auto& node : model->get_ops()) {
+            attention += ov::is_type<ov::op::PagedAttentionExtension>(node);
+            convolution += ov::is_type<ov::op::internal::PagedCausalConv1D>(node);
+        }
+        EXPECT_EQ(attention, 2);
+        EXPECT_EQ(convolution, 2);
+        EXPECT_TRUE(model->get_sinks().empty());
+    }
+}
+
 TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttention) {
     for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe", "gemma4-ple"}) {
         SCOPED_TRACE(family);
@@ -133,8 +158,8 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
 
 // Gemma3/Gemma4 scale token lookups only, as in llama.cpp, so the scale belongs to the embedding
 // model and injected media embeddings reach the decoder unscaled.
-TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
-    for (const auto* family : {"gemma3", "gemma4-mqa", "gemma4-ple"}) {
+TEST(GGUFMultimodalBackboneAdaptation, EmbeddingModelPreservesTokenScaling) {
+    for (const auto* family : {"gemma3", "gemma4-mqa", "gemma4-ple", "lfm2", "lfm2moe"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -166,7 +191,7 @@ TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
                 return constant && ov::shape_size(constant->get_shape()) == 1 &&
                        std::abs(constant->cast_vector<float>()[0] - std::sqrt(float(width))) < 1e-4f;
             });
-        EXPECT_TRUE(scaled) << "embedding model does not apply sqrt(n_embd)";
+        EXPECT_EQ(scaled, std::string(family).find("lfm2") != 0);
 
         ov::Core core;
         const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
@@ -315,6 +340,32 @@ TEST(GGUFMultimodalBackboneAdaptation, MakeStatefulFindsCachesBehindReversedGrou
     }
 }
 
+TEST(GGUFMultimodalBackboneAdaptation, Lfm2RejectsMissingOrInvalidConvolutionCache) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/lfm2.npz");
+    const auto& model = ov_gguf_test::npz_array(arrays, "model");
+    const std::string key = "lfm2.shortconv.l_cache";
+    for (const int cache : {-1, 0, 1}) {
+        SCOPED_TRACE(cache);
+        std::vector<uint8_t> bytes(model.data<uint8_t>(), model.data<uint8_t>() + model.num_vals);
+        const auto at = std::search(bytes.begin(), bytes.end(), key.begin(), key.end());
+        ASSERT_NE(at, bytes.end());
+        if (cache < 0) {
+            at[key.size() - 1] = 'X';
+        } else {
+            const auto value = at + key.size() + sizeof(uint32_t);
+            std::fill(value, value + sizeof(uint32_t), 0);
+            *value = static_cast<uint8_t>(cache);
+        }
+        cnpy::NpyArray patched({bytes.size()}, sizeof(uint8_t), false);
+        std::copy(bytes.begin(), bytes.end(), patched.data<uint8_t>());
+        const ov_gguf_test::TemporaryGguf temporary(patched);
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(temporary.path)),
+                        ov::Exception,
+                        testing::HasSubstr("shortconv.l_cache"));
+    }
+}
+
 TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
     for (const auto* family :
          {"llama-embed", "llama-embed-noncausal", "llama-embed-mean", "llama-embed-cls", "llama-embed-last"}) {
@@ -433,7 +484,9 @@ TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
-    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h";
+    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h" ||
+                       std::string(GetParam()).find("lfm2") == 0;
+    const bool lfm2 = std::string(GetParam()).find("lfm2") == 0;
     const auto directory = override_dir ? std::filesystem::path(override_dir)
                                         : std::filesystem::path(ov_gguf_test::test_data_dir()) / "arch_accuracy";
     ASSERT_TRUE(std::filesystem::exists(directory)) << "Missing architecture reference data: " << directory;
@@ -485,7 +538,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     fe.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
     auto model = fe.convert(fe.load(model_path));
     if (mamba) {
-        EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{1, -1}));
+        EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{lfm2 ? -1 : 1, -1}));
         EXPECT_NO_THROW(model->input("beam_idx"));
     }
     ov::Core core;
@@ -572,6 +625,12 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
                          ::testing::Values("qwen35",
+                                           "lfm2",
+                                           "lfm2-tied",
+                                           "lfm2-swa",
+                                           "lfm2-attention-first",
+                                           "lfm2moe",
+                                           "lfm2moe-all-experts",
                                            "qwen35-mixed",
                                            "qwen35moe",
                                            "qwen35moe-fused",

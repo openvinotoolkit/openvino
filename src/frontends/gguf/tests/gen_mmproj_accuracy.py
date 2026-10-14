@@ -26,7 +26,7 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
                "voxtral_odd", "resampler", "resampler_v2", "resampler_v4")
 # Single-grid models rerun here on two grids with different token counts.
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
-TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
+TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
             "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2",
             "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", *REGRIDDED)
 
@@ -330,6 +330,9 @@ def write_muse_model(path):
 
 
 def write_grid_model(path, family):
+    lfm2_norm = family != "lfm2_no_norm"
+    if family == "lfm2_no_norm":
+        family = "lfm2"
     if family == "muse-glimmer":
         return write_muse_model(path)
     family, variants = split_variants(family, *VARIANTS)
@@ -449,9 +452,11 @@ def write_grid_model(path, family):
             if family == "gemma4v":
                 tensor("v.std_bias", (width,))
                 tensor("v.std_scale", (width,), True)
-        elif family == "phi4":
+        elif family in {"phi4", "lfm2"}:
             tensor("v.position_embd.weight", (16, width))
-            linear("mm.0", width, hidden)
+            if family == "lfm2" and lfm2_norm:
+                norm("mm.input_norm", width * 4)
+            linear("mm.1" if family == "lfm2" else "mm.0", width * 4 if family == "lfm2" else width, hidden)
             linear("mm.2", hidden, output)
         elif family.startswith("pixtral"):
             tensor("v.token_embd.img_break", (output,))
@@ -503,6 +508,10 @@ def write_grid_model(path, family):
 
 
 def grid_inputs(family, width, height):
+    if family in {"lfm2", "lfm2_no_norm"}:
+        raw = np.random.default_rng(42).normal(.1, .4, (height, width, 3)).astype(np.float32)
+        return raw, {"pixel_values": raw.transpose(2, 0, 1)[None],
+                     "merge_indices": np.array(merge_window_order(height // 2, width // 2), np.int32).reshape(1, 1, 1, -1)}
     if family == "muse-glimmer":
         raw = np.random.default_rng(42).uniform(-1, 1, (height, width, 3)).astype(np.float32)
         return raw, {"pixel_values": raw.transpose(2, 0, 1)[None], **muse_glimmer_indices(height // 2, width // 2, 3)}

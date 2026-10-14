@@ -132,7 +132,9 @@ GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tens
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
-    return node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    auto embeddings = node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    embeddings.m_value.get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
+    return embeddings;
 }
 
 GgufValue GgufGraphContext::build_inp_pos() {

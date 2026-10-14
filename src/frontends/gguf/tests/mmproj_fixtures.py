@@ -102,7 +102,7 @@ def muse_glimmer_indices(height, width, window, merge=2):
 
 WHISPER_AUDIO = {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
 FIXED_VISION = {"gemma3", "idefics3", "internvl", "janus_pro", "mlp"}
-DYNAMIC_VISION = {"gemma4v", "gemma4uv", "pixtral", "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger",
+DYNAMIC_VISION = {"lfm2", "gemma4v", "gemma4uv", "pixtral", "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger",
                   "muse-glimmer"}
 
 
@@ -153,7 +153,9 @@ def checkpoint_inputs(metadata, modality, width, height=None, seed=42):
     patch = vision_patch(metadata)
     gh, gw = height // patch, width // patch
     index = lambda values: np.asarray(values, np.int32).reshape(1, 1, 1, -1)
-    if projector in {"gemma4v", "gemma4uv", "pixtral"}:
+    if projector == "lfm2":
+        feeds["vision.merge_indices"] = index(merge_window_order(gh, gw, int(metadata["vision.merge"])))
+    elif projector in {"gemma4v", "gemma4uv", "pixtral"}:
         rows, cols = np.indices((gh, gw))
         feeds.update({"vision.position_x": index(cols), "vision.position_y": index(rows)})
     elif projector == "muse-glimmer":

@@ -37,6 +37,8 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `hunyuan-dense` | Learned QK-norm after RoPE | Hunyuan-0.5B-Instruct Q8_0 | 13/13 |
 | `hunyuan-moe` | QK-norm after RoPE, routed and shared experts | Hunyuan-A13B-Instruct Q2_K | 13/13 |
 | `jais2` | Biased LayerNorm, ungated ReLU² FFN | Jais-2-8B-Chat Q4_K_M | 13/13 ² |
+| `lfm2` | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0 | 13/13 each |
+| `lfm2moe` | LFM2 / LFM2.5 MoE hybrid, dense lead, biased normalized expert routing | LFM2.5-8B-A1B Q4_0 | 12/13 |
 | `llama` | llama-2 / llama-3, YaRN | Devstral Small 2507 24B Q4_K_M | 13/13 |
 | `llama-embed` | Per-token embeddings; mean/first/last pooling; causal or bidirectional | Llama-Nemotron-Embed-1B-v2 Q4_K_M | NMSE 3e-6 ² |
 | `maincoder` | NORMAL RoPE, QK-norm after RoPE | Maincoder-1B Q4_K_M | 13/13 |
@@ -114,3 +116,36 @@ GGML_OPENVINO_DEVICE=CPU GGML_OPENVINO_STATEFUL_EXECUTION=1 \
 ```
 
 Checkpoints used `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K` and `Q8_0`; other formats are covered by unit tests only.
+
+## LFM2 and LFM2.5 coverage
+
+Dense and MoE language models use the `lfm2` and `lfm2moe` GGUF architecture names,
+respectively. The builder detects each convolution or attention layer from its weights;
+it supports arbitrary layer ordering, separate or fused QKV, per-head QK normalization,
+dense leading layers, softmax/sigmoid expert routing with selection bias, tied output
+weights, and attention sliding windows. No model-size-specific layer schedule is hardcoded.
+LFM2.5 8B-A1B and LFM2 24B-A2B use the same MoE builder; the 24B checkpoint has not been
+replayed. LFM2-VL and LFM2.5-VL language backbones use `lfm2`; their separate SigLIP vision
+projector is covered in [mmproj.md](mmproj.md).
+
+Six nonzero F32 llama.cpp fixtures cover mixed layer order, tied heads, a sliding-window
+boundary, fused QKV, dense-leading MoE, and all-routed sigmoid MoE. They compare full logits
+through prefill, cached one/multiple-token decode, and state reset with NMSE below `1e-5`.
+Batching, left padding, beam reordering, injected embeddings and structural conversion to
+PagedAttention/PagedCausalConv1D are covered separately. This does not establish a GenAI
+multimodal application or audio generation pipeline.
+
+Real CPU reference-token replay uses llama.cpp `03fa73cb27f5c251b9528489b18d303b1366aca4`,
+F32 inference, F16 KV, and disabled activation quantization. The prompt is
+`The capital of France is`. Quantized-CPU logit NMSE ranges are `2.32e-4..6.20e-3` for
+LFM2-350M, `3.99e-4..1.45e-3` for LFM2.5-1.2B-Instruct, and `2.98e-4..8.17e-2` for
+LFM2.5-8B-A1B. These pass the real-checkpoint greedy-choice gate above, not the F32
+fixture NMSE gate. Checkpoint revisions are `8fdc9d526b7ed346b19257551b05816c7912ecc2`,
+`8ed288026e23958ad9dfa92d53ed773a8eee7125`, and
+`49c14831707011e64d70b2ebd8462ba08d608434`, respectively, from LiquidAI's GGUF repositories.
+
+Noncausal LFM2 embedding/encoder/ColBERT variants need centered convolution and their
+embedding/pooling output contracts and are rejected explicitly. LFM2.5-Audio's `lfm2a`
+conformer projector, audio decoder and vocoder are not implemented; enabling the language
+backbone alone does not enable audio inference. Other sizes, quantizations, long contexts,
+and downstream fine-tunes require their own checkpoint validation.

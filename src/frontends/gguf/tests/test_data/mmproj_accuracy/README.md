@@ -58,3 +58,7 @@ shared by the generator and the model hub tests.
 See [testing](../../../docs/testing.md#real-checkpoints) for pytest commands, dependencies,
 oracle caches, and local-file lists, and [coverage limits](../../../docs/mmproj.md#validation-coverage)
 for checkpoint tolerance overrides and skipped cases.
+
+`lfm2` and `lfm2_no_norm` use the same pinned oracle revision above and the two-grid
+generator seed 2718. They cover SigLIP, resized positions, spatial unshuffle and the
+optional input LayerNorm at 16x8 and 8x24 pixels, through both native and embedding-adapted IO.
