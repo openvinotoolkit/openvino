@@ -82,6 +82,13 @@ public:
     static std::shared_ptr<ov::Model> build_mixed_precision_pattern_ref(const ov::PartialShape& input_shape,
                                                                         bool need_weights_adjustment = true);
 
+    // FQs on model outputs which can't be removed: input is Parameter, another model output or multi-output node
+    static std::shared_ptr<ov::Model> build_fq_on_model_output_pattern(const ov::PartialShape& input_shape,
+                                                                       const ov::element::Type& quantization_precision);
+    static std::shared_ptr<ov::Model> build_fq_on_model_output_pattern_ref(
+        const ov::PartialShape& input_shape,
+        const ov::element::Type& quantization_precision);
+
 private:
     // Builds one residual block: MVN → Conv+bias [→ optional FQ] + shortcut → Add.
     // Shared by build_residual_block_pattern (source) and build_residual_block_pattern_ref (ref).
