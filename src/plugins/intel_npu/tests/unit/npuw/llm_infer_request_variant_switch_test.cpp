@@ -87,6 +87,16 @@ struct LLMVariantSwitchTestAccess {
         compiled->m_is_whisper = is_whisper;
     }
 
+    static void set_is_encoder_embedding(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                         bool is_encoder_embedding) {
+        compiled->m_is_encoder_embedding = is_encoder_embedding;
+    }
+
+    static void set_use_chunk_prefill(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                      bool use_chunk_prefill) {
+        compiled->m_use_chunk_prefill = use_chunk_prefill;
+    }
+
     static void set_total_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t total_size) {
         compiled->m_kvcache_desc.total_size = total_size;
     }
@@ -1075,6 +1085,58 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedPrefillChunkSizeLargerTh
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
 
+// The constructor forces chunking off for Whisper (chunk size is reset to 0 before
+// m_use_chunk_prefill is even computed), so this combination is unreachable on the compile
+// path - but import restores both flags independently. WhisperInferRequest::infer_prefill()
+// always copy_n()s the WHOLE declared prompt regardless of m_use_chunk_prefill, so a forged
+// blob can satisfy the (smaller) chunk-sized port checks while the real runtime copy still
+// writes up to max_prompt_size tokens into that chunk-sized buffer.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedChunkedPrefillWithWhisper) {
+    VariantSwitchFactory factory;
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_DEVICES", "CPU"},
+                     {"NPUW_WHISPER", "YES"},
+                     {"NPUW_WHISPER_EOS_TOKEN", "42"}};
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov::test::npuw::build_whisper_decoder_test_model(),
+                                                                 m_plugin,
+                                                                 props,
+                                                                 factory.make_factory());
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    const uint32_t chunk_size = max_prompt_size / 2;
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, chunk_size);
+    LLMVariantSwitchTestAccess::set_use_chunk_prefill(compiled, true);
+
+    // Swap in a chunk-sized prefill submodel so every OTHER check (the exact-extent match in
+    // particular) passes trivially too - isolating this scenario to the new Whisper/chunking
+    // scalar check alone, the only one left that can still catch it.
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, chunk_size});
+    input_ids->output(0).set_names({"input_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(input_ids);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Same hazard, for the other request type the constructor forces chunking off for: a
+// bidirectional encoder-embedding model attends over the whole sequence at once and has no
+// KV cache to chunk against, so its prefill also always copies the whole declared prompt.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedChunkedPrefillWithEncoderEmbedding) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    LLMVariantSwitchTestAccess::set_is_encoder_embedding(compiled, true);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
 // infer_chunked_prefill()/infer_whole_prefill() multiply or size their copy byte counts off
 // inputs_embeds' CONCRETE runtime tensor width (input_ids->get_shape().back()), not off anything
 // declared at import time. A dynamic top-level embedding-width dimension can't be cross-checked
@@ -1138,7 +1200,9 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedTopLevelInputsEmbedsWith
 // total_size directly rather than the independently-forgeable m_kvcache_sizes[i] entry.
 TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperGenerateAttentionMaskSmallerThanTotalSizePlusOne) {
     VariantSwitchFactory factory;
-    auto compiled = create_compiled_model({}, factory);
+    // STATIC: Whisper never does chunked prefill - isolates this scenario to the attention_mask
+    // check under test, rather than also tripping the new chunking/request-type scalar check.
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
     ASSERT_NE(compiled, nullptr);
     const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
     ASSERT_GE(variant_count, 1u);
@@ -1166,7 +1230,9 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperGenerateAttention
 // Whisper shape) must be accepted.
 TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperGenerateAttentionMaskSizedToTotalSizePlusOne) {
     VariantSwitchFactory factory;
-    auto compiled = create_compiled_model({}, factory);
+    // STATIC: Whisper never does chunked prefill - the new chunking/request-type scalar check
+    // would otherwise reject this fixture for a reason unrelated to what this test covers.
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
     ASSERT_NE(compiled, nullptr);
     const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
     ASSERT_GE(variant_count, 1u);
@@ -1357,7 +1423,9 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperEncoderHiddenStat
 // writes past its allocation.
 TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperCachePositionWithZeroLengthShape) {
     VariantSwitchFactory factory;
-    auto compiled = create_compiled_model({}, factory);
+    // STATIC: Whisper never does chunked prefill - isolates this scenario to the cache_position
+    // check under test, rather than also tripping the new chunking/request-type scalar check.
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
     ASSERT_NE(compiled, nullptr);
     const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
     ASSERT_GE(variant_count, 1u);
@@ -1380,7 +1448,9 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperCachePositionWith
 // Negative control: the real compile-path shape {1} must be accepted.
 TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperCachePositionShapedOne) {
     VariantSwitchFactory factory;
-    auto compiled = create_compiled_model({}, factory);
+    // STATIC: Whisper never does chunked prefill - the new chunking/request-type scalar check
+    // would otherwise reject this fixture for a reason unrelated to what this test covers.
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
     ASSERT_NE(compiled, nullptr);
     const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
     ASSERT_GE(variant_count, 1u);

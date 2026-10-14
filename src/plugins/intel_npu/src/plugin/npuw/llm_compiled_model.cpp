@@ -1923,6 +1923,20 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         m_kvcache_desc.max_prompt_size,
         ").");
 
+    // The constructor forces chunking off for both of these request types (Whisper: chunk size
+    // is reset to 0 before m_use_chunk_prefill is even computed; encoder-embedding: the flag is
+    // explicitly cleared since a bidirectional encoder attends over the whole sequence at once)
+    // - so it's unreachable together with m_is_whisper/m_is_encoder_embedding on the compile
+    // path. Import restores m_use_chunk_prefill and these request-type flags as independent
+    // blob fields with no such relation enforced. Both WhisperInferRequest::infer_prefill() and
+    // the encoder-embedding prefill path always copy_n() the WHOLE declared prompt regardless of
+    // this flag, so a forged blob with chunking enabled passes the port-size checks below
+    // against the (smaller) chunk size while the real runtime copy still writes up to
+    // max_prompt_size tokens into that chunk-sized buffer.
+    OPENVINO_ASSERT(!m_use_chunk_prefill || (!m_is_whisper && !m_is_encoder_embedding),
+                    "NPUW blob: chunked prefill is enabled for a request type that always "
+                    "copies the whole prompt.");
+
     // The constructor always derives total_size as max_prompt_size + min_response_len and
     // asserts total_size >= max_prompt_size before ever building a generate variant (see
     // create_generate_model_variants()); import restores both scalars independently with no
