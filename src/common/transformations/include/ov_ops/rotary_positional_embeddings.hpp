@@ -40,12 +40,6 @@ public:
         size_t head_size = 0;
         int gather_position_arg_id =
             0;  // arg id of position tensor, ==3 when gather from sin/cos inputs according to position is required
-
-        bool is_plain_rotate_half() const {
-            return !input_trans0213 && !output_trans0213 && !is_interleaved && !is_chatglm && !support_2d_rope &&
-                   !support_3d_rope && !is_qwen && !is_ltx_video && slice_start == 0 && slice_stop == 0 &&
-                   gather_position_arg_id == 0;
-        }
     };
 
     RoPE(const OutputVector& args, const Config& config);
@@ -60,6 +54,12 @@ public:
 private:
     Config m_config{};
 };
+
+inline bool is_plain_rotate_half(const RoPE::Config& config) {
+    return !config.input_trans0213 && !config.output_trans0213 && !config.is_interleaved && !config.is_chatglm &&
+           !config.support_2d_rope && !config.support_3d_rope && !config.is_qwen && !config.is_ltx_video &&
+           config.slice_start == 0 && config.slice_stop == 0 && config.gather_position_arg_id == 0;
+}
 
 }  // namespace internal
 }  // namespace op

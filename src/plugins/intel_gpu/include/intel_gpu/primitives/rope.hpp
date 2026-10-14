@@ -30,7 +30,8 @@ struct rope : public primitive_base<rope> {
             OPENVINO_ASSERT((!config.support_2d_rope
                 || (config.support_2d_rope && config.is_chatglm)),
                 "2D RoPE is currently only supported in Chatglm!");
-            OPENVINO_ASSERT(!config.input_interleaved || config.is_plain_rotate_half(), "input_interleaved is only supported for plain RotateHalf RoPE");
+            OPENVINO_ASSERT(!config.input_interleaved || ov::op::internal::is_plain_rotate_half(config),
+                            "input_interleaved is only supported for plain RotateHalf RoPE");
         }
 
     RoPE::Config config;

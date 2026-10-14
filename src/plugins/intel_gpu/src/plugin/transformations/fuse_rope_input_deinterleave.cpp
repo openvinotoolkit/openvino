@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,12 +18,6 @@
 
 namespace ov::intel_gpu {
 namespace {
-
-bool is_zero_mask(const std::vector<int64_t>& mask) {
-    return std::all_of(mask.begin(), mask.end(), [](int64_t value) {
-        return value == 0;
-    });
-}
 
 bool is_full_axis_mask(const std::vector<int64_t>& mask, size_t rank) {
     if (mask.size() != rank || mask.back() != 0) {
@@ -45,8 +40,8 @@ bool is_deinterleave_slice(const std::shared_ptr<ov::op::v1::StridedSlice>& slic
         return false;
     }
 
-    if (!is_full_axis_mask(slice->get_begin_mask(), 4) || !is_full_axis_mask(slice->get_end_mask(), 4) || !is_zero_mask(slice->get_new_axis_mask()) ||
-        !is_zero_mask(slice->get_shrink_axis_mask()) || !is_zero_mask(slice->get_ellipsis_mask())) {
+    if (!is_full_axis_mask(slice->get_begin_mask(), 4) || !is_full_axis_mask(slice->get_end_mask(), 4) || !cldnn::all_zeroes(slice->get_new_axis_mask()) ||
+        !cldnn::all_zeroes(slice->get_shrink_axis_mask()) || !cldnn::all_zeroes(slice->get_ellipsis_mask())) {
         return false;
     }
 
@@ -97,7 +92,7 @@ FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() {
         const auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
         const auto& config = rope->get_config();
         const auto input_width = rope->get_input_partial_shape(0)[3].get_length();
-        return !config.input_interleaved && config.is_plain_rotate_half() && config.rotary_ndims == static_cast<size_t>(input_width);
+        return !config.input_interleaved && ov::op::internal::is_plain_rotate_half(config) && config.rotary_ndims == static_cast<size_t>(input_width);
     });
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
         const auto& pattern_map = matcher.get_pattern_value_map();
