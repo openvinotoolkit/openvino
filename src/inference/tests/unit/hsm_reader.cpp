@@ -20,7 +20,7 @@ namespace {
 
 enum class FakePluginTag : uint32_t { shard = 0 };
 
-constexpr hsm::DeviceId fake_device_id = 200;
+constexpr hsm::DeviceId fake_device_id = hsm::private_device_id_range_start + 7;
 
 struct EntrySpec {
     hsm::ManifestEntry entry;
@@ -384,7 +384,7 @@ TEST(HsmReaderTest, section_accepts_any_enum_typed_tag_with_or_without_a_device)
 TEST(HsmReaderTest, device_overrides_core_tag_by_reusing_it_under_its_own_device_id) {
     // The device-id override convention - see the note on hsm::DeviceId: a device needing content different
     // from a Core tag's shared meaning reuses that tag id under its own id instead of inventing a new tag.
-    constexpr hsm::DeviceId other_device_id = 201;
+    constexpr hsm::DeviceId other_device_id = fake_device_id + 1;
 
     const auto blob = make_container({
         {make_pointer_entry(hsm::any_device_id, hsm::compiled_options_tag), "shared-options"},

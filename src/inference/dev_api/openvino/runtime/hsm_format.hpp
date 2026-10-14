@@ -144,21 +144,29 @@ using DeviceId = uint8_t;
 /**
  * @brief Catalog of assigned #DeviceId values; never change or reuse a value once shipped.
  * #sentinel_count auto-tracks the count and must stay last.
- * @note A plugin gets an id here if it emits a blob of its own - including TEMPLATE, and HETERO, whose
- * `export_model()` writes its own container around the submodel blobs it embeds. AUTO, MULTI and AUTO-BATCH
- * have no id: their `export_model()` is not implemented, so they never own a section.
+ * @note A plugin gets an id here if it emits a blob of its own - including HETERO, whose `export_model()`
+ * writes its own container around the submodel blobs it embeds. AUTO, MULTI and AUTO-BATCH have no id:
+ * their `export_model()` is not implemented, so they never own a section. Anything else - sample, test and out-of-tree
+ * plugins - takes an id from #private_device_id_range_start instead.
  */
 enum class Devices : DeviceId {
-    any = 0,              //!< See #any_device_id.
-    cpu = 1,              //!< See #cpu_device_id.
-    gpu = 2,              //!< See #gpu_device_id.
-    npu = 3,              //!< See #npu_device_id.
-    template_plugin = 4,  //!< See #template_device_id.
-    hetero = 5,           //!< See #hetero_device_id.
+    any = 0,     //!< See #any_device_id.
+    cpu = 1,     //!< See #cpu_device_id.
+    gpu = 2,     //!< See #gpu_device_id.
+    npu = 3,     //!< See #npu_device_id.
+    hetero = 4,  //!< See #hetero_device_id.
     // Add new real devices above this line only, each with the next explicit value - never change or reuse an
     // existing device's value.
     sentinel_count,  // Not a real device id - always exactly one past the last real entry above.
 };
+
+/**
+ * @brief First #DeviceId with no interoperability guarantee: never assigned here, free for anyone -
+ * samples, tests, out-of-tree vendor plugins - to use without colliding with a real device.
+ */
+inline constexpr DeviceId private_device_id_range_start = 0x80;
+static_assert(static_cast<DeviceId>(Devices::sentinel_count) <= private_device_id_range_start,
+              "Too many real devices defined for private_device_id_range_start - widen the boundary.");
 
 /** @brief Reserved #DeviceId for sections not tied to one specific device. */
 inline constexpr DeviceId any_device_id = static_cast<DeviceId>(Devices::any);
@@ -166,9 +174,6 @@ inline constexpr DeviceId any_device_id = static_cast<DeviceId>(Devices::any);
 inline constexpr DeviceId cpu_device_id = static_cast<DeviceId>(Devices::cpu);  //!< CPU plugin.
 inline constexpr DeviceId gpu_device_id = static_cast<DeviceId>(Devices::gpu);  //!< GPU plugin.
 inline constexpr DeviceId npu_device_id = static_cast<DeviceId>(Devices::npu);  //!< NPU plugin.
-
-/// TEMPLATE plugin.
-inline constexpr DeviceId template_device_id = static_cast<DeviceId>(Devices::template_plugin);
 
 /// HETERO plugin - the one meta-plugin with an id; see the #Devices note for why.
 inline constexpr DeviceId hetero_device_id = static_cast<DeviceId>(Devices::hetero);
