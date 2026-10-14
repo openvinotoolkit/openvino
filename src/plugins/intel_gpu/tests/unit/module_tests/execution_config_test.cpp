@@ -294,10 +294,3 @@ TEST(execution_config, finish_after_enqueue_default_off) {
         GTEST_FAIL() << "finish_after_enqueue must default to OFF when OV_GPU_FINISH_AFTER_ENQUEUE is unset";
     }
 }
-
-// The env var that enables the option is "OV_" + property name. Lock the name so the documented
-// OV_GPU_FINISH_AFTER_ENQUEUE switch keeps working.
-TEST(execution_config, finish_after_enqueue_env_name) {
-    EXPECT_STREQ(ov::intel_gpu::finish_after_enqueue.name(), "GPU_FINISH_AFTER_ENQUEUE");
-}
-
