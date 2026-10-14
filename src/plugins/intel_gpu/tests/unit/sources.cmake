@@ -531,6 +531,7 @@ endif()
 
 # Tests with a dependency on the Level Zero runtime.
 set(GPU_UNIT_TESTS_ZE_RT_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_command_recorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_device_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_engine_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_events_test.cpp
