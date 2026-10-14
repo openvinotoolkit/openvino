@@ -167,8 +167,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                         ov::intel_npu::separate_weights_version.name(),
                         SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ITERATIVE));
     }
-    const auto wsVersion = SEPARATE_WEIGHTS_VERSION::parse(
-        string_map::get(localProperties, ov::intel_npu::separate_weights_version.name()));
+    const auto wsVersion = ov::Any(string_map::get(localProperties, ov::intel_npu::separate_weights_version.name()))
+                               .as<ov::intel_npu::WSVersion>();
 
     if (wsVersion != ov::intel_npu::WSVersion::ITERATIVE) {
         OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call:",

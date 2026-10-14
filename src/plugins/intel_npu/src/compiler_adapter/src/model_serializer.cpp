@@ -12,8 +12,6 @@
 #include <streambuf>
 
 #include "custom_stream_buffer.hpp"
-#include "intel_npu/config/config.hpp"
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -619,8 +617,8 @@ ov::intel_npu::ModelSerializerVersion getModelSerializerVersion(const CompilerPr
     if (!string_map::has(compilerProperties, ov::intel_npu::model_serializer_version.name())) {
         return ov::intel_npu::ModelSerializerVersion::AUTO;
     }
-    return MODEL_SERIALIZER_VERSION::parse(
-        string_map::get(compilerProperties, ov::intel_npu::model_serializer_version.name()));
+    return ov::Any(string_map::get(compilerProperties, ov::intel_npu::model_serializer_version.name()))
+        .as<ov::intel_npu::ModelSerializerVersion>();
 }
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {

@@ -296,8 +296,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
     const bool dynamicShapeToStatic =
         string_map::has(compilerProperties, ov::intel_npu::dynamic_shape_to_static.name()) &&
-        DYNAMIC_SHAPE_TO_STATIC::parse(
-            string_map::get(compilerProperties, ov::intel_npu::dynamic_shape_to_static.name()));
+        ov::Any(string_map::get(compilerProperties, ov::intel_npu::dynamic_shape_to_static.name())).as<bool>();
     if (should_use_host_compile_interpreter(model,
                                             compilerType,
                                             string_map::has(compilerProperties, ov::intel_npu::compilation_mode.name()),
@@ -327,7 +326,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     };
     // Called only once the batch mode was set, i.e. when the compiler supports it.
     const auto getBatchMode = [&]() {
-        return BATCH_MODE::parse(string_map::get(compilerProperties, ov::intel_npu::batch_mode.name()));
+        return ov::Any(string_map::get(compilerProperties, ov::intel_npu::batch_mode.name()))
+            .as<ov::intel_npu::BatchMode>();
     };
 
     const auto batchIsAvailable = [&]() {
@@ -428,14 +428,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     const bool isWeightlessEnabled =
         string_map::has(compilerProperties, ov::enable_weightless.name()) &&
-        ENABLE_WEIGHTLESS::parse(string_map::get(compilerProperties, ov::enable_weightless.name()));
+        ov::Any(string_map::get(compilerProperties, ov::enable_weightless.name())).as<bool>();
 
     if (isWeightlessSupported && !runtimeProperties.get<CACHE_DIR>().empty()) {
         // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
         // size of the binary object
         const bool cacheModeOptimizeSize =
             string_map::has(compilerProperties, ov::cache_mode.name()) &&
-            CACHE_MODE::parse(string_map::get(compilerProperties, ov::cache_mode.name())) ==
+            ov::Any(string_map::get(compilerProperties, ov::cache_mode.name())).as<ov::CacheMode>() ==
                 ov::CacheMode::OPTIMIZE_SIZE;
         if (isWeightlessEnabled && !cacheModeOptimizeSize) {
             _logger.warning(

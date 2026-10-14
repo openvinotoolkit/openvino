@@ -412,7 +412,7 @@ std::string PluginPropertyManager::determineDeviceId(const ov::AnyMap& propertie
 ov::intel_npu::CompilerType PluginPropertyManager::determineCompilerType(const ov::AnyMap& properties) const {
     auto it = properties.find(ov::intel_npu::compiler_type.name());
     if (it != properties.end()) {
-        return COMPILER_TYPE::parse(it->second.as<std::string>());
+        return it->second.as<ov::intel_npu::CompilerType>();
     }
     std::lock_guard<std::mutex> lock(_mutex);
     return _config.get<COMPILER_TYPE>();
@@ -440,9 +440,6 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::getCompilerTyp
         return std::nullopt;
     }
 
-    if (compilerTypeIt->second.is<std::string>()) {
-        return COMPILER_TYPE::parse(compilerTypeIt->second.as<std::string>());
-    }
     return compilerTypeIt->second.as<ov::intel_npu::CompilerType>();
 }
 

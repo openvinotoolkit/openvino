@@ -112,8 +112,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                         ov::intel_npu::separate_weights_version.name(),
                         SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ONE_SHOT));
     }
-    const auto wsVersion = SEPARATE_WEIGHTS_VERSION::parse(
-        string_map::get(localProperties, ov::intel_npu::separate_weights_version.name()));
+    const auto wsVersion = ov::Any(string_map::get(localProperties, ov::intel_npu::separate_weights_version.name()))
+                               .as<ov::intel_npu::WSVersion>();
 
     _logger.info("SEPARATE_WEIGHTS_VERSION: %s", SEPARATE_WEIGHTS_VERSION::toString(wsVersion).c_str());
 
