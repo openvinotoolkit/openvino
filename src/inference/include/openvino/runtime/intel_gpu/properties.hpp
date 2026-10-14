@@ -179,8 +179,7 @@ static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOC
  * @brief Percentage (0–100) of model weights to offload to disk.
  * When set to 0 (default), all weights are resident on GPU. A value of N means
  * N% of eligible weights are streamed from host memory on demand via an LRU cache,
- * reducing GPU memory usage at the cost of inference latency. At 100, the OTD cache
- * retains enough expert slots for top-k routing of a single token.
+ * reducing GPU memory usage at the cost of inference latency.
  * Currently supported for MoE expert weights only. This property requires weightless
  * caching: it automatically enables @ref ov::enable_weightless unless the user explicitly
  * disables it. Setting this property together with @ref ov::enable_weightless(false) or

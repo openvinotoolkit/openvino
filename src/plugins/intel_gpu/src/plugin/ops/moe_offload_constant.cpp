@@ -107,16 +107,7 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
                 if (shape.empty() || shape[0] == 0)
                     continue;
 
-                size_t max_top_k = 0;
-                for (const auto& input : constant->get_output_target_inputs(0)) {
-                    if (is_otd_capable_moe(input.get_node())) {
-                        max_top_k = std::max(max_top_k, input.get_node()->as<ov::op::internal::MOECompressed>().get_config().top_k);
-                    }
-                }
-
-                const size_t resident_experts = offload_ratio == 100
-                                                    ? std::min(shape[0], max_top_k)
-                                                    : std::max<size_t>(1, shape[0] * (100 - offload_ratio) / 100);
+                const size_t resident_experts = std::max<size_t>(1, shape[0] * (100 - offload_ratio) / 100);
                 const uint64_t bytes_per_expert = constant_resident_bytes / shape[0] + (constant_resident_bytes % shape[0] != 0);
                 constant_resident_bytes = bytes_per_expert * resident_experts;
             }
@@ -166,20 +157,8 @@ PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
         return desc;
     }
 
-    // At ratio=100, retain enough slots for one token's top-k experts.
-    size_t resident_expert_num = 0;
-    if (otd_ratio == 100) {
-        for (const auto& input : op->get_output_target_inputs(0)) {
-            if (is_otd_capable_moe(input.get_node())) {
-                resident_expert_num = std::max(resident_expert_num,
-                                               input.get_node()->as<ov::op::internal::MOECompressed>().get_config().top_k);
-            }
-        }
-        resident_expert_num = std::min(const_shape[0], resident_expert_num);
-    } else {
-        // otd_ratio is the % on disk; GPU-resident experts = total * (100 - ratio) / 100
-        resident_expert_num = std::max<size_t>(1, const_shape[0] * (100 - otd_ratio) / 100);
-    }
+    // otd_ratio is the % on disk; GPU-resident experts = max(1, total * (100 - ratio) / 100)
+    const size_t resident_expert_num = std::max<size_t>(1, const_shape[0] * (100 - otd_ratio) / 100);
 
     desc.enabled = true;
     desc.upload_shape = const_shape;
