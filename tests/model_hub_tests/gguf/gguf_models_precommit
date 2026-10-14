@@ -29,6 +29,7 @@ gemma4,unsloth/gemma-4-E4B-it-GGUF,gemma-4-E4B-it-Q4_K_M.gguf
 llama-embed,sabafallah/llama-nemotron-embed-1b-v2-GGUF,llama-nemotron-embed-1b-v2-Q4_K_M.gguf
 exaone4,LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF,EXAONE-4.0-1.2B-Q4_K_M.gguf
 plamo3,mmnga-o/plamo-3-nict-2b-base-gguf,plamo-3-nict-2b-base-Q4_K_M.gguf
+llama-embed,mradermacher/llama-nemotron-embed-1b-v2-GGUF,llama-nemotron-embed-1b-v2.Q4_K_M.gguf
 smollm3,bartowski/HuggingFaceTB_SmolLM3-3B-GGUF,HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf
 maincoder,mradermacher/Maincoder-1B-GGUF,Maincoder-1B.Q4_K_M.gguf
 mistral3,mradermacher/Ministral-3b-instruct-GGUF,Ministral-3b-instruct.Q4_K_M.gguf
