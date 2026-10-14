@@ -639,6 +639,15 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*EnableXattn=1.*)"));
         }
 
+        if (!ov::with_cpu_x86_avx512_core_amx() && ov::with_cpu_x86_avx512_core_fp16() && ov::with_cpu_x86_bfloat16()) {
+            // Issue: 195918: TODO: filter out failing tests on NVL
+            patterns.emplace_back(std::regex(R"(smoke_Snippets_MatMult/TransposeMatMul\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[1\.49\.2\.23\]\)_IS\[1\]=\[\]_\(\[2\.2\.23\.39\]\)_Pos=0_T\[0\]=f16_T\[1\]=f16_MatMul_#N=1_#S=1_targetDevice=CPU)"));
+            patterns.emplace_back(std::regex(R"(smoke_Snippets_MatMult/TransposeMatMul\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[2\.1\.49\.13\]\)_IS\[1\]=\[\]_\(\[1\.13\.3\.39\]\)_Pos=1_T\[0\]=f16_T\[1\]=f16_MatMul_#N=1_#S=1_targetDevice=CPU)"));
+            patterns.emplace_back(std::regex(R"(smoke_Snippets_MHABF16_4D/MHA\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[2\.68\.6\.92\]\)_IS\[1\]=\[\]_\(\[2\.68\.6\.92\]\)_IS\[2\]=\[\]_\(\[1\.1\.68\.68\]\)_IS\[3\]=\[\]_\(\[2\.68\.6\.92\]\)_T\[0\]=bf16_T\[1\]=bf16_T\[2\]=bf16_T\[3\]=bf16_Mul=0_PRC=bf16_#N=3_#S=2_targetDevice=CPU_)"));
+            patterns.emplace_back(std::regex(R"(smoke_Snippets_MHABF16_4D/MHA\.CompareWithRefImpl/IS\[0\]=\[\]_\(\[1\.58\.16\.34\]\)_IS\[1\]=\[\]_\(\[1\.58\.16\.34\]\)_IS\[2\]=\[\]_\(\[1\.1\.1\.58\]\)_IS\[3\]=\[\]_\(\[1\.58\.16\.34\]\)_T\[0\]=bf16_T\[1\]=bf16_T\[2\]=bf16_T\[3\]=bf16_Mul=0_PRC=bf16_#N=3_#S=2_targetDevice=CPU_)"));
+            patterns.emplace_back(std::regex(R"(smoke_ScaledAttn_CPU/ScaledAttnLayerCPUTest\.CompareWithRefs/netPRC=bf16_IS=\[\?\.\?\.\?\.\?\]_\[\?\.\?\.\?\.\?\]_\[\?\.\?\]_TS=\(2\.8\.16\.32\)_\(2\.8\.16\.32\)_\(2\.8\.16\.32\)_\(1\.8\.48\.32\)_\(1\.8\.48\.32\)_\(1\.8\.48\.32\)_\(16\.48\)_\(16\.1\)_\(1\.48\)_is_causal=.*_has_attn=.*_has_scale=0_trgDev=CPU_primitive=ref_any)"));
+        }
+
         if (ov::with_cpu_x86_avx512_core_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
             // Issue: 143852
             patterns.emplace_back(std::regex(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)"));
