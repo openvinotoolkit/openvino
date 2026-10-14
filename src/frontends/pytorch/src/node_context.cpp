@@ -63,6 +63,16 @@ Output<Node> replay_view(const Output<Node>& view, ViewReplacements& replacement
         replacements[view] = view;
         return view;
     }
+    if (cast_fw_node(node, {"prim::ListUnpack", "prim::TupleUnpack"}) && new_inputs.size() == 1) {
+        if (const auto sequence = ov::as_type_ptr<SequenceMark>(new_inputs[0].get_node_shared_ptr())) {
+            const auto elements = sequence->get_sequence();
+            FRONT_END_GENERAL_CHECK(elements.size() == node->get_output_size(), "Unpack output count changed.");
+            for (size_t i = 0; i < elements.size(); ++i) {
+                replacements[node->output(i)] = elements[i];
+            }
+            return elements.at(view.get_index());
+        }
+    }
     const auto updated = node->clone_with_new_inputs(new_inputs);
     updated->set_friendly_name(node->get_friendly_name());
     copy_runtime_info(node, updated);

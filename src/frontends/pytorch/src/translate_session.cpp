@@ -653,6 +653,11 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
         if (ov::is_type<v8::Gather>(direct_node)) {
             return select_reverseprop(direct_op_output, value);
         }
+        if (cast_fw_node(direct_node, {"prim::ListUnpack", "prim::TupleUnpack"})) {
+            auto outputs = direct_node->outputs();
+            outputs[direct_op_output.get_index()] = value;
+            return make_list_construct(outputs);
+        }
         if (ov::is_type<v1::Split>(direct_node) || ov::is_type<v1::VariadicSplit>(direct_node)) {
             const auto axis = ov::util::get_constant_from_source(direct_node->input_value(1));
             FRONT_END_OP_CONVERSION_CHECK(axis, "Cannot reverse a split with a dynamic axis.");
