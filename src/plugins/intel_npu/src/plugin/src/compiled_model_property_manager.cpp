@@ -142,84 +142,95 @@ void CompiledModelPropertyManager::registerProperties() {
         OPENVINO_THROW("READ-ONLY configuration key");
     };
 
-    const auto registerConfigProperty = [this,
-                                         hasPropertyValue](const auto optionTag, bool isPublic, bool requireValue) {
+    // Runtime and Both options are part of the runtime config.
+    const auto registerRuntimeConfigProperty =
+        [this, hasPropertyValue, readOnlySetter](const auto optionTag, bool isPublic, bool requireValue) {
+            using OptionType = std::decay_t<decltype(optionTag)>;
+            const auto propertyName = std::string(OptionType::key());
+            OPENVINO_ASSERT(OptionType::mode() != OptionMode::CompileTime,
+                            "Compile-time option registered as runtime property: ",
+                            propertyName);
+            register_property(
+                propertyName,
+                isPublic,
+                ov::PropertyMutability::RO,
+                [this, propertyName, hasPropertyValue, requireValue](const ov::AnyMap&) {
+                    return requireValue ? hasPropertyValue(propertyName) : _config.hasOpt(propertyName);
+                },
+                [this](const ov::AnyMap&) -> ov::Any {
+                    return _config.get<OptionType>();
+                },
+                readOnlySetter);
+        };
+
+    // Compile-time-only options are not part of the runtime config, they are read from the compiler properties and
+    // are available only if the compiler reported a value for them.
+    const auto registerCompileTimeConfigProperty = [this, readOnlySetter](const auto optionTag, bool isPublic) {
         using OptionType = std::decay_t<decltype(optionTag)>;
         const auto propertyName = std::string(OptionType::key());
-        // Compile-time-only options are not part of the runtime config, they are read from the compiler properties.
-        // TODO: OptionMode is going to be removed from Config, classify the compile-time properties differently.
-        const bool isCompileTime = OptionType::mode() == OptionMode::CompileTime;
-        const auto isSupported = [this, propertyName, hasPropertyValue, requireValue, isCompileTime](
-                                     const ov::AnyMap&) {
-            if (!requireValue) {
-                return _config.hasOpt(propertyName);
-            }
-            return isCompileTime ? string_map::has(_compilerProperties, propertyName) : hasPropertyValue(propertyName);
-        };
+        OPENVINO_ASSERT(OptionType::mode() == OptionMode::CompileTime,
+                        "Runtime option registered as compile-time property: ",
+                        propertyName);
         register_property(
             propertyName,
             isPublic,
             ov::PropertyMutability::RO,
-            isSupported,
-            [this, propertyName, isCompileTime](const ov::AnyMap&) -> ov::Any {
-                if (!isCompileTime) {
-                    return _config.get<OptionType>();
-                }
-                if (string_map::has(_compilerProperties, propertyName)) {
-                    return OptionType::parse(string_map::get(_compilerProperties, propertyName));
-                }
-                const std::optional<typename OptionType::ValueType> defaultValue = OptionType::defaultValue();
-                OPENVINO_ASSERT(defaultValue.has_value(), "Unsupported configuration key: ", propertyName);
-                return defaultValue.value();
+            [this, propertyName](const ov::AnyMap&) {
+                return string_map::has(_compilerProperties, propertyName);
             },
-            [](const ov::Any&) {
-                OPENVINO_THROW("READ-ONLY configuration key");
-            });
+            [this, propertyName](const ov::AnyMap&) -> ov::Any {
+                OPENVINO_ASSERT(string_map::has(_compilerProperties, propertyName),
+                                "Unsupported configuration key: ",
+                                propertyName);
+                return ov::Any(string_map::get(_compilerProperties, propertyName)).as<typename OptionType::ValueType>();
+            },
+            readOnlySetter);
     };
 
-    registerConfigProperty(LOADED_FROM_CACHE{}, true, false);
-    registerConfigProperty(LOG_LEVEL{}, true, false);
-    registerConfigProperty(PERFORMANCE_HINT{}, true, false);
-    registerConfigProperty(PERFORMANCE_HINT_NUM_REQUESTS{}, true, false);
-    registerConfigProperty(NUM_STREAMS{}, true, false);
+    registerRuntimeConfigProperty(LOADED_FROM_CACHE{}, true, false);
+    registerRuntimeConfigProperty(LOG_LEVEL{}, true, false);
+    registerRuntimeConfigProperty(NUM_STREAMS{}, true, false);
+    registerRuntimeConfigProperty(PERFORMANCE_HINT{}, true, false);
+    registerRuntimeConfigProperty(PERFORMANCE_HINT_NUM_REQUESTS{}, true, false);
 
-    registerConfigProperty(BACKEND_COMPILATION_PARAMS{}, true, true);
-    registerConfigProperty(BATCH_COMPILER_MODE_SETTINGS{}, true, true);
-    registerConfigProperty(BYPASS_UMD_CACHING{}, true, true);
-    registerConfigProperty(CACHE_DIR{}, true, true);
-    registerConfigProperty(CACHE_MODE{}, true, true);
-    registerConfigProperty(COMPILATION_MODE{}, true, true);
-    registerConfigProperty(COMPILATION_MODE_PARAMS{}, true, true);
-    registerConfigProperty(COMPILATION_NUM_THREADS{}, true, true);
-    registerConfigProperty(COMPILE_LOG_LEVEL{}, true, true);
-    registerConfigProperty(COMPILER_DYNAMIC_QUANTIZATION{}, true, true);
-    registerConfigProperty(COMPILER_TYPE{}, true, true);
-    registerConfigProperty(COMPILER_VERSION{}, true, true);
-    registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true, true);
-    registerConfigProperty(DISABLE_VERSION_CHECK{}, true, true);
-    registerConfigProperty(DMA_ENGINES{}, true, true);
-    registerConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, false, true);
-    registerConfigProperty(ENABLE_STRIDES_FOR{}, true, true);
-    registerConfigProperty(ENABLE_WEIGHTLESS{}, true, true);
-    registerConfigProperty(EXPORT_RAW_BLOB{}, true, true);
-    registerConfigProperty(IMPORT_RAW_BLOB{}, true, true);
-    registerConfigProperty(PERF_COUNT{}, true, true);
-    registerConfigProperty(PLATFORM{}, true, true);
-    registerConfigProperty(PROFILING_TYPE{}, true, true);
-    registerConfigProperty(QDQ_OPTIMIZATION{}, true, true);
-    registerConfigProperty(QDQ_OPTIMIZATION_AGGRESSIVE{}, true, true);
-    registerConfigProperty(RUN_INFERENCES_SEQUENTIALLY{}, true, true);
-    registerConfigProperty(TILES{}, true, true);
-    registerConfigProperty(TURBO{}, true, true);
-    registerConfigProperty(SEPARATE_WEIGHTS_VERSION{}, true, true);
-    registerConfigProperty(SHARED_COMMON_QUEUE{}, true, true);
-    registerConfigProperty(WEIGHTS_PATH{}, true, true);
-
-    registerConfigProperty(BATCH_MODE{}, false, false);
+    registerRuntimeConfigProperty(BYPASS_UMD_CACHING{}, true, true);
+    registerRuntimeConfigProperty(CACHE_DIR{}, true, true);
+    registerRuntimeConfigProperty(COMPILER_TYPE{}, true, true);
+    registerRuntimeConfigProperty(COMPILER_VERSION{}, true, true);
+    registerRuntimeConfigProperty(DEFER_WEIGHTS_LOAD{}, true, true);
+    registerRuntimeConfigProperty(DISABLE_VERSION_CHECK{}, true, true);
+    registerRuntimeConfigProperty(EXPORT_RAW_BLOB{}, true, true);
+    registerRuntimeConfigProperty(IMPORT_RAW_BLOB{}, true, true);
+    registerRuntimeConfigProperty(PERF_COUNT{}, true, true);
+    registerRuntimeConfigProperty(PROFILING_TYPE{}, true, true);
+    registerRuntimeConfigProperty(RUN_INFERENCES_SEQUENTIALLY{}, true, true);
+    registerRuntimeConfigProperty(SHARED_COMMON_QUEUE{}, true, true);
+    registerRuntimeConfigProperty(TURBO{}, true, true);
+    registerRuntimeConfigProperty(WEIGHTS_PATH{}, true, true);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    registerConfigProperty(ENABLE_CPU_PINNING{}, false, false);
+    registerRuntimeConfigProperty(ENABLE_CPU_PINNING{}, false, false);
     OPENVINO_SUPPRESS_DEPRECATED_END
+
+    registerCompileTimeConfigProperty(BACKEND_COMPILATION_PARAMS{}, true);
+    registerCompileTimeConfigProperty(BATCH_COMPILER_MODE_SETTINGS{}, true);
+    registerCompileTimeConfigProperty(CACHE_MODE{}, true);
+    registerCompileTimeConfigProperty(COMPILATION_MODE{}, true);
+    registerCompileTimeConfigProperty(COMPILATION_MODE_PARAMS{}, true);
+    registerCompileTimeConfigProperty(COMPILATION_NUM_THREADS{}, true);
+    registerCompileTimeConfigProperty(COMPILE_LOG_LEVEL{}, true);
+    registerCompileTimeConfigProperty(COMPILER_DYNAMIC_QUANTIZATION{}, true);
+    registerCompileTimeConfigProperty(DMA_ENGINES{}, true);
+    registerCompileTimeConfigProperty(ENABLE_STRIDES_FOR{}, true);
+    registerCompileTimeConfigProperty(ENABLE_WEIGHTLESS{}, true);
+    registerCompileTimeConfigProperty(PLATFORM{}, true);
+    registerCompileTimeConfigProperty(QDQ_OPTIMIZATION{}, true);
+    registerCompileTimeConfigProperty(QDQ_OPTIMIZATION_AGGRESSIVE{}, true);
+    registerCompileTimeConfigProperty(SEPARATE_WEIGHTS_VERSION{}, true);
+    registerCompileTimeConfigProperty(TILES{}, true);
+
+    registerCompileTimeConfigProperty(BATCH_MODE{}, false);
+    registerCompileTimeConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, false);
 
     // clang-format off
     // INFERENCE_PRECISION_HINT and EXECUTION_MODE_HINT are used by the compiler, but their values aren't guaranteed to
@@ -228,12 +239,12 @@ void CompiledModelPropertyManager::registerProperties() {
     // Both are compile-time-only options, they are read from the compiler properties.
     register_property(ov::hint::inference_precision.name(), string_map::has(_compilerProperties, ov::hint::inference_precision.name()), ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
-            return _config.hasOpt(ov::hint::inference_precision.name());
+            return string_map::has(_compilerProperties, ov::hint::inference_precision.name());
         },
-        [this](const ov::AnyMap&) {
-            return string_map::has(_compilerProperties, ov::hint::inference_precision.name())
-                       ? INFERENCE_PRECISION_HINT::parse(string_map::get(_compilerProperties, ov::hint::inference_precision.name()))
-                       : INFERENCE_PRECISION_HINT::defaultValue();
+        [this](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_ASSERT(string_map::has(_compilerProperties, ov::hint::inference_precision.name()),
+                            "Unsupported configuration key: ", ov::hint::inference_precision.name());
+            return ov::Any(string_map::get(_compilerProperties, ov::hint::inference_precision.name())).as<ov::element::Type>();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key");
@@ -241,12 +252,12 @@ void CompiledModelPropertyManager::registerProperties() {
     );
     register_property(ov::hint::execution_mode.name(), string_map::has(_compilerProperties, ov::hint::execution_mode.name()), ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
-            return _config.hasOpt(ov::hint::execution_mode.name());
+            return string_map::has(_compilerProperties, ov::hint::execution_mode.name());
         },
-        [this](const ov::AnyMap&) {
-            return string_map::has(_compilerProperties, ov::hint::execution_mode.name())
-                       ? EXECUTION_MODE_HINT::parse(string_map::get(_compilerProperties, ov::hint::execution_mode.name()))
-                       : EXECUTION_MODE_HINT::defaultValue();
+        [this](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_ASSERT(string_map::has(_compilerProperties, ov::hint::execution_mode.name()),
+                            "Unsupported configuration key: ", ov::hint::execution_mode.name());
+            return ov::Any(string_map::get(_compilerProperties, ov::hint::execution_mode.name())).as<ov::hint::ExecutionMode>();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key");
