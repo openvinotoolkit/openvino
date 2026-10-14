@@ -613,7 +613,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 // moveDequantizationBefore normalizes the split axis against the Concat's output rank. For a
 // dynamic-rank Concat that rank is unknown, so the axis stays at its -1 sentinel, which must not be
 // used to index the dequantization constant's shape. The only pipeline caller (MoveFakeQuantize)
-// rejects dynamic-rank Concats, so this guard is exercised directly here.
+// rejects dynamic-rank Concats, so this guard is exercised directly here. The out-of-bounds read
+// itself is only reliably caught under AddressSanitizer.
 TEST(LPT, MoveDequantizationBeforeDynamicRankConcat) {
     const auto input1 = std::make_shared<opset1::Parameter>(element::u8, PartialShape::dynamic());
     const auto input2 = std::make_shared<opset1::Parameter>(element::u8, PartialShape::dynamic());
@@ -627,7 +628,18 @@ TEST(LPT, MoveDequantizationBeforeDynamicRankConcat) {
     const auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input1, input2});
 
     const auto dequantization = low_precision::NetworkHelper::getDequantizationBelow(concat);
-    // The rank-2 subtract/multiply constants must not be indexed with the -1 axis sentinel.
-    EXPECT_NO_THROW(low_precision::NetworkHelper::moveDequantizationBefore(concat, dequantization, true));
-    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+    ASSERT_NO_THROW(low_precision::NetworkHelper::moveDequantizationBefore(concat, dequantization, true));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    // The dequantization moves in front of every Concat input with its constants left unsplit.
+    const auto newConcat = ov::as_type_ptr<opset1::Concat>(result->get_input_node_shared_ptr(0));
+    ASSERT_NE(newConcat, nullptr);
+    for (size_t i = 0; i < newConcat->get_input_size(); ++i) {
+        const auto newMultiply = ov::as_type_ptr<opset1::Multiply>(newConcat->get_input_node_shared_ptr(i));
+        ASSERT_NE(newMultiply, nullptr);
+        EXPECT_EQ(newMultiply->get_input_shape(1), (Shape{2, 1}));
+        const auto newSubtract = ov::as_type_ptr<opset1::Subtract>(newMultiply->get_input_node_shared_ptr(0));
+        ASSERT_NE(newSubtract, nullptr);
+        EXPECT_EQ(newSubtract->get_input_shape(1), (Shape{2, 1}));
+    }
 }
