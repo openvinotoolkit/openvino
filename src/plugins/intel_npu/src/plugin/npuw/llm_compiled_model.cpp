@@ -2109,9 +2109,23 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         // kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len (llm_infer_request.cpp),
         // so the mask must be at least as large as the generation limit too - both scalars are
         // independently deserialized and nothing else relates them.
-        validate_extent(gen_inputs,
-                        layer_names::attention_mask,
-                        std::max<uint64_t>(m_kvcache_sizes.at(i), m_kvcache_desc.max_generation_token_len));
+        uint64_t attention_mask_required =
+            std::max<uint64_t>(m_kvcache_sizes.at(i), m_kvcache_desc.max_generation_token_len);
+        // Whisper is a special case on two counts: ReshapeToStatic gives its generate
+        // attention_mask one extra slot (kvcache_size + 1, see reshape_to_static.cpp's
+        // whisper-only branch), and WhisperInferRequest never switches generate variants - the
+        // base ctor always sets m_kvcache_request = m_generate_requests.back() and nothing in
+        // whisper_infer_request.cpp ever changes it, so only the LAST variant is reachable at
+        // runtime. infer_generate() computes attention_mask_size - 2 and fills up to
+        // num_stored_tokens, which is only ever bounded by kvcache_desc.total_size (the same
+        // scalar the runtime compares num_stored_tokens against) - validate against total_size
+        // directly rather than the independently-forgeable m_kvcache_sizes[i] entry, since a
+        // blob can set that entry arbitrarily low without changing total_size.
+        if (m_is_whisper && i + 1 == m_generate_compiled_variants.size()) {
+            attention_mask_required =
+                std::max<uint64_t>(attention_mask_required, static_cast<uint64_t>(m_kvcache_desc.total_size) + 1);
+        }
+        validate_extent(gen_inputs, layer_names::attention_mask, attention_mask_required);
     }
 }
 
