@@ -7,6 +7,7 @@
 #include "test_utils.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
