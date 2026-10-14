@@ -22,6 +22,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -212,6 +213,114 @@ TEST(GGUFDSparkAccuracy, RejectsOversizedDraftBlocksBeforeBuildingTheGraph) {
     const auto graph = ov::frontend::gguf::make_dspark_builder(context)->build();
     EXPECT_EQ(graph->model_inputs.at("inp_tokens")->get_output_partial_shape(0), (ov::PartialShape{1, 1, 1, 4096}));
     EXPECT_EQ(weights.at("dspark.log_snr_features").get_byte_size(), 4096 * 128 * sizeof(float));
+}
+
+TEST(GGUFDSparkAccuracy, LogSnrUsesNormalizedEndpointsAndRequiresValidBounds) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/dspark.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    const std::string low_key = "dspark.dspark.min_log_snr";
+    const std::string high_key = "dspark.dspark.max_log_snr";
+    for (const auto& [low, high] : {std::pair{-9.f, 9.f}, {-9.f, 6.f}, {1.f, 5.f}}) {
+        auto loaded = get_gguf_data(temporary.path);
+        auto& metadata = std::get<0>(loaded);
+        for (const auto& [key, value] : {std::pair{low_key, low}, {high_key, high}}) {
+            ov::Tensor bound(ov::element::f32, {});
+            *bound.data<float>() = value;
+            metadata[key] = bound;
+        }
+        detail::MetadataStore store{metadata};
+        detail::WeightStore tensors{std::get<1>(loaded), std::get<2>(loaded)};
+        const BuildContext context{GgufMetadata(store), "dspark", &tensors};
+        EXPECT_NO_THROW(make_dspark_builder(context)->build());
+        const auto& features = tensors.weights.at("dspark.log_snr_features");
+        for (size_t pos = 0; pos < 4; ++pos) {
+            const float log_snr = pos == 0 ? high : low;
+            const float time = (log_snr - low) / (high - low) * 1000.f;
+            for (size_t i = 0; i < 64; ++i) {
+                const float angle = time * std::exp(-std::log(10000.f) * i / 64.f);
+                EXPECT_FLOAT_EQ(features.data<const float>()[pos * 128 + i], std::sin(angle));
+                EXPECT_FLOAT_EQ(features.data<const float>()[pos * 128 + 64 + i], std::cos(angle));
+            }
+        }
+    }
+    for (const auto& [key, value, missing] : {std::tuple{low_key, 0.f, true},
+                                              {high_key, 0.f, true},
+                                              {low_key, std::numeric_limits<float>::quiet_NaN(), false},
+                                              {high_key, std::numeric_limits<float>::infinity(), false},
+                                              {low_key, 9.f, false},
+                                              {low_key, 10.f, false}}) {
+        SCOPED_TRACE(key);
+        auto loaded = get_gguf_data(temporary.path);
+        auto& metadata = std::get<0>(loaded);
+        if (missing) {
+            metadata.erase(key);
+        } else {
+            ov::Tensor bound(ov::element::f32, {});
+            *bound.data<float>() = value;
+            metadata[key] = bound;
+        }
+        detail::MetadataStore store{metadata};
+        detail::WeightStore tensors{std::get<1>(loaded), std::get<2>(loaded)};
+        const BuildContext context{GgufMetadata(store), "dspark", &tensors};
+        OV_EXPECT_THROW(make_dspark_builder(context)->build(), ov::Exception, testing::HasSubstr("log-SNR bounds"));
+    }
+}
+
+TEST(GGUFHadamardTypes, ExplicitF32SignsFollowF16Activations) {
+    using ov::element::f16;
+    const ov::PartialShape shape{-1, 8};
+    ov::Tensor signs(ov::element::f32, {8});
+    for (size_t i = 0; i < 8; ++i)
+        signs.data<float>()[i] = i % 3 == 0 ? -1.f : 1.f;
+    for (const bool inverse : {false, true}) {
+        SCOPED_TRACE(inverse);
+        const auto decoder = std::make_shared<ov_gguf_test::SingleOpDecoder>(
+            "GGML_OP_MUL_MAT",
+            std::vector<ov_gguf_test::TensorDesc>{{"x", f16, shape}},
+            std::vector<ov_gguf_test::TensorDesc>{},
+            ov_gguf_test::TensorDesc{"y", f16, shape},
+            std::map<std::string, ov::Any>{{"hadamard_block", int64_t{4}},
+                                           {"hadamard_signs", signs},
+                                           {"hadamard_inverse", inverse}});
+        const auto x = std::make_shared<ov::op::v0::Parameter>(f16, shape);
+        auto tensor_map = std::make_shared<ov::frontend::gguf::TensorMap>();
+        (*tensor_map)["x"] = x;
+        const ov::frontend::gguf::NodeContext context(decoder, tensor_map);
+        const auto y = ov::frontend::gguf::apply_hadamard(context, x);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x});
+        ASSERT_EQ(y.get_element_type(), f16);
+        ov::Core core;
+        auto compiled = core.compile_model(model,
+                                           "CPU",
+                                           ov::hint::inference_precision(ov::element::f32),
+                                           ov::inference_num_threads(4));
+        ASSERT_EQ(compiled.input().get_element_type(), f16);
+        ASSERT_EQ(compiled.output().get_element_type(), f16);
+        auto request = compiled.create_infer_request();
+        for (size_t rows : {1, 3}) {
+            ov::Tensor input(f16, {rows, 8});
+            for (size_t i = 0; i < input.get_size(); ++i)
+                input.data<ov::float16>()[i] = ov::float16(static_cast<float>(i % 7) - 3.f);
+            request.set_input_tensor(input);
+            request.infer();
+            const auto output = request.get_output_tensor();
+            ASSERT_EQ(output.get_shape(), input.get_shape());
+            for (size_t offset = 0; offset < input.get_size(); offset += 4) {
+                for (size_t column = 0; column < 4; ++column) {
+                    float expected = 0.f;
+                    for (size_t row = 0; row < 4; ++row) {
+                        const size_t bits = row & column;
+                        const float sylvester = bits == 1 || bits == 2 ? -1.f : 1.f;
+                        expected += static_cast<float>(input.data<ov::float16>()[offset + row]) * sylvester *
+                                    (inverse ? 1.f : signs.data<float>()[(offset + row) % 8]);
+                    }
+                    expected *= .5f * (inverse ? signs.data<float>()[(offset + column) % 8] : 1.f);
+                    EXPECT_FLOAT_EQ(static_cast<float>(output.data<ov::float16>()[offset + column]), expected);
+                }
+            }
+        }
+    }
 }
 
 class GGUFHadamardAccuracy : public ::testing::TestWithParam<std::tuple<int64_t, bool>> {};

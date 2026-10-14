@@ -148,6 +148,10 @@ indices cover context plus draft rows; callers provide a fully open attention ma
 noncausal round. Outputs include `logits`, `dspark.hidden`, per-layer caches and, when present,
 `dspark.corrected_logits` and raw `dspark.confidence_score`. `dspark_prev_tokens` supplies the
 sampled predecessor for each auxiliary-head row. Sequential sampling and target-layer capture
-belong to the caller. Log-SNR uses the round-1 convention (anchor at max, masks at min).
+belong to the caller. Log-SNR uses Prism's round-1 inference convention: the first draft
+position is at `max_log_snr`, and the remaining masked positions are at `min_log_snr`.
+Normalization `(log_snr - min_log_snr) / (max_log_snr - min_log_snr) * 1000` maps these
+endpoints to 1000 and 0, independent of the bounds. Both bounds must still be present,
+finite and strictly ordered, as required by the model's conditioning metadata.
 Hidden-correction checkpoints and generic GenAI decoder adaptation are not supported.
 Draft blocks up to 4096 tokens are supported.

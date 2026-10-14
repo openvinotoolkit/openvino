@@ -71,8 +71,10 @@ public:
                             "[GGUF] DSpark log-SNR feature byte count overflows size_t");
             ov::Tensor features(f32, {1, 1, rows, feature_width});
             for (size_t pos = 0; pos < rows; ++pos) {
+                // Endpoint normalization maps max/min log-SNR to 1000/0 in Prism's inference schedule.
+                const float normalized_time = pos == 0 ? 1000.f : 0.f;
                 for (size_t i = 0; i < feature_width / 2; ++i) {
-                    const float angle = (pos == 0 ? 1000.f : 0.f) * std::exp(-std::log(10000.f) * i / 64.f);
+                    const float angle = normalized_time * std::exp(-std::log(10000.f) * i / 64.f);
                     features.data<float>()[pos * feature_width + i] = std::sin(angle);
                     features.data<float>()[pos * feature_width + feature_width / 2 + i] = std::cos(angle);
                 }

@@ -17,6 +17,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
@@ -62,8 +63,13 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     }
     const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
     const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
-    const auto sign_node = signs ? std::make_shared<v0::Constant>(signs) : nullptr;
-    if (sign_node && !inverse)
+    ov::Output<ov::Node> sign_node;
+    if (signs) {
+        sign_node = std::make_shared<v0::Constant>(signs);
+        if (sign_node.get_element_type() != input.get_element_type())
+            sign_node = std::make_shared<v1::ConvertLike>(sign_node, input);
+    }
+    if (signs && !inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);
     const auto axis = v0::Constant::create(ov::element::i64, {}, {2});
     for (int64_t stride = 1; stride < block; stride *= 2) {
@@ -76,7 +82,7 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
     input = std::make_shared<v1::Multiply>(input, scale);
     input = std::make_shared<v1::Reshape>(input, original, false);
-    if (sign_node && inverse)
+    if (signs && inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);
     return input;
 }
