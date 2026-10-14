@@ -92,10 +92,9 @@ OutputVector translate_instance_norm(const NodeContext& context) {
     num_inputs_check(context, 8, 9);
     auto input = context.get_input(0);
     auto eps = context.const_input<float>(7);
-    // input 5 is "use_input_stats": when True, normalization must use the per-instance (input)
+    // input 5 is "use_input_stats": when True, normalization uses the per-instance (input)
     // statistics and any provided running_mean/running_var (inputs 3,4) are ignored; when False,
-    // normalization uses the running statistics. torch rejects use_input_stats=False with no
-    // running statistics, so in that case we fall back to input statistics (previous behavior).
+    // normalization uses the running statistics, which torch requires to be defined.
     bool use_input_stats = true;
     if (context.get_input_size() > 5 && !context.input_is_none(5)) {
         use_input_stats = context.const_input<bool>(5);
@@ -106,7 +105,12 @@ OutputVector translate_instance_norm(const NodeContext& context) {
     auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));
     auto reduction_axes = context.mark_node(std::make_shared<v4::Range>(two, rank, one, element::i32));
-    if (!use_input_stats && have_running_stats) {
+    if (!use_input_stats) {
+        // aten::instance_norm raises when the running statistics are missing, so reject the model
+        // instead of silently normalizing with the input statistics.
+        PYTORCH_OP_CONVERSION_CHECK(have_running_stats,
+                                    "aten::instance_norm expects running_mean and running_var to be defined "
+                                    "when use_input_stats is false");
         return translate_instance_norm_train(context, input, reduction_axes, eps);
     }
     return translate_instance_norm_inference(context, input, reduction_axes, eps);
