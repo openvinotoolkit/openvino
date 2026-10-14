@@ -1618,6 +1618,15 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
                                                       padded_attention_mask,
                                                       input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
         } else {
+            // The top-level sequence length is legitimately dynamic (callers submit prompts of
+            // varying length), so import-time validation cannot bound it. Check the actual copy
+            // count before computing the right-aligned destination offset.
+            OPENVINO_ASSERT(attention_mask->get_size() <= padded_attention_mask->get_size(),
+                            "Input attention mask (",
+                            attention_mask->get_size(),
+                            " elements) is longer than the configured prefill capacity (",
+                            padded_attention_mask->get_size(),
+                            ").");
             std::copy_n(attention_mask->data<int64_t>(),
                         attention_mask->get_size(),
                         padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() -
@@ -1977,6 +1986,19 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                        input_tokens_len,
                                                        kvcache_desc.max_generation_token_len);
         } else {
+            // Validate the binary [past, current] mask before deriving offsets or copy sizes.
+            OPENVINO_ASSERT(attention_mask->get_size() >= input_tokens_len,
+                            "Input attention mask (",
+                            attention_mask->get_size(),
+                            " elements) is shorter than the input token count (",
+                            input_tokens_len,
+                            ").");
+            OPENVINO_ASSERT(attention_mask->get_size() - input_tokens_len <= kv_attn_mask->get_size(),
+                            "Input attention mask history (",
+                            attention_mask->get_size() - input_tokens_len,
+                            " elements) exceeds the generate variant's capacity (",
+                            kv_attn_mask->get_size(),
+                            ").");
             stage_binary_attention_mask_for_generate(attention_mask,
                                                      kv_attn_mask,
                                                      kvcache_desc.num_stored_tokens,
