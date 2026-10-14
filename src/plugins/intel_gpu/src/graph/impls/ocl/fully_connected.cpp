@@ -179,10 +179,13 @@ public:
 
         auto convert_decompression_tensor = [&](const layout& param_layout, const bool transpose_b_param) {
             auto tensor = convert_data_tensor(param_layout);
+            const bool is_oc_broadcast = tensor.Batch().v > 1 && tensor.Feature().v == 1 &&
+                                         tensor.X().v == 1 && tensor.Y().v == 1;
 
-            if (tensor.GetLayout() == kernel_selector::DataLayout::bfyx && !transpose_b_param && tensor.Feature().v == params.weights.OFM().v) {
-                // bfyx [G, N] already stores N in the innermost physical dimension. Reinterpret it as
-                // fbyx so existing kernels continue to address batch as N and feature as G.
+            if (tensor.GetLayout() == kernel_selector::DataLayout::bfyx && !transpose_b_param &&
+                (tensor.Feature().v == params.weights.OFM().v || is_oc_broadcast)) {
+                // For [G, N] and [G, 1], bfyx stores N (or the broadcast dimension) innermost.
+                // Reinterpret it as fbyx so kernels address batch as N and feature as G.
                 return kernel_selector::DataTensor(tensor.GetDims(),
                                                    tensor.GetDType(),
                                                    kernel_selector::DataLayout::fbyx,
