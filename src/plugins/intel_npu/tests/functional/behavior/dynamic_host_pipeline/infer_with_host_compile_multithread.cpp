@@ -814,7 +814,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
     }
 }
 
-const std::vector<std::string> mtDevices = {"NPU.4000", "NPU.5010"};
+const std::vector<std::string> mtDevices = {"NPU.4000", "NPU.5010", "NPU.6010"};
 
 const std::vector<ov::AnyMap> mtConfigs = {
     {
