@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <any>
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <functional>
 #include <map>
 #include <mutex>
 #include <numeric>
+#include <thread>
 #include <vector>
 
 #define private   public
@@ -26,12 +28,12 @@
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
-#include "pyramid_attention.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "perf_tags.hpp"
+#include "pyramid_attention.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
@@ -195,6 +197,10 @@ class FakeSubInferRequest final : public ov::ISyncInferRequest {
 public:
     explicit FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model);
 
+    void set_fail_on_infer(bool fail) {
+        m_fail_on_infer = fail;
+    }
+
     void infer() override;
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
         check_port(port);
@@ -214,6 +220,7 @@ public:
 
 private:
     void check_port(const ov::Output<const ov::Node>& port) const;
+    bool m_fail_on_infer = false;
 };
 
 class FakeSubAsyncInferRequest final : public ov::IAsyncInferRequest {
@@ -222,22 +229,74 @@ public:
         : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
           m_request(request) {}
 
-    void start_async() override {
-        try {
-            m_request->infer();
-            if (m_callback) {
-                m_callback(nullptr);
-            }
-        } catch (...) {
-            if (m_callback) {
-                m_callback(std::current_exception());
-                return;
-            }
-            throw;
+    ~FakeSubAsyncInferRequest() override {
+        if (m_worker.joinable()) {
+            m_worker.join();
         }
     }
 
-    void wait() override {}
+    void set_async_delay(std::chrono::milliseconds delay) {
+        m_delay = delay;
+    }
+
+    void set_invoke_callback(bool invoke) {
+        m_invoke_callback = invoke;
+    }
+
+    void set_fail_on_infer(bool fail) {
+        std::static_pointer_cast<FakeSubInferRequest>(m_request)->set_fail_on_infer(fail);
+    }
+
+    bool has_callback() const {
+        return static_cast<bool>(m_callback);
+    }
+
+    bool callback_reported_error() const {
+        return m_callback_reported_error;
+    }
+
+    void start_async() override {
+        // A new run has its own result, like a new promise in ov::IAsyncInferRequest
+        m_error = nullptr;
+        m_callback_reported_error = false;
+        if (m_delay.count() > 0) {
+            m_worker = std::thread([this] {
+                std::this_thread::sleep_for(m_delay);
+                run();
+            });
+            return;
+        }
+        run();
+    }
+
+    void wait() override {
+        if (m_worker.joinable()) {
+            m_worker.join();
+        }
+        if (m_error) {
+            std::rethrow_exception(m_error);
+        }
+    }
+
+    void run() {
+        try {
+            m_request->infer();
+            if (m_invoke_callback && m_callback) {
+                m_callback(nullptr);
+            }
+        } catch (...) {
+            auto error = std::current_exception();
+            if (m_invoke_callback && m_callback) {
+                m_callback_reported_error = true;
+                try {
+                    m_callback(error);
+                } catch (...) {
+                    error = std::current_exception();
+                }
+            }
+            m_error = error;
+        }
+    }
 
     bool wait_for(const std::chrono::milliseconds&) override {
         return true;
@@ -293,6 +352,11 @@ public:
 private:
     std::shared_ptr<ov::ISyncInferRequest> m_request;
     std::function<void(std::exception_ptr)> m_callback;
+    std::chrono::milliseconds m_delay{0};
+    bool m_invoke_callback = true;
+    bool m_callback_reported_error = false;
+    std::thread m_worker;
+    std::exception_ptr m_error;
 };
 
 class FakeSubCompiledModel final : public ov::ICompiledModel {
@@ -362,6 +426,9 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
 }
 
 void FakeSubInferRequest::infer() {
+    if (m_fail_on_infer) {
+        OPENVINO_THROW("Fake subrequest failed");
+    }
     for (const auto& output : get_compiled_model()->outputs()) {
         auto tensor = ov::ISyncInferRequest::get_tensor(output);
         std::memset(tensor->data(), 0, tensor->get_byte_size());
@@ -423,8 +490,7 @@ protected:
         request->m_perf.execution.enable(false);
     }
 #endif
-    std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(
-        const std::shared_ptr<const ov::IPlugin>& plugin,
+    std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                                 bool own_ports_only = false) const {
         auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
 
@@ -588,6 +654,149 @@ TEST_F(SubgraphBehaviorInferTest, UnfoldSyncProfilesDeviceAndSubmodelOnly) {
 
 TEST_F(SubgraphBehaviorInferTest, UnfoldAsyncProfilesDeviceAndSubmodelOnly) {
     check_unfold_profile(true);
+}
+
+TEST_F(SubgraphBehaviorInferTest, UnfoldAsyncRecordsEachSiblingCompletionTime) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto props = unfold_props();
+    props["NPUW_FUNCALL_ASYNC"] = "YES";
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(build_static_llm_model(), plugin, props);
+    auto request = std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(compiled->create_sync_infer_request());
+    ASSERT_NE(request, nullptr);
+    request->m_perf.execution.enable(true);
+
+    std::size_t first = request->total_subrequests();
+    for (std::size_t idx = 0; idx + 1 < request->total_subrequests(); ++idx) {
+        if (!request->valid_subrequest(idx) || !request->valid_subrequest(idx + 1)) {
+            continue;
+        }
+        const auto real = compiled->m_compiled_submodels[idx].replaced_by.value_or(idx);
+        if (real == compiled->m_compiled_submodels[idx + 1].replaced_by.value_or(idx + 1)) {
+            first = idx;
+            break;
+        }
+    }
+    ASSERT_LT(first + 1, request->total_subrequests()) << "The test needs two overlapped function calls";
+    auto slow = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[first]._ptr);
+    auto fast = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[first + 1]._ptr);
+    ASSERT_NE(slow, nullptr);
+    ASSERT_NE(fast, nullptr);
+    slow->set_async_delay(std::chrono::milliseconds{140});
+    fast->set_async_delay(std::chrono::milliseconds{5});
+
+    std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer();
+
+    const auto real = compiled->m_compiled_submodels[first].replaced_by.value_or(first);
+    const auto& samples = request->m_perf.execution.metrics.at(request->perf_submodel_tag(real)).samples();
+    std::size_t prior = 0;
+    for (std::size_t idx = 0; idx < first; ++idx) {
+        if (request->valid_subrequest(idx) && compiled->m_compiled_submodels[idx].replaced_by.value_or(idx) == real) {
+            ++prior;
+        }
+    }
+    ASSERT_LT(prior + 1, samples.size());
+    EXPECT_GT(samples[prior], 100.f);
+    EXPECT_LT(samples[prior + 1], samples[prior] * 0.5f);
+    request->m_perf.execution.enable(false);
+}
+
+TEST_F(SubgraphBehaviorInferTest, UnfoldAsyncWithoutCallbackUsesWaitTime) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto props = unfold_props();
+    props["NPUW_FUNCALL_ASYNC"] = "YES";
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(build_static_llm_model(), plugin, props);
+    auto request = std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(compiled->create_sync_infer_request());
+    ASSERT_NE(request, nullptr);
+    request->m_perf.execution.enable(true);
+
+    std::size_t idx = 0;
+    while (idx < request->total_subrequests() && !request->valid_subrequest(idx)) {
+        ++idx;
+    }
+    ASSERT_LT(idx, request->total_subrequests());
+    auto subrequest = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[idx]._ptr);
+    ASSERT_NE(subrequest, nullptr);
+    subrequest->set_invoke_callback(false);
+    subrequest->set_async_delay(std::chrono::milliseconds{5});
+
+    std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer();
+
+    const auto real = compiled->m_compiled_submodels[idx].replaced_by.value_or(idx);
+    const auto& samples = request->m_perf.execution.metrics.at(request->perf_submodel_tag(real)).samples();
+    ASSERT_FALSE(samples.empty());
+    EXPECT_GE(samples.front(), 0.f);
+    EXPECT_LT(samples.front(), 1000.f);
+    request->m_perf.execution.enable(false);
+}
+
+TEST_F(SubgraphBehaviorInferTest, UnfoldAsyncFailedChildClearsPendingCallbacksAndDoesNotRecordFailure) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto props = unfold_props();
+    props["NPUW_FUNCALL_ASYNC"] = "YES";
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(build_static_llm_model(), plugin, props);
+    auto request = std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(compiled->create_sync_infer_request());
+    ASSERT_NE(request, nullptr);
+    request->m_perf.execution.enable(true);
+
+    std::size_t first = request->total_subrequests();
+    for (std::size_t idx = 0; idx + 1 < request->total_subrequests(); ++idx) {
+        if (!request->valid_subrequest(idx) || !request->valid_subrequest(idx + 1)) {
+            continue;
+        }
+        const auto real = compiled->m_compiled_submodels[idx].replaced_by.value_or(idx);
+        if (real == compiled->m_compiled_submodels[idx + 1].replaced_by.value_or(idx + 1)) {
+            first = idx;
+            break;
+        }
+    }
+    ASSERT_LT(first + 1, request->total_subrequests()) << "The test needs two pending function calls";
+    auto failed = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[first]._ptr);
+    auto sibling = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[first + 1]._ptr);
+    ASSERT_NE(failed, nullptr);
+    ASSERT_NE(sibling, nullptr);
+    failed->set_fail_on_infer(true);
+    failed->set_async_delay(std::chrono::milliseconds{5});
+    sibling->set_async_delay(std::chrono::milliseconds{20});
+
+    EXPECT_THROW(std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer(), ov::Exception);
+    EXPECT_TRUE(failed->callback_reported_error());
+    const auto real = compiled->m_compiled_submodels[first].replaced_by.value_or(first);
+    for (std::size_t idx = first;
+         idx < request->total_subrequests() && compiled->m_compiled_submodels[idx].replaced_by.value_or(idx) == real;
+         ++idx) {
+        if (!request->valid_subrequest(idx)) {
+            continue;
+        }
+        auto pending = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[idx]._ptr);
+        ASSERT_NE(pending, nullptr);
+        EXPECT_FALSE(pending->has_callback()) << "Callback remains on pending subrequest " << idx;
+    }
+
+    const auto tag = request->perf_submodel_tag(real);
+    const auto& metrics = request->m_perf.execution.metrics;
+    std::size_t prior = 0;
+    for (std::size_t idx = 0; idx < first; ++idx) {
+        if (request->valid_subrequest(idx) && compiled->m_compiled_submodels[idx].replaced_by.value_or(idx) == real) {
+            ++prior;
+        }
+    }
+    const auto recorded = metrics.count(tag) == 0u ? 0u : metrics.at(tag).count();
+    EXPECT_EQ(prior, recorded) << "The failed child must not add a sample";
+
+    // A later run of the same request recovers: the old child error is not rethrown
+    failed->set_fail_on_infer(false);
+    EXPECT_NO_THROW(std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer());
+    EXPECT_FALSE(failed->callback_reported_error());
+    request->m_perf.execution.enable(false);
 }
 #endif
 

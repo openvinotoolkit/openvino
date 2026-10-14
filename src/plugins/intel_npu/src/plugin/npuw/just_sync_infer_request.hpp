@@ -98,6 +98,7 @@ public:
     const ov::SoPtr<ov::ICompiledModel>& compiled_submodel(size_t idx) const;
     const ov::npuw::v1::subgraphs::CompiledPipeline& subgraph_pipeline(size_t idx) const;
     std::size_t subgraph_param_base(size_t idx) const;
+    void collect_execution_profiles(std::vector<ov::npuw::perf::IProfile*>& out) override;
 
 protected:
     ////////////////////////////////////

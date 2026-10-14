@@ -8,6 +8,7 @@
 #include <cmath>
 #include <regex>
 
+#include "compiled_model.hpp"
 #include "infer_request_utils.hpp"
 #include "kv_cache_sliding_window_manager.hpp"
 #include "llm_block_kvcache_strategy.hpp"
@@ -399,7 +400,12 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     if (compiled_model->m_lm_head_compiled) {
-        m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
+        if (auto head = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(compiled_model->m_lm_head_compiled)) {
+            m_lm_head_base_request = head->create_base_infer_request();
+            m_lm_head_request = head->wrap_async_infer_request(m_lm_head_base_request);
+        } else {
+            m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
+        }
         OPENVINO_ASSERT(m_lm_head_request);
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
@@ -450,14 +456,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_generate_initialized = false;
 
     m_llm_profile.area = "LLM/execution";
-
-    // Profiling is supported for one NPUW pipeline at a time - a run boundary here
-    // resets the Execution statistics of every registered profile in the process.
-    m_llm_profile.register_boundary_owner(this);
-}
-
-ov::npuw::LLMInferRequest::~LLMInferRequest() {
-    ov::npuw::perf::unregister_run_boundary_owner(this);
 }
 
 bool ov::npuw::LLMInferRequest::use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const {
@@ -1746,9 +1744,19 @@ void ov::npuw::LLMInferRequest::infer() {
     // NB: num_stored_tokens cannot be used here - prepare_for_new_conversation() zeroes it
     // *during* the prefill, so at this point it still holds the previous conversation's value.
     // Snapshot only: all formatting happens once, at destruction.
-    m_llm_profile.snapshot_run_boundary([&]() {
-        return position_ids->data<int64_t>()[0] == m_first_position_id;
-    });
+    if (m_llm_profile.enabled() && position_ids->data<int64_t>()[0] == m_first_position_id) {
+        std::vector<ov::npuw::perf::IProfile*> profiles{&m_llm_profile};
+        if (m_prefill_base_request) {
+            m_prefill_base_request->collect_execution_profiles(profiles);
+        }
+        for (auto& request : m_generate_base_requests) {
+            request->collect_execution_profiles(profiles);
+        }
+        if (m_lm_head_base_request) {
+            m_lm_head_base_request->collect_execution_profiles(profiles);
+        }
+        m_perf_boundary.snapshot_and_reset(profiles);
+    }
 
     // Continuous prefill routing comes first. A granted keep is an explicit command, so
     // it must never be re-derived from position ids. A delta continuation starts at

@@ -91,6 +91,10 @@ public:
         return m_perf;
     }
 
+    virtual void collect_execution_profiles(std::vector<ov::npuw::perf::IProfile*>& out) {
+        out.push_back(&m_perf.execution);
+    }
+
     // Resolves (and caches) the profiling tag of a submodel. Attention sub-entries
     // hang under it, so two distinct attention subgraphs never collapse into one.
     // Only valid when the execution profile is enabled.

@@ -6,9 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <type_traits>
 
 #include "perf_tags.hpp"
@@ -43,6 +45,16 @@ public:
 
 private:
     perf::Profile<MS> m_profile;
+};
+
+struct RequestGroup {
+    ScopedProfile llm;
+    ScopedProfile child;
+    perf::RunBoundary boundary;
+
+    void snapshot() {
+        boundary.snapshot_and_reset({&*llm, &*child});
+    }
 };
 
 std::string to_string(const MS& m) {
@@ -149,7 +161,7 @@ TEST(NpuwPerfProfile, SnapshotMovesSamplesAndKeepsTags) {
         GTEST_SKIP() << "OPENVINO_NPUW_PROF_KEEP_RUNS=0 retains no snapshots";
     }
     ScopedProfile p;
-    const auto base = perf::current_run_index();
+    const auto base = std::size_t{0};
     auto* a = p->handle("a");
     a->add(1.0f);
     a->add(2.0f);
@@ -174,7 +186,7 @@ TEST(NpuwPerfProfile, SnapshotSkipsAnEmptyRun) {
 
 TEST(NpuwPerfProfile, RetainedRunCapDropsTheOldest) {
     ScopedProfile p;
-    const auto base = perf::current_run_index();
+    const auto base = std::size_t{0};
     auto* a = p->handle("a");
 
     const auto cap = perf::keep_runs();
@@ -195,11 +207,12 @@ TEST(NpuwPerfProfile, RetainedRunCapDropsTheOldest) {
 TEST(NpuwPerfProfile, RunIdIsSharedAcrossProfiles) {
     ScopedProfile busy("busy", perf::Scope::Execution);
     ScopedProfile idle("idle", perf::Scope::Execution);
-    const auto ending = perf::current_run_index();
+    perf::RunBoundary boundary;
+    const auto ending = boundary.current_run_index();
 
     // Conversation `ending`: only `busy` collects anything
     busy->handle("a")->add(1.0f);
-    perf::snapshot_and_reset_all(perf::Scope::Execution);
+    boundary.snapshot_and_reset({&*busy, &*idle});
 
     // Conversation `ending + 1`: only `idle` collects anything
     idle->handle("a")->add(1.0f);
@@ -240,7 +253,7 @@ TEST(NpuwPerfProfile, SnapshottedRunIsNotReportedTwice) {
         GTEST_SKIP() << "OPENVINO_NPUW_PROF_KEEP_RUNS=0 retains no snapshots";
     }
     ScopedProfile p("Model0/performance");
-    const auto base = perf::current_run_index();
+    const auto base = std::size_t{0};
     p->handle("total@CPU")->add(1.0f);
     p->snapshot_and_reset();
 
@@ -251,7 +264,7 @@ TEST(NpuwPerfProfile, SnapshottedRunIsNotReportedTwice) {
     EXPECT_EQ(npos, text.find("(current)"));
 }
 
-TEST(NpuwPerfRegistry, RunResetOnlyTouchesExecutionScope) {
+TEST(NpuwPerfBoundary, RunResetOnlyTouchesExecutionScope) {
     ScopedProfile exec("exec", perf::Scope::Execution);
     ScopedProfile comp("compilation", perf::Scope::Compilation);
     ScopedProfile life("memory", perf::Scope::Lifetime);
@@ -260,14 +273,14 @@ TEST(NpuwPerfRegistry, RunResetOnlyTouchesExecutionScope) {
     comp->handle("a")->add(1.0f);
     life->handle("a")->add(1.0f);
 
-    perf::reset_all(perf::Scope::Execution);
+    exec->reset();
 
     EXPECT_FALSE(exec->has_samples());
     EXPECT_TRUE(comp->has_samples());
     EXPECT_TRUE(life->has_samples());
 }
 
-TEST(NpuwPerfRegistry, SnapshotResetOnlyTouchesExecutionScope) {
+TEST(NpuwPerfBoundary, SnapshotResetOnlyTouchesExecutionScope) {
     if (perf::keep_runs() == 0u) {
         GTEST_SKIP() << "OPENVINO_NPUW_PROF_KEEP_RUNS=0 retains no snapshots";
     }
@@ -277,22 +290,108 @@ TEST(NpuwPerfRegistry, SnapshotResetOnlyTouchesExecutionScope) {
     exec->handle("a")->add(1.0f);
     comp->handle("a")->add(1.0f);
 
-    perf::snapshot_and_reset_all(perf::Scope::Execution);
+    perf::RunBoundary boundary;
+    boundary.snapshot_and_reset({&*exec});
 
     EXPECT_EQ(1u, exec->snapshots.size());
     EXPECT_TRUE(comp->snapshots.empty());
     EXPECT_TRUE(comp->has_samples());
 }
 
-TEST(NpuwPerfRegistry, DestroyedProfileIsNotVisited) {
+TEST(NpuwPerfBoundary, DestroyedProfileIsNotVisited) {
     {
         ScopedProfile tmp;
         tmp->handle("a")->add(1.0f);
     }
-    // Must not touch the destroyed profile
-    perf::reset_all(perf::Scope::Execution);
-    perf::snapshot_and_reset_all(perf::Scope::Execution);
+    // A boundary owns no registry and only visits the explicitly collected profiles.
+    perf::RunBoundary boundary;
+    boundary.snapshot_and_reset({});
     SUCCEED();
+}
+
+TEST(NpuwPerfBoundary, IndependentOwnersOnlySnapshotTheirOwnProfiles) {
+    if (perf::keep_runs() == 0u) {
+        GTEST_SKIP() << "OPENVINO_NPUW_PROF_KEEP_RUNS=0 retains no snapshots";
+    }
+    RequestGroup first;
+    RequestGroup second;
+    first.llm->add("llm", 1.f);
+    first.child->add("child", 2.f);
+    second.llm->add("llm", 3.f);
+    second.child->add("child", 4.f);
+
+    first.snapshot();
+
+    for (auto* profile : {&*first.llm, &*first.child}) {
+        ASSERT_EQ(1u, profile->snapshots.size());
+        EXPECT_EQ(0u, profile->snapshots.front().index);
+        EXPECT_FALSE(profile->has_samples());
+    }
+    for (auto* profile : {&*second.llm, &*second.child}) {
+        EXPECT_TRUE(profile->snapshots.empty());
+        EXPECT_TRUE(profile->has_samples());
+    }
+}
+
+TEST(NpuwPerfBoundary, ConcurrentOtherOwnerKeepsAllSamplesAndTags) {
+    RequestGroup first;
+    RequestGroup second;
+    constexpr int samples = 2000;
+    std::atomic<bool> start{false};
+    std::thread recorder([&] {
+        while (!start.load(std::memory_order_acquire)) {
+        }
+        for (int i = 0; i < samples; ++i) {
+            second.child->add("tag-" + std::to_string(i), 1.f);
+        }
+    });
+    std::thread boundaries([&] {
+        start.store(true, std::memory_order_release);
+        for (int i = 0; i < samples; ++i) {
+            first.llm->add("llm", 1.f);
+            first.snapshot();
+        }
+    });
+    recorder.join();
+    boundaries.join();
+
+    EXPECT_TRUE(second.child->snapshots.empty());
+    ASSERT_EQ(samples, second.child->metrics.size());
+    std::size_t total = 0u;
+    for (const auto& metric : second.child->metrics) {
+        total += metric.second.count();
+    }
+    EXPECT_EQ(samples, total);
+}
+
+TEST(NpuwPerfBoundary, RunIndicesArePerOwnerAndLateProfilesGetNextSnapshotId) {
+    if (perf::keep_runs() == 0u) {
+        GTEST_SKIP() << "OPENVINO_NPUW_PROF_KEEP_RUNS=0 retains no snapshots";
+    }
+    RequestGroup first;
+    RequestGroup second;
+    first.llm->add("llm", 1.f);
+    first.snapshot();
+    first.llm->add("llm", 1.f);
+    first.snapshot();
+    second.llm->add("llm", 1.f);
+    second.snapshot();
+
+    ASSERT_EQ(2u, first.llm->snapshots.size());
+    EXPECT_EQ(0u, first.llm->snapshots[0].index);
+    EXPECT_EQ(1u, first.llm->snapshots[1].index);
+    ASSERT_EQ(1u, second.llm->snapshots.size());
+    EXPECT_EQ(0u, second.llm->snapshots[0].index);
+
+    ScopedProfile late("late");
+    late->add("late", 1.f);
+    first.boundary.snapshot_and_reset({&*late});
+    ASSERT_EQ(1u, late->snapshots.size());
+    EXPECT_EQ(2u, late->snapshots.front().index);
+    late->add("late", 1.f);
+    std::ostringstream os;
+    late->report(os);
+    EXPECT_NE(npos, os.str().find("run[3] (current)"));
 }
 
 TEST(NpuwPerfSample, CommitsOnce) {
@@ -342,6 +441,18 @@ TEST(NpuwPerfSample, MovingTransfersThePendingCommit) {
         to.commit();
     }
     EXPECT_EQ(1u, a->count());
+}
+
+TEST(NpuwPerfSample, InvalidCompletionTimestampUsesCurrentTime) {
+    ScopedProfile p;
+    auto* a = p->handle("a");
+    {
+        perf::sample s(a);
+        s.commit_at(std::chrono::steady_clock::time_point{});
+    }
+    ASSERT_EQ(1u, a->count());
+    EXPECT_GE(a->samples().front(), 0.f);
+    EXPECT_LT(a->samples().front(), 1000.f);
 }
 
 TEST(NpuwPerfProfile, AddIsGated) {

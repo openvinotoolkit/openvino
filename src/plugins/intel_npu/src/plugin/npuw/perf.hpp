@@ -63,8 +63,6 @@ enum class Scope {
     Lifetime      // request-lifetime statistics (memory), never reset by a run
 };
 
-// Profiles register themselves here so a run boundary can scope the collected statistics
-// to a single run (e.g. one conversation) instead of the whole process lifetime.
 class IProfile {
 public:
     virtual ~IProfile() = default;
@@ -76,23 +74,26 @@ public:
     virtual bool has_samples() const = 0;
 };
 
-void register_profile(IProfile* profile);
-void unregister_profile(IProfile* profile);
+// Each LLM request owns its boundary.
+class RunBoundary {
+public:
+    std::size_t current_run_index() const {
+        return m_run_index;
+    }
 
-// Run-boundary operations. Only profiles of the matching scope are affected.
-void reset_all(Scope scope);
-void snapshot_and_reset_all(Scope scope);
+    void snapshot_and_reset(const std::vector<IProfile*>& profiles) {
+        const auto ending = m_run_index++;
+        for (auto* profile : profiles) {
+            profile->snapshot_and_reset(ending);
+        }
+    }
 
-// Id of the run currently being collected - shared by all profiles
-std::size_t current_run_index();
+private:
+    std::size_t m_run_index = 0u;
+};
 
 // How many past runs are kept as snapshots (OPENVINO_NPUW_PROF_KEEP_RUNS, default 8)
 std::size_t keep_runs();
-
-// Profiling is supported for a single NPUW pipeline at a time - see the contract in
-// docs. Registering a second run-boundary owner logs a one-time warning.
-void register_run_boundary_owner(const void* owner);
-void unregister_run_boundary_owner(const void* owner);
 
 struct MSec {
     constexpr static const char* name = "ms";
@@ -268,14 +269,7 @@ struct Profile : public IProfile {
     // (async funcall pipelining) - then no residual row is meaningful there.
     bool children_overlap = false;
 
-    explicit Profile(Scope scope = Scope::Execution, bool on = enabled_by_default()) : m_on(on), m_scope(scope) {
-        if constexpr (compiled_in) {
-            register_profile(this);
-            // A profile created mid-session (e.g. a lazily compiled generate variant) must
-            // still label its first run with the id everybody else is on
-            m_run_index = current_run_index();
-        }
-    }
+    explicit Profile(Scope scope = Scope::Execution, bool on = enabled_by_default()) : m_on(on), m_scope(scope) {}
     Profile(const Profile&) = delete;
     Profile& operator=(const Profile&) = delete;
 
@@ -317,19 +311,6 @@ struct Profile : public IProfile {
     void add(const std::string& tag, typename M::value_t value) {
         if (enabled()) {
             ensure(tag).add(value);
-        }
-    }
-
-    void register_boundary_owner(const void* owner) const {
-        if (enabled()) {
-            register_run_boundary_owner(owner);
-        }
-    }
-
-    template <typename F>
-    void snapshot_run_boundary(F&& is_first_position) const {
-        if (enabled() && is_first_position()) {
-            snapshot_and_reset_all(Scope::Execution);
         }
     }
 
@@ -413,15 +394,12 @@ struct Profile : public IProfile {
     }
 
     ~Profile() {
-        if constexpr (compiled_in) {
-            unregister_profile(this);
-            if (enabled()) {
-                try {
-                    // avg() & others may throw exceptions if
-                    // enabled behavior is broken
-                    report();
-                } catch (...) {
-                }
+        if (enabled()) {
+            try {
+                // avg() & others may throw exceptions if
+                // enabled behavior is broken
+                report();
+            } catch (...) {
             }
         }
     }
@@ -625,6 +603,22 @@ public:
             m_elapsed = elapsed_ms();
             m_stopped = true;
         }
+        m_commit = true;
+        return m_elapsed;
+    }
+
+    float commit_at(std::chrono::steady_clock::time_point end) noexcept {
+        if (!active()) {
+            return 0.f;
+        }
+        // A missing or invalid completion timestamp must not produce a negative
+        // or epoch-sized duration.
+        const auto now = std::chrono::steady_clock::now();
+        if (end < m_start || end > now) {
+            end = now;
+        }
+        m_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - m_start).count() / 1000.0f;
+        m_stopped = true;
         m_commit = true;
         return m_elapsed;
     }
