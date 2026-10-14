@@ -137,9 +137,7 @@ static_assert(sizeof(Header) == 32,
 /**
  * @brief Device/plugin that owns a ManifestEntry's section - see #Devices for the catalog of assigned ids.
  * @note Paired with #SectionTag: a reader always compares `(device, tag)` together, never `tag` alone, so two
- * devices may reuse the same tag id for unrelated content. Conversely, a device needing content different from
- * a Core tag's shared meaning writes that same tag id under its own id rather than inventing a new tag; a
- * reader resolving such a tag looks under its own device first and falls back to #any_device_id.
+ * devices may reuse the same tag id for unrelated content.
  */
 using DeviceId = uint8_t;
 
