@@ -97,7 +97,9 @@ public:
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
 
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
-        ov::test::utils::register_template_plugin(core);
+        #if !defined(OPENVINO_STATIC_LIBRARY) && !defined(USE_STATIC_IE)
+            ov::test::utils::register_template_plugin(core);
+        #endif  // !OPENVINO_STATIC_LIBRARY && !USE_STATIC_IE
         std::vector<std::string> deviceNames =
             core.get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
         for (auto name : deviceNames) {
@@ -1506,7 +1508,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
 }  // namespace test
 }  // namespace ov
 
-const std::vector<std::string> devices = {"NPU.4000", "NPU.5010"};
+const std::vector<std::string> devices = {"NPU.4000", "NPU.5010", "NPU.6010"};
 
 const std::vector<ov::AnyMap> configs = {
     {
