@@ -108,7 +108,7 @@ Both return a `MergedConfig`, defined in `src/plugin/include/merged_config.hpp`:
 ```cpp
 struct MergedConfig {
     Config runtimeConfig;
-    std::map<std::string, std::string> compilerProperties;
+    CompilerProperties compilerProperties;
     ov::AnyMap unknownProperties;
 };
 ```

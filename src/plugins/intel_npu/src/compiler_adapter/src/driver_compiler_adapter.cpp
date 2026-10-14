@@ -89,7 +89,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const std::map<std::string, std::string>& compilerProperties,
+                                                       const CompilerProperties& compilerProperties,
                                                        const AdapterDescriptor& adapterDesc) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
@@ -109,7 +109,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                     compiler_utils::getModelSerializerVersion(compilerProperties),
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported());
-    std::map<std::string, std::string> updatedProperties = compilerProperties;
+    CompilerProperties updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
                         ov::intel_npu::model_serializer_version.name(),
@@ -146,7 +146,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const std::map<std::string, std::string>& compilerProperties,
+                                                         const CompilerProperties& compilerProperties,
                                                          const AdapterDescriptor& adapterDesc) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
@@ -161,7 +161,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
-    std::map<std::string, std::string> localProperties = compilerProperties;
+    CompilerProperties localProperties = compilerProperties;
     if (!string_map::has(localProperties, ov::intel_npu::separate_weights_version.name())) {
         string_map::set(localProperties,
                         ov::intel_npu::separate_weights_version.name(),
@@ -188,7 +188,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported(),
                                                     true);
-    std::map<std::string, std::string> updatedProperties = compilerProperties;
+    CompilerProperties updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
                         ov::intel_npu::model_serializer_version.name(),
@@ -274,7 +274,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const std::map<std::string, std::string>& compilerProperties) const {
+                                                 const CompilerProperties& compilerProperties) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -292,7 +292,7 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
                                                     compiler_utils::getModelSerializerVersion(compilerProperties),
                                                     isOptionValueSupportedByCompiler);
 
-    std::map<std::string, std::string> updatedProperties = compilerProperties;
+    CompilerProperties updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
                         ov::intel_npu::model_serializer_version.name(),

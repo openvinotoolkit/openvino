@@ -77,7 +77,7 @@ private:
     Config _config;
     // Internal compiler options set through set_property. They are unknown to the plugin, only the compiler supports
     // them, so they are kept here and sent to the compiler through the compiler properties instead of the config.
-    std::map<std::string, std::string> _internalCompilerProperties;
+    CompilerProperties _internalCompilerProperties;
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;

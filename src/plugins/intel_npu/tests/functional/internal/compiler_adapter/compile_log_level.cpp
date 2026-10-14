@@ -14,7 +14,7 @@ namespace {
 class CompileLogLevelSerializeConfigTests : public ::testing::Test {
 protected:
     // The compiler properties hold the values as strings
-    std::map<std::string, std::string> compilerProperties;
+    ::intel_npu::CompilerProperties compilerProperties;
 
     static ze_graph_compiler_version_info_t modernCompilerVersion() {
         ze_graph_compiler_version_info_t version{};

@@ -11,6 +11,11 @@
 namespace intel_npu {
 
 /**
+ * @brief The properties sent to the compiler, values serialized as strings.
+ */
+using CompilerProperties = std::map<std::string, std::string>;
+
+/**
  * @brief Helpers for string to string maps (e.g. the compiler properties). Use the option's own parser (e.g.
  * "BATCH_MODE::parse") when a typed value is needed.
  */
@@ -19,7 +24,7 @@ namespace string_map {
 /**
  * @brief Checks if a value is set for the given key.
  */
-inline bool has(const std::map<std::string, std::string>& map, std::string_view key) {
+inline bool has(const CompilerProperties& map, std::string_view key) {
     return map.count(std::string(key)) != 0;
 }
 
@@ -27,7 +32,7 @@ inline bool has(const std::map<std::string, std::string>& map, std::string_view 
  * @brief Retrieves the value set for the given key.
  * @return The value, or an empty string if no value was set.
  */
-inline std::string get(const std::map<std::string, std::string>& map, std::string_view key) {
+inline std::string get(const CompilerProperties& map, std::string_view key) {
     const auto it = map.find(std::string(key));
     return it == map.end() ? std::string() : it->second;
 }
@@ -35,7 +40,7 @@ inline std::string get(const std::map<std::string, std::string>& map, std::strin
 /**
  * @brief Stores the value for the given key, overwriting a previously set one.
  */
-inline void set(std::map<std::string, std::string>& map, std::string_view key, std::string value) {
+inline void set(CompilerProperties& map, std::string_view key, std::string value) {
     map[std::string(key)] = std::move(value);
 }
 

@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -37,7 +38,7 @@ public:
      */
     virtual std::pair<ov::Tensor, std::optional<std::string>> compile(
         const std::shared_ptr<const ov::Model>& model,
-        const std::map<std::string, std::string>& compilerProperties) const = 0;
+        const CompilerProperties& compilerProperties) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main
@@ -47,7 +48,7 @@ public:
      */
     virtual std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
         const std::shared_ptr<ov::Model>& model,
-        const std::map<std::string, std::string>& compilerProperties) const = 0;
+        const CompilerProperties& compilerProperties) const = 0;
 
     /**
      * @brief Sequential compilation of Init(s) and Main ("stateless compiler" approach).
@@ -56,14 +57,14 @@ public:
      */
     virtual std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(
         const std::shared_ptr<ov::Model>& model,
-        const std::map<std::string, std::string>& compilerProperties,
+        const CompilerProperties& compilerProperties,
         size_t callNumber) const = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed.
      */
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
-                                      const std::map<std::string, std::string>& compilerProperties) const = 0;
+                                      const CompilerProperties& compilerProperties) const = 0;
 
     /**
      * @brief Returns the compiler version.

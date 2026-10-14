@@ -13,6 +13,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -63,7 +64,7 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
  * @return The version found in the compiler properties, or the option's default value if none was set.
  */
 ov::intel_npu::ModelSerializerVersion getModelSerializerVersion(
-    const std::map<std::string, std::string>& compilerProperties);
+    const CompilerProperties& compilerProperties);
 
 /**
  * @brief Serialize input / output information to string format.
@@ -87,7 +88,7 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
  * by the compiler support, all of them are serialized.
  * @param compilerVersion The compiler version, used for applying the backward compatibility conversions.
  */
-std::string serializeConfig(const std::map<std::string, std::string>& compilerProperties,
+std::string serializeConfig(const CompilerProperties& compilerProperties,
                             const ze_graph_compiler_version_info_t& compilerVersion);
 
 }  // namespace compiler_utils

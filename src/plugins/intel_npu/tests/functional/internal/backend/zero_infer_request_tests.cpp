@@ -216,7 +216,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
     }
 
     // The compiler adapters receive only the compiler options, values stored as strings
-    std::map<std::string, std::string> compilerProperties;
+    ::intel_npu::CompilerProperties compilerProperties;
 
     // WA for error `[NPU_VCL] Unsupported IR API version! Val: 48.0`
     if (compiler->is_option_supported(::intel_npu::MODEL_SERIALIZER_VERSION::key().data())) {

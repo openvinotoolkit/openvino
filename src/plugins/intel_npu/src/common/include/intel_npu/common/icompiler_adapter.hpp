@@ -8,6 +8,7 @@
 #include <string>
 
 #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 
 namespace intel_npu {
 
@@ -30,7 +31,7 @@ public:
      * @param adapterDesc Adapter-specific settings, not forwarded to the compiler. See "AdapterDescriptor".
      */
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                            const std::map<std::string, std::string>& compilerProperties,
+                                            const CompilerProperties& compilerProperties,
                                             const AdapterDescriptor& adapterDesc) const = 0;
 
     /**
@@ -49,11 +50,11 @@ public:
      * @return A "WeightlessGraph" type of object.
      */
     virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
-                                              const std::map<std::string, std::string>& compilerProperties,
+                                              const CompilerProperties& compilerProperties,
                                               const AdapterDescriptor& adapterDesc) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
-                                      const std::map<std::string, std::string>& compilerProperties) const = 0;
+                                      const CompilerProperties& compilerProperties) const = 0;
     virtual uint32_t get_version() const = 0;
     virtual std::vector<std::string> get_supported_options() const = 0;
     virtual bool is_option_supported(const std::string& optName,

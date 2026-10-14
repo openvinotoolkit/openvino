@@ -48,11 +48,11 @@ public:
     mutable std::vector<std::pair<std::string, std::optional<std::string>>> optionSupportQueries;
     mutable std::vector<size_t> wsIterativeCallNumbers;
     // The compiler properties received by the last compile*/query call.
-    mutable std::map<std::string, std::string> lastCompilerProperties;
+    mutable ::intel_npu::CompilerProperties lastCompilerProperties;
 
     std::pair<ov::Tensor, std::optional<std::string>> compile(
         const std::shared_ptr<const ov::Model>&,
-        const std::map<std::string, std::string>& compilerProperties) const override {
+        const ::intel_npu::CompilerProperties& compilerProperties) const override {
         ++compileCalls;
         lastCompilerProperties = compilerProperties;
         if (throwOnCompile) {
@@ -63,7 +63,7 @@ public:
 
     std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
         const std::shared_ptr<ov::Model>&,
-        const std::map<std::string, std::string>& compilerProperties) const override {
+        const ::intel_npu::CompilerProperties& compilerProperties) const override {
         ++compileWsOneShotCalls;
         lastCompilerProperties = compilerProperties;
         return {wsOneShotResult, compatibility};
@@ -71,7 +71,7 @@ public:
 
     std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(
         const std::shared_ptr<ov::Model>&,
-        const std::map<std::string, std::string>& compilerProperties,
+        const ::intel_npu::CompilerProperties& compilerProperties,
         size_t callNumber) const override {
         ++compileWsIterativeCalls;
         lastCompilerProperties = compilerProperties;
@@ -80,7 +80,7 @@ public:
     }
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>&,
-                              const std::map<std::string, std::string>& compilerProperties) const override {
+                              const ::intel_npu::CompilerProperties& compilerProperties) const override {
         ++queryCalls;
         lastCompilerProperties = compilerProperties;
         return queryResult;

@@ -23,6 +23,7 @@
 
 using ::fake_vcl::FakeVCLCompiler;
 using ::intel_npu::AdapterDescriptor;
+using ::intel_npu::CompilerProperties;
 using ::intel_npu::PluginCompilerAdapter;
 
 namespace {
@@ -56,10 +57,10 @@ struct PluginCompilerAdapterTest : public ::testing::Test {
     }
 
     // The adapter receives only the compiler properties, values stored as strings.
-    static std::map<std::string, std::string> makeCompilerProperties(
+    static CompilerProperties makeCompilerProperties(
         const std::optional<std::string>& compilationMode = std::nullopt,
         const std::optional<std::string>& wsVersion = std::nullopt) {
-        std::map<std::string, std::string> compilerProperties;
+        CompilerProperties compilerProperties;
         if (compilationMode.has_value()) {
             compilerProperties[ov::intel_npu::compilation_mode.name()] = *compilationMode;
         }

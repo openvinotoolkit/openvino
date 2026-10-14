@@ -44,7 +44,7 @@ private:
     void registerProperties();
 
     Config _config;
-    const std::map<std::string, std::string> _compilerProperties;
+    const CompilerProperties _compilerProperties;
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;

@@ -167,7 +167,7 @@ Note: this logic does not affect OptionMode::Runtime type of options/properties.
 The property manager handles individual property requests through `getProperty`, `setProperty`, and
 `isPropertySupported`. For compilation and query operations, it also provides `getMergedConfigForCompilation`, and for
 import operations `getMergedConfigForImport`. Both return a `MergedConfig` holding the merged runtime `Config`, the
-compiler properties (a `std::map<std::string, std::string>` sent to the compiler, always empty on import) and an
+compiler properties (a `CompilerProperties` string to string map sent to the compiler, always empty on import) and an
 `ov::AnyMap` of properties that are not consumed by the plugin.
 
 The runtime `Config` is shared with the import path and other runtime components, it doesn't contain the

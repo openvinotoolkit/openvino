@@ -302,7 +302,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                             compilerType,
                                             string_map::has(compilerProperties, ov::intel_npu::compilation_mode.name()),
                                             dynamicShapeToStatic)) {
-              _logger.info(
+        _logger.info(
             "NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
             "for dynamic model (at least one input has a dynamic non-batch dimension, all input ranks static)");
         string_map::set(compilerProperties, ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
@@ -312,7 +312,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // HostCompile dynamic models retain their dynamic dimensions for the VM runtime instead of plugin debatching.
     const bool useDynamicGraphForDynamicModel =
         model->is_dynamic() && compilerType == ov::intel_npu::CompilerType::PLUGIN &&
-        string_map::get(compilerProperties, ov::intel_npu::compilation_mode.name()).find("HostCompile_Interpreter") == 0;
+        string_map::get(compilerProperties, ov::intel_npu::compilation_mode.name()).find("HostCompile_Interpreter") ==
+            0;
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
@@ -461,8 +462,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     adapterDesc.secureCompile = runtimeProperties.has(ov::cache_encryption_callbacks.name()) &&
                                 runtimeProperties.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
 
-    auto compileWithProperties = [&](auto&& modelToCompile,
-                                     const std::map<std::string, std::string>& propertiesForCompiler) {
+    auto compileWithProperties = [&](auto&& modelToCompile, const CompilerProperties& propertiesForCompiler) {
         if (!isWeightlessEnabled) {
             return compiler->compile(modelToCompile, propertiesForCompiler, adapterDesc);
         }
@@ -488,7 +488,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         // The overrides below are relevant only for the compiler, they are not kept in the compiler properties exposed
         // by the compiled model.
-        std::map<std::string, std::string> propertiesForCompiler = compilerProperties;
+        CompilerProperties propertiesForCompiler = compilerProperties;
 
         // PERF_COUNT is found in the compiler properties only if the compiler supports it
         if (shouldDisablePerfCountForInferProfiling &&

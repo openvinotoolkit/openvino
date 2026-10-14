@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <level_zero/ze_api.h>
+#include <ze_command_queue_npu_ext.h>
+
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
 #include <exception>
-#include <gmock/gmock-matchers.h>
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-#include <level_zero/ze_api.h>
 #include <memory>
 #include <mutex>
 #include <random>
 #include <sstream>
 #include <thread>
 #include <vector>
-#include <ze_command_queue_npu_ext.h>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -130,13 +131,10 @@ TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnExistingQueue) {
 }
 
 TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledRequiresOwnerTag) {
-    OV_EXPECT_THROW_HAS_SUBSTRING((::intel_npu::CommandQueueDesc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                                                                  std::nullopt,
-                                                                  0,
-                                                                  nullptr,
-                                                                  false}),
-                                  ov::Exception,
-                                  "owner_tag must not be null");
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        (::intel_npu::CommandQueueDesc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, std::nullopt, 0, nullptr, false}),
+        ov::Exception,
+        "owner_tag must not be null");
 }
 
 TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityTest) {

@@ -51,7 +51,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const std::map<std::string, std::string>& compilerProperties,
+                                                       const CompilerProperties& compilerProperties,
                                                        const AdapterDescriptor&) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
@@ -101,12 +101,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const std::map<std::string, std::string>& compilerProperties,
+                                                         const CompilerProperties& compilerProperties,
                                                          const AdapterDescriptor&) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
 
-    std::map<std::string, std::string> localProperties = compilerProperties;
+    CompilerProperties localProperties = compilerProperties;
     if (!string_map::has(localProperties, ov::intel_npu::separate_weights_version.name())) {
         string_map::set(localProperties,
                         ov::intel_npu::separate_weights_version.name(),
@@ -260,7 +260,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const std::map<std::string, std::string>& compilerProperties) const {
+                                                 const CompilerProperties& compilerProperties) const {
     OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "query");
 
     return _compiler->query(model, compilerProperties);

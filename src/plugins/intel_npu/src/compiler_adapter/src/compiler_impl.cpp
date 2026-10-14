@@ -232,13 +232,13 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const std::map<std::string, std::string>& compilerProperties) const {
+    const CompilerProperties& compilerProperties) const {
     return compile(model, compilerProperties, false);
 }
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const std::map<std::string, std::string>& compilerProperties,
+    const CompilerProperties& compilerProperties,
     const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
@@ -271,7 +271,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     isOptionSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
-    std::map<std::string, std::string> updatedProperties = compilerProperties;
+    CompilerProperties updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
                         ov::intel_npu::model_serializer_version.name(),
@@ -370,7 +370,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
 std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::compileWsOneShot(
     const std::shared_ptr<ov::Model>& model,
-    const std::map<std::string, std::string>& compilerProperties) const {
+    const CompilerProperties& compilerProperties) const {
     _logger.debug("compileWsOneShot start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -402,7 +402,7 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
                                                     isOptionSupportedByCompiler,
                                                     false,
                                                     true);
-    std::map<std::string, std::string> updatedProperties = compilerProperties;
+    CompilerProperties updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
                         ov::intel_npu::model_serializer_version.name(),
@@ -484,10 +484,10 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIterative(
     const std::shared_ptr<ov::Model>& model,
-    const std::map<std::string, std::string>& compilerProperties,
+    const CompilerProperties& compilerProperties,
     size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    std::map<std::string, std::string> updatedProperties = compilerProperties;
+    CompilerProperties updatedProperties = compilerProperties;
     string_map::set(updatedProperties, ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
     // Return the compatibility descriptor together with the compiled blob.
     return compile(model, updatedProperties, true);
@@ -548,7 +548,7 @@ uint32_t VCLCompilerImpl::get_version() const {
 }
 
 ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
-                                           const std::map<std::string, std::string>& compilerProperties) const {
+                                           const CompilerProperties& compilerProperties) const {
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -568,7 +568,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    std::map<std::string, std::string> updatedProperties = compilerProperties;
+    CompilerProperties updatedProperties = compilerProperties;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName,
                                                     const std::optional<std::string>& optionValue = std::nullopt) {
         return is_option_supported(optionName, optionValue);

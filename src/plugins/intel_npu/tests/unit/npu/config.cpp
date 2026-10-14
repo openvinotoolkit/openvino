@@ -1078,7 +1078,7 @@ TEST_F(ConfigUnitTests, RemoveCompileTimeConfigsKeepsRunTimeAndBothOptions) {
 
 TEST_F(ConfigUnitTests, ExtractToRequiresAPredicate) {
     auto config = makeConfig();
-    std::map<std::string, std::string> target;
+    Config::ConfigMap target;
 
     OV_EXPECT_THROW_HAS_SUBSTRING(config.extractTo(target, nullptr), ov::Exception, "requires a valid predicate");
 }
@@ -1087,7 +1087,7 @@ TEST_F(ConfigUnitTests, ExtractToMovesOnlySelectedOptionsAsStrings) {
     auto config = makeConfig();
     config.update({{std::string(DUMMY_COMPILE_TIME_OPTION::key()), "compile_value"},
                    {std::string(DUMMY_RUN_TIME_OPTION::key()), "7"}});
-    std::map<std::string, std::string> target;
+    Config::ConfigMap target;
 
     config.extractTo(target, [](std::string_view key) {
         return key == DUMMY_COMPILE_TIME_OPTION::key() || key == DUMMY_RUN_TIME_OPTION::key();
@@ -1104,7 +1104,7 @@ TEST_F(ConfigUnitTests, ExtractToKeepsUnselectedOptions) {
     auto config = makeConfig();
     config.update({{std::string(DUMMY_BOTH_OPTION::key()), "both_value"},
                    {std::string(DUMMY_COMPILE_TIME_OPTION::key()), "compile_value"}});
-    std::map<std::string, std::string> target;
+    Config::ConfigMap target;
 
     config.extractTo(target, [](std::string_view key) {
         return key == DUMMY_COMPILE_TIME_OPTION::key();
@@ -1118,7 +1118,7 @@ TEST_F(ConfigUnitTests, ExtractToKeepsUnselectedOptions) {
 // Unset options are never passed to the predicate, so their defaults don't end up in the target map
 TEST_F(ConfigUnitTests, ExtractToSkipsOptionsWithoutSetValue) {
     auto config = makeConfig();
-    std::map<std::string, std::string> target;
+    Config::ConfigMap target;
 
     config.extractTo(target, [](std::string_view) {
         return true;
@@ -1130,7 +1130,7 @@ TEST_F(ConfigUnitTests, ExtractToSkipsOptionsWithoutSetValue) {
 TEST_F(ConfigUnitTests, ExtractToOverwritesExistingEntriesAndKeepsTheOthers) {
     auto config = makeConfig();
     config.update(DUMMY_COMPILE_TIME_OPTION::key(), "compile_value");
-    std::map<std::string, std::string> target = {{std::string(DUMMY_COMPILE_TIME_OPTION::key()), "old_value"},
+    Config::ConfigMap target = {{std::string(DUMMY_COMPILE_TIME_OPTION::key()), "old_value"},
                                                  {"OTHER_KEY", "other_value"}};
 
     config.extractTo(target, [](std::string_view) {
@@ -1143,7 +1143,7 @@ TEST_F(ConfigUnitTests, ExtractToOverwritesExistingEntriesAndKeepsTheOthers) {
 
 TEST_F(ConfigUnitTests, CopyToRequiresAPredicate) {
     const auto config = makeConfig();
-    std::map<std::string, std::string> target;
+    Config::ConfigMap target;
 
     OV_EXPECT_THROW_HAS_SUBSTRING(config.copyTo(target, nullptr), ov::Exception, "requires a valid predicate");
 }
@@ -1152,7 +1152,7 @@ TEST_F(ConfigUnitTests, CopyToCopiesSelectedOptionsAndKeepsThemInTheConfig) {
     auto config = makeConfig();
     config.update({{std::string(DUMMY_BOTH_OPTION::key()), "both_value"},
                    {std::string(DUMMY_RUN_TIME_OPTION::key()), "7"}});
-    std::map<std::string, std::string> target = {{std::string(DUMMY_BOTH_OPTION::key()), "old_value"}};
+    Config::ConfigMap target = {{std::string(DUMMY_BOTH_OPTION::key()), "old_value"}};
 
     config.copyTo(target, [](std::string_view key) {
         return key == DUMMY_BOTH_OPTION::key();

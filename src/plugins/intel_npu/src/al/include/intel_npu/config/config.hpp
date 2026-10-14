@@ -575,7 +575,7 @@ public:
      * @param shouldExtract Predicate called with the key of each option which has a set value. It must not modify
      * the configuration.
      */
-    void extractTo(std::map<std::string, std::string>& target,
+    void extractTo(ConfigMap& target,
                    const std::function<bool(std::string_view)>& shouldExtract);
 
     /**
@@ -585,7 +585,7 @@ public:
      * @param target The map receiving the copied options.
      * @param shouldCopy Predicate called with the key of each option which has a set value.
      */
-    void copyTo(std::map<std::string, std::string>& target,
+    void copyTo(ConfigMap& target,
                 const std::function<bool(std::string_view)>& shouldCopy) const;
 
 private:

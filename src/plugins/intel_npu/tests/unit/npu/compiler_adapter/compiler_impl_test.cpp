@@ -30,6 +30,7 @@ using ::fake_vcl::FakeVcl;
 using ::intel_npu::IDevice;
 using ::intel_npu::OptionSupportCache;
 using ::intel_npu::ScopedOptionSupportCache;
+using ::intel_npu::CompilerProperties;
 using ::intel_npu::VCLCompilerImpl;
 
 namespace {
@@ -38,7 +39,7 @@ namespace {
 constexpr OptionSupportCache::CacheKey kFirstKey = 1u;
 constexpr OptionSupportCache::CacheKey kSecondKey = 2u;
 
-std::map<std::string, std::string> makeCompilerProperties() {
+CompilerProperties makeCompilerProperties() {
     // Nothing is needed: compileWsIterative writes WS_COMPILE_CALL_NUMBER itself, and MODEL_SERIALIZER_VERSION
     // falls back to its default value when it is missing.
     return {};

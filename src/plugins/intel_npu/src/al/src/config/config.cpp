@@ -314,7 +314,7 @@ void Config::removeCompileTimeConfigs() {
     }
 }
 
-void Config::extractTo(std::map<std::string, std::string>& target,
+void Config::extractTo(ConfigMap& target,
                        const std::function<bool(std::string_view)>& shouldExtract) {
     OPENVINO_ASSERT(shouldExtract, "Config::extractTo requires a valid predicate");
 
@@ -328,7 +328,7 @@ void Config::extractTo(std::map<std::string, std::string>& target,
     }
 }
 
-void Config::copyTo(std::map<std::string, std::string>& target,
+void Config::copyTo(ConfigMap& target,
                     const std::function<bool(std::string_view)>& shouldCopy) const {
     OPENVINO_ASSERT(shouldCopy, "Config::copyTo requires a valid predicate");
 

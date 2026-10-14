@@ -47,7 +47,7 @@ public:
      */
     std::pair<ov::Tensor, std::optional<std::string>> compile(
         const std::shared_ptr<const ov::Model>& model,
-        const std::map<std::string, std::string>& compilerProperties) const override;
+        const CompilerProperties& compilerProperties) const override;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
@@ -57,7 +57,7 @@ public:
      */
     std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
         const std::shared_ptr<ov::Model>& model,
-        const std::map<std::string, std::string>& compilerProperties) const override;
+        const CompilerProperties& compilerProperties) const override;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
@@ -72,10 +72,9 @@ public:
      * Compiler should somehow understand which Init (or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
-    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(
-        const std::shared_ptr<ov::Model>& model,
-        const std::map<std::string, std::string>& compilerProperties,
-        size_t callNumber) const override;
+    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                                                         const CompilerProperties& compilerProperties,
+                                                                         size_t callNumber) const override;
     /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
@@ -83,7 +82,7 @@ public:
      * @returns SupportedOpsMap structure with information about supported layers
      */
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
-                              const std::map<std::string, std::string>& compilerProperties) const override;
+                              const CompilerProperties& compilerProperties) const override;
 
     /**
      * @brief Returns the compiler version
@@ -121,10 +120,9 @@ private:
      * the "WeightlessCacheAttribute" may be stored within the serialized model if requested.
      * @note Storing the "WeightlessCacheAttribute" is necessary if the "weights separation" flow is being used.
      */
-    std::pair<ov::Tensor, std::optional<std::string>> compile(
-        const std::shared_ptr<const ov::Model>& model,
-        const std::map<std::string, std::string>& compilerProperties,
-        const bool storeWeightlessCacheAttributeFlag) const;
+    std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
+                                                              const CompilerProperties& compilerProperties,
+                                                              const bool storeWeightlessCacheAttributeFlag) const;
 
     std::shared_ptr<const VCLFunctionTable> _functions;
     vcl_log_handle_t _logHandle = nullptr;

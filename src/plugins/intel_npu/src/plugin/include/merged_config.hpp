@@ -8,6 +8,7 @@
 #include <string>
 
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "openvino/core/any.hpp"
 
 namespace intel_npu {
@@ -22,7 +23,7 @@ struct MergedConfig {
     // Compile-time, both-mode and internal compiler options supported by the resolved compiler, serialized as strings.
     // Includes the values set through set_property and environment variables, overridden by the merged properties.
     // Always empty on the import path, the model is already compiled.
-    std::map<std::string, std::string> compilerProperties;
+    CompilerProperties compilerProperties;
     // Properties unknown to the plugin, forwarded as they are to the compiled model.
     ov::AnyMap unknownProperties;
 };

@@ -615,8 +615,7 @@ SerializedIR serializeIR(
     return serializedIR;
 }
 
-ov::intel_npu::ModelSerializerVersion getModelSerializerVersion(
-    const std::map<std::string, std::string>& compilerProperties) {
+ov::intel_npu::ModelSerializerVersion getModelSerializerVersion(const CompilerProperties& compilerProperties) {
     if (!string_map::has(compilerProperties, ov::intel_npu::model_serializer_version.name())) {
         return ov::intel_npu::ModelSerializerVersion::AUTO;
     }
@@ -712,7 +711,7 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string serializeConfig(const std::map<std::string, std::string>& compilerProperties,
+std::string serializeConfig(const CompilerProperties& compilerProperties,
                             const ze_graph_compiler_version_info_t& compilerVersion) {
     Logger logger("serializeConfig", Logger::global().level());
 
@@ -721,15 +720,15 @@ std::string serializeConfig(const std::map<std::string, std::string>& compilerPr
     // for the remainder of this function so every subsequent read observes the compiler-specific level instead of the
     // plugin one. When NPU_COMPILE_LOG_LEVEL is unset, no copy is made and the compiler keeps inheriting the plugin
     // LOG_LEVEL exactly as before.
-    std::optional<std::map<std::string, std::string>> propertiesWithCompileLogLevel;
+    std::optional<CompilerProperties> propertiesWithCompileLogLevel;
     if (string_map::has(compilerProperties, ov::intel_npu::compile_log_level.name())) {
         propertiesWithCompileLogLevel = compilerProperties;
         string_map::set(*propertiesWithCompileLogLevel,
-                     ov::log::level.name(),
-                     string_map::get(compilerProperties, ov::intel_npu::compile_log_level.name()));
+                        ov::log::level.name(),
+                        string_map::get(compilerProperties, ov::intel_npu::compile_log_level.name()));
         propertiesWithCompileLogLevel->erase(ov::intel_npu::compile_log_level.name());
     }
-    const std::map<std::string, std::string>& properties =
+    const CompilerProperties& properties =
         propertiesWithCompileLogLevel.has_value() ? *propertiesWithCompileLogLevel : compilerProperties;
 
     std::string content = {};
@@ -738,8 +737,7 @@ std::string serializeConfig(const std::map<std::string, std::string>& compilerPr
         if (!content.empty()) {
             content += " ";
         }
-        content += key + KEY_VALUE_SEPARATOR.data() + VALUE_DELIMITER.data() + value +
-                   VALUE_DELIMITER.data();
+        content += key + KEY_VALUE_SEPARATOR.data() + VALUE_DELIMITER.data() + value + VALUE_DELIMITER.data();
     }
 
     logger.debug("Original content of config: %s", content.c_str());
