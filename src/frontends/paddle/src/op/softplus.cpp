@@ -22,11 +22,15 @@ NamedOutputs softplus(const NodeContext& node) {
     //   softplus(x) = x                          if beta*x >  threshold
     //                (1/beta)*log(1+exp(beta*x)) otherwise
     const auto et = data.get_element_type();
-    PADDLE_OP_CHECK(node, et.is_real(), "softplus: X must have a floating-point data type");
+    PADDLE_OP_CHECK(node, et.is_dynamic() || et.is_real(), "softplus: X must have a floating-point data type");
 
-    const auto beta_c = std::make_shared<default_opset::Constant>(et, Shape{}, beta);
-    const auto inv_beta_c = std::make_shared<default_opset::Constant>(et, Shape{}, 1.0f / beta);
-    const auto threshold_c = std::make_shared<default_opset::Constant>(et, Shape{}, threshold);
+    // The element type of X may not be resolved yet, so build the scalars in f32 and convert them to X.
+    const auto f32_scalar = [](float value) {
+        return default_opset::Constant::create(ov::element::f32, ov::Shape{}, {value});
+    };
+    const auto beta_c = std::make_shared<default_opset::ConvertLike>(f32_scalar(beta), data);
+    const auto inv_beta_c = std::make_shared<default_opset::ConvertLike>(f32_scalar(1.0f / beta), data);
+    const auto threshold_c = std::make_shared<default_opset::ConvertLike>(f32_scalar(threshold), data);
 
     auto scaled = std::make_shared<default_opset::Multiply>(data, beta_c);
     // Clamp the exp() argument at `threshold` for numerical stability; the saturated

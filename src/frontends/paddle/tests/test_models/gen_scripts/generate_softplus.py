@@ -46,6 +46,11 @@ def main():
     # crosses the saturation point beta*x = threshold -> x = 15
     x = np.array([-10.0, -1.0, 0.0, 1.0, 2.0, 8.0, 14.9, 15.1]).astype(np.float32)
     softplus("softplus_beta2_threshold30", x, beta=2, threshold=30)
+    # A low threshold pins the saturated branch: beta*x = threshold -> x = 1, and next to that point
+    # the linear branch differs from the formula one by ~0.06-0.08, i.e. far above the fuzzy
+    # tolerance, so ignoring or hard-coding the threshold cannot pass.
+    x_low_threshold = np.array([-2.0, -0.5, 0.5, 0.9, 1.0, 1.1, 2.0, 3.0]).astype(np.float32)
+    softplus("softplus_beta2_threshold2", x_low_threshold, beta=2, threshold=2)
 
 if __name__ == "__main__":
     main()
