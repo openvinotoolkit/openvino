@@ -262,8 +262,18 @@ MergedConfig PluginPropertyManager::getMergedConfigForCompilation(const ov::AnyM
         return runtimeConfig.getOpt(key).mode() == OptionMode::Both && isSupportedByCompiler(std::string(key));
     });
 
+    applyCompilerOnlyOverrides(runtimeConfig, compilerProperties, isSupportedByCompiler);
+
+    return merged;
+}
+
+void PluginPropertyManager::applyCompilerOnlyOverrides(
+    const Config& runtimeConfig,
+    CompilerProperties& compilerProperties,
+    const std::function<bool(const std::string&)>& isSupportedByCompiler) const {
     // The compiler understands only the LOG_LEVEL key. When NPU_COMPILE_LOG_LEVEL is set, its value overrides the
-    // plugin LOG_LEVEL for the compiler only, otherwise the compiler inherits the plugin LOG_LEVEL copied above.
+    // plugin LOG_LEVEL for the compiler only, otherwise the compiler inherits the plugin LOG_LEVEL copied with the
+    // both-mode options.
     if (runtimeConfig.has<COMPILE_LOG_LEVEL>() && isSupportedByCompiler(std::string(ov::log::level.name()))) {
         string_map::set(compilerProperties,
                         ov::log::level.name(),
@@ -279,8 +289,6 @@ MergedConfig PluginPropertyManager::getMergedConfigForCompilation(const ov::AnyM
             ov::intel_npu::profiling_type.name());
         string_map::set(compilerProperties, ov::enable_profiling.name(), PERF_COUNT::toString(false));
     }
-
-    return merged;
 }
 
 MergedConfig PluginPropertyManager::getMergedConfigForImport(const ov::AnyMap& properties) {

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -64,6 +65,13 @@ private:
     // internal compiler options (stored ones overridden by the passed ones), the caller is responsible for adding the
     // compile-time options and for cleaning up the runtime config. Doesn't lock _mutex, callers must hold it.
     MergedConfig mergeConfig(const ov::AnyMap& properties, ConfigMergeMode mergeMode);
+
+    // Applies the overrides that change what is sent to the compiler without touching the runtime config. Only the
+    // translations that depend solely on the config and on the compiler supported options belong here, the ones that
+    // need the model or the device are done in Plugin::compile_model. Doesn't lock _mutex, callers must hold it.
+    void applyCompilerOnlyOverrides(const Config& runtimeConfig,
+                                    CompilerProperties& compilerProperties,
+                                    const std::function<bool(const std::string&)>& isSupportedByCompiler) const;
 
     // The helpers below read the value from the arguments and fall back to the stored config when missing.
     // They don't lock _mutex, callers must hold it.
