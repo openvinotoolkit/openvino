@@ -557,7 +557,9 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
                                              std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
                                              std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
                                              uint32_t effective_max_context_len,
-                                             uint32_t effective_sliding_window_capacity)
+                                             uint32_t effective_sliding_window_capacity,
+                                             std::optional<std::string> total_seq_len_param_name,
+                                             std::unordered_map<std::string, std::string> present_to_past_param_names)
     : ov::npuw::ICompiledModel(outer_model, plugin),
       m_inner_compiled_model(std::move(inner_compiled_model)),
       m_outer_model(outer_model),
@@ -566,8 +568,12 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
       m_effective_sliding_window_capacity(effective_sliding_window_capacity) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
-    m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
-    m_present_to_past_param_names = find_present_to_past_param_names(m_outer_model);
+    // NOT re-derived via find_total_sequence_length_param_name()/find_present_to_past_param_names()
+    // here: outer_model on this (import) path is a dummy carcass with no real GQA ops, so
+    // those graph-walking helpers would silently find nothing. Use what was serialized
+    // from the original compile, where the real model was available.
+    m_total_seq_len_param_name = std::move(total_seq_len_param_name);
+    m_present_to_past_param_names = std::move(present_to_past_param_names);
 }
 
 // Hand-rolled port serialization instead of ov::pass::Serialize: the IR writer recomputes
@@ -660,11 +666,18 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     write(stream, m_dynamic_kv_cache_axes);
     write(stream, m_effective_max_context_len);
     write(stream, m_effective_sliding_window_capacity);
+    // Written here (from the real model, available at this point) rather than
+    // re-derived by import_model() from its dummy carcass outer_model, which has no
+    // actual GroupQueryAttention ops for the graph-walking find_*() helpers to find.
+    write(stream, m_total_seq_len_param_name);
+    write(stream, m_present_to_past_param_names);
     GQA_TRACE("GQACompiledModel::export_model() -> wrote "
               << outer_inputs.size() << " outer inputs, " << outer_outputs.size() << " outer outputs, "
               << m_dynamic_kv_cache_axes.size()
               << " dynamic-axis entries, effective_max_context_len=" << m_effective_max_context_len
               << ", effective_sliding_window_capacity=" << m_effective_sliding_window_capacity
+              << ", total_seq_len_param_name=" << m_total_seq_len_param_name.value_or("<none>")
+              << ", present_to_past_param_names has " << m_present_to_past_param_names.size() << " entries"
               << "; delegating to inner m_inner_compiled_model->export_model()");
     m_inner_compiled_model->export_model(stream);
     LOG_INFO("Done");
@@ -689,11 +702,15 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
     uint32_t effective_max_context_len = 0;
     uint32_t effective_sliding_window_capacity = 0;
+    std::optional<std::string> total_seq_len_param_name;
+    std::unordered_map<std::string, std::string> present_to_past_param_names;
     outer_parameters = GQACompiledModel::read_input_port_list(stream);
     outer_results = GQACompiledModel::read_output_port_list(stream);
     read(stream, dynamic_kv_cache_axes);
     read(stream, effective_max_context_len);
     read(stream, effective_sliding_window_capacity);
+    read(stream, total_seq_len_param_name);
+    read(stream, present_to_past_param_names);
 
     GQA_TRACE("    read " << outer_parameters.size() << " outer parameters, " << outer_results.size()
                           << " outer results, " << dynamic_kv_cache_axes.size() << " dynamic-axis entries:");
@@ -719,7 +736,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                                                                   std::move(inner_compiled_model),
                                                                   std::move(dynamic_kv_cache_axes),
                                                                   effective_max_context_len,
-                                                                  effective_sliding_window_capacity));
+                                                                  effective_sliding_window_capacity,
+                                                                  std::move(total_seq_len_param_name),
+                                                                  std::move(present_to_past_param_names)));
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::GQACompiledModel::get_runtime_model() const {

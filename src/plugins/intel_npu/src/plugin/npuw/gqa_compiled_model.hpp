@@ -159,13 +159,18 @@ private:
                      CompiledModelFactory factory);
 
     // Used by import_model() to reconstruct a GQACompiledModel from a deserialized inner
-    // compiled model.
+    // compiled model. total_seq_len_param_name/present_to_past_param_names are passed in
+    // (not re-derived from outer_model): on import, outer_model is a dummy carcass with
+    // no actual GroupQueryAttention ops, so the graph-walking find_*() helpers would
+    // silently find nothing.
     GQACompiledModel(const std::shared_ptr<ov::Model>& outer_model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
                      std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
                      uint32_t effective_max_context_len,
-                     uint32_t effective_sliding_window_capacity);
+                     uint32_t effective_sliding_window_capacity,
+                     std::optional<std::string> total_seq_len_param_name,
+                     std::unordered_map<std::string, std::string> present_to_past_param_names);
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
@@ -181,10 +186,13 @@ private:
     std::unordered_map<std::string, size_t> m_dynamic_kv_cache_output_axes;
     // TOTAL_SEQUENCE_LENGTH Parameter name, if resolved. Used to compute an accurate
     // present_key/present_value length instead of mirroring past_key/past_value's own
-    // (stale) length. Re-derived from m_outer_model, not serialized.
+    // (stale) length. Derived from the real model on first compile and serialized across
+    // export_model()/import_model() -- NOT re-derivable from m_outer_model on import,
+    // since the import path's outer_model is a dummy carcass with no real GQA ops.
     std::optional<std::string> m_total_seq_len_param_name;
     // present_key/present_value outer Result name -> its past_key/past_value Parameter
-    // name (see find_present_to_past_param_names()). Re-derived, not serialized.
+    // name (see find_present_to_past_param_names()). Same as above: derived once from the
+    // real model, serialized, and passed through on import rather than re-derived.
     std::unordered_map<std::string, std::string> m_present_to_past_param_names;
     // Effective static KV-cache capacity; returned from get_property(NPUW_LLM_MAX_CONTEXT_LEN)
     // since the inner CompiledModel no longer carries this property. Serialized across

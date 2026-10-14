@@ -1585,6 +1585,42 @@ TEST(GQACompiledModelSerializationTest, RoundTripsTensorNamesSeparatelyFromFrien
     EXPECT_EQ(read_back[0]->output(0).get_names(), std::unordered_set<std::string>{"past_key_values.0.key"});
 }
 
+// Regression test: import_model()'s outer_model is a dummy carcass with no real
+// GroupQueryAttention ops, so find_total_sequence_length_param_name()/
+// find_present_to_past_param_names() can't be re-run on it after a cache hit -- they'd
+// silently find nothing, and refresh_present_tensors_locked() would then fall back to
+// full capacity (returning uncopied/stale KV-cache content to the caller, which crashed
+// an ORT consumer expecting the real valid length). export_model() must therefore write
+// these two fields out directly, and import_model() must read them back instead of
+// recomputing.
+TEST(GQACompiledModelSerializationTest, RoundTripsTotalSeqLenParamNameAndPresentToPastMap) {
+    const std::optional<std::string> total_seq_len_param_name{"total_seq_len"};
+    const std::unordered_map<std::string, std::string> present_to_past{
+        {"present_keys_0/sink_port_0", "past_keys_0"},
+        {"present_values_0/sink_port_0", "past_values_0"},
+    };
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        auto writer = ov::npuw::orc::Stream::writer(buffer);
+        auto mutable_name = total_seq_len_param_name;
+        auto mutable_map = present_to_past;
+        writer & mutable_name;
+        writer & mutable_map;
+    }
+
+    std::optional<std::string> read_name;
+    std::unordered_map<std::string, std::string> read_map;
+    {
+        auto reader = ov::npuw::orc::Stream::reader(buffer);
+        reader & read_name;
+        reader & read_map;
+    }
+
+    EXPECT_EQ(read_name, total_seq_len_param_name);
+    EXPECT_EQ(read_map, present_to_past);
+}
+
 // Guards the string-based shape/type round trip for a *bounded* dynamic dimension
 // (e.g. "1..8192") and a non-f32 element type, both common for real attention-mask/
 // KV-cache ports.
