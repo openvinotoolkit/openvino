@@ -1301,4 +1301,102 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputIdsRankOneEvenWhenT
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
 
+// infer_prefill() copies the top-level 'encoder_hidden_states' tensor's full byte size into the
+// compiled prefill port with no destination-capacity check - both ports are independently
+// restored, so a smaller restored child port still passes import and then overflows on the
+// first real inference.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperEncoderHiddenStatesSmallerThanTopLevel) {
+    auto top_encoder_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    top_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_encoder_hidden_states)},
+                                    ov::ParameterVector{top_encoder_hidden_states});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto child_encoder_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 100, 512});
+    child_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_encoder_hidden_states)},
+                                    ov::ParameterVector{child_encoder_hidden_states});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control: a child port at least as large as the top-level model's must be accepted.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperEncoderHiddenStatesAtLeastTopLevelSize) {
+    auto top_encoder_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    top_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_encoder_hidden_states)},
+                                    ov::ParameterVector{top_encoder_hidden_states});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto child_encoder_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    child_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_encoder_hidden_states)},
+                                    ov::ParameterVector{child_encoder_hidden_states});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// infer_generate() writes cache_position->data<int64_t>()[0] unconditionally on the only
+// reachable Whisper generate variant - ReshapeToStatic always sizes this port to exactly {1}
+// (see reshape_to_static.cpp), but it is restored independently and a zero-length restored port
+// writes past its allocation.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperCachePositionWithZeroLengthShape) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
+    ASSERT_GE(variant_count, 1u);
+
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{0});
+    cache_position->output(0).set_names({"cache_position"});
+    auto tiny_generate_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(cache_position)},
+                                    ov::ParameterVector{cache_position});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        variant_count - 1,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control: the real compile-path shape {1} must be accepted.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperCachePositionShapedOne) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
+    ASSERT_GE(variant_count, 1u);
+
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    cache_position->output(0).set_names({"cache_position"});
+    auto tiny_generate_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(cache_position)},
+                                    ov::ParameterVector{cache_position});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        variant_count - 1,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
 }  // namespace

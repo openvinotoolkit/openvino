@@ -2148,6 +2148,44 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                         layer_names::attention_mask,
                         m_kvcache_desc.max_prompt_size,
                         require_exact_extent);
+
+        if (m_is_whisper) {
+            // infer_prefill() copies the top-level 'encoder_hidden_states' tensor's full byte
+            // size into this compiled port with no destination-capacity check (see
+            // whisper/whisper_infer_request.cpp) - both ports are independently restored, so a
+            // child smaller than what the top-level model declares (and a real caller may
+            // therefore supply) writes past its allocation.
+            auto encoder_hidden_states_child =
+                ov::npuw::util::find_port_by_name(prefill_inputs, "encoder_hidden_states");
+            if (encoder_hidden_states_child.has_value()) {
+                auto encoder_hidden_states_top = ov::npuw::util::find_port_by_name(inputs(), "encoder_hidden_states");
+                OPENVINO_ASSERT(encoder_hidden_states_top.has_value(),
+                                "NPUW blob: Whisper model is missing a top-level 'encoder_hidden_states' input.");
+                OPENVINO_ASSERT(
+                    encoder_hidden_states_child->get_element_type() == encoder_hidden_states_top->get_element_type(),
+                    "NPUW blob: input 'encoder_hidden_states' element type (",
+                    encoder_hidden_states_child->get_element_type(),
+                    ") disagrees with the top-level model's (",
+                    encoder_hidden_states_top->get_element_type(),
+                    ").");
+                const auto& child_shape = encoder_hidden_states_child->get_partial_shape();
+                const auto& top_shape = encoder_hidden_states_top->get_partial_shape();
+                OPENVINO_ASSERT(child_shape.is_static(),
+                                "NPUW blob: input 'encoder_hidden_states' does not have a static shape.");
+                OPENVINO_ASSERT(top_shape.is_static(),
+                                "NPUW blob: top-level input 'encoder_hidden_states' does not have a static shape.");
+                const auto child_bytes =
+                    ov::shape_size(child_shape.to_shape()) * encoder_hidden_states_child->get_element_type().size();
+                const auto top_bytes =
+                    ov::shape_size(top_shape.to_shape()) * encoder_hidden_states_top->get_element_type().size();
+                OPENVINO_ASSERT(child_bytes >= top_bytes,
+                                "NPUW blob: input 'encoder_hidden_states' capacity (",
+                                child_bytes,
+                                " bytes) is smaller than the top-level model's (",
+                                top_bytes,
+                                " bytes).");
+            }
+        }
     }
 
     for (size_t i = 0; i < m_generate_compiled_variants.size(); ++i) {
@@ -2182,6 +2220,20 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         if (m_is_whisper && i + 1 == m_generate_compiled_variants.size()) {
             attention_mask_required =
                 std::max<uint64_t>(attention_mask_required, static_cast<uint64_t>(m_kvcache_desc.total_size) + 1);
+
+            // infer_generate() writes cache_position->data<int64_t>()[0] unconditionally on
+            // this (the only reachable) variant - ReshapeToStatic always sizes this port to
+            // exactly {1} (see reshape_to_static.cpp), but it is restored independently and
+            // never checked above; a zero-length restored port would write past its allocation.
+            auto cache_position = ov::npuw::util::find_port_by_name(gen_inputs, "cache_position");
+            if (cache_position.has_value()) {
+                const auto& cache_position_shape = cache_position->get_partial_shape();
+                OPENVINO_ASSERT(cache_position_shape.is_static() && cache_position_shape.rank().get_length() == 1 &&
+                                    cache_position_shape[0].get_length() == 1,
+                                "NPUW blob: input 'cache_position' shape (",
+                                cache_position_shape,
+                                ") must be {1}.");
+            }
         }
         validate_extent(gen_inputs, layer_names::attention_mask, attention_mask_required, require_exact_extent);
     }
