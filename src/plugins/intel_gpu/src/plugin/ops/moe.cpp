@@ -42,12 +42,9 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     const auto& config = op->get_config();
     const auto& model = p.get_model();
     const size_t otd_ratio = p.get_config().get_offload_ratio();
-    // ratio=0  → all resident, no offload
-    // ratio=100 → retain the slots needed for one token's top-k experts
-    // otherwise → GPU-resident slots = num_expert * (100 - ratio) / 100
-    if (otd_ratio == 100) {
-        lru_expert_num = std::min<size_t>(config.num_expert, config.top_k);
-    } else if (otd_ratio > 0) {
+    // ratio=0: all resident, no offload
+    // ratio in (0, 100]: GPU-resident slots = max(1, num_expert * (100 - ratio) / 100)
+    if (otd_ratio > 0 && otd_ratio <= 100) {
         lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
     } else {
         lru_expert_num = 0;
