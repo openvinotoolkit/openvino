@@ -698,7 +698,7 @@ public:
 
 // A forced impl type (unit tests) skips validate() and takes the first OCL manager,
 // so FCs this impl rejects are handed to the next OCL FC manager.
-const ImplementationManager& stock_ocl_manager(const ImplementationManager& self, shape_types shape_type) {
+static const ImplementationManager& stock_ocl_manager(const ImplementationManager& self, shape_types shape_type) {
     for (const auto& m : ov::intel_gpu::Registry<fully_connected>::get_implementations()) {
         if (m->get_impl_type() == impl_types::ocl && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type)
             return *m;
