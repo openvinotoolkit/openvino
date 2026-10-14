@@ -4,8 +4,8 @@
 
 // Q2 prefill, systolic variant - shared by PagedQSAIndexer / QSAIndexer.
 //
-// Ported from the proven qsa_score_tile_dpas.cm: same maths as qsa_indexer_score.cm (which
-// stays the scalar reference/fallback), but the (query x block) score matrix is produced
+// Ported from the proven qsa_score_tile_dpas.cm: same maths as qsa_indexer_score_topk_fused.cm (which
+// stays the non-dpas fallback), but the (query x block) score matrix is produced
 // by cm_dpas instead of per-lane dot products. This kernel only SCORES; selection is left
 // to qsa_indexer_topk.cm, which both this kernel and the scalar one feed identically.
 //

@@ -1,0 +1,75 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Q3 decode, split-selected-KV variant (dense, read-only main K/V), pass 2 - merge pass.
+//
+// Dense counterpart of sparse_attention_paged_split_reduce.cm: identical online-softmax
+// merge of QSA_SPLIT_PARTITIONS partial states; writes directly into the op's own
+// `[B, Hq, L, Dv]` output layout (bottom-right causal addressing is already resolved by
+// pass 1, this pass only merges per-row partitions).
+//
+// JIT constants: QSA_HEADS, QSA_V_HEAD_SIZE, QSA_SPLIT_PARTITIONS
+//
+// Dispatch: gws = [QSA_HEADS, B*L, 1], lws = [1, 1, 1]
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_gr_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const float* partial_acc ATTR,  // [B*L, Hq, P, Dv]
+                                        const float* partial_ml ATTR,  // [B*L, Hq, P, 2]
+                                        half* output ATTR,             // [B, Hq, L, Dv]
+                                        uint32_t seq_len,              // L
+                                        uint32_t num_rows) {           // B*L
+    constexpr uint HQ = QSA_HEADS;
+    constexpr uint DV = QSA_V_HEAD_SIZE;
+    constexpr uint P = QSA_SPLIT_PARTITIONS;
+
+    const uint head = cm_global_id(0);
+    const uint row = cm_global_id(1);
+    if (head >= HQ || row >= num_rows) {
+        return;
+    }
+
+    const uint row0 = (row * HQ + head) * P;
+    float m = -1e30f;
+    for (uint p = 0; p < P; p++) {
+        const float l = partial_ml[(row0 + p) * 2 + 1];
+        if (l > 0.0f) {
+            const float mp = partial_ml[(row0 + p) * 2];
+            m = mp > m ? mp : m;
+        }
+    }
+
+    float sum = 0.0f;
+    vector<float, DV> acc = 0.0f;
+    for (uint p = 0; p < P; p++) {
+        const uint r = row0 + p;
+        const float l = partial_ml[r * 2 + 1];
+        if (!(l > 0.0f)) {
+            continue;
+        }
+        vector<float, 1> exponent = (partial_ml[r * 2] - m) * qsa_gr::LOG2E;
+        const float weight = cm_exp(exponent)[0];
+        sum += l * weight;
+#pragma unroll
+        for (uint k = 0; k < DV; k += 16) {
+            vector<float, 16> a = cm_ptr_load<float, 16>(partial_acc, (r * DV + k) * (uint)sizeof(float));
+            acc.select<16, 1>(k) += a * weight;
+        }
+    }
+    const float inv_sum = sum > 0.0f ? 1.0f / sum : 0.0f;
+
+    const uint batch = row / seq_len;
+    const uint l = row - batch * seq_len;
+    vector<half, DV> out;
+#pragma unroll
+    for (uint k = 0; k < DV; k += 16) {
+        vector<float, 16> o = acc.select<16, 1>(k) * inv_sum;
+        out.select<16, 1>(k) = o;
+    }
+    qsa_gr::store_hv<DV>(output, ((batch * HQ + head) * seq_len + l) * DV, out);
+}

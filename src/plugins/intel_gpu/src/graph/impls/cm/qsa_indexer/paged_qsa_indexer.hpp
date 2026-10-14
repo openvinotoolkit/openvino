@@ -23,7 +23,7 @@ namespace ov::intel_gpu::cm {
 struct PagedQSAIndexerInternalBufIdx {
     static constexpr size_t PREPARE_MAP = 0;    ///< i32 [prepare_wg_count, 2] = (seq, qsa_block_id)
     static constexpr size_t INDEXER_Q = 1;      ///< f16 [num_tokens, H_iq, D_idx]
-    static constexpr size_t BLOCK_SCORES = 2;   ///< f32 [num_tokens, max_blocks]
+    static constexpr size_t BLOCK_SCORES = 2;   ///< f32 [rows, max_blocks]; rows bounded by the score budget for decode
     static constexpr size_t SCORE_TILE_MAP = 3; ///< i32 [score_tile_count, 2] = (seq, token_begin); dpas score only
 
     static constexpr size_t COUNT = 4;
@@ -35,6 +35,10 @@ struct PagedQSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t max_blocks = 1;
     size_t prepare_wg_count = 0;
     size_t score_tile_count = 0;
+    size_t num_partitions = 1;  ///< decode-only score_partition block-range split factor
+    size_t chunk_rows = 1;      ///< query rows per bounded BLOCK_SCORES pass (decode)
+    size_t chunk_row_begin = 0; ///< current [begin, end) row window of the chunk being dispatched
+    size_t chunk_row_end = 0;
     size_t index_query_heads = 0;
     size_t index_key_heads = 0;
     std::vector<int32_t> prepare_map;

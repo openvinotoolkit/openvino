@@ -20,7 +20,8 @@
 // JIT constants: QSA_BLOCK_TOPK, QSA_COMPRESS_RATIO, QSA_ADDRESS_MODE, QSA_TOPK_WG
 // (8 or 16, default 16), QSA_TOPK_CACHE_CAPACITY (default 2048)
 //
-// Dispatch: gws = [num_tokens * QSA_TOPK_WG, 1, 1], lws = [QSA_TOPK_WG, 1, 1]
+// Dispatch: gws = [(row_end - row_begin) * QSA_TOPK_WG, 1, 1], lws = [QSA_TOPK_WG, 1, 1].
+// block_scores holds only rows [row_begin, row_end) (bounded-scratch chunking).
 
 #ifndef ATTR
 #define ATTR [[type("svmptr_t")]]
@@ -38,7 +39,7 @@
 static_assert(QSA_TOPK_CACHE_CAPACITY >= 0 && QSA_TOPK_CACHE_CAPACITY <= 2048 && QSA_TOPK_CACHE_CAPACITY % 64 == 0,
               "cache must be 0..2048, multiple of 64");
 
-extern "C" _GENX_MAIN_ void KERNEL_NAME(const float* block_scores ATTR,         // [tokens, max_blocks]
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const float* block_scores ATTR,         // [row_end - row_begin, max_blocks]
                                         const int32_t* past_lens ATTR,          // paged: [num_seqs]; dense: [B]
 #if QSA_ADDRESS_MODE == 0
                                         const int32_t* subsequence_begins ATTR,  // [num_seqs+1]
@@ -51,13 +52,15 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const float* block_scores ATTR,         
 #else
                                         uint32_t seq_len,
 #endif
-                                        uint32_t max_blocks) {
+                                        uint32_t max_blocks,
+                                        uint32_t row_begin,
+                                        uint32_t row_end) {
     constexpr uint K = QSA_BLOCK_TOPK;
     constexpr uint WG = QSA_TOPK_WG;
     static_assert(WG == 8 || WG == 16, "WG8/16 only");
 
-    const uint token = cm_group_id(0);
-    if (token >= num_tokens) {
+    const uint token = cm_group_id(0) + row_begin;
+    if (token >= row_end || token >= num_tokens) {
         return;
     }
     const uint tid = cm_local_id(0);
@@ -92,7 +95,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const float* block_scores ATTR,         
 
     cm_slm_init((WG + 1) * 16);
     auto slm = cm_slm_alloc((WG + 1) * 16);
-    const float* scores = block_scores + token * max_blocks;
+    const float* scores = block_scores + (token - row_begin) * max_blocks;
     vector<uint, 64> lane;
     cmtl::cm_vector_assign(lane.select_all(), 0, 1);
     // 64-aligned consecutive ownership, possibly empty workers.

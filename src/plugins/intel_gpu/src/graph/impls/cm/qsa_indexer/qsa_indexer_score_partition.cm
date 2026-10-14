@@ -2,21 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Q2 score - shared by PagedQSAIndexer / QSAIndexer.
+// Q2 score, decode-partition variant - shared by PagedQSAIndexer / QSAIndexer.
 //
-// Correctness-first scalar scorer: one thread per query token scans every causally
-// complete block (no partitioning, no cm_dpas). Scoring math matches the proven
-// qsa_score_common.hpp::qsa_block_score exactly: per-index-query-head ReLU dot product,
-// summed over heads, then scaled by 1/sqrt(Di). Only H_ik == 1 is supported (see the
-// capability gate in the host implementation managers).
+// Ported from the proven qsa_score_partition.cm: decode has exactly one query token per
+// sequence, so a per-token scorer dispatches only
+// num_tokens work-items - at batch sizes typical of serving, that is a severe GPU
+// under-occupancy regression relative to prefill. This kernel instead partitions the
+// BLOCK RANGE visible to each token across QSA_SCORE_PARTITIONS independent work-items
+// (partitioning along the index-query-head dimension is NOT valid: ReLU precedes the
+// head reduction in qsa_block_score, so a per-head split would re-read every summary
+// once per head). Scoring math matches qsa_indexer_score_topk_fused.cm exactly (same per-head ReLU
+// dot product, scaled by 1/sqrt(Di)); only the block range iterated differs.
 //
 // QSA_ADDRESS_MODE selects the summary-cache address helper only (paged page-table
 // gather vs. dense direct batch/stride addressing); the scoring math is identical.
 //
 // JIT constants: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_SCALE, QSA_COMPRESS_RATIO,
-// QSA_ADDRESS_MODE, and (paged only) QSA_PAGE_SIZE.
+// QSA_ADDRESS_MODE, QSA_BLOCK_TOPK, QSA_SCORE_PARTITION_BLOCKS, and (paged only)
+// QSA_PAGE_SIZE
 //
-// Dispatch: gws = [num_tokens, 1, 1], lws = [1, 1, 1]
+// Dispatch: gws = [row_end - row_begin, 1, num_partitions], lws = [1, 1, 1].
+// block_scores holds only rows [row_begin, row_end) (bounded-scratch chunking).
 
 #ifndef ATTR
 #define ATTR [[type("svmptr_t")]]
@@ -32,7 +38,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
                                         const int32_t* block_indices ATTR,       // [used_blocks]
                                         const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
 #endif
-                                        float* block_scores ATTR,                  // [tokens, max_blocks]
+                                        float* block_scores ATTR,                  // [row_end - row_begin, max_blocks]
                                         uint32_t num_tokens,
 #if QSA_ADDRESS_MODE == 0
                                         uint32_t num_seqs,
@@ -40,7 +46,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
                                         uint32_t seq_len,
                                         uint32_t summary_stride,
 #endif
-                                        uint32_t max_blocks) {
+                                        uint32_t max_blocks,
+                                        uint32_t num_partitions,
+                                        uint32_t row_begin,
+                                        uint32_t row_end) {
     constexpr uint HIQ = QSA_IDX_QUERY_HEADS;
     constexpr uint DI = QSA_IDX_HEAD_DIM;
 #if QSA_ADDRESS_MODE == 0
@@ -49,8 +58,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
     constexpr uint SUMMARIES_PER_PAGE = PAGE / R;
 #endif
 
-    const uint token_idx = cm_global_id(0);
-    if (token_idx >= num_tokens) {
+    const uint token_idx = cm_global_id(0) + row_begin;
+    const uint partition = cm_global_id(2);
+    if (token_idx >= row_end || token_idx >= num_tokens || partition >= num_partitions) {
         return;
     }
 
@@ -63,15 +73,32 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
 #endif
 
     const uint n_complete = qsa_ops::num_complete_blocks(abs_pos);
-    const uint row = token_idx * max_blocks;
+#if QSA_DENSE_SCORE_BYPASS
+    // Explicit pipeline opt-in only; the paired finalizer must bypass score reads.
+    if (n_complete <= (uint)QSA_BLOCK_TOPK) {
+        return;
+    }
+#endif
 
+    const uint begin = partition * (uint)QSA_SCORE_PARTITION_BLOCKS;
+    if (begin >= n_complete) {
+        return;
+    }
+    uint end = begin + (uint)QSA_SCORE_PARTITION_BLOCKS;
+    if (end > n_complete) {
+        end = n_complete;
+    }
+
+    const uint row = (token_idx - row_begin) * max_blocks;
+
+    // Query stays in registers for the whole partition scan; only summaries stream.
     matrix<half, HIQ, DI> q;
 #pragma unroll
     for (uint h = 0; h < HIQ; h++) {
         qsa_gr::load_hv<DI>(q.row(h), indexer_q, (token_idx * HIQ + h) * DI);
     }
 
-    for (uint b = 0; b < n_complete; b++) {
+    for (uint b = begin; b < end; b++) {
 #if QSA_ADDRESS_MODE == 0
         const uint page = (uint)block_indices[page_begin + b / SUMMARIES_PER_PAGE];
         const uint src = qsa::summary_offset(page, b % SUMMARIES_PER_PAGE, SUMMARIES_PER_PAGE, DI);

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -68,6 +69,13 @@ JitConstants make_jit_with_topk(const std::shared_ptr<const sparse_pa>& desc, co
     return jit;
 }
 
+// Decode-only split producer/reducer additionally need the partition count.
+JitConstants make_jit_with_split(const std::shared_ptr<const sparse_pa>& desc, const RuntimeParams& params, size_t split_partitions) {
+    auto jit = make_jit_with_topk(desc, params);
+    jit.make("QSA_SPLIT_PARTITIONS", split_partitions);
+    return jit;
+}
+
 void push_u32(KernelData& kd, size_t value) {
     scalar_desc s;
     s.t = scalar_desc::Types::UINT32;
@@ -82,6 +90,30 @@ constexpr auto get_sparse_attention_build_options() {
 constexpr size_t dpas_query_tile = 16;  // dpas N axis == GRF width on Xe2
 constexpr size_t dpas_k_step = 16;      // fp16 K elements per dpas
 constexpr size_t dpas_wide_cols = 32;   // halfs per 2D block row (64-byte hardware cap)
+
+// Decode-only split-selected-KV attention (see qsa.cpp's identical split_partitions /
+// split_decode_min_past): partitions each token's OWN selected-block list across
+// `split_partitions` independent producers instead of relying on a single thread per
+// (head, token) to walk the whole list serially - the gap that leaves the GPU
+// drastically under-occupied for long-history decode (e.g. 2 work-groups instead of
+// hundreds). Only ever used for pure-decode calls (every sequence has q_len == 1) whose
+// shortest past length clears the threshold, matching the old code's GENERATE-stage gate.
+constexpr size_t split_partitions = 16;
+constexpr size_t split_decode_min_past = 2048;
+
+/// Whether every sequence in this call contributes exactly one query token - a static
+/// (shape-only) property, so it can be decided once at impl-construction time, exactly
+/// like the dpas capability gates below.
+bool is_decode_shape(const kernel_impl_params& params) {
+    const auto& q_layout = params.get_input_layout(SparsePAIn::QUERY);
+    const auto& past_lens_layout = params.get_input_layout(SparsePAIn::PAST_LENS);
+    if (q_layout.is_dynamic() || past_lens_layout.is_dynamic()) {
+        return false;
+    }
+    const auto tokens = q_layout.get_shape()[0];
+    const auto seqs = past_lens_layout.get_shape()[0];
+    return seqs > 0 && tokens == seqs;
+}
 
 /// Heads that share one dpas tile. See qsa.cpp's identical dpas_heads_per_tile() for the
 /// full rationale: filling the dpas N axis with HT heads x (16/HT) tokens shrinks the
@@ -424,6 +456,113 @@ protected:
     }
 };
 
+// ===========================================================================
+// Q3 decode, split-selected-KV variant (paged), pass 1 - per-partition partial softmax
+// ===========================================================================
+class SplitPagedGenerator : public KernelGenerator {
+public:
+    SplitPagedGenerator() : KernelGenerator("sparse_attention_paged_split", "_cm") {}
+
+protected:
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        return KernelGenerator::get_build_options(params) + get_sparse_attention_build_options();
+    }
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        jit.add(make_jit_with_split(params.typed_desc<sparse_pa>(), params, split_partitions));
+        jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::QUERY});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::KEY_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::VALUE_CACHE});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::PAST_LENS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SUBSEQUENCE_BEGINS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::BLOCK_INDICES_BEGINS});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_INDICES});
+        args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_COUNT});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ACC});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ML});
+        for (uint32_t i = 0; i < 4; i++) {
+            args.push_back({ArgumentDescriptor::Types::SCALAR, i});
+        }
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
+            if (params.is_dynamic()) {
+                return;
+            }
+            const auto desc = params.typed_desc<sparse_pa>();
+            auto* rtp = rt_of(rt);
+
+            auto& wgs = kd.params.workGroups;
+            wgs.global = {desc->num_heads, std::max<size_t>(1, rtp->num_tokens), split_partitions};
+            wgs.local = {1, 1, 1};
+
+            const auto& q_layout = params.get_input_layout(SparsePAIn::QUERY);
+            kd.params.scalars.clear();
+            push_u32(kd, rtp->num_tokens);
+            push_u32(kd, rtp->num_seqs);
+            push_u32(kd, q_layout.get_linear_offset());
+            push_u32(kd, token_pitch(q_layout));
+        }};
+    }
+};
+
+// ===========================================================================
+// Q3 decode, split-selected-KV variant (paged), pass 2 - merge pass
+// ===========================================================================
+class SplitReducePagedGenerator : public KernelGenerator {
+public:
+    SplitReducePagedGenerator() : KernelGenerator("sparse_attention_paged_split_reduce", "_cm") {}
+
+protected:
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        return KernelGenerator::get_build_options(params) + get_sparse_attention_build_options();
+    }
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        jit.add(make_jit(params.typed_desc<sparse_pa>()));
+        jit.make("QSA_SPLIT_PARTITIONS", split_partitions);
+        jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ACC});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ML});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
+            if (params.is_dynamic()) {
+                return;
+            }
+            const auto desc = params.typed_desc<sparse_pa>();
+            auto* rtp = rt_of(rt);
+
+            auto& wgs = kd.params.workGroups;
+            wgs.global = {desc->num_heads, std::max<size_t>(1, rtp->num_tokens), 1};
+            wgs.local = {1, 1, 1};
+
+            kd.params.scalars.clear();
+            push_u32(kd, rtp->num_tokens);
+        }};
+    }
+};
+
 class SparsePACmImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::SparsePACmImpl)
@@ -432,6 +571,8 @@ public:
     Stage::Ptr attention = make_stage<AttentionPagedGenerator>();
     Stage::Ptr attention_dpas = make_stage<AttentionPagedDpasGenerator>();
     Stage::Ptr attention_gqa_dpas = make_stage<AttentionPagedGqaDpasGenerator>();
+    Stage::Ptr split = make_stage<SplitPagedGenerator>();
+    Stage::Ptr split_reduce = make_stage<SplitReducePagedGenerator>();
 
     SparsePACmImpl() : PrimitiveImplCM(SparsePACMImplementationManager::get_type_info_static()) {
         m_rt_params = std::make_unique<SparsePARuntimeParams>();
@@ -451,6 +592,10 @@ public:
             add_stage(attention_gqa_dpas, params);
         } else if (use_dpas_attention(params)) {
             add_stage(attention_dpas, params);
+        }
+        if (use_split_stages(params)) {
+            add_stage(split, params);
+            add_stage(split_reduce, params);
         }
     }
 
@@ -476,15 +621,32 @@ public:
         return can_use_gqa_dpas_attention(*params.typed_desc<sparse_pa>(), params.get_device_info());
     }
 
+    // Split-selected-KV is only a decode fallback for configs without GQA-DPAS: on BMG
+    // (Qwen3.8 dims) GQA-DPAS decode measured ~2.5x faster than split+reduce at 4K-16K.
+    static bool use_split_stages(const kernel_impl_params& params) {
+        return is_decode_shape(params) && !use_gqa_dpas_attention(params);
+    }
+
+    bool use_split_attention(const kernel_impl_params& params) {
+        return use_split_stages(params) && rt().is_decode && rt().min_past_len >= split_decode_min_past;
+    }
+
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
         const auto tokens = std::max<size_t>(1, params.get_input_layout(SparsePAIn::QUERY).get_shape()[0]);
         const auto seqs = std::max<size_t>(1, params.get_input_layout(SparsePAIn::PAST_LENS).get_shape()[0]);
         // One 16-query tile per sequence-local boundary, upper-bounded (see qsa.cpp).
         const auto tiles = tokens / dpas_query_tile + seqs + 1;
+        const auto desc = params.typed_desc<sparse_pa>();
 
         std::vector<BufferDescriptor> bufs;
         bufs.emplace_back(tiles * 2, ov::element::i32, true, false);   // TILE_MAP (host-filled)
         bufs.emplace_back(tokens * 2, ov::element::i32, true, false);  // TOKEN_MAP (host-filled)
+        // SPLIT_ACC/SPLIT_ML: only ever dispatched for decode-shaped calls, where `tokens`
+        // equals the (small) sequence count, so this is cheap even at the full partition
+        // width regardless of whether split actually fires for this particular call.
+        const auto split_rows = use_split_stages(params) ? tokens : size_t{1};
+        bufs.emplace_back(split_rows * desc->num_heads * split_partitions * desc->v_head_size, ov::element::f32);  // SPLIT_ACC
+        bufs.emplace_back(split_rows * desc->num_heads * split_partitions * 2, ov::element::f32);                  // SPLIT_ML
         return bufs;
     }
 
@@ -499,11 +661,17 @@ public:
         attn_deps.push_back(kv_event);
 
         const auto& params = *instance.get_impl_params();
+        // GQA-DPAS wins for decode too (fills dpas N with the n_rep heads of one token).
         if (use_gqa_dpas_attention(params)) {
             upload_token_map(instance);
             return execute_stage(attn_deps, instance, attention_gqa_dpas);
         }
-        if (use_dpas_attention(params)) {
+        if (use_split_attention(params)) {
+            auto split_event = execute_stage(attn_deps, instance, split);
+            return execute_stage({split_event}, instance, split_reduce);
+        }
+        // Plain dpas needs a multi-token query tile; decode keeps the scalar kernel.
+        if (use_dpas_attention(params) && !rt().is_decode) {
             upload_tile_map(instance);
             return execute_stage(attn_deps, instance, attention_dpas);
         }
@@ -512,6 +680,7 @@ public:
 
     void update_rt_params(const primitive_inst& instance) override {
         update_stages_flags(instance);
+        force_stages_refresh(*this);
         auto* rtp = &rt();
 
         const auto past_lens = read_i32_input(instance, SparsePAIn::PAST_LENS);
@@ -522,6 +691,22 @@ public:
 
         rtp->num_seqs = num_seqs;
         rtp->num_tokens = num_seqs == 0 ? 0 : static_cast<size_t>(subsequence_begins.back());
+
+        // Decode detection mirrors qsa.cpp's any_multi/any_single: true only when every
+        // sequence with a non-empty query contributes exactly one token, and at least one
+        // such sequence exists.
+        bool any_multi = false, any_single = false;
+        size_t min_past_len = std::numeric_limits<size_t>::max();
+        for (size_t s = 0; s < num_seqs; s++) {
+            const auto q_len = static_cast<size_t>(std::max(0, subsequence_begins[s + 1] - subsequence_begins[s]));
+            if (q_len == 0) {
+                continue;
+            }
+            (q_len > 1) ? (any_multi = true) : (any_single = true);
+            min_past_len = std::min(min_past_len, static_cast<size_t>(std::max(0, past_lens[s])));
+        }
+        rtp->is_decode = any_single && !any_multi;
+        rtp->min_past_len = rtp->is_decode ? min_past_len : 0;
 
         const auto& params = *instance.get_impl_params();
         rtp->tile_map.clear();

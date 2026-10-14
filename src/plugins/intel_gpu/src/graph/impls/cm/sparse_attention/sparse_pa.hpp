@@ -20,14 +20,18 @@ namespace ov::intel_gpu::cm {
 struct SparsePAInternalBufIdx {
     static constexpr size_t TILE_MAP = 0;   ///< i32 [tile_count, 2] = (seq, token_begin); plain dpas attention only
     static constexpr size_t TOKEN_MAP = 1;  ///< i32 [num_tokens, 2] = (seq, token); GQA dpas attention only
+    static constexpr size_t SPLIT_ACC = 2;  ///< f32 [num_tokens, Hq, split_partitions, Dv]; decode split attention only
+    static constexpr size_t SPLIT_ML = 3;   ///< f32 [num_tokens, Hq, split_partitions, 2]; decode split attention only
 
-    static constexpr size_t COUNT = 2;
+    static constexpr size_t COUNT = 4;
 };
 
 struct SparsePARuntimeParams : public ImplRuntimeParams {
     size_t num_tokens = 0;
     size_t num_seqs = 0;
     size_t tile_count = 0;
+    bool is_decode = false;        ///< every sequence contributes exactly one query token
+    size_t min_past_len = 0;       ///< min past_lens[s] across sequences with q_len > 0; valid only if is_decode
     std::vector<int32_t> tile_map;
     std::vector<int32_t> token_map;
 };

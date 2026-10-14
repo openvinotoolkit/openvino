@@ -522,9 +522,9 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
     const auto np = I(in.num_pages);
     topology topo;
     topo.add(data("block_indices", make_i32(engine, {np}, in.block_indices)));
-    topo.add(data("block_indices_begins", make_i32(engine, {2}, in.block_indices_begins)));
-    topo.add(data("subsequence_begins", make_i32(engine, {2}, in.subsequence_begins)));
-    topo.add(data("past_lens", make_i32(engine, {1}, in.past_lens)));
+    topo.add(data("block_indices_begins", make_i32(engine, {I(in.block_indices_begins.size())}, in.block_indices_begins)));
+    topo.add(data("subsequence_begins", make_i32(engine, {I(in.subsequence_begins.size())}, in.subsequence_begins)));
+    topo.add(data("past_lens", make_i32(engine, {I(in.past_lens.size())}, in.past_lens)));
 
     if (stage != Stage::AttentionOnly) {
         ov::intel_gpu::op::PagedQSAIndexer::Config cfg;
@@ -582,7 +582,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
         topo.add(input_layout("value", layout{{q, I(d.Hkv * d.Dv)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("key_cache", layout{{np, I(d.Hkv), I(d.page_size), I(d.Dh)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("value_cache", layout{{np, I(d.Hkv), I(d.page_size), I(d.Dv)}, data_types::f16, format::bfyx}));
-        topo.add(data("qb_start", make_i32(engine, {2}, in.qb_start)));
+        topo.add(data("qb_start", make_i32(engine, {I(in.qb_start.size())}, in.qb_start)));
         input_info sel("indexer", 0), count("indexer", 1);
         if (stage == Stage::AttentionOnly) {
             topo.add(data("sel", make_i32(engine, {q, 1, I(d.block_topk)}, in.plan.sel)));
@@ -632,6 +632,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
 
 struct dense_inputs {
     split_dims d;
+    size_t batch = 1;  // every batch row shares past_len/q_len (SparseSDPA has one history length)
     size_t past_len = 0;
     size_t q_len = 0;
     size_t s_cap = 0;
@@ -730,6 +731,7 @@ dense_inputs dense_inputs_synthetic(const split_dims& dims, size_t past_len, siz
 
 std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs& in, Stage stage) {
     const auto& d = in.d;
+    const auto B = I(in.batch);
     const auto q = I(in.q_len);
     const auto total = I(in.past_len + in.q_len);
     topology topo;
@@ -744,16 +746,16 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
         cfg.eps = d.eps;
         cfg.scale = 1.0f / std::sqrt(static_cast<float>(d.Di));
 
-        topo.add(input_layout("q_idx", layout{{1, q, I(d.Hiq), I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("k_idx", layout{{1, q, 1, I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("position_ids", layout{{1, q}, data_types::i32, format::bfyx}));
+        topo.add(input_layout("q_idx", layout{{B, q, I(d.Hiq), I(d.Di)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("k_idx", layout{{B, q, 1, I(d.Di)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("position_ids", layout{{B, q}, data_types::i32, format::bfyx}));
         topo.add(data("rotary", make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary)));
-        topo.add(input_layout("summary_cache", layout{{1, 1, I(in.summary_cap), I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("raw_k_cache", layout{{1, 1, I(in.s_cap), I(d.Di)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("summary_cache", layout{{B, 1, I(in.summary_cap), I(d.Di)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("raw_k_cache", layout{{B, 1, I(in.s_cap), I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(data("q_norm", make_f16(engine, {I(d.Di)}, in.q_norm)));
         topo.add(data("k_norm", make_f16(engine, {I(d.Di)}, in.k_norm)));
-        topo.add(data("past_lens", make_i32(engine, {1}, in.past_lens)));
-        topo.add(input_layout("position_cache", layout{{1, I(in.summary_cap)}, data_types::i32, format::bfyx}));
+        topo.add(data("past_lens", make_i32(engine, {B}, in.past_lens)));
+        topo.add(input_layout("position_cache", layout{{B, I(in.summary_cap)}, data_types::i32, format::bfyx}));
         static_assert(DenseIdxIn::COUNT == 10, "keep the test input order in sync with QSAIndexer::InputIdx");
         topo.add(qsa_indexer("indexer",
                              {input_info("q_idx"),
@@ -780,9 +782,9 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
         cfg.q_block_size = 1;
         cfg.causal = true;
 
-        topo.add(input_layout("query", layout{{1, I(d.Hq), q, I(d.Dh)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("key", layout{{1, I(d.Hkv), total, I(d.Dh)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("value", layout{{1, I(d.Hkv), total, I(d.Dv)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("query", layout{{B, I(d.Hq), q, I(d.Dh)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("key", layout{{B, I(d.Hkv), total, I(d.Dh)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("value", layout{{B, I(d.Hkv), total, I(d.Dv)}, data_types::f16, format::bfyx}));
         input_info sel("indexer", 0), count("indexer", 1);
         if (stage == Stage::AttentionOnly) {
             topo.add(data("sel", make_i32(engine, {1, 1, q, I(d.block_topk)}, in.plan.sel)));
@@ -796,17 +798,17 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
 
     auto net = std::make_unique<network>(engine, topo, make_config(engine));
     if (stage != Stage::AttentionOnly) {
-        net->set_input_data("q_idx", make_f16(engine, {1, q, I(d.Hiq), I(d.Di)}, in.q_idx));
-        net->set_input_data("k_idx", make_f16(engine, {1, q, 1, I(d.Di)}, in.k_idx));
-        net->set_input_data("position_ids", make_i32(engine, {1, q}, in.position_ids));
-        net->set_input_data("summary_cache", make_f16(engine, {1, 1, I(in.summary_cap), I(d.Di)}, in.summary_cache));
-        net->set_input_data("raw_k_cache", make_f16(engine, {1, 1, I(in.s_cap), I(d.Di)}, in.raw_k_cache));
-        net->set_input_data("position_cache", make_i32(engine, {1, I(in.summary_cap)}, in.position_cache));
+        net->set_input_data("q_idx", make_f16(engine, {B, q, I(d.Hiq), I(d.Di)}, in.q_idx));
+        net->set_input_data("k_idx", make_f16(engine, {B, q, 1, I(d.Di)}, in.k_idx));
+        net->set_input_data("position_ids", make_i32(engine, {B, q}, in.position_ids));
+        net->set_input_data("summary_cache", make_f16(engine, {B, 1, I(in.summary_cap), I(d.Di)}, in.summary_cache));
+        net->set_input_data("raw_k_cache", make_f16(engine, {B, 1, I(in.s_cap), I(d.Di)}, in.raw_k_cache));
+        net->set_input_data("position_cache", make_i32(engine, {B, I(in.summary_cap)}, in.position_cache));
     }
     if (stage != Stage::IndexerOnly) {
-        net->set_input_data("query", make_f16(engine, {1, I(d.Hq), q, I(d.Dh)}, in.query_bhld));
-        net->set_input_data("key", make_f16(engine, {1, I(d.Hkv), total, I(d.Dh)}, in.key_bhsd));
-        net->set_input_data("value", make_f16(engine, {1, I(d.Hkv), total, I(d.Dv)}, in.value_bhsd));
+        net->set_input_data("query", make_f16(engine, {B, I(d.Hq), q, I(d.Dh)}, in.query_bhld));
+        net->set_input_data("key", make_f16(engine, {B, I(d.Hkv), total, I(d.Dh)}, in.key_bhsd));
+        net->set_input_data("value", make_f16(engine, {B, I(d.Hkv), total, I(d.Dv)}, in.value_bhsd));
     }
     return net;
 }
@@ -949,6 +951,181 @@ void run_pair_test(bool paged, const split_dims& d, size_t past_len, size_t q_le
     tests::random_generator rg(GET_SUITE_NAME);
     const auto ref = make_split_reference(rg, d, past_len, q_len, kind, scale);
     validate_and_run_pair(paged, engine, ref, atol, rtol);
+}
+
+template <typename T>
+void append(std::vector<T>& dst, const std::vector<T>& src) {
+    dst.insert(dst.end(), src.begin(), src.end());
+}
+
+/// Independent references sharing the norm gains the network takes as single constants.
+std::vector<split_reference> make_batch_references(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& seqs) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    std::vector<split_reference> refs;
+    for (const auto& [past_len, q_len] : seqs) {
+        refs.push_back(make_split_reference(rg, d, past_len, q_len, Positions::Sequential));
+        refs.back().q_norm = refs.front().q_norm;
+        refs.back().k_norm = refs.front().k_norm;
+    }
+    return refs;
+}
+
+/// One paged batch: each sequence gets its own contiguous run of pages.
+paged_inputs pack_paged_inputs(const std::vector<split_reference>& refs) {
+    paged_inputs in;
+    in.block_indices_begins = {0};
+    in.subsequence_begins = {0};
+    for (size_t i = 0; i < refs.size(); i++) {
+        auto one = paged_inputs_from_reference(refs[i]);
+        if (i == 0 || one.d.max_positions > in.d.max_positions) {
+            in.d = one.d;  // sequential positions: a longer rotary table is a superset
+            in.rotary = one.rotary;
+        }
+        in.spp = one.spp;
+        for (int32_t page : one.block_indices) {
+            in.block_indices.push_back(page + static_cast<int32_t>(in.num_pages));
+        }
+        in.num_pages += one.num_pages;
+        in.block_indices_begins.push_back(static_cast<int32_t>(in.num_pages));
+        in.q_len += one.q_len;
+        in.subsequence_begins.push_back(static_cast<int32_t>(in.q_len));
+        in.past_lens.push_back(one.past_lens[0]);
+        in.q_norm = one.q_norm;
+        in.k_norm = one.k_norm;
+        for (auto [dst, src] : {std::pair{&in.q_idx, &one.q_idx}, {&in.k_idx, &one.k_idx}, {&in.query, &one.query}, {&in.key, &one.key},
+                                {&in.value, &one.value}, {&in.key_cache, &one.key_cache}, {&in.value_cache, &one.value_cache},
+                                {&in.raw_k_cache, &one.raw_k_cache}, {&in.summary_cache, &one.summary_cache}}) {
+            append(*dst, *src);
+        }
+        append(in.position_ids, one.position_ids);
+        append(in.position_cache, one.position_cache);
+    }
+    in.qb_start = in.subsequence_begins;
+    return in;
+}
+
+void validate_slices(const std::vector<split_reference>& refs, const pair_outputs& all, float atol, float rtol) {
+    const auto& d = refs.front().d;
+    size_t t0 = 0;
+    for (const auto& ref : refs) {
+        pair_outputs one;
+        one.plan.sel.assign(all.plan.sel.begin() + t0 * d.block_topk, all.plan.sel.begin() + (t0 + ref.q_len) * d.block_topk);
+        one.plan.count.assign(all.plan.count.begin() + t0, all.plan.count.begin() + t0 + ref.q_len);
+        one.attn.assign(all.attn.begin() + t0 * d.Hq * d.Dv, all.attn.begin() + (t0 + ref.q_len) * d.Hq * d.Dv);
+        SCOPED_TRACE("sequence past_len=" + std::to_string(ref.past_len) + " q_len=" + std::to_string(ref.q_len));
+        validate_pair(ref, one, atol, rtol);
+        t0 += ref.q_len;
+    }
+}
+
+/// Multi-sequence paged batch: all decode (q_len == 1 each) or mixed decode/prefill.
+void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& seqs, float rtol, float atol = 2e-3f) {
+    if (!cm_qsa_ops_available()) {
+        GTEST_SKIP() << "CM is not supported on this device";
+    }
+    auto& engine = get_test_engine();
+    const auto refs = make_batch_references(d, seqs);
+    auto net = build_paged_network(engine, pack_paged_inputs(refs), Stage::Pair);
+    auto outputs = net->execute();
+    pair_outputs all;
+    all.attn = read_f16(outputs.at("attn").get_memory());
+    auto indexer = net->get_primitive("indexer");
+    all.plan.sel = read_i32(indexer->output_memory_ptr(0));
+    all.plan.count = read_i32(indexer->output_memory_ptr(1));
+    validate_slices(refs, all, atol, rtol);
+}
+
+/// Dense batch of `batch` rows sharing one (past_len, q_len), as SparseSDPA requires.
+void run_dense_batch_test(const split_dims& d, size_t batch, size_t past_len, size_t q_len, float rtol, float atol = 2e-3f) {
+    if (!cm_qsa_ops_available()) {
+        GTEST_SKIP() << "CM is not supported on this device";
+    }
+    auto& engine = get_test_engine();
+    const auto refs = make_batch_references(d, std::vector<std::pair<size_t, size_t>>(batch, {past_len, q_len}));
+    auto in = dense_inputs_from_reference(refs.front());
+    in.batch = batch;
+    for (size_t b = 1; b < batch; b++) {
+        const auto one = dense_inputs_from_reference(refs[b]);
+        for (auto [dst, src] : {std::pair{&in.q_idx, &one.q_idx}, {&in.k_idx, &one.k_idx}, {&in.raw_k_cache, &one.raw_k_cache},
+                                {&in.summary_cache, &one.summary_cache}, {&in.query_bhld, &one.query_bhld}, {&in.key_bhsd, &one.key_bhsd},
+                                {&in.value_bhsd, &one.value_bhsd}}) {
+            append(*dst, *src);
+        }
+        append(in.position_ids, one.position_ids);
+        append(in.position_cache, one.position_cache);
+        append(in.past_lens, one.past_lens);
+    }
+    auto net = build_dense_network(engine, in, Stage::Pair);
+    auto outputs = net->execute();
+    const auto attn_bhld = read_f16(outputs.at("attn").get_memory());
+    pair_outputs all;
+    all.attn.resize(attn_bhld.size());
+    for (size_t b = 0; b < batch; b++) {
+        for (size_t t = 0; t < q_len; t++) {
+            for (size_t h = 0; h < d.Hq; h++) {
+                for (size_t j = 0; j < d.Dv; j++) {
+                    all.attn[((b * q_len + t) * d.Hq + h) * d.Dv + j] = attn_bhld[((b * d.Hq + h) * q_len + t) * d.Dv + j];
+                }
+            }
+        }
+    }
+    auto indexer = net->get_primitive("indexer");
+    all.plan.sel = read_i32(indexer->output_memory_ptr(0));
+    all.plan.count = read_i32(indexer->output_memory_ptr(1));
+    validate_slices(refs, all, atol, rtol);
+}
+
+/// Forces the decode Q2 chunk loop to run once per sequence (tiny BLOCK_SCORES budget).
+struct scoped_score_budget {
+    explicit scoped_score_budget(const char* bytes) {
+        setenv("QSA_TEST_SCORE_BUDGET_BYTES", bytes, 1);
+    }
+    ~scoped_score_budget() {
+        unsetenv("QSA_TEST_SCORE_BUDGET_BYTES");
+    }
+};
+
+// Decode batches: Q2 score_partition + top-k, Q3 GQA-DPAS (qwen38 dims).
+TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_matches_reference) {
+    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_matches_reference) {
+    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, 3e-3f);
+}
+
+// Same, with BLOCK_SCORES capped to one row so every sequence is its own chunk.
+TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_chunked_scores_match_reference) {
+    scoped_score_budget budget("1");
+    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_chunked_scores_match_reference) {
+    scoped_score_budget budget("1");
+    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, 3e-3f);
+}
+
+// Mixed batches (decode + prefill sequences in one call): dpas Q2 with qwen38 dims, the
+// fused non-dpas Q2 with the toy dims (Di = 16 fails the dpas score gate).
+TEST(qsa_ops_gpu_test, qwen38_paged_batch_mixed_matches_reference) {
+    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {1990, 64}, {2500, 1}}, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, paged_batch_mixed_fused_score_topk_matches_reference) {
+    run_paged_batch_test(split_dims{}, {{20, 1}, {22, 42}, {30, 1}}, 2e-2f);
+}
+
+TEST(qsa_ops_gpu_test, paged_batch_decode_toy_dims_matches_reference) {
+    run_paged_batch_test(split_dims{}, {{20, 1}, {37, 1}, {63, 1}}, 2e-2f);
+}
+
+// Toy dims have no GQA-DPAS, so long decode takes the split + reduce fallback.
+TEST(qsa_ops_gpu_test, paged_batch_long_decode_split_fallback_matches_reference) {
+    run_paged_batch_test(split_dims{}, {{2100, 1}, {2500, 1}}, 2e-2f);
+}
+
+TEST(qsa_ops_gpu_test, dense_batch_long_decode_split_fallback_matches_reference) {
+    run_dense_batch_test(split_dims{}, 2, 2100, 1, 2e-2f);
 }
 
 TEST(qsa_ops_gpu_test, paged_pair_matches_reference) {
@@ -1432,6 +1609,7 @@ struct perf_case {
     bool paged;
     size_t past_len;
     size_t q_len;
+    bool no_dpas_score = false;  // Di=16 fails the Q2 dpas gate, forcing the non-dpas Q2 path
 };
 
 struct perf_timing {
@@ -1493,7 +1671,11 @@ TEST_P(qsa_ops_perf, qwen38) {
         GTEST_SKIP() << "CM is not supported on this device";
     }
     const auto c = GetParam();
-    const auto d = qwen38_dims();
+    auto d = qwen38_dims();
+    if (c.no_dpas_score) {
+        d.Di = 16;
+        d.rotary = 8;
+    }
     auto& engine = get_test_engine();
     constexpr int warmup = 3;
     constexpr int iterations = 20;
@@ -1522,20 +1704,30 @@ TEST_P(qsa_ops_perf, qwen38) {
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_qsa_ops_perf,
                          qsa_ops_perf,
-                         ::testing::Values(perf_case{true, 4095, 1},
+                         ::testing::Values(perf_case{true, 511, 1},
+                                           perf_case{true, 1023, 1},
+                                           perf_case{true, 2047, 1},
+                                           perf_case{true, 4095, 1},
                                            perf_case{true, 16383, 1},
                                            perf_case{true, 32767, 1},
                                            perf_case{true, 3072, 1024},
                                            perf_case{true, 0, 4096},
+                                           perf_case{true, 3072, 1024, true},
+                                           perf_case{true, 0, 4096, true},
+                                           perf_case{false, 511, 1},
+                                           perf_case{false, 1023, 1},
+                                           perf_case{false, 2047, 1},
                                            perf_case{false, 4095, 1},
                                            perf_case{false, 16383, 1},
                                            perf_case{false, 32767, 1},
                                            perf_case{false, 3072, 1024},
-                                           perf_case{false, 0, 4096}),
+                                           perf_case{false, 0, 4096},
+                                           perf_case{false, 3072, 1024, true},
+                                           perf_case{false, 0, 4096, true}),
                          [](const ::testing::TestParamInfo<perf_case>& info) {
                              const auto& c = info.param;
                              return std::string(c.paged ? "paged" : "dense") + "_ctx" + std::to_string(c.past_len + c.q_len) + "_q" +
-                                    std::to_string(c.q_len);
+                                    std::to_string(c.q_len) + (c.no_dpas_score ? "_nodpasq2" : "");
                          });
 
 }  // namespace
