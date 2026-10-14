@@ -479,6 +479,8 @@ std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens, bool wei
     x->output(0).set_names({"hidden"});
     router->output(0).set_names({"logits"});
     scores->output(0).set_names({"scores"});
+    auto hidden_state = std::make_shared<ov::op::v0::Tanh>(x);
+    hidden_state->set_friendly_name("upstream_hidden");
     auto topk = std::make_shared<ov::op::v11::TopK>(router,
                                                     ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {k}),
                                                     1,
@@ -519,7 +521,7 @@ std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens, bool wei
                 false);
         };
         auto tile = std::make_shared<ov::op::v0::Tile>(
-            x,
+            hidden_state,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {experts, size_t{1}}));
         auto expanded = std::make_shared<ov::op::v1::Reshape>(
             tile,
@@ -555,7 +557,7 @@ std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens, bool wei
 
 class MoEWeightChainDispatchTest : public SubgraphBehaviorInferTest, public ::testing::WithParamInterface<bool> {};
 
-TEST_P(MoEWeightChainDispatchTest, MoESparseDispatchPreservesScoresGlobalInputsAndCachedRequests) {
+TEST_P(MoEWeightChainDispatchTest, MoESparseDispatchPreservesScoresUpstreamInputsAndCachedRequests) {
     for (const size_t tokens : {size_t{1}, size_t{7}}) {
         SCOPED_TRACE(tokens);
         auto model = build_moe_dispatch_test_model(tokens, GetParam());
@@ -585,6 +587,10 @@ TEST_P(MoEWeightChainDispatchTest, MoESparseDispatchPreservesScoresGlobalInputsA
                 ++expert_calls;
                 EXPECT_EQ(state->num_active_experts, 2u);
                 EXPECT_EQ(state->input_token_count, tokens);
+                ASSERT_TRUE(state->_expert_input.original.has_value());
+                const auto call_idx = static_cast<size_t>(&desc - compiled->m_compiled_submodels.data());
+                EXPECT_TRUE(compiled->m_submodels_input_to_prev_output.count(
+                    {call_idx, state->_expert_input.original.value()}));
                 for (const auto& [chunk, submodel] : state->_compiled_models)
                     expert_models.insert(submodel._ptr.get());
             }

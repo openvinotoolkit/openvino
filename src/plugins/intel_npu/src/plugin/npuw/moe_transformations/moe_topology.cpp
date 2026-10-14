@@ -251,7 +251,8 @@ std::optional<BatchedMoE> BatchedMoEPattern::extract(ov::pass::pattern::Matcher&
             return std::nullopt;
         indices = convert->input_value(0);
     }
-    ov::pass::pattern::Matcher selection(m_topk->output(1), "BatchedMoESelection");
+    auto selection_output = m_topk->output(1);
+    ov::pass::pattern::Matcher selection(selection_output, "BatchedMoESelection");
     if (!selection.match(indices))
         return std::nullopt;
     const auto topk = ov::as_type_ptr<ov::op::v11::TopK>(indices.get_node_shared_ptr());

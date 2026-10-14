@@ -839,7 +839,8 @@ TEST_F(MoETransformationTest, GenericPresetPreservesLegacyExpertCoverageForPrefi
                                    "P:Qwen3Router/router,P:Gemma4Expert/expert,P:Gemma4Router/router"}});
             const auto baseline = expert_layers(ov::npuw::online::buildPartitioning(model->clone(), legacy_config));
             ASSERT_FALSE(baseline.empty());
-            const auto combined = expert_layers(ov::npuw::online::buildPartitioning(model, make_moe_isolate_cfg()));
+            auto combined_config = make_moe_isolate_cfg();
+            const auto combined = expert_layers(ov::npuw::online::buildPartitioning(model, combined_config));
             for (const auto& layer : baseline)
                 EXPECT_TRUE(combined.count(layer)) << "Lost legacy expert layer " << layer;
             size_t tagged = 0;

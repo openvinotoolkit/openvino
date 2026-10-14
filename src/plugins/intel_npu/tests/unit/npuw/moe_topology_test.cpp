@@ -726,9 +726,9 @@ TEST_P(GenericMoEHostWeightChainTest, LowersClosureExpressionsAndPreservesSelect
         std::vector<float> feature_scales(width);
         for (size_t i = 0; i < width; ++i)
             feature_scales[i] = static_cast<float>(i + 1) / static_cast<float>(width);
-        weight = std::make_shared<ov::op::v1::Multiply>(
-            weight,
-            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{width}, feature_scales));
+        auto feature_scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{width}, feature_scales);
+        feature_scale->set_friendly_name("shared_feature_scale_" + matmul->get_friendly_name());
+        weight = std::make_shared<ov::op::v1::Multiply>(weight, feature_scale);
         if (grouped)
             weight = std::make_shared<ov::op::v1::Reshape>(
                 weight,
@@ -753,10 +753,11 @@ TEST_P(GenericMoEHostWeightChainTest, LowersClosureExpressionsAndPreservesSelect
     ov::TensorVector inputs{ov::Tensor(ov::element::f32, hidden->get_shape()),
                             ov::Tensor(ov::element::f32, scores->get_shape())};
     // Reproduce the host partition boundary: packed weights, zero points and
-    // scales are closure Parameters; small shared constants remain in the body.
+    // scales, including the lower-rank shared feature scale, become closures.
     for (const auto& node : host->get_ordered_ops()) {
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-        if (!constant || constant->get_shape().size() < 3)
+        if (!constant ||
+            (constant->get_shape().size() < 3 && constant->get_friendly_name().find("shared_feature_scale_") != 0))
             continue;
         auto parameter = std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(), constant->get_shape());
         parameter->set_friendly_name(constant->get_friendly_name());
@@ -775,7 +776,7 @@ TEST_P(GenericMoEHostWeightChainTest, LowersClosureExpressionsAndPreservesSelect
         ASSERT_TRUE(experts->_param_mapping.count(pi)) << host->get_parameters()[pi]->get_friendly_name();
         ASSERT_EQ(experts->_param_mapping.at(pi).size(), k);
         auto shape = host->get_parameters()[pi]->get_shape();
-        if (shape[0] == 4)
+        if (shape.size() >= 3 && shape[0] == 4)
             shape[0] = 1;
         for (const auto index : experts->_param_mapping.at(pi)) {
             const auto& parameter = transformed->get_parameters().at(index);
@@ -795,7 +796,7 @@ TEST_P(GenericMoEHostWeightChainTest, LowersClosureExpressionsAndPreservesSelect
         for (size_t pi = 1; pi < inputs.size(); ++pi) {
             for (size_t slot = 0; slot < k; ++slot) {
                 const auto& source = inputs[pi];
-                auto selected = source.get_shape()[0] == 4
+                auto selected = source.get_shape().size() >= 3 && source.get_shape()[0] == 4
                                     ? ov::npuw::moe::slice_expert_weight(source, selection[slot], 4)
                                     : source;
                 selected_inputs.at(experts->_param_mapping.at(pi)[slot]) = selected;
@@ -852,6 +853,18 @@ TEST(GenericMoETopologyTest, PrefillTokenCountEqualToHiddenSizeDoesNotReshapeHid
     EXPECT_EQ(transformed->get_output_shape(0), (ov::Shape{1, 3, 8}));
     const auto hidden = transformed->get_parameters().at(experts->_expert_input.compiled.value());
     EXPECT_EQ(hidden->get_shape(), (ov::Shape{3, 8}));
+}
+
+TEST(GenericMoETopologyTest, HostRejectsUnsupportedActivationAndRouterParameterLayouts) {
+    auto activation = make_host_expert_model(false, 1);
+    activation->get_parameters()[0]->set_partial_shape(ov::Shape{1, 1, 8});
+    activation->validate_nodes_and_infer_types();
+    EXPECT_FALSE(ov::npuw::function::MoEExperts::from(activation, 2, 3));
+
+    auto router = make_host_expert_model(false, 1);
+    router->get_parameters()[1]->set_partial_shape(ov::Shape{4, 1, 1, 1, 1});
+    router->validate_nodes_and_infer_types();
+    EXPECT_FALSE(ov::npuw::function::MoEExperts::from(router, 2, 3));
 }
 
 TEST(GenericMoETopologyTest, HostPrefillResizesOnlyTokensAcrossAnExpertOutputConvert) {

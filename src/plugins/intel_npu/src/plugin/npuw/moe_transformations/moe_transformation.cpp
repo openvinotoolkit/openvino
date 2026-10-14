@@ -4,6 +4,8 @@
 
 #include "moe_transformation.hpp"
 
+#include <functional>
+
 #include "moe_unroll_patterns.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/ops.hpp"
@@ -40,10 +42,12 @@ static std::optional<size_t> resolve_compiled_idx(const std::shared_ptr<ov::Mode
     return original_idx;
 }
 
-// Helper function to build parameter mapping from RTInfo metadata
-static std::map<size_t, std::vector<size_t>> build_parameter_mapping_from_rtinfo(
+// Build the closure mapping for both unrolled experts and top-one decode.
+static std::map<size_t, std::vector<size_t>> build_parameter_mapping(
     const std::shared_ptr<ov::Model>& original_model,
-    const std::shared_ptr<ov::Model>& transformed_model) {
+    const std::shared_ptr<ov::Model>& transformed_model,
+    const MoEStructureInfo& structure_info,
+    size_t num_active_experts) {
     std::map<size_t, std::vector<size_t>> param_mapping;
     LOG_DEBUG("Building parameter mapping from RTInfo...");
 
@@ -85,12 +89,80 @@ static std::map<size_t, std::vector<size_t>> build_parameter_mapping_from_rtinfo
         }
     }
 
+    if (structure_info.is_expert_batch_mode()) {
+        for (size_t original_idx = 0; original_idx < original_params.size(); ++original_idx) {
+            if (structure_info.expert_input_param_idx == original_idx || param_mapping.count(original_idx) ||
+                (num_active_experts > 1 && structure_info.expert_parameters.count(original_idx)))
+                continue;
+            for (size_t compiled_idx = 0; compiled_idx < transformed_params.size(); ++compiled_idx) {
+                if (transformed_params[compiled_idx]->get_friendly_name() ==
+                    original_params[original_idx]->get_friendly_name()) {
+                    param_mapping[original_idx] = std::vector<size_t>(num_active_experts, compiled_idx);
+                    break;
+                }
+            }
+        }
+    }
+
     LOG_INFO("Parameter mapping built: " << param_mapping.size() << " original parameters unrolled");
     for (const auto& entry : param_mapping) {
         LOG_DEBUG("  Original param[" << entry.first << "] -> " << entry.second.size() << " unrolled params");
     }
 
     return param_mapping;
+}
+
+static std::optional<std::set<const ov::Node*>> find_expert_axis_nodes(
+    const std::shared_ptr<ov::op::v1::Multiply>& output,
+    const std::shared_ptr<ov::op::v0::Tile>& tile,
+    size_t num_experts) {
+    std::map<const ov::Node*, bool> decisions;
+    std::set<const ov::Node*> expert_nodes;
+    std::function<bool(const ov::Output<ov::Node>&, bool)> visit = [&](const ov::Output<ov::Node>& value,
+                                                                       bool expert_axis) {
+        const auto node = value.get_node_shared_ptr();
+        const auto inserted = decisions.emplace(node.get(), expert_axis);
+        if (!inserted.second)
+            return inserted.first->second == expert_axis;
+        const auto shape = value.get_partial_shape();
+        if (!shape.is_static())
+            return false;
+        if (expert_axis) {
+            if (shape.size() == 0 || shape[0] != ov::Dimension(num_experts))
+                return false;
+            expert_nodes.insert(node.get());
+        }
+        if (ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Parameter>(node))
+            return true;
+        if (node == tile)
+            return visit(node->input_value(0), false);
+        const bool reshape = ov::is_type<ov::op::v1::Reshape>(node);
+        for (size_t input_idx = 0; input_idx < (reshape ? 1 : node->get_input_size()); ++input_idx) {
+            const auto input = node->input_value(input_idx);
+            const auto input_shape = input.get_partial_shape();
+            bool input_expert_axis = false;
+            if (expert_axis) {
+                if (!input_shape.is_static())
+                    return false;
+                if (reshape && input.get_node_shared_ptr() == tile) {
+                    input_expert_axis = false;
+                } else if (reshape) {
+                    if (input_shape.size() == 0 || input_shape[0] != ov::Dimension(num_experts))
+                        return false;
+                    input_expert_axis = true;
+                } else {
+                    input_expert_axis = input_shape.rank() == shape.rank() && input_shape.size() != 0 &&
+                                        input_shape[0] == ov::Dimension(num_experts);
+                }
+            }
+            if (!visit(input, input_expert_axis))
+                return false;
+        }
+        return true;
+    };
+    if (!visit(output->output(0), true))
+        return std::nullopt;
+    return expert_nodes;
 }
 
 // Helper: Trace back from a node to find the source Parameter
@@ -139,7 +211,9 @@ static bool find_tile_and_extract_config(const std::shared_ptr<ov::Model>& model
             continue;
 
         auto repeats_data = repeats_const->cast_vector<int64_t>();
-        if (repeats_data.empty() || repeats_data[0] <= 1)
+        const auto input_shape = tile->input_value(0).get_partial_shape();
+        if (repeats_data.size() != 2 || repeats_data[0] <= 1 || repeats_data[1] != 1 || !input_shape.is_static() ||
+            input_shape.rank() != ov::Rank(2))
             continue;
 
         // Found valid Tile node
@@ -240,6 +314,25 @@ std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::
     // Step 2: Detect router_scores parameter from output path
     if (!find_router_scores_from_output(model, info)) {
         return std::nullopt;
+    }
+
+    const auto router_shape = model->get_parameters().at(info.router_scores_idx.value())->get_partial_shape();
+    if (!router_shape.is_static())
+        return std::nullopt;
+    const auto scores = router_shape.to_shape();
+    const bool supported_scores = scores == ov::Shape{info.num_experts, info.input_token_count, 1} ||
+                                  scores == ov::Shape{info.num_experts, 1, info.input_token_count, 1} ||
+                                  scores == ov::Shape{info.num_experts, info.input_token_count, 1, 1};
+    if (!supported_scores)
+        return std::nullopt;
+    const auto expert_nodes =
+        find_expert_axis_nodes(info.router_scores_multiply_node, info.expert_input_tile_node, info.num_experts);
+    if (!expert_nodes)
+        return std::nullopt;
+    const auto& parameters = model->get_parameters();
+    for (size_t param_idx = 0; param_idx < parameters.size(); ++param_idx) {
+        if (expert_nodes->count(parameters[param_idx].get()))
+            info.expert_parameters.insert(param_idx);
     }
 
     // Step 3: Infer processing mode based on input_token_count
@@ -610,7 +703,8 @@ void MoEModelTransformer::ensure_tensor_names(const std::shared_ptr<ov::Model>& 
 
 void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<ov::Model>& model,
                                                           size_t num_experts,
-                                                          size_t num_target_experts) const {
+                                                          size_t num_target_experts,
+                                                          const std::set<const ov::Node*>& expert_axis_nodes) const {
     LOG_DEBUG("Fixing Parameter nodes with num_experts in shape to " << num_target_experts << " experts...");
 
     const auto& all_params = model->get_parameters();
@@ -630,11 +724,10 @@ void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<
             bool needs_fix = false;
             size_t fix_dim = 0;
 
-            // The expert axis is explicitly the leading dimension. A hidden
-            // or quantization-group dimension may coincidentally equal E.
-            needs_fix = !shape.empty() && shape[0] == num_experts;
+            needs_fix = expert_axis_nodes.count(param.get()) != 0;
 
             if (needs_fix) {
+                OPENVINO_ASSERT(!shape.empty() && shape[0] == num_experts, "MoE: inconsistent expert-axis parameter");
                 LOG_DEBUG("  Found Parameter '" << param->get_friendly_name() << "' with shape[" << fix_dim
                                                 << "]=" << num_experts);
 
@@ -652,7 +745,7 @@ void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<
     LOG_DEBUG("Fixing Reshape nodes with num_experts in shape...");
     for (const auto& node : model->get_ordered_ops()) {
         auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node);
-        if (!reshape_node) {
+        if (!reshape_node || !expert_axis_nodes.count(node.get())) {
             continue;
         }
 
@@ -805,6 +898,10 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
         return nullptr;
     }
 
+    const auto expert_axis_nodes = find_expert_axis_nodes(router_scores_multiply_op, expert_input_tile_op, num_experts);
+    if (!expert_axis_nodes)
+        return nullptr;
+
     // Main transformation flow
     auto tile_input = expert_input_tile_op->input_value(0);
     auto tile_output = expert_input_tile_op->output(0);
@@ -825,7 +922,7 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
                                node_before_matmul,
                                expert_input_tile_op->get_friendly_name(),
                                num_target_experts);
-    fix_parameters_with_num_experts(model, num_experts, num_target_experts);
+    fix_parameters_with_num_experts(model, num_experts, num_target_experts, *expert_axis_nodes);
     ensure_tensor_names(model);
 
     model->validate_nodes_and_infer_types();
@@ -918,39 +1015,15 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     // Step 5: Build parameter mapping from any transformed model (all have same mapping)
     // Note: For EXPERT_ITERATIVE mode (single expert), no unrolling happens, so mapping will be empty
     //       For EXPERT_BATCH mode (K experts), unrolling creates the same mapping structure
-    auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_models.begin()->second);
+    auto param_mapping = build_parameter_mapping(model, first_transformed_model, *structure_info, k_value);
 
-    // K=1 decode still uses EXPERT_BATCH dispatch, but needs no graph unroll.
-    // Record the one-to-one closure mapping explicitly rather than treating it
-    // as prefill or requiring metadata from a pass that deliberately did not run.
-    // Shared zero points/scales also need a binding; the batch executor only
-    // loads closures present in this mapping, even when they are not sliced.
-    if (structure_info->is_expert_batch_mode() && k_value == 1) {
-        const auto& original_params = model->get_parameters();
-        const auto& compiled_params = first_transformed_model->get_parameters();
-        for (size_t i = 0; i < original_params.size(); ++i) {
-            if (structure_info->expert_input_param_idx == i)
-                continue;
-            for (size_t j = 0; j < compiled_params.size(); ++j) {
-                if (compiled_params[j]->get_friendly_name() == original_params[i]->get_friendly_name()) {
-                    param_mapping[i] = {j};
-                    break;
-                }
-            }
-        }
-    }
-
-    // Step 6: EXPERT_BATCH guard — every param with shape[0]==num_experts must appear in
+    // Step 6: EXPERT_BATCH guard — every expert-specific parameter must appear in
     // param_mapping with exactly K entries; a missing entry means UnrollMoEMatMul did not
     // recognise the weight chain and inference would produce silently wrong results.
     if (structure_info->is_expert_batch_mode()) {
         const auto& orig_params = model->get_parameters();
-        for (size_t pi = 0; pi < orig_params.size(); ++pi) {
+        for (const size_t pi : structure_info->expert_parameters) {
             const auto& pshape = orig_params[pi]->get_partial_shape();
-            if (!pshape.rank().is_static() || pshape.rank().get_length() == 0 || !pshape[0].is_static())
-                continue;
-            if (static_cast<size_t>(pshape[0].get_length()) != structure_info->num_experts)
-                continue;
             // This parameter is batched over the expert dimension and must be unrolled.
             auto it = param_mapping.find(pi);
             if (it == param_mapping.end()) {
@@ -960,7 +1033,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
                                pi,
                                ", shape=",
                                pshape,
-                               ") has shape[0]==num_experts but was not unrolled. "
+                               ") has an expert axis but was not unrolled. "
                                "UnrollMoEMatMul did not recognise its weight chain. "
                                "Inspect the weight graph topology and add the missing chain variant.");
             }
