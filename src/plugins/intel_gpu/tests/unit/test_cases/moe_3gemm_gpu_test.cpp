@@ -419,7 +419,9 @@ struct Moe3GemmTestParams {
     size_t top_k;
     size_t group_size;
     bool is_signed = false;
-    size_t lru_expert_num = 0;  // > 0: expert weights are offloaded to disk (OFFLOAD_RATIO path)
+    size_t lru_expert_num = 0;        // > 0: expert weights are offloaded to disk (OFFLOAD_RATIO path)
+    bool micro_gemm_prefill = false;  // true: prefill uses the micro-GEMM path (grouped GEMM off)
+    size_t routed_experts = 0;        // > 0: tokens are routed only to the first routed_experts experts
 };
 
 class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<cldnn::MoERouterFused::RoutingType, Moe3GemmTestParams>> {};
@@ -429,6 +431,9 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
         GTEST_SKIP() << "No immad support";
+    }
+    if (param.micro_gemm_prefill && engine.get_device_info().arch < gpu_arch::xe2) {
+        GTEST_SKIP() << "Micro-GEMM prefill needs Xe2 or newer";
     }
 
     tests::random_generator rg(GET_SUITE_NAME);
@@ -447,6 +452,14 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     // Generate random data
     auto hidden_states = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
     auto routing_weights = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+    // Experts after the first routed_experts get a logit below every random one, so top-k never selects them.
+    if (param.routed_experts > 0) {
+        for (size_t t = 0; t < config.batch_size * config.seq_len; ++t) {
+            for (size_t e = param.routed_experts; e < config.num_experts; ++e) {
+                routing_weights[t * config.num_experts + e] = ov::float16(-1.0f);
+            }
+        }
+    }
 
     auto w0_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
     auto w1_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
@@ -630,6 +643,10 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (param.micro_gemm_prefill) {
+        net_config.set_property(ov::intel_gpu::moe_use_micro_gemm_prefill(true));
+        net_config.set_property(ov::intel_gpu::moe_use_grouped_gemm_prefill(false));
+    }
     network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
@@ -640,10 +657,14 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     get_test_stream().flush();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
-    // When all routed experts fit in the resident slots, the batched GEMV kernels read remapped slot ids
-    // from a host buffer. They may still be running when execute() returns, so the buffer must stay alive.
+    // When all routed experts fit in the resident slots, the batched GEMV kernels (seq_len <= 32) and the
+    // micro-GEMM prefill kernels read remapped slot ids from a host buffer. They may still be running when
+    // execute() returns, so the buffer must stay alive.
     const size_t slot_id_bytes = config.seq_len * config.top_k * sizeof(uint32_t);
-    if (param.lru_expert_num > 0 && config.seq_len * config.top_k <= param.lru_expert_num) {
+    const bool fits_resident_slots =
+        config.seq_len * config.top_k <= param.lru_expert_num || (param.routed_experts > 0 && param.routed_experts <= param.lru_expert_num);
+    const bool reads_slot_ids = config.seq_len <= 32 || param.micro_gemm_prefill;
+    if (param.lru_expert_num > 0 && fits_resident_slots && reads_slot_ids) {
         ASSERT_GE(engine.get_used_device_memory(allocation_type::usm_host), usm_host_before + slot_id_bytes);
     }
 
@@ -727,6 +748,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_offload,
                                             ::testing::Values(Moe3GemmTestParams{2, false, 256, 256, 8, 2, 256, false, 4},
                                                               Moe3GemmTestParams{2, true, 256, 256, 8, 2, 256, false, 4},
                                                               Moe3GemmTestParams{8, false, 256, 256, 8, 2, 256, false, 4})));
+
+// Offloaded expert weights on the micro-GEMM prefill path: 40 tokens is above the batched GEMV threshold (32), and
+// micro-GEMM needs Xe2 and 4-bit weights. Routing restricted to 4 experts fits the 4 resident slots, so the prefill
+// kernels run on remapped slot ids; unrestricted routing can exceed them and fall back to the per-expert loop.
+INSTANTIATE_TEST_SUITE_P(smoke_prefill_micro_gemm_offload,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX),
+                                            ::testing::Values(Moe3GemmTestParams{40, true, 256, 256, 8, 2, 256, false, 4, true, 4},
+                                                              Moe3GemmTestParams{40, true, 256, 256, 8, 2, 256, false, 4, true, 0})));
 
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MoERouterFused::RoutingType> {};
 
