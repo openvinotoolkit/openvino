@@ -22,8 +22,8 @@ namespace cldnn {
 namespace ocl {
 
 // Ternary weights are 2 bits per value in groups of 128 along K, one f16 scale per group.
-constexpr size_t kTernoclGroupSize = 128;
-constexpr size_t kTernoclPackFactor = 16;
+inline constexpr size_t kTernoclGroupSize = 128;
+inline constexpr size_t kTernoclPackFactor = 16;
 
 // Epilogue folded into the kernel; the value is passed to it as the POSTOP macro.
 enum class TernoclPostop : int {
