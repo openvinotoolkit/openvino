@@ -1923,6 +1923,22 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         m_kvcache_desc.max_prompt_size,
         ").");
 
+    // The constructor always derives total_size as max_prompt_size + min_response_len and
+    // asserts total_size >= max_prompt_size before ever building a generate variant (see
+    // create_generate_model_variants()); import restores both scalars independently with no
+    // such relation enforced. Whisper's generate path is exposed by this specifically:
+    // WhisperInferRequest::infer_generate() only checks `num_stored_tokens == total_size` (not
+    // >=) before indexing/copying with that count - if a forged max_prompt_size lets a single
+    // prefill push num_stored_tokens past total_size in one step, that equality check never
+    // fires and every subsequent generate call indexes out of bounds. Validate the scalar
+    // relationship directly rather than relying on anything an attacker can simply skip over.
+    OPENVINO_ASSERT(m_kvcache_desc.total_size >= m_kvcache_desc.max_prompt_size,
+                    "NPUW blob: declared KV-cache total size (",
+                    m_kvcache_desc.total_size,
+                    ") is smaller than the declared max prompt size (",
+                    m_kvcache_desc.max_prompt_size,
+                    ").");
+
     // Every port here is [BATCH, SEQ_LEN] (or [.., BATCH, SEQ_LEN] for the 3-D VLM variant of
     // position_ids), so the sequence extent is the last axis - except `inputs_embeds`, which
     // ReshapeToStatic (see reshape_to_static.cpp) lays out as [BATCH, SEQ_LEN, EMB_SIZE]: its
@@ -2062,12 +2078,17 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
             }
             validate_matches_top_level(*port, name);
             const auto extent = sequence_extent(*port);
-            OPENVINO_ASSERT(required <= extent,
+            // A declared limit of 0 (itself blob-controlled, e.g. a forged max_prompt_size or
+            // max_generation_token_len) would make `required <= extent` pass trivially even for
+            // a zero-length port - Whisper's raw one-token copies in particular never re-check
+            // the caller's token count against anything else, so a zero-sized restored input_ids
+            // port alone is enough to write out of bounds on the very first call.
+            OPENVINO_ASSERT(extent > 0 && required <= extent,
                             "NPUW blob: input '",
                             name,
                             "' sequence length (",
                             extent,
-                            ") is smaller than the declared limit (",
+                            ") is zero or smaller than the declared limit (",
                             required,
                             ").");
         };

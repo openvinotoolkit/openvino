@@ -1125,7 +1125,7 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperGenerateAttention
     ASSERT_GE(variant_count, 1u);
 
     LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
-    LLMVariantSwitchTestAccess::set_total_size(compiled, 1000u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 4096u);
 
     auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
     sizes.back() = 8u;
@@ -1153,13 +1153,13 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperGenerateAttention
     ASSERT_GE(variant_count, 1u);
 
     LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
-    LLMVariantSwitchTestAccess::set_total_size(compiled, 1000u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 4096u);
 
     auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
-    sizes.back() = 1000u;
+    sizes.back() = 4096u;
     LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, sizes);
 
-    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1001});
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4097});
     attn_mask->output(0).set_names({"attention_mask"});
     auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
     auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
@@ -1169,6 +1169,50 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperGenerateAttention
         std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
 
     EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// The constructor always derives total_size as max_prompt_size + min_response_len and asserts
+// total_size >= max_prompt_size before building any generate variant - import restores both
+// scalars independently with no such relation enforced. Whisper's infer_generate() only checks
+// `num_stored_tokens == total_size` (not >=), so a forged max_prompt_size larger than total_size
+// lets a single prefill skip straight past that equality check.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedTotalSizeSmallerThanMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 1u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// A declared limit of 0 (itself independently deserialized, e.g. max_generation_token_len and
+// every m_kvcache_sizes[i] entry) makes `required <= extent` pass trivially even for a
+// zero-length port. Whisper's raw one-token copies never re-check the caller's token count
+// against anything else, so a zero-sized restored input_ids port alone is enough to write out of
+// bounds - the extent itself must be required to be non-zero, independent of the declared limit.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedGenerateInputIdsWithZeroExtentWhenRequiredIsZero) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_GE(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 1u);
+
+    LLMVariantSwitchTestAccess::set_max_generation_token_len(compiled, 0u);
+    auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
+    sizes.at(0) = 0u;
+    LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, sizes);
+
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 0});
+    input_ids->output(0).set_names({"input_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(input_ids);
+    auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        0u,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
 
 }  // namespace
