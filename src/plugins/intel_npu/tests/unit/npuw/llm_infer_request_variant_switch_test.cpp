@@ -18,8 +18,8 @@
 
 #include "executor.hpp"
 #include "llm_block_kvcache_strategy.hpp"
-#include "llm_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "serialization.hpp"
@@ -48,7 +48,8 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_is_block_kv_cache;
     }
 
-    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t num_tokens) {
+    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                      uint32_t num_tokens) {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
     }
 
@@ -77,12 +78,20 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_kvcache_desc.max_prompt_size;
     }
 
+    static void set_max_prompt_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t size) {
+        compiled->m_kvcache_desc.max_prompt_size = size;
+    }
+
     static void set_is_whisper(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, bool is_whisper) {
         compiled->m_is_whisper = is_whisper;
     }
 
     static void set_total_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t total_size) {
         compiled->m_kvcache_desc.total_size = total_size;
+    }
+
+    static uint32_t total_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_kvcache_desc.total_size;
     }
 
     static void set_prefill_compiled(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
@@ -304,8 +313,9 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
                                           ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(output,
-                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
@@ -397,8 +407,10 @@ protected:
             saw_aux = saw_aux || name.find("scale") != std::string::npos || name.find("zp") != std::string::npos;
             auto src = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
                 LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-            auto src_slice = ov::npuw::util::make_tensor_slice(
-                src, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+            auto src_slice = ov::npuw::util::make_tensor_slice(src,
+                                                               LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                               0u,
+                                                               stored_tokens);
             fill_tensor_pattern(src_slice, seed);
             expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
             seed = static_cast<uint8_t>(seed + 37u);
@@ -413,8 +425,10 @@ protected:
         for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
             auto dst = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
                 LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-            auto dst_slice = ov::npuw::util::make_tensor_slice(
-                dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+            auto dst_slice = ov::npuw::util::make_tensor_slice(dst,
+                                                               LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                               0u,
+                                                               stored_tokens);
             EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
         }
     }
@@ -441,11 +455,11 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
     ASSERT_NE(compiled, nullptr);
     ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
     ASSERT_TRUE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
-    auto small_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
-    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled,
-                                                     LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
+    auto small_variant =
+        std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
+    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(
+        compiled,
+        LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
     ASSERT_NE(small_variant, nullptr);
     ASSERT_NE(large_variant, nullptr);
 
@@ -881,6 +895,8 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsSynthesizedPositionIdsMatchingCo
         std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
                                     ov::ParameterVector{input_ids});
     auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 2048u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 2048u);
 
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2048});
     position_ids->output(0).set_names({"position_ids"});
@@ -1097,6 +1113,8 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedTopLevelInputsEmbedsWith
         ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids), std::make_shared<ov::op::v0::Result>(embeds)},
         ov::ParameterVector{input_ids, embeds});
     auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 16u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 16u);
 
     auto child_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 4096});
     child_embeds->output(0).set_names({"inputs_embeds"});
@@ -1125,7 +1143,7 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperGenerateAttention
     ASSERT_GE(variant_count, 1u);
 
     LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
-    LLMVariantSwitchTestAccess::set_total_size(compiled, 1000u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 4096u);
 
     auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
     sizes.back() = 8u;
@@ -1153,16 +1171,226 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperGenerateAttention
     ASSERT_GE(variant_count, 1u);
 
     LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
-    LLMVariantSwitchTestAccess::set_total_size(compiled, 1000u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 4096u);
 
     auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
-    sizes.back() = 1000u;
+    sizes.back() = 4096u;
     LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, sizes);
 
-    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1001});
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4097});
     attn_mask->output(0).set_names({"attention_mask"});
     auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
     auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        variant_count - 1,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// The constructor always derives total_size as max_prompt_size + min_response_len and asserts
+// total_size >= max_prompt_size before building any generate variant - import restores both
+// scalars independently with no such relation enforced. Whisper's infer_generate() only checks
+// `num_stored_tokens == total_size` (not >=), so a forged max_prompt_size larger than total_size
+// lets a single prefill skip straight past that equality check.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedTotalSizeSmallerThanMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 1u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// A declared limit of 0 (itself independently deserialized, e.g. max_generation_token_len and
+// every m_kvcache_sizes[i] entry) makes `required <= extent` pass trivially even for a
+// zero-length port. Whisper's raw one-token copies never re-check the caller's token count
+// against anything else, so a zero-sized restored input_ids port alone is enough to write out of
+// bounds - the extent itself must be required to be non-zero, independent of the declared limit.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedGenerateInputIdsWithZeroExtentWhenRequiredIsZero) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_GE(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 1u);
+
+    LLMVariantSwitchTestAccess::set_max_generation_token_len(compiled, 0u);
+    auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
+    sizes.at(0) = 0u;
+    LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, sizes);
+
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 0});
+    input_ids->output(0).set_names({"input_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(input_ids);
+    auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        0u,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// ReshapeToStatic always sizes every prefill sequence-length port to EXACTLY max_prompt_size (or
+// the chunk size when chunking) - never larger (reshape_to_static.cpp). An oversized restored
+// port used to pass the old `required <= extent` floor check, defeating the
+// total_size >= max_prompt_size relationship this validator also enforces: Whisper's
+// infer_prefill() trusts the compiled prefill port's capacity to reflect max_prompt_size when it
+// increments num_stored_tokens by the caller's own (separately bounded) token count, so an
+// oversized port must be rejected, not merely accepted as "big enough".
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedPrefillInputIdsLargerThanMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, max_prompt_size + 1u});
+    input_ids->output(0).set_names({"input_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(input_ids);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// num_stored_tokens is restored from the blob too, with no bound against total_size. A fresh
+// request never resets it before its first inference (prepare_for_new_conversation() only runs
+// once infer_prefill() is actually invoked), so WhisperInferRequest::infer() can route a single-
+// token call straight to infer_generate() whenever the forged value is nonzero - and that
+// equality-only "cache full" guard never fires for a value that merely avoids equaling
+// total_size, letting it be used as a raw attention-mask/KV-cache index instead.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedNumStoredTokensLargerThanTotalSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    const uint32_t total_size = LLMVariantSwitchTestAccess::total_size(compiled);
+    LLMVariantSwitchTestAccess::set_num_stored_tokens(compiled, total_size + 1u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Matching the top-level model's rank does not establish the runtime contract by itself: the
+// top-level shape is just as blob-controlled as the child's, so a forged blob can make both agree
+// on the same wrong rank. Every infer_prefill()/infer_generate() path indexes
+// input_ids->get_shape()[1], assuming rank 2 regardless of what either declared shape says.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputIdsRankOneEvenWhenTopLevelAgrees) {
+    auto top_input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    top_input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_input_ids)},
+                                    ov::ParameterVector{top_input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 1u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 1u);
+
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// infer_prefill() copies the top-level 'encoder_hidden_states' tensor's full byte size into the
+// compiled prefill port with no destination-capacity check - both ports are independently
+// restored, so a smaller restored child port still passes import and then overflows on the
+// first real inference.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperEncoderHiddenStatesSmallerThanTopLevel) {
+    auto top_encoder_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    top_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_encoder_hidden_states)},
+                                    ov::ParameterVector{top_encoder_hidden_states});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto child_encoder_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 100, 512});
+    child_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_encoder_hidden_states)},
+                                    ov::ParameterVector{child_encoder_hidden_states});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control: a child port at least as large as the top-level model's must be accepted.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperEncoderHiddenStatesAtLeastTopLevelSize) {
+    auto top_encoder_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    top_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_encoder_hidden_states)},
+                                    ov::ParameterVector{top_encoder_hidden_states});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto child_encoder_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    child_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_encoder_hidden_states)},
+                                    ov::ParameterVector{child_encoder_hidden_states});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// infer_generate() writes cache_position->data<int64_t>()[0] unconditionally on the only
+// reachable Whisper generate variant - ReshapeToStatic always sizes this port to exactly {1}
+// (see reshape_to_static.cpp), but it is restored independently and a zero-length restored port
+// writes past its allocation.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperCachePositionWithZeroLengthShape) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
+    ASSERT_GE(variant_count, 1u);
+
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{0});
+    cache_position->output(0).set_names({"cache_position"});
+    auto tiny_generate_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(cache_position)},
+                                    ov::ParameterVector{cache_position});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        variant_count - 1,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control: the real compile-path shape {1} must be accepted.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperCachePositionShapedOne) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
+    ASSERT_GE(variant_count, 1u);
+
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    cache_position->output(0).set_names({"cache_position"});
+    auto tiny_generate_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(cache_position)},
+                                    ov::ParameterVector{cache_position});
     LLMVariantSwitchTestAccess::set_generate_variant(
         compiled,
         variant_count - 1,

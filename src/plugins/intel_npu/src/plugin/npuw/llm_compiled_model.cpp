@@ -1923,6 +1923,37 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         m_kvcache_desc.max_prompt_size,
         ").");
 
+    // The constructor always derives total_size as max_prompt_size + min_response_len and
+    // asserts total_size >= max_prompt_size before ever building a generate variant (see
+    // create_generate_model_variants()); import restores both scalars independently with no
+    // such relation enforced. Whisper's generate path is exposed by this specifically:
+    // WhisperInferRequest::infer_generate() only checks `num_stored_tokens == total_size` (not
+    // >=) before indexing/copying with that count - if a forged max_prompt_size lets a single
+    // prefill push num_stored_tokens past total_size in one step, that equality check never
+    // fires and every subsequent generate call indexes out of bounds. Validate the scalar
+    // relationship directly rather than relying on anything an attacker can simply skip over.
+    OPENVINO_ASSERT(m_kvcache_desc.total_size >= m_kvcache_desc.max_prompt_size,
+                    "NPUW blob: declared KV-cache total size (",
+                    m_kvcache_desc.total_size,
+                    ") is smaller than the declared max prompt size (",
+                    m_kvcache_desc.max_prompt_size,
+                    ").");
+
+    // num_stored_tokens is restored from the blob too, and a fresh request never calls
+    // prepare_for_new_conversation() before its first inference - so a nonzero forged value
+    // is live from the start. WhisperInferRequest::infer() routes a single-token call
+    // straight to infer_generate() whenever num_stored_tokens != 0, and infer_generate()'s
+    // "cache full" guard is the same equality-only check noted above: a forged value that
+    // merely avoids equaling total_size sails through it and is then used as a raw index
+    // into the attention_mask and KV-cache tensors. Bound it to what any real conversation
+    // can reach so every such index stays inside the tensors validated below.
+    OPENVINO_ASSERT(m_kvcache_desc.num_stored_tokens <= m_kvcache_desc.total_size,
+                    "NPUW blob: declared number of stored tokens (",
+                    m_kvcache_desc.num_stored_tokens,
+                    ") exceeds the declared KV-cache total size (",
+                    m_kvcache_desc.total_size,
+                    ").");
+
     // Every port here is [BATCH, SEQ_LEN] (or [.., BATCH, SEQ_LEN] for the 3-D VLM variant of
     // position_ids), so the sequence extent is the last axis - except `inputs_embeds`, which
     // ReshapeToStatic (see reshape_to_static.cpp) lays out as [BATCH, SEQ_LEN, EMB_SIZE]: its
@@ -1961,6 +1992,22 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         const auto& child_rank_dim = child.get_partial_shape().rank();
         OPENVINO_ASSERT(child_rank_dim.is_static(), "NPUW blob: input '", name, "' does not have a static rank.");
         const auto rank = static_cast<size_t>(child_rank_dim.get_length());
+
+        // ReshapeToStatic (see reshape_to_static.cpp) fixes each of these ports to one of a
+        // small, known set of ranks, and every runtime consumer indexes assuming that exact
+        // contract (e.g. input_ids->get_shape()[1] in every infer_prefill()/infer_generate()).
+        // Pin it directly here instead of only cross-checking agreement with the top-level
+        // model below: that model's shape is just as blob-controlled as this one, so a forged
+        // blob could make both sides agree on the same wrong rank and still pass.
+        if (std::strcmp(name, layer_names::input_ids) == 0 || std::strcmp(name, layer_names::token_type_ids) == 0 ||
+            std::strcmp(name, layer_names::attention_mask) == 0) {
+            OPENVINO_ASSERT(rank == 2, "NPUW blob: input '", name, "' rank (", rank, ") must be 2.");
+        } else if (std::strcmp(name, layer_names::inputs_embeds) == 0) {
+            OPENVINO_ASSERT(rank == 3, "NPUW blob: input '", name, "' rank (", rank, ") must be 3.");
+        } else if (std::strcmp(name, layer_names::position_ids) == 0) {
+            OPENVINO_ASSERT(rank == 2 || rank == 3, "NPUW blob: input '", name, "' rank (", rank, ") must be 2 or 3.");
+        }
+
         const auto axis = sequence_axis(child, rank);
 
         // Require every non-sequence CHILD dimension to be static and non-zero, unconditionally
@@ -1992,14 +2039,13 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                 // has no `position_ids` input of its own (the LFM-2 case); LLMInferRequest::
                 // infer() then synthesizes a matching rank-2 i64 source tensor at runtime (see
                 // `position_ids = ov::make_tensor(...)` there), batched off `input_ids`. The
-                // batch dimension was already checked above; pad_position_ids() also indexes
-                // the destination using the source's rank, so the restored child must honor
-                // that part of the contract too, even with no top-level port to cross-check.
+                // rank was already pinned to 2 or 3 above; the synthesized source is always
+                // rank 2 (LFM-2 is never VLM), but element type has no equivalent check yet
+                // with no top-level port to cross-check it against.
                 OPENVINO_ASSERT(child.get_element_type() == ov::element::i64,
                                 "NPUW blob: synthesized input 'position_ids' element type (",
                                 child.get_element_type(),
                                 ") must be i64.");
-                OPENVINO_ASSERT(rank == 2, "NPUW blob: synthesized input 'position_ids' rank (", rank, ") must be 2.");
             }
             return;  // no corresponding top-level input to cross-check against
         }
@@ -2055,19 +2101,25 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
     };
 
     auto validate_extent =
-        [&](const std::vector<ov::Output<const ov::Node>>& ports, const char* name, uint64_t required) {
+        [&](const std::vector<ov::Output<const ov::Node>>& ports, const char* name, uint64_t required, bool exact) {
             auto port = ov::npuw::util::find_port_by_name(ports, name);
             if (!port.has_value()) {
                 return;  // optional input not present on this model
             }
             validate_matches_top_level(*port, name);
             const auto extent = sequence_extent(*port);
-            OPENVINO_ASSERT(required <= extent,
+            // A declared limit of 0 (itself blob-controlled, e.g. a forged max_prompt_size or
+            // max_generation_token_len) would make `required <= extent` pass trivially even for
+            // a zero-length port - Whisper's raw one-token copies in particular never re-check
+            // the caller's token count against anything else, so a zero-sized restored input_ids
+            // port alone is enough to write out of bounds on the very first call.
+            OPENVINO_ASSERT(extent > 0 && (exact ? required == extent : required <= extent),
                             "NPUW blob: input '",
                             name,
                             "' sequence length (",
                             extent,
-                            ") is smaller than the declared limit (",
+                            exact ? ") does not exactly match the declared limit ("
+                                  : ") is zero or smaller than the declared limit (",
                             required,
                             ").");
         };
@@ -2075,32 +2127,76 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
     if (m_prefill_compiled) {
         const auto& prefill_inputs = m_prefill_compiled->inputs();
         const uint64_t prefill_required = m_use_chunk_prefill ? m_prefill_chunk_size : m_kvcache_desc.max_prompt_size;
+        // ReshapeToStatic always sizes every prefill sequence-length port to EXACTLY its required
+        // value (see reshape_to_static.cpp) - never larger. An oversized restored prefill port isn't
+        // just superfluous: WhisperInferRequest::infer_prefill() trusts the compiled prefill port's
+        // real capacity to reflect max_prompt_size, incrementing num_stored_tokens by however many
+        // tokens the caller's own (separately bounded) input actually contains - letting a blob
+        // declare a bigger port than max_prompt_size would make that relationship (and the
+        // total_size check above) meaningless, since nothing would contradict it at import time.
+        constexpr bool require_exact_extent = true;
         for (const char* name : {layer_names::input_ids,
                                  layer_names::inputs_embeds,
                                  layer_names::position_ids,
                                  layer_names::token_type_ids}) {
-            validate_extent(prefill_inputs, name, prefill_required);
+            validate_extent(prefill_inputs, name, prefill_required, require_exact_extent);
         }
-        // ReshapeToStatic always sizes attention_mask to max_prompt_size (the full KV window),
-        // never to the chunk size (see reshape_to_static.cpp). infer_chunked_prefill() copies
-        // each completed chunk's mask forward to an absolute offset of num_stored_tokens, which
-        // grows up to max_prompt_size across chunks. It also computes
-        // attn_mask_in_tensor->get_size() - m_prefill_chunk_size (llm_infer_request.cpp) each
-        // chunk iteration, but only when chunked prefill is actually selected at runtime - a
-        // disabled-chunking blob can legitimately carry a stale chunk size bigger than
-        // max_prompt_size (the compile-time "chunk covers the whole prompt" fallback), so only
-        // fold the chunk size into the requirement when m_use_chunk_prefill is set.
+        // ReshapeToStatic always sizes attention_mask to EXACTLY max_prompt_size (the full KV
+        // window), regardless of chunking (see reshape_to_static.cpp) - the chunk size is only
+        // ever used as a narrower per-chunk copy length, never as the port's own extent.
         validate_extent(prefill_inputs,
                         layer_names::attention_mask,
-                        m_use_chunk_prefill
-                            ? std::max<uint64_t>(m_kvcache_desc.max_prompt_size, m_prefill_chunk_size)
-                            : m_kvcache_desc.max_prompt_size);
+                        m_kvcache_desc.max_prompt_size,
+                        require_exact_extent);
+
+        if (m_is_whisper) {
+            // infer_prefill() copies the top-level 'encoder_hidden_states' tensor's full byte
+            // size into this compiled port with no destination-capacity check (see
+            // whisper/whisper_infer_request.cpp) - both ports are independently restored, so a
+            // child smaller than what the top-level model declares (and a real caller may
+            // therefore supply) writes past its allocation.
+            auto encoder_hidden_states_child =
+                ov::npuw::util::find_port_by_name(prefill_inputs, "encoder_hidden_states");
+            if (encoder_hidden_states_child.has_value()) {
+                auto encoder_hidden_states_top = ov::npuw::util::find_port_by_name(inputs(), "encoder_hidden_states");
+                OPENVINO_ASSERT(encoder_hidden_states_top.has_value(),
+                                "NPUW blob: Whisper model is missing a top-level 'encoder_hidden_states' input.");
+                OPENVINO_ASSERT(
+                    encoder_hidden_states_child->get_element_type() == encoder_hidden_states_top->get_element_type(),
+                    "NPUW blob: input 'encoder_hidden_states' element type (",
+                    encoder_hidden_states_child->get_element_type(),
+                    ") disagrees with the top-level model's (",
+                    encoder_hidden_states_top->get_element_type(),
+                    ").");
+                const auto& child_shape = encoder_hidden_states_child->get_partial_shape();
+                const auto& top_shape = encoder_hidden_states_top->get_partial_shape();
+                OPENVINO_ASSERT(child_shape.is_static(),
+                                "NPUW blob: input 'encoder_hidden_states' does not have a static shape.");
+                OPENVINO_ASSERT(top_shape.is_static(),
+                                "NPUW blob: top-level input 'encoder_hidden_states' does not have a static shape.");
+                const auto child_bytes =
+                    ov::shape_size(child_shape.to_shape()) * encoder_hidden_states_child->get_element_type().size();
+                const auto top_bytes =
+                    ov::shape_size(top_shape.to_shape()) * encoder_hidden_states_top->get_element_type().size();
+                OPENVINO_ASSERT(child_bytes >= top_bytes,
+                                "NPUW blob: input 'encoder_hidden_states' capacity (",
+                                child_bytes,
+                                " bytes) is smaller than the top-level model's (",
+                                top_bytes,
+                                " bytes).");
+            }
+        }
     }
 
     for (size_t i = 0; i < m_generate_compiled_variants.size(); ++i) {
         const auto& gen_inputs = m_generate_compiled_variants[i]->inputs();
+        // Generate ports only need a floor: pyramid variant sizing and the Whisper total_size+1
+        // special-case below make an exact per-call contract harder to state, and generate has
+        // no equivalent "unbounded caller tensor length" runtime gap (each step is bounded to
+        // exactly max_generation_token_len, already separately checked).
+        constexpr bool require_exact_extent = false;
         for (const char* name : {layer_names::input_ids, layer_names::inputs_embeds, layer_names::position_ids}) {
-            validate_extent(gen_inputs, name, m_kvcache_desc.max_generation_token_len);
+            validate_extent(gen_inputs, name, m_kvcache_desc.max_generation_token_len, require_exact_extent);
         }
         // ReshapeToStatic sizes each generate variant's attention_mask to that variant's own
         // KV window (m_kvcache_sizes[i]), not to max_generation_token_len - infer_generate()
@@ -2124,8 +2220,22 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         if (m_is_whisper && i + 1 == m_generate_compiled_variants.size()) {
             attention_mask_required =
                 std::max<uint64_t>(attention_mask_required, static_cast<uint64_t>(m_kvcache_desc.total_size) + 1);
+
+            // infer_generate() writes cache_position->data<int64_t>()[0] unconditionally on
+            // this (the only reachable) variant - ReshapeToStatic always sizes this port to
+            // exactly {1} (see reshape_to_static.cpp), but it is restored independently and
+            // never checked above; a zero-length restored port would write past its allocation.
+            auto cache_position = ov::npuw::util::find_port_by_name(gen_inputs, "cache_position");
+            if (cache_position.has_value()) {
+                const auto& cache_position_shape = cache_position->get_partial_shape();
+                OPENVINO_ASSERT(cache_position_shape.is_static() && cache_position_shape.rank().get_length() == 1 &&
+                                    cache_position_shape[0].get_length() == 1,
+                                "NPUW blob: input 'cache_position' shape (",
+                                cache_position_shape,
+                                ") must be {1}.");
+            }
         }
-        validate_extent(gen_inputs, layer_names::attention_mask, attention_mask_required);
+        validate_extent(gen_inputs, layer_names::attention_mask, attention_mask_required, require_exact_extent);
     }
 }
 
