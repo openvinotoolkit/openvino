@@ -3454,13 +3454,13 @@ class _Bf16Linear(torch.nn.Module):
         return self.linear(x)
 
 
-def _convert_fx(rt_info):
+def _convert_fx(default_float_type):
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
     with torch.no_grad():
         ep = torch.export.export(_Bf16Linear().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
     # Keep the decoder referenced until convert() is done: the frontend calls back into it.
-    decoder = TorchFXPythonDecoder(ep.module(), rt_info=rt_info)
+    decoder = TorchFXPythonDecoder(ep.module(), default_float_type=default_float_type)
     fe = FrontEndManager().load_by_framework("pytorch")
     return fe.convert(fe.load(decoder))
 
@@ -3469,18 +3469,41 @@ def _ops_of_type(ov_model, op_type):
     return [op for op in ov_model.get_ordered_ops() if op.get_type_name() == op_type]
 
 
-def test_canonicalize_float_precision_is_opt_in():
-    ov_model = _convert_fx({})
+@pytest.mark.parametrize("default_float_type", [None, torch.float32], ids=["not_given", "f32"])
+def test_canonicalize_float_precision_is_opt_in(default_float_type):
+    """With torch's own default float type (f32) the model keeps its types and gets no rt_info entry."""
+    ov_model = _convert_fx(default_float_type)
     assert [op.get_output_element_type(0) for op in _ops_of_type(ov_model, "MatMul")] == [Type.bf16]
+    assert not ov_model.has_rt_info("default_float_type")
+
+
+def test_decoder_default_float_type():
+    """get_default_float_type() is shared by the TorchScript and FX decoders: f32 unless given."""
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    example = torch.randn(2, 64, dtype=torch.bfloat16)
+    with torch.no_grad():
+        gm = torch.export.export(_Bf16Linear().eval(), (example,)).module()
+
+    def ts_decoder(**kwargs):
+        return TorchScriptPythonDecoder(_Bf16Linear().eval(), example_input=(example,), **kwargs)
+
+    for make in (lambda **kw: TorchFXPythonDecoder(gm, **kw), ts_decoder):
+        assert make().get_default_float_type() == Type.f32
+        assert make(default_float_type=torch.bfloat16).get_default_float_type() == Type.bf16
+        assert make(default_float_type=Type.f16).get_default_float_type() == Type.f16
+        with pytest.raises(ValueError):
+            make(default_float_type=torch.int32)
 
 
 def test_canonicalize_float_precision(tmp_path):
     """bf16 activations become f32, the large weight stays bf16 behind a Convert
     carrying the real decompression attribute, and the model's I/O keeps bf16."""
-    from openvino import OVAny, Core, serialize
+    from openvino import Core, serialize
 
-    ov_model = _convert_fx({"canonical_float_precision": OVAny(True)})
-    assert "canonical_float_precision" not in ov_model.get_rt_info()
+    ov_model = _convert_fx(torch.bfloat16)
+    assert ov_model.get_rt_info("default_float_type").astype(str) == "bf16"
     assert [op.get_output_element_type(0) for op in _ops_of_type(ov_model, "MatMul")] == [Type.f32]
     assert ov_model.inputs[0].get_element_type() == Type.bf16
     assert ov_model.outputs[0].get_element_type() == Type.bf16
@@ -3516,19 +3539,17 @@ class _Bf16Passthrough(torch.nn.Module):
 
 def test_canonicalize_float_precision_keeps_passthrough_outputs():
     """A Result fed straight by a Parameter or Constant keeps its type and tensor names."""
-    from openvino import OVAny
-
-    def convert_with(rt_info):
+    def convert_with(default_float_type):
         from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
         with torch.no_grad():
             ep = torch.export.export(_Bf16Passthrough().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
-        decoder = TorchFXPythonDecoder(ep.module(), rt_info=rt_info)
+        decoder = TorchFXPythonDecoder(ep.module(), default_float_type=default_float_type)
         fe = FrontEndManager().load_by_framework("pytorch")
         return fe.convert(fe.load(decoder))
 
-    expected = convert_with({})
-    canonical = convert_with({"canonical_float_precision": OVAny(True)})
+    expected = convert_with(None)
+    canonical = convert_with(torch.bfloat16)
     assert [sorted(o.get_names()) for o in canonical.outputs] == [sorted(o.get_names()) for o in expected.outputs]
     assert [o.get_element_type() for o in canonical.outputs] == [Type.bf16] * 3
 
@@ -3566,12 +3587,11 @@ class _Bf16Bernoulli(torch.nn.Module):
 def test_canonicalize_float_precision_attribute_typed_ops(module_cls):
     """Ops whose output type is an attribute (Range, Eye, RandomUniform) are retyped along with the
     rest of the graph instead of leaving a bf16 input next to an f32 one."""
-    from openvino import OVAny
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
     with torch.no_grad():
         ep = torch.export.export(module_cls().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
-    decoder = TorchFXPythonDecoder(ep.module(), rt_info={"canonical_float_precision": OVAny(True)})
+    decoder = TorchFXPythonDecoder(ep.module(), default_float_type=torch.bfloat16)
     fe = FrontEndManager().load_by_framework("pytorch")
     ov_model = fe.convert(fe.load(decoder))
 
@@ -3596,12 +3616,11 @@ class _Bf16LinearBiasThenAdd(torch.nn.Module):
 
 
 def _convert_canonical(module, example):
-    from openvino import OVAny
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
     with torch.no_grad():
         ep = torch.export.export(module.eval(), (example,))
-    decoder = TorchFXPythonDecoder(ep.module(), rt_info={"canonical_float_precision": OVAny(True)})
+    decoder = TorchFXPythonDecoder(ep.module(), default_float_type=example.dtype)
     fe = FrontEndManager().load_by_framework("pytorch")
     return fe.convert(fe.load(decoder))
 

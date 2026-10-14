@@ -232,6 +232,11 @@ def _patch_cpu_model_runner():
         # "vllm": True turns on every vLLM-required flag (see preset.py).
         # Precision keys are deliberately absent: derived per-model dtype.
         options = {"aot_autograd": True, "vllm": True, "model_id": next(_next_model_id)}
+        # vLLM built the model with torch's default dtype set to model_config.dtype
+        # (model_loader/base_loader.py); the frontend's decoder gets the same value.
+        _model_dtype = getattr(getattr(self, "model_config", None), "dtype", None)
+        if _model_dtype is not None:
+            options["default_float_type"] = _model_dtype
         # Stops dynamo specializing num_tokens==1, so decode reuses
         # prefill's compiled model instead of compiling its own copy.
         import torch.fx.experimental._config as _dynamo_cfg
