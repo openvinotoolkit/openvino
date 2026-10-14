@@ -283,6 +283,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/read_value.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/record_replay_session.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/region_yolo.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/activations_impls.cpp
