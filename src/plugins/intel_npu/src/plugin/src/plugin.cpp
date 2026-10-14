@@ -482,22 +482,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldWarnAboutLatency =
             successfullyDebatched && performanceHintSetByUser &&
             runtimeProperties.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
-        const bool shouldDisablePerfCountForInferProfiling =
-            runtimeProperties.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER &&
-            runtimeProperties.get<PERF_COUNT>();
-
-        // The overrides below are relevant only for the compiler, they are not kept in the compiler properties exposed
-        // by the compiled model.
-        CompilerProperties propertiesForCompiler = compilerProperties;
-
-        // PERF_COUNT is found in the compiler properties only if the compiler supports it
-        if (shouldDisablePerfCountForInferProfiling &&
-            string_map::has(propertiesForCompiler, ov::enable_profiling.name())) {
-            _logger.info(
-                "%s=INFER: overriding compiler-only PERF_COUNT from YES to NO; runtime configuration remains unchanged",
-                ov::intel_npu::profiling_type.name());
-            string_map::set(propertiesForCompiler, ov::enable_profiling.name(), PERF_COUNT::toString(false));
-        }
 
         if (shouldWarnAboutLatency) {
             _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
@@ -512,12 +496,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (shouldForceThroughput &&
             _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::hint::performance_mode.name())) {
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
-            string_map::set(propertiesForCompiler,
+            string_map::set(compilerProperties,
                             ov::hint::performance_mode.name(),
                             PERFORMANCE_HINT::toString(ov::hint::PerformanceMode::THROUGHPUT));
         }
 
-        graph = compileWithProperties(std::move(modelToCompile), propertiesForCompiler);
+        graph = compileWithProperties(std::move(modelToCompile), compilerProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

@@ -270,6 +270,16 @@ MergedConfig PluginPropertyManager::getMergedConfigForCompilation(const ov::AnyM
                         LOG_LEVEL::toString(COMPILE_LOG_LEVEL::resolve(runtimeConfig)));
     }
 
+    // With PROFILING_TYPE=INFER the profiling is done at runtime, the compiler must not enable it. PERF_COUNT is found
+    // in the compiler properties only if the compiler supports it.
+    if (runtimeConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER && runtimeConfig.get<PERF_COUNT>() &&
+        string_map::has(compilerProperties, ov::enable_profiling.name())) {
+        _logger.info(
+            "%s=INFER: overriding compiler-only PERF_COUNT from YES to NO; runtime configuration remains unchanged",
+            ov::intel_npu::profiling_type.name());
+        string_map::set(compilerProperties, ov::enable_profiling.name(), PERF_COUNT::toString(false));
+    }
+
     return merged;
 }
 
