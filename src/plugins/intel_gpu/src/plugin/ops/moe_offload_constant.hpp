@@ -21,7 +21,16 @@
 namespace ov::intel_gpu {
 
 /// Classifies a Constant's role relative to the MoE fused op.
-enum class MoEConstantRole { NotMoE, RoutedExpert, SharedExpert };
+enum class MoEConstantRole {
+    NotMoE,                     // Non-MoE constant (e.g. LayerNorm, embeddings, scalars)
+    NotOffloadableMoE,          // MoE constant whose architecture currently lacks OTD support (e.g. GEMM2_BIAS_SWIGLU_CLAMP)
+    NotOffloadableRoutedExpert, // Routed expert constant that cannot be pruned because it is shared with non-routed consumers
+    OffloadableRoutedExpert,    // Pure routed expert constant eligible for partial upload and offload discounting (GEMM3_SWIGLU)
+    AlwaysResidentSharedExpert  // Shared expert constant that must remain fully resident (GEMM3_SWIGLU shared inputs)
+};
+
+/// Checks if an op is an OTD-capable MOE node (MOECompressed with GEMM3_SWIGLU).
+bool is_otd_capable_moe(const ov::Node* node);
 
 /// Determines the role of a Constant feeding into MOECompressed.
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op);
