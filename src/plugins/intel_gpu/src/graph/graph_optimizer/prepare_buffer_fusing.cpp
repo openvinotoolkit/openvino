@@ -10,6 +10,7 @@
 #include "concatenation_inst.h"
 #include "crop_inst.h"
 #include "eltwise_inst.h"
+#include "fully_connected_inst.h"
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
@@ -529,6 +530,13 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (user->is_type<concatenation>() && !user->is_output())
             return false;
         if (user->is_type<loop>() || user->is_type<non_max_suppression>())
+            return false;
+        // OCL fully_connected_impl::update_impl_params flattens input_size > 3
+        // to 2D without remapping padding. Keep the crop materialized so
+        // flattening cannot reinterpret a strided sub-view with wrong pitches.
+        // This conservative guard also applies before the FC implementation is selected.
+        if (user->is_type<fully_connected>() && user->get_dependency_index(node) == 0 &&
+            user->as<fully_connected>().get_primitive()->input_size > 3)
             return false;
         // Read_value and assign don't handle data paddings internally, thus disable
         // crop optimization for now

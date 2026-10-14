@@ -712,6 +712,48 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic__static_dim_dyn_pad) {
     }
 }
 
+TEST(prepare_buffer_fusing, rank4_crop_before_ocl_fc_is_materialized) {
+    auto& engine = get_test_engine();
+    const layout input_layout_value{ov::PartialShape{1, 2, 3, 5}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_value);
+    std::vector<float> values(30);
+    for (size_t i = 0; i < values.size(); ++i)
+        values[i] = static_cast<float>(i + 1);
+    set_values<float>(input, values);
+    auto weights = engine.allocate_memory({ov::PartialShape{2, 4}, data_types::f32, format::bfyx});
+    const std::vector<float> weight_values{1, 2, 3, 4, -1, 0, 1, 2};
+    set_values<float>(weights, weight_values);
+
+    topology topo;
+    topo.add(input_layout("input", input_layout_value));
+    topo.add(data("weights", weights));
+    // Removing the first x element in each row creates a strided sub-view
+    // if crop is optimized out. FC then flattens the rank-4 input to 2D.
+    topo.add(crop("crop", input_info("input"), tensor{1, 2, 4, 3}, tensor{0, 0, 1, 0}));
+    topo.add(fully_connected("fc", input_info("crop"), "weights", "", 4));
+    topo.add(reorder("output", input_info("fc"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    const ov::intel_gpu::ImplementationDesc ocl_fc{format::bfyx, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", ocl_fc}}));
+    network net(engine, topo, config);
+    net.set_input_data("input", input);
+    auto outputs = net.execute();
+    ASSERT_FALSE(net.get_primitive("crop")->can_be_optimized());
+    auto output = outputs.at("output").get_memory();
+    ASSERT_EQ(output->count(), 12);
+    mem_lock<float> actual(output, get_test_stream());
+    for (size_t row = 0; row < 6; ++row) {
+        for (size_t channel = 0; channel < 2; ++channel) {
+            float expected = 0;
+            for (size_t x = 0; x < 4; ++x)
+                expected += values[row * 5 + x + 1] * weight_values[channel * 4 + x];
+            ASSERT_FLOAT_EQ(actual[row * 2 + channel], expected);
+        }
+    }
+}
+
 TEST(prepare_buffer_fusing, crop_b_axis) {
     auto& engine = get_test_engine();
 
