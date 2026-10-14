@@ -200,10 +200,6 @@ struct LLMVariantSwitchTestAccess {
         std::reverse(compiled->m_kvcache_sizes.begin(), compiled->m_kvcache_sizes.end());
     }
 
-    static void drop_last_declared_kvcache_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
-        compiled->m_kvcache_sizes.pop_back();
-    }
-
     // Emulates a blob that stores two non-last variants in the wrong order. The declared sizes
     // stay ascending and the last variant stays the largest, so only an ordering check that
     // compares adjacent variants can catch it.
@@ -634,15 +630,41 @@ TEST_F(LLMInferRequestVariantSwitchTest, ImportedVariantsContradictingDeclaredSi
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
 }
 
-TEST_F(LLMInferRequestVariantSwitchTest, ImportedVariantCountMismatchIsRejected) {
+// ShrinkSlidingWindowKVCache sizes SWA-managed past KV by the window, so in a model whose layers
+// are all sliding every generate variant has the same past KV footprint. Such a blob is valid and
+// must not be rejected as variants whose declared sizes outgrow their tensors.
+TEST_F(LLMInferRequestVariantSwitchTest, AllSlidingImportedVariantsPassValidation) {
     VariantSwitchFactory factory;
-    auto compiled = create_compiled_model({}, factory);
+    auto props = base_props();
+    props["NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK"] = "YES";
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(
+        ov::test::npuw::build_sliding_window_test_model(32, /*sliding_to_full_ratio=*/0),
+        m_plugin,
+        props,
+        factory.make_factory());
     ASSERT_NE(compiled, nullptr);
     ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
 
-    LLMVariantSwitchTestAccess::drop_last_declared_kvcache_size(compiled);
+    // Pin the scenario: every past KV input is SWA-managed and identical in both variants.
+    std::unordered_map<std::string, ov::Shape> small_shapes;
+    for (const auto& port : LLMVariantSwitchTestAccess::generate_variant(compiled, 0)->inputs()) {
+        small_shapes[port.get_any_name()] = port.get_shape();
+    }
+    std::size_t num_past_kv = 0;
+    for (const auto& port : LLMVariantSwitchTestAccess::generate_variant(compiled, 1)->inputs()) {
+        const auto& name = port.get_any_name();
+        if (!ov::npuw::util::starts_with(name, "past_key_values")) {
+            continue;
+        }
+        ++num_past_kv;
+        ASSERT_TRUE(ov::npuw::util::is_swa_kv_cache_name(name)) << name;
+        ASSERT_EQ(small_shapes.count(name), 1u) << name;
+        ASSERT_EQ(small_shapes.at(name), port.get_shape()) << name;
+    }
+    ASSERT_GT(num_past_kv, 0u);
 
-    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled));
+    EXPECT_NO_THROW(ov::npuw::LLMInferRequest req(compiled));
 }
 
 // A swap that leaves the last variant in place keeps the declared sizes ascending and every
