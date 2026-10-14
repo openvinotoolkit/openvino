@@ -171,7 +171,12 @@ struct ze_resource_info<ze_resource_type::usm_memory> {
     using handle_t = ov_ze_usm_handle;
     struct deleter_t {
         void operator()(handle_t handle) const {
-            OV_ZE_WARN(zeMemFree(handle.context, handle.ptr));
+            ze_memory_free_ext_desc_t desc {
+                ZE_STRUCTURE_TYPE_MEMORY_FREE_EXT_DESC,
+                nullptr,
+                ZE_DRIVER_MEMORY_FREE_POLICY_EXT_FLAG_DEFER_FREE
+            };
+            OV_ZE_WARN(zeMemFreeExt(handle.context, &desc, handle.ptr));
         }
     };
 };
