@@ -9,6 +9,7 @@
 
 namespace cldnn {
 namespace ze {
+struct ze_base_event_factory;
 
 // ZE event. Can be either in signaled state or not signaled state.
 struct ze_event : public ze_base_event {
@@ -28,7 +29,7 @@ public:
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
 protected:
-    void wait_impl() override;
+    void ze_wait_impl() override;
     void set_impl() override;
     bool is_set_impl() override;
     // TODO: Implement add_event_handler_impl
