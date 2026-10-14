@@ -49,10 +49,11 @@ protected:
                                                   float scale,
                                                   bool has_sink,
                                                   const KVCacheMetadata& metadata) override;
-    void prepare_compressed_kv(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
-                               const ov::Output<ov::Node>& key,
-                               const ov::Output<ov::Node>& value,
-                               KVCacheMetadata& metadata);
+    bool prepare_compressed_kv(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+                               const ov::element::Type& key_type,
+                               const ov::element::Type& value_type,
+                               const ov::PartialShape& key_partial_shape,
+                               StatelessKVMetadata& metadata);
 
     bool m_sdpa_support_transpose_v;
 };

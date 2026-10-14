@@ -321,7 +321,7 @@ TEST(GQADecompositionTest, softcap_transpose_v_not_fused) {
         }
     }
     ASSERT_EQ(statelesskvs.size(), 2u);
-    // The transpose-v should nto be fused for softcap, so concat axis is 2.
+    // The transpose-v should not be fused for softcap, so concat axis is 2.
     for (const auto& stateless_kv : statelesskvs) {
         EXPECT_EQ(stateless_kv->get_concat_axis(), 2);
     }

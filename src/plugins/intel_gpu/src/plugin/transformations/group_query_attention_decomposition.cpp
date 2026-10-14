@@ -52,8 +52,6 @@ namespace v1 = ov::op::v1;
 
 struct GroupQueryAttentionDecomposition::StatelessKVMetadata : public ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata {
     struct CompressedKV {
-        ov::Output<ov::Node> key;
-        ov::Output<ov::Node> value;
         ov::OutputVector quantization_inputs;
         op::SDPA::QuantizationAttribute quantization_attrs;
     };
@@ -62,28 +60,24 @@ struct GroupQueryAttentionDecomposition::StatelessKVMetadata : public ov::pass::
     ~StatelessKVMetadata() override = default;
 };
 
-void GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
-                                                             const ov::Output<ov::Node>& key,
-                                                             const ov::Output<ov::Node>& value,
-                                                             KVCacheMetadata& metadata_) {
+// Should only be called when is_kv_quantized=true, supports per-channel 4/8 bit quantize only.
+bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+                                                             const ov::element::Type& key_type,
+                                                             const ov::element::Type& value_type,
+                                                             const ov::PartialShape& key_partial_shape,
+                                                             StatelessKVMetadata& metadata) {
     using GQAInputs = ov::op::internal::GroupQueryAttentionInputs;
     using GQAQuantType = ov::op::internal::GroupQueryAttentionQuantType;
-
-    auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
-    // covers ExpandBroadcastReshapeSDPAFusion, gpu sdpa supports broadcast natively
-    metadata.should_broadcast_kv = false; 
 
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
     const auto key_quant_type = node->get_k_quant_type();
     const auto value_quant_type = node->get_v_quant_type();
-    if (!node->is_kv_quantized() || (kv_cache_bit_width != 8 && kv_cache_bit_width != 4) || key.get_element_type() != value.get_element_type() ||
-        !is_supported_compressed_kv_type(key.get_element_type()) || key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR)
-        return;
+    if ((kv_cache_bit_width != 8 && kv_cache_bit_width != 4) || key_type != value_type || !is_supported_compressed_kv_type(key_type) ||
+        key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR)
+        return false;
 
     auto& compressed_kv = metadata.compressed_kv.emplace();
-    compressed_kv.key = key;
-    compressed_kv.value = value;
-    
+
     ov::Output<ov::Node> prepared_key_scale =
         make_kv_scale(node->input_value(static_cast<size_t>(GQAInputs::K_SCALE)), node->get_kv_num_heads(), key_quant_type);
     ov::Output<ov::Node> prepared_value_scale =
@@ -100,7 +94,7 @@ void GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     compressed_kv.quantization_attrs.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
     // GQA stores signed INT4 values as unsigned nibbles biased by +8. Describe that physical encoding to SDPA
     // as asymmetric u4 with a fixed zero point instead of i4, whose nibbles use two's-complement encoding.
-    compressed_kv.quantization_attrs.quantization_dt = is_int4 ? ov::element::u4 : key.get_element_type();
+    compressed_kv.quantization_attrs.quantization_dt = is_int4 ? ov::element::u4 : key_type;
     compressed_kv.quantization_attrs.scale_dt = ov::element::f16;
     compressed_kv.quantization_inputs = {prepared_key_scale, prepared_value_scale};
     if (is_int4) {
@@ -111,10 +105,11 @@ void GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
         compressed_kv.quantization_inputs.push_back(register_new_node<ov::op::v3::Broadcast>(storage_zp, key_scale_shape));
         compressed_kv.quantization_inputs.push_back(register_new_node<ov::op::v3::Broadcast>(storage_zp, value_scale_shape));
     }
-    compressed_kv.quantization_attrs.group_sizes = compute_kv_group_sizes(key.get_partial_shape(), prepared_key_scale.get_partial_shape());
+    compressed_kv.quantization_attrs.group_sizes = compute_kv_group_sizes(key_partial_shape, prepared_key_scale.get_partial_shape());
     compressed_kv.quantization_attrs.scales_zp_output_order = {0, 1, 2, 3};
 
     metadata.should_dequantize_kv = false;
+    return true;
 }
 
 std::unique_ptr<ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata> GroupQueryAttentionDecomposition::create_metadata(
@@ -137,7 +132,20 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     static const std::vector<int64_t> transpose_v_order{0, 1, 3, 2};
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
+
     const auto is_softcap = node->get_softcap() > 0.0f;
+    bool can_fuse_transpose_v = m_sdpa_support_transpose_v && !is_softcap;
+    // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
+    if (!is_softcap) {
+        // covers ExpandBroadcastReshapeSDPAFusion, gpu sdpa supports broadcast natively
+        metadata.should_broadcast_kv = false; 
+        if (node->is_kv_quantized()) {
+            if (!prepare_compressed_kv(node, past_key.get_element_type(), past_value.get_element_type(), past_key.get_partial_shape(), metadata)) {
+                // when failed to fuse compressed kv, should not fuse transpose_v, dequantized K/V expects original layout.
+                can_fuse_transpose_v = false;
+            }
+        }
+    }
 
     KVCacheOutputs outputs;
 
@@ -161,7 +169,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         std::shared_ptr<v1::Transpose> past_value_transpose;
         std::shared_ptr<v1::Transpose> present_value_transpose;
         // softcap hard-coded layout so don't fuse
-        if (m_sdpa_support_transpose_v && !is_softcap) {
+        if (can_fuse_transpose_v) {
             past_value_transpose = find_value_transpose(node->input_value(4));
             if (node->output(2).get_target_inputs().size() == 1) {
                 const auto target = *node->output(2).get_target_inputs().begin();
@@ -169,9 +177,8 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
             }
         }
 
-        const auto transpose_v = past_value_transpose && present_value_transpose;
         std::shared_ptr<op::StatelessKV> value_cache;
-        if (transpose_v) {
+        if (past_value_transpose && present_value_transpose) {
             metadata.transpose_v_order = transpose_v_order;
             // Before: past_value -> Transpose -> GQA cache -> Transpose -> present_value.
             // After:  past_value -------------------------> StatelessKV(axis=3) -> present_value.
@@ -202,11 +209,6 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
                                                                                 current_seqlen_scalar,
                                                                                 metadata);
     }
-
-    // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
-    if (!is_softcap) {
-        prepare_compressed_kv(node, outputs.sdpa_key, outputs.sdpa_value, metadata);
-    }
     return outputs;
 }
 
@@ -220,7 +222,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                                                       const KVCacheMetadata& metadata_) {
     const auto& metadata = static_cast<const StatelessKVMetadata&>(metadata_);
     const auto& compressed_kv = metadata.compressed_kv;
-    ov::OutputVector inputs{query, compressed_kv ? compressed_kv->key : key, compressed_kv ? compressed_kv->value : value};
+    ov::OutputVector inputs{query, key, value};
     if (mask.get_node()) {
         inputs.push_back(mask);
     }
