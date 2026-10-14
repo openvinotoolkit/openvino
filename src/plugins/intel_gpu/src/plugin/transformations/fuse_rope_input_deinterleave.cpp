@@ -28,7 +28,12 @@ bool is_full_axis_mask(const std::vector<int64_t>& mask, size_t rank) {
     });
 }
 
-bool is_deinterleave_slice(const std::shared_ptr<ov::op::v1::StridedSlice>& slice, int64_t begin_last) {
+bool is_deinterleave_slice(const ov::Output<ov::Node>& output, int64_t begin_last) {
+    const auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(output.get_node_shared_ptr());
+    if (!slice) {
+        return false;
+    }
+
     const auto& input_shape = slice->get_input_partial_shape(0);
     const auto& output_shape = slice->get_output_partial_shape(0);
     if (input_shape.rank() != 4 || output_shape.rank() != 4 || !input_shape[3].is_static() || !output_shape[3].is_static()) {
@@ -72,12 +77,12 @@ FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() {
     auto even_pattern = wrap_type<ov::op::v1::StridedSlice>(
         {input_pattern, any_input(), any_input(), any_input()},
         consumers_count(1) && [](const ov::Output<ov::Node>& output) {
-            return is_deinterleave_slice(ov::as_type_ptr<ov::op::v1::StridedSlice>(output.get_node_shared_ptr()), 0);
+            return is_deinterleave_slice(output, 0);
         });
     auto odd_pattern = wrap_type<ov::op::v1::StridedSlice>(
         {input_pattern, any_input(), any_input(), any_input()},
         consumers_count(1) && [](const ov::Output<ov::Node>& output) {
-            return is_deinterleave_slice(ov::as_type_ptr<ov::op::v1::StridedSlice>(output.get_node_shared_ptr()), 1);
+            return is_deinterleave_slice(output, 1);
         });
     auto concat_pattern = wrap_type<ov::op::v0::Concat>(
         {even_pattern, odd_pattern},
@@ -97,13 +102,14 @@ FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
         const auto& pattern_map = matcher.get_pattern_value_map();
         auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(pattern_map.at(rope_pattern).get_node_shared_ptr());
+        OPENVINO_ASSERT(rope, "RoPE node is expected");
         if (transformation_callback(rope)) {
             return false;
         }
 
         auto new_config = rope->get_config();
         new_config.input_interleaved = true;
-        rope->set_argument(0, pattern_map.at(input_pattern));
+        rope->input(0).replace_source_output(pattern_map.at(input_pattern));
         rope->set_config(new_config);
         rope->validate_and_infer_types();
         register_new_node(rope);
