@@ -11,7 +11,7 @@ QSAPrepare
 **Category**: *Sequence processing*
 
 **Short description**: *QSAPrepare* computes the block index keys of Qwen Sparse Attention (QSA):
-one key per complete block of ``compress_ratio`` consecutive key tokens, obtained by mean-pooling the
+one key per complete block of ``key_block_size`` consecutive key tokens, obtained by mean-pooling the
 raw index keys of the block, RMS-normalizing the result and rotating it with the RoPE of the first
 token of the block. The block keys of the past blocks are passed in from a cache, so that only the
 blocks completed by the new tokens are computed.
@@ -32,7 +32,7 @@ size ``Di = 128``:
 * the index query is prepared by regular operations of the graph, as the query of the main
   attention: every head RMS-normalized with ``q_layernorm`` (*RMS* with the weight ``1 + w``) and
   rotated with the (M-)RoPE of the query token (*RoPE*). It goes to *QSAIndexer* directly;
-* the raw index keys go to *QSAPrepare*. A block key needs all ``compress_ratio`` raw keys of its
+* the raw index keys go to *QSAPrepare*. A block key needs all ``key_block_size`` raw keys of its
   block and is rotated at the first token of the block, not at the position of each token, so it is
   not a per-token normalization and rotation: *QSAPrepare* mean-pools the raw keys of every complete
   block, RMS-normalizes the result with ``k_layernorm`` and rotates it with the (M-)RoPE of the first
@@ -41,7 +41,7 @@ size ``Di = 128``:
 A block key depends only on the raw keys of its own block and does not change when more tokens come.
 The block keys computed by earlier calls are therefore cached: a stateful model keeps them as a state,
 ``past_block_index_keys`` ``[N, Bp, Di]``, next to the raw index keys. *QSAPrepare* computes only the
-blocks completed since then, at most ``ceil(L / compress_ratio) + 1`` blocks of a sequence for ``L``
+blocks completed since then, at most ``ceil(L / key_block_size) + 1`` blocks of a sequence for ``L``
 new tokens, and returns all block keys, the cached ones followed by the new ones. Its output is the
 new value of the state. A decode step completes at most one block, so the pooling, the normalization
 and the rotation are done for at most two blocks per decode step instead of for all ``B`` blocks.
@@ -49,7 +49,7 @@ and the rotation are done for at most two blocks per decode step instead of for 
 **Batches with padding.** The sequences of a batch are aligned to the right (left padding), as for
 :doc:`QSAIndexer <qsa-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
 of the ``S`` key positions. Its blocks start at its first valid token: block ``b`` is formed by the
-key positions ``S - key_length[n] + b * compress_ratio ..``, and ``block_index_keys[n, b]`` is the key
+key positions ``S - key_length[n] + b * key_block_size ..``, and ``block_index_keys[n, b]`` is the key
 of that block. A padded sequence gets the same block keys as alone in a batch of one, and padding
 tokens never enter a block key. The rows of a padded sequence after its last complete block are
 zero.
@@ -60,9 +60,9 @@ zero.
    :force:
 
     def QSAPrepare(raw_index_keys, past_block_index_keys, key_length, rope_cos, rope_sin, k_norm_weight, *,
-                   compress_ratio, epsilon=1e-6):
+                   key_block_size, epsilon=1e-6):
         N, S, Di = raw_index_keys.shape
-        r = compress_ratio
+        r = key_block_size
         B = S // r                                              # blocks of a sequence without padding
         Bp = past_block_index_keys.shape[1]                     # cached block keys, Bp <= B
         key_length = numpy.broadcast_to(key_length, (N,))       # valid key tokens of every sequence
@@ -98,9 +98,9 @@ zero.
 Properties that follow from the definition:
 
 * Block ``b`` of sequence ``n`` holds the key tokens at the positions
-  ``S - key_length[n] + b * compress_ratio ..`` (``b * compress_ratio ..`` without padding) and is
+  ``S - key_length[n] + b * key_block_size ..`` (``b * key_block_size ..`` without padding) and is
   rotated with the ``rope_cos`` / ``rope_sin`` row of its first token: the rows of the other tokens of
-  the block are not used. The tokens of the incomplete block, at most ``compress_ratio - 1``, form no
+  the block are not used. The tokens of the incomplete block, at most ``key_block_size - 1``, form no
   block key.
 * The normalization is ``x / sqrt(mean(x^2) + epsilon) * weight``. Qwen3.8-Flash-Next normalizes with
   ``k_layernorm``, which scales by ``1 + w``; the graph passes ``1 + w`` as ``k_norm_weight``. An empty
@@ -118,12 +118,12 @@ Properties that follow from the definition:
   (``Bp = 0``) all blocks are computed; when the block keys of the previous calls are passed in, the
   result is the same as without them, as a block key depends only on the raw keys of its own block.
   Without padding exactly the blocks ``Bp .. B - 1`` are computed. With padding, the previous call had
-  between ``Bp * compress_ratio`` and ``Bp * compress_ratio + compress_ratio - 1`` key positions, so
+  between ``Bp * key_block_size`` and ``Bp * key_block_size + key_block_size - 1`` key positions, so
   the number of cached blocks of a padded sequence is known up to one: the operation may recompute
   one cached block, with the same result.
 * Only the raw keys and the ``rope_cos`` / ``rope_sin`` rows of the computed blocks are read. The first
   ones may be past tokens of the incomplete block of the previous call.
-* For DeepSeek Sparse Attention (``compress_ratio = 1``), pooling over one token is the identity and
+* For DeepSeek Sparse Attention (``key_block_size = 1``), pooling over one token is the identity and
   the index key is a LayerNorm and a partial RoPE per token, computed by regular operations of the
   graph; *QSAPrepare* is not needed.
 
@@ -136,11 +136,11 @@ Properties that follow from the definition:
      positions ``0 .. pad - 1`` are padding and never enter a block key.
    * ``block_index_keys`` and ``past_block_index_keys`` are **left-aligned**: the blocks of a
      sequence are counted from its first valid token, so the valid rows come first and the fake rows
-     are at the **end**. In the output, the rows ``floor(key_length[n] / compress_ratio) ..`` of a
+     are at the **end**. In the output, the rows ``floor(key_length[n] / key_block_size) ..`` of a
      padded sequence are fake and zero. In ``past_block_index_keys``, the rows
-     ``floor(key_length_previous[n] / compress_ratio) ..`` are fake, where ``key_length_previous`` is the
+     ``floor(key_length_previous[n] / key_block_size) ..`` are fake, where ``key_length_previous`` is the
      ``key_length`` of the previous call; the operation reuses only the first
-     ``max(0, (Bp * compress_ratio - pad) // compress_ratio)`` rows, a lower bound that needs no
+     ``max(0, (Bp * key_block_size - pad) // key_block_size)`` rows, a lower bound that needs no
      ``key_length_previous``, and recomputes at most one valid cached block.
 
    See the note *Padding layout* of :doc:`QSAIndexer <qsa-indexer>` for the query axis and an
@@ -149,7 +149,7 @@ Properties that follow from the definition:
    .. code-block:: text
       :force:
 
-      compress_ratio = 4, S = 10, key_length = [10, 7]   (pre-fill: L = 10)
+      key_block_size = 4, S = 10, key_length = [10, 7]   (pre-fill: L = 10)
 
       key position:  0   1   2   3   4   5   6   7   8   9
       sequence 0:    a0  a1  a2  a3  a4  a5  a6  a7  a8  a9     pad = 0
@@ -165,10 +165,10 @@ Properties that follow from the definition:
 
 **Attributes**
 
-* *compress_ratio*
+* *key_block_size*
 
   * **Description**: number of consecutive key tokens that form one block. It must be equal to
-    *compress_ratio* of the consuming *QSAIndexer*.
+    *key_block_size* of the consuming *QSAIndexer*.
   * **Range of values**: a positive integer
   * **Type**: ``int``
   * **Required**: *yes*
@@ -189,7 +189,7 @@ Properties that follow from the definition:
 
 * **2**: ``past_block_index_keys`` - 3D tensor of type *T* and shape ``[N, Bp, Di]``: the block index
   keys of the first ``Bp`` complete blocks, computed by the previous calls of the same sequences,
-  ``Bp <= floor(S / compress_ratio)``. In a stateful model it is a state, and the output is its new
+  ``Bp <= floor(S / key_block_size)``. In a stateful model it is a state, and the output is its new
   value. **Required (empty tensor with Bp = 0 = no cached blocks, all blocks are computed).**
 
 * **3**: ``key_length`` - 1D tensor of type *T_IND* and shape ``[N]``: the number of valid key tokens
@@ -233,8 +233,8 @@ Properties that follow from the definition:
 
 * ``Dr`` - number of rotated dimensions, even, ``Dr <= Di``.
 
-* ``B`` - ``floor(S / compress_ratio)``, the number of complete blocks of a sequence without padding.
-  A padded sequence has ``floor(key_length[n] / compress_ratio)``.
+* ``B`` - ``floor(S / key_block_size)``, the number of complete blocks of a sequence without padding.
+  A padded sequence has ``floor(key_length[n] / key_block_size)``.
 
 * ``Bp`` - number of cached block keys, ``Bp <= B``.
 
@@ -247,7 +247,7 @@ Properties that follow from the definition:
    :force:
 
     <layer id="1" name="qsa_prepare" type="QSAPrepare" version="extension">
-        <data compress_ratio="4" epsilon="1e-06"/>
+        <data key_block_size="4" epsilon="1e-06"/>
         <input>
             <port id="0" precision="BF16"> <!-- raw_index_keys, past state + current -->
                 <dim>1</dim>     <!-- N -->

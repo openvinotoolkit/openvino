@@ -22,14 +22,14 @@ blocks are not a fixed sparsity pattern: they are selected per query token, or p
 ``query_block_size`` query tokens, and passed in through ``block_indices``. It covers:
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
-  Hugging Face Transformers), with blocks of ``compress_ratio = 4`` tokens selected by
+  Hugging Face Transformers), with blocks of ``key_block_size = 4`` tokens selected by
   :doc:`QSAIndexer <qsa-indexer>`. Most of this document uses it as the
   example;
 * DeepSeek Sparse Attention (DSA) of DeepSeek-V3.2 and GLM-MoE-DSA, with single-token blocks
-  (``compress_ratio = 1``). See the note below;
+  (``key_block_size = 1``). See the note below;
 * Locality-Constrained Sparse Attention (LCSA) of the FlashVSR video super-resolution model, which
   is not causal and selects key blocks of 128 tokens per head for every block of 128 query tokens
-  (``causal = false``, ``compress_ratio = 128``, ``query_block_size = 128``, ``Hs = H``). See the
+  (``causal = false``, ``key_block_size = 128``, ``query_block_size = 128``, ``Hs = H``). See the
   note *FlashVSR* below.
 
 The decoupling from the selection follows inference engines:
@@ -41,8 +41,8 @@ The decoupling from the selection follows inference engines:
   ``-inf``, writes ``0`` at the selected positions with ``ggml_set_rows``, and runs regular
   multi-head attention with that mask.
 
-Key blocks consist of ``compress_ratio`` consecutive key tokens: block ``b`` holds the positions
-``b * compress_ratio .. b * compress_ratio + compress_ratio - 1``. Query tokens share selections in
+Key blocks consist of ``key_block_size`` consecutive key tokens: block ``b`` holds the positions
+``b * key_block_size .. b * key_block_size + key_block_size - 1``. Query tokens share selections in
 blocks of ``query_block_size``: query token ``l`` uses the row ``l // query_block_size`` of
 ``block_indices`` and ``block_count``. With ``query_block_size = 1``, the default, every query token
 has its own row. A query token attends to:
@@ -50,9 +50,9 @@ has its own row. A query token attends to:
 * all tokens of the first ``block_count`` blocks listed in its row of ``block_indices`` for the
   selection head of the attention head;
 * only in the causal mode (``causal = true``, the default): the tokens of the incomplete block that
-  contains it, ``floor((p + 1) / compress_ratio) * compress_ratio .. p`` for its position ``p``: at
-  most ``compress_ratio - 1`` tokens, including the query itself. This part is empty when ``p + 1``
-  is a multiple of ``compress_ratio``, because the block of the query is then complete and attended
+  contains it, ``floor((p + 1) / key_block_size) * key_block_size .. p`` for its position ``p``: at
+  most ``key_block_size - 1`` tokens, including the query itself. This part is empty when ``p + 1``
+  is a multiple of ``key_block_size``, because the block of the query is then complete and attended
   only if it is listed in ``block_indices``.
 
 In the causal mode the query tokens are the last ``L`` key tokens, at the positions ``S - L + l``
@@ -73,11 +73,11 @@ by every head.
 :doc:`QSAIndexer <qsa-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
 of the ``S`` key positions. The positions, the blocks and the block indices of a sequence are counted
 from its first valid token: block ``b`` of sequence ``n`` is formed by the key positions
-``S - key_length[n] + b * compress_ratio ..``, and its query ``l`` has the position
+``S - key_length[n] + b * key_block_size ..``, and its query ``l`` has the position
 ``p = key_length[n] - L + l`` within the sequence. Padding tokens are never attended, and a padded
 sequence gets the same result as alone in a batch of one. A query that is a padding token
 (``p < 0``) attends to nothing and produces zeros. Without ``key_length`` there is no padding,
-``key_length[n] = S``, and block ``b`` is formed by the positions ``b * compress_ratio ..``.
+``key_length[n] = S``, and block ``b`` is formed by the positions ``b * key_block_size ..``.
 
 There is no other mask: in the causal mode the causality comes from the selection, padding is
 excluded by ``key_length``, and with ``causal = false`` the selection alone defines the attended
@@ -93,11 +93,11 @@ than in a paged cache.
    :force:
 
     def BlockSparseAttention(query, key, value, block_indices, block_count, key_length=None, scale=None, *,
-                             compress_ratio, query_block_size=1, causal=True):
+                             key_block_size, query_block_size=1, causal=True):
         N, H, L, E = query.shape
         Hkv, S = key.shape[1], key.shape[2]
         Hs = block_indices.shape[1]                             # selection heads
-        r, qb = compress_ratio, query_block_size
+        r, qb = key_block_size, query_block_size
         if scale is None:
             scale = 1.0 / sqrt(E)
         # valid key tokens of every sequence, the last ones of the S key positions
@@ -134,10 +134,10 @@ Properties that follow from the definition:
 * Causal mode: the ``L`` query tokens are the last ``L`` of the ``key_length[n]`` valid key tokens,
   and query ``l`` has the position ``p = key_length[n] - L + l``. With the valid block indices of a
   row in
-  ``[0, (p + 1) // compress_ratio)``, as produced by *QSAIndexer*, every attended token
-  is at or before ``p``. A query attends to ``block_count * compress_ratio + (p + 1) % compress_ratio``
+  ``[0, (p + 1) // key_block_size)``, as produced by *QSAIndexer*, every attended token
+  is at or before ``p``. A query attends to ``block_count * key_block_size + (p + 1) % key_block_size``
   tokens, so the number of key and value rows of every query is known before any of them is read.
-* With ``causal = false`` a query attends to the ``block_count * compress_ratio`` tokens of its
+* With ``causal = false`` a query attends to the ``block_count * key_block_size`` tokens of its
   selected blocks, fewer if the last, partial key block is selected.
 * All ``query_block_size`` query tokens of a query block attend to the same selected key blocks, so
   an implementation can compute every pair of a selected key block and a query block as one tile,
@@ -150,9 +150,9 @@ Properties that follow from the definition:
   after the first ``block_count`` ones, which are ignored.
 * With the rows produced by *QSAIndexer*, the result is identical to causal
   *ScaledDotProductAttention* as long as every complete block is selected, that is for the first
-  ``token_budget + compress_ratio - 1`` positions.
+  ``token_budget + key_block_size - 1`` positions.
 * A query head attends to nothing, and produces zeros, if the ``block_count`` of its selection is
-  ``0`` and, in the causal mode, ``p + 1`` is a multiple of ``compress_ratio``, or if it is a padding
+  ``0`` and, in the causal mode, ``p + 1`` is a multiple of ``key_block_size``, or if it is a padding
   token. *QSAIndexer* produces such a row only for padding tokens; the FlashVSR selection can.
 * With ``Hs = 1`` every query head of a token attends to the same key and value rows, so an
   implementation can read every selected block once for all heads, as for multi-query attention.
@@ -161,7 +161,7 @@ Properties that follow from the definition:
   causal mode, the incomplete block into a boolean mask and passing it to
   *ScaledDotProductAttention* as ``attention_mask``, as llama.cpp does. That costs time and memory
   proportional to ``S`` for every query, while a dedicated implementation reads only the selected
-  blocks, each as a contiguous run of ``compress_ratio`` key and value rows.
+  blocks, each as a contiguous run of ``key_block_size`` key and value rows.
 
 The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the output by a separate
 *Multiply* and is not part of this operation.
@@ -177,7 +177,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
      the **beginning**: query ``l`` is a padding token if ``l < L - key_length[n]`` (``p < 0``, only in
      a pre-fill with ``L > key_length[n]``). It attends nothing and its output is zero.
    * ``block_indices`` holds logical block indices, counted from the first valid token of the
-     sequence: block ``b`` is the key positions ``pad + b * compress_ratio ..``. A padding query has
+     sequence: block ``b`` is the key positions ``pad + b * key_block_size ..``. A padding query has
      ``block_count = 0``.
 
    See the note *Padding layout* of :doc:`QSAIndexer <qsa-indexer>` for the fake rows of the block
@@ -186,7 +186,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
    .. code-block:: text
       :force:
 
-      compress_ratio = 4, S = 10, key_length = [10, 7]   (pre-fill: L = 10)
+      key_block_size = 4, S = 10, key_length = [10, 7]   (pre-fill: L = 10)
 
       key position:  0   1   2   3   4   5   6   7   8   9
       sequence 0:    a0  a1  a2  a3  a4  a5  a6  a7  a8  a9     pad = 0
@@ -201,7 +201,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
 .. note::
 
-   With ``compress_ratio = 1``, every block is a single token and the incomplete block is always
+   With ``key_block_size = 1``, every block is a single token and the incomplete block is always
    empty, so a query attends to exactly the tokens listed in ``block_indices``. Together with
    :doc:`QSAIndexer <qsa-indexer>` configured as described there, this covers the sparse attention
    of DeepSeek Sparse Attention (DSA) models such as DeepSeek-V3.2 and GLM-MoE-DSA. Their
@@ -213,7 +213,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
    **FlashVSR.** The Locality-Constrained Sparse Attention of FlashVSR (a Wan2.1-1.3B diffusion
    transformer with 12 heads of 128; ``JunhaoZhuang/FlashVSR``, code in ``OpenImagingLab/FlashVSR``)
-   maps to this operation with ``causal = false``, ``compress_ratio = 128``,
+   maps to this operation with ``causal = false``, ``key_block_size = 128``,
    ``query_block_size = 128`` and ``Hs = H``:
 
    * the graph reorders the tokens into 3D windows of 2 latent frames x 8 x 8 tokens
@@ -239,10 +239,10 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
 **Attributes**
 
-* *compress_ratio*
+* *key_block_size*
 
   * **Description**: number of consecutive key tokens that form one block. It must be equal to
-    *compress_ratio* of the *QSAIndexer* that produces ``block_indices``. ``128`` for
+    *key_block_size* of the *QSAIndexer* that produces ``block_indices``. ``128`` for
     FlashVSR.
   * **Range of values**: a positive integer
   * **Type**: ``int``
@@ -284,8 +284,8 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * **4**: ``block_indices`` - 4D tensor of type *T_IND* and shape ``[N, Hs, Lq, KB]``: for every
   selection head and every query row, the indices of the key blocks it attends to in its first
   ``block_count`` entries. These entries are unique within a row and, in the causal mode, in
-  ``[0, (p + 1) // compress_ratio)`` for the position ``p`` of every query token of the row; with
-  ``causal = false`` they are in ``[0, ceil(key_length[n] / compress_ratio))``. Otherwise the
+  ``[0, (p + 1) // key_block_size)`` for the position ``p`` of every query token of the row; with
+  ``causal = false`` they are in ``[0, ceil(key_length[n] / key_block_size))``. Otherwise the
   behavior is undefined. The remaining entries are ignored; *QSAIndexer* sets them to ``-1``.
   **Required.**
 
@@ -339,7 +339,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * ``Ev`` - head size of the attention value.
 
 * ``KB`` - maximum number of selected blocks per query row. For the output of
-  *QSAIndexer*, ``KB = token_budget / compress_ratio``; for FlashVSR, the number of key
+  *QSAIndexer*, ``KB = token_budget / key_block_size``; for FlashVSR, the number of key
   windows.
 
 
@@ -351,7 +351,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
    :force:
 
     <layer id="3" name="sparse_attention" type="BlockSparseAttention" version="extension">
-        <data compress_ratio="4"/>
+        <data key_block_size="4"/>
         <input>
             <port id="0" precision="BF16"> <!-- query -->
                 <dim>1</dim>    <!-- N -->
@@ -399,7 +399,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
    :force:
 
     <layer id="4" name="sparse_attention" type="BlockSparseAttention" version="extension">
-        <data compress_ratio="4"/>
+        <data key_block_size="4"/>
         <input>
             <port id="0" precision="FP32"> <!-- query -->
                 <dim>2</dim>     <!-- N -->
@@ -453,7 +453,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
     <!-- 66 windows of 128 tokens per chunk of 2 latent frames (6 x 11 windows), queries = current chunk,
          keys = 3 cached chunks + the current chunk = 264 windows -->
     <layer id="5" name="lcsa_attention" type="BlockSparseAttention" version="extension">
-        <data compress_ratio="128" query_block_size="128" causal="false"/>
+        <data key_block_size="128" query_block_size="128" causal="false"/>
         <input>
             <port id="0" precision="BF16"> <!-- query, tokens in 3D-window order -->
                 <dim>1</dim>     <!-- N -->

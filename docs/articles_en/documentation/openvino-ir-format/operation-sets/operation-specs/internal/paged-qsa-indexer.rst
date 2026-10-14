@@ -26,16 +26,16 @@ for the new tokens. This data dependency orders the two operations. *PagedQSAInd
 the ``qsa_select_paged_decode`` / ``qsa_select_paged_prefill`` kernels of vLLM.
 
 The selection is the one of *QSAIndexer*: a token at the position ``p`` of its sequence scores the
-``(p + 1) // compress_ratio`` complete blocks at or before it with ``sum_h w[h] * ReLU(q[h] . k)``
-over the index query heads of a selection head, and selects the ``token_budget / compress_ratio``
+``(p + 1) // key_block_size`` complete blocks at or before it with ``sum_h w[h] * ReLU(q[h] . k)``
+over the index query heads of a selection head, and selects the ``token_budget / key_block_size``
 best ones, or all of them if there are fewer. Ties are broken by the smaller block index (stable
-top-k). It covers Qwen Sparse Attention (``compress_ratio = 4``) and DeepSeek Sparse Attention
-(``compress_ratio = 1`` with ``index_weights``); see *QSAIndexer* for the model mapping and the
+top-k). It covers Qwen Sparse Attention (``key_block_size = 4``) and DeepSeek Sparse Attention
+(``key_block_size = 1`` with ``index_weights``); see *QSAIndexer* for the model mapping and the
 selection heads.
 
 ``pa_block_index_keys`` uses the block table of the KV cache: the key of the logical block ``b`` of
-the sequence ``s`` is in the physical block that holds the token ``b * compress_ratio``, at the row
-``(b * compress_ratio % Bs) / compress_ratio``, with ``Bs = compress_ratio * pa_block_index_keys.shape[1]``.
+the sequence ``s`` is in the physical block that holds the token ``b * key_block_size``, at the row
+``(b * key_block_size % Bs) / key_block_size``, with ``Bs = key_block_size * pa_block_index_keys.shape[1]``.
 
 *PagedQSAIndexer* provides functionality according to the following pseudo-code using ``numpy``:
 
@@ -43,11 +43,11 @@ the sequence ``s`` is in the physical block that holds the token ``b * compress_
    :force:
 
     def PagedQSAIndexer(index_query, pa_block_index_keys, past_lens, subsequence_begins, block_indices,
-                        block_indices_begins, index_weights, *, compress_ratio, token_budget, num_selection_heads=1):
+                        block_indices_begins, index_weights, *, key_block_size, token_budget, num_selection_heads=1):
         T = index_query.shape[0]
         rows_per_block, Di = pa_block_index_keys.shape[1], pa_block_index_keys.shape[2]
         Hi = index_query.shape[1]
-        r = compress_ratio
+        r = key_block_size
         Bs = rows_per_block * r                                 # tokens per physical block
         Hs = num_selection_heads
         G = Hi // Hs
@@ -89,17 +89,18 @@ Properties that follow from the definition:
   block IDs. *PagedBlockSparseAttention* maps them to the physical blocks with the same block table.
 * Within a call, a block completed by a later token of the batch is never visible to an earlier
   token: a token at the position ``p`` sees only the blocks that end at or before ``p``.
-* ``selected_block_count`` is ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` for
+* ``selected_block_count`` is ``min(token_budget / key_block_size, (p + 1) // key_block_size)`` for
   every selection head, and the valid entries come first in every row.
 * The operation reads ``pa_block_index_keys`` and writes no cache.
 
 
 **Attributes**
 
-* *compress_ratio*
+* *key_block_size*
 
-  * **Description**: number of consecutive key tokens that form one block. It must be equal to
-    *compress_ratio* of *PagedQSAPrepare* and *PagedBlockSparseAttention*.
+  * **Description**: number of consecutive key tokens that form one key block of the sparse
+    selection, not the physical block of the paged caches (``Bs``). It must be equal to
+    *key_block_size* of *PagedQSAPrepare* and *PagedBlockSparseAttention*.
   * **Range of values**: a positive integer
   * **Type**: ``int``
   * **Required**: *yes*
@@ -107,8 +108,8 @@ Properties that follow from the definition:
 * *token_budget*
 
   * **Description**: maximum number of tokens selected from complete blocks for one token.
-    ``token_budget / compress_ratio`` blocks are selected.
-  * **Range of values**: a positive integer divisible by *compress_ratio*
+    ``token_budget / key_block_size`` blocks are selected.
+  * **Range of values**: a positive integer divisible by *key_block_size*
   * **Type**: ``int``
   * **Required**: *yes*
 
@@ -135,7 +136,7 @@ Properties that follow from the definition:
   rotated index query heads of every new token, packed across all sequences. **Required.**
 
 * **1**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
-  ``[B, Bs / compress_ratio, Di]``: the keys of the complete blocks, the output of
+  ``[B, Bs / key_block_size, Di]``: the keys of the complete blocks, the output of
   *PagedQSAPrepare*. **Required.**
 
 * **2**: ``past_lens`` - 1D tensor of type ``i32`` and shape ``[B_seq]``: the number of tokens of
@@ -160,7 +161,7 @@ Properties that follow from the definition:
 **Outputs**
 
 * **0**: ``selected_block_indices`` - 3D tensor of type ``i32`` and shape
-  ``[T, Hs, token_budget / compress_ratio]``: the logical indices of the blocks selected by every
+  ``[T, Hs, token_budget / key_block_size]``: the logical indices of the blocks selected by every
   selection head for every new token within its sequence, padded with ``-1``.
 
 * **1**: ``selected_block_count`` - 2D tensor of type ``i32`` and shape ``[T, Hs]``: the number of
@@ -189,7 +190,7 @@ Properties that follow from the definition:
 
 * ``B`` - number of physical blocks, the same as in the KV cache.
 
-* ``Bs`` - number of tokens per physical block, divisible by ``compress_ratio``.
+* ``Bs`` - number of tokens per physical block, divisible by ``key_block_size``.
 
 * ``Nb`` - total number of entries in ``block_indices``.
 
@@ -202,7 +203,7 @@ Properties that follow from the definition:
    :force:
 
     <layer id="2" name="paged_qsa_indexer" type="PagedQSAIndexer" version="extension">
-        <data compress_ratio="4" token_budget="2048" num_selection_heads="1"/>
+        <data key_block_size="4" token_budget="2048" num_selection_heads="1"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query: RMS + RoPE in the graph -->
                 <dim>300</dim>  <!-- T -->
@@ -211,7 +212,7 @@ Properties that follow from the definition:
             </port>
             <port id="1" precision="BF16"> <!-- pa_block_index_keys: output of PagedQSAPrepare -->
                 <dim>-1</dim>   <!-- B -->
-                <dim>8</dim>    <!-- Bs / compress_ratio -->
+                <dim>8</dim>    <!-- Bs / key_block_size -->
                 <dim>128</dim>  <!-- Di -->
             </port>
             <port id="2" precision="I32"> <dim>-1</dim> </port> <!-- past_lens -->
@@ -224,7 +225,7 @@ Properties that follow from the definition:
             <port id="7" precision="I32"> <!-- selected_block_indices -->
                 <dim>300</dim>  <!-- T -->
                 <dim>1</dim>    <!-- Hs -->
-                <dim>512</dim>  <!-- token_budget / compress_ratio -->
+                <dim>512</dim>  <!-- token_budget / key_block_size -->
             </port>
             <port id="8" precision="I32"> <!-- selected_block_count -->
                 <dim>300</dim>  <!-- T -->

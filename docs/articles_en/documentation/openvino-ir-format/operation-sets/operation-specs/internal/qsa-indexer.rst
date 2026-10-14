@@ -21,10 +21,10 @@ number.
 output is consumed by :doc:`BlockSparseAttention <block-sparse-attention>`. It covers:
 
 * Qwen Sparse Attention (QSA) of the attention layers of Qwen3.8-Flash-Next (``qwen4_exp`` in
-  Hugging Face Transformers), with blocks of ``compress_ratio = 4`` tokens. Most of this document
+  Hugging Face Transformers), with blocks of ``key_block_size = 4`` tokens. Most of this document
   uses it as the example;
 * DeepSeek Sparse Attention (DSA) of DeepSeek-V3.2 and GLM-MoE-DSA, with single-token blocks
-  (``compress_ratio = 1``). See *Relation to DeepSeek Sparse Attention (DSA)* below.
+  (``key_block_size = 1``). See *Relation to DeepSeek Sparse Attention (DSA)* below.
 
 The selection is decoupled from the attention in the same way as in inference engines:
 
@@ -37,11 +37,11 @@ The selection is decoupled from the attention in the same way as in inference en
 Unlike the engines, which expand the selected blocks into token positions before the attention,
 *QSAIndexer* returns block indices. Expanding the blocks and adding the tokens of the
 query's incomplete block is done by *BlockSparseAttention*. This keeps the selection
-``compress_ratio`` times smaller and lets the attention read every selected block as a contiguous
+``key_block_size`` times smaller and lets the attention read every selected block as a contiguous
 run of tokens.
 
-The selection works on blocks of ``compress_ratio`` consecutive key tokens: block ``b`` holds the
-positions ``b * compress_ratio .. b * compress_ratio + compress_ratio - 1``. Each complete block is
+The selection works on blocks of ``key_block_size`` consecutive key tokens: block ``b`` holds the
+positions ``b * key_block_size .. b * key_block_size + key_block_size - 1``. Each complete block is
 represented by one index key (``block_index_keys``). For every query token,
 *QSAIndexer*:
 
@@ -50,7 +50,7 @@ represented by one index key (``block_index_keys``). For every query token,
    (the "lightning indexer" scoring of DeepSeek sparse attention, applied to block keys). The
    optional ``index_weights`` weight every head per query token before the sum; Qwen3.8-Flash-Next
    does not use them, which is equivalent to all weights equal to ``1``.
-2. Selects the ``token_budget / compress_ratio`` best-scoring blocks, or all of them if there are
+2. Selects the ``token_budget / key_block_size`` best-scoring blocks, or all of them if there are
    fewer.
 
 The operation is weight-free: the index projection and the normalization and rotation of the index
@@ -76,10 +76,10 @@ any number of index heads is reduced to one selection.
    :force:
 
     def QSAIndexer(index_query, block_index_keys, key_length, index_weights=None, *,
-                               compress_ratio, token_budget, num_selection_heads=1):
+                               key_block_size, token_budget, num_selection_heads=1):
         N, Hi, L, Di = index_query.shape
         key_length = numpy.broadcast_to(key_length, (N,))       # valid key tokens of every sequence
-        r = compress_ratio
+        r = key_block_size
         Hs = num_selection_heads
         G = Hi // Hs                                            # index query heads per selection head
         block_topk = token_budget // r
@@ -128,8 +128,8 @@ Properties that follow from the definition:
   that is a padding token (``p < 0``) selects no blocks. Without padding, ``key_length[n] = S`` for
   every sequence.
 * A row of ``block_indices`` is the selection of one selection head for one query token. It holds
-  ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` valid block indices for the
-  query position ``p``, followed by ``-1`` padding. Rows of the first ``compress_ratio - 1``
+  ``min(token_budget / key_block_size, (p + 1) // key_block_size)`` valid block indices for the
+  query position ``p``, followed by ``-1`` padding. Rows of the first ``key_block_size - 1``
   positions have no valid entries.
 * ``block_count`` holds the number of valid entries of every row of ``block_indices`` and is passed
   to the ``block_count`` input of *BlockSparseAttention*. The valid
@@ -139,12 +139,12 @@ Properties that follow from the definition:
   batch, and it is the same for every selection head.
 * The selection heads differ only in which blocks they select, not in how many: all of them score
   the same visible blocks with their own group of index query heads.
-* Every valid block index is in ``[0, (p + 1) // compress_ratio)``: all tokens of a selected block
+* Every valid block index is in ``[0, (p + 1) // key_block_size)``: all tokens of a selected block
   are at or before ``p``, so the selection is causal. The indices in a row are unique.
-* If ``(p + 1) // compress_ratio <= token_budget / compress_ratio``, all complete blocks are
+* If ``(p + 1) // key_block_size <= token_budget / key_block_size``, all complete blocks are
   selected, and the downstream attention is identical to dense causal attention. With the
   Qwen3.8-Flash-Next budget of ``2048`` this holds for the first ``2051`` positions.
-* When ``p + 1`` is a multiple of ``compress_ratio``, the block that contains the query is complete
+* When ``p + 1`` is a multiple of ``key_block_size``, the block that contains the query is complete
   and competes in the selection like any other block. If it is not selected, the query does not
   attend to itself.
 * The scores are only used for ranking. Scaling them by a positive constant (the reference model
@@ -170,18 +170,18 @@ Properties that follow from the definition:
      ``block_count = 0``, and its row of ``block_indices`` is ``-1``.
    * **Block axis** (``B`` of ``block_index_keys``) is **left-aligned**: the blocks of a sequence are
      counted from its first valid token, row ``b`` is its ``b``-th block, so the rows
-     ``0 .. floor(key_length[n] / compress_ratio) - 1`` are valid and the remaining rows at the
+     ``0 .. floor(key_length[n] / key_block_size) - 1`` are valid and the remaining rows at the
      **end** are fake (zeros from *QSAPrepare*). The same holds for the block key cache of
      *QSAPrepare*. The indices in ``block_indices`` are these logical block indices;
-     *BlockSparseAttention* maps block ``b`` back to the key positions ``pad + b * compress_ratio ..``.
+     *BlockSparseAttention* maps block ``b`` back to the key positions ``pad + b * key_block_size ..``.
    * The fake rows are never read: a valid query reads only the rows
-     ``0 .. (p + 1) // compress_ratio - 1``, and ``(p + 1) // compress_ratio <=
-     floor(key_length[n] / compress_ratio)``. Their values therefore do not matter.
+     ``0 .. (p + 1) // key_block_size - 1``, and ``(p + 1) // key_block_size <=
+     floor(key_length[n] / key_block_size)``. Their values therefore do not matter.
 
    .. code-block:: text
       :force:
 
-      compress_ratio = 4, S = 10, key_length = [10, 7]   (pre-fill: L = 10)
+      key_block_size = 4, S = 10, key_length = [10, 7]   (pre-fill: L = 10)
 
       key position:  0   1   2   3   4   5   6   7   8   9
       sequence 0:    a0  a1  a2  a3  a4  a5  a6  a7  a8  a9     pad = 0
@@ -211,7 +211,7 @@ Qwen3.8-Flash-Next, that gives ``Hi`` query heads and one key head of size ``Di`
   (M-)RoPE and positions as the main attention query. Regular operations of the graph compute it
   (*RMS* with the weight ``1 + w``, *RoPE*), as for the query of the main attention.
 * ``block_index_keys``: computed by :doc:`QSAPrepare <qsa-prepare>`. The raw key head of every token
-  (before normalization and rotation) is mean-pooled over each complete block of ``compress_ratio``
+  (before normalization and rotation) is mean-pooled over each complete block of ``key_block_size``
   tokens, RMS-normalized with ``k_layernorm``, and rotated with the (M-)RoPE position of the first
   token of the block.
 
@@ -229,7 +229,7 @@ the blocks completed by the new tokens. The paged counterparts are
 
 .. note::
 
-   With ``compress_ratio = 1`` and ``index_weights`` provided, *QSAIndexer* covers the DSA indexer
+   With ``key_block_size = 1`` and ``index_weights`` provided, *QSAIndexer* covers the DSA indexer
    of DeepSeek-V3.2 and GLM-MoE-DSA (``DeepseekV32Indexer`` in Hugging Face Transformers):
 
    * every block is a single token, so a query at the position ``p`` scores all tokens
@@ -249,12 +249,12 @@ the blocks completed by the new tokens. The paged counterparts are
    *QSAIndexer* up to the positive factor. The Hadamard rotation and the FP8 quantization of the
    reference DSA indexer are precision optimizations and are not part of the definition. The
    selected tokens are consumed by :doc:`BlockSparseAttention <block-sparse-attention>` with
-   ``compress_ratio = 1``.
+   ``key_block_size = 1``.
 
 
 **Attributes**
 
-* *compress_ratio*
+* *key_block_size*
 
   * **Description**: number of consecutive key tokens that form one block.
   * **Range of values**: a positive integer
@@ -264,8 +264,8 @@ the blocks completed by the new tokens. The paged counterparts are
 * *token_budget*
 
   * **Description**: maximum number of tokens selected from complete blocks for one query.
-    ``token_budget / compress_ratio`` blocks are selected.
-  * **Range of values**: a positive integer divisible by *compress_ratio*
+    ``token_budget / key_block_size`` blocks are selected.
+  * **Range of values**: a positive integer divisible by *key_block_size*
   * **Type**: ``int``
   * **Required**: *yes*
 
@@ -295,8 +295,8 @@ the blocks completed by the new tokens. The paged counterparts are
   heads of the query tokens. **Required.**
 
 * **2**: ``block_index_keys`` - 3D tensor of type *T* and shape ``[N, B, Di]``: one index key per
-  complete key block of every sequence, ``B = floor(S / compress_ratio)``. Row ``n`` holds the keys
-  of the ``floor(key_length[n] / compress_ratio)`` blocks of sequence ``n`` first; the remaining
+  complete key block of every sequence, ``B = floor(S / key_block_size)``. Row ``n`` holds the keys
+  of the ``floor(key_length[n] / key_block_size)`` blocks of sequence ``n`` first; the remaining
   rows of a padded sequence are not read. **Required.**
 
 * **3**: ``key_length`` - 1D tensor of type *T_IND* and shape ``[N]``: the number of valid key tokens
@@ -314,13 +314,13 @@ the blocks completed by the new tokens. The paged counterparts are
 **Outputs**
 
 * **1**: ``block_indices`` - 4D tensor of type *index_element_type* and shape
-  ``[N, Hs, L, token_budget / compress_ratio]``: the indices of the key blocks selected by every
+  ``[N, Hs, L, token_budget / key_block_size]``: the indices of the key blocks selected by every
   selection head for every query token, padded with ``-1``.
 
 * **2**: ``block_count`` - 3D tensor of type *index_element_type* and shape ``[N, Hs, L]``: the
   number of blocks selected by every selection head for every query token, that is the number of
   valid entries in the corresponding row of ``block_indices``,
-  ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` for the query position ``p``,
+  ``min(token_budget / key_block_size, (p + 1) // key_block_size)`` for the query position ``p``,
   ``0`` for a padding token.
 
 
@@ -347,7 +347,7 @@ the blocks completed by the new tokens. The paged counterparts are
 
 * ``Di`` - head size of the index query and key.
 
-* ``B`` - number of complete key blocks, ``floor(S / compress_ratio)``.
+* ``B`` - number of complete key blocks, ``floor(S / key_block_size)``.
 
 
 **Examples**
@@ -358,7 +358,7 @@ the blocks completed by the new tokens. The paged counterparts are
    :force:
 
     <layer id="1" name="indexer" type="QSAIndexer" version="extension">
-        <data compress_ratio="4" token_budget="2048" index_element_type="i32"/>
+        <data key_block_size="4" token_budget="2048" index_element_type="i32"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->
                 <dim>1</dim>   <!-- N -->
@@ -378,7 +378,7 @@ the blocks completed by the new tokens. The paged counterparts are
                 <dim>1</dim>   <!-- N -->
                 <dim>1</dim>   <!-- Hs = num_selection_heads -->
                 <dim>-1</dim>  <!-- L -->
-                <dim>512</dim> <!-- token_budget / compress_ratio -->
+                <dim>512</dim> <!-- token_budget / key_block_size -->
             </port>
             <port id="4" precision="I32"> <!-- block_count -->
                 <dim>1</dim>   <!-- N -->
@@ -394,7 +394,7 @@ the blocks completed by the new tokens. The paged counterparts are
    :force:
 
     <layer id="2" name="indexer" type="QSAIndexer" version="extension">
-        <data compress_ratio="4" token_budget="2048"/>
+        <data key_block_size="4" token_budget="2048"/>
         <input>
             <port id="0" precision="FP32"> <!-- index_query -->
                 <dim>2</dim>    <!-- N -->
@@ -415,7 +415,7 @@ the blocks completed by the new tokens. The paged counterparts are
                 <dim>2</dim>    <!-- N -->
                 <dim>1</dim>    <!-- Hs = num_selection_heads -->
                 <dim>1</dim>    <!-- L -->
-                <dim>512</dim>  <!-- token_budget / compress_ratio -->
+                <dim>512</dim>  <!-- token_budget / key_block_size -->
             </port>
             <port id="4" precision="I32"> <!-- block_count: 512 for both sequences -->
                 <dim>2</dim>    <!-- N -->
@@ -431,7 +431,7 @@ the blocks completed by the new tokens. The paged counterparts are
    :force:
 
     <layer id="3" name="dsa_indexer" type="QSAIndexer" version="extension">
-        <data compress_ratio="1" token_budget="2048"/>
+        <data key_block_size="1" token_budget="2048"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->
                 <dim>1</dim>     <!-- N -->
@@ -456,7 +456,7 @@ the blocks completed by the new tokens. The paged counterparts are
                 <dim>1</dim>     <!-- N -->
                 <dim>1</dim>     <!-- Hs = num_selection_heads -->
                 <dim>1</dim>     <!-- L -->
-                <dim>2048</dim>  <!-- token_budget / compress_ratio = index_topk -->
+                <dim>2048</dim>  <!-- token_budget / key_block_size = index_topk -->
             </port>
             <port id="5" precision="I32"> <!-- block_count: 2048 -->
                 <dim>1</dim>     <!-- N -->

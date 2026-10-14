@@ -22,21 +22,21 @@ and of the incomplete block that contains it.
 The graph flow of a QSA layer with a paged KV cache is :doc:`PagedQSAPrepare <paged-qsa-prepare>` ->
 :doc:`PagedQSAIndexer <paged-qsa-indexer>` -> *PagedBlockSparseAttention*.
 
-The attention is the causal mode of *BlockSparseAttention*. Blocks consist of ``compress_ratio``
+The attention is the causal mode of *BlockSparseAttention*. Blocks consist of ``key_block_size``
 consecutive tokens of a sequence; a token at the position ``p`` attends to:
 
 * all tokens of the first ``selected_block_count`` blocks listed in its row of
   ``selected_block_indices`` for the selection head of the attention head, produced by
   *PagedQSAIndexer*;
 * the tokens of the incomplete block that contains it,
-  ``floor((p + 1) / compress_ratio) * compress_ratio .. p``: at most ``compress_ratio - 1`` tokens,
-  including the query itself, and none when ``p + 1`` is a multiple of ``compress_ratio``.
+  ``floor((p + 1) / key_block_size) * key_block_size .. p``: at most ``key_block_size - 1`` tokens,
+  including the query itself, and none when ``p + 1`` is a multiple of ``key_block_size``.
 
 ``selected_block_indices`` holds ``Hs`` selections per token. Query head ``h`` uses the selection
 ``h // (H / Hs)``; with ``Hs = 1`` all query heads of a token share one selection, the case of QSA and
 DSA. There is no other causal mask. With
-``compress_ratio = 4`` this is the attention of Qwen Sparse Attention (QSA, Qwen3.8-Flash-Next);
-with ``compress_ratio = 1`` the incomplete block is always empty and this is the sparse attention
+``key_block_size = 4`` this is the attention of Qwen Sparse Attention (QSA, Qwen3.8-Flash-Next);
+with ``key_block_size = 1`` the incomplete block is always empty and this is the sparse attention
 of DeepSeek Sparse Attention (DSA, DeepSeek-V3.2, GLM-MoE-DSA), with the multi-head latent attention
 in its absorbed form as described for *BlockSparseAttention*.
 
@@ -54,12 +54,12 @@ The KV cache and its management are the same as for
   ``pos`` of the sequence ``s`` is stored in the physical block
   ``block_indices[block_indices_begins[s] + pos // Bs]`` at the offset ``pos % Bs``.
 * *PagedQSAPrepare* of the same layer uses the same block table for its index caches, so ``Bs``
-  must be divisible by ``compress_ratio``.
+  must be divisible by ``key_block_size``.
 
 ``selected_block_indices`` holds logical block indices within the sequence of each token. The
 operation maps every selected block to its tokens and the tokens to their slots with the block
 table. Because a block never spans two physical blocks, a selected block is a contiguous run of
-``compress_ratio`` rows of one physical block of ``key_cache`` and ``value_cache``.
+``key_block_size`` rows of one physical block of ``key_cache`` and ``value_cache``.
 
 *PagedBlockSparseAttention* provides functionality according to the following pseudo-code using
 ``numpy``:
@@ -69,13 +69,13 @@ table. Because a block never spans two physical blocks, a selected block is a co
 
     def PagedBlockSparseAttention(query, key, value, key_cache, value_cache, past_lens, subsequence_begins,
                                   block_indices, block_indices_begins, selected_block_indices,
-                                  selected_block_count, scale, *, compress_ratio):
+                                  selected_block_count, scale, *, key_block_size):
         T = query.shape[0]
         Hkv, Bs, S = key_cache.shape[1], key_cache.shape[2], key_cache.shape[3]
         Sv = value_cache.shape[3]
         H = query.shape[1] // S
         Hs = selected_block_indices.shape[1]                    # selection heads
-        r = compress_ratio
+        r = key_block_size
         output = numpy.zeros((T, H * Sv))
 
         def slot(s, pos):
@@ -127,10 +127,11 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
 **Attributes**
 
-* *compress_ratio*
+* *key_block_size*
 
-  * **Description**: number of consecutive key tokens that form one block. It must be equal to
-    *compress_ratio* of the *PagedQSAIndexer* that produces ``selected_block_indices``
+  * **Description**: number of consecutive key tokens that form one key block of the sparse
+    selection, not the physical block of the paged caches (``Bs``). It must be equal to
+    *key_block_size* of the *PagedQSAIndexer* that produces ``selected_block_indices``
     and divide the block size ``Bs`` of the caches.
   * **Range of values**: a positive integer
   * **Type**: ``int``
@@ -175,7 +176,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 * **9**: ``selected_block_indices`` - 3D tensor of type ``i32`` and shape ``[T, Hs, KB]``: for every
   new token at the position ``p`` and every selection head, the logical indices of the blocks of its
   sequence it attends to. The first ``selected_block_count`` entries are valid, unique and in
-  ``[0, (p + 1) // compress_ratio)``; otherwise the behavior is undefined. **Required.**
+  ``[0, (p + 1) // key_block_size)``; otherwise the behavior is undefined. **Required.**
 
 * **10**: ``selected_block_count`` - 2D tensor of type ``i32`` and shape ``[T, Hs]``: the number of
   valid entries in every row of ``selected_block_indices``. **Required.**
@@ -220,12 +221,12 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
 * ``B`` - number of physical blocks.
 
-* ``Bs`` - number of tokens per physical block, divisible by ``compress_ratio``.
+* ``Bs`` - number of tokens per physical block, divisible by ``key_block_size``.
 
 * ``Nb`` - total number of entries in ``block_indices``.
 
 * ``KB`` - maximum number of selected blocks per token. For the output of
-  *PagedQSAIndexer*, ``KB = token_budget / compress_ratio``.
+  *PagedQSAIndexer*, ``KB = token_budget / key_block_size``.
 
 
 **Example**
@@ -236,7 +237,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
    :force:
 
     <layer id="2" name="paged_sparse_attention" type="PagedBlockSparseAttention" version="extension">
-        <data compress_ratio="4"/>
+        <data key_block_size="4"/>
         <input>
             <port id="0" precision="BF16"> <!-- query -->
                 <dim>300</dim>   <!-- T -->

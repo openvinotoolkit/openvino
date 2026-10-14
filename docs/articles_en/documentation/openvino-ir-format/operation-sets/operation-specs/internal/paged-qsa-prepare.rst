@@ -46,9 +46,9 @@ The responsibilities are the same as for :doc:`PagedAttentionExtension <paged-at
   ``subsequence_begins``. The three caches use **the same block table as the KV cache** of the
   layer: a physical block ``blk`` that holds ``Bs`` tokens of a sequence in the key and value caches
   holds their raw index keys in ``index_key_cache[blk]``, and the keys and the RoPE of the
-  ``Bs / compress_ratio`` blocks formed by these tokens in ``pa_block_index_keys[blk]`` and
+  ``Bs / key_block_size`` blocks formed by these tokens in ``pa_block_index_keys[blk]`` and
   ``index_block_rope_cache[blk]``. The host allocates the three caches with the same number of
-  physical blocks as the KV cache. ``Bs`` must be divisible by ``compress_ratio``, so that a block
+  physical blocks as the KV cache. ``Bs`` must be divisible by ``key_block_size``, so that a block
   never spans two physical blocks.
 * The operation writes the caches: the raw index keys of the new tokens, the ``cos`` / ``sin`` of
   every new block start, and the key of every block completed by the new tokens.
@@ -56,7 +56,7 @@ The responsibilities are the same as for :doc:`PagedAttentionExtension <paged-at
 The token at the position ``pos`` of the sequence ``s`` is stored in the physical block
 ``block_indices[block_indices_begins[s] + pos // Bs]`` at the offset ``pos % Bs``; the logical block
 ``b`` of the sequence is stored in the physical block that holds its first token
-``b * compress_ratio``, in the row ``(b * compress_ratio % Bs) / compress_ratio``.
+``b * key_block_size``, in the row ``(b * key_block_size % Bs) / key_block_size``.
 
 Because the caches are indexed by token position and share the KV-cache blocks, prefix caching
 works as for the KV cache. When the host rolls back the last tokens of a sequence (for example
@@ -74,9 +74,9 @@ the same buffer after the update. It is connected to the ``pa_block_index_keys``
 
     def PagedQSAPrepare(index_key, index_key_cache, pa_block_index_keys, index_block_rope_cache, past_lens,
                         subsequence_begins, block_indices, block_indices_begins, k_norm_weight, rope_cos, rope_sin, *,
-                        compress_ratio, epsilon=1e-6):
+                        key_block_size, epsilon=1e-6):
         Bs, Di = index_key_cache.shape[1], index_key_cache.shape[2]
-        r = compress_ratio
+        r = key_block_size
         Dr = rope_cos.shape[-1] if rope_cos.size else 0
 
         def slot(s, pos):            # physical block and offset of the token at position pos of sequence s
@@ -115,7 +115,7 @@ Properties that follow from the definition:
   Qwen3.8-Flash-Next), the rotation (rotate-half on the first ``Dr`` dimensions, ``cos`` / ``sin``
   given per new token with M-RoPE already resolved) and their precision are the ones of
   *QSAPrepare*. Empty ``k_norm_weight`` or tables disable the normalization or the rotation.
-* For DeepSeek Sparse Attention (``compress_ratio = 1``) every block is complete as soon as its token
+* For DeepSeek Sparse Attention (``key_block_size = 1``) every block is complete as soon as its token
   is processed. The graph computes the final per-token index keys itself (LayerNorm and partial
   RoPE) and passes them as ``index_key`` with empty ``k_norm_weight``, ``rope_cos``, ``rope_sin`` and
   ``index_block_rope_cache``; the operation then only writes them into ``pa_block_index_keys``.
@@ -123,10 +123,11 @@ Properties that follow from the definition:
 
 **Attributes**
 
-* *compress_ratio*
+* *key_block_size*
 
-  * **Description**: number of consecutive key tokens that form one block. It must divide the block
-    size ``Bs`` of the caches and be equal to *compress_ratio* of the consuming *PagedQSAIndexer*.
+  * **Description**: number of consecutive key tokens that form one key block of the sparse
+    selection, not the physical block of the paged caches (``Bs``). It must divide the block
+    size ``Bs`` of the caches and be equal to *key_block_size* of the consuming *PagedQSAIndexer*.
   * **Range of values**: a positive integer
   * **Type**: ``int``
   * **Required**: *yes*
@@ -154,10 +155,10 @@ Properties that follow from the definition:
   keys of the cached tokens, updated in place. **Required.**
 
 * **2**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
-  ``[B, Bs / compress_ratio, Di]``: the keys of the complete blocks, updated in place. **Required.**
+  ``[B, Bs / key_block_size, Di]``: the keys of the complete blocks, updated in place. **Required.**
 
 * **3**: ``index_block_rope_cache`` - 3D tensor of type *T_cache* and shape
-  ``[B, Bs / compress_ratio, 2 * Dr]``, or an empty tensor: ``rope_cos`` concatenated with
+  ``[B, Bs / key_block_size, 2 * Dr]``, or an empty tensor: ``rope_cos`` concatenated with
   ``rope_sin`` of the first token of every block, updated in place. **Required (empty tensor = no
   rotation).**
 
@@ -188,7 +189,7 @@ Properties that follow from the definition:
 **Outputs**
 
 * **0**: ``pa_block_index_keys`` - 3D tensor of type *T_cache* and shape
-  ``[B, Bs / compress_ratio, Di]``: input 2 after the update, the same buffer. It is connected to the
+  ``[B, Bs / key_block_size, Di]``: input 2 after the update, the same buffer. It is connected to the
   ``pa_block_index_keys`` input of *PagedQSAIndexer*.
 
 .. note::
@@ -219,7 +220,7 @@ Properties that follow from the definition:
 * ``B`` - number of physical blocks, the same as in the KV cache.
 
 * ``Bs`` - number of tokens per physical block, the same as in the KV cache, divisible by
-  ``compress_ratio``.
+  ``key_block_size``.
 
 * ``Nb`` - total number of entries in ``block_indices``.
 
@@ -232,7 +233,7 @@ Properties that follow from the definition:
    :force:
 
     <layer id="1" name="paged_qsa_prepare" type="PagedQSAPrepare" version="extension">
-        <data compress_ratio="4" epsilon="1e-06"/>
+        <data key_block_size="4" epsilon="1e-06"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_key, raw -->
                 <dim>300</dim>  <!-- T -->
@@ -245,12 +246,12 @@ Properties that follow from the definition:
             </port>
             <port id="2" precision="BF16"> <!-- pa_block_index_keys -->
                 <dim>-1</dim>   <!-- B -->
-                <dim>8</dim>    <!-- Bs / compress_ratio -->
+                <dim>8</dim>    <!-- Bs / key_block_size -->
                 <dim>128</dim>  <!-- Di -->
             </port>
             <port id="3" precision="BF16"> <!-- index_block_rope_cache -->
                 <dim>-1</dim>   <!-- B -->
-                <dim>8</dim>    <!-- Bs / compress_ratio -->
+                <dim>8</dim>    <!-- Bs / key_block_size -->
                 <dim>128</dim>  <!-- 2 * Dr -->
             </port>
             <port id="4" precision="I32"> <dim>-1</dim> </port> <!-- past_lens -->
@@ -270,7 +271,7 @@ Properties that follow from the definition:
         <output>
             <port id="11" precision="BF16"> <!-- pa_block_index_keys, updated: to PagedQSAIndexer -->
                 <dim>-1</dim>   <!-- B -->
-                <dim>8</dim>    <!-- Bs / compress_ratio -->
+                <dim>8</dim>    <!-- Bs / key_block_size -->
                 <dim>128</dim>  <!-- Di -->
             </port>
         </output>
