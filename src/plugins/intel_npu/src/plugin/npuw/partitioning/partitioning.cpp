@@ -929,6 +929,12 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
+        // An output-less partition is already marked as optimized out by identifySubgraphs().
+        // Do not turn it into a function call.
+        if (part_sg._optimized_out) {
+            LOG_VERB("Skipping optimized-out subgraph in function pipeline");
+            continue;
+        }
         if (!part_sg._repeated_id.empty() &&
             (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
