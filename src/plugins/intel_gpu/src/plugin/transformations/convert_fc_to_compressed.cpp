@@ -12,6 +12,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
@@ -22,10 +23,53 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
+
+namespace {
+
+// Transposes a u3 weights constant. Core Transpose does not evaluate u3, and the GPU has no u3 permute, so the
+// weights are transposed here rather than through a Transpose node.
+std::shared_ptr<ov::op::v0::Constant> transpose_u3_constant(const ov::op::v0::Constant& constant, const std::vector<int64_t>& order) {
+    const auto& in_shape = constant.get_shape();
+    const size_t rank = in_shape.size();
+    OPENVINO_ASSERT(order.size() == rank, "u3 weights transpose order does not match the weights rank");
+
+    ov::Shape out_shape(rank);
+    for (size_t i = 0; i < rank; ++i) {
+        out_shape[i] = in_shape[order[i]];
+    }
+    std::vector<size_t> in_strides(rank, 1);
+    for (size_t i = rank - 1; i > 0; --i) {
+        in_strides[i - 1] = in_strides[i] * in_shape[i];
+    }
+
+    ov::Tensor result(ov::element::u3, out_shape);
+    auto src = ov::element::iterator<ov::element::u3>(static_cast<const int8_t*>(constant.get_data_ptr()));
+    auto dst = ov::element::iterator<ov::element::u3>(static_cast<int8_t*>(result.data()));
+
+    std::vector<size_t> out_coord(rank, 0);
+    const size_t count = ov::shape_size(out_shape);
+    for (size_t idx = 0; idx < count; ++idx) {
+        size_t src_idx = 0;
+        for (size_t i = 0; i < rank; ++i) {
+            src_idx += out_coord[i] * in_strides[order[i]];
+        }
+        *(dst + idx) = *(src + src_idx);
+        for (size_t i = rank; i-- > 0;) {
+            if (++out_coord[i] < out_shape[i]) {
+                break;
+            }
+            out_coord[i] = 0;
+        }
+    }
+    return std::make_shared<ov::op::v0::Constant>(result);
+}
+
+}  // namespace
 
 ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
     auto data_m = any_input();
@@ -161,7 +205,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 transpose_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_order.size()}, new_order);
             }
 
-            fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
+            const auto weights_const = ov::as_type_ptr<ov::op::v0::Constant>(fc_input_b);
+            const auto order_const = ov::as_type_ptr<ov::op::v0::Constant>(transpose_const);
+            if (weights_const && order_const && weights_const->get_element_type() == ov::element::u3) {
+                fc_input_b = transpose_u3_constant(*weights_const, order_const->cast_vector<int64_t>());
+            } else {
+                fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
+            }
             result_nodes.push_back(fc_input_b);
 
             if (ov::shape_size(scale->output(0).get_shape()) > 1) {
