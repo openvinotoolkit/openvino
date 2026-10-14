@@ -180,6 +180,52 @@ std::shared_ptr<ov::Model> make_rope_model(bool with_concat2) {
         with_concat2 ? "llama2_rope_test_model" : "gpt_rope_test_model");
 }
 
+// Builds a Gemma 4-style model with hybrid attention, it has multiple independent RoPE blocks.
+std::shared_ptr<ov::Model> make_multi_rope_model(const std::vector<std::vector<float>>& inv_freqs) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 4});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    // Shared shape-compute chain (ShapeOf->Gather->Concat_1).
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
+    auto gather_idx = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx, gather_axis);
+    auto ndims_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto one_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, ndims_const, one_const}, 0);
+
+    // Shared position_ids branch (Unsqueeze->Convert).
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+
+    ov::ResultVector results;
+    for (size_t i = 0; i < inv_freqs.size(); ++i) {
+        const auto& freqs = inv_freqs[i];
+        auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, freqs.size(), 1}, freqs);
+
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(inv_freq, concat_1);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, convert);  // [1, freqs.size(), 4]
+        auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [1, 4, freqs.size()]
+
+        auto zeros = ov::op::v0::Constant::create(ov::element::f32,
+                                                  ov::Shape{1, 4, freqs.size()},
+                                                  std::vector<float>(4 * freqs.size(), 0.f));
+        auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, -1);
+
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+        sin->set_friendly_name("sin_" + std::to_string(i));
+        cos->set_friendly_name("cos_" + std::to_string(i));
+
+        results.push_back(std::make_shared<ov::op::v0::Result>(sin));
+        results.push_back(std::make_shared<ov::op::v0::Result>(cos));
+    }
+
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, position_ids}, "multi_rope_test_model");
+}
+
 bool has_input_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     const auto inputs = model->inputs();
     return std::any_of(inputs.begin(), inputs.end(), [&name](const auto& input) {
@@ -423,6 +469,40 @@ TEST(PreComputeTest, RopeCacheTransformsGPTPattern) {
 
     EXPECT_EQ(sin_count, 0) << "Sin should be replaced by Gather from the non-duplicated LUT";
     EXPECT_EQ(cos_count, 0) << "Cos should be replaced by Gather from the non-duplicated LUT";
+}
+
+// A model can contain more than one independent RoPE block (e.g. Gemma 4's hybrid attention)
+// and every block must be cached, not just the first.
+TEST(PreComputeTest, RopeCacheTransformsTwoIndependentRopeBlocks) {
+    auto model = make_multi_rope_model({{0.5f, 0.1f}, {0.2f, 0.05f}});
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 0u) << "both RoPE blocks must be cached, not just the first";
+
+    const auto& ops = model->get_ops();
+    const auto gather_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v8::Gather>(op);
+    });
+    EXPECT_EQ(gather_count, 4u) << "one Gather for cos and one for sin, per block";
+
+    // Each block must get its own cache, not accidentally share one.
+    std::vector<const ov::op::v0::Constant*> caches;
+    for (const auto& op : ops) {
+        if (auto gather_op = ov::as_type_ptr<ov::op::v8::Gather>(op)) {
+            if (auto cache = ov::as_type_ptr<ov::op::v0::Constant>(gather_op->input_value(0).get_node_shared_ptr())) {
+                caches.push_back(cache.get());
+            }
+        }
+    }
+    ASSERT_EQ(caches.size(), 4u);
+    for (size_t i = 0; i < caches.size(); ++i) {
+        for (size_t j = i + 1; j < caches.size(); ++j) {
+            EXPECT_NE(std::memcmp(caches[i]->get_data_ptr(), caches[j]->get_data_ptr(), caches[i]->get_byte_size()), 0)
+                << "cache constants " << i << " and " << j << " are unexpectedly identical";
+        }
+    }
 }
 
 }  // namespace
