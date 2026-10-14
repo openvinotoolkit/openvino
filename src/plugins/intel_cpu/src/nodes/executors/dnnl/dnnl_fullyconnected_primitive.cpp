@@ -263,7 +263,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 1 << 0,
                                 memory,
                                 outputDataType,
-                                {},
+                                attrs.dqScales,
                                 PostOpsMode::Original,
                                 false);
 
