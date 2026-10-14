@@ -629,12 +629,13 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
 
         std::vector<ov::CompiledModel> compiledModels;
         compiledModels.reserve(kModelCount);
-        auto producer =
-            std::async(std::launch::async, [this, &compiledModels, &model, &cfg, modelCount = kModelCount]() {
-                for (size_t i = 0; i < modelCount; ++i) {
-                    compiledModels.emplace_back(core.compile_model(model, target_device, cfg));
-                }
-            });
+        // Non-const on purpose: a const copy is still constant-folded and flagged as a redundant capture.
+        size_t modelCount = kModelCount;
+        auto producer = std::async(std::launch::async, [this, &compiledModels, &model, &cfg, modelCount]() {
+            for (size_t i = 0; i < modelCount; ++i) {
+                compiledModels.emplace_back(core.compile_model(model, target_device, cfg));
+            }
+        });
         producer.get();
 
         ASSERT_EQ(compiledModels.size(), kModelCount);
@@ -646,6 +647,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
         for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
             const bool useAltShape = (inferIdx % 2U) == 1U;
             const auto& shape = useAltShape ? shapeSmall : shapeLarge;
+            // Non-const on purpose - see the modelCount comment above.
+            size_t requestsPerModel = kRequestsPerModel;
             runConcurrentlyAsync(
                 kThreadCount,
                 [model,
@@ -656,7 +659,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                  &inputs,
                  &shape,
                  inferIdx,
-                 requestsPerModel = kRequestsPerModel](size_t threadIdx) {
+                 requestsPerModel](size_t threadIdx) {
                     if (requests[threadIdx].empty()) {
                         requests[threadIdx].reserve(compiledModels.size() * requestsPerModel);
                         referenceRequests[threadIdx].reserve(compiledModels.size() * requestsPerModel);
@@ -889,6 +892,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
 
         std::vector<ov::CompiledModel> compiledModels;
         compiledModels.reserve(kModelCount);
+        // Non-const on purpose - see the modelCount comment in MT_MultiCompiledModelsMultiRequestsMultiInfer.
+        size_t modelCount = kModelCount;
         std::mutex mutex;
         std::condition_variable cv;
         bool producerDone = false;
@@ -936,8 +941,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
                     successInferCount.fetch_add(1, std::memory_order_relaxed);
                 }
             },
-            [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone, &producerException, &producer](
-                const std::shared_future<void>& start) {
+            [this,
+             &cfg,
+             &model,
+             &compiledModels,
+             &mutex,
+             &cv,
+             &producerDone,
+             &producerException,
+             &producer,
+             modelCount](const std::shared_future<void>& start) {
                 producer = std::async(std::launch::async,
                                       [this,
                                        &cfg,
@@ -948,7 +961,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
                                        &producerDone,
                                        &producerException,
                                        start,
-                                       modelCount = kModelCount]() {
+                                       modelCount]() {
                                           start.wait();
                                           try {
                                               for (size_t i = 0; i < modelCount; ++i) {
