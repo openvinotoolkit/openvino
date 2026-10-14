@@ -54,7 +54,7 @@ struct PluginCompilerAdapterTest : public ::testing::Test {
     // The adapter is built with a null ZeroInitStructsHolder throughout: that is the no-driver path,
     // which is the only one reachable without an NPU.
     std::unique_ptr<PluginCompilerAdapter> makeAdapter() {
-        return std::make_unique<PluginCompilerAdapter>(nullptr, ov::SoPtr<::intel_npu::IVCLCompiler>(compiler));
+        return std::make_unique<PluginCompilerAdapter>(nullptr, compiler);
     }
 
     static std::shared_ptr<OptionsDesc> makeOptionsDesc() {
@@ -86,10 +86,10 @@ TEST_F(PluginCompilerAdapterTest, InjectedCompilerIsAdapted) {
 }
 
 TEST_F(PluginCompilerAdapterTest, NullCompilerIsRejected) {
+    const std::shared_ptr<::intel_npu::IVCLCompiler> noCompiler;
     EXPECT_THROW(
         {
-            auto adapter =
-                std::make_unique<PluginCompilerAdapter>(nullptr, ov::SoPtr<::intel_npu::IVCLCompiler>(nullptr));
+            auto adapter = std::make_unique<PluginCompilerAdapter>(nullptr, noCompiler);
             (void)adapter;
         },
         ov::Exception);
