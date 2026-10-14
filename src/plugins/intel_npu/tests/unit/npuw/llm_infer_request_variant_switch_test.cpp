@@ -90,6 +90,10 @@ struct LLMVariantSwitchTestAccess {
         compiled->m_kvcache_desc.total_size = total_size;
     }
 
+    static uint32_t total_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_kvcache_desc.total_size;
+    }
+
     static void set_prefill_compiled(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
                                      std::shared_ptr<ov::npuw::ICompiledModel_v0> prefill) {
         compiled->m_prefill_compiled = std::move(prefill);
@@ -1246,6 +1250,50 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedPrefillInputIdsLargerTha
     input_ids->output(0).set_names({"input_ids"});
     auto result = std::make_shared<ov::op::v0::Result>(input_ids);
     auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// num_stored_tokens is restored from the blob too, with no bound against total_size. A fresh
+// request never resets it before its first inference (prepare_for_new_conversation() only runs
+// once infer_prefill() is actually invoked), so WhisperInferRequest::infer() can route a single-
+// token call straight to infer_generate() whenever the forged value is nonzero - and that
+// equality-only "cache full" guard never fires for a value that merely avoids equaling
+// total_size, letting it be used as a raw attention-mask/KV-cache index instead.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedNumStoredTokensLargerThanTotalSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    const uint32_t total_size = LLMVariantSwitchTestAccess::total_size(compiled);
+    LLMVariantSwitchTestAccess::set_num_stored_tokens(compiled, total_size + 1u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Matching the top-level model's rank does not establish the runtime contract by itself: the
+// top-level shape is just as blob-controlled as the child's, so a forged blob can make both agree
+// on the same wrong rank. Every infer_prefill()/infer_generate() path indexes
+// input_ids->get_shape()[1], assuming rank 2 regardless of what either declared shape says.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputIdsRankOneEvenWhenTopLevelAgrees) {
+    auto top_input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    top_input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_input_ids)},
+                                    ov::ParameterVector{top_input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 1u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 1u);
+
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
     LLMVariantSwitchTestAccess::set_prefill_compiled(
         compiled,
         std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));

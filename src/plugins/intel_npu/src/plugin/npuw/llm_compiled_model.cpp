@@ -1939,6 +1939,21 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                     m_kvcache_desc.max_prompt_size,
                     ").");
 
+    // num_stored_tokens is restored from the blob too, and a fresh request never calls
+    // prepare_for_new_conversation() before its first inference - so a nonzero forged value
+    // is live from the start. WhisperInferRequest::infer() routes a single-token call
+    // straight to infer_generate() whenever num_stored_tokens != 0, and infer_generate()'s
+    // "cache full" guard is the same equality-only check noted above: a forged value that
+    // merely avoids equaling total_size sails through it and is then used as a raw index
+    // into the attention_mask and KV-cache tensors. Bound it to what any real conversation
+    // can reach so every such index stays inside the tensors validated below.
+    OPENVINO_ASSERT(m_kvcache_desc.num_stored_tokens <= m_kvcache_desc.total_size,
+                    "NPUW blob: declared number of stored tokens (",
+                    m_kvcache_desc.num_stored_tokens,
+                    ") exceeds the declared KV-cache total size (",
+                    m_kvcache_desc.total_size,
+                    ").");
+
     // Every port here is [BATCH, SEQ_LEN] (or [.., BATCH, SEQ_LEN] for the 3-D VLM variant of
     // position_ids), so the sequence extent is the last axis - except `inputs_embeds`, which
     // ReshapeToStatic (see reshape_to_static.cpp) lays out as [BATCH, SEQ_LEN, EMB_SIZE]: its
@@ -1977,6 +1992,22 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         const auto& child_rank_dim = child.get_partial_shape().rank();
         OPENVINO_ASSERT(child_rank_dim.is_static(), "NPUW blob: input '", name, "' does not have a static rank.");
         const auto rank = static_cast<size_t>(child_rank_dim.get_length());
+
+        // ReshapeToStatic (see reshape_to_static.cpp) fixes each of these ports to one of a
+        // small, known set of ranks, and every runtime consumer indexes assuming that exact
+        // contract (e.g. input_ids->get_shape()[1] in every infer_prefill()/infer_generate()).
+        // Pin it directly here instead of only cross-checking agreement with the top-level
+        // model below: that model's shape is just as blob-controlled as this one, so a forged
+        // blob could make both sides agree on the same wrong rank and still pass.
+        if (std::strcmp(name, layer_names::input_ids) == 0 || std::strcmp(name, layer_names::token_type_ids) == 0 ||
+            std::strcmp(name, layer_names::attention_mask) == 0) {
+            OPENVINO_ASSERT(rank == 2, "NPUW blob: input '", name, "' rank (", rank, ") must be 2.");
+        } else if (std::strcmp(name, layer_names::inputs_embeds) == 0) {
+            OPENVINO_ASSERT(rank == 3, "NPUW blob: input '", name, "' rank (", rank, ") must be 3.");
+        } else if (std::strcmp(name, layer_names::position_ids) == 0) {
+            OPENVINO_ASSERT(rank == 2 || rank == 3, "NPUW blob: input '", name, "' rank (", rank, ") must be 2 or 3.");
+        }
+
         const auto axis = sequence_axis(child, rank);
 
         // Require every non-sequence CHILD dimension to be static and non-zero, unconditionally
@@ -2008,14 +2039,13 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                 // has no `position_ids` input of its own (the LFM-2 case); LLMInferRequest::
                 // infer() then synthesizes a matching rank-2 i64 source tensor at runtime (see
                 // `position_ids = ov::make_tensor(...)` there), batched off `input_ids`. The
-                // batch dimension was already checked above; pad_position_ids() also indexes
-                // the destination using the source's rank, so the restored child must honor
-                // that part of the contract too, even with no top-level port to cross-check.
+                // rank was already pinned to 2 or 3 above; the synthesized source is always
+                // rank 2 (LFM-2 is never VLM), but element type has no equivalent check yet
+                // with no top-level port to cross-check it against.
                 OPENVINO_ASSERT(child.get_element_type() == ov::element::i64,
                                 "NPUW blob: synthesized input 'position_ids' element type (",
                                 child.get_element_type(),
                                 ") must be i64.");
-                OPENVINO_ASSERT(rank == 2, "NPUW blob: synthesized input 'position_ids' rank (", rank, ") must be 2.");
             }
             return;  // no corresponding top-level input to cross-check against
         }
@@ -2115,9 +2145,9 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         // window), regardless of chunking (see reshape_to_static.cpp) - the chunk size is only
         // ever used as a narrower per-chunk copy length, never as the port's own extent.
         validate_extent(prefill_inputs,
-                         layer_names::attention_mask,
-                         m_kvcache_desc.max_prompt_size,
-                         require_exact_extent);
+                        layer_names::attention_mask,
+                        m_kvcache_desc.max_prompt_size,
+                        require_exact_extent);
     }
 
     for (size_t i = 0; i < m_generate_compiled_variants.size(); ++i) {
