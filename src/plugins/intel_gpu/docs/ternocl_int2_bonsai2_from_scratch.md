@@ -12,7 +12,7 @@ or integrated). How the int2 `FullyConnected` path works is described in
 |---|---|
 | GPU | Intel Xe2, discrete (Arc Pro B-series) or integrated (Lunar Lake Arc 140V) |
 | GPU runtime | Intel compute runtime with OpenCL — the int2 path runs on the plugin's **OpenCL** runtime |
-| Compiler | Intel oneAPI (`icx`/`icpx`) |
+| Compiler | GCC (tested with 14.3); Intel oneAPI `icx`/`icpx` also works, see the note in step 2 |
 | Tools | CMake ≥ 3.16, Ninja, git, Python 3.10+ |
 | Disk | ~150 GB: OpenVINO build ~25 GB, Bonsai 1 27B checkpoint 51 GB + fp16 IR 51 GB (template, see step 3), Bonsai 2 GGUF 7.2 GB, final IR 7.2 GB |
 | RAM | ≥ 64 GB on the machine that runs the exports (step 3 loads the 27B in fp16) |
@@ -21,7 +21,6 @@ The environment every GPU command needs (put it in a file and `source` it):
 
 ```bash
 # env.sh
-source /opt/intel/oneapi/setvars.sh          # oneAPI compilers and runtime libraries
 export WORK=$HOME/ov-bonsai2
 export OV_ROOT=$WORK/openvino
 export LD_LIBRARY_PATH=$OV_ROOT/bin/intel64/Release:$LD_LIBRARY_PATH
@@ -53,28 +52,27 @@ The TernOCL sources are read from the submodule at configure time; set
 source env.sh && cd $OV_ROOT
 cmake -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx \
-  -DCMAKE_C_FLAGS=-fp-model=precise -DCMAKE_CXX_FLAGS=-fp-model=precise \
   -DGPU_RT_TYPE=OCL \
   -DENABLE_INTEL_CPU=OFF -DENABLE_INTEL_NPU=OFF \
   -DENABLE_PYTHON=OFF -DENABLE_SAMPLES=OFF -DENABLE_TESTS=OFF \
-  -DENABLE_ONEDNN_FOR_GPU=ON -DENABLE_CM_FOR_GPU=ON \
+  -DENABLE_ONEDNN_FOR_GPU=ON \
   -DENABLE_SYSTEM_OPENCL=OFF \
   -DTHREADING=TBB_ADAPTIVE
 cmake --build build -j $(nproc)
 ```
 
-`-fp-model=precise` is required with `icx`/`icpx`: their default fast floating-point
-model rewrites the `double` division in `ov::Dimension` shape arithmetic as a
+With `icx`/`icpx` instead of GCC, also pass `-DCMAKE_C_FLAGS=-fp-model=precise
+-DCMAKE_CXX_FLAGS=-fp-model=precise`: their default fast floating-point model
+rewrites the `double` division in `ov::Dimension` shape arithmetic as a
 multiplication by the reciprocal, which rounds some exact quotients down (e.g.
-7450 / 3725 → 1). Reshapes with a `-1` then fail at run time for about one prompt
+49 / 49 → 0). Reshapes with a `-1` then fail at run time for about one prompt
 length in five ("Non-'-1' output dimensions do not evenly divide the input dimensions").
 
 ```bash
 strings bin/intel64/Release/libopenvino_intel_gpu_plugin.so | grep -c int2_fp16_upcvt_gemm_mt   # non-zero: kernels embedded
 
 cd src/plugins/intel_gpu/tools/int2
-cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=icpx -DOpenVINO_DIR=$OV_ROOT/build && cmake --build build
+cmake -B build -G Ninja -DOpenVINO_DIR=$OV_ROOT/build && cmake --build build
 ls build/   # paged_bench_llm  paged_bench_llm_27b  paged_serve_llm_27b
 ```
 

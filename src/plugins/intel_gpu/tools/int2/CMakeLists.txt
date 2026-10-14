@@ -1,5 +1,5 @@
 # Standalone build: point OpenVINO_DIR at the OpenVINO build directory.
-#   cmake -B build -DOpenVINO_DIR=<ov-build> -DCMAKE_CXX_COMPILER=icpx && cmake --build build
+#   cmake -B build -DOpenVINO_DIR=<ov-build> && cmake --build build
 cmake_minimum_required(VERSION 3.16)
 project(int2_tools CXX)
 set(CMAKE_CXX_STANDARD 17)
