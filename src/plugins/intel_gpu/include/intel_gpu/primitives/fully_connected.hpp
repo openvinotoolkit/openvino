@@ -173,6 +173,9 @@ struct fully_connected : public primitive_base<fully_connected> {
     input_info activation_zero_point = {"", 0};
     input_info activation_precomputed_reduction = {"", 0};
     std::optional<float> decompression_zero_point_scalar;
+    /// @brief The zero point is subtracted after scaling (w = scale * q - zp) instead of before (w = scale * (q - zp)).
+    /// Set by prepare_quantization for oneDNN's static_sbzp mode, which then holds zp * scale in the zero point input.
+    bool decompression_zero_point_after_scale = false;
 
     /// @brief Primitive dimension size.
     size_t input_size = 2;
@@ -196,6 +199,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, activation_precomputed_reduction.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
         seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
+        seed = hash_combine(seed, decompression_zero_point_after_scale);
         return seed;
     }
 
@@ -216,7 +220,8 @@ struct fully_connected : public primitive_base<fully_connected> {
                activation_scale.is_valid() == rhs_casted.activation_scale.is_valid() &&
                activation_zero_point.is_valid() == rhs_casted.activation_zero_point.is_valid() &&
                activation_precomputed_reduction.is_valid() == rhs_casted.activation_precomputed_reduction.is_valid() &&
-               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
+               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f) &&
+               decompression_zero_point_after_scale == rhs_casted.decompression_zero_point_after_scale;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -235,6 +240,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << dynamic_quantized_activation;
         ob << dynamic_quantized_activation_zp;
         ob << dynamic_quantized_precomputed_reduction;
+        ob << decompression_zero_point_after_scale;
 
         if (decompression_zero_point_scalar.has_value()) {
             ob << true;
@@ -261,6 +267,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
         ib >> dynamic_quantized_precomputed_reduction;
+        ib >> decompression_zero_point_after_scale;
 
         bool has_value;
         ib >> has_value;
