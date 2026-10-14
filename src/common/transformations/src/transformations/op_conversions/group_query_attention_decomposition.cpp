@@ -244,7 +244,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         bias_col_offset = cache.bias_col_offset;
     }
 
-
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
     if (metadata->should_dequantize_kv) {
@@ -390,7 +389,6 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
     outputs.mask_past_seqlen = past_seqlen;
     outputs.bias_col_offset = zero;
 
-    
     // A static past is a preallocated max-length buffer written in place. A zero-capacity past (an absent ONNX
     // past or an empty cache) has nothing to write into, so it grows by concatenation instead.
     const bool is_static_input = key.get_partial_shape().is_static() && past_key.get_partial_shape().is_static() &&
@@ -498,7 +496,9 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
         };
-        const ov::Output<ov::Node> kept_past = independent_kv_len ? register_new_node<v1::Subtract>(seqlens_1d, kv_seqlen)->output(0) : past_seqlen->output(0);
+        const ov::Output<ov::Node> kept_past = independent_kv_len
+                                                   ? register_new_node<v1::Subtract>(seqlens_1d, kv_seqlen)->output(0)
+                                                   : past_seqlen->output(0);
         const auto sliced_past_key = register_new_node<v8::Slice>(past_key, zero, kept_past, one, two);
         const auto sliced_past_value = register_new_node<v8::Slice>(past_value, zero, kept_past, one, two);
         outputs.present_key = construct_kv_cache(sliced_past_key, key);

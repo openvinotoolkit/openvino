@@ -137,6 +137,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     static const std::vector<int64_t> transpose_v_order{0, 1, 3, 2};
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
+    const auto is_softcap = node->get_softcap() > 0.0f;
 
     KVCacheOutputs outputs;
 
@@ -159,7 +160,8 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
 
         std::shared_ptr<v1::Transpose> past_value_transpose;
         std::shared_ptr<v1::Transpose> present_value_transpose;
-        if (m_sdpa_support_transpose_v) {
+        // softcap hard-coded layout so don't fuse
+        if (m_sdpa_support_transpose_v && !is_softcap) {
             past_value_transpose = find_value_transpose(node->input_value(4));
             if (node->output(2).get_target_inputs().size() == 1) {
                 const auto target = *node->output(2).get_target_inputs().begin();
@@ -202,7 +204,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     }
 
     // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
-    if (node->get_softcap() <= 0.0f) {
+    if (!is_softcap) {
         prepare_compressed_kv(node, outputs.sdpa_key, outputs.sdpa_value, metadata);
     }
     return outputs;

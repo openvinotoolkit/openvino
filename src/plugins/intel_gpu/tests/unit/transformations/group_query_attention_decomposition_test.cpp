@@ -53,6 +53,7 @@ struct GQAConfig {
     bool attention_bias = false;
     bool head_sink = false;
     bool causal = true;
+    float softcap = 0.0f;  // > 0 enables logit soft-capping
     ov::PartialShape key_scale_shape{1};
     ov::PartialShape value_scale_shape{1};
 };
@@ -122,7 +123,8 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
                                                                        cfg.local_window_size,
                                                                        cfg.sliding_window_cache,
                                                                        cfg.smooth_softmax,
-                                                                       cfg.causal);
+                                                                       cfg.causal,
+                                                                       cfg.softcap);
 
     ov::ResultVector results;
     for (size_t output_idx = 0; output_idx < gqa->get_output_size(); ++output_idx) {
@@ -283,7 +285,7 @@ TEST(GQADecompositionTest, dynamic_input_uses_stateless_kv) {
     expect_stateless_kv_cache_connections(cfg);
 }
 
-TEST(GQADecompositionTest, transposed_value_cache_fused) {
+TEST(GQADecompositionTest, transpose_v_fused) {
     GQAConfig cfg;
     cfg.transpose_v = true;
     cfg.should_fuse_transpose_v = true;
@@ -291,12 +293,46 @@ TEST(GQADecompositionTest, transposed_value_cache_fused) {
     expect_stateless_kv_cache_connections(cfg);
 }
 
-TEST(GQADecompositionTest, transposed_value_cache_not_fused) {
+TEST(GQADecompositionTest, transpose_v_not_fused) {
     GQAConfig cfg;
     cfg.transpose_v = true;
     cfg.should_fuse_transpose_v = false;
 
     expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, softcap_transpose_v_not_fused) {
+    GQAConfig cfg;
+    cfg.transpose_v = true;
+    cfg.should_fuse_transpose_v = true;
+    cfg.softcap = 30.0f;
+
+    const auto model = decompose_gqa_model(cfg);
+
+    // Softcap replaces SDPA, so no SDPA op may remain.
+    for (const auto& node : model->get_ordered_ops()) {
+        EXPECT_FALSE(ov::is_type<ov::intel_gpu::op::SDPA>(node));
+    }
+
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+    ASSERT_EQ(statelesskvs.size(), 2u);
+    // The transpose-v should nto be fused for softcap, so concat axis is 2.
+    for (const auto& stateless_kv : statelesskvs) {
+        EXPECT_EQ(stateless_kv->get_concat_axis(), 2);
+    }
+
+    // The output Transpose is kept
+    const auto present_value_source = model->output(2).get_node()->input_value(0);
+    const auto output_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(present_value_source.get_node_shared_ptr());
+    ASSERT_NE(output_transpose, nullptr);
+    const auto output_transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(output_transpose->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(output_transpose_order, nullptr);
+    EXPECT_THAT(output_transpose_order->cast_vector<int64_t>(), ::testing::ElementsAre(0, 1, 3, 2));
 }
 
 // A mask produced by make_attention_mask() is a rank-4 broadcastable tensor.
