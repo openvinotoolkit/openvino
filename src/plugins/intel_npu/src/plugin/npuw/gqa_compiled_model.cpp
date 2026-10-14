@@ -122,6 +122,16 @@ enum class GQAModelStage {
     GENERATE,
 };
 
+// V2 models ship weights as 2-bit group-quantized (u2) Parameters, unlike V0/V1's u4/u8.
+bool has_2bit_group_quantized_weights(const std::shared_ptr<const ov::Model>& model) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_element_type() == ov::element::u2) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov::Model>& model,
                                                        const ov::AnyMap& properties) {
     const auto detect_gqa_model_stage = [&]() {
@@ -208,12 +218,16 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
         return false;
     };
 
-    // V0/V1 are confirmed GQA models, so online partitioning is disabled for both.
-    ov::AnyMap config = {{"NPUW_ONLINE_PIPELINE", "NONE"},
-                         {"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
+    // V0/V1 are pre-assembled GQA graphs that online partitioning would only get in the way
+    // of. V2 (2-bit group-quantized weights) still benefits from online partitioning, so it
+    // keeps the default pipeline (REG) instead of being forced to NONE.
+    ov::AnyMap config = {{"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
                          {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
                          {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
                          {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"}};
+    if (!has_2bit_group_quantized_weights(model)) {
+        config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
+    }
 
     const auto stage = detect_gqa_model_stage();
     if (stage == GQAModelStage::PREFILL) {
@@ -418,7 +432,8 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     // Each matched name must also be forward-reachable to the GQA op (not just same-named).
     const auto* gqa_node = gqa.get();
 
-    // V1 uses `position_ids` for RoPE; V0 uses `past_seq_len`/`total_seq_len` instead.
+    // V1 uses `position_ids` for RoPE; V0/V2 use `past_seq_len`/`total_seq_len` instead.
+    // V2 is further distinguished by 2-bit group-quantized (u2) weights.
     bool has_activation_input = false;
     bool has_position_ids = false;
     bool has_seq_len_signal = false;
@@ -450,7 +465,10 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
         return Case::Unknown;
     }
 
-    return has_position_ids ? Case::V1 : Case::V0;
+    if (has_position_ids) {
+        return Case::V1;
+    }
+    return has_2bit_group_quantized_weights(model) ? Case::V2 : Case::V0;
 }
 
 bool ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(const std::shared_ptr<const ov::Model>& model) {

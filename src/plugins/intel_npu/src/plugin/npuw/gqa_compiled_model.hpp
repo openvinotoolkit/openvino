@@ -87,6 +87,7 @@ public:
         Unknown,
         V0,
         V1,
+        V2,
     };
 
     static std::shared_ptr<ov::npuw::ICompiledModel> make_compiled_model(

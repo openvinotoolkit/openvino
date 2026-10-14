@@ -82,7 +82,8 @@ enum class PositionSignal {
 std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 4,
                                                             int64_t kv_num_heads = 2,
                                                             bool do_rotary = true,
-                                                            PositionSignal position_signal = PositionSignal::PositionIds) {
+                                                            PositionSignal position_signal = PositionSignal::PositionIds,
+                                                            bool with_2bit_weights = false) {
     // Shaped {1, num_heads, 16} so it Unsqueeze's below into QUERY's {1, num_heads, 1, 16}
     // without a volume mismatch -- identify_case() requires this Parameter to be
     // data-connected to the GQA op, not just present by name.
@@ -144,6 +145,14 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
     }
     params.insert(params.end(),
                  {key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache});
+    if (with_2bit_weights) {
+        // V2 models ship weights as 2-bit group-quantized (u2) Parameters. The GQA op
+        // doesn't need to consume this directly; has_2bit_group_quantized_weights() just
+        // scans the model's Parameters.
+        auto quantized_weight = std::make_shared<ov::op::v0::Parameter>(ov::element::u2, ov::Shape{8, 16});
+        quantized_weight->set_friendly_name("quantized_weight");
+        params.push_back(quantized_weight);
+    }
     return std::make_shared<ov::Model>(results, params, "gqa_full_transformer_model");
 }
 
@@ -752,6 +761,26 @@ TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV0Models) {
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
 }
 
+TEST_F(GQACompiledModelTest, KeepsDefaultOnlinePipelineForCaseV2Models) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        build_full_gqa_transformer_model(4,
+                                                        2,
+                                                        true,
+                                                        PositionSignal::SeqLenPair,
+                                                        /*with_2bit_weights=*/true),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    // Unlike V0/V1, a 2-bit group-quantized (V2) model isn't forced to NONE -- it's left
+    // unset so the plugin-wide default (REG) applies.
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.count("NPUW_ONLINE_PIPELINE"), 0u);
+}
+
 TEST_F(GQACompiledModelTest, AppliesFoldOnlyAttnForGenerateStyleModels) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
@@ -1024,6 +1053,19 @@ TEST(GQACompiledModelSupportsTest, IdentifiesCaseV0ForSeqLenPairModel) {
     auto model = build_full_gqa_transformer_model(4, 2, true, PositionSignal::SeqLenPair);
     EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V0);
     // supports() additionally requires a dynamic KV-cache to auto-dispatch.
+    make_kv_cache_dynamic(model, 2);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
+}
+
+TEST(GQACompiledModelSupportsTest, IdentifiesCaseV2ForSeqLenPairModelWith2BitWeights) {
+    // Same seqlens_k/total_sequence_length wiring as V0, but the model also carries
+    // 2-bit group-quantized (u2) weight Parameters -- the distinctive V2 trait.
+    auto model = build_full_gqa_transformer_model(4,
+                                                  2,
+                                                  true,
+                                                  PositionSignal::SeqLenPair,
+                                                  /*with_2bit_weights=*/true);
+    EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
     make_kv_cache_dynamic(model, 2);
     EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
 }
