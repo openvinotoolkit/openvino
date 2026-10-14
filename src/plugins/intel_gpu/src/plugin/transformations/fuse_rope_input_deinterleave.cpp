@@ -33,11 +33,15 @@ bool is_full_axis_mask(const std::vector<int64_t>& mask, size_t rank) {
     });
 }
 
-bool is_deinterleave_slice(const std::shared_ptr<ov::op::v1::StridedSlice>& slice, int64_t begin_last, int64_t input_width) {
+bool is_deinterleave_slice(const std::shared_ptr<ov::op::v1::StridedSlice>& slice, int64_t begin_last) {
     const auto& input_shape = slice->get_input_partial_shape(0);
     const auto& output_shape = slice->get_output_partial_shape(0);
-    if (input_shape.rank() != 4 || output_shape.rank() != 4 || !input_shape[3].is_static() || !output_shape[3].is_static() ||
-        input_shape[3].get_length() != input_width || output_shape[3].get_length() * 2 != input_width) {
+    if (input_shape.rank() != 4 || output_shape.rank() != 4 || !input_shape[3].is_static() || !output_shape[3].is_static()) {
+        return false;
+    }
+
+    const auto input_width = input_shape[3].get_length();
+    if (output_shape[3].get_length() * 2 != input_width) {
         return false;
     }
 
@@ -69,46 +73,42 @@ bool is_deinterleave_slice(const std::shared_ptr<ov::op::v1::StridedSlice>& slic
 FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() {
     using namespace ov::pass::pattern;
 
-    auto rope_pattern = wrap_type<ov::op::internal::RoPE>();
+    auto input_pattern = any_input(rank_equals(4) && has_static_dim(3));
+    auto even_pattern = wrap_type<ov::op::v1::StridedSlice>(
+        {input_pattern, any_input(), any_input(), any_input()},
+        consumers_count(1) && [](const ov::Output<ov::Node>& output) {
+            return is_deinterleave_slice(ov::as_type_ptr<ov::op::v1::StridedSlice>(output.get_node_shared_ptr()), 0);
+        });
+    auto odd_pattern = wrap_type<ov::op::v1::StridedSlice>(
+        {input_pattern, any_input(), any_input(), any_input()},
+        consumers_count(1) && [](const ov::Output<ov::Node>& output) {
+            return is_deinterleave_slice(ov::as_type_ptr<ov::op::v1::StridedSlice>(output.get_node_shared_ptr()), 1);
+        });
+    auto concat_pattern = wrap_type<ov::op::v0::Concat>(
+        {even_pattern, odd_pattern},
+        consumers_count(1) && rank_equals(4) && has_static_dim(3) && [](const ov::Output<ov::Node>& output) {
+            const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(output.get_node_shared_ptr());
+            const auto& concat_shape = output.get_partial_shape();
+            const auto input_width = concat_shape[3].get_length();
+            const auto axis = ov::util::try_normalize_axis(concat->get_axis(), concat_shape.rank(), *concat);
+            return axis == 3 && input_width > 0 && input_width % 2 == 0;
+        });
+    auto rope_pattern = wrap_type<ov::op::internal::RoPE>({concat_pattern, any_input(), any_input()}, [](const ov::Output<ov::Node>& output) {
+        const auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
+        const auto& config = rope->get_config();
+        const auto input_width = rope->get_input_partial_shape(0)[3].get_length();
+        return !config.input_interleaved && config.is_plain_rotate_half() && config.rotary_ndims == static_cast<size_t>(input_width);
+    });
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
-        auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(matcher.get_match_root());
-        if (!rope || transformation_callback(rope) || rope->get_input_size() != 3) {
+        const auto& pattern_map = matcher.get_pattern_value_map();
+        auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(pattern_map.at(rope_pattern).get_node_shared_ptr());
+        if (transformation_callback(rope)) {
             return false;
         }
 
-        const auto config = rope->get_config();
-        if (config.input_interleaved || !config.is_plain_rotate_half()) {
-            return false;
-        }
-
-        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(rope->get_input_node_shared_ptr(0));
-        if (!concat || concat->get_input_size() != 2 || concat->get_output_target_inputs(0).size() != 1) {
-            return false;
-        }
-
-        const auto& concat_shape = concat->get_output_partial_shape(0);
-        if (concat_shape.rank() != 4 || !concat_shape[3].is_static()) {
-            return false;
-        }
-        const int64_t input_width = concat_shape[3].get_length();
-        int64_t axis = concat->get_axis();
-        if (axis < 0) {
-            axis += 4;
-        }
-        if (axis != 3 || input_width <= 0 || input_width % 2 != 0 || config.rotary_ndims != static_cast<size_t>(input_width)) {
-            return false;
-        }
-
-        auto even = ov::as_type_ptr<ov::op::v1::StridedSlice>(concat->get_input_node_shared_ptr(0));
-        auto odd = ov::as_type_ptr<ov::op::v1::StridedSlice>(concat->get_input_node_shared_ptr(1));
-        if (!even || !odd || even->get_output_target_inputs(0).size() != 1 || odd->get_output_target_inputs(0).size() != 1 ||
-            even->input_value(0) != odd->input_value(0) || !is_deinterleave_slice(even, 0, input_width) || !is_deinterleave_slice(odd, 1, input_width)) {
-            return false;
-        }
-
-        auto new_config = config;
+        auto new_config = rope->get_config();
         new_config.input_interleaved = true;
-        rope->set_argument(0, even->input_value(0));
+        rope->set_argument(0, pattern_map.at(input_pattern));
         rope->set_config(new_config);
         rope->validate_and_infer_types();
         register_new_node(rope);
