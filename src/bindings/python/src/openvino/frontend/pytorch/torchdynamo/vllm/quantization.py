@@ -22,9 +22,16 @@ is loaded in *every* process (parent, engine core, workers), which is what the
 registry needs -- a method registered in the parent only is invisible to the
 worker that actually builds the model.
 
-Scope: weight-only, symmetric, per-group or per-channel, 4-bit (two nibbles per
-uint8, low nibble first) or 8-bit. Asymmetric checkpoints carry a zero point
-this decoder does not read, and are rejected rather than silently mis-decoded.
+Scope: weight-only, symmetric or asymmetric, per-group or per-channel, 4-bit
+(two nibbles per uint8, low nibble first) or 8-bit. An asymmetric checkpoint
+additionally carries a `zero_point` beside every `scale`, and declares itself
+with `"sym": false`.
+
+Symmetric and asymmetric differ only in where the offset lives. Symmetric
+packing biases the stored nibble by +8 to keep it unsigned and the decoder
+subtracts that constant back out; asymmetric stores the raw nibble and a
+per-group zero point, and the decoder subtracts *that*. Hence one `bits`
+parameter and two unpackers rather than two decode paths.
 
 Dtype independence
 ------------------
@@ -65,17 +72,39 @@ def _unpack_int4(packed):
     return torch.stack((low, high), dim=-1).type(torch.int8) - 8
 
 
-def _dequantize(qweight, scale, bits, group_size, out_dtype):
+def _unpack_uint4(packed):
+    """Unpack asymmetric int4; returns uint8 with values in [0, 15].
+
+    The same nibble order as `_unpack_int4`, without the -8: the asymmetric
+    scheme carries the offset in a zero point instead of in the stored value.
+    Gains a trailing dim of 2; the caller reshapes.
+    """
+    import torch
+
+    low = torch.bitwise_and(packed, 15)
+    high = torch.bitwise_right_shift(packed, 4)
+    return torch.stack((low, high), dim=-1)
+
+
+def _dequantize(qweight, scale, bits, group_size, out_dtype, zero_point=None):
     """Decompress to a dense [out, in] weight in `out_dtype`.
 
     The multiply happens in the scale's dtype and the cast comes after, which
     is what keeps the result bit-identical to NNCF's decompressor rather than
     merely close to it.
+
+    `zero_point` is the asymmetric offset, one per group (or per output channel
+    when `group_size <= 0`), stored unpacked. The cast to the scale's dtype
+    happens *before* the subtraction, matching NNCF's `decompress_asymmetric`.
+    That order is load-bearing twice over: subtracting in uint8 would wrap
+    around, and doing the multiply in anything but the scale's dtype would
+    drift off NNCF's result.
     """
     out_features = qweight.shape[0]
     if bits == 4:
         in_features = qweight.shape[1] * 2
-        weight = _unpack_int4(qweight)
+        weight = _unpack_int4(qweight) if zero_point is None \
+            else _unpack_uint4(qweight)
     else:
         in_features = qweight.shape[1]
         weight = qweight
@@ -83,12 +112,18 @@ def _dequantize(qweight, scale, bits, group_size, out_dtype):
     if group_size > 0:
         groups = scale.shape[1]
         weight = weight.reshape(out_features, groups, in_features // groups)
-        weight = weight.type(scale.dtype) * scale.unsqueeze(-1)
+        weight = weight.type(scale.dtype)
+        if zero_point is not None:
+            weight = weight - zero_point.type(scale.dtype).unsqueeze(-1)
+        weight = weight * scale.unsqueeze(-1)
         weight = weight.reshape(out_features, in_features)
     else:
         # Per output channel: scale is [out, 1] and broadcasts as stored.
         weight = weight.reshape(out_features, in_features)
-        weight = weight.type(scale.dtype) * scale
+        weight = weight.type(scale.dtype)
+        if zero_point is not None:
+            weight = weight - zero_point.type(scale.dtype)
+        weight = weight * scale
     return weight.type(out_dtype)
 
 
@@ -119,11 +154,8 @@ def _build_classes():
             super().__init__()
             if bits not in _STORAGE:
                 raise ValueError(f"bits={bits} is not one of {sorted(_STORAGE)}")
-            if not sym:
-                raise ValueError(
-                    "asymmetric checkpoints carry a zero point this decoder "
-                    "does not read; re-export symmetric or extend _dequantize")
             self.bits = bits
+            self.sym = sym
             self.group_size = group_size
             self.scale_dtype = getattr(torch, scale_dtype)
             # Empty means "every linear layer", which is what a checkpoint
@@ -131,7 +163,9 @@ def _build_classes():
             self.quantized_modules = set(quantized_modules or ())
 
         def __repr__(self):
-            return (f"NNCFConfig(bits={self.bits}, group_size={self.group_size}, "
+            return (f"NNCFConfig(bits={self.bits}, "
+                    f"{'sym' if self.sym else 'asym'}, "
+                    f"group_size={self.group_size}, "
                     f"scale_dtype={self.scale_dtype}, "
                     f"modules={len(self.quantized_modules) or 'all'})")
 
@@ -225,25 +259,36 @@ def _build_classes():
                     data=data, input_dim=1, output_dim=0,
                     weight_loader=weight_loader)
 
-            if config.group_size > 0:
-                if input_size_per_partition % config.group_size:
-                    raise ValueError(
-                        f"input_size_per_partition {input_size_per_partition} "
-                        f"is not a multiple of group_size {config.group_size}")
-                scale = GroupQuantScaleParameter(
-                    data=torch.empty(
-                        output_size_per_partition,
-                        input_size_per_partition // config.group_size,
-                        dtype=config.scale_dtype),
-                    input_dim=1, output_dim=0, weight_loader=weight_loader)
-            else:
-                scale = ChannelQuantScaleParameter(
-                    data=torch.empty(output_size_per_partition, 1,
-                                     dtype=config.scale_dtype),
+            # The zero point has exactly the scale's shape -- one per group, or
+            # one per output channel -- so it is built by the same factory and
+            # shards and concatenates down the same path. Only the dtype
+            # differs: it is a quantized value, not a float.
+            def _per_group(dtype):
+                if config.group_size > 0:
+                    if input_size_per_partition % config.group_size:
+                        raise ValueError(
+                            f"input_size_per_partition "
+                            f"{input_size_per_partition} is not a multiple of "
+                            f"group_size {config.group_size}")
+                    return GroupQuantScaleParameter(
+                        data=torch.empty(
+                            output_size_per_partition,
+                            input_size_per_partition // config.group_size,
+                            dtype=dtype),
+                        input_dim=1, output_dim=0, weight_loader=weight_loader)
+                return ChannelQuantScaleParameter(
+                    data=torch.empty(output_size_per_partition, 1, dtype=dtype),
                     output_dim=0, weight_loader=weight_loader)
 
             layer.register_parameter("qweight", qweight)
-            layer.register_parameter("scale", scale)
+            layer.register_parameter("scale", _per_group(config.scale_dtype))
+            if not config.sym:
+                # Stored unpacked, one byte per group, even at 4 bits. Packing
+                # it would buy ~3% of the weight bytes and cost the guarantee
+                # that a fused layer can be concatenated along output channels
+                # -- nibble-packing along the group dim only concatenates
+                # exactly when every row holds a whole number of bytes.
+                layer.register_parameter("zero_point", _per_group(torch.uint8))
             # Not params_dtype at apply time: the layer is the only thing that
             # knows what vLLM resolved --dtype to for this model.
             layer.nncf_out_dtype = params_dtype
@@ -256,8 +301,10 @@ def _build_classes():
 
         def apply(self, layer, x, bias=None):
             config = self.quant_config
-            weight = _dequantize(layer.qweight, layer.scale, config.bits,
-                                 config.group_size, layer.nncf_out_dtype)
+            weight = _dequantize(
+                layer.qweight, layer.scale, config.bits, config.group_size,
+                layer.nncf_out_dtype,
+                zero_point=None if config.sym else layer.zero_point)
             return F.linear(x, weight, bias)
 
     return NNCFConfig
