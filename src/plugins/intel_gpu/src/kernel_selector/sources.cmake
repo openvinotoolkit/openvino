@@ -895,6 +895,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/tile_ops.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/vec_typedefs.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/detection_output_common.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/dynamic_quantize_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/f4_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/f8_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/fetch_utils.cl

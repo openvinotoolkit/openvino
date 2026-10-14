@@ -23,6 +23,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/dx12_nthandle.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/dx12_remote_run.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/helpers.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/l0_remote_tensor_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/ocl_remote_tensor_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/va_remote_tensor_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/ze_remote_tensor_tests.cpp
@@ -349,6 +350,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/matmul_sum_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/mvn_layernorm_byxf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/prevent_f32_dequantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/rms_dynamic_quantize_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/serialize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/shared_constant.cpp
