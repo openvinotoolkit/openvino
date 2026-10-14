@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
@@ -22,6 +20,8 @@ namespace {
 // Regression test for openvinotoolkit/model_server#4580: a MoE model read from an IR file must compile and run with
 // OFFLOAD_RATIO set, whether or not the file was read with ENABLE_MMAP, and without the caller passing WEIGHTS_PATH.
 // The parameter is the ENABLE_MMAP value passed to Core::read_model (or to compile_model for the from-file case).
+// Skips live in skip_tests_config.cpp: the whole suite on GPUs without HW_MATMUL (MoE fusion, and with it the offload
+// path, is gated on supports_immad), and the mmap=false inference case while #38584 is open.
 class MoEOffloadFromIRFile : public ::testing::Test, public ::testing::WithParamInterface<bool> {
 public:
     static std::string get_test_case_name(::testing::TestParamInfo<bool> obj) {
@@ -46,11 +46,6 @@ protected:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         core = ov::test::utils::PluginCache::get().core();
-        // MoE fusion, and with it the offload path, is gated on supports_immad.
-        const auto caps = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
-        if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
-            GTEST_SKIP() << "MoE offload requires a systolic GPU (HW_MATMUL capability)";
-        }
 
         const auto prefix = ov::test::utils::generateTestFilePrefix();
         xml_path = prefix + ".xml";
@@ -96,6 +91,12 @@ protected:
 
     // Runs the same inputs through the offloaded and the fully resident compiled model and compares the outputs:
     // equal outputs show that the experts read back from the .bin file are the ones the model was built with.
+    // Not bit-exact: a 16-token input with top-2 routing can need more experts than the resident slots (2 of 4 at
+    // OFFLOAD_RATIO 50), and then exec_batched_gemv in moe_3gemm_swiglu_opt.cpp falls back to the per-expert oneDNN
+    // loop (on_before_batched_gemv sets needs_fallback -> exec_prefill_onednn) while the resident model runs the batched
+    // GEMV kernels, with a different accumulation order. On Arc 140V the largest absolute difference measured was 1.2e-4,
+    // on outputs below 0.25 in magnitude (the 4 seeds below, OFFLOAD_RATIO 25 and 50); single-token inputs, which fit
+    // the slots, are bit-exact.
     static void check_inference_matches_resident(ov::CompiledModel& offloaded, ov::CompiledModel& resident) {
         auto offloaded_request = offloaded.create_infer_request();
         auto resident_request = resident.create_infer_request();
@@ -106,7 +107,7 @@ protected:
             offloaded_request.infer();
             resident_request.set_input_tensor(input);
             resident_request.infer();
-            ov::test::utils::compare(resident_request.get_output_tensor(), offloaded_request.get_output_tensor(), ov::element::f16, 1e-2, 1e-2);
+            ov::test::utils::compare(resident_request.get_output_tensor(), offloaded_request.get_output_tensor(), ov::element::f16, 1e-3, 1e-3);
         }
     }
 };
@@ -119,13 +120,6 @@ TEST_P(MoEOffloadFromIRFile, CompileModelWithOffloadRatio) {
 }
 
 TEST_P(MoEOffloadFromIRFile, InferWithOffloadRatioMatchesResident) {
-    if (!GetParam()) {
-        // Pre-existing, independent of the frontend change: with ENABLE_MMAP false, this model at OFFLOAD_RATIO 50 compiles
-        // but its output fails the comparison with OFFLOAD_RATIO 0 on every element (NaN in every element printed), both
-        // at this commit and at master 88f8c6bf7c (Arc 140V, driver 32.0.101.8831, 3 of 3 runs each, 2026-10-03). That is
-        // a GPU offload issue, not the one this test is for, so only the reported (mmap) configuration is compared here.
-        GTEST_SKIP() << "offloaded inference after a non-mmap read is a separate issue";
-    }
     const auto model = read_model();
     ov::CompiledModel offloaded;
     ov::CompiledModel resident;
