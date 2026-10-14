@@ -1160,7 +1160,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
             LOG_DEBUG("Removing EmptyKVInputs");
-            NPUW_ASSERT(ov::npuw::RemoveEmptyKVInputs().run_on_model(prefill_model));
+            ov::npuw::RemoveEmptyKVInputs().run_on_model(prefill_model);
         } else {
             LOG_DEBUG("Don't remove input key/values from prefill model.");
             LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
