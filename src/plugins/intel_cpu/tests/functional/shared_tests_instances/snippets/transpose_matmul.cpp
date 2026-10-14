@@ -176,6 +176,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
 namespace explicit_transpose {
 static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
     std::vector<std::vector<element::Type>> prc = precision_f32(2);
+#ifndef SNIPPETS_LIBXSMM_TPP
     if (!only_fp32) {
         auto quant = quantized_precisions_if_supported();
         std::copy(quant.begin(), quant.end(), std::back_inserter(prc));
@@ -184,6 +185,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
         auto halffloat = precision_fp16_if_supported(2);
         std::copy(halffloat.begin(), halffloat.end(), std::back_inserter(prc));
     }
+#endif
     return prc;
 }
 
@@ -191,7 +193,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTranspo
                          ::testing::Combine(
                                  ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}})),
                                  ::testing::Values(1), // Transpose on second input
-                                 ::testing::ValuesIn(precisions()),
+                                 ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
@@ -219,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMa
                          ::testing::Combine(
                                  ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}, {1, 1, 69, 49}})),
                                  ::testing::Values(1), // Transpose on second input
-                                 ::testing::ValuesIn(precisions()),
+                                 ::testing::ValuesIn(precisions(false)),
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
