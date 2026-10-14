@@ -162,11 +162,10 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #ifdef SDPA_STAGE_0
 
 #if HAS_SCALE_INPUT
-#if HAS_ATTN_MASK_INPUT
+// Scale always occupies the fixed SCALE input slot (index 4) of the SDPA primitive,
+// regardless of whether the attention-mask input is actually used at runtime
+// (a placeholder attn_mask input is still present whenever scale is provided).
 #define SCALE_TYPE INPUT4_TYPE
-#else
-#define SCALE_TYPE INPUT3_TYPE
-#endif
 #endif
 
 #if TARGET_SEQ_LEN_BLOCK_SIZE == 1
@@ -557,10 +556,16 @@ KERNEL(sdpa_opt)(
                         // Apply attention mask
 #if IS_CAUSAL
                         #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
-                            const uint causal_offset = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN);
-                            if (start_partition_idx + seq_len > causal_offset + target_seq_idx + seq_idx)
+                            const uint abs_q_pos = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN) + target_seq_idx + seq_idx;
                         #else
-                            if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
+                            const uint abs_q_pos = target_seq_idx + seq_idx;
+                        #endif
+                        #if !IS_PAGED_ATTENTION && SLIDING_WINDOW_SIZE != 0
+                            // Mask future keys (causal) and keys older than the window (k < q - W + 1).
+                            if ((start_partition_idx + seq_len > abs_q_pos) ||
+                                (abs_q_pos >= SLIDING_WINDOW_SIZE && start_partition_idx + seq_len < abs_q_pos - SLIDING_WINDOW_SIZE + 1))
+                        #else
+                            if (start_partition_idx + seq_len > abs_q_pos)
                         #endif
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
@@ -1056,10 +1061,18 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
                 mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
             }
         } else {
+            // NOTE: do not assign the float literal NAN into an INPUT3_TYPE (e.g. ushort for bf16)
+            // intermediate: that would truncate/reinterpret NAN through an integer conversion and
+            // corrupt the bit pattern, producing a large finite garbage value instead of NaN after
+            // decode. Decode the real value first and only use NaN in float (mask_vec) space.
             const uint max_mask_offset = min(source_seq_idx + SUBGROUP_SIZE, (uint)SOURCE_SEQ_LEN);
             for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                const INPUT3_TYPE mask_val = source_seq_idx + i < max_mask_offset ? attn_mask[attn_mask_offset + i] : NAN;
-                mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
+                if (source_seq_idx + i < max_mask_offset) {
+                    const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
+                    mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
+                } else {
+                    mask_vec[i] = NAN;
+                }
             }
         }
     }
@@ -1090,9 +1103,9 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
         }
     } else {
         for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-            if ((source_seq_idx + i > target_seq_idx) ||
-                (target_seq_idx >= SLIDING_WINDOW_SIZE && source_seq_idx + i < target_seq_idx - SLIDING_WINDOW_SIZE))
+#if SLIDING_WINDOW_SIZE != 0
+            if ((source_seq_idx + i > target_seq_idx + causal_offset) ||
+                (target_seq_idx + causal_offset >= SLIDING_WINDOW_SIZE && source_seq_idx + i < target_seq_idx + causal_offset - SLIDING_WINDOW_SIZE + 1))
 #else
             if (source_seq_idx + i > target_seq_idx + causal_offset)
 #endif
@@ -1455,6 +1468,10 @@ KERNEL(sdpa_opt)(
             this_work_item_seq_range_temp.max = max(bi_dir_range.max, sliding_window_range.max);
             this_work_item_seq_range_temp.subgroup_max = max(bi_dir_range.subgroup_max, sliding_window_range.subgroup_max);
         #endif //< HAS_TOKEN_TYPE_IDS && SLIDING_WINDOW_SIZE
+    #else //< !IS_PAGED_ATTENTION
+        #if SLIDING_WINDOW_SIZE != 0
+        this_work_item_seq_range_temp.min = max(0, this_work_item_seq_range_temp.max - SLIDING_WINDOW_SIZE + 1);
+        #endif
     #endif //< IS_PAGED_ATTENTION
 
     const SEQ_RANGE this_work_item_seq_range = this_work_item_seq_range_temp;
@@ -1508,7 +1525,11 @@ KERNEL(sdpa_opt)(
             } else {
                 // remainder
                 int valid_workers = K_HEAD_SIZE - k_sgid * SUBGROUP_SIZE;
-                if (sglid < valid_workers) {
+                // valid_workers can be negative when extra subgroups (dispatched to cover a larger
+                // V_HEAD_SIZE) exceed what's needed for K_HEAD_SIZE. Comparing unsigned sglid against
+                // a negative int would implicitly convert it to a huge unsigned value, making the
+                // condition true for all lanes and corrupting slm_query. Cast sglid to int instead.
+                if ((int)sglid < valid_workers) {
                     unroll_for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                         INPUT0_TYPE val = query_input[query_offset];
                         slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
@@ -1583,7 +1604,11 @@ KERNEL(sdpa_opt)(
             } else {
                 // remainder
                 int valid_workers = K_HEAD_SIZE - k_sgid * SUBGROUP_SIZE;
-                if (sglid < valid_workers) {
+                // valid_workers can be negative when extra subgroups (dispatched to cover a larger
+                // V_HEAD_SIZE) exceed what's needed for K_HEAD_SIZE. Comparing unsigned sglid against
+                // a negative int would implicitly convert it to a huge unsigned value, making the
+                // condition true for all lanes and corrupting slm_query. Cast sglid to int instead.
+                if ((int)sglid < valid_workers) {
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         INPUT0_TYPE val = query_input[query_offset];
                         slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
@@ -1717,8 +1742,8 @@ KERNEL(sdpa_opt)(
                             KEY_COMPRESSION_SCALE_TYPE key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s0)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             KEY_COMPRESSION_SCALE_TYPE key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s1)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
-                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_hi, i), qvec_hi[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_lo, i)), qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_hi, i)), qvec_hi[i], qk_acc[key_row_idx]);
                             }
                         }
                     }
@@ -1749,8 +1774,8 @@ KERNEL(sdpa_opt)(
                             key_lo *= lo_mask;
                             key_hi *= hi_mask;
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
-                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_hi, i), qvec_hi[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_lo, i)), qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_hi, i)), qvec_hi[i], qk_acc[key_row_idx]);
                             }
                         }
                     }
@@ -1786,7 +1811,7 @@ KERNEL(sdpa_opt)(
 #endif
 
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                            qk_acc[key_row_idx] = mad(sub_group_broadcast(key_vals, i), queries_vec[i], qk_acc[key_row_idx]);
+                            qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_vals, i)), queries_vec[i], qk_acc[key_row_idx]);
                         }
                     }
                 }
@@ -1811,7 +1836,7 @@ KERNEL(sdpa_opt)(
                         INPUT1_COMPUTE_TYPE key_vals = DECODE_INPUT1_COMPUTE_TYPE(key_packed);
 #endif
                         unroll_for (uint i = 0; i < K_HEAD_SIZE_LEFTOVER; i++) {
-                            qk_acc[key_row_idx] = mad(sub_group_broadcast(key_vals, i), queries_vec[i], qk_acc[key_row_idx]);
+                            qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_vals, i)), queries_vec[i], qk_acc[key_row_idx]);
                         }
                     }
                 #endif
@@ -1850,8 +1875,8 @@ KERNEL(sdpa_opt)(
                                 key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s1)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             }
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
-                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_hi, i), qvec_hi[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_lo, i)), qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_hi, i)), qvec_hi[i], qk_acc[key_row_idx]);
                             }
                         }
                     }
@@ -1886,8 +1911,8 @@ KERNEL(sdpa_opt)(
                             key_lo *= lo_mask;
                             key_hi *= hi_mask;
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
-                                qk_acc[key_row_idx] = mad(sub_group_broadcast(key_hi, i), qvec_hi[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_lo, i)), qvec_lo[i], qk_acc[key_row_idx]);
+                                qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_hi, i)), qvec_hi[i], qk_acc[key_row_idx]);
                             }
                         }
                     }
@@ -1952,7 +1977,7 @@ KERNEL(sdpa_opt)(
                         #define key_vals key_vec[key_row_idx]
 #endif  // !defined(LOAD_KEY_LEFTOVERS_IN_CALC_LOOP)
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                            qk_acc[key_row_idx] = mad(sub_group_broadcast(key_vals, i), queries_vec[i], qk_acc[key_row_idx]);
+                            qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_vals, i)), queries_vec[i], qk_acc[key_row_idx]);
                         }
                     }
                 }
@@ -1977,7 +2002,7 @@ KERNEL(sdpa_opt)(
                         INPUT1_COMPUTE_TYPE key_val = DECODE_INPUT1_COMPUTE_TYPE(key_packed);
 #endif
                         unroll_for (uint i = 0; i < K_HEAD_SIZE_LEFTOVER; i++) {
-                            qk_acc[key_row_idx] = mad(sub_group_broadcast(key_val, i), queries_vec[i], qk_acc[key_row_idx]);
+                            qk_acc[key_row_idx] = mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key_val, i)), queries_vec[i], qk_acc[key_row_idx]);
                         }
                     }
                 #endif // K_HEAD_SIZE_LEFTOVER
@@ -2351,7 +2376,7 @@ KERNEL(sdpa_opt)(
                         INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
                         #endif
                         unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                            acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
+                            acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), TO_OUTPUT_COMPUTE_TYPE(value_val), acc_output_res[seq_idx]);
                         }
                         #ifndef BEAM_TABLE_TYPE
                         value_offset += value_pitch;
@@ -2381,7 +2406,7 @@ KERNEL(sdpa_opt)(
                             INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
                         #endif
                             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                                acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
+                                acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), TO_OUTPUT_COMPUTE_TYPE(value_val), acc_output_res[seq_idx]);
                             }
                         #ifndef BEAM_TABLE_TYPE
                             value_offset += value_pitch;
@@ -2467,7 +2492,7 @@ KERNEL(sdpa_opt)(
                         INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
                 #endif
                         unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                            acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
+                            acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), TO_OUTPUT_COMPUTE_TYPE(value_val), acc_output_res[seq_idx]);
                         }
                 #ifndef BEAM_TABLE_TYPE
                         value_offset += value_pitch;
@@ -2497,7 +2522,7 @@ KERNEL(sdpa_opt)(
                             INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
                         #endif
                             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                                acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
+                                acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), TO_OUTPUT_COMPUTE_TYPE(value_val), acc_output_res[seq_idx]);
                             }
                         #ifndef BEAM_TABLE_TYPE
                             value_offset += value_pitch;
@@ -2592,7 +2617,7 @@ KERNEL(sdpa_opt)(
 #endif
 
                         for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                            acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], seq_len_idx), value_val, acc_output_res[seq_idx]);
+                            acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], seq_len_idx), TO_OUTPUT_COMPUTE_TYPE(value_val), acc_output_res[seq_idx]);
                         }
 
 #ifndef BEAM_TABLE_TYPE
@@ -2653,17 +2678,27 @@ KERNEL(sdpa_opt)(
     // Apply attention sink after all KV partitions are processed.
     // Sink adds a virtual logit to the softmax denominator with zero V contribution.
     {
+        // The running max/exp_sum were last written by work item 0 of the final partition; make them visible
+        // to every subgroup before they are read below.
+        barrier(CLK_LOCAL_MEM_FENCE);
         SOFTMAX_ACCUMULATOR_TYPE sink_val = TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx]);
         for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
             SOFTMAX_ACCUMULATOR_TYPE max_prev = slm_max_val_prev[seq_idx];
             SOFTMAX_ACCUMULATOR_TYPE max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(max_prev, sink_val);
             SOFTMAX_ACCUMULATOR_TYPE correction = native_exp(max_prev - max_new);
-            // Rescale output_acc (all work items do this for their own register)
+#if IS_FLASHATTEN_V2
+            // output_acc is unnormalized here (divided by exp_sum on store): rescale it to the new max and
+            // add the sink term to the denominator (only one thread per seq_idx).
             output_acc[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * correction);
-            // Update exp_sum (only one thread per seq_idx)
             if (sgid == 0 && sglid == 0) {
                 slm_exp_sum_prev[seq_idx] = slm_exp_sum_prev[seq_idx] * correction + native_exp(sink_val - max_new);
             }
+#else
+            // output_acc is already normalized by exp_sum: renormalize it by exp_sum / (exp_sum + sink term).
+            SOFTMAX_ACCUMULATOR_TYPE exp_sum = slm_exp_sum_prev[seq_idx] * correction;
+            SOFTMAX_ACCUMULATOR_TYPE exp_sum_with_sink = exp_sum + native_exp(sink_val - max_new);
+            output_acc[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * (exp_sum / exp_sum_with_sink));
+#endif
         }
     }
 #endif
