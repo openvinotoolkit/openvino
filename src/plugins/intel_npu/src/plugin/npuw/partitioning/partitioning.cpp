@@ -1820,9 +1820,8 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                                                 << iport.second);
                 function._param_mapping[iport] = new_param_idx;  // (n)/1/i/b
                 local_parameters.emplace(new_param, new_param_idx);
-                generated_parameter_constants.emplace(
-                    new_param,
-                    std::static_pointer_cast<ov::op::v0::Constant>(input_node));
+                generated_parameter_constants.emplace(new_param,
+                                                      std::static_pointer_cast<ov::op::v0::Constant>(input_node));
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
@@ -1840,8 +1839,8 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 if (param_iter != body_sg._parameters.end()) {
                     existing_param_idx = std::distance(body_sg._parameters.begin(), param_iter);
                 } else {
-                    auto local_param_iter = local_parameters.find(
-                        std::static_pointer_cast<ov::op::v0::Parameter>(input_node));
+                    auto local_param_iter =
+                        local_parameters.find(std::static_pointer_cast<ov::op::v0::Parameter>(input_node));
                     if (local_param_iter != local_parameters.end()) {
                         existing_param_idx = local_param_iter->second;
                     } else {
