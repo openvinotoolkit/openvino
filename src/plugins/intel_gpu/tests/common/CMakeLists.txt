@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+set(GPU_TESTS_COMMON_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/random_generator.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraphs_builders.hpp
+)
 
 set(TEST_COMMON_SOURCE_FILES "${GPU_TESTS_COMMON_SOURCES}" PARENT_SCOPE)
 set(TEST_COMMON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" PARENT_SCOPE)
