@@ -83,6 +83,13 @@ TEST_P(QDQStrippingTest, NeedScalingForwardBias) {
     model_ref = QDQStrippingFunction::build_forward_bias_pattern_ref(input_shape, need_weights_adjustment);
 }
 
+TEST_P(QDQStrippingTest, FQBetweenModelOutputsIsKept) {
+    const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+    const auto input_shape = ov::PartialShape{1, 3, 8, 8};
+    model = QDQStrippingFunction::build_fq_between_model_outputs_pattern(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_fq_between_model_outputs_pattern_ref(input_shape, quantization_precision);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          QDQStrippingTest,
                          Combine(Bool(), Values(ov::element::u16, ov::element::i16)),

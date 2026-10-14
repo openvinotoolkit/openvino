@@ -671,6 +671,62 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_mixed_precision_pattern_r
     return std::make_shared<ov::Model>(ov::OutputVector{conv_biased}, params, "QDQStripping");
 }
 
+namespace {
+const QuantizationParams& get_model_outputs_pattern_qp(const ov::element::Type& quantization_precision) {
+    static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
+        {ov::element::Type_t::u16, {0.f, 10.f, 0.f, 65535.f, 0}},
+        {ov::element::Type_t::i16, {-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0}},
+    };
+    return quantization_params.at(quantization_precision);
+}
+}  // namespace
+
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_between_model_outputs_pattern(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+    const auto& qp = get_model_outputs_pattern_qp(quantization_precision);
+    auto build_qdq = [&](const ov::Output<ov::Node>& input) {
+        auto fq = build_fq(input, qp);
+        auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
+        auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
+        return build_dq(convert2, quantization_precision, qp);
+    };
+
+    // Parameter -> QDQ -> model output: FQ must be kept
+    auto param_qdq = build_qdq(params[0]);
+
+    // Regular QDQ in front of a model output: FQ is stripped
+    auto mul =
+        std::make_shared<ov::op::v1::Multiply>(params[0], ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f}));
+    auto qdq_0 = build_qdq(mul);
+
+    // QDQ between two model outputs: FQ must be kept
+    auto qdq_1 = build_qdq(qdq_0);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{param_qdq, qdq_0, qdq_1}, params, "QDQStripping");
+}
+
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_between_model_outputs_pattern_ref(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+    const auto& qp = get_model_outputs_pattern_qp(quantization_precision);
+    // Kept FQs are fused with their DQ by ConvertQuantizeDequantize: output range = (output range - zp) * scale
+    auto build_fused_fq = [&](const ov::Output<ov::Node>& input) {
+        const float scale = (qp.i_h - qp.i_l) / (qp.o_h - qp.o_l);
+        const auto zero_point = static_cast<float>(qp.zero_point);
+        return build_fq(input, {qp.i_l, qp.i_h, (qp.o_l - zero_point) * scale, (qp.o_h - zero_point) * scale, 0});
+    };
+
+    auto param_fq = build_fused_fq(params[0]);
+    auto mul =
+        std::make_shared<ov::op::v1::Multiply>(params[0], ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f}));
+    auto fq_1 = build_fused_fq(mul);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{param_fq, mul, fq_1}, params, "QDQStripping");
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ov

@@ -33,6 +33,7 @@
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -192,6 +193,25 @@ private:
         ov::op::util::visit_path_forward(root, m_visited, collect_nodes_to_scale, make_skip_predicate(true));
     }
 };
+
+bool has_result_consumers(const ov::Output<ov::Node>& output) {
+    const auto consumers = output.get_target_inputs();
+    return std::any_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+        return ov::is_type<ov::op::v0::Result>(consumer.get_node());
+    });
+}
+
+// Mirrors the preconditions of ov::replace_output_update_name: if the FQ output is a model output, the FQ input must be
+// able to take over its name, so it must be a single-output node which is neither a Parameter nor a model output itself
+// (e.g. a QDQ pair inserted between two model outputs, out_0 -> Q -> DQ -> out_1). Otherwise the FQ is kept.
+bool can_be_stripped(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
+    if (!has_result_consumers(fq->output(0))) {
+        return true;
+    }
+    const auto& input = fq->input_value(0);
+    return input.get_node()->get_output_size() == 1 && !ov::is_type<ov::op::v0::Parameter>(input.get_node()) &&
+           !has_result_consumers(input);
+}
 }  // namespace
 
 FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip,
@@ -256,6 +276,11 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         }
 
         if (!levels_to_strip.count(fq->get_levels()) || !fq_ranges_are_the_same(fq)) {
+            continue;
+        }
+
+        // Must be checked before ScaleAdjuster modifies any weights
+        if (!can_be_stripped(fq)) {
             continue;
         }
 
