@@ -1769,6 +1769,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 // into a heap overflow.
 void ov::npuw::LLMCompiledModel::validate_imported_kv_variants() const {
     const auto num_variants = m_generate_compiled_variants.size();
+    // deserialize() already rejects this mismatch while reading the blob; it is repeated here
+    // because the checks below index m_kvcache_sizes by variant position.
     OPENVINO_ASSERT(m_kvcache_sizes.size() == num_variants,
                     "NPUW: imported blob declares ",
                     m_kvcache_sizes.size(),
@@ -1821,10 +1823,16 @@ void ov::npuw::LLMCompiledModel::validate_imported_kv_variants() const {
     // shrink or disappear, and at least one must grow (either a larger tensor, as in the
     // continuous layout, or an extra one, as in the block layout where variants differ by the
     // number of KV blocks rather than by tensor size).
+    //
+    // SWA-managed inputs are the exception to the growth rule: ShrinkSlidingWindowKVCache sizes
+    // them by the window, so they are identical in every variant, and in a model whose layers are
+    // all sliding no input grows at all. Their capacity is taken from the tensor shape rather than
+    // from m_kvcache_sizes, so they still must not shrink but need not grow.
     auto prev_bytes = collect_past_kv_bytes(m_generate_compiled_variants.front());
     for (std::size_t i = 1; i < num_variants; ++i) {
         auto curr_bytes = collect_past_kv_bytes(m_generate_compiled_variants[i]);
         bool strictly_larger = curr_bytes.size() > prev_bytes.size();
+        bool has_full_attention_kv = false;
         for (const auto& [name, bytes] : prev_bytes) {
             const auto it = curr_bytes.find(name);
             OPENVINO_ASSERT(it != curr_bytes.end(),
@@ -1847,9 +1855,12 @@ void ov::npuw::LLMCompiledModel::validate_imported_kv_variants() const {
                             " bytes in generate variant ",
                             i,
                             ", but the variants must be ordered by ascending KV cache size.");
-            strictly_larger = strictly_larger || bytes < it->second;
+            if (!ov::npuw::util::is_swa_kv_cache_name(name)) {
+                has_full_attention_kv = true;
+                strictly_larger = strictly_larger || bytes < it->second;
+            }
         }
-        OPENVINO_ASSERT(prev_bytes.empty() || strictly_larger,
+        OPENVINO_ASSERT(!has_full_attention_kv || strictly_larger,
                         "NPUW: generate variants ",
                         i - 1,
                         " and ",
