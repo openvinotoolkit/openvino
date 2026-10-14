@@ -20,7 +20,7 @@ Interpolate
   * **Range of values**: one of ``nearest``, ``linear``, ``linear_onnx``, ``cubic``, ``bilinear_pillow``, ``bicubic_pillow``
   * **Type**: string
   * **Required**: *yes*
-  * **Note**: Only 2D, 3D, 4D, 5D tensors with ``axes = {0, 1}``, ``axes = {0, 1, 2}``, ``axes = {2, 3}``,  ``axes = {2, 3, 4}`` respectively are supported for ``"mode" == "linear_onnx"``. In case of ``bilinear_pillow`` or ``bicubic_pillow`` only the spatial dimensions (H, W) can be specified in the ``axes`` tensor, for example in case of NHWC layout the axes should contain ``axes = {1, 2}``.
+  * **Note**: Only 2D, 3D, 4D, 5D tensors with ``axes = {0, 1}``, ``axes = {0, 1, 2}``, ``axes = {2, 3}`` or ``axes = {1, 2}`` (channel-last NHWC), ``axes = {2, 3, 4}`` or ``axes = {1, 2, 3}`` (channel-last NDHWC) respectively are supported for ``"mode" == "linear_onnx"``. In case of ``bilinear_pillow`` or ``bicubic_pillow`` only the spatial dimensions (H, W) can be specified in the ``axes`` tensor, for example in case of NHWC layout the axes should contain ``axes = {1, 2}``.
 
 * *shape_calculation_mode*
 
