@@ -1302,7 +1302,9 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     const data_types dt = is_bf16 ? data_types::bf16 : data_types::f16;
     const ov::element::Type et = ov::element::from<T>();
     const ov::element::Type zp_et = zp_et_in.is_dynamic() ? et : zp_et_in;
-    const bool zp_is_integral = zp_et == ov::element::i8 || zp_et == ov::element::u8;
+    OPENVINO_ASSERT(zp_et == et || zp_et == ov::element::i8,
+                    "Compressed KV SDPA test supports zero-points of the data type or i8 only, got: ", zp_et);
+    const bool zp_is_integral = zp_et == ov::element::i8;
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
