@@ -29,7 +29,9 @@ OutputVector translate_tuple_unpack(const NodeContext& context) {
                                  "Tuples are not supported yet and can be resolved only in specific cases.");
 
         // Wrap outputs in ComplexTypeMark if input was complex
-        return wrap_complex(context, tuple_unpack_fw->outputs(), complex);
+        auto outputs = tuple_unpack_fw->outputs();
+        context.set_input_sequence(0, outputs);
+        return wrap_complex(context, outputs, complex);
     }
 };
 

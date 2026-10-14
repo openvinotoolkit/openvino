@@ -63,16 +63,6 @@ Output<Node> replay_view(const Output<Node>& view, ViewReplacements& replacement
         replacements[view] = view;
         return view;
     }
-    if (cast_fw_node(node, {"prim::ListUnpack", "prim::TupleUnpack"}) && new_inputs.size() == 1) {
-        if (const auto sequence = ov::as_type_ptr<SequenceMark>(new_inputs[0].get_node_shared_ptr())) {
-            const auto elements = sequence->get_sequence();
-            FRONT_END_GENERAL_CHECK(elements.size() == node->get_output_size(), "Unpack output count changed.");
-            for (size_t i = 0; i < elements.size(); ++i) {
-                replacements[node->output(i)] = elements[i];
-            }
-            return elements.at(view.get_index());
-        }
-    }
     const auto updated = node->clone_with_new_inputs(new_inputs);
     updated->set_friendly_name(node->get_friendly_name());
     copy_runtime_info(node, updated);
@@ -132,6 +122,13 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
 
 void NodeContext::mutate_input(const std::string& name, Output<Node> ov_output) const {
     mutate_tensor(m_decoder->get_named_input(name), ov_output, name);
+}
+
+void NodeContext::set_input_sequence(size_t index, const OutputVector& elements) const {
+    const auto input_id = m_decoder_inputs.at(index);
+    const auto sequence = make_list_construct(elements);
+    m_translate_session->encode_tensor_name(sequence, input_id);
+    (*m_tensor_map)[input_id] = sequence;
 }
 
 void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const std::string& name) const {

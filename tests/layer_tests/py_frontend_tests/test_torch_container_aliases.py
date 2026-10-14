@@ -74,6 +74,48 @@ class ChunkCacheMutation(torch.nn.Module):
         return c * cache[0], cache
 
 
+class SequenceViewMutation(torch.nn.Module):
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def forward(self, source, data):
+        base = data.clone()
+        if self.operation == "split":
+            parts = torch.split_with_sizes(base, [2, 2], dim=1)
+        else:
+            parts = torch.unbind(base.reshape(base.shape[0], 2, 2, 3), dim=1)
+        before = parts[0] + parts[1]
+        parts[0].copy_(source)
+        parts[1].add_(2)
+        return base, before, parts[0], parts[1]
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+@pytest.mark.parametrize("operation,capture", [("split", "torchscript"),
+                                               ("split", "export"), ("unbind", "export")])
+def test_torch_sequence_view_mutation(operation, capture):
+    generator = torch.Generator().manual_seed(42)
+    inputs = (torch.randn(2, 2, 3, generator=generator), torch.randn(2, 4, 3, generator=generator))
+    model = SequenceViewMutation(operation)
+    if capture == "torchscript":
+        model = torch.jit.trace(model, deepcopy(inputs))
+        converted = ov.convert_model(model, example_input=deepcopy(inputs))
+    else:
+        batch = torch.export.Dim("batch", min=1)
+        exported = torch.export.export(model, deepcopy(inputs), dynamic_shapes=({0: batch}, {0: batch}))
+        converted = ov.convert_model(exported)
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    for batch in (1, 2):
+        inputs = (torch.randn(batch, 2, 3, generator=generator), torch.randn(batch, 4, 3, generator=generator))
+        expected = model(*deepcopy(inputs))
+        actual = list(compiled([element.numpy() for element in inputs]).values())
+        assert len(actual) == len(expected)
+        for reference, result in zip(expected, actual):
+            np.testing.assert_allclose(result, reference.numpy(), rtol=1e-5, atol=1e-6)
+
+
 @pytest.mark.precommit
 @pytest.mark.nightly
 def test_torch_chunk_cache_mutation():
