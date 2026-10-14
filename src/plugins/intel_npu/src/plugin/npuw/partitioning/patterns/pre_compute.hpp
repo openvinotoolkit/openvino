@@ -30,13 +30,20 @@ public:
     std::shared_ptr<ov::Node> matched_cos;
     std::shared_ptr<ov::Node> matched_concat;
     bool duplicate_freqs = false;
+    // init_cb can set this to false to veto a structurally-matched but semantically
+    // invalid subgraph (e.g. a non-duplicating Concat) - MultiMatcher::Callback
+    // returns void, so this is the only way to stop transform_cb from running.
+    bool accept_match = true;
 
     std::function<void()> transform_cb;
 
     ov::pass::MultiMatcher::Callback make_matcher_callback() {
         return [this](const auto& matches) {
+            accept_match = true;
             init_cb(matches);
-            transform_cb();
+            if (accept_match) {
+                transform_cb();
+            }
         };
     }
 };
@@ -66,6 +73,11 @@ public:
 
 class RopePatternLLama2 : public RopePatternDesc {
     ov::pass::MultiMatcher matcher;
+
+    // Rejects matches that structurally fit the pattern but whose optional nodes (`broadcast`,
+    // `concat_2`) carry a shape/semantics the rest of the pass can't handle correctly - see
+    // RopePatternLLama2() for the specific cases. `sin_input` is matched_sin's direct input.
+    bool is_valid_match(const std::shared_ptr<ov::Node>& sin_input) const;
 
 public:
     using RopePatternDesc::transform_cb;
