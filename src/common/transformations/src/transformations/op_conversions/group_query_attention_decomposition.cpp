@@ -280,11 +280,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> bias_col_offset = zero;
     ov::Output<ov::Node> present_k, present_v;
 
-    if (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0) {
-        // With no past tokens, the current K/V already are the complete present cache.
-        present_k = K;
-        present_v = V;
-    } else if (shared_kv) {
+    if (shared_kv) {
         // Shared KV (ORT kv_sequence_length == 0): attend to the past buffer as is (zero copy) and return it
         // unchanged as present. Rows at or beyond `total` are hidden by the explicit mask (causal offset
         // total - S_q via mask_past_seqlen), so no Slice of the cache is needed.
@@ -292,6 +288,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = past_value;
         present_k = past_key;
         present_v = past_value;
+    } else if (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0) {
+        // With no past tokens, the current K/V already are the complete present cache.
+        present_k = K;
+        present_v = V;
     } else {
         const auto cache = batched ? construct_batched_kvcache(node,
                                                                past_key,
@@ -331,7 +331,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = dequantize_kv(V, metadata->v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
     }
 
-    const auto concat_kv_len = get_dimensions(K, {2});
+    const auto concat_kv_len = get_dimensions(register_new_node<v3::ShapeOf>(K), {2});
     const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
 
     // Broadcast KV if grouped query attention

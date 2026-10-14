@@ -417,9 +417,6 @@ void GroupQueryAttention::validate_and_infer_types() {
     if (!m_sliding_window_cache && !is_shared_kv() && !has_fixed_kv_capacity()) {
         output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;
     }
-    if (output_kv_len == 0 && sequence_len.is_static() && sequence_len.get_length() > 0) {
-        output_kv_len = sequence_len;
-    }
 
     set_output_type(0, q_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
     for (auto&& port : {1, 2}) {
