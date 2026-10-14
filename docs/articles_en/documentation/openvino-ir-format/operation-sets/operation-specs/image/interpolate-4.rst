@@ -24,8 +24,9 @@ Interpolate
     .. note::
 
        Only 2D, 3D, 4D, 5D tensors with ``axes = {0, 1}``, ``axes = {0, 1, 2}``,
-       ``axes = {2, 3}``,  ``axes = {2, 3, 4}`` respectively are supported for
-       ``"mode" == "linear_onnx"``.
+       ``axes = {2, 3}`` or ``axes = {1, 2}`` (channel-last NHWC),
+       ``axes = {2, 3, 4}`` or ``axes = {1, 2, 3}`` (channel-last NDHWC)
+       respectively are supported for ``"mode" == "linear_onnx"``.
 
 * *shape_calculation_mode*
 
