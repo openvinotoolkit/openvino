@@ -11,6 +11,8 @@
 #include <cstddef>
 #include <functional>
 #include <map>
+#include <numeric>
+#include <vector>
 
 #include "interpolate_pil.hpp"
 #include "openvino/op/interpolate.hpp"
@@ -639,6 +641,98 @@ std::vector<float> get_scales(const PartialShape& input_data_partial_shape,
 op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialShape& input_partial_shape,
                                                          const op::v0::Interpolate::Attributes& attrs_v0);
 
+inline bool linear_onnx_axes_natively_supported(const size_t input_rank, const std::vector<int64_t>& axes) {
+    const auto num_of_axes = axes.size();
+    const auto is_consecutive_from = [&axes](const int64_t start) {
+        for (size_t i = 0; i < axes.size(); ++i) {
+            if (axes[i] != start + static_cast<int64_t>(i)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (input_rank == 2 || input_rank == 3) {
+        return num_of_axes == input_rank && is_consecutive_from(0);
+    } else if (input_rank >= 4) {
+        return (num_of_axes == input_rank && is_consecutive_from(0)) ||
+               (num_of_axes == input_rank - 2 && is_consecutive_from(2));
+    }
+    return false;
+}
+
+// Permutes axes into the supported layout, runs the kernel, permutes back.
+template <typename T>
+void interpolate_linear_onnx_arbitrary_axes(const T* input_data,
+                                            const Shape& input_data_shape,
+                                            const std::vector<float>& scales,
+                                            const std::vector<int64_t>& axes,
+                                            T* out,
+                                            const Shape& out_shape,
+                                            const op::v4::Interpolate::InterpolateAttrs& attrs) {
+    const auto rank = input_data_shape.size();
+    const auto num_of_axes = axes.size();
+
+    std::vector<bool> is_interpolated(rank, false);
+    for (const auto axis : axes) {
+        is_interpolated[static_cast<size_t>(axis)] = true;
+    }
+
+    std::vector<int64_t> perm;
+    perm.reserve(rank);
+    for (size_t i = 0; i < rank; ++i) {
+        if (!is_interpolated[i]) {
+            perm.push_back(static_cast<int64_t>(i));
+        }
+    }
+    perm.insert(perm.end(), axes.begin(), axes.end());
+
+    Shape permuted_in_shape(rank);
+    Shape permuted_out_shape(rank);
+    for (size_t i = 0; i < rank; ++i) {
+        const auto src_axis = static_cast<size_t>(perm[i]);
+        permuted_in_shape[i] = input_data_shape[src_axis];
+        permuted_out_shape[i] = out_shape[src_axis];
+    }
+
+    std::vector<T> permuted_in(shape_size(input_data_shape));
+    transpose(reinterpret_cast<const char*>(input_data),
+              reinterpret_cast<char*>(permuted_in.data()),
+              input_data_shape,
+              sizeof(T),
+              perm,
+              permuted_in_shape);
+
+    // Fold leading axes into one channel dim so the kernel sees rank num_of_axes + 2.
+    const auto num_leading = rank - num_of_axes;
+    Shape kernel_in_shape{1, 1};
+    Shape kernel_out_shape{1, 1};
+    for (size_t i = 0; i < num_leading; ++i) {
+        kernel_in_shape[1] *= permuted_in_shape[i];
+        kernel_out_shape[1] *= permuted_out_shape[i];
+    }
+    kernel_in_shape.insert(kernel_in_shape.end(), permuted_in_shape.begin() + num_leading, permuted_in_shape.end());
+    kernel_out_shape.insert(kernel_out_shape.end(), permuted_out_shape.begin() + num_leading, permuted_out_shape.end());
+
+    std::vector<int64_t> kernel_axes(num_of_axes);
+    std::iota(kernel_axes.begin(), kernel_axes.end(), static_cast<int64_t>(2));
+
+    std::vector<T> permuted_out(shape_size(out_shape));
+    InterpolateEval<T> evaluator{attrs};
+    evaluator(permuted_in.data(), kernel_in_shape, scales, kernel_axes, permuted_out.data(), kernel_out_shape);
+
+    std::vector<int64_t> inverse_perm(rank);
+    for (size_t i = 0; i < rank; ++i) {
+        inverse_perm[static_cast<size_t>(perm[i])] = static_cast<int64_t>(i);
+    }
+    transpose(reinterpret_cast<const char*>(permuted_out.data()),
+              reinterpret_cast<char*>(out),
+              permuted_out_shape,
+              sizeof(T),
+              inverse_perm,
+              out_shape);
+}
+
 template <typename T>
 void interpolate(const T* input_data,
                  const Shape& input_data_shape,
@@ -647,6 +741,13 @@ void interpolate(const T* input_data,
                  T* out,
                  const Shape& out_shape,
                  const op::v4::Interpolate::InterpolateAttrs& attrs) {
+    // Handle axes the LINEAR_ONNX kernel doesn't natively support (e.g. NHWC {1,2}).
+    if (attrs.mode == InterpolateMode::LINEAR_ONNX && !axes.empty() && axes.size() + 2 <= 5 &&
+        axes.size() <= input_data_shape.size() && !linear_onnx_axes_natively_supported(input_data_shape.size(), axes)) {
+        interpolate_linear_onnx_arbitrary_axes(input_data, input_data_shape, scales, axes, out, out_shape, attrs);
+        return;
+    }
+
     InterpolateEval<T> evaluator{attrs};
     evaluator(input_data, input_data_shape, scales, axes, out, out_shape);
 }
