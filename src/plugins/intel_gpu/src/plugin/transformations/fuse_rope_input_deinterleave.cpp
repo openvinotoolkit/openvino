@@ -96,8 +96,17 @@ FuseRoPEInputDeinterleave::FuseRoPEInputDeinterleave() {
     auto rope_pattern = wrap_type<ov::op::internal::RoPE>({concat_pattern, any_input(), any_input()}, [](const ov::Output<ov::Node>& output) {
         const auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
         const auto& config = rope->get_config();
-        const auto input_width = rope->get_input_partial_shape(0)[3].get_length();
-        return !config.input_interleaved && ov::op::internal::is_plain_rotate_half(config) && config.rotary_ndims == static_cast<size_t>(input_width);
+        if (config.input_interleaved || !ov::op::internal::is_plain_rotate_half(config)) {
+            return false;
+        }
+
+        const auto& input_shape = rope->get_input_partial_shape(0);
+        if (input_shape.rank() != 4 || !input_shape[3].is_static()) {
+            return false;
+        }
+
+        const auto input_width = input_shape[3].get_length();
+        return config.rotary_ndims == static_cast<size_t>(input_width);
     });
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
         const auto& pattern_map = matcher.get_pattern_value_map();
