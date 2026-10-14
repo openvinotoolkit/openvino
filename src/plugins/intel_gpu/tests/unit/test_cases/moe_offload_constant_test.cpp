@@ -23,11 +23,16 @@ struct MoETestGraph {
     std::vector<std::shared_ptr<ov::op::v0::Constant>> constants;  // indices 3..21
     ov::ParameterVector parameters;
 
-    static MoETestGraph build(size_t num_experts = 4, size_t hidden_size = 128, size_t inter_size = 256, size_t group_size = 128) {
+    static MoETestGraph build(size_t num_experts = 4,
+                              size_t hidden_size = 128,
+                              size_t inter_size = 256,
+                              size_t group_size = 128,
+                              ov::op::internal::MOE::Expert_type expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
         MoETestGraph g;
 
         const size_t top_k = 2;
         ov::op::internal::MOECompressed::Config config{};
+        config.expert_type = expert_type;
         config.hidden_size = hidden_size;
         config.inter_size = inter_size;
         config.num_expert = num_experts;
@@ -129,27 +134,27 @@ TEST(moe_offload_constant, non_moe_model_is_not_subject_to_resident_constant_che
     EXPECT_NO_THROW(validate_model_resident_constant_memory(model, 0, 1));
 }
 
-// Test that routed expert constants (inputs 3-11) are classified as RoutedExpert
+// Test that routed expert constants (inputs 3-11) are classified as OffloadableRoutedExpert
 TEST(moe_offload_constant, routed_expert_classification) {
     auto g = MoETestGraph::build();
 
     // Inputs 3..11 map to g.constants[0..8] (routed experts)
     for (size_t i = 0; i < 9; i++) {
         auto role = get_moe_constant_role(g.constants[i]);
-        EXPECT_EQ(role, MoEConstantRole::RoutedExpert)
-            << "Constant at MOECompressed input " << (i + 3) << " should be RoutedExpert";
+        EXPECT_EQ(role, MoEConstantRole::OffloadableRoutedExpert)
+            << "Constant at MOECompressed input " << (i + 3) << " should be OffloadableRoutedExpert";
     }
 }
 
-// Test that shared expert constants (inputs 12-21) are classified as SharedExpert
+// Test that shared expert constants (inputs 12-21) are classified as AlwaysResidentSharedExpert
 TEST(moe_offload_constant, shared_expert_classification) {
     auto g = MoETestGraph::build();
 
     // Inputs 12..21 map to g.constants[9..18] (shared experts)
     for (size_t i = 9; i < g.constants.size(); i++) {
         auto role = get_moe_constant_role(g.constants[i]);
-        EXPECT_EQ(role, MoEConstantRole::SharedExpert)
-            << "Constant at MOECompressed input " << (i + 3) << " should be SharedExpert";
+        EXPECT_EQ(role, MoEConstantRole::AlwaysResidentSharedExpert)
+            << "Constant at MOECompressed input " << (i + 3) << " should be AlwaysResidentSharedExpert";
     }
 }
 
@@ -173,17 +178,17 @@ TEST(moe_offload_constant, is_moe_related_covers_both) {
     EXPECT_FALSE(is_moe_related_constant(unconnected));
 }
 
-// KEY TEST: Shared expert constants must NOT be classified as RoutedExpert
+// KEY TEST: Shared expert constants must NOT be classified as OffloadableRoutedExpert
 // This is the regression test for the bug where shared constants were wrongly cropped.
 TEST(moe_offload_constant, shared_expert_not_cropped_by_partial_upload) {
     auto g = MoETestGraph::build();
 
-    // Shared expert constants (inputs 12-21) must NEVER be RoutedExpert
+    // Shared expert constants (inputs 12-21) must NEVER be OffloadableRoutedExpert
     for (size_t i = 9; i < g.constants.size(); i++) {
         auto role = get_moe_constant_role(g.constants[i]);
-        EXPECT_NE(role, MoEConstantRole::RoutedExpert)
+        EXPECT_NE(role, MoEConstantRole::OffloadableRoutedExpert)
             << "Shared expert constant at input " << (i + 3)
-            << " must NOT be classified as RoutedExpert (would be wrongly cropped by partial upload)";
+            << " must NOT be classified as OffloadableRoutedExpert (would be wrongly cropped by partial upload)";
     }
 }
 
@@ -209,4 +214,68 @@ TEST(moe_offload_constant, partial_upload_uses_preferred_allocation_type) {
     ASSERT_TRUE(desc.enabled);
     EXPECT_LT(desc.upload_bytes, layout.bytes_count());
     EXPECT_EQ(desc.memory->get_allocation_type(), engine.get_preferred_memory_allocation_type());
+}
+
+TEST(moe_offload_constant, gemm2_moe_is_not_otd_capable_and_not_discounted) {
+    auto gemm3_graph = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU);
+    EXPECT_TRUE(is_otd_capable_moe(gemm3_graph.moe_node.get()));
+
+    auto gemm2_graph = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP);
+    EXPECT_FALSE(is_otd_capable_moe(gemm2_graph.moe_node.get()));
+
+    // For GEMM2, constants must be classified as NotOffloadableMoE, yet still recognized as MoE related
+    for (auto& c : gemm2_graph.constants) {
+        EXPECT_EQ(get_moe_constant_role(c), MoEConstantRole::NotOffloadableMoE);
+        EXPECT_TRUE(is_moe_related_constant(c));
+    }
+
+    // Model with only GEMM2 MOE nodes should not trigger the OTD resident check (returns 0)
+    auto result = std::make_shared<ov::op::v0::Result>(gemm2_graph.moe_node);
+    ov::Model model(ov::ResultVector{result}, gemm2_graph.parameters);
+    EXPECT_EQ(get_model_resident_constant_bytes(model, 50), 0U);
+
+    // Partial upload must be disabled for GEMM2 constants
+    auto& engine = tests::get_test_engine();
+    auto config = tests::get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::offload_ratio(50));
+    auto constant = gemm2_graph.constants[0];
+    const auto shape = constant->get_output_shape(0);
+    const auto layout = cldnn::layout(shape,
+                                      cldnn::element_type_to_data_type(constant->get_output_element_type(0)),
+                                      cldnn::format::get_default_format(shape.size()));
+    const auto desc = try_prepare_partial_upload(engine,
+                                                 config,
+                                                 constant,
+                                                 shape,
+                                                 layout.data_type,
+                                                 layout.format,
+                                                 layout);
+    EXPECT_FALSE(desc.enabled);
+}
+
+TEST(moe_offload_constant, shared_routed_constant_is_not_offloadable) {
+    auto g = MoETestGraph::build();
+    auto routed_const = g.constants[0];
+
+    // Simulate sharing: attach another non-MoE consumer to the routed constant
+    auto dummy_relu = std::make_shared<ov::op::v0::Relu>(routed_const);
+    EXPECT_EQ(get_moe_constant_role(routed_const), MoEConstantRole::NotOffloadableRoutedExpert);
+    EXPECT_TRUE(is_moe_related_constant(routed_const));
+
+    // Must not be partially uploaded
+    auto& engine = tests::get_test_engine();
+    auto config = tests::get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::offload_ratio(50));
+    const auto shape = routed_const->get_output_shape(0);
+    const auto layout = cldnn::layout(shape,
+                                      cldnn::element_type_to_data_type(routed_const->get_output_element_type(0)),
+                                      cldnn::format::get_default_format(shape.size()));
+    const auto desc = try_prepare_partial_upload(engine,
+                                                 config,
+                                                 routed_const,
+                                                 shape,
+                                                 layout.data_type,
+                                                 layout.format,
+                                                 layout);
+    EXPECT_FALSE(desc.enabled);
 }

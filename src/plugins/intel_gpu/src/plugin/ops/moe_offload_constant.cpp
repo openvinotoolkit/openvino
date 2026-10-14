@@ -21,21 +21,58 @@ static constexpr size_t ROUTED_INPUT_END = 11;
 static constexpr size_t SHARED_INPUT_START = 12;
 static constexpr size_t SHARED_INPUT_END = 21;
 
+bool is_otd_capable_moe(const ov::Node* node) {
+    if (const auto* moe = ov::as_type<const ov::op::internal::MOECompressed>(node)) {
+        return moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+    }
+    return false;
+}
+
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op) {
-    const auto users = op->get_output_target_inputs(0);
-    for (const auto& input : users) {
+    const auto target_inputs = op->get_output_target_inputs(0);
+    bool has_moe_consumer = false;
+    bool has_non_otd_moe = false;
+    bool has_routed = false;
+    bool has_shared = false;
+    bool has_other_consumer = false;
+
+    for (const auto& input : target_inputs) {
         const auto* node = input.get_node();
-        if (ov::is_type<ov::op::internal::MOECompressed>(node)) {
-            auto idx = input.get_index();
-            if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END) {
-                return MoEConstantRole::RoutedExpert;
+        if (const auto* moe = ov::as_type<const ov::op::internal::MOECompressed>(node)) {
+            has_moe_consumer = true;
+            if (moe->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
+                has_non_otd_moe = true;
+            } else {
+                const auto idx = input.get_index();
+                if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END) {
+                    has_routed = true;
+                } else if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END) {
+                    has_shared = true;
+                } else {
+                    has_other_consumer = true;
+                }
             }
-            if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END) {
-                return MoEConstantRole::SharedExpert;
-            }
+        } else {
+            has_other_consumer = true;
         }
     }
-    return MoEConstantRole::NotMoE;
+
+    if (!has_moe_consumer) {
+        return MoEConstantRole::NotMoE;
+    }
+    if (has_non_otd_moe) {
+        return MoEConstantRole::NotOffloadableMoE;
+    }
+    if (has_shared) {
+        return MoEConstantRole::AlwaysResidentSharedExpert;
+    }
+    if (has_routed) {
+        if (has_other_consumer) {
+            return MoEConstantRole::NotOffloadableRoutedExpert;
+        }
+        return MoEConstantRole::OffloadableRoutedExpert;
+    }
+    return MoEConstantRole::NotOffloadableMoE;
 }
 
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
@@ -50,7 +87,7 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
     std::unordered_set<const ov::Node*> visited;
     std::function<void(const ov::Model&)> collect_resident_bytes = [&](const ov::Model& current_model) {
         for (const auto& node : current_model.get_ops()) {
-            has_moe = has_moe || ov::is_type<ov::op::internal::MOECompressed>(node);
+            has_moe = has_moe || is_otd_capable_moe(node.get());
             if (auto subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                 for (const auto& subgraph : subgraph_op->get_functions())
                     collect_resident_bytes(*subgraph);
@@ -60,28 +97,23 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
             if (!constant || !visited.insert(constant.get()).second)
                 continue;
 
-            bool has_moe_consumer = false;
-            bool all_consumers_routed = true;
-            size_t max_top_k = 0;
-            for (const auto& input : constant->get_output_target_inputs(0)) {
-                if (!ov::is_type<ov::op::internal::MOECompressed>(input.get_node())) {
-                    all_consumers_routed = false;
-                    continue;
-                }
-
-                has_moe_consumer = true;
-                const auto input_index = input.get_index();
-                all_consumers_routed = all_consumers_routed && input_index >= ROUTED_INPUT_START && input_index <= ROUTED_INPUT_END;
-                max_top_k = std::max(max_top_k, input.get_node()->as<ov::op::internal::MOECompressed>().get_config().top_k);
-            }
-            if (!has_moe_consumer)
+            const auto role = get_moe_constant_role(constant);
+            if (role == MoEConstantRole::NotMoE)
                 continue;
 
             uint64_t constant_resident_bytes = constant->get_byte_size();
-            if (all_consumers_routed && offload_ratio > 0) {
+            if (role == MoEConstantRole::OffloadableRoutedExpert && offload_ratio > 0) {
                 const auto& shape = constant->get_shape();
                 if (shape.empty() || shape[0] == 0)
                     continue;
+
+                size_t max_top_k = 0;
+                for (const auto& input : constant->get_output_target_inputs(0)) {
+                    if (is_otd_capable_moe(input.get_node())) {
+                        max_top_k = std::max(max_top_k, input.get_node()->as<ov::op::internal::MOECompressed>().get_config().top_k);
+                    }
+                }
+
                 const size_t resident_experts = offload_ratio == 100
                                                     ? std::min(shape[0], max_top_k)
                                                     : std::max<size_t>(1, shape[0] * (100 - offload_ratio) / 100);
@@ -128,7 +160,8 @@ PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
     const size_t otd_ratio = config.get_offload_ratio();
     // Only routed expert weights are partially uploaded; shared experts stay fully resident.
     // ratio=0 keeps all experts resident; positive ratios enable partial upload.
-    const bool partial_moe_const_upload = otd_ratio > 0 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
+    const bool partial_moe_const_upload = otd_ratio > 0 &&
+                                          get_moe_constant_role(op) == MoEConstantRole::OffloadableRoutedExpert;
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;
     }
@@ -137,7 +170,7 @@ PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
     size_t resident_expert_num = 0;
     if (otd_ratio == 100) {
         for (const auto& input : op->get_output_target_inputs(0)) {
-            if (ov::is_type<ov::op::internal::MOECompressed>(input.get_node())) {
+            if (is_otd_capable_moe(input.get_node())) {
                 resident_expert_num = std::max(resident_expert_num,
                                                input.get_node()->as<ov::op::internal::MOECompressed>().get_config().top_k);
             }
