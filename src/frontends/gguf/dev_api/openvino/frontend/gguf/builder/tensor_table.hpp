@@ -9,9 +9,7 @@
 #include "openvino/frontend/gguf/builder/value.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 class GgufGraphContext;
 
@@ -36,6 +34,4 @@ private:
     GgufGraphContext* m_ctx;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

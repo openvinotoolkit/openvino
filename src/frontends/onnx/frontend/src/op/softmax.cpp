@@ -13,9 +13,7 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 namespace {
 std::shared_ptr<ov::Node> onnx_softmax(const ov::Output<ov::Node> data, const int64_t axis) {
     const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
@@ -25,9 +23,9 @@ std::shared_ptr<ov::Node> onnx_softmax(const ov::Output<ov::Node> data, const in
     return std::make_shared<v1::Reshape>(result, data_shape, special_zero);
 }
 }  // namespace
+}  // namespace ov::frontend::onnx
 
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
@@ -50,8 +48,9 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     return {result};
 }
 ONNX_OP("Softmax", OPSET_RANGE(1, 10), ai_onnx::opset_1::softmax);
-}  // namespace opset_1
-namespace opset_11 {
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+
+namespace ov::frontend::onnx::ai_onnx::opset_11 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
@@ -78,8 +77,9 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     return {result};
 }
 ONNX_OP("Softmax", OPSET_RANGE(11, 12), ai_onnx::opset_11::softmax);
-}  // namespace opset_11
-namespace opset_13 {
+}  // namespace ov::frontend::onnx::ai_onnx::opset_11
+
+namespace ov::frontend::onnx::ai_onnx::opset_13 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
 
@@ -88,8 +88,4 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v8::Softmax>(data, axis)};
 }
 ONNX_OP("Softmax", OPSET_SINCE(13), ai_onnx::opset_13::softmax);
-}  // namespace opset_13
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_13
