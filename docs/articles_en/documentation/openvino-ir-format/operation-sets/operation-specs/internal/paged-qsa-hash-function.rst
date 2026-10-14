@@ -58,7 +58,7 @@ and the pseudo-code of :doc:`QSAHashFunction <qsa-hash-function>`:
         c = ngram_size - 1
         H = c * heads_per_ngram
         T = token_ids.shape[0]
-        row_ids = numpy.zeros((T, H), dtype=numpy.int64)
+        row_ids = numpy.zeros((T, H), dtype=numpy.int32)       # T_IND; the 64-bit math stays inside
         for s in range(len(num_processed_tokens)):
             t_begin, t_end = subsequence_begins[s], subsequence_begins[s + 1]
             blocks = la_block_indices[la_block_indices_begins[s]:la_block_indices_begins[s + 1]]

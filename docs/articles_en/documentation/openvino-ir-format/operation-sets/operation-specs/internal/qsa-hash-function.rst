@@ -52,6 +52,7 @@ The graph flow of the PLE lookup is *QSAHashFunction* -> *Gather* (``table``, ``
         N, L = token_ids.shape
         c = ngram_size - 1                                      # previous tokens of an n-gram
         H = c * heads_per_ngram                                 # hashed heads
+        # computed exactly in 64 bits; row_ids are returned as int32, new_history as the type of history
         row_ids = numpy.zeros((N, L, H), dtype=numpy.int64)
         new_history = numpy.zeros((N, c), dtype=numpy.int64)
         for n in range(N):
@@ -75,7 +76,7 @@ The graph flow of the PLE lookup is *QSAHashFunction* -> *Gather* (``table``, ``
                         h = (o - 2) * heads_per_ngram + e
                         row_ids[n, l, h] = mix % int(head_vocab_sizes[h]) + int(head_offsets[h])
             new_history[n] = seq[-c:]                           # the last c tokens, for the next call
-        return row_ids, new_history
+        return row_ids.astype(numpy.int32), new_history.astype(history.dtype)
 
 Properties that follow from the definition:
 
@@ -130,7 +131,9 @@ Properties that follow from the definition:
 
 * *head_offsets*
 
-  * **Description**: the first row of every hashed head in the packed table, ``H`` values.
+  * **Description**: the first row of every hashed head in the packed table, ``H`` values. The rows
+    of the packed table, ``head_offsets[h] + head_vocab_sizes[h]``, must be below ``2^31``, as
+    ``row_ids`` is ``int32``; Qwen3.8-Flash-Next has about ``3.2 * 10^8`` rows.
   * **Range of values**: non-negative integers
   * **Type**: ``int64[]``
   * **Required**: *yes*
@@ -142,14 +145,6 @@ Properties that follow from the definition:
   * **Range of values**: a non-negative integer
   * **Type**: ``int``
   * **Required**: *yes*
-
-* *output_type*
-
-  * **Description**: the element type of ``row_ids`` and ``new_history``.
-  * **Range of values**: ``i32``, ``i64``
-  * **Type**: ``string``
-  * **Default value**: ``i32``
-  * **Required**: *no*
 
 
 **Inputs**
@@ -164,11 +159,11 @@ Properties that follow from the definition:
 
 **Outputs**
 
-* **1**: ``row_ids`` - 3D tensor of type *output_type* and shape ``[N, L, H]``: the row of the packed
+* **1**: ``row_ids`` - 3D tensor of type ``int32`` and shape ``[N, L, H]``: the row of the packed
   n-gram table for every token and hashed head.
 
-* **2**: ``new_history`` - 2D tensor of type *output_type* and shape ``[N, ngram_size - 1]``: the last
-  ``ngram_size - 1`` tokens, the ``history`` of the next call.
+* **2**: ``new_history`` - 2D tensor of type *T_IND*, the type of ``history``, and shape
+  ``[N, ngram_size - 1]``: the last ``ngram_size - 1`` tokens, the ``history`` of the next call.
 
 
 **Types**
@@ -197,7 +192,7 @@ Properties that follow from the definition:
               multipliers="23703573157769,20109073645365,8052911324071"
               head_vocab_sizes="20000003,20000023,20000033,20000047,20000059,20000063,20000069,20000077,20000081,20000093,20000107,20000147,20000153,20000159,20000161,20000171"
               head_offsets="0,20000003,40000026,60000059,80000106,100000165,120000228,140000297,160000374,180000455,200000548,220000655,240000802,260000955,280001114,300001275"
-              eos_token_id="248044" output_type="i32"/>
+              eos_token_id="248044"/>
         <input>
             <port id="0" precision="I64"> <!-- token_ids -->
                 <dim>1</dim>    <!-- N -->
@@ -214,7 +209,7 @@ Properties that follow from the definition:
                 <dim>300</dim>  <!-- L -->
                 <dim>16</dim>   <!-- H -->
             </port>
-            <port id="3" precision="I32"> <!-- new_history -->
+            <port id="3" precision="I64"> <!-- new_history: the type of history -->
                 <dim>1</dim>    <!-- N -->
                 <dim>2</dim>    <!-- ngram_size - 1 -->
             </port>

@@ -76,7 +76,7 @@ any number of index heads is reduced to one selection.
    :force:
 
     def QSAIndexer(index_query, block_index_keys, key_length, index_weights=None, *,
-                               key_block_size, token_budget, num_selection_heads=1):
+                   key_block_size, token_budget, num_selection_heads=1):
         N, Hi, L, Di = index_query.shape
         key_length = numpy.broadcast_to(key_length, (N,))       # valid key tokens of every sequence
         r = key_block_size
@@ -86,8 +86,8 @@ any number of index heads is reduced to one selection.
         if index_weights is None:
             index_weights = numpy.ones((N, L, Hi))
 
-        block_indices = numpy.full((N, Hs, L, block_topk), -1)
-        block_count = numpy.zeros((N, Hs, L))
+        block_indices = numpy.full((N, Hs, L, block_topk), -1, dtype=numpy.int32)
+        block_count = numpy.zeros((N, Hs, L), dtype=numpy.int32)
         for n in range(N):
             # left padding: the first L - key_length[n] query tokens are padding (only in a pre-fill)
             num_padding_queries = max(0, L - key_length[n])
@@ -280,14 +280,6 @@ the blocks completed by the new tokens. The paged counterparts are
   * **Default value**: ``1``
   * **Required**: *no*
 
-* *index_element_type*
-
-  * **Description**: the element type of the ``block_indices`` and ``block_count`` outputs.
-  * **Range of values**: ``i32``, ``i64``
-  * **Type**: ``string``
-  * **Default value**: ``i32``
-  * **Required**: *no*
-
 
 **Inputs**
 
@@ -313,11 +305,11 @@ the blocks completed by the new tokens. The paged counterparts are
 
 **Outputs**
 
-* **1**: ``block_indices`` - 4D tensor of type *index_element_type* and shape
+* **1**: ``block_indices`` - 4D tensor of type ``int32`` and shape
   ``[N, Hs, L, token_budget / key_block_size]``: the indices of the key blocks selected by every
   selection head for every query token, padded with ``-1``.
 
-* **2**: ``block_count`` - 3D tensor of type *index_element_type* and shape ``[N, Hs, L]``: the
+* **2**: ``block_count`` - 3D tensor of type ``int32`` and shape ``[N, Hs, L]``: the
   number of blocks selected by every selection head for every query token, that is the number of
   valid entries in the corresponding row of ``block_indices``,
   ``min(token_budget / key_block_size, (p + 1) // key_block_size)`` for the query position ``p``,
@@ -358,7 +350,7 @@ the blocks completed by the new tokens. The paged counterparts are
    :force:
 
     <layer id="1" name="indexer" type="QSAIndexer" version="extension">
-        <data key_block_size="4" token_budget="2048" index_element_type="i32"/>
+        <data key_block_size="4" token_budget="2048"/>
         <input>
             <port id="0" precision="BF16"> <!-- index_query -->
                 <dim>1</dim>   <!-- N -->

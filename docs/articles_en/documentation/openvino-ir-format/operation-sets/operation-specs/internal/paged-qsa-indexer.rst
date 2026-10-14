@@ -57,8 +57,8 @@ the sequence ``s`` is in the physical block that holds the token ``b * key_block
             pos = b * r
             return block_indices[block_indices_begins[s] + pos // Bs], (pos % Bs) // r
 
-        selected_block_indices = numpy.full((T, Hs, block_topk), -1)
-        selected_block_count = numpy.zeros((T, Hs))
+        selected_block_indices = numpy.full((T, Hs, block_topk), -1, dtype=numpy.int32)
+        selected_block_count = numpy.zeros((T, Hs), dtype=numpy.int32)
         for s in range(len(past_lens)):
             past, t_begin, t_end = past_lens[s], subsequence_begins[s], subsequence_begins[s + 1]
             for t in range(t_begin, t_end):
