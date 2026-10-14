@@ -63,6 +63,10 @@ set(GPU_RUNTIME_OCL_SYCL_SOURCES
 set(GPU_RUNTIME_ZE_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ze/ze_base_event.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/ze_base_event_factory.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_command_list.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_command_list.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_command_recorder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/ze_command_recorder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/ze_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/ze_counter_based_event.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/ze_counter_based_event.hpp
