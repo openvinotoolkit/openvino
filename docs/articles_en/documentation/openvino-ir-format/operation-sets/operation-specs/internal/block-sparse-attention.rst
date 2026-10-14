@@ -55,8 +55,8 @@ has its own row. A query token attends to:
   is a multiple of ``compress_ratio``, because the block of the query is then complete and attended
   only if it is listed in ``block_indices``.
 
-In the causal mode the query tokens are the last ``L`` of the ``S`` key tokens, at the positions
-``S - L + l``, and the selected blocks must be complete blocks at or before the query. With
+In the causal mode the query tokens are the last ``L`` key tokens, at the positions ``S - L + l``
+without padding, and the selected blocks must be complete blocks at or before the query. With
 ``causal = false`` there is no position rule and no incomplete block: a query token attends to
 exactly the tokens of its selected blocks, which may be anywhere in the key sequence, the queries
 need not be a part of the keys, and the last key block may be partial.
@@ -69,8 +69,19 @@ of query heads has its own selection, as in Native Sparse Attention (NSA); with 
 query head has its own selection. In the causal mode, the incomplete block of the query is attended
 by every head.
 
-There is no other mask: in the causal mode the causality comes from the selection, and with
-``causal = false`` the selection alone defines the attended tokens. This document covers the
+**Batches with padding.** The sequences of a batch are aligned to the right (left padding), as for
+:doc:`QSAIndexer <qsa-indexer>`: sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones
+of the ``S`` key positions. The positions, the blocks and the block indices of a sequence are counted
+from its first valid token: block ``b`` of sequence ``n`` is formed by the key positions
+``S - key_length[n] + b * compress_ratio ..``, and its query ``l`` has the position
+``p = key_length[n] - L + l`` within the sequence. Padding tokens are never attended, and a padded
+sequence gets the same result as alone in a batch of one. A query that is a padding token
+(``p < 0``) attends to nothing and produces zeros. Without ``key_length`` there is no padding,
+``key_length[n] = S``, and block ``b`` is formed by the positions ``b * compress_ratio ..``.
+
+There is no other mask: in the causal mode the causality comes from the selection, padding is
+excluded by ``key_length``, and with ``causal = false`` the selection alone defines the attended
+tokens. This document covers the
 *ScaledDotProductAttention* case: the key and
 value tensors hold all tokens of the sequences contiguously, as with a stateful KV cache, rather
 than in a paged cache.
@@ -81,7 +92,7 @@ than in a paged cache.
 .. code-block:: py
    :force:
 
-    def BlockSparseAttention(query, key, value, block_indices, block_count, scale=None, *,
+    def BlockSparseAttention(query, key, value, block_indices, block_count, key_length=None, scale=None, *,
                              compress_ratio, query_block_size=1, causal=True):
         N, H, L, E = query.shape
         Hkv, S = key.shape[1], key.shape[2]
@@ -89,19 +100,24 @@ than in a paged cache.
         r, qb = compress_ratio, query_block_size
         if scale is None:
             scale = 1.0 / sqrt(E)
+        # valid key tokens of every sequence, the last ones of the S key positions
+        key_length = numpy.full((N,), S) if key_length is None else numpy.broadcast_to(key_length, (N,))
 
         mask = numpy.zeros((N, Hs, L, S), dtype=bool)
         for n in range(N):
+            pad = S - key_length[n]                             # padding key positions, at the beginning
             for g in range(Hs):
                 for l in range(L):
                     row = l // qb                               # the selection row of query token l
                     blocks = block_indices[n, g, row, :int(block_count[n, g, row])]  # the rest is ignored
-                    selected = (blocks[:, None] * r + numpy.arange(r)[None, :]).reshape(-1)
+                    # logical block b of sequence n -> key positions pad + b * r .. pad + b * r + r - 1
+                    selected = pad + (blocks[:, None] * r + numpy.arange(r)[None, :]).reshape(-1)
                     mask[n, g, l, selected[selected < S]] = True        # the last key block may be partial
                     if causal:
-                        p = S - L + l                           # position of the query token
-                        tail = numpy.arange((p + 1) // r * r, p + 1)    # incomplete block, < r tokens
-                        mask[n, g, l, tail] = True
+                        p = key_length[n] - L + l               # position of the query token in its sequence
+                        if p >= 0:                              # padding queries (p < 0, the first ones) attend nothing
+                            tail = pad + numpy.arange((p + 1) // r * r, p + 1)  # incomplete block, < r tokens
+                            mask[n, g, l, tail] = True
         mask = numpy.repeat(mask, H // Hs, axis=1)              # selection g -> query heads of group g
 
         key = numpy.repeat(key, H // Hkv, axis=1)
@@ -115,8 +131,9 @@ than in a paged cache.
 
 Properties that follow from the definition:
 
-* Causal mode: the ``L`` query tokens are the last ``L`` of the ``S`` key tokens, and query ``l``
-  has the position ``S - L + l``. With the valid block indices of a row in
+* Causal mode: the ``L`` query tokens are the last ``L`` of the ``key_length[n]`` valid key tokens,
+  and query ``l`` has the position ``p = key_length[n] - L + l``. With the valid block indices of a
+  row in
   ``[0, (p + 1) // compress_ratio)``, as produced by *QSAIndexer*, every attended token
   is at or before ``p``. A query attends to ``block_count * compress_ratio + (p + 1) % compress_ratio``
   tokens, so the number of key and value rows of every query is known before any of them is read.
@@ -135,8 +152,8 @@ Properties that follow from the definition:
   *ScaledDotProductAttention* as long as every complete block is selected, that is for the first
   ``token_budget + compress_ratio - 1`` positions.
 * A query head attends to nothing, and produces zeros, if the ``block_count`` of its selection is
-  ``0`` and, in the causal mode, ``p + 1`` is a multiple of ``compress_ratio``.
-  *QSAIndexer* never produces such a row; the FlashVSR selection can.
+  ``0`` and, in the causal mode, ``p + 1`` is a multiple of ``compress_ratio``, or if it is a padding
+  token. *QSAIndexer* produces such a row only for padding tokens; the FlashVSR selection can.
 * With ``Hs = 1`` every query head of a token attends to the same key and value rows, so an
   implementation can read every selected block once for all heads, as for multi-query attention.
   With ``Hs = Hkv`` the rows are shared within every group of query heads of one key-value head.
@@ -148,6 +165,39 @@ Properties that follow from the definition:
 
 The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the output by a separate
 *Multiply* and is not part of this operation.
+
+.. note::
+
+   **Padding layout: which entries are fake.** With ``pad = S - key_length[n]`` padding tokens of
+   sequence ``n``:
+
+   * ``key`` and ``value`` are padded at the **beginning**: the key positions ``0 .. pad - 1`` are
+     padding and are never attended.
+   * ``query``: the query tokens are the last ``L`` key positions, so the padding queries are also at
+     the **beginning**: query ``l`` is a padding token if ``l < L - key_length[n]`` (``p < 0``, only in
+     a pre-fill with ``L > key_length[n]``). It attends nothing and its output is zero.
+   * ``block_indices`` holds logical block indices, counted from the first valid token of the
+     sequence: block ``b`` is the key positions ``pad + b * compress_ratio ..``. A padding query has
+     ``block_count = 0``.
+
+   See the note *Padding layout* of :doc:`QSAIndexer <qsa-indexer>` for the fake rows of the block
+   axis and an example:
+
+   .. code-block:: text
+      :force:
+
+      compress_ratio = 4, S = 10, key_length = [10, 7]   (pre-fill: L = 10)
+
+      key position:  0   1   2   3   4   5   6   7   8   9
+      sequence 0:    a0  a1  a2  a3  a4  a5  a6  a7  a8  a9     pad = 0
+      sequence 1:    .   .   .   c0  c1  c2  c3  c4  c5  c6     pad = 3   (. = padding)
+
+      block_index_keys[0] = [ key(a0..a3), key(a4..a7) ]        incomplete block: a8 a9
+      block_index_keys[1] = [ key(c0..c3), 0 (fake)    ]        incomplete block: c4 c5 c6
+      queries of sequence 1: l = 0, 1, 2 are padding (p = -3, -2, -1); l = 3 is c0 (p = 0)
+
+      next decode step (L = 1, S = 11, key_length = [11, 8]): the new token c7 completes the block
+      c4..c7, block 1 of sequence 1 at the key positions 7..10
 
 .. note::
 
@@ -235,15 +285,20 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
   selection head and every query row, the indices of the key blocks it attends to in its first
   ``block_count`` entries. These entries are unique within a row and, in the causal mode, in
   ``[0, (p + 1) // compress_ratio)`` for the position ``p`` of every query token of the row; with
-  ``causal = false`` they are in ``[0, ceil(S / compress_ratio))``. Otherwise the behavior is
-  undefined. The remaining entries are ignored; *QSAIndexer* sets them to ``-1``.
+  ``causal = false`` they are in ``[0, ceil(key_length[n] / compress_ratio))``. Otherwise the
+  behavior is undefined. The remaining entries are ignored; *QSAIndexer* sets them to ``-1``.
   **Required.**
 
 * **5**: ``block_count`` - 3D tensor of type *T_IND* and shape ``[N, Hs, Lq]``: the number of valid
   entries in every row of ``block_indices``, ``0 <= block_count <= KB``. Normally the
   ``block_count`` output of *QSAIndexer*. **Required.**
 
-* **6**: ``scale`` - a scalar or single element 1D tensor of type *T*: the attention scale factor,
+* **6**: ``key_length`` - 1D tensor of type *T_IND* and shape ``[N]``: the number of valid key tokens
+  of every sequence, ``key_length[n] <= S``, the same input as ``key_length`` of *QSAIndexer*. A
+  tensor of shape ``[1]`` applies to all sequences. If not provided, there is no padding:
+  ``key_length[n] = S``. **Optional.**
+
+* **7**: ``scale`` - a scalar or single element 1D tensor of type *T*: the attention scale factor,
   used instead of the default ``1 / sqrt(E)``. **Optional.**
 
 
@@ -262,8 +317,8 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
 **Dimensions**
 
-* ``N`` - batch size. In the causal mode the sequences of a batch are aligned to the right: query
-  ``l`` of every sequence is at position ``S - L + l``. Batches with padding are not supported.
+* ``N`` - batch size. The sequences of a batch are aligned to the right (left padding), see
+  ``key_length``.
 
 * ``H`` - number of attention query heads. ``H`` must be divisible by ``Hkv``.
 
@@ -276,7 +331,8 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
 
 * ``Lq`` - number of query rows, ``ceil(L / query_block_size)``.
 
-* ``S`` - number of key and value tokens. In the causal mode the query tokens are included.
+* ``S`` - number of key and value positions, including padding. In the causal mode the query tokens
+  are included.
 
 * ``E`` - head size of the attention query and key.
 
@@ -337,7 +393,7 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
         </output>
     </layer>
 
-*Example 2: One decode step over 10000 cached tokens with an explicit scale*
+*Example 2: One decode step of a padded batch, 10000 and 9000 cached tokens, with an explicit scale*
 
 .. code-block:: xml
    :force:
@@ -374,11 +430,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
                 <dim>1</dim>     <!-- Hs -->
                 <dim>1</dim>     <!-- L -->
             </port>
-            <port id="5" precision="FP32"/> <!-- scale -->
+            <port id="5" precision="I32"> <dim>2</dim> </port> <!-- key_length = [10001, 9001] -->
+            <port id="6" precision="FP32"/> <!-- scale -->
         </input>
         <output>
-            <!-- each query attends to 512 blocks x 4 tokens + 1 token of its incomplete block = 2049 of the 10001 tokens -->
-            <port id="6" precision="FP32">
+            <!-- each query attends to 512 blocks x 4 tokens + 1 token of its incomplete block = 2049 tokens;
+                 the 1000 padding positions of sequence 1 are never attended -->
+            <port id="7" precision="FP32">
                 <dim>2</dim>     <!-- N -->
                 <dim>24</dim>    <!-- H -->
                 <dim>1</dim>     <!-- L -->

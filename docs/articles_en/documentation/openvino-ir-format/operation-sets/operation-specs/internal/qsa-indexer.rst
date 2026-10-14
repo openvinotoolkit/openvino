@@ -78,7 +78,7 @@ any number of index heads is reduced to one selection.
     def QSAIndexer(index_query, block_index_keys, key_length, index_weights=None, *,
                                compress_ratio, token_budget, num_selection_heads=1):
         N, Hi, L, Di = index_query.shape
-        S = key_length
+        key_length = numpy.broadcast_to(key_length, (N,))       # valid key tokens of every sequence
         r = compress_ratio
         Hs = num_selection_heads
         G = Hi // Hs                                            # index query heads per selection head
@@ -89,12 +89,19 @@ any number of index heads is reduced to one selection.
         block_indices = numpy.full((N, Hs, L, block_topk), -1)
         block_count = numpy.zeros((N, Hs, L))
         for n in range(N):
+            # left padding: the first L - key_length[n] query tokens are padding (only in a pre-fill)
+            num_padding_queries = max(0, L - key_length[n])
+            # the blocks of sequence n are the first rows of block_index_keys[n]; the rows from
+            # num_valid_blocks on are fake (padding of the block axis) and are never read below
+            num_valid_blocks = key_length[n] // r
             for g in range(Hs):
                 heads = slice(g * G, (g + 1) * G)               # the index query heads of selection head g
                 for l in range(L):
-                    p = S - L + l                               # position of the query token
-                    num_visible_blocks = (p + 1) // r           # complete blocks at or before p
-                    if num_visible_blocks == 0:
+                    if l < num_padding_queries:                 # padding query: selects no blocks
+                        continue
+                    p = key_length[n] - L + l                   # position of the query token in its sequence, >= 0
+                    num_visible_blocks = (p + 1) // r           # complete blocks at or before p, <= num_valid_blocks
+                    if num_visible_blocks == 0:                 # no complete block yet
                         continue
                     q = index_query[n, heads, l, :].astype(numpy.float32)                 # [G, Di]
                     k = block_index_keys[n, :num_visible_blocks, :].astype(numpy.float32) # [B, Di]
@@ -109,8 +116,17 @@ any number of index heads is reduced to one selection.
 
 Properties that follow from the definition:
 
-* The ``L`` query tokens are the last ``L`` of the ``S`` key tokens: query ``l`` has the position
-  ``S - L + l``. ``L == S`` is a prefill without past; ``L == 1`` is a decode step.
+* The ``L`` query tokens are the last ``L`` of the ``key_length[n]`` valid key tokens of sequence
+  ``n``: query ``l`` has the position ``p = key_length[n] - L + l`` within its sequence. ``L == S``
+  is a prefill without past; ``L == 1`` is a decode step.
+* **Batches with padding.** The sequences of a batch are aligned to the right (left padding):
+  sequence ``n`` has ``key_length[n]`` valid key tokens, the last ones of the ``S`` key positions,
+  and ``S - key_length[n]`` padding tokens before them. The blocks of a sequence start at its first
+  valid token, block ``b`` is its ``b``-th block (``block_index_keys[n, b]``, see *QSAPrepare*), and
+  the positions and block indices are counted within the sequence, so padding changes nothing for
+  the valid tokens: a padded sequence gets the same selection as alone in a batch of one. A query
+  that is a padding token (``p < 0``) selects no blocks. Without padding, ``key_length[n] = S`` for
+  every sequence.
 * A row of ``block_indices`` is the selection of one selection head for one query token. It holds
   ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` valid block indices for the
   query position ``p``, followed by ``-1`` padding. Rows of the first ``compress_ratio - 1``
@@ -118,9 +134,9 @@ Properties that follow from the definition:
 * ``block_count`` holds the number of valid entries of every row of ``block_indices`` and is passed
   to the ``block_count`` input of *BlockSparseAttention*. The valid
   entries are the first ``block_count`` ones, so a consumer can use it as a loop bound instead of
-  scanning for ``-1``, like the trailing count column of the vLLM selection buffer. In a batch
-  aligned to the right the count depends only on the query position, so it is the same for every
-  sequence of the batch and every selection head.
+  scanning for ``-1``, like the trailing count column of the vLLM selection buffer. The count depends
+  only on the query position ``p``, so without padding it is the same for every sequence of the
+  batch, and it is the same for every selection head.
 * The selection heads differ only in which blocks they select, not in how many: all of them score
   the same visible blocks with their own group of index query heads.
 * Every valid block index is in ``[0, (p + 1) // compress_ratio)``: all tokens of a selected block
@@ -138,6 +154,45 @@ Properties that follow from the definition:
   ``w * ReLU(q . k)`` differs from ``ReLU((w * q) . k)`` for ``w < 0``.
 * The valid block indices of a row are ordered by descending score, equal scores by ascending
   block index. The order does not affect the result of *BlockSparseAttention*.
+
+.. note::
+
+   **Padding layout: which entries are fake.** With ``pad = S - key_length[n]`` padding tokens of
+   sequence ``n``, the token axes and the block axis are padded at opposite ends:
+
+   * **Key token axes** (the raw index keys, the key and value caches) are padded at the
+     **beginning**: the key positions ``0 .. pad - 1`` are padding, the valid tokens are at
+     ``pad .. S - 1``.
+   * **Query axis** (``L`` of ``index_query``): the query tokens are the last ``L`` key positions,
+     so the padding queries are also at the **beginning**: query ``l`` is a padding token if
+     ``l < L - key_length[n]``, that is ``p < 0``. This happens only in a pre-fill with
+     ``L > key_length[n]``; in a decode step every query is valid. A padding query selects no blocks,
+     ``block_count = 0``, and its row of ``block_indices`` is ``-1``.
+   * **Block axis** (``B`` of ``block_index_keys``) is **left-aligned**: the blocks of a sequence are
+     counted from its first valid token, row ``b`` is its ``b``-th block, so the rows
+     ``0 .. floor(key_length[n] / compress_ratio) - 1`` are valid and the remaining rows at the
+     **end** are fake (zeros from *QSAPrepare*). The same holds for the block key cache of
+     *QSAPrepare*. The indices in ``block_indices`` are these logical block indices;
+     *BlockSparseAttention* maps block ``b`` back to the key positions ``pad + b * compress_ratio ..``.
+   * The fake rows are never read: a valid query reads only the rows
+     ``0 .. (p + 1) // compress_ratio - 1``, and ``(p + 1) // compress_ratio <=
+     floor(key_length[n] / compress_ratio)``. Their values therefore do not matter.
+
+   .. code-block:: text
+      :force:
+
+      compress_ratio = 4, S = 10, key_length = [10, 7]   (pre-fill: L = 10)
+
+      key position:  0   1   2   3   4   5   6   7   8   9
+      sequence 0:    a0  a1  a2  a3  a4  a5  a6  a7  a8  a9     pad = 0
+      sequence 1:    .   .   .   c0  c1  c2  c3  c4  c5  c6     pad = 3   (. = padding)
+
+      block_index_keys[0] = [ key(a0..a3), key(a4..a7) ]        incomplete block: a8 a9
+      block_index_keys[1] = [ key(c0..c3), 0 (fake)    ]        incomplete block: c4 c5 c6
+      queries of sequence 1: l = 0, 1, 2 are padding (p = -3, -2, -1); l = 3 is c0 (p = 0)
+
+      next decode step (L = 1, S = 11, key_length = [11, 8]): the new token c7 completes the block
+      c4..c7, block 1 of sequence 1 at the key positions 7..10
 
 .. note::
 
@@ -240,10 +295,15 @@ the blocks completed by the new tokens. The paged counterparts are
   heads of the query tokens. **Required.**
 
 * **2**: ``block_index_keys`` - 3D tensor of type *T* and shape ``[N, B, Di]``: one index key per
-  complete key block, ``B = floor(S / compress_ratio)``. **Required.**
+  complete key block of every sequence, ``B = floor(S / compress_ratio)``. Row ``n`` holds the keys
+  of the ``floor(key_length[n] / compress_ratio)`` blocks of sequence ``n`` first; the remaining
+  rows of a padded sequence are not read. **Required.**
 
-* **3**: ``key_length`` - a scalar or single element 1D tensor of type *T_IND*: the number of key
-  tokens ``S``, including the query tokens. ``S >= L``. **Required.**
+* **3**: ``key_length`` - 1D tensor of type *T_IND* and shape ``[N]``: the number of valid key tokens
+  of every sequence, including its query tokens, ``key_length[n] <= S``. For a batch with padding it
+  is the number of non-padding tokens, for example the sum of the 2D attention mask over the key
+  positions. A tensor of shape ``[1]`` applies to all sequences; without padding it is ``S``.
+  **Required.**
 
 * **4**: ``index_weights`` - 3D tensor of type *T* and shape ``[N, L, Hi]``: the weight of every
   index query head for every query token, applied to the rectified head scores before they are
@@ -260,7 +320,8 @@ the blocks completed by the new tokens. The paged counterparts are
 * **2**: ``block_count`` - 3D tensor of type *index_element_type* and shape ``[N, Hs, L]``: the
   number of blocks selected by every selection head for every query token, that is the number of
   valid entries in the corresponding row of ``block_indices``,
-  ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` for the query position ``p``.
+  ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` for the query position ``p``,
+  ``0`` for a padding token.
 
 
 **Types**
@@ -273,12 +334,12 @@ the blocks completed by the new tokens. The paged counterparts are
 
 **Dimensions**
 
-* ``N`` - batch size. The sequences of a batch are aligned to the right: query ``l`` of every
-  sequence is at position ``S - L + l``. Batches with padding are not supported.
+* ``N`` - batch size. The sequences of a batch are aligned to the right (left padding), see
+  ``key_length``.
 
 * ``L`` - number of query tokens.
 
-* ``S`` - number of key tokens, given by ``key_length``.
+* ``S`` - number of key positions, including padding: the key dimension of the attention caches.
 
 * ``Hi`` - number of index query heads. The indexer has one shared key head.
 
@@ -310,7 +371,7 @@ the blocks completed by the new tokens. The paged counterparts are
                 <dim>-1</dim>  <!-- B = floor(S / 4) -->
                 <dim>128</dim> <!-- Di -->
             </port>
-            <port id="2" precision="I64"/> <!-- key_length -->
+            <port id="2" precision="I64"> <dim>1</dim> </port> <!-- key_length = [S] -->
         </input>
         <output>
             <port id="3" precision="I32"> <!-- block_indices -->
@@ -327,7 +388,7 @@ the blocks completed by the new tokens. The paged counterparts are
         </output>
     </layer>
 
-*Example 2: One decode step over 10000 cached tokens*
+*Example 2: One decode step of a padded batch: 10000 and 9000 cached tokens*
 
 .. code-block:: xml
    :force:
@@ -343,13 +404,13 @@ the blocks completed by the new tokens. The paged counterparts are
             </port>
             <port id="1" precision="FP32"> <!-- block_index_keys -->
                 <dim>2</dim>    <!-- N -->
-                <dim>2500</dim> <!-- B = floor(10001 / 4) -->
+                <dim>2500</dim> <!-- B = floor(10001 / 4); sequence 1 uses its first 2250 rows -->
                 <dim>128</dim>  <!-- Di -->
             </port>
-            <port id="2" precision="I32"/> <!-- key_length = 10001 -->
+            <port id="2" precision="I32"> <dim>2</dim> </port> <!-- key_length = [10001, 9001] -->
         </input>
         <output>
-            <!-- each row: the 512 best of the 2500 visible blocks, no padding -->
+            <!-- each row: the 512 best of the 2500 and of the 2250 visible blocks of its sequence -->
             <port id="3" precision="I32"> <!-- block_indices -->
                 <dim>2</dim>    <!-- N -->
                 <dim>1</dim>    <!-- Hs = num_selection_heads -->
@@ -383,7 +444,7 @@ the blocks completed by the new tokens. The paged counterparts are
                 <dim>10001</dim> <!-- B = S -->
                 <dim>128</dim>   <!-- Di -->
             </port>
-            <port id="2" precision="I32"/> <!-- key_length = 10001 -->
+            <port id="2" precision="I32"> <dim>1</dim> </port> <!-- key_length = [10001] -->
             <port id="3" precision="BF16"> <!-- index_weights -->
                 <dim>1</dim>     <!-- N -->
                 <dim>1</dim>     <!-- L -->
