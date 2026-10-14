@@ -111,6 +111,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     auto custom_layers_config = m_config.get_config_file();
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
+    // Run symbolic shape propagation because GPU plugin relies on this information. (currently, for binary_mul_inplace)
     ov::pass::SymbolicPropagation().run_on_model(model);
 
     auto ops = model->get_ordered_ops();

@@ -1303,6 +1303,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         return;
     }
 
+    // binary_mul_inplace lets this FC's dst share the fused eltwise dep buffer (the post-op src1).
+    // A static node binds that alias when its output is allocated; a dynamic node has to bind it here.
     if (actual_layouts.size() == 1 && get_node().get_preferred_impl_type() == impl_types::onednn) {
         auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
         if (reused_eltwmem_idx != -1) {

@@ -187,6 +187,9 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     return add_fusing_type::binary_per_oc;
 }
 
+// binary_mul_inplace: oneDNN matmul post-op whose src1 may alias dst. Unlike sum the alias is
+// optional (plain binary_mul otherwise), so this only checks the buffers are interchangeable:
+// FC only, dynamic via ov::Symbol, exact layout match, single user.
 bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>() || desc.typed_desc<eltwise>()->mode != eltwise_mode::prod || !desc.has_outer_dep()
         || !p_node.is_type<fully_connected>()) {
