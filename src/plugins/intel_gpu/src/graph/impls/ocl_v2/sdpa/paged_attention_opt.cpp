@@ -207,10 +207,10 @@ size_t get_max_context_len(const kernel_impl_params& params) {
     return paged_attention_max_len;
 }
 
-size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
+size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage, size_t k_head_size) {
     size_t partition_size = 0;
     if (stage == PagedAttentionStage::PREFILL) {
-        partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
+        partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, k_head_size);
     } else {
         partition_size = seq_len_partition_size;
     }
@@ -1305,7 +1305,7 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
 
-            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, desc->k_head_size);
 
             wgs.global = {heads_num, ceil_div(rtp->paged_attention_aligned_seq_len, get_target_seq_len_block_size()), head_size * sg_num_scale};
             wgs.local = {1, 1, head_size * sg_num_scale};
@@ -1322,6 +1322,11 @@ public:
 class PagedAttentionOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedAttentionOptImpl)
+
+    // Dispatch (e.g. PREFILL vs MIXED stage) is decided by reading past_lens/subsequence_begins contents
+    bool supports_replay() const override {
+        return false;
+    }
 
     Stage::Ptr kv_cache_update = make_stage<KVCacheUpdateGenerator>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
@@ -1474,7 +1479,7 @@ public:
         auto stage = get_paged_attention_stage(params);
         rt_params->max_context_len = get_max_context_len(params);
         rt_params->stage = stage;
-        rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
+        rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage, desc->k_head_size);
 
         auto effective_context_len = rt_params->max_context_len;
         // scores_output is only used in SnapKV path, and it doesn't yet handle the SWA block skip offset
@@ -1492,7 +1497,8 @@ public:
         if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
 
-        rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
+        rt_params->sdpa_opt_seq_len_partition_size =
+            get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS, desc->k_head_size);
 
         if (desc->has_score_aggregation) {
             const auto& input_mem = params.memory_deps;
@@ -1681,7 +1687,7 @@ public:
             num_of_partitions = rt_params->num_of_partitions;
         } else {
             stage = get_paged_attention_stage(params);
-            partition_size = get_partitioning_size(params, desc->v_head_size, stage);
+            partition_size = get_partitioning_size(params, desc->v_head_size, stage, desc->k_head_size);
             const auto max_context_len = get_max_context_len(params);
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
