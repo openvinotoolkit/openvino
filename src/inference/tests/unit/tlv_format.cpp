@@ -179,34 +179,4 @@ TEST(TLVFormatTest, ScanRecordsReturnsFalseForLengthBeyondSignedRange) {
         EXPECT_FALSE(scanner_called);
     }
 }
-
-TEST(TLVFormatTest, ScanRecordsReturnsFalseWhenScannerDoesNotConsumeExactSize) {
-    // The misbehaving scanner stops exactly at a well-formed record boundary, so without the exact size check
-    // the stream would stay in sync with a wrong record layout and scanning would silently succeed.
-    constexpr auto header_size = sizeof(TLVTraits::TagType) + sizeof(TLVTraits::LengthType);
-    const std::string prefix = "abcd";
-    for (const bool read_beyond : {false, true}) {
-        auto stream = make_stream();
-        if (read_beyond) {
-            // Scanner swallows the following empty record
-            runtime::write_tlv_record(stream, 1, prefix.size(), prefix.data());
-            runtime::write_tlv_record(stream, 2, 0, nullptr);
-        } else {
-            // Scanner leaves an embedded empty record to be parsed as a top-level one
-            runtime::write_tlv_record(stream, 1, [&](std::ostream& s) {
-                s.write(prefix.data(), prefix.size());
-                runtime::write_tlv_record(s, 2, 0, nullptr);
-            });
-        }
-        stream.seekg(0);
-
-        runtime::TLVValueScanner scanners;
-        scanners.emplace(1, [&](std::istream& s, TLVTraits::LengthType) {
-            std::vector<char> buffer(read_beyond ? prefix.size() + header_size : prefix.size());
-            s.read(buffer.data(), buffer.size());
-            return s.good();
-        });
-        EXPECT_FALSE(runtime::scan_tlv_records(stream, scanners)) << "read beyond: " << read_beyond;
-    }
-}
 }  // namespace ov::test

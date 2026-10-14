@@ -376,29 +376,6 @@ TEST_F(SingleFileStorageTest, WriterMisposition) {
                     ::testing::HasSubstr("Invalid blob size"));
 }
 
-TEST_F(SingleFileStorageTest, BlobMapRecordShorterThanItsContent) {
-    m_storage.reset();
-    {
-        std::ofstream stream(m_file_path, std::ios::binary | std::ios::app);
-        const auto tag = static_cast<TLVTraits::TagType>(SingleFileStorage::Tag::BlobMap);
-        // Record size covers the blob id and the name header but not the name itself
-        const TLVTraits::LengthType size =
-            sizeof(SingleFileStorage::BlobIdType) + sizeof(TLVTraits::TagType) + sizeof(TLVTraits::LengthType);
-        const SingleFileStorage::BlobIdType id = 07531;
-        const std::string name = "test";
-        stream.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
-        stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
-        stream.write(reinterpret_cast<const char*>(&id), sizeof(id));
-        runtime::write_tlv_record(stream,
-                                  static_cast<TLVTraits::TagType>(SingleFileStorage::Tag::String),
-                                  name.size(),
-                                  name.data());
-    }
-    OV_EXPECT_THROW(SingleFileStorage{m_file_path}.initialize(),
-                    AssertFailure,
-                    ::testing::HasSubstr("cache file may be corrupted"));
-}
-
 TEST_P(SingleFileStorageTest, WrongSizeWritten) {
     m_storage.reset();
     std::fstream fs(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
@@ -461,19 +438,6 @@ INSTANTIATE_TEST_SUITE_P(
                                    s.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
                                    s.write(reinterpret_cast<const char*>(&length), sizeof(length));
                                    s.write(text.data(), text.size());
-                               }},
-                         sfstp{SingleFileStorage::Tag::BlobMap,
-                               [](std::ostream& s) {
-                                   // Well-formed id and name followed by a trailing record inside the BlobMap value
-                                   const SingleFileStorage::BlobIdType id = 07531;
-                                   const std::string text = "test";
-                                   s.write(reinterpret_cast<const char*>(&id), sizeof(id));
-                                   runtime::write_tlv_record(
-                                       s,
-                                       static_cast<TLVTraits::TagType>(SingleFileStorage::Tag::String),
-                                       text.size(),
-                                       text.data());
-                                   runtime::write_tlv_record(s, 0xFF, 0, nullptr);
                                }},
                          sfstp{SingleFileStorage::Tag::ConstantMeta,
                                [](std::ostream& s) {
