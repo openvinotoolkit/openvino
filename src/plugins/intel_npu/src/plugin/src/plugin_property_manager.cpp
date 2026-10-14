@@ -14,6 +14,7 @@
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 
@@ -260,6 +261,14 @@ MergedConfig PluginPropertyManager::getMergedConfigForCompilation(const ov::AnyM
     runtimeConfig.copyTo(compilerProperties, [&](std::string_view key) {
         return runtimeConfig.getOpt(key).mode() == OptionMode::Both && isSupportedByCompiler(std::string(key));
     });
+
+    // The compiler understands only the LOG_LEVEL key. When NPU_COMPILE_LOG_LEVEL is set, its value overrides the
+    // plugin LOG_LEVEL for the compiler only, otherwise the compiler inherits the plugin LOG_LEVEL copied above.
+    if (runtimeConfig.has<COMPILE_LOG_LEVEL>() && isSupportedByCompiler(std::string(ov::log::level.name()))) {
+        string_map::set(compilerProperties,
+                        ov::log::level.name(),
+                        LOG_LEVEL::toString(COMPILE_LOG_LEVEL::resolve(runtimeConfig)));
+    }
 
     return merged;
 }

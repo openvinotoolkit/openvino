@@ -714,25 +714,9 @@ std::string serializeConfig(const CompilerProperties& compilerProperties,
                             const ze_graph_compiler_version_info_t& compilerVersion) {
     Logger logger("serializeConfig", Logger::global().level());
 
-    // Compiler log level decoupling: the compiler only understands the LOG_LEVEL key. When the user explicitly set
-    // NPU_COMPILE_LOG_LEVEL, copy the properties and overwrite LOG_LEVEL on the copy with that value, then use the copy
-    // for the remainder of this function so every subsequent read observes the compiler-specific level instead of the
-    // plugin one. When NPU_COMPILE_LOG_LEVEL is unset, no copy is made and the compiler keeps inheriting the plugin
-    // LOG_LEVEL exactly as before.
-    std::optional<CompilerProperties> propertiesWithCompileLogLevel;
-    if (string_map::has(compilerProperties, ov::intel_npu::compile_log_level.name())) {
-        propertiesWithCompileLogLevel = compilerProperties;
-        string_map::set(*propertiesWithCompileLogLevel,
-                        ov::log::level.name(),
-                        string_map::get(compilerProperties, ov::intel_npu::compile_log_level.name()));
-        propertiesWithCompileLogLevel->erase(ov::intel_npu::compile_log_level.name());
-    }
-    const CompilerProperties& properties =
-        propertiesWithCompileLogLevel.has_value() ? *propertiesWithCompileLogLevel : compilerProperties;
-
     std::string content = {};
 
-    for (const auto& [key, value] : properties) {
+    for (const auto& [key, value] : compilerProperties) {
         if (!content.empty()) {
             content += VALUES_SEPARATOR;
         }
@@ -743,7 +727,7 @@ std::string serializeConfig(const CompilerProperties& compilerProperties,
 
     // Remove optimization-level and performance-hint-override for old driver which not support them
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7)) {
-        std::string valueOfParams = string_map::get(properties, ov::intel_npu::compilation_mode_params.name());
+        std::string valueOfParams = string_map::get(compilerProperties, ov::intel_npu::compilation_mode_params.name());
         std::string keyOfOptL("optimization-level");
         std::string keyOfPerfHO("performance-hint-override");
         if (valueOfParams != "" && (valueOfParams.find(keyOfOptL) != std::string::npos ||

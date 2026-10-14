@@ -217,6 +217,50 @@ TEST_P(CompileLogLevelPropertyTests, IsIndependentFromLogLevel) {
     ASSERT_EQ(pluginLevel.as<ov::log::Level>(), ov::log::Level::DEBUG);
 }
 
+TEST_P(CompileLogLevelPropertyTests, CompilerInheritsPluginLogLevelWhenUnset) {
+    auto [config, compilerProperties, unknownProperties] = propertiesManager->getMergedConfigForCompilation(
+        {{ov::log::level(ov::log::Level::DEBUG), ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+        ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_EQ(compilerProperties.count(ov::log::level.name()), 1);
+    ASSERT_EQ(compilerProperties.at(ov::log::level.name()), ::intel_npu::LOG_LEVEL::toString(ov::log::Level::DEBUG));
+    ASSERT_EQ(compilerProperties.count(ov::intel_npu::compile_log_level.name()), 0);
+}
+
+TEST_P(CompileLogLevelPropertyTests, CompilerUsesCompileLogLevelWhenSet) {
+    auto [config, compilerProperties, unknownProperties] = propertiesManager->getMergedConfigForCompilation(
+        {{ov::log::level(ov::log::Level::DEBUG),
+          ov::intel_npu::compile_log_level(ov::log::Level::ERR),
+          ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+        ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_EQ(compilerProperties.count(ov::log::level.name()), 1);
+    ASSERT_EQ(compilerProperties.at(ov::log::level.name()), ::intel_npu::LOG_LEVEL::toString(ov::log::Level::ERR));
+    ASSERT_EQ(compilerProperties.count(ov::intel_npu::compile_log_level.name()), 0);
+    // The plugin log level is not affected
+    ASSERT_EQ(config.get<::intel_npu::LOG_LEVEL>(), ov::log::Level::DEBUG);
+    ASSERT_EQ(config.get<::intel_npu::COMPILE_LOG_LEVEL>(), ov::log::Level::ERR);
+}
+
+TEST_P(CompileLogLevelPropertyTests, CompilerUsesCompileLogLevelWhenPluginLogLevelUnset) {
+    auto [config, compilerProperties, unknownProperties] = propertiesManager->getMergedConfigForCompilation(
+        {{ov::intel_npu::compile_log_level(ov::log::Level::TRACE),
+          ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+        ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_EQ(compilerProperties.count(ov::log::level.name()), 1);
+    ASSERT_EQ(compilerProperties.at(ov::log::level.name()), ::intel_npu::LOG_LEVEL::toString(ov::log::Level::TRACE));
+    ASSERT_EQ(compilerProperties.count(ov::intel_npu::compile_log_level.name()), 0);
+}
+
+TEST_P(CompileLogLevelPropertyTests, CompileLogLevelIsKeptOnImport) {
+    auto [config, compilerProperties, unknownProperties] =
+        propertiesManager->getMergedConfigForImport({{ov::intel_npu::compile_log_level(ov::log::Level::ERR)}});
+
+    ASSERT_TRUE(compilerProperties.empty());
+    ASSERT_TRUE(config.has<::intel_npu::COMPILE_LOG_LEVEL>());
+}
+
 using CompatibilityCheckTests = PropertiesManagerTests;
 
 TEST_P(CompatibilityCheckTests, ExpectArgumentIsNotSupported) {

@@ -195,6 +195,7 @@ void CompiledModelPropertyManager::registerProperties() {
 
     registerRuntimeConfigProperty(BYPASS_UMD_CACHING{}, true, true);
     registerRuntimeConfigProperty(CACHE_DIR{}, true, true);
+    registerRuntimeConfigProperty(COMPILE_LOG_LEVEL{}, true, true);
     registerRuntimeConfigProperty(COMPILER_TYPE{}, true, true);
     registerRuntimeConfigProperty(COMPILER_VERSION{}, true, true);
     registerRuntimeConfigProperty(DEFER_WEIGHTS_LOAD{}, true, true);
@@ -218,7 +219,6 @@ void CompiledModelPropertyManager::registerProperties() {
     registerCompileTimeConfigProperty(COMPILATION_MODE{}, true);
     registerCompileTimeConfigProperty(COMPILATION_MODE_PARAMS{}, true);
     registerCompileTimeConfigProperty(COMPILATION_NUM_THREADS{}, true);
-    registerCompileTimeConfigProperty(COMPILE_LOG_LEVEL{}, true);
     registerCompileTimeConfigProperty(COMPILER_DYNAMIC_QUANTIZATION{}, true);
     registerCompileTimeConfigProperty(DMA_ENGINES{}, true);
     registerCompileTimeConfigProperty(ENABLE_STRIDES_FOR{}, true);
