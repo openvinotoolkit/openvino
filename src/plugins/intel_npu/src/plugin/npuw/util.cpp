@@ -278,6 +278,17 @@ std::unordered_set<int64_t> ov::npuw::util::parse_layer_index_list(const std::st
     return result;
 }
 
+std::unordered_set<std::string> ov::npuw::util::mutable_properties(
+    const std::vector<ov::PropertyName>& supported_properties) {
+    std::unordered_set<std::string> result;
+    for (const auto& p : supported_properties) {
+        if (p.is_mutable()) {
+            result.insert(p);
+        }
+    }
+    return result;
+}
+
 std::optional<size_t> ov::npuw::util::find_single_dynamic_axis(const ov::PartialShape& shape) {
     if (shape.rank().is_dynamic()) {
         return std::nullopt;

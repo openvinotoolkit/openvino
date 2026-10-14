@@ -15,6 +15,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -71,6 +72,9 @@ std::optional<size_t> find_single_dynamic_axis(const ov::PartialShape& shape);
 // True if `axis` is a plausible GQA KV-cache capacity axis for a rank-4 past_key/
 // past_value parameter: axis 2 ([N,H,S,E]) or axis 3 (--transpose_v's [N,H,E,S]).
 bool is_supported_kv_cache_capacity_axis(size_t axis, size_t rank);
+
+// Names of all RW entries of an ov::supported_properties list (of a compiled model or a plugin)
+std::unordered_set<std::string> mutable_properties(const std::vector<ov::PropertyName>& supported_properties);
 
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
 // matches a "position_ids" input of a supported shape - flat [seq_len], regular
