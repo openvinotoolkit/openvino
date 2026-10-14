@@ -142,9 +142,9 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
 
             // Handle input reorder
             if (param.portIndex < static_cast<int>(inputs.size()) && reordered_inputs[param.portIndex].pid.empty()) {
-                // todo: add support for multiple reorders of the same input? (read as bfyx for one arg and yxfb for another)
                 if (param.format != cldnn::format::any) {
-                    auto reorderPrimName = inputs[param.portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preCustomLayerTag;
+                    auto reorderPrimName = inputs[param.portIndex].pid + "_" + op->get_friendly_name() +
+                                            "_" + std::to_string(param.portIndex) + ProgramBuilder::m_preCustomLayerTag;
                     auto preprocessPrim = cldnn::reorder(
                         reorderPrimName,
                         inputs[param.portIndex],
@@ -188,15 +188,16 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     for (size_t i = 0; i < op->get_output_size(); i++) {
         auto dims = op->get_output_partial_shape(i);
 
-        constexpr size_t kDynamic = std::numeric_limits<size_t>::max();
-        size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? kDynamic : dims[0].get_length() : 1;
-        size_t C = (dims.size() > 1) ? dims[1].is_dynamic() ? kDynamic : dims[1].get_length() : 1;
-        size_t H = (dims.size() > 2) ? dims[2].is_dynamic() ? kDynamic : dims[2].get_length() : 1;
-        size_t W = (dims.size() > 3) ? dims[3].is_dynamic() ? kDynamic : dims[3].get_length() : 1;
-
-        if (dims.is_dynamic()) {
+        // format::any needs the shape-based ctor for the same reason a dynamic shape does:
+        // the tensor ctor stores an `any` layout's sizes in raw internal order at full
+        // internal rank, transposing the WorkSizes resolution and the downstream shape.
+        if (dims.is_dynamic() || outputFormats[i] == cldnn::format::any) {
             outputLayouts[i] = cldnn::layout(dims, cldnn::element_type_to_data_type(op->get_output_element_type(i)), outputFormats[i]);
         } else {
+            size_t N = (dims.size() > 0) ? dims[0].get_length() : 1;
+            size_t C = (dims.size() > 1) ? dims[1].get_length() : 1;
+            size_t H = (dims.size() > 2) ? dims[2].get_length() : 1;
+            size_t W = (dims.size() > 3) ? dims[3].get_length() : 1;
             cldnn::tensor outputTensor = cldnn::tensor(cldnn::batch(N), cldnn::feature(C), cldnn::spatial(W, H));
             outputLayouts[i] = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(i)), outputFormats[i], outputTensor);
         }

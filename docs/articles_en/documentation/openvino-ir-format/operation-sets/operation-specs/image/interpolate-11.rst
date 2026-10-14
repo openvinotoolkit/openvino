@@ -57,6 +57,13 @@ Interpolate
   * **Type**: string
   * **Default value**: ``round_prefer_floor``
   * **Required**: *no*
+  * **Note**: Frameworks such as Pillow sample the source pixel with
+    ``floor((x_resized + 0.5) * scale)``, which is closest to ``coordinate_transformation_mode == half_pixel`` with
+    ``nearest_mode == round_prefer_ceil``, but exact equivalence is not guaranteed for all shapes. Consumers
+    requiring strict Pillow/torchvision parity should validate the selected combination against their target
+    input/output sizes. See the
+    :doc:`Torchvision Preprocessing Converter <../../../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/torchvision-preprocessing-converter>`
+    article for known limitations.
 
 * *antialias*
 
@@ -145,4 +152,3 @@ Interpolate
            </port>
        </output>
    </layer>
-

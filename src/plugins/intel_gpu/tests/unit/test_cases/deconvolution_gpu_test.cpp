@@ -332,6 +332,53 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad_exclude_fu
     }
 }
 
+TEST(deconvolution_f32_fw_gpu, dynamic_byxf_wsiz2x2_in2x2x2x1_stride2_nopad) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ ov::PartialShape{ 1, 2, 2, 2 }, data_types::f32, format::byxf });
+    auto weights = engine.allocate_memory({ ov::PartialShape{ 1, 2, 2, 2 }, data_types::f32, format::oiyx });
+    auto biases = engine.allocate_memory({ ov::PartialShape{ 1, 1, 1, 1 }, data_types::f32, format::bfyx });
+
+    // byxf physical order: features are innermost
+    set_values(input, { 8.f, 1.f, 0.5f, 2.f, 6.f, 3.f, 9.f, 4.f });
+    set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f, 1.f, 0.f, 0.f, 1.f });
+    set_values(biases, { 1.0f });
+
+    topology topology(
+        input_layout("input", { ov::PartialShape{ ov::Dimension::dynamic(), 2, 2, 2 }, data_types::f32, format::byxf }),
+        data("weights", weights),
+        data("biases", biases),
+        deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, { 2, 2 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output_prim = outputs.at("plane_output").get_memory();
+    ASSERT_EQ(output_prim->get_layout().get_partial_shape(), (ov::PartialShape{ 1, 1, 4, 4 }));
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+    std::vector<float> expected_output_vec = {
+        -14.f, 5.f, 2.f, 1.25f,
+        29.f, 14.f, 2.75f, 3.75f,
+        -8.f, 4.f, -13.f, 5.5f,
+        22.f, 13.f, 32.5f, 18.5f
+    };
+
+    ASSERT_EQ(output_ptr.size(), expected_output_vec.size());
+    for (unsigned int i = 0; i < expected_output_vec.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+    }
+}
+
 TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Filter : 2x2
     //  Input  : 2x2
     //  Output : 3x3
