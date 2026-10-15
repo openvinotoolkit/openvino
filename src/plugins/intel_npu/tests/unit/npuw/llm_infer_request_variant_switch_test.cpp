@@ -2002,4 +2002,27 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsWholePrefillTokenTypeIdsLargerTh
     EXPECT_THROW(request->infer(), ov::Exception);
 }
 
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsEmptyPositionIdsBeforeStageDispatch) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    ov::npuw::LLMInferRequest request(compiled);
+    const auto& inputs = request.get_inputs();
+    auto input_ids_port = ov::npuw::util::find_port_by_name(inputs, "input_ids").value();
+    auto attention_mask_port = ov::npuw::util::find_port_by_name(inputs, "attention_mask").value();
+    auto position_ids_port = ov::npuw::util::find_port_by_name(inputs, "position_ids").value();
+
+    ov::Tensor input_ids(ov::element::i64, ov::Shape{1, 2});
+    std::fill_n(input_ids.data<int64_t>(), input_ids.get_size(), 1);
+    ov::Tensor attention_mask(ov::element::i64, ov::Shape{1, 2});
+    std::fill_n(attention_mask.data<int64_t>(), attention_mask.get_size(), 1);
+    ov::Tensor position_ids(ov::element::i64, ov::Shape{1, 0});
+    request.set_tensor(input_ids_port, ov::get_tensor_impl(input_ids));
+    request.set_tensor(attention_mask_port, ov::get_tensor_impl(attention_mask));
+    request.set_tensor(position_ids_port, ov::get_tensor_impl(position_ids));
+
+    EXPECT_THROW(request.infer(), ov::Exception);
+}
+
 }  // namespace

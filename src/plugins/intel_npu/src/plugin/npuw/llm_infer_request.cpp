@@ -1785,6 +1785,7 @@ void ov::npuw::LLMInferRequest::infer() {
                     ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
+    OPENVINO_ASSERT(position_ids->get_size() > 0, "Position ids must contain at least one element.");
 
     // Eagle3: Store Eagle3 specific inputs with pre-validation
     if (m_eagle3_ext.is_eagle3_model()) {
