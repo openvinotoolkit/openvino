@@ -14,9 +14,13 @@ bool ArchitectureDefinition::matches(const GgufMetadata& metadata) const {
     return metadata.architecture() == architecture && (!match || match(metadata));
 }
 
-ArchitectureDefinition make_decoder_architecture(std::string architecture, RopeMode rope, DecoderOptionsFn options) {
+ArchitectureDefinition make_decoder_architecture(std::string architecture,
+                                                 RopeMode rope,
+                                                 DecoderOptionsFn options,
+                                                 Maturity maturity) {
     ArchitectureDefinition definition;
     definition.id = definition.architecture = std::move(architecture);
+    definition.maturity = maturity;
     definition.factory = [rope, options = std::move(options)](const BuildContext& ctx) {
         OPENVINO_ASSERT(ctx.weights, "[GGUF] decoder builder requires a weight table");
         const auto overrides = options ? options(ctx.metadata) : DecoderOptions{};
@@ -35,10 +39,8 @@ ArchitectureExtension::ArchitectureExtension(ArchitectureDefinition definition, 
     : m_definition(std::move(definition)),
       m_mode(mode) {}
 
-ArchitectureExtension::ArchitectureExtension(std::string architecture, RopeMode rope)
-    : ArchitectureExtension(make_decoder_architecture(std::move(architecture), rope)) {}
-
-ArchitectureExtension::ArchitectureExtension(RegistrationMode mode) : m_mode(mode) {}
+ArchitectureExtension::ArchitectureExtension(std::string architecture, RopeMode rope, Maturity maturity)
+    : ArchitectureExtension(make_decoder_architecture(std::move(architecture), rope, {}, maturity)) {}
 
 ArchitectureExtension::~ArchitectureExtension() = default;
 

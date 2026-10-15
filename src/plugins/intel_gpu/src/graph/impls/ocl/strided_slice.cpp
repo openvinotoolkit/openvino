@@ -277,7 +277,6 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 
     auto formats = {
         format::bfyx,
-        format::byxf,
         format::bfzyx,
         format::bfwzyx,
     };

@@ -12,15 +12,12 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
-#include "openvino/op/less.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -684,15 +681,6 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     return x;
 }
 
-Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
-    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
-    auto is_negative = context.mark_node(std::make_shared<v1::Less>(x, zero));
-    auto ceil = context.mark_node(std::make_shared<v0::Ceiling>(x));
-    auto floor = context.mark_node(std::make_shared<v0::Floor>(x));
-    return context.mark_node(std::make_shared<v1::Select>(is_negative, ceil, floor));
-}
-
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     // Handle SequenceMark (list construct) - concatenate elements
@@ -1043,35 +1031,6 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
             return {reshaped};
         }
     }
-}
-
-OutputVector build_meshgrid(ov::pass::NodeRegistry& rg, OutputVector inputs, const std::string& indexing) {
-    const bool xy = indexing == "xy" && inputs.size() >= 2;
-    if (xy) {
-        std::swap(inputs[0], inputs[1]);
-    }
-    NodeVector cat_shapes;
-    NodeVector reshapes;
-    auto const_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
-    auto const_1 = v0::Constant::create(element::i32, Shape{1}, {1});
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        auto reshaped_input = rg.make<v1::Reshape>(inputs[i], const_neg_1, false);
-        auto shape = rg.make<v3::ShapeOf>(reshaped_input, element::i32);
-        cat_shapes.push_back(shape);
-        NodeVector cat_inputs(inputs.size(), const_1);
-        cat_inputs[i] = shape;
-        auto input_cat = rg.make<v0::Concat>(cat_inputs, 0);
-        reshapes.push_back(rg.make<v1::Reshape>(reshaped_input, input_cat, false));
-    }
-    auto cat = rg.make<v0::Concat>(cat_shapes, 0);
-    OutputVector outputs;
-    for (const auto& reshape : reshapes) {
-        outputs.push_back(rg.make<v3::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL));
-    }
-    if (xy) {
-        std::swap(outputs[0], outputs[1]);
-    }
-    return outputs;
 }
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis) {

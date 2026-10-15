@@ -12,8 +12,6 @@ ParamsKey SoftmaxKernelRef::GetSupportedKey() const {
 
     k.EnableInputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::BF16);
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);

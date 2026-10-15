@@ -5,30 +5,8 @@
 #include "common_test_utils/test_constants.hpp"
 #include "single_op_tests/deformable_convolution.hpp"
 
-namespace ov {
-namespace test {
-
-class DeformableConvolutionLayerSharedGPUTest : public DeformableConvolutionLayerTest {
-protected:
-    void SetUp() override {
-        DeformableConvolutionLayerTest::SetUp();
-        const auto& [convParams, with_modulation, model_type, shapes, target_device] = this->GetParam();
-        if (model_type == ov::element::f16) {
-            abs_threshold = 0.5;
-            rel_threshold = 0.05;
-        }
-    }
-};
-
-TEST_P(DeformableConvolutionLayerSharedGPUTest, Inference) {
-    run();
-}
-
-}  // namespace test
-}  // namespace ov
-
 namespace {
-using ov::test::DeformableConvolutionLayerSharedGPUTest;
+using ov::test::DeformableConvolutionLayerTest;
 const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32,
     ov::element::f16
@@ -85,27 +63,27 @@ const auto deformableConv2DParams_DeformableGroups_AutoPadExplicit = ::testing::
     ::testing::ValuesIn(with_bilinear_interpolation_pad));
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_DeformableConvolution2D_ExplicitPadding, DeformableConvolutionLayerSharedGPUTest,
+    smoke_DeformableConvolution2D_ExplicitPadding, DeformableConvolutionLayerTest,
     ::testing::Combine(
         deformableConv2DParams_ExplicitPadding,
         ::testing::ValuesIn(with_modulated_scalar),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{1, 2, 3, 3}, {1, 16, 2, 2}, {2, 2, 2, 2}, {1, 8, 2, 2}}))),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+    DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_DeformableConvolution2D_AutoPadValid, DeformableConvolutionLayerSharedGPUTest,
+    smoke_DeformableConvolution2D_AutoPadValid, DeformableConvolutionLayerTest,
     ::testing::Combine(
         deformableConv2DParams_AutoPadValid,
         ::testing::ValuesIn(with_modulated_scalar),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{1, 2, 3, 3}, {1, 16, 2, 2}, {2, 2, 2, 2}, {1, 8, 2, 2}}))),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+    DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_DeformableConvolution2D_DeformableGroups_ExplicitPadding, DeformableConvolutionLayerSharedGPUTest,
+    smoke_DeformableConvolution2D_DeformableGroups_ExplicitPadding, DeformableConvolutionLayerTest,
     ::testing::Combine(
         deformableConv2DParams_DeformableGroups_AutoPadExplicit,
         ::testing::ValuesIn(with_modulated_scalar),
@@ -115,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                                                                  {16, 16, 3, 3},
                                                                                                  {1, 36, 64, 64}}))),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+    DeformableConvolutionLayerTest::getTestCaseName);
 
 ///* ============= Single Test Case ============= */
 const std::vector<std::vector<size_t>> deformable_values_2 = {{1, 54, 28, 28}};
@@ -135,7 +113,7 @@ const auto deformableConv2DParams_SingleTestCase = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_DeformableConvolution2D_SingleTestCase, DeformableConvolutionLayerSharedGPUTest,
+    smoke_DeformableConvolution2D_SingleTestCase, DeformableConvolutionLayerTest,
     ::testing::Combine(
         deformableConv2DParams_SingleTestCase,
         ::testing::ValuesIn(with_modulated_scalar),
@@ -145,7 +123,7 @@ INSTANTIATE_TEST_SUITE_P(
                                                                                                  {1, 3, 3, 3},
                                                                                                  {1, 27, 28, 28}}))),
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
-    DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+    DeformableConvolutionLayerTest::getTestCaseName);
 /* ============= Multiple groups case ============= */
 const auto DeformableConvolution2D_MultipleGroups22 = ::testing::Combine(
     ::testing::ValuesIn(stride_values),
@@ -160,7 +138,7 @@ const auto DeformableConvolution2D_MultipleGroups22 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups22,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -168,10 +146,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{1, 4, 3, 3}, {1, 16, 2, 2}, {2, 2, 2, 2}, {1, 8, 2, 2}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_Batch2, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_Batch2, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups22,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -179,10 +157,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{2, 4, 3, 3}, {2, 16, 2, 2}, {2, 2, 2, 2}, {2, 8, 2, 2}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_Batch3, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_Batch3, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups22,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -190,10 +168,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{3, 4, 3, 3}, {3, 16, 2, 2}, {2, 2, 2, 2}, {3, 8, 2, 2}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_Batch4, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_Batch4, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups22,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -201,7 +179,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{4, 4, 3, 3}, {4, 16, 2, 2}, {2, 2, 2, 2}, {4, 8, 2, 2}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 const auto DeformableConvolution2D_MultipleGroups_41 = ::testing::Combine(
     ::testing::ValuesIn(stride_values),
@@ -216,7 +194,7 @@ const auto DeformableConvolution2D_MultipleGroups_41 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_2, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_2, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups_41,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -224,10 +202,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{1, 8, 68, 68}, {1, 18, 66, 66}, {4, 2, 3, 3}, {1, 9, 66, 66}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_2_Batch2, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_2_Batch2, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups_41,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -235,10 +213,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{2, 8, 68, 68}, {2, 18, 66, 66}, {4, 2, 3, 3}, {2, 9, 66, 66}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_2_Batch3, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_2_Batch3, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups_41,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -246,10 +224,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{3, 8, 68, 68}, {3, 18, 66, 66}, {4, 2, 3, 3}, {3, 9, 66, 66}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_2_Batch4, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_2_Batch4, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups_41,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -257,7 +235,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{4, 8, 68, 68}, {4, 18, 66, 66}, {4, 2, 3, 3}, {4, 9, 66, 66}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 const auto DeformableConvolution2D_MultipleGroups_42 = ::testing::Combine(
     ::testing::ValuesIn(stride_values),
@@ -272,7 +250,7 @@ const auto DeformableConvolution2D_MultipleGroups_42 = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_3, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_3, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups_42,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -280,10 +258,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{1, 8, 68, 68}, {1, 36, 66, 66}, {4, 2, 3, 3}, {1, 18, 66, 66}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_3_Batch2, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_3_Batch2, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups_42,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -291,10 +269,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{2, 8, 68, 68}, {2, 36, 66, 66}, {4, 2, 3, 3}, {2, 18, 66, 66}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_3_Batch3, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_3_Batch3, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups_42,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -302,10 +280,10 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{3, 8, 68, 68}, {3, 36, 66, 66}, {4, 2, 3, 3}, {3, 18, 66, 66}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_3_Batch4, DeformableConvolutionLayerSharedGPUTest,
+        smoke_DeformableConvolution2D_MultipleGroups_3_Batch4, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 DeformableConvolution2D_MultipleGroups_42,
                 ::testing::ValuesIn(with_modulated_scalar),
@@ -313,5 +291,5 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::static_shapes_to_test_representation(
                         std::vector<ov::Shape>({{4, 8, 68, 68}, {4, 36, 66, 66}, {4, 2, 3, 3}, {4, 18, 66, 66}}))),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                DeformableConvolutionLayerSharedGPUTest::getTestCaseName);
+                DeformableConvolutionLayerTest::getTestCaseName);
 }  // namespace

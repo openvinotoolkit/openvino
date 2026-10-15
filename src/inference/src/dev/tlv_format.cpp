@@ -89,12 +89,7 @@ bool scan_tlv_records(std::istream& stream, const TLVValueScanner& scanners) {
             return false;
         }
         stream.read(reinterpret_cast<char*>(&size), sizeof(size));
-        if (!stream.good()) {
-            return false;
-        }
-        // Compare in unsigned space: casting a corrupted size >= 2^63 to streamoff would make it negative
-        const auto value_pos = stream.tellg();
-        if (size > static_cast<TLVTraits::LengthType>(stream_end - value_pos)) {
+        if (!stream.good() || (stream_end - stream.tellg() < static_cast<std::streamoff>(size))) {
             return false;
         }
 

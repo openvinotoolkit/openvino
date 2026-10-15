@@ -65,8 +65,8 @@ class jit_clamp_emitter : public jit_emitter {
 public:
     jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                      double alpha,
-                      double beta,
+                      float min,
+                      float max,
                       ov::element::Type exec_prc = ov::element::f32);
 
     jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
@@ -85,8 +85,8 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    int32_t minimum = 0;
-    int32_t maximum = 0;
+    float min;
+    float max;
 
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 

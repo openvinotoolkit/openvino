@@ -268,12 +268,10 @@ struct stateless_kv_impl : typed_primitive_impl_ocl<stateless_kv> {
             if (!_kernel_data.params) {
                 update_dispatch_data(*instance.get_impl_params());
             }
-            if (_kernel_data.params) {
-                auto& params = static_cast<scatter_kernel_params_t&>(*_kernel_data.params);
-                if (params.is_inplace != instance.get_is_inplace()) {
-                    params.is_inplace = instance.get_is_inplace();
-                    (_kernel_data.update_dispatch_data_func)(params, _kernel_data);
-                }
+            auto& params = static_cast<scatter_kernel_params_t&>(*_kernel_data.params);
+            if (params.is_inplace != instance.get_is_inplace()) {
+                params.is_inplace = instance.get_is_inplace();
+                (_kernel_data.update_dispatch_data_func)(params, _kernel_data);
             }
         }
         parent::set_arguments_impl(instance);
@@ -286,8 +284,7 @@ private:
 namespace detail {
 
 attach_stateless_kv_impl::attach_stateless_kv_impl() {
-    // u8 / f8e4m3 cover compressed KV caches (u8 also carries packed i4); concat_ref and scatter_update_ref support them.
-    auto types = {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f16, data_types::f32};
+    auto types = {data_types::i8, data_types::f16, data_types::f32};
     auto formats = {format::bfyx};
     implementation_map<stateless_kv>::add(impl_types::ocl, shape_types::dynamic_shape, stateless_kv_impl::create, types, formats);
     implementation_map<stateless_kv>::add(impl_types::ocl, shape_types::static_shape, stateless_kv_impl::create, types, formats);

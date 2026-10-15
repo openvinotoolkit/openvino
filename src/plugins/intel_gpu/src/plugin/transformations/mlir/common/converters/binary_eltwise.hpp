@@ -19,7 +19,7 @@ using namespace ov;
 using namespace ov::intel_gpu::mlir;
 using ::mlir::ValueRange;
 
-template <linalg::ElementwiseKind Kind>
+template <typename MlirBinOpBuilder>
 struct ConvertBinaryEltwise {
     Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto loc = createLocation(context.context, node);
@@ -48,7 +48,7 @@ struct ConvertBinaryEltwise {
         }
 
         auto empty = tensor::EmptyOp::create(builder, loc, outType, dynamic_dimensions);
-        auto op = linalg::ElementwiseOp::create(builder, loc, ValueRange(broadcasted_inputs), ValueRange{empty}, Kind);
+        auto op = MlirBinOpBuilder::create(builder, loc, ValueRange(broadcasted_inputs), ValueRange{empty});
         return op;
     }
 };

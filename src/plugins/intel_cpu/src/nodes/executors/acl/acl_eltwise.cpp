@@ -476,9 +476,9 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         if (!NEActivationLayer::validate(srcTensorsInfo.data(),
                                          dstTensorsInfo.data(),
                                          getActivationLayerInfo(aclEltwiseAttrs.data.algo,
-                                                                static_cast<float>(aclEltwiseAttrs.data.alpha),
-                                                                static_cast<float>(aclEltwiseAttrs.data.beta),
-                                                                static_cast<float>(aclEltwiseAttrs.data.gamma)))) {
+                                                                aclEltwiseAttrs.data.alpha,
+                                                                aclEltwiseAttrs.data.beta,
+                                                                aclEltwiseAttrs.data.gamma))) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
@@ -486,9 +486,9 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
             acl_op->configure(srcTensors.data(),
                               dstTensors.data(),
                               getActivationLayerInfo(aclEltwiseAttrs.data.algo,
-                                                     static_cast<float>(aclEltwiseAttrs.data.alpha),
-                                                     static_cast<float>(aclEltwiseAttrs.data.beta),
-                                                     static_cast<float>(aclEltwiseAttrs.data.gamma)));
+                                                     aclEltwiseAttrs.data.alpha,
+                                                     aclEltwiseAttrs.data.beta,
+                                                     aclEltwiseAttrs.data.gamma));
             return acl_op;
         };
         break;

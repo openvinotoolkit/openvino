@@ -1,9 +1,5 @@
 # Transformations documentation
 
-## Writing transformations
-
- * [Writing transformations](./writing_transformations.md)
-
 ## Writing tests
 
  * [Writing transformation tests](./writing_tests.md)

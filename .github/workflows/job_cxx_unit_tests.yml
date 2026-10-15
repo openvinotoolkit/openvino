@@ -130,8 +130,6 @@ jobs:
 
       - name: GGUF frontend tests
         if: fromJSON(inputs.affected-components).GGUF_FE.test
-        env:
-          OV_GGUF_REQUIRE_ARCH_FIXTURES: ${{ (inputs.os == 'ubuntu_22_04' || inputs.os == 'ubuntu_24_04') && runner.arch == 'X64' && '1' || '' }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_gguf_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GGUFFrontend.xml
@@ -167,6 +165,14 @@ jobs:
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorDisabled.xml
+
+      - name: TensorFlow Common frontend tests
+        if: fromJSON(inputs.affected-components).TF_FE.test ||
+            fromJSON(inputs.affected-components).TFL_FE.test &&
+            (runner.os != 'macOS' && runner.arch != 'ARM64')
+        run: |
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
         if: fromJSON(inputs.affected-components).TF_FE.test

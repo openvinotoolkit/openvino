@@ -137,10 +137,9 @@ The NPU plugin does not support methods for direct allocation of native handles.
 
    **2. Allocation Lifetime (Critical)**
    The allocation must remain valid **until ALL** of the following have occurred:
-
-   * All inference requests using this remote tensor have completed execution, **AND**
-   * All inference requests using this remote tensor have been destroyed, **AND**
-   * The remote tensor has been destroyed
+      * All inference requests using this remote tensor have completed execution, **AND**
+      * All inference requests using this remote tensor have been destroyed, **AND**
+      * The remote tensor has been destroyed
 
    Failure to maintain the allocation for the entire lifecycle will result in undefined behavior and potential crashes.
 

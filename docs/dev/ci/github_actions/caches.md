@@ -45,7 +45,7 @@ CPU_Functional_Tests:
   ...
   steps:
     - name: Save tests execution time
-      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache/save@v3
       if: github.ref_name == 'master'
       with:
         path: ${{ env.PARALLEL_TEST_CACHE }}
@@ -64,7 +64,7 @@ CPU_Functional_Tests:
   ...
   steps:
     - name: Restore tests execution time
-      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache/restore@v3
       with:
         path: ${{ env.PARALLEL_TEST_CACHE }}
         key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -89,10 +89,9 @@ add the mounting point under the `container`'s `volumes` key in a job configurat
 ```yaml
 Build:
   ...
-  needs: Docker
   runs-on: aks-linux-16-cores-32gb
   container:
-    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     volumes:
       - /mount:/mount
       - /home/runner/secrets/:/secrets:ro
@@ -165,10 +164,9 @@ key under the `container` key to make them accessible for `sccache` inside the c
 ```yaml
 Build:
   ...
-  needs: Docker
   runs-on: aks-linux-16-cores-32gb
   container:
-    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     volumes:
       - /mount:/mount
       - /home/runner/secrets/:/secrets:ro
@@ -196,7 +194,7 @@ Build:
     CMAKE_CXX_COMPILER_LAUNCHER: sccache
     CMAKE_C_COMPILER_LAUNCHER: sccache
     ...
-    SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
+    SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
 ```
 
 ### Enabling `sccache` for C++/C Files
@@ -211,6 +209,6 @@ Build:
     CMAKE_CXX_COMPILER_LAUNCHER: sccache
     CMAKE_C_COMPILER_LAUNCHER: sccache
     ...
-    SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
+    SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
 ```
 You can also set the options in the CMake configuration command.

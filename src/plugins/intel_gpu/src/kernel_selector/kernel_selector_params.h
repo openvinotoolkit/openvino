@@ -634,7 +634,7 @@ struct fused_operation_desc {
     int32_t dep_idx_start;
     size_t dep_size;
     MultiDataTensor tensors;
-    MultiDataTensor output_tensors;
+    DataTensor output_tensor;
     size_t op_id;
     std::vector<dep_info> dep_data;
 

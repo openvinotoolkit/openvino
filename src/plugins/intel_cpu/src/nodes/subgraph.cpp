@@ -993,11 +993,6 @@ IShapeInfer::Result Subgraph::shapeInfer() const {
 }
 
 bool Subgraph::canBeInPlace() const {
-    // Preserve cached constant results across inference calls.
-    if (getParentEdgeAt(0)->getParent()->isConstant() && !isConstant()) {
-        return false;
-    }
-
     if (isDynamic || getParentEdgeAt(0)->getParent()->getType() == Type::Input) {
         return false;
     }

@@ -4,7 +4,6 @@
 
 #include "ze_event.hpp"
 #include "ze/ze_common.hpp"
-#include "ze_base_event_factory.hpp"
 
 #include <cassert>
 #include <chrono>
@@ -18,7 +17,7 @@ void ze_event::reset() {
     OV_ZE_EXPECT(ze::zeEventHostReset(m_event.handle()));
 }
 
-void ze_event::ze_wait_impl() {
+void ze_event::wait_impl() {
     OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
 }
 

@@ -15,7 +15,6 @@
 #include <openvino/op/exp.hpp>
 #include <openvino/op/floor.hpp>
 #include <openvino/op/gather.hpp>
-#include <openvino/op/grouped_matmul.hpp>
 #include <openvino/op/log.hpp>
 #include <openvino/op/matmul.hpp>
 #include <openvino/op/multiply.hpp>
@@ -43,7 +42,6 @@
 #include "../common/converters/concat.hpp"
 #include "../common/converters/floor.hpp"
 #include "../common/converters/gather.hpp"
-#include "../common/converters/grouped_matmul.hpp"
 #include "../common/converters/matmul.hpp"
 #include "../common/converters/reduce.hpp"
 #include "../common/converters/relu.hpp"
@@ -70,14 +68,6 @@ ConcatPattern::ConcatPattern() : MarkPattern(wrap_type<v0::Concat>(), ConvertCon
 FloorPattern::FloorPattern() : MarkPattern(wrap_type<v0::Floor>({any_input()}), ConvertFloor()) {}
 
 GatherPattern::GatherPattern() : MarkPattern(wrap_type<v8::Gather>({any_input(), any_input(), any_input()}), ConvertGather()) {}
-
-// linalgx.grouped_matmul covers the 2Dx3D (MoE forward pass) case of GroupedMatMul-17 only:
-// its lhs must be rank 2.
-GroupedMatMulPattern::GroupedMatMulPattern()
-    : MarkPattern(wrap_type<v17::GroupedMatMul>({any_input(rank_equals(2) && type_matches_any({element::f16, element::bf16})),
-                                                 any_input(shape_matches("E, N, K") && type_matches_any({element::f16, element::bf16})),
-                                                 any_input(shape_matches("E"))}),
-                  ConvertGroupedMatMul()) {}
 
 MatMulPattern::MatMulPattern()
     : MarkPattern(wrap_type<v0::MatMul>({any_input(), any_input()},
@@ -106,15 +96,7 @@ RMSPattern::RMSPattern()
                       }
                       // The converter computes the mean over the last dimension, so it must be static.
                       const auto& shape = output.get_partial_shape();
-                      const auto rank = shape.rank().get_length();
-                      if (rank == 0) {
-                          return false;
-                      }
-                      auto axis = node->get_axis();
-                      if (axis < 0) {
-                          axis += rank;
-                      }
-                      if (axis != rank - 1 || shape[rank - 1].is_dynamic()) {
+                      if (shape[shape.rank().get_length() - 1].is_dynamic()) {
                           return false;
                       }
                       // Mixed input/output precision (RMS output_type attribute) is not supported
@@ -332,28 +314,28 @@ BinaryEltwisePatternBase::BinaryEltwisePatternBase(NodeTypeInfo wrapped_type,
                       OutputVector{any_input(), any_input()}),
                   convertor) {}
 
-template <typename OVOp, linalg::ElementwiseKind Kind>
-BinaryEltwisePattern<OVOp, Kind>::BinaryEltwisePattern(const std::set<element::Type>& element_types)
-    : BinaryEltwisePatternBase(OVOp::get_type_info_static(), ConvertBinaryEltwise<Kind>(), element_types) {}
+template <typename OVOp, typename LinalgOp>
+BinaryEltwisePattern<OVOp, LinalgOp>::BinaryEltwisePattern(const std::set<element::Type>& element_types)
+    : BinaryEltwisePatternBase(OVOp::get_type_info_static(), ConvertBinaryEltwise<LinalgOp>(), element_types) {}
 
 // Explicit template instantiations
 // TODO: add signed/unsigned integers support
-template class BinaryEltwisePattern<v1::Add, linalg::ElementwiseKind::add>;
-template class BinaryEltwisePattern<v1::Subtract, linalg::ElementwiseKind::sub>;
-template class BinaryEltwisePattern<v1::Multiply, linalg::ElementwiseKind::mul>;
-template class BinaryEltwisePattern<v1::Divide, linalg::ElementwiseKind::div>;
-template class BinaryEltwisePattern<v1::Power, linalg::ElementwiseKind::powf>;
+template class BinaryEltwisePattern<v1::Add, linalg::AddOp>;
+template class BinaryEltwisePattern<v1::Subtract, linalg::SubOp>;
+template class BinaryEltwisePattern<v1::Multiply, linalg::MulOp>;
+template class BinaryEltwisePattern<v1::Divide, linalg::DivOp>;
+template class BinaryEltwisePattern<v1::Power, linalg::PowFOp>;
 
-template <typename OVOp, linalg::ElementwiseKind Kind>
-UnaryEltwisePattern<OVOp, Kind>::UnaryEltwisePattern() : MarkPattern(wrap_type<OVOp>({any_input()}), ConvertUnaryEltwise<Kind>()) {}
+template <typename OVOp, typename LinalgOp>
+UnaryEltwisePattern<OVOp, LinalgOp>::UnaryEltwisePattern() : MarkPattern(wrap_type<OVOp>({any_input()}), ConvertUnaryEltwise<LinalgOp>()) {}
 
 // Explicit template instantiations
-template class UnaryEltwisePattern<v0::Abs, linalg::ElementwiseKind::abs>;
-template class UnaryEltwisePattern<v0::Ceiling, linalg::ElementwiseKind::ceil>;
-template class UnaryEltwisePattern<v0::Exp, linalg::ElementwiseKind::exp>;
-template class UnaryEltwisePattern<v0::Log, linalg::ElementwiseKind::log>;
-template class UnaryEltwisePattern<v0::Negative, linalg::ElementwiseKind::negf>;
-template class UnaryEltwisePattern<v0::Sqrt, linalg::ElementwiseKind::sqrt>;
-template class UnaryEltwisePattern<v0::Tanh, linalg::ElementwiseKind::tanh>;
+template class UnaryEltwisePattern<v0::Abs, linalg::AbsOp>;
+template class UnaryEltwisePattern<v0::Ceiling, linalg::CeilOp>;
+template class UnaryEltwisePattern<v0::Exp, linalg::ExpOp>;
+template class UnaryEltwisePattern<v0::Log, linalg::LogOp>;
+template class UnaryEltwisePattern<v0::Negative, linalg::NegFOp>;
+template class UnaryEltwisePattern<v0::Sqrt, linalg::SqrtOp>;
+template class UnaryEltwisePattern<v0::Tanh, linalg::TanhOp>;
 
 }  // namespace ov::intel_gpu::mlir

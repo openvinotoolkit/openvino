@@ -230,81 +230,50 @@ TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidBuildsTwoStaticGenerateV
                 ::testing::UnorderedElementsAre(ov::Shape({1, 1152}), ov::Shape({1, 2176})));
 }
 
-TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillIsOnForChunkedPrefill) {
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillOptionAndCapabilitySurface) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    // Nothing asks for it: an eligible chunked model turns continuous prefill on
-    // and the option reports the effective state.
-    ASSERT_NO_THROW(
-        compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
-                                         recorder));
-    ASSERT_NE(compiled, nullptr);
-    EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
-}
-
-TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillCanBeTurnedOff) {
-    RecordingFactory recorder;
-    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
-
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "NO"},
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
                                                       {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
                                                       {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
-    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+    // The capability read must never throw. With the contiguous delta prefill
+    // path in place, an eligible chunked model advertises support.
+    ov::Any supported;
+    ASSERT_NO_THROW(supported = compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED"));
+    EXPECT_TRUE(supported.as<bool>());
 }
 
-TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffForStaticPrefill) {
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillUnsupportedForStaticPrefill) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    // Whole (STATIC) prefill has no continuation path, so even an explicit YES
-    // is reported as NO.
+    // Whole (STATIC) prefill has no continuation path, so the option is accepted
+    // but the capability reports false.
     ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
                                                       {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
-    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+
+    ov::Any supported;
+    ASSERT_NO_THROW(supported = compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED"));
+    EXPECT_FALSE(supported.as<bool>());
 }
 
-TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithPrefixCaching) {
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillRejectsPrefixCaching) {
     RecordingFactory recorder;
-    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
-
-    // The hash prefix cache cannot process delta-only inputs. It is requested
-    // explicitly, so it wins and continuous prefill is reported as NO.
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"},
-                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
-                                                     recorder));
-    ASSERT_NE(compiled, nullptr);
-    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
-}
-
-TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithShrunkSlidingWindow) {
-    // A window-shrunk KV cache has no continuation path. The same model with the
-    // full KV cache keeps continuous prefill on.
-    const auto compile_swa_model = [this](const std::string& shrink) {
-        RecordingFactory recorder;
-        auto props = base_props();
-        merge_props(props,
-                    {{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", shrink},
-                     {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                     {"NPUW_LLM_PREFILL_CHUNK_SIZE", "8"}});
-        return std::make_unique<ov::npuw::LLMCompiledModel>(ov::test::npuw::build_sliding_window_test_model(32, 1),
-                                                            m_plugin,
-                                                            props,
-                                                            recorder.make_factory());
-    };
-
-    std::unique_ptr<ov::npuw::LLMCompiledModel> full;
-    ASSERT_NO_THROW(full = compile_swa_model("NO"));
-    EXPECT_TRUE(full->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
-
-    std::unique_ptr<ov::npuw::LLMCompiledModel> shrunk;
-    ASSERT_NO_THROW(shrunk = compile_swa_model("YES"));
-    EXPECT_FALSE(shrunk->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+    // The hash prefix cache cannot process delta-only inputs, so the combination
+    // fails compilation instead of silently misbehaving.
+    EXPECT_THROW(create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
+                                        {"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"},
+                                        {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                        {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+                                       recorder),
+                 ov::Exception);
 }
 
 TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {

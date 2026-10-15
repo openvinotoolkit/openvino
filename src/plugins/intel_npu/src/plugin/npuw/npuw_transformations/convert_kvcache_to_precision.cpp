@@ -67,8 +67,7 @@ public:
 };
 
 std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov::Model>& model,
-                                                        const ov::element::Type lptype,
-                                                        const bool v_tensors_transposed) {
+                                                        const ov::element::Type lptype) {
     // Resolve storage types first and apply them through PPP for both inputs and outputs.
     // Default path keeps KV cache in f16; integer hint uses key=i8/u8 and value=i4.
     auto key_storage_type = lptype;
@@ -83,10 +82,6 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     ov::preprocess::PrePostProcessor ppp(model);
 
     for (const auto& tensor : model->inputs()) {
-        // Defensive: get_any_name() throws on a nameless port.
-        if (tensor.get_names().empty()) {
-            continue;
-        }
         const auto& name = tensor.get_any_name();
         if (ov::npuw::util::isPastKeyValuesKey(name).has_value()) {
             ppp.input(name).tensor().set_element_type(key_storage_type);
@@ -96,10 +91,6 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     }
 
     for (const auto& tensor : model->outputs()) {
-        // See above.
-        if (tensor.get_names().empty()) {
-            continue;
-        }
         const auto& name = tensor.get_any_name();
         if (ov::npuw::util::isPresentKeyValuesKey(name).has_value()) {
             ppp.output(name).tensor().set_element_type(key_storage_type);
@@ -118,7 +109,7 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
 
         LOG_DEBUG("Running KV-cache compression passes: key=" << key_storage_type << ", value=" << value_storage_type
                                                               << " on model[" << model->get_friendly_name() << "]");
-        ov::npuw::run_kv_cache_dynamic_quantization_passes(new_model, dq_params, v_tensors_transposed);
+        ov::npuw::run_kv_cache_dynamic_quantization_passes(new_model, dq_params);
     }
     return new_model;
 }
@@ -170,12 +161,10 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
 
 namespace ov::npuw {
 
-ConvertKVCacheToPrecision::ConvertKVCacheToPrecision(const ov::element::Type lptype, bool v_tensors_transposed)
-    : m_lp_type(lptype),
-      m_v_tensors_transposed(v_tensors_transposed) {}
+ConvertKVCacheToPrecision::ConvertKVCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
 
 bool ConvertKVCacheToPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    auto ppp_result = cvt_kvcache_to_low_precision(model, m_lp_type, m_v_tensors_transposed);
+    auto ppp_result = cvt_kvcache_to_low_precision(model, m_lp_type);
     // PrePostProcessor currently always modifies the model in-place and returns the same model pointer, but let's
     // be defensive here and check it just in case
     OPENVINO_ASSERT(ppp_result == model,

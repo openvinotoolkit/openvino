@@ -16,12 +16,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(scaled_dot_product_attention)
 
-bool scaled_dot_product_attention_inst::is_int4_kv_cache(const kernel_impl_params& impl_param) {
-    const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
-    const auto prim = impl_param.typed_desc<scaled_dot_product_attention>();
-    return ov::element::Type(kv_cache_dt).bitwidth() == 4 || ov::element::Type(prim->quantization_attributes.quantization_dt).bitwidth() == 4;
-}
-
 layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_attention_node const& /* node */,
                                                              kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scaled_dot_product_attention>();
@@ -42,7 +36,6 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
     };
 
     auto input0_layout = impl_param.get_input_layout(0);
-    auto input1_layout = impl_param.get_input_layout(1);
     auto input2_layout = impl_param.get_input_layout(2);
 
     auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
@@ -54,14 +47,6 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
     auto v_shape = transpose_shape(input2_layout.get_partial_shape(),
                                 desc->input_v_transpose_order);
     output_shape[output_shape.size() - 1] = v_shape[v_shape.size() - 1];
-
-    // The batch dim is numpy-broadcast across Q, K and V.
-    auto k_shape = transpose_shape(input1_layout.get_partial_shape(), desc->input_k_transpose_order);
-    if (k_shape.rank() == q_shape.rank() && v_shape.rank() == q_shape.rank()) {
-        const bool batch_compatible = ov::Dimension::broadcast_merge(output_shape[0], output_shape[0], k_shape[0]) &&
-                                      ov::Dimension::broadcast_merge(output_shape[0], output_shape[0], v_shape[0]);
-        OPENVINO_ASSERT(batch_compatible, "[GPU] SDPA: Q/K/V batch sizes cannot be broadcast");
-    }
 
     output_shape = transpose_shape(output_shape, desc->output_transpose_order);
 
@@ -89,10 +74,13 @@ std::vector<layout> scaled_dot_product_attention_inst::calc_output_layouts(scale
     }
 
     // For INT4 KV-cache, restore logical head size from query for shape inference
-    if (prim->is_kv_compressed && scaled_dot_product_attention_inst::is_int4_kv_cache(impl_param) && input_shapes.size() >= 3) {
-        auto q_last = input_shapes[0][input_shapes[0].size() - 1];
-        input_shapes[1][input_shapes[1].size() - 1] = q_last;
-        input_shapes[2][input_shapes[2].size() - 1] = q_last;
+    if (prim->is_kv_compressed) {
+        const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
+        if (ov::element::Type(kv_cache_dt).bitwidth() == 4 && input_shapes.size() >= 3) {
+            auto q_last = input_shapes[0][input_shapes[0].size() - 1];
+            input_shapes[1][input_shapes[1].size() - 1] = q_last;
+            input_shapes[2][input_shapes[2].size() - 1] = q_last;
+        }
     }
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,

@@ -82,8 +82,6 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
             ov::op::v0::MVN(dequantizationOpBefore, reductionAxes, normalizeVariance),
             dequantizationAfter.empty() ? precision : ov::element::f32);
     } else if (opset_version == 6) {
-        const auto overridden_type = dequantizationAfter.empty() ? precision : ov::element::f32;
-        // Override only the data input: MVN-6 axes must stay i32/i64.
         mvn = std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(
             ov::op::v6::MVN(dequantizationOpBefore,
                             std::make_shared<ov::opset1::Constant>(ov::element::i64,
@@ -92,8 +90,7 @@ std::shared_ptr<ov::Model> MVNFunction::getReference(
                             normalizeVariance,
                             1e-9,
                             ov::op::MVNEpsMode::INSIDE_SQRT),
-            ov::element::TypeVector{overridden_type, ov::element::dynamic},
-            ov::element::TypeVector{overridden_type});
+            dequantizationAfter.empty() ? precision : ov::element::f32);
     }
     auto& rtInfo = mvn->get_rt_info();
     rtInfo["Variant::std::string"] = "mvn";

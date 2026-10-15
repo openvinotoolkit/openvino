@@ -600,6 +600,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // KV block parameters, shifting local indices relative to input_idx
                         // (which is always a global/original-model index here).
                         const bool is_mask = (input_idx == pyramid->global_mask_idx);
+                        const auto& iport = compiled_model->inputs()[input_idx];
                         if (pyramid->is_block_mode()) {
                             // Block KV mode: bind block tensors directly to variant ports;
                             // mask and other inputs fall through to the non-KV handling below.
@@ -633,19 +634,20 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             // and retrieve its sequence dimension via the virtual interface.
                             const auto dim_opt = pyramid->kv_param_dim(pyramid_id, input_idx);
                             const bool is_kv_param = dim_opt.has_value();
-                            // ctx.target_request was created from _compiled_models[pyramid_id], so it must
-                            // be addressed with that model's own ports. A port of the main compiled model is
-                            // only resolved by a friendly/tensor name match, which is not guaranteed once the
-                            // variants are imported from a cache as separate blobs. Contiguous variants keep
-                            // the main model's parameter order, so input_idx is a valid local index. For the
-                            // last pyramid model _compiled_models[pyramid_id] == the main compiled model.
-                            const auto& pyramid_iport = pyramid->_compiled_models[pyramid_id]->inputs()[input_idx];
                             if (is_mask) {
                                 // Mask requires context-dependent construction — defer to prologue()
                                 io.inputs.at(input_idx) = tensor;
                             } else if (is_kv_param) {
                                 const auto dim = dim_opt.value();
                                 using namespace ov::npuw::runtime;
+                                // iport comes from the main compiled model (full KV shape).
+                                // For set_tensor we must use the port from the pyramid model's compiled
+                                // model so the zero backend shape check passes. For the last pyramid model
+                                // _compiled_models[pyramid_id] == the main compiled model, so pyramid_iport
+                                // == iport and there is no behavioural difference.
+                                // get_tensor calls below intentionally keep iport: they look up by index /
+                                // name without strict shape validation.
+                                const auto& pyramid_iport = pyramid->_compiled_models[pyramid_id]->inputs()[input_idx];
                                 if (state.pyramid_selector->length() == -1) {
                                     // Fallback: dynamic range not identified — bind directly
                                     ctx.target_request->set_tensor(pyramid_iport, tensor);
@@ -674,12 +676,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                             const auto& view = ov::npuw::util::view(tensor, dim, 0, effective_past_len);
                                             const auto& shape = view->get_shape();
                                             if (ov::shape_size(shape) == 0) {
-                                                ctx.target_request->get_tensor(pyramid_iport)->set_shape(shape);
+                                                ctx.target_request->get_tensor(iport)->set_shape(shape);
                                             } else if (use_tensor_view) {
                                                 LOG_DEBUG("Use tensor view: past_len=" << effective_past_len);
                                                 ctx.target_request->set_tensor(pyramid_iport, view);
                                             } else {
-                                                const auto& dst = ctx.target_request->get_tensor(pyramid_iport);
+                                                const auto& dst = ctx.target_request->get_tensor(iport);
                                                 ov::npuw::util::copy_tensor_by_dim(view,
                                                                                    dst,
                                                                                    static_cast<uint32_t>(dim),
@@ -689,7 +691,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                     } else {
                                         NPUW_ASSERT(this_case == pyramid_attention::Selector::Case::GENERATE);
                                         NPUW_ASSERT(static_cast<int64_t>(input_shape[dim]) != past_len);
-                                        const auto& dst = ctx.target_request->get_tensor(pyramid_iport);
+                                        const auto& dst = ctx.target_request->get_tensor(iport);
                                         if (dst->get_shape() == input_shape) {
                                             ctx.target_request->set_tensor(pyramid_iport, tensor);
                                         } else if (use_tensor_view) {
@@ -715,7 +717,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 }
                             } else {
                                 // Non-KV, non-mask: bind directly
-                                ctx.target_request->set_tensor(pyramid_iport, tensor);
+                                ctx.target_request->set_tensor(iport, tensor);
                             }
                         }
                         return true;
@@ -741,27 +743,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
             bool bind_function_output(ov::npuw::v1::subgraphs::InferContext& ctx,
                                       std::size_t output_idx,
                                       const ov::SoPtr<ov::ITensor>& tensor) override {
-                if (m_kind != BehaviorKind::Pyramid) {
-                    return false;
-                }
-                const auto& pipeline = get_subgraph_pipeline(ctx, ctx.real_subgraph_idx);
-                const auto* pyramid = ov::npuw::attn::get_compiled_pyramid(pipeline.context);
-                if (pyramid == nullptr) {
-                    return false;
-                }
-                // The active subrequest is a pyramid variant: bind its own output port rather than
-                // the main compiled model's one (see bind_function_input for the rationale).
-                // Pyramid variants differ only in the past KV length, so their outputs have the
-                // same shape and element type as the main model's ones.
-                auto& state = get_runtime_state(ctx);
-                ensure_pyramid_selector(ctx, state);
-                const auto pyramid_id = state.pyramid_selector->pyramid_id();
-                const auto& pyramid_oport = pyramid->_compiled_models[pyramid_id]->outputs()[output_idx];
-                NPUW_ASSERT(pyramid_oport.get_partial_shape() == ov::PartialShape(tensor->get_shape()) &&
-                            pyramid_oport.get_element_type() == tensor->get_element_type() &&
-                            "Pyramid attention variant output must match the function output");
-                ctx.target_request->set_tensor(pyramid_oport, tensor);
-                return true;
+                (void)ctx;
+                (void)output_idx;
+                (void)tensor;
+                return false;
             }
 
             void prologue(ov::npuw::v1::subgraphs::InferContext& ctx) override {
@@ -1311,14 +1296,6 @@ bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline) {
            get_compiled_hfa(pipeline.context) != nullptr;
 }
 
-bool has_block_kv_hfa(const v1::subgraphs::CompiledPipeline& pipeline) {
-    if (!pipeline.runtime_behavior.has_value() || !pipeline.runtime_behavior->handles_function_prologue) {
-        return false;
-    }
-    const auto* hfa = get_compiled_hfa(pipeline.context);
-    return hfa != nullptr && hfa->is_block_mode();
-}
-
 void serialize_compiled_state(v1::subgraphs::Context& context,
                               ov::npuw::s11n::Stream& stream,
                               const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
@@ -1437,29 +1414,6 @@ void attach_runtime_behavior(ov::npuw::v1::subgraphs::CompiledPipeline& compiled
     spec.factory = make_runtime_factory();
     spec.handles_function_prologue = true;
     compiled_pipeline.runtime_behavior = std::move(spec);
-
-    // Looked up when called: at compile time this runs before the extra models are compiled
-    compiled_pipeline.for_each_extra_compiled_model = [kind](
-                                                          const ov::npuw::v1::subgraphs::Context& context,
-                                                          const ov::npuw::v1::subgraphs::CompiledModelVisitor& visit) {
-        switch (kind) {
-        case BehaviorKind::Pyramid:
-            if (const auto* pyramid = get_compiled_pyramid(context)) {
-                for (const auto& cm : pyramid->_compiled_models) {
-                    visit(cm);
-                }
-            }
-            break;
-        case BehaviorKind::HFA:
-            if (const auto* hfa = get_compiled_hfa(context)) {
-                visit(hfa->_compiled_tile_model);
-                visit(hfa->_compiled_final_tile_model);
-            }
-            break;
-        case BehaviorKind::Dynamic:
-            break;  // runs on the subgraph's own compiled model only
-        }
-    };
 }
 
 std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_patterns(

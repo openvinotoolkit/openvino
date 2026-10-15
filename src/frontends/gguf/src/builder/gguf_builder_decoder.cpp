@@ -25,8 +25,6 @@ const GgufOp& GgufBuilderDecoder::node() const {
 // carry source shapes; converters infer them from their OpenVINO inputs.
 
 ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
-    if (name == "architecture" && m_node_idx < 0)
-        return m_graph->architecture;
     // RoPE config is queried at model scope (prepare_graph_inputs, to build the shared
     // sin/cos table) and at node scope (each ROPE op's own config). At MODEL scope (no bound node)
     // expose the graph's config with per_op / n_dims==0 encoding "no shared table". At NODE scope
@@ -88,9 +86,7 @@ PartialShape GgufBuilderDecoder::get_output_shape() const {
 }
 
 std::vector<std::string> GgufBuilderDecoder::get_output_names() const {
-    auto names = node().extra_output_names;
-    names.insert(names.begin(), node().output_name);
-    return names;
+    return {node().output_name};
 }
 
 // ---- Op type / name ----
@@ -131,10 +127,6 @@ const std::vector<std::pair<std::string, std::string>>& GgufBuilderDecoder::get_
 
 const ov::AnyMap& GgufBuilderDecoder::get_tokenizer_config() const {
     return m_graph->tokenizer_config;
-}
-
-const ov::AnyMap& GgufBuilderDecoder::get_mmproj_config() const {
-    return m_graph->mmproj_config;
 }
 
 }  // namespace ov::frontend::gguf

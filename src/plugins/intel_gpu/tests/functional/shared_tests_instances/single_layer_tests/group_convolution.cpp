@@ -7,30 +7,8 @@
 #include "single_op_tests/group_convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-namespace ov {
-namespace test {
-
-class GroupConvolutionLayerSharedGPUTest : public GroupConvolutionLayerTest {
-protected:
-    void SetUp() override {
-        GroupConvolutionLayerTest::SetUp();
-        const auto& [group_conv_params, model_type, shapes, target_device] = this->GetParam();
-        if (model_type == ov::element::f16) {
-            abs_threshold = 0.5;
-            rel_threshold = 0.01;
-        }
-    }
-};
-
-TEST_P(GroupConvolutionLayerSharedGPUTest, Inference) {
-    run();
-}
-
-}  // namespace test
-}  // namespace ov
-
 namespace {
-using ov::test::GroupConvolutionLayerSharedGPUTest;
+using ov::test::GroupConvolutionLayerTest;
 
 const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32
@@ -58,14 +36,14 @@ const auto groupConv1DParams_ExplicitPadding = ::testing::Combine(
         ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution1D_ExplicitPadding_Disabled, GroupConvolutionLayerSharedGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution1D_ExplicitPadding_Disabled, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv1DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                         std::vector<std::vector<ov::Shape>>({{{1, 16, 30}}}))),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        GroupConvolutionLayerSharedGPUTest::getTestCaseName);
+                        GroupConvolutionLayerTest::getTestCaseName);
 
 const auto dwConv1DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels1D),
@@ -78,14 +56,14 @@ const auto dwConv1DParams_ExplicitPadding = ::testing::Combine(
         ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_DwGroupConvolution1D_ExplicitPadding, GroupConvolutionLayerSharedGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_DwGroupConvolution1D_ExplicitPadding, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 dwConv1DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                         std::vector<std::vector<ov::Shape>>({{{1, 16, 30}}}))),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        GroupConvolutionLayerSharedGPUTest::getTestCaseName);
+                        GroupConvolutionLayerTest::getTestCaseName);
 
 /* ============= 2D GroupConvolution ============= */
 const std::vector<std::vector<size_t >> kernels = {{3, 3}};
@@ -127,32 +105,32 @@ const auto groupConv2DParams_AutoPadSameUpper = ::testing::Combine(
         ::testing::Values(ov::op::PadType::SAME_UPPER)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerSharedGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                         std::vector<std::vector<ov::Shape>>({{{1, 16, 30, 30}}}))),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        GroupConvolutionLayerSharedGPUTest::getTestCaseName);
+                        GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerSharedGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                         std::vector<std::vector<ov::Shape>>({{{1, 16, 30, 30}}}))),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        GroupConvolutionLayerSharedGPUTest::getTestCaseName);
+                        GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadSameUpper, GroupConvolutionLayerSharedGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadSameUpper, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv2DParams_AutoPadSameUpper,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                         std::vector<std::vector<ov::Shape>>({{{1, 80, 1, 1008}}}))),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        GroupConvolutionLayerSharedGPUTest::getTestCaseName);
+                        GroupConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
 const std::vector<std::vector<size_t >> kernels3d = {{3, 3, 3}};
@@ -182,22 +160,22 @@ const auto groupConv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ov::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerSharedGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                         std::vector<std::vector<ov::Shape>>({{{1, 4, 10, 10, 10}}}))),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        GroupConvolutionLayerSharedGPUTest::getTestCaseName);
+                        GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D_AutoPadValid, GroupConvolutionLayerSharedGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D_AutoPadValid, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                         std::vector<std::vector<ov::Shape>>({{{1, 4, 10, 10, 10}}}))),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        GroupConvolutionLayerSharedGPUTest::getTestCaseName);
+                        GroupConvolutionLayerTest::getTestCaseName);
 
 }  // namespace

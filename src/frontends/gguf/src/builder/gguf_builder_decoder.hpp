@@ -46,7 +46,6 @@ public:
     std::vector<std::string> get_model_output_names() const override;
     const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const override;
     const ov::AnyMap& get_tokenizer_config() const override;
-    const ov::AnyMap& get_mmproj_config() const override;
 
 private:
     std::shared_ptr<GgufGraph> m_graph;

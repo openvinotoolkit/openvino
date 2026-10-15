@@ -84,7 +84,6 @@ namespace detail {
 attach_shape_of_impl::attach_shape_of_impl() {
     auto formats = {
         format::bfyx,
-        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::bfuwzyx,

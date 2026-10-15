@@ -131,10 +131,11 @@ struct COMPILE_LOG_LEVEL final : OptionBase<COMPILE_LOG_LEVEL, ov::log::Level> {
         return "OV_NPU_COMPILE_LOG_LEVEL";
     }
 
-    // CompileTime: only affects compilation. serializeConfig() forwards its resolved value to the compiler under
-    // the compiler-understood LOG_LEVEL key instead, and removes this key from the compiler parameters.
+    // RunTime despite its name: this is a plugin-side knob, never serialized to the compiler under its own key.
+    // serializeConfig() resolves it and forwards the result to the compiler under the compiler-understood
+    // LOG_LEVEL key instead.
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::RunTime;
     }
 
     /**

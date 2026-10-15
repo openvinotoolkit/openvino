@@ -145,8 +145,14 @@ private:
 
 }  // namespace
 
-std::shared_ptr<ModelBuilder> make_mamba2_builder(const BuildContext& context) {
-    return std::make_shared<Mamba2Builder>(context);
+ArchitectureDefinition mamba2_architecture(const std::string& architecture) {
+    return {architecture,
+            architecture,
+            [](const BuildContext& context) {
+                return std::make_shared<Mamba2Builder>(context);
+            },
+            {},
+            Maturity::Verified};
 }
 
 }  // namespace ov::frontend::gguf

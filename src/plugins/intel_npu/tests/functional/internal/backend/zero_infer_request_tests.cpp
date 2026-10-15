@@ -11,7 +11,6 @@
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "compiled_model.hpp"
-#include "compiler_impl.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
@@ -209,8 +208,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
                        ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
                              std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
                        : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                             std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct,
-                                                                                  ::intel_npu::makeVCLCompiler()));
+                             std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct));
     } catch (...) {
         GTEST_SKIP() << "Couldn't load compiler library";
     }
@@ -241,7 +239,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         copy_model = batchedModel;
     }
 
-    auto graph = compiler->compile(copy_model, *npu_config, ::intel_npu::AdapterDescriptor{});
+    auto graph = compiler->compile(copy_model, *npu_config);
     if (batch) {
         graph->set_batch_size(batch.value());
     }

@@ -46,40 +46,9 @@ struct LLMVariantSwitchTestAccess {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
     }
 
-    static void set_kv_dim(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t dim) {
-        compiled->m_kvcache_desc.dim = dim;
-    }
-
-    static void validate_imported_kvcache_dim(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
-        compiled->validate_imported_kvcache_dim();
-    }
-
-    static void set_prefill_compiled(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
-                                     std::shared_ptr<ov::npuw::ICompiledModel_v0> prefill) {
-        compiled->m_prefill_compiled = std::move(prefill);
-    }
-
-    // Mirrors the production name-matching in validate_imported_kvcache_dim(): a port may carry
-    // several names, so match against all of them rather than get_any_name()'s single alias.
-    static uint32_t past_key_tensor_rank(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
-        for (const auto& port : compiled->m_generate_compiled_variants.back()->inputs()) {
-            const auto& names = port.get_names();
-            const bool is_past_key = std::any_of(names.begin(), names.end(), [](const std::string& name) {
-                return ov::npuw::util::isPastKeyParam(name);
-            });
-            if (is_past_key) {
-                return static_cast<uint32_t>(port.get_partial_shape().rank().get_length());
-            }
-        }
-        return 0u;
-    }
-
     static uint32_t kv_dim_for_name(const ov::npuw::LLMInferRequest& req, const std::string& name) {
         const auto& desc = req.m_npuw_llm_compiled_model->m_kvcache_desc;
-        // Mirror copy_kvcache()/on_generate_variant_switch(): classify via the present name so
-        // quantized aux inputs (e.g. DynamicQuantize/0/past_key_values/value/scale) resolve too.
-        const auto present = ov::npuw::util::past_key_values_to_present_name(name);
-        return (present.find("value") != std::string::npos && desc.v_tensors_transposed_gen) ? 3u : desc.dim;
+        return (ov::npuw::util::isPastValueParam(name) && desc.v_tensors_transposed_gen) ? 3u : desc.dim;
     }
 
     static void select_smallest_generate_variant(ov::npuw::LLMInferRequest& req) {
@@ -339,60 +308,42 @@ protected:
     }
 
     std::shared_ptr<ov::IPlugin> m_plugin;
-
-    // Fills stored KV of the smallest variant, switches to the next variant, and verifies the
-    // migrated bytes match. When expect_aux is set, at least one quantized aux (scale/zp) past
-    // input must participate, so the check exercises the aux name mapping too.
-    void check_continuous_switch_migration(const ov::AnyMap& extra_props, bool expect_aux) {
-        VariantSwitchFactory factory;
-        auto compiled = create_compiled_model(extra_props, factory);
-        ASSERT_NE(compiled, nullptr);
-        ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
-
-        ov::npuw::LLMInferRequest req(compiled);
-        LLMVariantSwitchTestAccess::select_smallest_generate_variant(req);
-
-        const uint32_t stored_tokens = LLMVariantSwitchTestAccess::current_variant_capacity(req);
-        LLMVariantSwitchTestAccess::set_num_stored_tokens(compiled, stored_tokens);
-
-        bool saw_aux = false;
-        std::unordered_map<std::string, std::vector<uint8_t>> expected_kv_bytes;
-        uint8_t seed = 17u;
-        for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
-            saw_aux = saw_aux || name.find("scale") != std::string::npos || name.find("zp") != std::string::npos;
-            auto src = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
-                LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-            auto src_slice = ov::npuw::util::make_tensor_slice(
-                src, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
-            fill_tensor_pattern(src_slice, seed);
-            expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
-            seed = static_cast<uint8_t>(seed + 37u);
-        }
-        if (expect_aux) {
-            ASSERT_TRUE(saw_aux) << "Quantized model must expose scale/zero-point past inputs";
-        }
-
-        ASSERT_TRUE(LLMVariantSwitchTestAccess::try_switch_to_larger_variant(req));
-        EXPECT_EQ(LLMVariantSwitchTestAccess::current_variant_index(req), 1u);
-
-        for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
-            auto dst = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
-                LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-            auto dst_slice = ov::npuw::util::make_tensor_slice(
-                dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
-            EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
-        }
-    }
 };
 
 TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesStoredTokensToLargerVariant) {
-    check_continuous_switch_migration({}, /*expect_aux=*/false);
-}
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
 
-// Same migration path, but for an i8-quantized KV cache: on_generate_variant_switch() must also
-// migrate the quantized aux (scale/zero-point) past tensors to the larger variant.
-TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesQuantizedAuxTensors) {
-    check_continuous_switch_migration({{ov::hint::kv_cache_precision.name(), ov::element::i8}}, /*expect_aux=*/true);
+    ov::npuw::LLMInferRequest req(compiled);
+    LLMVariantSwitchTestAccess::select_smallest_generate_variant(req);
+
+    const uint32_t stored_tokens = LLMVariantSwitchTestAccess::current_variant_capacity(req);
+    LLMVariantSwitchTestAccess::set_num_stored_tokens(compiled, stored_tokens);
+
+    std::unordered_map<std::string, std::vector<uint8_t>> expected_kv_bytes;
+    uint8_t seed = 17u;
+    for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
+        auto src = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
+            LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
+        auto src_slice = ov::npuw::util::make_tensor_slice(
+            src, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+        fill_tensor_pattern(src_slice, seed);
+        expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
+        seed = static_cast<uint8_t>(seed + 37u);
+    }
+
+    ASSERT_TRUE(LLMVariantSwitchTestAccess::try_switch_to_larger_variant(req));
+    EXPECT_EQ(LLMVariantSwitchTestAccess::current_variant_index(req), 1u);
+
+    for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
+        auto dst = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
+            LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
+        auto dst_slice = ov::npuw::util::make_tensor_slice(
+            dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+        EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
+    }
 }
 
 TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindingsAcrossSwitchBoundary) {
@@ -440,27 +391,6 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
     ASSERT_FALSE(small_value_block0.empty());
     EXPECT_EQ(small_key_block0, large_key_block0);
     EXPECT_EQ(small_value_block0, large_value_block0);
-}
-
-// Block-based KV cache relies on SplitKVCacheIntoBlocks, whose pattern no longer matches once the
-// KV cache is precision-converted to i8. The two features are mutually exclusive, so enabling both
-// must be rejected at compile time (guards against silently producing an unblocked / unquantized
-// model). This is why the block strategy never has to handle quantized aux tensors.
-TEST_F(LLMInferRequestVariantSwitchTest, BlockKvCacheRejectsQuantizedKvCache) {
-    VariantSwitchFactory factory;
-    try {
-        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                               {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"},
-                               {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
-                               {"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"},
-                               {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"},
-                               {ov::hint::kv_cache_precision.name(), ov::element::i8}},
-                              factory);
-        FAIL() << "Expected block-based KV cache with integer KV-cache precision to be rejected";
-    } catch (const ov::Exception& ex) {
-        EXPECT_NE(std::string(ex.what()).find("cannot be combined with integer KV-cache precision"), std::string::npos)
-            << ex.what();
-    }
 }
 
 // The deserializer restores m_kvcache_sizes and the generate-variant count as two independent blob
@@ -519,53 +449,6 @@ TEST_F(LLMInferRequestVariantSwitchTest, CurrentVariantCapacityRejectsOutOfRange
     LLMVariantSwitchTestAccess::set_current_variant_index(req, 1u);
 
     EXPECT_THROW(LLMVariantSwitchTestAccess::current_variant_capacity(req), std::out_of_range);
-}
-
-// KVCacheDesc::dim is read verbatim from an imported blob and is later used to subscript shape
-// vectors in the KV-slice helpers, so a malformed value is a heap out-of-bounds write. deserialize()
-// runs validate_imported_kvcache_dim() at the trust boundary to reject such blobs.
-TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedKvcacheDimOutOfTensorRank) {
-    VariantSwitchFactory factory;
-    auto compiled = create_compiled_model({}, factory);
-    ASSERT_NE(compiled, nullptr);
-
-    const uint32_t rank = LLMVariantSwitchTestAccess::past_key_tensor_rank(compiled);
-    ASSERT_GT(rank, 0u) << "test model is expected to expose past-key KV tensors";
-
-    for (uint32_t dim = 0; dim < rank; ++dim) {
-        LLMVariantSwitchTestAccess::set_kv_dim(compiled, dim);
-        EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled)) << "dim=" << dim;
-    }
-
-    LLMVariantSwitchTestAccess::set_kv_dim(compiled, rank);
-    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
-
-    LLMVariantSwitchTestAccess::set_kv_dim(compiled, 0xFFFFFFFFu);
-    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
-}
-
-// A dim valid for the rank-4 generate KV tensors must still be rejected when a restored prefill KV
-// tensor has a smaller rank, since prefill SWA updates slice along it too.
-TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedKvcacheDimOutOfPrefillTensorRank) {
-    VariantSwitchFactory factory;
-    auto compiled = create_compiled_model({}, factory);
-    ASSERT_NE(compiled, nullptr);
-    ASSERT_EQ(LLMVariantSwitchTestAccess::past_key_tensor_rank(compiled), 4u);
-
-    auto past = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8});
-    past->output(0).set_names({"past_key_values.0.swa.key"});
-    auto present = std::make_shared<ov::op::v0::Result>(past);
-    present->output(0).set_names({"present.0.swa.key"});
-    auto prefill_model = std::make_shared<ov::Model>(ov::ResultVector{present}, ov::ParameterVector{past});
-    LLMVariantSwitchTestAccess::set_prefill_compiled(
-        compiled,
-        std::make_shared<FakeSubCompiledModel>(prefill_model, m_plugin, ov::AnyMap{}));
-
-    LLMVariantSwitchTestAccess::set_kv_dim(compiled, 1u);
-    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled));
-
-    LLMVariantSwitchTestAccess::set_kv_dim(compiled, 2u);
-    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
 }
 
 }  // namespace

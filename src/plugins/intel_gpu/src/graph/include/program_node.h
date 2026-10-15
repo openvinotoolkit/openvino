@@ -553,20 +553,12 @@ public:
         return !get_fused_primitives().empty();
     }
 
-    layout get_fused_output_layout(size_t idx = 0) const {
+    layout get_fused_output_layout() const {
         auto fp = get_fused_primitives();
         if (fp.empty()) {
             return layout(data_types::f32, format::bfyx, tensor());
         }
-        return fp.back().output_layouts[idx];
-    }
-
-    std::vector<layout> get_fused_output_layouts() const {
-        auto fp = get_fused_primitives();
-        if (fp.empty()) {
-            return {layout(data_types::f32, format::bfyx, tensor())};
-	}
-        return fp.back().output_layouts;
+        return fp.back().output_layout;
     }
 
     bool need_lockable_memory() const;
@@ -617,7 +609,6 @@ public:
 
     bool can_use(impl_types impl_type) const;
     void select_preferred_formats(impl_types impl_type);
-    void set_num_outputs(size_t new_num_outputs);
 
 protected:
     size_t unique_id = 0;

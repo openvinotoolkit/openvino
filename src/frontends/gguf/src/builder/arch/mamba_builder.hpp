@@ -3,8 +3,8 @@
 //
 #pragma once
 
-#include "openvino/frontend/gguf/builder/model_builder.hpp"
+#include "openvino/frontend/gguf/extension/architecture.hpp"
 
 namespace ov::frontend::gguf {
-std::shared_ptr<ModelBuilder> make_mamba2_builder(const BuildContext& context);
+ArchitectureDefinition mamba2_architecture(const std::string& architecture);
 }  // namespace ov::frontend::gguf

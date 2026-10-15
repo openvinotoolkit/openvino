@@ -5,15 +5,12 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
-#include <cstring>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "compiled_model.hpp"
-#include "executor.hpp"
 #include "llm_compiled_model.hpp"
 #include "model_builder.hpp"
 #include "openvino/op/add.hpp"
@@ -23,9 +20,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
 #include "serialization.hpp"
 #include "weights_bank.hpp"
 
@@ -46,21 +41,6 @@ inline Config make_test_model_config() {
 inline std::shared_ptr<ov::Model> build_llm_test_model() {
     ModelBuilder mb;
     return mb.build_llm(make_test_model_config());
-}
-
-/// Phi-style LongRoPE LLM: the RoPE inverse frequencies are picked from
-/// max(position_ids) + 1 <= context_limit, so extract_longrope_context_limit() finds the
-/// limit and RopeCache rewrites the chain into the host-fed npuw_lr_cos / npuw_lr_sin
-/// model inputs. Compile it with NPUW_LLM_CACHE_ROPE=YES to get that rewrite.
-inline std::shared_ptr<ov::Model> build_longrope_llm_test_model(int64_t context_limit) {
-    auto cfg = make_test_model_config();
-    for (size_t i = 0; i < cfg.head_dim / 2; ++i) {
-        cfg.longrope.inv_freq_short.push_back(1.0f / std::pow(3.0f, static_cast<float>(i)));
-        cfg.longrope.inv_freq_long.push_back(0.6f / std::pow(3.4f, static_cast<float>(i)));
-    }
-    cfg.longrope.context_limit = context_limit;
-    ModelBuilder mb;
-    return mb.build_llm(cfg);
 }
 
 /// Build an LLM test model configured so that Attention::from() can unambiguously
@@ -375,60 +355,30 @@ public:
     }
 };
 
-class MockSubCompiledModel;
-
-// Minimal working sub-request used by MockSubCompiledModel. Allocates a backing
-// tensor for every input/output port so a real LLMInferRequest can be built on
-// top of models compiled through RecordingFactory and exercise runtime paths
-// (e.g. copy_kvcache) without a real device.
-class MockSubInferRequest final : public ov::ISyncInferRequest {
-public:
-    explicit MockSubInferRequest(std::shared_ptr<const MockSubCompiledModel> compiled_model);
-
-    void infer() override;
-    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
-        return ov::ISyncInferRequest::get_tensor(port);
-    }
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
-        ov::ISyncInferRequest::set_tensor(port, tensor);
-    }
-    void check_tensors() const override {}
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
-    }
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
-        return {};
-    }
-};
-
 class MockSubCompiledModel : public ov::npuw::ICompiledModel_v0 {
 public:
     MockSubCompiledModel(const std::shared_ptr<ov::Model>& model,
                          const std::shared_ptr<const ov::IPlugin>& plugin,
                          const ov::AnyMap&)
-        : ov::npuw::ICompiledModel_v0(model, plugin),
-          m_model(model) {}
+        : ov::npuw::ICompiledModel_v0(model, plugin) {}
 
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
-        return m_model;
+        return {};
     }
     void set_property(const ov::AnyMap&) override {}
     ov::Any get_property(const std::string&) const override {
         return {};
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        auto self = std::static_pointer_cast<const MockSubCompiledModel>(shared_from_this());
-        return std::make_shared<MockSubInferRequest>(std::move(self));
+        return {};
     }
     std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const override {
         return {};
     }
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
         std::shared_ptr<ov::npuw::IBaseInferRequest>) const override {
-        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(),
-                                                        ::intel_npu::make_executor("mock_sub_task", 1),
-                                                        ::intel_npu::make_executor("mock_sub_callback", 1));
+        return {};
     }
     std::string submodel_device(std::size_t) const override {
         return "CPU";
@@ -443,30 +393,7 @@ public:
     void finalize_weights_bank() override {}
     void reconstruct_closure() override {}
     void serialize(std::ostream&, const ov::npuw::s11n::CompiledContext&) const override {}
-
-private:
-    std::shared_ptr<ov::Model> m_model;
 };
-
-inline MockSubInferRequest::MockSubInferRequest(std::shared_ptr<const MockSubCompiledModel> compiled_model)
-    : ov::ISyncInferRequest(std::move(compiled_model)) {
-    for (const auto& input : get_compiled_model()->inputs()) {
-        ov::ISyncInferRequest::set_tensor(input,
-                                          ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
-    }
-    for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(
-            output,
-            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
-    }
-}
-
-inline void MockSubInferRequest::infer() {
-    for (const auto& output : get_compiled_model()->outputs()) {
-        auto tensor = ov::ISyncInferRequest::get_tensor(output);
-        std::memset(tensor->data(), 0, tensor->get_byte_size());
-    }
-}
 
 struct CompileCall {
     std::string friendly_name;

@@ -59,13 +59,13 @@ public:
     void fuseInto(const NodePtr& parentNode) override;
     ov::element::Type getRuntimePrecision() const override;
 
-    double getAlpha() const {
+    float getAlpha() const {
         return m_attrs.data.alpha;
     }
-    double getBeta() const {
+    float getBeta() const {
         return m_attrs.data.beta;
     }
-    double getGamma() const {
+    float getGamma() const {
         return m_attrs.data.gamma;
     }
     const std::vector<float>& getScales() const {

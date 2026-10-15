@@ -88,11 +88,6 @@ JitTerm isinf(const JitTerm& arg) {
     return jit_term;
 }
 
-JitTerm isnan(const JitTerm& arg) {
-    JitTerm jit_term{"(isnan(" + arg.str() + "))"};
-    return jit_term;
-}
-
 JitTerm exp(const JitTerm& arg) {
     JitTerm jit_term{"(exp(" + arg.str() + "))"};
     return jit_term;
@@ -415,35 +410,6 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                                                       dims_padded.u(),
                                                       dims_padded.v(),
                                                       dims_padded.f()})});
-        } else if (_tensor.GetLayout() == DataLayout::byxf) {
-            definitions.push_back({_name + "_FEATURE_PITCH", "1"});
-            definitions.push_back({_name + "_X_PITCH", dims_padded.f()});
-            definitions.push_back({_name + "_Y_PITCH", toVectorMulString({dims_padded.f(), dims_padded.x()})});
-            definitions.push_back(
-                {_name + "_Z_PITCH", toVectorMulString({dims_padded.f(), dims_padded.x(), dims_padded.y()})});
-            definitions.push_back(
-                {_name + "_W_PITCH",
-                 toVectorMulString({dims_padded.f(), dims_padded.x(), dims_padded.y(), dims_padded.z()})});
-            definitions.push_back(
-                {_name + "_U_PITCH",
-                 toVectorMulString(
-                     {dims_padded.f(), dims_padded.x(), dims_padded.y(), dims_padded.z(), dims_padded.w()})});
-            definitions.push_back(
-                {_name + "_V_PITCH",
-                 toVectorMulString({dims_padded.f(),
-                                    dims_padded.x(),
-                                    dims_padded.y(),
-                                    dims_padded.z(),
-                                    dims_padded.w(),
-                                    dims_padded.u()})});
-            definitions.push_back({_name + "_BATCH_PITCH",
-                                   toVectorMulString({dims_padded.f(),
-                                                      dims_padded.x(),
-                                                      dims_padded.y(),
-                                                      dims_padded.z(),
-                                                      dims_padded.w(),
-                                                      dims_padded.u(),
-                                                      dims_padded.v()})});
         } else {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
@@ -1210,17 +1176,12 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         case ActivationFunction::RELU_NEGATIVE_SLOPE: {
             const JitTerm slope = disable_type_conversion ? "m"_jit : to_type("m"_jit);
-            // OpenCL fmax/fmin return the non-NaN operand, so the naive
-            // fmax(x, 0) + slope * fmin(x, 0) form silently turns a NaN input
-            // into zero. Select on the input explicitly to keep NaN propagating.
-            // A ternary is used for the NaN branch instead of select(): select()
-            // requires the condition to be a signed integer of the same width as
-            // the operands (short for half), while isnan() returns int, so f16
-            // kernels do not compile with select().
-            const JitTerm prelu_body = ternary(isinf(slope),
-                                               ternary(input.ge(zero), input, neg(slope)),
-                                               max_func(input, zero) + (slope * min_func(input, zero)));
-            jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(isnan(input), input, prelu_body).str()));
+            jitConstants.AddConstant(MakeJitConstant(
+                macro_def,
+                ternary(isinf(slope),
+                        ternary(input.ge(zero), input, neg(slope)),
+                        max_func(input, zero) + (slope * min_func(input, zero)))
+                    .str()));
             break;
         }
         case ActivationFunction::ELU: {
@@ -1362,8 +1323,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            const auto threshold = (out_dt == Datatype::F32) ? "20.0f"_jit : "11.0h"_jit;
-            jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input).str()));
+            // Numerically stable softplus: max(x, 0) + log(1 + exp(-|x|)).
+            // Mathematically equivalent to log(1 + exp(x)) for all x, but
+            // exp(-|x|) is in [0, 1] so it never overflows even at the
+            // float16 limit (~65504). Uses only type-dispatched helpers and
+            // vector-generic builtins, so it compiles for both the scalar ref
+            // kernel and the vectorised opt kernel without width-specific
+            // type conversions.
+            jitConstants.AddConstant(MakeJitConstant(macro_def,
+                    (max_func(input, zero) + log(one + exp(neg(abs_func(input))))).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
@@ -1981,9 +1949,7 @@ JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsCo
         jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id]));
     }
     // Use shape_ids from output tensor as won't support fused ops which changes out shape for now
-    for (size_t i = 0; i < desc.output_tensors.size(); ++i) {
-        jit.AddConstant(MakeJitConstant(GetOutputTensorName(i), desc.output_tensors[i]));
-    }
+    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), desc.output_tensor));
     return jit;
 }
 
@@ -2062,11 +2028,21 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     std::vector<std::string> input_vars;
 
-	out_var = GetOutputVarName(in_var, desc.op_id);
+    out_var = GetOutputVarName(in_var, desc.op_id);
+    const auto& out_type = desc.output_tensor.GetDType();
 
     if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE &&
         desc.GetType() == KernelType::QUANTIZE) {
         is_shuffled = true;
+    }
+
+    std::vector<std::string> in_vars_converted;
+    for (size_t i = 0; i < desc.tensors.size(); i++) {
+        auto in_name = GetInputVarName(i, is_shuffled, shuffle_var);
+        if (desc.tensors[0].GetDType() != desc.output_tensor.GetDType()) {
+            in_name = ConvertToOutputType(in_name, vec_size);
+        }
+        in_vars_converted.push_back(in_name);
     }
 
     if (desc.GetType() == KernelType::ELTWISE) {
@@ -2080,10 +2056,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     }
 
     auto get_acc_t = [&]() -> Datatype {
-        std::vector<Datatype> input_types;
-        for (const auto& output_tensor : desc.output_tensors) {
-            input_types.push_back(output_tensor.GetDType());
-        }
+        std::vector<Datatype> input_types = {desc.output_tensor.GetDType()};
         for (const auto& dep : dep_data) {
             input_types.push_back(dep.data_type);
         }
@@ -2206,8 +2179,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                     op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
 
                 // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-                OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-                bool output_type_is_int8 = desc.output_tensors[0].GetDType() == Datatype::UINT8 || desc.output_tensors[0].GetDType() == Datatype::INT8;
+                bool output_type_is_int8 = desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8;
                 if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
                     op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
 
@@ -2264,8 +2236,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                     op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
 
                 // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-                OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-                bool output_type_is_int8 = desc.output_tensors[0].GetDType() == Datatype::UINT8 || desc.output_tensors[0].GetDType() == Datatype::INT8;
+                bool output_type_is_int8 = desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8;
                 if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
                     op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
 
@@ -2282,8 +2253,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 break;
         }
         case KernelType::ACTIVATION: {
-            OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-            const auto& out_type = desc.output_tensors[0].GetDType();
             auto p = desc.GetOpParams<activation_fuse_params>();
             base_activation_params activation_p = p->param;
             std::string new_in_var = (first_fused_ops_idx < 0) ? in_var : GetOutputVarName(in_var, dep_data[first_fused_ops_idx].op_id);
@@ -2344,8 +2313,8 @@ std::string GetTensorHasMultipleElementsCondition(const std::string& tensor_name
            tensor_name + "_FEATURE_NUM > 1 || " + tensor_name + "_BATCH_NUM > 1";
 }
 
-std::string FusedOpsCodeGenerator::GetOutputTensorName(size_t idx) const {
-    return "FUSED_OP_" + toCodeString(desc.op_id) + "_OUTPUT" + toCodeString(idx);
+std::string FusedOpsCodeGenerator::GetOutputTensorName() const {
+    return "FUSED_OP_" + toCodeString(desc.op_id) + "_OUTPUT";
 }
 
 std::string FusedOpsCodeGenerator::GetInputTypeName(size_t input_id, size_t vec_size) const {
@@ -2530,8 +2499,8 @@ std::string FusedOpsCodeGenerator::GetType(Datatype dt, size_t vec_size) const {
     return toCLType(dt);
 }
 
-std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size, size_t idx) const {
-    return GetType(desc.output_tensors[idx].GetDType(), vec_size);
+std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size) const {
+    return GetType(desc.output_tensor.GetDType(), vec_size);
 }
 
 std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, size_t vec_size) const {
@@ -2544,8 +2513,8 @@ std::string FusedOpsCodeGenerator::CastToType(std::string var, Datatype dt, size
     return "as_" + GetType(dt, vec_size) + "(" + var + ")";
 }
 
-std::string FusedOpsCodeGenerator::ConvertToOutputType(std::string var, size_t vec_size, size_t idx) const {
-    return ConvertToType(var, desc.output_tensors[idx].GetDType(), vec_size);
+std::string FusedOpsCodeGenerator::ConvertToOutputType(std::string var, size_t vec_size) const {
+    return ConvertToType(var, desc.output_tensor.GetDType(), vec_size);
 }
 
 std::string FusedOpsCodeGenerator::DecodeComputeType(std::string var, Datatype dt, size_t vec_size) const {
@@ -2558,10 +2527,10 @@ std::string FusedOpsCodeGenerator::Broadcast(std::string var, Datatype dt, size_
     return "(" + GetType(dt, vec_size) + ")(" + var + ")";
 }
 
-std::string FusedOpsCodeGenerator::ConvertToOutputTypeSat(std::string var, size_t vec_size, size_t idx) const {
-    if (desc.output_tensors[idx].GetDType() == Datatype::F32 || desc.output_tensors[idx].GetDType() == Datatype::F16 || desc.output_tensors[idx].GetDType() == Datatype::BF16)
-        return ConvertToOutputType(var, vec_size, idx);
-    return "convert_" + GetOutputType(vec_size, idx) + "_sat_rte(" + var + ")";
+std::string FusedOpsCodeGenerator::ConvertToOutputTypeSat(std::string var, size_t vec_size) const {
+    if (desc.output_tensor.GetDType() == Datatype::F32 || desc.output_tensor.GetDType() == Datatype::F16 || desc.output_tensor.GetDType() == Datatype::BF16)
+        return ConvertToOutputType(var, vec_size);
+    return "convert_" + GetOutputType(vec_size) + "_sat_rte(" + var + ")";
 }
 
 std::vector<size_t> FusedOpsCodeGenerator::GetRequiredInputs() const {

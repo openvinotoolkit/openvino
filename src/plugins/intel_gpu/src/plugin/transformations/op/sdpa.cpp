@@ -19,8 +19,7 @@ SDPA::SDPA(const OutputVector& inputs,
            const std::vector<int64_t>& order_v,
            const std::vector<int64_t>& order_out,
            const ov::element::Type output_type,
-           const ov::intel_gpu::op::SDPA::CausalMaskAlignment causal_mask_alignment,
-           int64_t sliding_window_size)
+           const ov::intel_gpu::op::SDPA::CausalMaskAlignment causal_mask_alignment)
     : m_is_causal(is_causal)
     , m_order_q(order_q)
     , m_order_k(order_k)
@@ -28,10 +27,7 @@ SDPA::SDPA(const OutputVector& inputs,
     , m_order_out(order_out)
     , m_output_type(output_type)
     , m_causal_mask_alignment(causal_mask_alignment)
-    , m_compressed(false)
-    , m_sliding_window_size(sliding_window_size) {
-    OPENVINO_ASSERT(sliding_window_size >= 0,
-                    "SDPA sliding_window_size must be >= 0 (0 disables SWA); got ", sliding_window_size);
+    , m_compressed(false) {
     set_arguments(inputs);
     set_causal(is_causal);
     validate_and_infer_types();
@@ -45,8 +41,7 @@ SDPA::SDPA(const OutputVector& inputs,
            const std::vector<int64_t>& order_out,
            const QuantizationAttribute& quantization_attrs,
            const ov::element::Type output_type,
-           const ov::intel_gpu::op::SDPA::CausalMaskAlignment causal_mask_alignment,
-           int64_t sliding_window_size)
+           const ov::intel_gpu::op::SDPA::CausalMaskAlignment causal_mask_alignment)
     : m_is_causal(is_causal)
     , m_order_q(order_q)
     , m_order_k(order_k)
@@ -55,10 +50,7 @@ SDPA::SDPA(const OutputVector& inputs,
     , m_output_type(output_type)
     , m_causal_mask_alignment(causal_mask_alignment)
     , m_compressed(true)
-    , m_quantization_attrs(quantization_attrs)
-    , m_sliding_window_size(sliding_window_size) {
-    OPENVINO_ASSERT(sliding_window_size >= 0,
-                    "SDPA sliding_window_size must be >= 0 (0 disables SWA); got ", sliding_window_size);
+    , m_quantization_attrs(quantization_attrs) {
     set_arguments(inputs);
     set_causal(is_causal);
     validate_and_infer_types();
@@ -76,8 +68,7 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
                                       m_order_out,
                                       m_quantization_attrs,
                                       m_output_type,
-                                      m_causal_mask_alignment,
-                                      m_sliding_window_size);
+                                      m_causal_mask_alignment);
     }
 
     return std::make_shared<SDPA>(new_args,
@@ -87,14 +78,7 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
                                   m_order_v,
                                   m_order_out,
                                   m_output_type,
-                                  m_causal_mask_alignment,
-                                  m_sliding_window_size);
-}
-
-void SDPA::set_sliding_window_size(int64_t v) {
-    OPENVINO_ASSERT(v >= 0,
-                    "SDPA sliding_window_size must be >= 0 (0 disables SWA); got ", v);
-    m_sliding_window_size = v;
+                                  m_causal_mask_alignment);
 }
 
 void SDPA::validate_and_infer_types() {
@@ -133,7 +117,6 @@ bool SDPA::visit_attributes(ov::AttributeVisitor &visitor) {
     bool causal_lower_right = m_causal_mask_alignment == CausalMaskAlignment::LOWER_RIGHT;
     visitor.on_attribute("causal_lower_right", causal_lower_right);
     m_causal_mask_alignment = causal_lower_right ? CausalMaskAlignment::LOWER_RIGHT : CausalMaskAlignment::UPPER_LEFT;
-    visitor.on_attribute("sliding_window_size", m_sliding_window_size);
     return true;
 }
 
@@ -180,8 +163,7 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
                                   ((shape_q_t.size() == shape_k_t.size()) && (shape_q_t.size() == shape_v_t.size()));
     if (is_broadcastable) {
         size_t max_rank = shape_q_t.size() -1;
-        // Skip the batch dim (i = 0): it is numpy-broadcast by the core shape inference.
-        for (size_t i = 1; i < max_rank; ++i) {
+        for (size_t i = 0; i < max_rank; ++i) {
             if (shape_q_t[i].is_static() && shape_k_t[i].is_static()) {
                 auto broadcasted_dim = shape_q_t[i].get_length();
                 shape_k_t[i] = broadcasted_dim;
@@ -195,16 +177,6 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     }
 
     std::vector<ov::PartialShape> transposed_input_shapes{ shape_q_t, shape_k_t, shape_v_t };
-
-    // INT4 KV data is stored as packed bytes, so its physical head dimension
-    // is half the logical dimension used by SDPA shape inference.
-    if (op->get_kv_compressed() && ov::element::Type(op->get_quantization_attrs().quantization_dt).bitwidth() == 4) {
-        shape_k_t[shape_k_t.rank().get_length() - 1] *= 2;
-        shape_v_t[shape_v_t.rank().get_length() - 1] *= 2;
-        transposed_input_shapes[1] = shape_k_t;
-        transposed_input_shapes[2] = shape_v_t;
-    }
-
     for (size_t i = 3; i < transposed_input_shapes.size(); i++) {
         transposed_input_shapes.push_back(input_shapes[i]);
     }

@@ -657,7 +657,6 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
                     p.get_or_create(new_input.first).recalc_output_layouts(true);
-                    conv_node.recalc_output_layouts();
                 }
             }
 

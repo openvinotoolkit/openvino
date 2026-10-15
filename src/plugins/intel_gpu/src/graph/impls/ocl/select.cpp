@@ -105,7 +105,6 @@ attach_select_impl::attach_select_impl() {
 
     auto dyn_formats = {
         format::bfyx,
-        format::byxf,
         format::bfzyx,
     };
 

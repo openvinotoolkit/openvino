@@ -246,6 +246,7 @@ set(OPSET_CONVERSIONS_SOURCES
 )
 
 set(PAGED_ATTENTION_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/attention_mask_shape_replacer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.cpp
@@ -287,7 +288,6 @@ set(SMART_RESHAPE_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/proposal_scales_stridedslice.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_sinking.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_to_1D.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/restore_traced_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/shape_of_const_folding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/smart_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/strided_slice_squeeze.cpp

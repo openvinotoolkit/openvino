@@ -929,12 +929,6 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
-        // An output-less partition is already marked as optimized out by identifySubgraphs().
-        // Do not turn it into a function call.
-        if (part_sg._optimized_out) {
-            LOG_VERB("Skipping optimized-out subgraph in function pipeline");
-            continue;
-        }
         if (!part_sg._repeated_id.empty() &&
             (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
@@ -1541,6 +1535,11 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         }
         return false;
     };
+    // Helper to check if a constant is MoE Gather indices (marked by GatherTo2DGather pass)
+    auto is_moe_gather_const = [](const CTPtr& const_node) -> bool {
+        const auto& rt_info = const_node->get_rt_info();
+        return rt_info.count("npuw_moe_gather_indices") > 0;
+    };
 
     auto check_and_mark = [&](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
         std::unordered_set<CTPtr> instances;
@@ -1554,8 +1553,9 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_BLOCK();
 
         bool is_tiny = ov::npuw::partitioning::traits::is_tiny_shape(proto_shape);
-        if (!is_tiny) {
-            LOG_DEBUG("[CUT ] Not tiny shape - will be cut-off from the function");
+        bool is_moe_gather = is_moe_gather_const(proto_node);
+        if (!is_tiny && !is_moe_gather) {
+            LOG_DEBUG("[CUT ] Not tiny shape and not MoE Gather indices - will be cut-off from the function");
             return;
         }
 
@@ -1574,7 +1574,11 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             return;
         }
 
-        LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
+        if (is_moe_gather) {
+            LOG_DEBUG("[KEEP] MoE Gather indices constant - identical across all repeats");
+        } else {
+            LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
+        }
         for (auto&& const_node : instances) {
             func_group.consts_to_keep.insert(const_node);
         }
@@ -1619,8 +1623,7 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     std::vector<CPtr> to_keep;
 
-    // Before closure extraction, every Parameter is a function input.
-    ov::npuw::patterns::opt::Context ctx(model_group.front(), model_group.front()->get_parameters().size());
+    ov::npuw::patterns::opt::Context ctx;
     ctx.mm_gate = cfg.get<::intel_npu::NPUW_MM_GATED>();
 
     ov::pass::GraphRewrite rewr;
@@ -2159,7 +2162,6 @@ void Partitioner::optimize(const std::string& func_name) {
     auto do_permute = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_permute) {
             auto param_idx = f._model->get_parameter_index(p.first);
-            NPUW_ASSERT(param_idx >= static_cast<int64_t>(f._param_offset));
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
@@ -2170,7 +2172,7 @@ void Partitioner::optimize(const std::string& func_name) {
     auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_f16) {
             auto param_idx = f._model->get_parameter_index(p);
-            NPUW_ASSERT(param_idx >= static_cast<int64_t>(f._param_offset));
+            NPUW_ASSERT(param_idx != -1);
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
@@ -2181,7 +2183,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Regardless of DQ setting, run this first
     {
-        ov::npuw::patterns::opt::Context ctx(f._model, f._param_offset);
+        ov::npuw::patterns::opt::Context ctx;
         ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
@@ -2236,7 +2238,6 @@ void Partitioner::optimize(const std::string& func_name) {
             std::vector<std::size_t> to_concat_idx;
             for (auto&& p_to_concat : params_to_concat) {
                 auto p_to_concat_idx = f._model->get_parameter_index(p_to_concat);
-                NPUW_ASSERT(p_to_concat_idx >= static_cast<int64_t>(f._param_offset));
                 to_remove.push_back(p_to_concat);
                 to_concat_idx.push_back(p_to_concat_idx - f._param_offset);
                 to_remove_idx.insert(p_to_concat_idx);
@@ -2263,7 +2264,6 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& p : ctx.params_to_nf4_gather) {
             const auto& tensor_to_gather = p.second;
             auto w_idx = f._model->get_parameter_index(tensor_to_gather.w);
-            NPUW_ASSERT(w_idx >= static_cast<int64_t>(f._param_offset));
 
             // Need to add a new parameter right away, since it's going to be processed by the unpack below
             f._model->add_parameters({p.first});
@@ -2291,9 +2291,6 @@ void Partitioner::optimize(const std::string& func_name) {
             auto w_idx = f._model->get_parameter_index(tensor_to_unpack.w);
             auto z_idx = f._model->get_parameter_index(tensor_to_unpack.z);
             auto s_idx = f._model->get_parameter_index(tensor_to_unpack.s);
-            NPUW_ASSERT(w_idx >= static_cast<int64_t>(f._param_offset));
-            NPUW_ASSERT(s_idx >= static_cast<int64_t>(f._param_offset));
-            NPUW_ASSERT(z_idx == -1 || z_idx >= static_cast<int64_t>(f._param_offset));
 
             new_params.push_back(p.first);
             to_remove.push_back(tensor_to_unpack.w);
@@ -2475,7 +2472,7 @@ void Partitioner::optimize(const std::string& func_name) {
     LOG_BLOCK();
 
     // Run "dynamic quantization"
-    ov::npuw::patterns::opt::Context ctx(f._model, f._param_offset);
+    ov::npuw::patterns::opt::Context ctx;
     ctx.is_spatial = f._spatial.has_value();
     ctx.mm_dq_full = cfg.get<::intel_npu::NPUW_DQ_FULL>();
 

@@ -154,9 +154,6 @@ Output<Node> try_constfold(const Output<Node>& x);
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
-/// \brief Rounds toward zero, keeping infinities and NaN. Integer inputs are returned unchanged.
-Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x);
-
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
 
 Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx);
@@ -228,9 +225,6 @@ std::pair<Output<Node>, Output<Node>> build_multi_head_attention(const NodeConte
                                                                  bool average_weights);
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
-
-// Decomposition of aten::meshgrid, indexing must be "ij" or "xy".
-OutputVector build_meshgrid(ov::pass::NodeRegistry& rg, OutputVector inputs, const std::string& indexing);
 
 bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const Output<Node>& data,

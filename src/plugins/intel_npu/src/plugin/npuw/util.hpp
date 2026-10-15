@@ -8,13 +8,11 @@
 #include <optional>
 #include <random>
 #include <string>
-#include <unordered_set>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -37,9 +35,6 @@ ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
 ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
-
-// Names of all RW entries of an ov::supported_properties list (of a compiled model or a plugin)
-std::unordered_set<std::string> mutable_properties(const std::vector<ov::PropertyName>& supported_properties);
 
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
 // matches a "position_ids" input of a supported shape - flat [seq_len], regular
@@ -362,17 +357,6 @@ inline std::optional<int> isPastKeyValuesValue(const std::string& str) {
 
 std::optional<int> isPresentKeyValuesKey(const std::string& str);
 std::optional<int> isPresentKeyValuesValue(const std::string& str);
-bool isKVCacheName(const std::string& str);
-
-namespace constants {
-inline constexpr const char* past_key_values = "past_key_values";
-inline constexpr const char* present = "present";
-}  // namespace constants
-
-std::string present_to_past_key_values_name(const std::string& output_name);
-std::string past_key_values_to_present_name(const std::string& input_name);
-std::optional<std::string> resolveKVInputName(const std::string& output_name,
-                                              const std::function<bool(const std::string&)>& has_input_name);
 
 // Matches any past key param: contiguous (past_key_values.N.key) or block-split (key_block_M).
 bool isPastKeyParam(const std::string& str);

@@ -51,7 +51,7 @@ or start a GitHub
 Additional Resources
 ######################
 
-* `OpenVINO™ Notebooks - Github Repository README <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md>`_
+* `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md>`_
 * `Binder documentation <https://mybinder.readthedocs.io/en/latest/>`_
 * `Google Colab <https://colab.research.google.com/>`__
 

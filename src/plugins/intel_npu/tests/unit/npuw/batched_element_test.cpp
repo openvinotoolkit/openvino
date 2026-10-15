@@ -695,9 +695,8 @@ TEST(NPUWBatchedElementRoundTrip, ExportImportRebuildsTheWrapAndStacks) {
     std::filesystem::create_directories(tmp);
     const auto xml = tmp / "model.xml";
     const auto bin = tmp / "model.bin";
-    auto model = build_llm_test_model();
-    ov::serialize(model, xml.string(), bin.string());
-    model = core.read_model(xml.string(), bin.string());
+    ov::serialize(build_llm_test_model(), xml.string(), bin.string());
+    auto model = core.read_model(xml.string());
     // The online partitioner's repeated-block detection does not cope with the
     // synthetic model, so the sub-models are compiled whole on CPU.
     const ov::AnyMap props = {{"NPU_USE_NPUW", "YES"},

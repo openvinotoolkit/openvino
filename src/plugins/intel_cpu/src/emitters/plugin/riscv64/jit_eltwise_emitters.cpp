@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "common/utils.hpp"
-#include "emitters/plugin/riscv64/jit_context_helpers.hpp"
 #include "emitters/plugin/riscv64/jit_conversion_helpers.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
@@ -30,7 +29,6 @@
 #include "openvino/op/relu.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
-#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
@@ -225,10 +223,6 @@ size_t jit_ceil_emitter::get_inputs_num() const {
     return 1;
 }
 
-size_t jit_ceil_emitter::aux_vecs_count() const {
-    return 1;
-}
-
 size_t jit_ceil_emitter::aux_fp_gprs_count() const {
     return 1;
 }
@@ -244,8 +238,6 @@ void jit_ceil_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 
 void jit_ceil_emitter::register_table_entries() {
     push_arg_entry_of("one", 0x3f800000);
-    // RVV has no FP round-to-integer instruction, so this limit bounds the int32 round-trip.
-    push_arg_entry_of("int32_limit", 0x4f000000);
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -254,18 +246,12 @@ void jit_ceil_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto original = VReg(aux_vec_idxs[0]);
     auto fp1 = FReg(aux_fp_gpr_idxs[0]);
 
-    h->vmv_v_v(original, src);
-    h->vfsgnjx_vv(dst, original, original);
-    load_table_val("int32_limit", fp1);
-    h->vmflt_vf(mask_vreg(), dst, fp1);
-    h->vmv_v_v(dst, original);
-    h->vfcvt_x_f_v(dst, original, VM::masked);
-    h->vfcvt_f_x_v(dst, dst, VM::masked);
+    h->vfcvt_x_f_v(dst, src);
+    h->vfcvt_f_x_v(dst, dst);
 
-    h->vmflt_vv(mask_vreg(), dst, original);
+    h->vmflt_vv(mask_vreg(), dst, src);
     load_table_val("one", fp1);
     h->vfadd_vf(dst, dst, fp1, VM::masked);
 }
@@ -946,8 +932,6 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 void jit_floor_emitter::register_table_entries() {
     push_arg_entry_of("neg_one", 0xbf800000);
-    // RVV has no FP round-to-integer instruction, so this limit bounds the int32 round-trip.
-    push_arg_entry_of("int32_limit", 0x4f000000);
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -957,18 +941,14 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto original = VReg(aux_vec_idxs[0]);
+    auto aux1 = VReg(aux_vec_idxs[0]);
     auto fp1 = FReg(aux_fp_gpr_idxs[0]);
 
-    h->vmv_v_v(original, src);
-    h->vfsgnjx_vv(dst, original, original);
-    load_table_val("int32_limit", fp1);
-    h->vmflt_vf(mask_vreg(), dst, fp1);
-    h->vmv_v_v(dst, original);
-    h->vfcvt_x_f_v(dst, original, VM::masked);
-    h->vfcvt_f_x_v(dst, dst, VM::masked);
+    h->vmv_v_v(aux1, src);
+    h->vfcvt_x_f_v(dst, src);
+    h->vfcvt_f_x_v(dst, dst);
 
-    h->vmfgt_vv(mask_vreg(), dst, original);
+    h->vmfgt_vv(mask_vreg(), dst, aux1);
     load_table_val("neg_one", fp1);
     h->vfadd_vf(dst, dst, fp1, VM::masked);
 }
@@ -1776,103 +1756,6 @@ void jit_hswish_emitter::emit_data() const {
     hsigmoid_emitter->emit_data();
     jit_emitter::emit_data();
 }
-
-// SWISH
-jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
-                                     float alpha,
-                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                     ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc),
-      alpha_(alpha) {
-    prepare_table();
-    sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc);
-    push_arg_entry_of("swish_alpha", dnnl::impl::float2int(alpha_));
-}
-
-jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
-                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                     const std::shared_ptr<ov::Node>& node,
-                                     ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
-    const auto swish = ov::as_type_ptr<SwishNode>(node);
-    if (swish == nullptr) {
-        OV_CPU_JIT_EMITTER_THROW("Can't cast to SwishNode");
-    }
-    alpha_ = swish->get_alpha();
-    prepare_table();
-    sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc);
-}
-
-jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
-                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                     ov::element::Type exec_prc)
-    : jit_swish_emitter(host, 1.0F, host_isa, exec_prc) {}
-
-size_t jit_swish_emitter::get_inputs_num() const {
-    return 1;
-}
-
-size_t jit_swish_emitter::aux_gprs_count() const {
-    return sigmoid_emitter->aux_gprs_count();
-}
-
-size_t jit_swish_emitter::aux_vecs_count() const {
-    return sigmoid_emitter->aux_vecs_count() + 1;
-}
-
-size_t jit_swish_emitter::aux_fp_gprs_count() const {
-    return sigmoid_emitter->aux_fp_gprs_count();
-}
-void jit_swish_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                  const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
-    }
-}
-template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                                 const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
-
-    auto src = VReg(in_vec_idxs[0]);
-    auto dst = VReg(out_vec_idxs[0]);
-    // we take the last auxiliary vector to save x
-    auto aux_save = VReg(aux_vec_idxs.back());
-    // saving the original value of x
-    h->vmv_v_v(aux_save, src);  // aux_save = src
-    // load alpha and multiply src = alpha * x
-    auto alpha_reg = FReg(aux_fp_gpr_idxs[0]);
-    load_table_val("swish_alpha", alpha_reg);
-    h->vfmul_vf(src, src, alpha_reg);
-    // we call the sigmoid emitter, which puts the result in dst
-    // we pass all auxiliary registers to it, except the last one
-    std::vector<size_t> sigmoid_aux_vec_idxs(aux_vec_idxs.begin(),
-                                             aux_vec_idxs.begin() + sigmoid_emitter->aux_vecs_count());
-    // call sigmoid
-    sigmoid_emitter->emit_code({static_cast<size_t>(src.getIdx())},
-                               {static_cast<size_t>(dst.getIdx())},
-                               {sigmoid_aux_vec_idxs},
-                               aux_gpr_idxs,
-                               aux_fp_gpr_idxs);
-
-    h->vfmul_vv(dst, dst, aux_save);  // dst = x * sigmoid(x)
-}
-std::set<std::vector<element::Type>> jit_swish_emitter::get_supported_precisions(
-    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
-}
-
-void jit_swish_emitter::register_table_entries() {
-    push_arg_entry_of("swish_alpha", dnnl::impl::float2int(alpha_));
-}
-
-void jit_swish_emitter::emit_data() const {
-    sigmoid_emitter->emit_data();
-    jit_emitter::emit_data();
-}
-
 // LESS ///
 jit_less_emitter::jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
@@ -3139,17 +3022,14 @@ size_t jit_power_static_emitter::get_inputs_num() const {
 }
 
 size_t jit_power_static_emitter::aux_gprs_count() const {
-    if (power == 0 || is_scale_shift()) {
+    if ((power == 0) || is_scale_shift() || (!is_sqrt() && !is_int_pow())) {
         return 2;
-    }
-    if (!is_sqrt() && !is_int_pow()) {
-        return 3;
     }
     return 1;
 }
 
 bool jit_power_static_emitter::is_lmul_supported() const {
-    return jit_emitter::is_lmul_supported();
+    return jit_emitter::is_lmul_supported() && (is_int_pow() || is_sqrt());
 }
 
 size_t jit_power_static_emitter::aux_vecs_count() const {
@@ -3239,94 +3119,33 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         Reg func_reg(aux_gpr_idxs[0]);
         h->uni_li(func_reg, pow_f32_addr);
 
-        std::vector<size_t> exclude_vec_regs;
-        exclude_vec_regs.reserve(get_max_vecs_count());
-        for (size_t idx = 0; idx < get_max_vecs_count(); ++idx) {
-            exclude_vec_regs.push_back(idx);
+        // Before binary call we have to save caller-saver registers:
+        // - all caller-saver general-purpose regs + func_reg (if it's caller-saver)
+        // - all caller-saver fp general-purpose regs except aux registers
+        // - all vector registers except aux, src and dst registers
+        auto exclude_vec_regs = aux_vec_idxs;
+        aux_vec_idxs.push_back(src.getIdx());
+        aux_vec_idxs.push_back(dst.getIdx());
+        call_preamble({}, aux_fp_gpr_idxs, aux_vec_idxs);
+
+        const auto sp_size = rnd_up(get_vec_length(), 16);
+        h->addi(sp, sp, -sp_size);
+        h->vse32_v(dst, sp);
+
+        // TODO: Support any LMUL here (via vl from csr + labels)
+        for (size_t i = 0; i < get_vec_length(); i += sizeof(float)) {
+            h->flw(fa0, sp, i);
+            load_table_val("power", fa1);
+
+            h->jalr(ra, func_reg);
+
+            h->fsw(fa0, sp, i);
         }
-        // The active LMUL cannot be used to save individual physical registers safely.
-        call_preamble({}, aux_fp_gpr_idxs, exclude_vec_regs);
 
-        const auto vector_state_bytes = 2 * get_gpr_length();
-        const auto vector_regs_offset = vector_state_bytes + 2 * get_gpr_length();
-        const auto vector_regs_count = get_max_vecs_count();
-        const auto scalar_buffer_offset = vector_regs_offset + vector_regs_count * get_vec_length();
-        const auto scalar_buffer_size = 8 * get_vec_length();
-        const auto loop_counter_offset = scalar_buffer_offset + scalar_buffer_size;
-        const auto loop_pointer_offset = loop_counter_offset + get_gpr_length();
-        const auto frame_size = rnd_up(loop_pointer_offset + get_gpr_length(), sp_alignment);
+        h->vle32_v(dst, sp);
+        h->addi(sp, sp, sp_size);
 
-        utils::sub_sp(*h, frame_size);
-        utils::save_vector_state(*h, t0, t1, 0, get_gpr_length());
-        h->sd(func_reg, sp, static_cast<int32_t>(vector_state_bytes));
-        h->sd(p_table, sp, static_cast<int32_t>(vector_state_bytes + get_gpr_length()));
-
-        std::vector<size_t> vector_regs;
-        vector_regs.reserve(vector_regs_count);
-        for (size_t idx = 0; idx < vector_regs_count; ++idx) {
-            vector_regs.push_back(idx);
-        }
-        utils::save_vregs(*h, t0, t1, vector_regs_offset, vector_regs);
-        utils::restore_vector_state(*h, t0, t1, 0, get_gpr_length());
-
-        Reg vl_reg(aux_gpr_idxs[1]);
-        h->uni_li(t0, scalar_buffer_offset);
-        h->add(t0, sp, t0);
-        h->vse32_v(dst, t0);
-
-        h->uni_li(t0, loop_counter_offset);
-        h->add(t0, sp, t0);
-        h->ld(vl_reg, sp, 0);
-        h->sd(vl_reg, t0, 0);
-
-        h->uni_li(t0, loop_pointer_offset);
-        h->add(t0, sp, t0);
-        h->uni_li(t1, scalar_buffer_offset);
-        h->add(t1, sp, t1);
-        h->sd(t1, t0, 0);
-
-        Xbyak_riscv::Label pow_loop;
-        Xbyak_riscv::Label pow_done;
-        h->L(pow_loop);
-
-        h->uni_li(t0, loop_counter_offset);
-        h->add(t0, sp, t0);
-        h->ld(vl_reg, t0, 0);
-        h->blez(vl_reg, pow_done);
-
-        h->uni_li(t0, loop_pointer_offset);
-        h->add(t0, sp, t0);
-        h->ld(t1, t0, 0);
-        h->flw(fa0, t1, 0);
-        h->ld(func_reg, sp, static_cast<int32_t>(vector_state_bytes));
-        h->ld(p_table, sp, static_cast<int32_t>(vector_state_bytes + get_gpr_length()));
-        load_table_val("power", fa1);
-
-        h->jalr(ra, func_reg);
-
-        h->uni_li(t0, loop_pointer_offset);
-        h->add(t0, sp, t0);
-        h->ld(t1, t0, 0);
-        h->fsw(fa0, t1, 0);
-        h->addi(t1, t1, sizeof(float));
-        h->sd(t1, t0, 0);
-
-        h->uni_li(t0, loop_counter_offset);
-        h->add(t0, sp, t0);
-        h->ld(vl_reg, t0, 0);
-        h->addi(vl_reg, vl_reg, -1);
-        h->sd(vl_reg, t0, 0);
-        h->jal(Xbyak_riscv::zero, pow_loop);
-        h->L(pow_done);
-
-        utils::restore_vregs(*h, t0, t1, vector_regs_offset, vector_regs);
-        utils::restore_vector_state(*h, t0, t1, 0, get_gpr_length());
-        h->uni_li(t0, scalar_buffer_offset);
-        h->add(t0, sp, t0);
-        h->vle32_v(dst, t0);
-        utils::add_sp(*h, frame_size);
-
-        call_postamble({}, aux_fp_gpr_idxs, exclude_vec_regs);
+        call_postamble({}, aux_fp_gpr_idxs, aux_vec_idxs);
     }
 }
 

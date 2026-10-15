@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
@@ -17,7 +16,6 @@ namespace npuw {
 struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMContinuedPrefillTestAccess;
-struct LLMLongRopeModeTestAccess;
 struct LLMSwaCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
@@ -87,7 +85,7 @@ public:
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
 
-protected:
+private:
     friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
@@ -98,7 +96,6 @@ protected:
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
-    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
@@ -114,12 +111,6 @@ protected:
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
-
-    // Trust-boundary check for imported blobs: KVCacheDesc::dim and the V-transposed flags are read
-    // from the stream and select the axis used to subscript shape vectors in the KV-slice helpers.
-    // Reject them unless that axis is valid for every KV input/output of the restored prefill and
-    // generate models.
-    void validate_imported_kvcache_dim() const;
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
@@ -138,10 +129,6 @@ protected:
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
-
-    // Each stage serializes only its own update, so set_property() holds this for the whole
-    // propagation: concurrent calls can't leave the stages with different values
-    std::mutex m_set_property_mutex;
 
     CompiledModelFactory m_compiled_model_factory;
 
@@ -165,12 +152,12 @@ protected:
     // variants take its leading rows. Part of the exported blob (see serialize()).
     ov::npuw::patterns::pre_compute::LongRopeCosSin m_longrope_tables;
 
-    // Continuous prefill is on whenever this compiled model can serve it, unless
-    // NPUW_LLM_ENABLE_CONTINUOUS_PREFILL is set to NO. Resolved once after compilation
-    // or import and written back, so the option reports the effective state.
+    // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
+    // mutually exclusive with hash prefix caching, which fails compilation.
     bool m_enable_continuous_prefill = false;
-    void resolve_continuous_prefill();
-    bool can_continue_prefill() const;
+    // Computes the NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED read-only property from
+    // compiled model state. Not serialized, recomputed identically after import.
+    bool compute_continuous_prefill_supported() const;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

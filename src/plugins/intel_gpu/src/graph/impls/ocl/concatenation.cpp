@@ -112,7 +112,6 @@ attach_concatenation_impl::attach_concatenation_impl() {
 
     auto dyn_formats = {
         format::bfyx,
-        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::bfuwzyx,

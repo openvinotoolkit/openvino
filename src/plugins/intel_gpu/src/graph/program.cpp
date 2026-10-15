@@ -802,7 +802,8 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 }
 
 void program::prepare_memory_dependencies() {
-    // Computed even without the memory pool: network::may_alias() relies on these restrictions.
+    if (!_config.get_enable_memory_pool())
+        return;
     for (const auto& node : get_processing_order()) {
         node->add_memory_dependency(*node);
     }
@@ -1020,15 +1021,7 @@ void program::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
-    const std::list<program_node*> users(old_node.users);
-    for (auto* user : users) {
-        for (size_t i = 0; i < user->dependencies.size(); ++i) {
-            if (user->dependencies[i].first == &old_node) {
-                const auto port = user->dependencies[i].second;
-                user->replace_dependency(i, {&new_node, port}, remove_if_dangling);
-            }
-        }
-    }
+    return replace_all_usages(old_node, std::make_pair(&new_node, 0), remove_if_dangling);
 }
 
 void program::replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling) {
@@ -1202,17 +1195,12 @@ bool program::move_node(program_node& node,
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
-    auto peer_layouts = peer_node.get_output_layouts();
-    OPENVINO_ASSERT(peer_layouts.size() == 1 || (peer_layouts.size() == 2 && peer_node.is_type<dynamic_quantize>()));
-    if (peer_layouts.size() == 2) {
-        fused_node.set_num_outputs(2);
-    }
-
+    auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc(peer_node.get_primitive());
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_input_layout(0);
-    local_desc.output_layouts = peer_layouts;
+    local_desc.output_layout = peer_layout;
 
     if (fused_node.in_shape_of_subgraph && !peer_node.in_shape_of_subgraph) {
         fused_node.in_shape_of_subgraph = false;
@@ -1221,10 +1209,8 @@ void program::fuse_nodes(program_node &fused_node,
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
     auto fused_layout = fused_node.get_output_layout();
     auto fused_padding = fused_layout.data_padding;
-    cldnn::padding needed_padding = fused_padding;
-    for (const auto& peer_layout : peer_layouts) {
-        needed_padding = padding::max(needed_padding, peer_layout.data_padding);
-    }
+    cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
+                                                 fused_padding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1307,8 +1293,8 @@ void program::fuse_nodes(program_node &fused_node,
 
     // Update output layout. Recalculation is not needed.
     fused_node.merge_output_padding(needed_padding);
-    fused_node.set_output_layouts(peer_layouts, false);
-    fused_node.recalc_output_layouts(true);
+    fused_node.set_output_layout(peer_layout, false);
+    fused_node.recalc_output_layout(true);
 }
 
 void program::remove_nodes(std::vector<program_node*>& to_remove) {
@@ -1509,45 +1495,23 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t dynamic_batch_onednn_conv_count = 0;
     bool has_sdpa = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
-    // Dynamic reorder and JIT pitch handling for this optimization support rank <= 4 only.
-    bool has_rank_gt4_data_flow = false;
 
     // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
     // For dynamic batches, this approach is inefficient.
     // We plan to switch to byxf for better flexibility across varying batch sizes.
     // The whitelist below defines the initial target scope (CVS-176149).
-    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::activation::type_id(),
-                                                                              cldnn::arg_max_min::type_id(),
-                                                                              cldnn::broadcast::type_id(),
-                                                                              cldnn::concatenation::type_id(),
-                                                                              cldnn::convolution::type_id(),
-                                                                              cldnn::crop::type_id(),
-                                                                              cldnn::deconvolution::type_id(),
-                                                                              cldnn::eltwise::type_id(),
-                                                                              cldnn::fully_connected::type_id(),
-                                                                              cldnn::gather::type_id(),
-                                                                              cldnn::input_layout::type_id(),
-                                                                              cldnn::non_max_suppression::type_id(),
-                                                                              cldnn::non_max_suppression_gather::type_id(),
+    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::input_layout::type_id(),
                                                                               cldnn::permute::type_id(),
-                                                                              cldnn::pooling::type_id(),
-                                                                              cldnn::range::type_id(),
+                                                                              cldnn::convolution::type_id(),
+                                                                              cldnn::fully_connected::type_id(),
+                                                                              cldnn::activation::type_id(),
+                                                                              cldnn::softmax::type_id(),
                                                                               cldnn::reduce::type_id(),
                                                                               cldnn::reorder::type_id(),
-                                                                              cldnn::reshape::type_id(),
-                                                                              cldnn::select::type_id(),
-                                                                              cldnn::shape_of::type_id(),
-                                                                              cldnn::softmax::type_id(),
-                                                                              cldnn::strided_slice::type_id(),
-                                                                              cldnn::tile::type_id()};
+                                                                              cldnn::eltwise::type_id()};
 #endif
     for (const auto& node : get_processing_order()) {
         auto &prim = *node;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        if (prim.is_in_data_flow() && prim.get_output_layout().get_partial_shape().size() > 4) {
-            has_rank_gt4_data_flow = true;
-        }
-#endif
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
@@ -1560,9 +1524,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
                 if (is_dynamic_batch_onednn_conv)
                     dynamic_batch_onednn_conv_count++;
-            }
+            } else {
 #endif
-            if (!conv.is_dynamic()) {
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16) {
@@ -1576,7 +1539,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
+#ifdef ENABLE_ONEDNN_FOR_GPU
             }
+#endif
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1797,7 +1762,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
     constexpr size_t max_byxf_onednn_conv_count = 5;
     bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
-        && !has_rank_gt4_data_flow
         && (total_non_byxf_onednn_conv_whitelist_layers == 0 ||
             (has_sdpa && dynamic_batch_onednn_conv_count <= max_byxf_onednn_conv_count));
     if (should_use_byxf_onednn_conv)
@@ -2038,7 +2002,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         host_buffer_base_ptr =
             ib.get_engine().create_hostbuffer(ib.get_tensor(),
                                               ib.get_stream_size(),
-                                              allocation_type::usm_host,
+                                              allocation_type::cl_mem,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
     }
 
@@ -2220,7 +2184,6 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     size_t state_initializers_size;
     ib >> state_initializers_size;
     state_initializers.clear();
-
     for (size_t i = 0; i < state_initializers_size; i++) {
         std::string variable_id;
         std::vector<primitive_id> initializers;
@@ -2236,3 +2199,4 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 }
+

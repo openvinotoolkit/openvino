@@ -9,8 +9,7 @@ import onnx.backend.test
 from tests import (
     BACKEND_NAME,
     skip_rng_tests,
-    xfail_maxunpool_output_shape_onnx_ref,
-    skip_maxunpool_gpu,
+    xfail_issue_33488,
     xfail_issue_33596,
     xfail_issue_33606,
     xfail_issue_33651,
@@ -220,11 +219,8 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_momentum_multiple_cpu",
     ),
     (
-        xfail_maxunpool_output_shape_onnx_ref,
+        xfail_issue_33488,
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
-    ),
-    (
-        skip_maxunpool_gpu,
         "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
     ),
     (
@@ -309,6 +305,8 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_1_tensor_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_identity_2_sequences_cpu",
+        "OnnxBackendNodeModelTest.test_stft_cpu",
+        "OnnxBackendNodeModelTest.test_stft_with_window_cpu",
     ),
     (
         xfail_issue_99952,

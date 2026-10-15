@@ -65,8 +65,7 @@ attach_range_impl::attach_range_impl() {
     };
 
     auto formats = {
-        format::bfyx,
-        format::byxf
+        format::bfyx
     };
 
     implementation_map<range>::add(impl_types::ocl,

@@ -28,7 +28,6 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
@@ -1270,9 +1269,12 @@ void Transformations::MainSnippets() {
         concurrency = parallel_get_max_threads();
     }
     CommonOptimizations::Config common_optimizations_config(concurrency);
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
+#elif defined(OPENVINO_ARCH_RISCV64)
+    common_optimizations_config.set_transpose_support_callback(
+        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;
@@ -1449,15 +1451,15 @@ void Transformations::MainSnippets() {
         // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
         // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
-            if (ov::is_type<const ov::op::v4::Swish>(n) && n->get_input_size() > 1) {
-                return !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)) ||
-                       ov::shape_size(n->get_input_shape(1)) != 1;
-            }
+            return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
+                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
 #if defined(OPENVINO_ARCH_X86_64)
-            return ov::is_type<const ov::op::v4::Mish>(n);
-#else
-            return false;
+                   || ov::is_type<const ov::op::v4::Mish>(n)
+#elif defined(OPENVINO_ARCH_RISCV64)
+                   // These operations are not currently supported in the RISC-V snippets target machine.
+                   || ov::is_type<const ov::op::v4::Swish>(n)
 #endif
+                ;
         };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns

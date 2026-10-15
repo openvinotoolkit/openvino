@@ -142,15 +142,9 @@ std::shared_ptr<const ov::Model> ov::npuw::KokoroCompiledModel::get_runtime_mode
 }
 
 void ov::npuw::KokoroCompiledModel::set_property(const ov::AnyMap& properties) {
+    // FIXME Not implemented
     LOG_DEBUG("Setting properties to KokoroCompiledModel");
-    // Both models are NPUW compiled models, they validate which keys are mutable
-    std::lock_guard<std::mutex> lock(m_set_property_mutex);
-    if (m_model_a_compiled) {
-        m_model_a_compiled->set_property(properties);
-    }
-    if (m_model_b_compiled) {
-        m_model_b_compiled->set_property(properties);
-    }
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::Any ov::npuw::KokoroCompiledModel::get_property(const std::string& name) const {

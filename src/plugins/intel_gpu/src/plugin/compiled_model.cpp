@@ -7,9 +7,6 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/core/version.hpp"
-#include "openvino/core/memory_util.hpp"
-#include "openvino/util/memory.hpp"
-#include "openvino/util/mmap_object.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine_configuration.hpp"
@@ -20,7 +17,6 @@
 
 #include <sstream>
 #include <sys/types.h>
-#include <vector>
 
 namespace ov::intel_gpu {
 
@@ -193,14 +189,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     }
 
     auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
-    // Graph serialization already preserves its finalized ExecutionConfig. Propagate resolved
-    // compilation options to the compiled-model config so get_property() reflects the imported graph.
-    const auto kv_cache_precision = graph_base->get_config().get_kv_cache_precision();
-    if (kv_cache_precision != ov::element::dynamic) {
-        m_config.set_user_property({ov::hint::kv_cache_precision(kv_cache_precision)}, OptionVisibility::RELEASE);
-    }
-    const auto group_size = graph_base->get_config().get_dynamic_quantization_group_size();
-    m_config.set_user_property({ov::hint::dynamic_quantization_group_size(group_size)}, OptionVisibility::RELEASE);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -286,14 +274,6 @@ void CompiledModel::export_model(std::ostream& model) const {
     }
 
     get_graph(0)->export_model(ob);
-    if (!ob.is_encrypted() && m_config.get_enable_zero_copy_cache_load()) {
-        const auto pad =
-            ov::util::align_padding_size(static_cast<size_t>(ov::util::get_system_page_size()), ob.get_offset());
-        if (pad > 0) {
-            std::vector<uint8_t> zeros(pad, 0);
-            ob << cldnn::make_data(zeros.data(), zeros.size());
-        }
-    }
     ob.flush();
 }
 
