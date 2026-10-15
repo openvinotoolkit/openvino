@@ -18,6 +18,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -182,13 +183,71 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         }
         return x;
     };
-    k = prepare_kv(k, k_shape[head_axis].get_length(), q_shape[3].get_length());
-    v = prepare_kv(v, v_shape[head_axis].get_length(), v_shape[3].get_length());
+    // Explicit grouped-query attention, requested by the decoder for stateless GPU graphs. K and V stay the direct
+    // [B, n_head_kv, L, S] transposes of the KV cache, with no broadcast to n_head in between: the GPU plugin then
+    // fuses the cache read (StatelessKV) and folds the transposes into the Gemm. The query heads that share a KV head
+    // are stacked along the row axis (a pure reshape, they are adjacent) and the mask is tiled to match:
+    //   Q [B, n_head, L, S] -> [B, n_head_kv, factor * L, S],  scores [B, n_head_kv, factor * L, Lk]
+    // The leading 0 with special_zero copies the (possibly dynamic) batch.
+    const int64_t n_head = q_shape[head_axis].get_length();
+    const int64_t n_head_kv = k_shape[head_axis].get_length();
+    const int64_t gqa_factor = n_head / n_head_kv;
+    const bool manual_gqa = context.get_attribute<bool>("manual_gqa_attention", false) && gqa_factor > 1 &&
+                            n_head_kv > 1 && kq_soft_cap == 0.0f && !has_sinks && k_shape[3] == q_shape[3] &&
+                            v_shape[3] == q_shape[3];
+
+    ov::Output<ov::Node> sdpa;
+    if (manual_gqa) {
+        const int64_t head_size = q_shape[3].get_length();
+        const auto prepare_gqa_kv = [&](ov::Output<Node> kv) {
+            if (key_len.get_node_shared_ptr()) {
+                kv = std::make_shared<ov::op::v8::Slice>(kv,
+                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                         key_len,
+                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {token_axis}));
+            }
+            if (kv.get_element_type() != sdpa_type) {
+                kv = std::make_shared<ov::op::v0::Convert>(kv, sdpa_type);
+            }
+            return kv;
+        };
+        auto q_r = std::make_shared<ov::op::v1::Reshape>(
+            q, ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, n_head_kv, -1, head_size}), true);
+        ov::Output<Node> scores = std::make_shared<ov::op::v0::MatMul>(q_r, prepare_gqa_kv(k), false, true);
+        scores = std::make_shared<ov::op::v1::Multiply>(scores, scale_node);
+        if (has_mask) {
+            // A finite mask value: the fused SDPA kernel works on blocks of keys and a block fully masked with -inf
+            // gives NaN.
+            auto mask_finite = std::make_shared<ov::op::v1::Maximum>(
+                mask_sliced, ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
+            auto mask_tiled = std::make_shared<ov::op::v0::Tile>(
+                mask_finite,
+                ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, gqa_factor, 1}));
+            scores = std::make_shared<ov::op::v1::Add>(scores, mask_tiled);
+        }
+        auto weights = std::make_shared<ov::op::v8::Softmax>(scores, -1);
+        auto attn = std::make_shared<ov::op::v0::MatMul>(weights, prepare_gqa_kv(v));
+        sdpa = std::make_shared<ov::op::v1::Reshape>(
+            attn, ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, n_head, -1, head_size}), true);
+    } else {
+        k = prepare_kv(k, k_shape[head_axis].get_length(), q_shape[3].get_length());
+        v = prepare_kv(v, v_shape[head_axis].get_length(), v_shape[3].get_length());
+    }
 
     ov::Output<ov::Node> q_t = q, k_t = k, v_t = v;
 
-    ov::Output<ov::Node> sdpa;
-    if (kq_soft_cap != 0.0f) {
+    // The GPU plugin's fused SDPA kernel works on blocks of keys: a block fully masked with -inf for a row gives
+    // exp(-inf - -inf) = NaN, which spreads through the row (garbage output after a few decode steps). A large
+    // finite value masks identically (exp underflows to 0) without the NaN.
+    if (has_mask && kq_soft_cap == 0.0f) {
+        mask_sliced = std::make_shared<ov::op::v1::Maximum>(
+            mask_sliced, ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
+    }
+
+    if (manual_gqa) {
+        // Attention is already computed above.
+    } else if (kq_soft_cap != 0.0f) {
         // Gemma2 attention soft-cap: tanh(QK^T * scale * (1/cap)) * cap + mask -> softmax -> *V.
         // OV SDPA v13 has no native softcap parameter, so decompose the attention in f32.
         using namespace ov::op;

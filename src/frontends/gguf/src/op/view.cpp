@@ -18,6 +18,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -306,6 +307,24 @@ OutputVector translate_kv_view(const NodeContext& context, const std::vector<int
     };
     const auto length = context.get_input_size() >= 2 ? as_i64(context.get_input(1)) : constant({kv[11]});
     const auto first = context.get_input_size() >= 3 ? as_i64(context.get_input(2)) : constant({0});
+
+    // A cache in the [1, ctx, n_heads_kv, head_size] layout read from its first rows as whole heads: take the live
+    // tokens with VariadicSplit, the read side of the GPU plugin's StatelessKVFusion (see LowerSetRowsStateless). The
+    // fused StatelessKV hands attention a view of those tokens without copying the cache.
+    if (is_kvcache_4d_shape(context.get_input(0).get_partial_shape()) && !transposed && streams == 1 &&
+        active_streams == 1 && row_base == 0 && context.get_input_size() < 3) {
+        const auto cache_shape = context.get_input(0).get_partial_shape();
+        if (cache_shape[2].get_length() == heads && cache_shape[3].get_length() == head_size) {
+            auto lengths = std::make_shared<ov::op::v0::Concat>(OutputVector{length, constant({-1})}, 0);
+            auto tokens = std::make_shared<ov::op::v1::VariadicSplit>(
+                context.get_input(0), ov::op::v0::Constant::create(ov::element::i64, {}, {1}), lengths);
+            ov::Output<Node> y = tokens->output(0);
+            if (order != std::vector<int64_t>{0, 1, 2, 3}) {
+                y = std::make_shared<ov::op::v1::Transpose>(y, constant(order));
+            }
+            return rename_outputs_with_suffix({y}, context.get_name());
+        }
+    }
 
     // [streams, cells, features] or, transposed, [streams, features, cells]. Inferring the cell count
     // also accepts a cache bound with only its live prefix.

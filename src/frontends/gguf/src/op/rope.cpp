@@ -20,6 +20,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/gather.hpp"
@@ -262,44 +263,33 @@ OutputVector translate_rope(const NodeContext& context) {
                 }
             };
 
-        // Build the canonical NEOX RoPE via the shared decomposition helper, which emits the exact
-        // split-halves + Multiply(-1)+Add + Concat pattern that ov::pass::RoPEFusion (specifically
-        // RoPEFusionGPTOSS) folds into the fused ov::op::internal::RoPE primitive on CPU/GPU.
+        // Rotate in the ggml-natural layout, data [B, L, H, S] with cos/sin [B, L, 1, n_rot/2], using the explicit
+        // split-halves form: y = x * [cos, cos] + [-x2, x1] * [sin, sin].
         //
-        // That matcher only fires when the rotated tensor is [B, H, L, S] and cos/sin are
-        // [?, 1, ?, head/2]. Our tensors are ggml-natural: data is [B, L, H, S], cos/sin are
-        // [B, L, 1, head/2]. So transpose every operand into [B, H, L, S] (heads on axis 1), run
-        // the decomposition there, and transpose the result back. The math is unchanged; the
-        // wrapping Transposes are sunk / cancelled against the adjacent PERMUTE during
-        // TransposeSinking.
-        const auto perm_bhls = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
-
-        // cos/sin always arrive rank-4 [B, L, 1, head/2]; just transpose to [B, 1, L, head/2].
-        auto cossin_to_bhls = [&](ov::Output<ov::Node> x) -> ov::Output<ov::Node> {
-            return std::make_shared<ov::op::v1::Transpose>(x, perm_bhls);
-        };
-
-        auto x_bhls = std::make_shared<ov::op::v1::Transpose>(data, perm_bhls);  // [B, H, L, S]
-        auto cos_bhls = cossin_to_bhls(cos_theta_node);  // [B, 1, L, n_rot/2]
-        auto sin_bhls = cossin_to_bhls(sin_theta_node);  // [B, 1, L, n_rot/2]
-
-        // Slice the rotated block after the layout change; the innermost axis is the head axis in
-        // both layouts.
+        // Do not emit the canonical form that ov::pass::RoPEFusion folds into ov::op::internal::RoPE (the
+        // ov::decomposition::rope helper wrapped in transposes to [B, H, L, S]). The GPU plugin's fused RoPE kernel
+        // computes this rotation wrongly: stateless GPU graphs of NEOX-rope models (Phi-4-mini, Qwen2.5, Qwen3, ...)
+        // turn into garbage after a few decode tokens, while the same graph is correct on CPU.
         ov::Output<ov::Node> rotary_in;
         ov::Output<ov::Node> pass_through;
-        split_rotary(x_bhls, rotary_in, pass_through);
+        split_rotary(data, rotary_in, pass_through);
 
-        ov::pass::NodeRegistry reg;
-        ov::Output<ov::Node> roped =
-            ov::decomposition::rope(reg, rotary_in, cos_bhls, sin_bhls, n_rot / 2);  // [B, H, L, n_rot]
-        if (n_rot < head_dim) {
-            roped = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{roped, pass_through}, -1);
-        }
-
-        // Back to the GGML result layout [B, L, H, S].
-        res = std::make_shared<ov::op::v1::Transpose>(
-            roped,
-            ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));  // [B, L, H, S]
+        const int64_t half = n_rot / 2;
+        auto split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {3});
+        auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{half, half});
+        auto halves = std::make_shared<ov::op::v1::VariadicSplit>(rotary_in, split_axis, split_lengths);
+        ov::Output<ov::Node> x1 = halves->output(0);
+        ov::Output<ov::Node> x2 = halves->output(1);
+        auto x2_neg = std::make_shared<ov::op::v1::Multiply>(
+            x2, ov::op::v0::Constant::create(rotary_in.get_element_type(), ov::Shape{}, {-1.0f}));
+        auto rotated_half = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{x2_neg, x1}, -1);
+        auto cos_full = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos_theta_node, cos_theta_node}, -1);
+        auto sin_full = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin_theta_node, sin_theta_node}, -1);
+        ov::Output<ov::Node> roped = std::make_shared<ov::op::v1::Add>(
+            std::make_shared<ov::op::v1::Multiply>(rotary_in, cos_full),
+            std::make_shared<ov::op::v1::Multiply>(rotated_half, sin_full));
+        res = n_rot < head_dim ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{roped, pass_through}, -1)
+                               : roped;
     } else if (mode == TYPE_IMROPE) {
         // Partial rotary (ggml n_dims < head_dim): only the first n_rot dims of every head are
         // rotated, the tail is passed through unchanged -- e.g. qwen3.5 has head_dim 256 but

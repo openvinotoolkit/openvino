@@ -13,6 +13,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "utils.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -34,6 +36,29 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
         // the same way translate_set_rows flattened the updates; with a one-token cache the two
         // layouts happen to coincide, which previously hid this mismatch until the second step.
         const auto dst_shape = dst.get_partial_shape();
+        if (is_kvcache_4d_shape(dst_shape)) {
+            // Cache [1, ctx, n_heads_kv, head_size], one token per row: write whole tokens on axis 1. This is the
+            // pattern of the GPU plugin's StatelessKVFusion (read back with VariadicSplit, see translate_kv_view),
+            // which writes the new rows in place instead of copying the whole cache first. Indices are per token.
+            const int64_t n_heads_kv = dst_shape[2].get_length();
+            const int64_t head_size = dst_shape[3].get_length();
+            // translate_set_rows flattened the rows to [.., 1, tokens * n_heads_kv, head_size]; regroup them from the
+            // rows it started with, in one reshape.
+            if (const auto flatten = ov::as_type_ptr<ov::op::v1::Reshape>(data.get_node_shared_ptr())) {
+                data = flatten->input_value(0);
+            }
+            auto tokens = std::make_shared<ov::op::v1::Reshape>(
+                data,
+                ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, n_heads_kv, head_size}),
+                false);
+            // A rank-1 axis: the form the plugin's StatelessKVFusion matches.
+            auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+            std::shared_ptr<ov::Node> scattered = std::make_shared<ov::op::v3::ScatterUpdate>(dst, indices, tokens, axis);
+            scattered->set_friendly_name(set_rows->get_friendly_name());
+            ov::copy_runtime_info(set_rows, scattered);
+            ov::replace_node(set_rows, scattered);
+            return true;
+        }
         OPENVINO_ASSERT(dst_shape.rank().is_static() && dst_shape[dst_shape.rank().get_length() - 1].is_static(),
                         "SET_ROWS requires a static destination row size");
         const auto row_size = dst_shape[dst_shape.rank().get_length() - 1].get_length();
