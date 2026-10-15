@@ -20,7 +20,7 @@ std::shared_ptr<IProfilingDecoder> ParserFactory::makeProfilingDecoderIfAvailabl
     try {
         auto vclLoader = VCLLoader::getInstance();
         OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-        return makeVCLProfilingDecoder(vclLoader->sharedFunctions());
+        return std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
     } catch (const std::exception& ex) {
         Logger::global().warning("Failed to create the VCL profiling decoder for model import: %s", ex.what());
         return nullptr;

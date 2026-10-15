@@ -34,10 +34,4 @@ private:
     Logger _logger;
 };
 
-/**
- * @brief Constructs a profiling decoder dispatching into the given VCL function table.
- * @param functions The resolved VCL function table. Must expose the profiling entry points.
- */
-std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(const std::shared_ptr<const VCLFunctionTable>& functions);
-
 }  // namespace intel_npu

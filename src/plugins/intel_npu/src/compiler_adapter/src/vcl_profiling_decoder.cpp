@@ -120,8 +120,4 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
-std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(const std::shared_ptr<const VCLFunctionTable>& functions) {
-    return std::make_shared<VCLProfilingDecoder>(functions);
-}
-
 }  // namespace intel_npu

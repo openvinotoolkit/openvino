@@ -24,8 +24,7 @@ public:
     /**
      * @brief Adapts an already-constructed compiler.
      *
-     * The adapter never loads a compiler itself; composition is the caller's job. See
-     * makeVCLCompiler() for the compiler-in-plugin.
+     * The adapter never loads or constructs a compiler itself; composition is the caller's job.
      *
      * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
      *        produces export-only graphs with no runtime metadata.
