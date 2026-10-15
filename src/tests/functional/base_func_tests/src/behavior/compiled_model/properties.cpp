@@ -344,9 +344,9 @@ TEST_P(OVClassCompiledModelGetConfigTest, GetConfigNoThrow) {
     OV_ASSERT_NO_THROW(property_names = compiled_model.get_property(ov::supported_properties));
 
     for (auto&& property : property_names) {
-        // if (property.get_mutability() == ov::PropertyMutability::WO) {
-        //     continue;
-        // }
+        if (property.get_mutability() == ov::PropertyMutability::WO) {
+            continue;
+        }
         ov::Any defaultValue;
         OV_ASSERT_NO_THROW(defaultValue = compiled_model.get_property(property));
         ASSERT_FALSE(defaultValue.empty());
