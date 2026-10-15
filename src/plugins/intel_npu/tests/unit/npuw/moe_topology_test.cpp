@@ -521,6 +521,16 @@ TEST(GenericMoETopologyTest, RejectsTopKValuesUsedAsIndices) {
     EXPECT_FALSE(ov::npuw::moe::match_batched_moe(graph.scatter));
 }
 
+TEST(GenericMoETopologyTest, AcceptsExpertAxisAndRejectsTokenAxis) {
+    for (const int64_t axis : {1, -1, 0, -2}) {
+        SCOPED_TRACE(axis);
+        auto graph = make_moe(Routing::TOPK_SOFTMAX, false, 4, 4);
+        graph.topk->set_axis(axis);
+        graph.model->validate_nodes_and_infer_types();
+        EXPECT_EQ(ov::npuw::moe::match_batched_moe(graph.scatter).has_value(), axis == 1 || axis == -1);
+    }
+}
+
 TEST(GenericMoETopologyTest, RejectsReductionScatter) {
     auto graph = make_moe(Routing::TOPK_SOFTMAX);
     ov::as_type_ptr<ov::op::v12::ScatterElementsUpdate>(graph.scatter)

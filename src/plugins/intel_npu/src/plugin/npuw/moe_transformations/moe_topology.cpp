@@ -211,8 +211,8 @@ BatchedMoEPattern::BatchedMoEPattern() {
     m_topk =
         opp::wrap_type_strict_index<ov::op::v11::TopK>({opp::any_input(), k}, [](const ov::Output<ov::Node>& value) {
             const auto topk = ov::as_type_ptr<ov::op::v11::TopK>(value.get_node_shared_ptr());
-            return topk->get_mode() == ov::op::v11::TopK::Mode::MAX &&
-                   (topk->get_axis() == 1 || topk->get_axis() == -1);
+            const auto axis = topk->get_provided_axis();
+            return topk->get_mode() == ov::op::v11::TopK::Mode::MAX && (axis == 1 || axis == -1);
         });
 
     // Indices may have arbitrary i32/i64 Convert chains. Match their unwrapped
