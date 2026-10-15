@@ -43,6 +43,8 @@ enum GgufTensorType {
     GGUF_TYPE_MXFP4 = 39,  // 4-bit microscaling (gpt-oss): 1-byte E8M0 scale + 32x E2M1
     GGUF_TYPE_Q1_0 = 41,   // binary: f16 scale + 128x 1-bit codes, value = bit ? +scale : -scale
     GGUF_TYPE_Q2_0 = 42,   // ternary: f16 scale + 64x 2-bit codes, value = (code - 1) * scale
+    GGUF_TYPE_PQ2_0 = 142,
+    GGUF_TYPE_PTQ1_0 = 143,
     GGUF_TYPE_COUNT,
 };
 
@@ -92,8 +94,8 @@ using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::shared_ptr<ov::MappedMemory>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
-// (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights packed as u8).
-// No zero-point: the center value is subtracted during unpacking so weights are centered at 0.
+// (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights; Q1_0: u1 weights).
+// Integer weights are centered during unpacking; Q1_0 keeps binary codes and applies 2 * bit - 1 in the graph.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
 
 // Fill pre-allocated weights, f16 scales, and integer zero-points from an asymmetric GGUF
