@@ -29,7 +29,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_deferred_writer.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_format.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_reader.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_sections.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_codecs.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_writer.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/infer_request_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/iplugin_test.cpp
