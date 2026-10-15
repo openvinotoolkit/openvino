@@ -1126,8 +1126,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   axes,
                                   m_max_lora_rank,
                                   0,
-                      true,
-                      m_attention_mask_is_4d_float)
+                                  true,
+                                  m_attention_mask_is_4d_float)
             .run_on_model(prefill_model);
     } else {
         ov::npuw::ReshapeToStatic(m_kvcache_desc.max_prompt_size,
@@ -1135,8 +1135,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   axes,
                                   m_max_lora_rank,
                                   whisper_lhs_seq_size,
-                      true,
-                      m_attention_mask_is_4d_float)
+                                  true,
+                                  m_attention_mask_is_4d_float)
             .run_on_model(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
