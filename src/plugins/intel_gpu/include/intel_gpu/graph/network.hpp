@@ -8,6 +8,7 @@
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/record_replay_session.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -191,6 +192,7 @@ public:
     bool contains_state(const std::string& variable_id);
     memory& get_output_remote_memory(const primitive_id& id) const;
     bool has_output_remote_memory_ptr(const primitive_id& id) const;
+    bool is_output_remote_memory(const memory& mem) const;
     void reset_output_remote_memory_ptrs();
 
     /// @brief Register an externally-owned output memory block for a network output primitive.
@@ -243,6 +245,7 @@ private:
     program::ptr _program;
     engine& _engine;
     stream::ptr _stream;
+    record_replay_session::ptr _record_replay_session = nullptr;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
     bool _is_primary_stream;
@@ -275,18 +278,23 @@ private:
     size_t _weights_cache_capacity = 1;
 
     output_chains_map _output_chains;
+    output_chains_map _remote_output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
+    /// @brief Invalidate the recording of the previous iteration
+    void invalidate_recording();
+    /// @brief Prepares record and replay session
+    /// @note expects that exec_order is constructed
+    void prepare_record_replay();
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
-    void invalidate_output_memory_chain(const primitive_id& id);
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
-    output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
+    std::vector<primitive_inst*> build_output_chain(std::shared_ptr<primitive_inst>& p_inst, bool is_remote);
     void set_variables_state_info(const std::string& variable_id,
                                   const layout& variable_layout,
                                   ov::element::Type user_specified_type,

@@ -14,10 +14,12 @@ ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
@@ -155,7 +157,8 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             boundary_check = BoundaryCheck::ENABLED;
         } else {
             for (const auto& fused_op : params.fused_ops) {
-                if (!fused_op.output_tensor.SameDims(params.outputs[0])) {
+                OPENVINO_ASSERT(fused_op.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
+                if (!fused_op.output_tensors[0].SameDims(params.outputs[0])) {
                     boundary_check = BoundaryCheck::ENABLED;
                     break;
                 }

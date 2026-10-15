@@ -25,10 +25,7 @@
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
+namespace ov::frontend::onnx::com_microsoft {
 namespace {
 
 using ov::frontend::onnx::recurrent::normalize_tensor_rank;
@@ -310,7 +307,4 @@ ov::OutputVector dynamic_quantize_lstm(const ov::frontend::onnx::Node& node) {
 ONNX_OP("DynamicQuantizeLSTM", OPSET_SINCE(1), com_microsoft::opset_1::dynamic_quantize_lstm, MICROSOFT_DOMAIN);
 
 }  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft

@@ -4,6 +4,7 @@
 
 #include "moe_infer_utils.hpp"
 
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 
@@ -24,12 +25,44 @@ MoEProfile::MoEProfile() {
     batch.report_on_die = ov::npuw::profiling_enabled();
 }
 
+void MoEChunkStats::init(bool active) {
+    enabled = active;
+}
+
+void MoEChunkStats::record_chunk(size_t chunk_size, uint64_t actual_tokens) {
+    if (!enabled) {
+        return;
+    }
+    auto& c = per_chunk_size[chunk_size];
+    c.chunks++;
+    c.tokens += actual_tokens;
+}
+
+void MoEChunkStats::report() const {
+    if (per_chunk_size.empty()) {
+        return;
+    }
+
+    std::cout << "MoE Chunk Efficiency:" << std::endl;
+
+    std::cout << "  Per chunk size (padding = capacity - real tokens):" << std::endl;
+    for (auto&& kv : per_chunk_size) {
+        const size_t cs = kv.first;
+        const auto& s = kv.second;
+        const uint64_t capacity = cs * s.chunks;
+        const uint64_t padding = capacity - s.tokens;
+        const double padding_pct =
+            capacity ? (100.0 * static_cast<double>(padding) / static_cast<double>(capacity)) : 0.0;
+        std::cout << "    cs=" << cs << " [ chunks=" << s.chunks << ", tokens=" << s.tokens << ", capacity=" << capacity
+                  << ", padding=" << padding << " (" << padding_pct << "%) ]" << std::endl;
+    }
+}
+
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts) {
     // Slice weight tensor from batched (num_experts, ...) to single expert (1, ...)
     auto shape = batched_weight.get_shape();
-    if (shape.empty() || shape[0] != num_experts) {
-        NPUW_ASSERT(false && "Expected batched weight with first dimension equal to num_experts");
-    }
+    OPENVINO_ASSERT(num_experts > 0 && !shape.empty() && shape[0] == num_experts && expert_id < num_experts,
+                    "MoE: invalid expert weight shape or expert index");
 
     // Calculate new shape: replace first dimension with 1
     ov::Shape view_shape = shape;
@@ -40,6 +73,8 @@ ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_i
     // by wrapping the data pointer at the correct byte offset
     auto elem_type = batched_weight.get_element_type();
     if (elem_type == ov::element::nf4 || elem_type == ov::element::u4 || elem_type == ov::element::i4) {
+        OPENVINO_ASSERT(ov::shape_size(view_shape) % 2 == 0,
+                        "MoE: sub-byte expert weights must have byte-aligned expert boundaries");
         // Calculate byte-level offset for this expert
         size_t total_byte_size = batched_weight.get_byte_size();
         size_t expert_byte_size = total_byte_size / num_experts;
@@ -242,6 +277,32 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
         scatter(expert_output->data<ov::float16>(), global_output_buffer->data<ov::float16>());
     } else {
         OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout: ", elem_type);
+    }
+}
+
+void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_output_buffer,
+                                      const std::vector<size_t>& token_slot_count,
+                                      size_t num_active_experts,
+                                      size_t embed_dim,
+                                      size_t input_token_count) {
+    const size_t slot_stride = input_token_count * embed_dim;
+
+    auto clear = [&](auto* base) {
+        const size_t elem_bytes = embed_dim * sizeof(*base);
+        for (size_t token_id = 0; token_id < token_slot_count.size(); ++token_id) {
+            for (size_t slot = token_slot_count[token_id]; slot < num_active_experts; ++slot) {
+                std::memset(base + slot * slot_stride + token_id * embed_dim, 0, elem_bytes);
+            }
+        }
+    };
+
+    const auto elem_type = global_output_buffer->get_element_type();
+    if (elem_type == ov::element::f32) {
+        clear(global_output_buffer->data<float>());
+    } else if (elem_type == ov::element::f16) {
+        clear(global_output_buffer->data<ov::float16>());
+    } else {
+        OPENVINO_THROW("MoE: Unsupported element type for accumulator clear: ", elem_type);
     }
 }
 
