@@ -244,6 +244,7 @@ def test_accuracy_conformance(model_id, precision, device):
         similarity_model_id='sentence-transformers/all-mpnet-base-v2',
         num_samples=NUMBER_OF_SAMPLES,
         use_chat_template=use_chat_template,
+        is_genai=use_genai,
     )
 
     set_seed(42)
