@@ -78,9 +78,6 @@ struct VCLFunctionTable {
  *
  * The loading constructor is private: `getInstance` is the only way to load, so the process cannot
  * end up with two independently dlopen'd copies of the compiler library.
- * @note CompilerAdapterFactory and ParserFactory are the only production code calling getInstance():
- * the compilers, decoders, adapters, and parsers they build only ever receive an already-resolved
- * function table.
  */
 class VCLLoader final : public std::enable_shared_from_this<VCLLoader> {
 public:
