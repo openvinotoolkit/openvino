@@ -88,9 +88,9 @@ def _use_structural_cache(options):
 
     Opt-in: a hit asserts two graphs are equivalent, so anything
     _structural_key omits serves the wrong model. It covers node targets,
-    literal args and kwargs, and get_attr constants (see _key_constant). On by default only under the vllm preset, where a miss
-    costs a ~14 s recompile every decode step. OV_STRUCTURAL_CACHE=1/0
-    forces it on or off.
+    literal args and kwargs, and get_attr constants (see _key_constant).
+    On by default only under the vllm preset, where a miss costs a ~14 s
+    recompile every decode step. OV_STRUCTURAL_CACHE=1/0 forces it on or off.
     """
     env = os.environ.get("OV_STRUCTURAL_CACHE")
     if env is not None:
@@ -116,7 +116,8 @@ def _key_arg(arg, node_id):
     if isinstance(arg, (list, tuple)):
         return "[" + ",".join(_key_arg(a, node_id) for a in arg) + "]"
     if isinstance(arg, dict):
-        return "{" + ",".join(f"{k}={_key_arg(v, node_id)}" for k, v in sorted(arg.items(), key=lambda kv: str(kv[0]))) + "}"
+        items = sorted(arg.items(), key=lambda kv: str(kv[0]))
+        return "{" + ",".join(f"{k}={_key_arg(v, node_id)}" for k, v in items) + "}"
     if isinstance(arg, slice):
         return f"slice({_key_arg(arg.start, node_id)},{_key_arg(arg.stop, node_id)},{_key_arg(arg.step, node_id)})"
     if isinstance(arg, _KEY_LITERAL_TYPES):

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <tuple>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -160,7 +161,7 @@ TEST(QKVProjectionNodeTest, UnsupportedRankThrows) {
                               PartialShape::dynamic()}) {
         auto input = std::make_shared<v0::Parameter>(element::f32, shape);
         auto w = make_weight(element::f16, Shape{2560, hidden_size});
-        EXPECT_THROW(std::make_shared<intel_cpu::QKVProjectionNode>(OutputVector{input, w, w, w}, config),
+        EXPECT_THROW(std::ignore = std::make_shared<intel_cpu::QKVProjectionNode>(OutputVector{input, w, w, w}, config),
                      ov::NodeValidationFailure)
             << "input " << shape;
     }

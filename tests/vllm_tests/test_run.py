@@ -102,6 +102,8 @@ def test_openvino_matches_eager_greedy(monkeypatch):
         enforce_eager=True,
         max_model_len=2048,
         distributed_executor_backend="uni",
+        # Same 4 GiB pool the plugin gives OV runs; vLLM's default needs 92% of node memory free.
+        kv_cache_memory_bytes=4 << 30,
     )
     try:
         eager_text = _run(eager_llm, PROMPT, MAX_NEW_TOKENS, SKIP_WARMUP_TOKENS)
