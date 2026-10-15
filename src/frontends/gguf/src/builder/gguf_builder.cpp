@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Parse GGUF, select an architecture definition, and build a graph for the shared op translators.
-// See docs/adding_an_architecture.md for the builder layers and registration paths.
+// See docs/architectures.md for the builder layers and registration paths.
 
 #include "gguf_builder.hpp"
 
@@ -16,12 +16,9 @@
 #include "gguf_graph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/frontend/gguf/builder/model_builder.hpp"
-#include "openvino/util/log.hpp"
 #include "quant/gguf.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
@@ -55,7 +52,7 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
 
 GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& registry) {
     auto data = std::make_shared<decltype(get_gguf_data(file))>(get_gguf_data(file));
-    auto& [metadata, weights, qtypes, mmap, quant_buf] = *data;
+    auto& [metadata, weights, qtypes, mmap] = *data;
 
     const detail::MetadataStore meta_store{metadata};
     const GgufMetadata meta_view(meta_store);
@@ -75,28 +72,23 @@ GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& regi
                        registry.describe_supported(),
                        ". Register an ArchitectureExtension.");
     }
-    if (definition->maturity == Maturity::Experimental) {
-        OPENVINO_WARN("[GGUF] architecture handler '",
-                      definition->id,
-                      "' is experimental; validate accuracy before relying on it.");
-    }
-    return [data, definition = *definition](const std::unordered_map<std::string, CreatorFunction>& translators) {
-        const auto& [metadata, source_weights, source_qtypes, mmap, quant_buf] = *data;
+    return [data, definition = *definition, projectors = registry.projectors()](
+               const std::unordered_map<std::string, CreatorFunction>& translators) {
+        const auto& [metadata, source_weights, source_qtypes, mmap] = *data;
         auto weights = source_weights;
         auto qtypes = source_qtypes;
         const detail::MetadataStore meta_store{metadata};
         const GgufMetadata meta_view(meta_store);
         detail::WeightStore weight_store{weights, qtypes, &translators};
-        BuildContext ctx{meta_view, meta_view.architecture(), &weight_store};
+        BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors};
         auto builder = definition.factory(ctx);
         OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");
         auto graph = builder->build();
         OPENVINO_ASSERT(graph, "[GGUF] architecture handler '", definition.id, "' returned no graph");
         graph->tokenizer_config = extract_tokenizer_config(metadata);
+        graph->architecture = meta_view.architecture();
         return graph;
     };
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

@@ -62,7 +62,7 @@ const std::string& expectedModelName = []() -> std::string {
 
 const std::vector<ov::AnyMap> compatibilityPublicCompiledModelConfigs = {
     {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
-    {{ov::execution_devices.name(), ov::Any(ov::test::utils::DEVICE_NPU)}},
+    {{ov::execution_devices.name(), ov::Any(std::string(ov::test::utils::DEVICE_NPU) + ".0")}},
     {{ov::loaded_from_cache.name(), ov::Any(false)}},
     {{ov::model_name.name(), ov::Any(expectedModelName)}},
     {{ov::optimal_number_of_infer_requests.name(), ov::Any(1u)}},
@@ -114,7 +114,7 @@ const auto& combineParamsExecDevices = []() -> std::vector<std::pair<ov::AnyMap,
     std::vector<std::pair<ov::AnyMap, std::string>> execParams(compiledModelConfigs.size());
     for (auto it = compiledModelConfigs.cbegin(); it != compiledModelConfigs.cend(); ++it) {
         auto&& distance = it - compiledModelConfigs.cbegin();
-        execParams.at(distance) = std::make_pair(*it, ov::test::utils::DEVICE_NPU);
+        execParams.at(distance) = std::make_pair(*it, std::string(ov::test::utils::DEVICE_NPU) + ".0");
     }
     return execParams;
 }();

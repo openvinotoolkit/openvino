@@ -276,8 +276,7 @@ protected:
                          {"NPUW_LLM_MAX_PROMPT_LEN", "256"},
                          {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
                          {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
-                         {"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}};
+                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}};
         for (const auto& [key, value] : extra_props) {
             props[key] = value;
         }
@@ -286,7 +285,7 @@ protected:
                                                                   props,
                                                                   factory.make_factory());
         ASSERT_NE(m_compiled, nullptr);
-        ASSERT_TRUE(m_compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED").as<bool>());
+        ASSERT_TRUE(m_compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 
         m_request = std::make_unique<ov::npuw::LLMInferRequest>(m_compiled);
 
@@ -353,13 +352,15 @@ protected:
 
     uint32_t generate_seq_dim(const std::string& past_name) {
         const auto& desc = LLMContinuedPrefillTestAccess::desc(*m_request);
-        const bool is_value = ov::npuw::util::isPastValueParam(past_name);
+        const bool is_value = ov::npuw::util::isPastValueParam(past_name) ||
+                              ov::npuw::util::isDQScaleOrZPValue(past_name);
         return (is_value && desc.v_tensors_transposed_gen) ? 3u : desc.dim;
     }
 
     uint32_t prefill_seq_dim(const std::string& past_name) {
         const auto& desc = LLMContinuedPrefillTestAccess::desc(*m_request);
-        const bool is_value = ov::npuw::util::isPastValueParam(past_name);
+        const bool is_value = ov::npuw::util::isPastValueParam(past_name) ||
+                              ov::npuw::util::isDQScaleOrZPValue(past_name);
         return (is_value && desc.v_tensors_transposed_pre) ? 3u : desc.dim;
     }
 
@@ -517,6 +518,52 @@ TEST_F(LLMContinuedPrefillTest, InjectedApplyFailureRecoversAfterReset) {
     EXPECT_EQ(stored_tokens(), 80);
     run_generate_step(80);
     EXPECT_EQ(stored_tokens(), 81);
+}
+
+class LLMQuantizedContinuedPrefillTest : public LLMContinuedPrefillTest {
+protected:
+    void SetUp() override {
+        init({{ov::hint::kv_cache_precision.name(), ov::element::i8}});
+    }
+};
+
+TEST_F(LLMQuantizedContinuedPrefillTest, QuantizedKvCacheSupportsContinuousPrefillFlow) {
+    auto& req = request();
+    bool saw_quantized_aux_tensor = false;
+    for (const auto& name : LLMContinuedPrefillTestAccess::past_names(req)) {
+        saw_quantized_aux_tensor = saw_quantized_aux_tensor || ov::npuw::util::isDQScaleOrZPValue(name);
+    }
+    ASSERT_TRUE(saw_quantized_aux_tensor) << "The quantized fixture must expose scale or zero-point past tensors";
+
+    run_full_prefill(72);
+    EXPECT_EQ(stored_tokens(), 72);
+    run_generate_step(72);
+    EXPECT_EQ(stored_tokens(), 73);
+
+    constexpr uint32_t kKeep = 64u;
+    std::unordered_map<std::string, std::vector<uint8_t>> expected_kv_bytes;
+    uint8_t seed = 23u;
+    for (const auto& name : LLMContinuedPrefillTestAccess::past_names(req)) {
+        auto src = LLMContinuedPrefillTestAccess::generate_past(req, name);
+        auto src_slice = ov::npuw::util::make_tensor_slice(src, generate_seq_dim(name), 0u, kKeep);
+        fill_tensor_pattern(src_slice, seed);
+        expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
+        seed = static_cast<uint8_t>(seed + 41u);
+    }
+
+    propose(73);
+    EXPECT_EQ(stored_tokens(), kKeep);
+    run_delta_prefill(kKeep, 40);
+    EXPECT_EQ(stored_tokens(), 104);
+
+    for (const auto& name : LLMContinuedPrefillTestAccess::past_names(req)) {
+        auto dst = LLMContinuedPrefillTestAccess::prefill_past(req, name);
+        auto dst_slice = ov::npuw::util::make_tensor_slice(dst, prefill_seq_dim(name), 0u, kKeep);
+        EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
+    }
+
+    run_generate_step(104);
+    EXPECT_EQ(stored_tokens(), 105);
 }
 
 // Block-mode variant of the fixture: the same synthetic model compiled with the
