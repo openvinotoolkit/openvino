@@ -496,6 +496,47 @@ static void propagate_padding_to_opt_out_users(program_node& node, cldnn::paddin
     }
 }
 
+// OCL FC changes a rank-4 bfyx input to [rows, features] while retaining its padding.
+// Allow a static, unpadded crop only when the resulting view is dense and that
+// reinterpretation preserves both its density and its first element's offset.
+// Other precisions, formats, higher ranks and runtime views stay materialized.
+static bool crop_preserves_dense_fc_input(const layout& crop_layout, const layout& input_layout, const tensor& offsets) {
+    if (crop_layout.is_dynamic() || input_layout.is_dynamic() || crop_layout.data_type != data_types::f32 || crop_layout.format != format::bfyx ||
+        input_layout.format != format::bfyx || crop_layout.get_partial_shape().size() != 4 || input_layout.get_partial_shape().size() != 4 ||
+        crop_layout.data_padding || input_layout.data_padding || crop_layout.data_padding.is_dynamic() || input_layout.data_padding.is_dynamic() ||
+        crop_layout.count() == 0)
+        return false;
+
+    const auto crop_shape = crop_layout.get_shape();
+    const auto input_shape = input_layout.get_shape();
+    const auto crop_offsets = offsets.sizes(format::bfyx);
+    std::vector<ov::Dimension::value_type> lower_pad(4), upper_pad(4);
+    for (size_t i = 0; i < 4; ++i) {
+        lower_pad[i] = crop_offsets[i];
+        upper_pad[i] = static_cast<ov::Dimension::value_type>(input_shape[i]) - lower_pad[i] - static_cast<ov::Dimension::value_type>(crop_shape[i]);
+        if (lower_pad[i] < 0 || upper_pad[i] < 0)
+            return false;
+    }
+    auto view = crop_layout;
+    view.data_padding = padding(lower_pad, upper_pad);
+    auto flattened = view;
+    flattened.set_partial_shape(ov::PartialShape{static_cast<int64_t>(view.count() / crop_shape.back()), static_cast<int64_t>(crop_shape.back())});
+
+    auto is_dense = [](const layout& value) {
+        const auto shape = value.get_shape();
+        const auto pitches = value.get_pitches();
+        size_t pitch = 1;
+        for (size_t i = shape.size(); i-- > 0;) {
+            // A dimension of size one never advances its address.
+            if (shape[i] > 1 && static_cast<size_t>(pitches[i]) != pitch)
+                return false;
+            pitch *= shape[i];
+        }
+        return true;
+    };
+    return is_dense(view) && is_dense(flattened) && view.get_linear_offset() == flattened.get_linear_offset();
+}
+
 bool crop_in_place_optimization::match(crop_node& node) {
     auto pred_param = node.get_dependency(0).get_kernel_impl_params();
     auto pred_layout = pred_param->get_output_layout();
@@ -531,12 +572,11 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<loop>() || user->is_type<non_max_suppression>())
             return false;
-        // OCL fully_connected_impl::update_impl_params flattens input_size > 3
-        // to 2D without remapping padding. Keep the crop materialized so
-        // flattening cannot reinterpret a strided sub-view with wrong pitches.
-        // This conservative guard also applies before the FC implementation is selected.
-        if (user->is_type<fully_connected>() && user->get_dependency_index(node) == 0 &&
-            user->as<fully_connected>().get_primitive()->input_size > 3)
+        // OCL FC flattens higher-rank data without remapping padding. Keep
+        // the crop materialized unless its dense view survives that change.
+        if (user->is_type<fully_connected>() && user->get_dependency_index(node) == 0 && user->as<fully_connected>().get_primitive()->input_size > 3 &&
+            (is_runtime || dyn_aware || user->as<fully_connected>().get_primitive()->input_size != 4 ||
+             !crop_preserves_dense_fc_input(crop_layout, input_layout, crop_params.input_offsets[0])))
             return false;
         // Read_value and assign don't handle data paddings internally, thus disable
         // crop optimization for now
