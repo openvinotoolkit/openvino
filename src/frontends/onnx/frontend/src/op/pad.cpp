@@ -67,6 +67,7 @@ ONNX_OP("Pad", OPSET_RANGE(1, 10), ai_onnx::opset_1::pad);
 namespace opset_11 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
+    CHECK_VALID_NODE(node, inputs.size() >= 2, "Pad expects at least 2 inputs (data, pads). Got: ", inputs.size());
     const auto& data = inputs[0];
     const auto& pads = inputs[1];
     ov::Output<ov::Node> values;
