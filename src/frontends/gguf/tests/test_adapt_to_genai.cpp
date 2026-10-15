@@ -20,6 +20,7 @@
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/gguf/tokenizer_metadata.hpp"
