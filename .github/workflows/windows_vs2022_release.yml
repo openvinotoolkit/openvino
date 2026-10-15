@@ -674,10 +674,14 @@ jobs:
           if-no-files-found: 'error'
 
   GPU_Functional_Tests:
-    name: GPU functional tests
+    name: GPU functional tests (shard ${{ matrix.shard }})
     needs: [ Build, Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
-    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    timeout-minutes: 530
     defaults:
       run:
         shell: powershell
@@ -689,6 +693,8 @@ jobs:
       CURL_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
       REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
       NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
+      GTEST_TOTAL_SHARDS: '20'
+      GTEST_SHARD_INDEX: ${{ matrix.shard }}
     steps:
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -710,15 +716,15 @@ jobs:
       - name: Run GPU functional smoke tests
         run: |
           . "${{ env.INSTALL_DIR }}\\setupvars.ps1"
-          & "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_func_tests.exe" "--gtest_filter=*smoke*" "--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-functional.xml"
-        timeout-minutes: 60
+          & "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_func_tests.exe" "--gtest_filter=*smoke*" "--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-functional-${{ matrix.shard }}.xml"
+        timeout-minutes: 500
 
       - name: Upload GPU functional test results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
-          name: test-results-functional-gpu
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST-gpu-functional.xml
+          name: test-results-functional-gpu-${{ matrix.shard }}
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST-gpu-functional-${{ matrix.shard }}.xml
           if-no-files-found: 'ignore'
 
   Overall_Status:
