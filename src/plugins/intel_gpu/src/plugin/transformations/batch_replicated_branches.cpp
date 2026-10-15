@@ -27,7 +27,9 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -239,7 +241,7 @@ bool gather_attributes_equal(const std::shared_ptr<ov::op::v8::Gather>& lhs,
            scalar_i64_constant(rhs->input_value(2), rhs->get_axis()) && output_shapes_equal(lhs, rhs);
 }
 
-void collect_branch_nodes(const NodePtr& node, NodeSet& nodes, NodeSet& visiting) {
+void collect_branch_nodes(const NodePtr& node, size_t replica_count, NodeSet& nodes, NodeSet& visiting) {
     if (!node || nodes.count(node.get()) != 0) {
         return;
     }
@@ -249,10 +251,12 @@ void collect_branch_nodes(const NodePtr& node, NodeSet& nodes, NodeSet& visiting
 
     // Gather is the semantic boundary. Its data input is the shared camera
     // tensor and its index/axis inputs are not part of a replica branch.
-    if (!ov::is_type<ov::op::v8::Gather>(node)) {
-        for (const auto& input : node->input_values()) {
-            collect_branch_nodes(input.get_node_shared_ptr(), nodes, visiting);
-        }
+    if (ov::is_type<ov::op::v8::Gather>(node) || !is_batch_safe_operation(node, replica_count)) {
+        visiting.erase(node.get());
+        return;
+    }
+    for (const auto& input : node->input_values()) {
+        collect_branch_nodes(input.get_node_shared_ptr(), replica_count, nodes, visiting);
     }
     visiting.erase(node.get());
 }
@@ -276,6 +280,9 @@ bool equivalent_supported_rt_value(const std::string& key, const ov::Any& lhs, c
         const auto& rhs_attr = rhs.as<ov::WeightlessCacheAttribute>();
         return lhs_attr.original_size == rhs_attr.original_size && lhs_attr.bin_offset == rhs_attr.bin_offset &&
                lhs_attr.original_dtype == rhs_attr.original_dtype;
+    }
+    if (lhs.is<ov::pass::DisableConstantFolding>()) {
+        return rhs.is<ov::pass::DisableConstantFolding>();
     }
     if (key == kRequiresPrecisionConversionKey) {
         // ConstantFolding uses this payload-free marker internally. It has
@@ -448,7 +455,7 @@ bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
     }
 
     NodeSet visiting;
-    collect_branch_nodes(endpoint, info.nodes, visiting);
+    collect_branch_nodes(endpoint, replica_count, info.nodes, visiting);
 
     std::vector<std::shared_ptr<ov::op::v8::Gather>> gathers;
     bool has_convolution = false;
@@ -503,6 +510,28 @@ bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
     return ov::PartialShape(expected_output_dims) == camera_output_shape;
 }
 
+bool has_external_consumers(const BranchInfo& branch, const NodePtr& output_concat) {
+    for (auto* raw_node : branch.nodes) {
+        const auto node = raw_node->shared_from_this();
+        if (is_constant(node) || is_constant_derived_convert(node)) {
+            continue;
+        }
+        for (size_t output = 0; output < node->get_output_size(); ++output) {
+            for (const auto& target_input : node->output(output).get_target_inputs()) {
+                const auto target_node = target_input.get_node()->shared_from_this();
+                if (ov::is_type<ov::op::v0::ShapeOf>(target_node) ||
+                    ov::is_type<ov::op::v3::ShapeOf>(target_node)) {
+                    continue;
+                }
+                if (branch.nodes.count(target_node.get()) == 0 && target_node != output_concat) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 bool branch_nodes_are_disjoint(const std::vector<BranchInfo>& branches) {
     NodeSet seen;
     bool disjoint = true;
@@ -531,6 +560,9 @@ void copy_node_metadata(const NodePtr& original, const NodePtr& replacement) {
     // this known marker on the explicitly cloned operation.
     if (ov::is_decompression(original)) {
         ov::mark_as_decompression(replacement);
+    }
+    if (ov::pass::constant_folding_is_disabled(original.get())) {
+        ov::pass::disable_constant_folding(replacement);
     }
     ov::copy_weightless_cache_attr(original, replacement);
     const auto precision_marker = original->get_rt_info().find(kRequiresPrecisionConversionKey);
@@ -566,6 +598,9 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
     std::vector<BranchInfo> branches(replica_count);
     for (size_t i = 0; i < replica_count; ++i) {
         if (!get_branch_info(output_concat->input_value(i), static_cast<int64_t>(i), replica_count, branches[i])) {
+            return false;
+        }
+        if (has_external_consumers(branches[i], output_concat)) {
             return false;
         }
     }

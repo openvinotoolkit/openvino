@@ -28,7 +28,9 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/decompression.hpp"
 
 namespace {
@@ -53,7 +55,8 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
                                              bool use_v14_max_pool = false,
                                              bool add_external_endpoint_user = false,
                                              bool add_max_pool_indices_user = false,
-                                             bool add_port_runtime_info = false) {
+                                             bool add_port_runtime_info = false,
+                                             bool add_external_data_user = false) {
     const auto input_shape = dynamic_camera_height
                                  ? ov::PartialShape{1, 4, 3, ov::Dimension::dynamic(), 640}
                                  : ov::PartialShape{1, 4, 3, 480, 640};
@@ -173,8 +176,13 @@ std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices
     ov::ResultVector results{result};
     results.insert(results.end(), extra_results.begin(), extra_results.end());
     if (add_external_endpoint_user) {
-        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(branches.front());
-        results.push_back(std::make_shared<ov::op::v0::Result>(shape_of));
+        if (add_external_data_user) {
+            auto relu = std::make_shared<ov::op::v0::Relu>(branches.front());
+            results.push_back(std::make_shared<ov::op::v0::Result>(relu));
+        } else {
+            auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(branches.front());
+            results.push_back(std::make_shared<ov::op::v0::Result>(shape_of));
+        }
     }
     return std::make_shared<ov::Model>(results, ov::ParameterVector{input});
 }
@@ -450,6 +458,7 @@ TEST(BatchReplicatedBranches, ActivatesWithDistinctEndpointNamesAndDecompression
                                    true);
 
     ov::pass::Manager manager;
+    manager.register_pass<ov::pass::DisableDecompressionConvertConstantFolding>();
     manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
     manager.run_passes(model);
 
@@ -474,6 +483,35 @@ TEST(BatchReplicatedBranches, ActivatesWithDistinctEndpointNamesAndDecompression
         ov::as_type_ptr<ov::op::v0::Convert>(batched_branch->input_value(1).get_node_shared_ptr());
     ASSERT_NE(decompressed_weights, nullptr);
     EXPECT_TRUE(ov::is_decompression(decompressed_weights));
+    EXPECT_TRUE(ov::pass::constant_folding_is_disabled(decompressed_weights.get()));
+}
+
+TEST(BatchReplicatedBranches, RejectsExternalDataConsumer) {
+    auto model = make_camera_model({0, 1, 2, 3},
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   false,
+                                   true,
+                                   false,
+                                   false,
+                                   true);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(model);
+
+    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
+                                                      .get_node_shared_ptr()),
+              nullptr);
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Relu>(model->get_results()[1]->input_value(0).get_node_shared_ptr()));
 }
 
 TEST(BatchReplicatedBranches, RejectsNonExactCameraIndices) {
