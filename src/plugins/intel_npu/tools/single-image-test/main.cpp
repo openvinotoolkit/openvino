@@ -2438,16 +2438,14 @@ static ov::Shape parseDimensions(const std::string& dimensionsStr) {
     return dataShape;
 }
 
-struct DataShapes {
-    std::map<std::string, ov::Shape> perInput;
-    // Applies to every dynamic input without its own entry.
-    std::optional<ov::Shape> common;
-};
+// Data shapes by tensor name, as returned by ov::Output::get_any_name().
+using DataShapes = std::map<std::string, ov::Shape>;
 
 // Parses --data_shape. Accepted formats:
-//  - "[1,3,224,224]" or "1,3,224,224": a single shape used for every dynamic input;
+//  - "[1,3,224,224]" or "1,3,224,224": a single shape used for every input;
 //  - "input1[1,3,224,224],input2[1,4]": one shape per input.
-static DataShapes parseDataShapes(std::string dataShapeStr) {
+static DataShapes parseDataShapes(std::string dataShapeStr,
+                                  const std::vector<ov::Output<const ov::Node>>& inputsInfo) {
     dataShapeStr.erase(std::remove_if(dataShapeStr.begin(), dataShapeStr.end(),
                                       [](unsigned char ch) {
                                           return std::isspace(ch) != 0;
@@ -2458,62 +2456,31 @@ static DataShapes parseDataShapes(std::string dataShapeStr) {
     if (dataShapeStr.empty()) {
         return dataShapes;
     }
-    if (dataShapeStr.find('[') == std::string::npos) {
-        dataShapes.common = parseDimensions(dataShapeStr);
-        return dataShapes;
+
+    // The shared parser expects bracketed values, while --data_shape also accepts a bare "1,3,224,224".
+    const std::string bracketed =
+            dataShapeStr.find('[') == std::string::npos ? "[" + dataShapeStr + "]" : dataShapeStr;
+
+    std::map<std::string, std::vector<std::string>> shapesPerInput;
+    try {
+        shapesPerInput = parseInputParameters(bracketed, inputsInfo);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't parse --data_shape \"", dataShapeStr, "\": ", ex.what());
     }
 
-    const std::string malformed = "Can't parse --data_shape \"" + dataShapeStr +
-                                  "\" into valid \"input[dims],input[dims]\" pairs";
-
-    size_t pos = 0;
-    while (pos < dataShapeStr.size()) {
-        const auto open = dataShapeStr.find('[', pos);
-        const auto close = open == std::string::npos ? std::string::npos : dataShapeStr.find(']', open);
-        OPENVINO_ASSERT(close != std::string::npos, malformed);
-
-        const auto name = dataShapeStr.substr(pos, open - pos);
-        OPENVINO_ASSERT(name.find(',') == std::string::npos, malformed);
-        auto shape = parseDimensions(dataShapeStr.substr(open + 1, close - open - 1));
-        if (name.empty()) {
-            OPENVINO_ASSERT(!dataShapes.common.has_value(),
-                            "--data_shape contains more than one shape applying to every input");
-            dataShapes.common = std::move(shape);
-        } else {
-            OPENVINO_ASSERT(dataShapes.perInput.emplace(name, std::move(shape)).second,
-                            "--data_shape contains more than one shape for input \"", name, "\"");
-        }
-
-        pos = close + 1;
-        if (pos < dataShapeStr.size()) {
-            OPENVINO_ASSERT(dataShapeStr[pos] == ',' && pos + 1 < dataShapeStr.size(), malformed);
-            ++pos;
-        }
+    for (const auto& entry : shapesPerInput) {
+        OPENVINO_ASSERT(entry.second.size() == 1, "--data_shape contains more than one shape for input \"",
+                        entry.first, "\"");
+        dataShapes.emplace(entry.first, parseDimensions(entry.second.front()));
     }
     return dataShapes;
 }
 
-// Rejects names that belong to no model input, which would otherwise be silently ignored.
-static void checkDataShapeNames(const DataShapes& dataShapes,
-                                const std::vector<ov::Output<const ov::Node>>& inputsInfo) {
-    for (const auto& entry : dataShapes.perInput) {
-        const bool known = std::any_of(inputsInfo.begin(), inputsInfo.end(), [&entry](const auto& inputInfo) {
-            return inputInfo.get_names().count(entry.first) != 0;
-        });
-        OPENVINO_ASSERT(known, "--data_shape has a shape for \"", entry.first,
-                        "\" which is not an input of the model");
-    }
-}
-
 static ov::Shape getDataShape(const DataShapes& dataShapes, const ov::Output<const ov::Node>& inputInfo) {
-    for (const auto& name : inputInfo.get_names()) {
-        if (const auto it = dataShapes.perInput.find(name); it != dataShapes.perInput.end()) {
-            return it->second;
-        }
-    }
-    OPENVINO_ASSERT(dataShapes.common.has_value(), "--data_shape has no shape for the dynamic input \"",
+    const auto it = dataShapes.find(inputInfo.get_any_name());
+    OPENVINO_ASSERT(it != dataShapes.end(), "--data_shape has no shape for the dynamic input \"",
                     inputInfo.get_any_name(), "\"");
-    return *dataShapes.common;
+    return it->second;
 }
 
 std::string getRefBlobFilePath(const std::string& blobNamePrefix, const std::vector<std::string>& refFiles,
@@ -2848,8 +2815,7 @@ static int runSingleImageTest() {
         const std::string blobNamePrefix =
                 FLAGS_blob_name_prefix.empty() ? netFileName : cleanName(FLAGS_blob_name_prefix);
 
-        const DataShapes dataShapes = parseDataShapes(FLAGS_data_shape);
-        checkDataShapeNames(dataShapes, compiledModel.inputs());
+        const DataShapes dataShapes = parseDataShapes(FLAGS_data_shape, compiledModel.inputs());
 
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
             const auto inputsInfo = compiledModel.inputs();
