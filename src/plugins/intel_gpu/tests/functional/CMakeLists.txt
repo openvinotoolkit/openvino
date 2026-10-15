@@ -17,6 +17,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
 set(GPU_FUNC_TEST_SOURCES ${GPU_FUNCTIONAL_TEST_SOURCES} ${TEST_COMMON_SOURCE_FILES})
 
+# The byxf layout check needs the oneDNN convolution path
+if(NOT ENABLE_ONEDNN_FOR_GPU)
+    list(APPEND EXCLUDED_TEST_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/dynamic/dynamic_batch_convolution_byxf.cpp")
+endif()
+
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
