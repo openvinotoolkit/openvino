@@ -33,6 +33,29 @@ void regmodule_properties(py::module m) {
         .value("SUPPORTED", ov::CompatibilityCheck::SUPPORTED)
         .value("UNSUPPORTED", ov::CompatibilityCheck::UNSUPPORTED);
 
+    py::enum_<ov::QoS>(m_properties, "QoS", py::arithmetic())
+        .value("DEFAULT", ov::QoS::DEFAULT)
+        .value("HIGH", ov::QoS::HIGH)
+        .value("MEDIUM", ov::QoS::MEDIUM)
+        .value("LOW", ov::QoS::LOW)
+        .value("UTILITY", ov::QoS::UTILITY)
+        .value("ECO", ov::QoS::ECO);
+
+    // Special case: ov::QoSInfo
+    py::class_<ov::QoSInfo, std::shared_ptr<ov::QoSInfo>> cls_qosinfo(m_properties, "QoSInfo");
+    cls_qosinfo.def(py::init([](ov::QoS level, bool is_overridden) {
+                        return ov::QoSInfo{level, is_overridden};
+                    }),
+                    py::arg("level"),
+                    py::arg("is_overridden"));
+    cls_qosinfo.def_readonly("level", &ov::QoSInfo::level);
+    cls_qosinfo.def_readonly("is_overridden", &ov::QoSInfo::is_overridden);
+    cls_qosinfo.def("__repr__", [](const ov::QoSInfo& info) {
+        std::stringstream qosinfo_stream;
+        qosinfo_stream << info;
+        return py::cast(qosinfo_stream.str());
+    });
+
     // Submodule properties - properties
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");
     wrap_property_RW(m_properties, ov::cache_dir, "cache_dir");
@@ -63,8 +86,10 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::loaded_from_cache, "loaded_from_cache");
     wrap_property_RO(m_properties, ov::compatibility_check, "compatibility_check");
     wrap_property_RO(m_properties, ov::runtime_requirements, "runtime_requirements");
+    wrap_property_RO(m_properties, ov::qos_info, "qos_info");
 
     wrap_property_WO(m_properties, ov::cache_encryption_callbacks, "cache_encryption_callbacks");
+    wrap_property_WO(m_properties, ov::qos, "qos");
 
     // Submodule hint
     py::module m_hint =

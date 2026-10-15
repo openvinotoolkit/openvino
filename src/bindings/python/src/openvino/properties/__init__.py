@@ -6,6 +6,10 @@
 from openvino._pyopenvino.properties import CompatibilityCheck
 from openvino._pyopenvino.properties import CacheMode
 from openvino._pyopenvino.properties import WorkloadType
+from openvino._pyopenvino.properties import QoS
+
+# Classes
+from openvino._pyopenvino.properties import QoSInfo
 
 # Properties
 import openvino._pyopenvino.properties as __properties

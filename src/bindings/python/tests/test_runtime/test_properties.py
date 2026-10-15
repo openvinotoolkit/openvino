@@ -138,6 +138,17 @@ def test_properties_rw_base():
                 (intel_auto.SchedulePolicy.DEFAULT, "SchedulePolicy.DEVICE_PRIORITY", 1),
             ),
         ),
+        (
+            props.QoS,
+            (
+                (props.QoS.DEFAULT, "QoS.DEFAULT", 0),
+                (props.QoS.HIGH, "QoS.HIGH", 1),
+                (props.QoS.MEDIUM, "QoS.MEDIUM", 2),
+                (props.QoS.LOW, "QoS.LOW", 3),
+                (props.QoS.UTILITY, "QoS.UTILITY", 4),
+                (props.QoS.ECO, "QoS.ECO", 5),
+            ),
+        ),
     ],
 )
 def test_properties_enums(ov_enum, expected_values):
@@ -212,7 +223,8 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
         (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
         (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
-        (intel_npu.max_tiles, "NPU_MAX_TILES")
+        (intel_npu.max_tiles, "NPU_MAX_TILES"),
+        (props.qos_info, "QOS_INFO"),
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -546,8 +558,42 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 
 
 ###
+# Write-Only properties
+###
+@pytest.mark.parametrize(
+    ("ov_property_wo", "expected_value", "test_values"),
+    [
+        (
+            props.qos,
+            "QOS",
+            ((props.QoS.DEFAULT, props.QoS.DEFAULT),
+             (props.QoS.HIGH, props.QoS.HIGH),
+             (props.QoS.ECO, props.QoS.ECO),),
+        ),
+    ],
+)
+def test_properties_wo(ov_property_wo, expected_value, test_values):
+    # Test if property is correctly registered
+    assert ov_property_wo() == expected_value
+    assert ov_property_wo == expected_value
+
+    # Test if property process values correctly
+    for values in test_values:
+        property_tuple = ov_property_wo(values[0])
+        assert property_tuple[0] == expected_value
+        assert property_tuple[1].value == values[1]
+
+
+###
 # Special cases
 ###
+def test_properties_qos_info():
+    info = props.QoSInfo(props.QoS.LOW, True)
+    assert info.level == props.QoS.LOW
+    assert info.is_overridden is True
+    assert repr(info) == "{level: LOW is_overridden: 1}"
+
+
 def test_compiled_blob_property():
     assert hints.compiled_blob == "COMPILED_BLOB"
     compiled_blob = hints.compiled_blob(ov.Tensor(Type.u8, [2, 5]))
