@@ -27,7 +27,8 @@ namespace ov::frontend::pytorch::pass {
  * The new Converts are not marked here: ov::pass::MarkCompressedFloatConstants, run after this pass,
  * marks them as decompression and disables constant folding on them and their Constants.
  *
- * Enabled by the "canonical_float_precision" decoder rt_info flag (set by the torch.compile vLLM path).
+ * Run by normalize() when the decoder reports a default float type other than f32
+ * (TorchDecoder::get_default_float_type; the torch.compile vLLM path passes vLLM's model dtype).
  */
 class CanonicalizeFloatPrecision : public ov::pass::ModelPass {
 public:

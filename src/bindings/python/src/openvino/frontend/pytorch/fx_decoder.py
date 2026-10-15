@@ -24,7 +24,7 @@ from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
 from openvino import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
-    torch_tensor_to_ov_const)
+    to_ov_float_type, torch_tensor_to_ov_const)
 
 logger = logging.getLogger(__name__)
 
@@ -221,10 +221,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
                  input_types=None, dynamic_shapes=False,
-                 op_type_mapping=None, output_names=None, rt_info=None):
+                 op_type_mapping=None, output_names=None, default_float_type=None):
         super().__init__(mark_node_callback)
-        # Model-level flags for the frontend; read from the top-level decoder only.
-        self._rt_info = rt_info or {}
+        # torch dtype the model was built with, e.g. torch.bfloat16; see TorchDecoderBase.get_default_float_type.
+        self._set_default_float_type(to_ov_float_type(default_float_type))
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
@@ -695,9 +695,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def get_schema(self):
         schema = getattr(getattr(self.pt_module, "target", None), "_schema", None)
         return str(schema) if schema is not None else "NONE"
-
-    def get_rt_info(self):
-        return self._rt_info
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
         if not isinstance(self.pt_module, torch.fx.Node):

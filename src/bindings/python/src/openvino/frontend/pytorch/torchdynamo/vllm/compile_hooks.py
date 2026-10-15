@@ -22,17 +22,18 @@ logger = logging.getLogger(__name__)
 # The four apply_* entry points below are grouped so compile.py needs one
 # try/except per call site rather than one per hook.
 
-def decoder_rt_info(options):
-    """Frontend flags for the FX decoder's rt_info, read by the PyTorch frontend's normalize().
+def decoder_default_float_type(options):
+    """The torch dtype the model was built with, for the FX decoder's default_float_type, or None.
 
-    "canonical_float_precision" runs its CanonicalizeFloatPrecision pass: f32
-    activations, weights kept narrow behind a decompression Convert.
+    vLLM builds the model with torch's default dtype set to model_config.dtype and restores it
+    afterwards, so the plugin passes that dtype in options["default_float_type"]. The frontend
+    then converts a bf16/f16 model to f32 activations, weights kept narrow behind a decompression
+    Convert. "canonical_precision": False keeps the graph in the model's own types.
     """
-    from openvino import OVAny
     from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
-    if bool_opt(options, "canonical_precision", False):
-        return {"canonical_float_precision": OVAny(True)}
-    return {}
+    if not bool_opt(options, "canonical_precision", False):
+        return None
+    return options.get("default_float_type") if options else None
 
 
 def apply_post_convert(om, options):
@@ -343,13 +344,18 @@ def normalize_concat_ranks(om):
 def model_float_precision(om):
     """Return the model's float dtype as an OV type name ("bf16"/"f16"), or None.
 
-    Prefers the PagedAttention key_cache Parameter (compute precision must
+    Prefers the "default_float_type" the frontend records from the decoder (the
+    dtype vLLM built the model with). Without it (a caller that didn't pass the
+    dtype), reads it from the PagedAttention key_cache Parameter (compute precision must
     match it, see preset.precision_config); falls back to output/input element
     types on graphs with no PA op. Reads ports rather than walking Constants
     to stay O(#ports) on graphs with thousands of frozen weights.
     """
     if om is None:
         return None
+    if om.has_rt_info("default_float_type"):
+        name = om.get_rt_info("default_float_type").astype(str)
+        return name if name in _preset.SUPPORTED_FLOAT_PRECISIONS else None
 
     def narrow(element_type):
         name = element_type.get_type_name()
