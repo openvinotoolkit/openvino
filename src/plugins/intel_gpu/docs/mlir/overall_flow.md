@@ -20,8 +20,8 @@ and inserts an `ov::intel_gpu::op::MLIROp` operation representing the converted 
 An actual compilation and execution of the converted MLIR module happens in a separate project called
 `graph-compiler (GC)` - the project is "ingress-agnostic" and doesn't depend on OV specifically, it handles
 an arbitrary mlir-linalg-code as an input and produces a GPU-binary combined with a cpu-side launching code.
-The generated host code drives an abstract `gc::gpu::GpuRuntime` interface, which the plugin implements on top
-of `cldnn::stream`/`cldnn::engine`, so the kernels are scheduled into the command list of the OV stream. The
+The generated host code drives the `gc::gpu::GpuRuntime<Kernel, Event, Memory>` interface, which the plugin implements
+on top of `cldnn::stream`/`cldnn::engine` with `cldnn::event::ptr` events and `cldnn::memory::ptr` memory, so the kernels are scheduled into the command list of the OV stream. The
 OpenVINO side is only responsible for matching a suitable subgraph in `ov::Model`, converting it to MLIR as is
 (all the optimizations are made on the graph-compiler side), and providing the runtime-info on inference
 (buffers, dependencies, etc).

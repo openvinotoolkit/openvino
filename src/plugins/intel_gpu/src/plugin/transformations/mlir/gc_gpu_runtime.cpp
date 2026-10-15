@@ -36,20 +36,10 @@ namespace ov::intel_gpu::mlir {
 namespace {
 
 using ProgramArgs = std::vector<void*>;
-using ProgramStorage = std::vector<::gc::gpu::Program::ArgStorage>;
+using ProgramArgStorage = std::deque<::gc::gpu::Program::ArgStorage>;
+using ::gc::gpu::ArgType;
 
-// GpuRuntime::Event is an incomplete opaque type. The pointer is the address of a
-// cldnn::event::ptr slot owned by GcGpuRuntime::events.
-::gc::gpu::GpuRuntime::Event* as_event(cldnn::event::ptr& slot) {
-    return reinterpret_cast<::gc::gpu::GpuRuntime::Event*>(&slot);
-}
-
-cldnn::event::ptr& as_slot(::gc::gpu::GpuRuntime::Event* event) {
-    return *reinterpret_cast<cldnn::event::ptr*>(event);
-}
-
-cldnn::scalar_desc::Types to_scalar_type(::gc::gpu::GpuRuntime::Kernel::ArgType type) {
-    using ArgType = ::gc::gpu::GpuRuntime::Kernel::ArgType;
+cldnn::scalar_desc::Types to_scalar_type(ArgType type) {
     switch (type) {
     case ArgType::I8:
         return cldnn::scalar_desc::Types::INT8;
@@ -80,7 +70,7 @@ cldnn::scalar_desc::Types to_scalar_type(::gc::gpu::GpuRuntime::Kernel::ArgType 
 // Created by the compiled program and destroyed by it, thus outliving the runtime.
 // Holds no per-stream state: the kernels and their argument descriptors are cached
 // by the stream-local runtime, see GcGpuRuntime::kernel_data().
-struct GcKernel final : ::gc::gpu::GpuRuntime::Kernel {
+struct GcKernel {
     GcKernel(const uint8_t* bin, size_t size, std::string name, uint32_t n_args, const ArgType* arg_types)
         : bin(bin),
           size(size),
@@ -93,7 +83,9 @@ struct GcKernel final : ::gc::gpu::GpuRuntime::Kernel {
     const std::vector<ArgType> argTypes;
 };
 
-class GcGpuRuntime final : public ::gc::gpu::GpuRuntime, public MLIRGpuRuntime {
+// The handles passed to the generated code are typed: Event* and Memory* are the
+// addresses of the slots, owned by GcGpuRuntime::events and GcGpuRuntime::memories.
+class GcGpuRuntime final : public ::gc::gpu::GpuRuntime<GcKernel, cldnn::event::ptr, cldnn::memory::ptr>, public MLIRGpuRuntime {
 public:
     GcGpuRuntime(cldnn::stream& stream, cldnn::engine& engine) : gpuStream(stream), gpuEngine(engine) {
         const auto& info = engine.get_device_info();
@@ -110,8 +102,12 @@ public:
         return deviceInfo;
     }
 
-    Kernel* createKernel(const uint8_t* data, size_t size, const char* name, uint32_t n_args, Kernel::ArgType* arg_types) override {
+    Kernel* createKernel(const uint8_t* data, size_t size, const char* name, uint32_t n_args, ArgType* arg_types) override {
         return new GcKernel(data, size, name, n_args, arg_types);
+    }
+
+    static void destroyKernel(Kernel* kernel) {
+        delete kernel;
     }
 
     Event* launch(Kernel* kernel,
@@ -127,7 +123,7 @@ public:
                   uint32_t n_deps) override {
         OPENVINO_DEBUG_ASSERT(grid_x && grid_y && grid_z && block_x && block_y && block_z, "[GPU] MLIR kernel launch with a zero grid or local size");
 
-        const auto& gc_kernel = *static_cast<GcKernel*>(kernel);
+        const auto& gc_kernel = *kernel;
         auto& kd = kernel_data(gc_kernel, n_args);
 
         auto& global = kd.desc.workGroups.global;
@@ -141,66 +137,59 @@ public:
 
         set_arg_values(kd, gc_kernel.argTypes, args);
         gpuStream.set_arguments(*kd.kernel, kd.desc, kd.args);
-        auto* ev = store(gpuStream.enqueue_kernel(*kd.kernel, kd.desc, kd.args, collect_events(deps, n_deps), /*is_output_event=*/true));
+        auto* ev = store_event(gpuStream.enqueue_kernel(*kd.kernel, kd.desc, kd.args, collect_events(deps, n_deps), /*is_output_event=*/true));
         eventScratch.clear();
         kd.args.intermediates.clear();
         return ev;
     }
 
-    void* allocDevice(size_t size, size_t alignment) override {
+    Memory* allocDevice(size_t size, size_t alignment) override {
         return alloc(size, alignment, cldnn::allocation_type::usm_device);
     }
-    void* allocShared(size_t size, size_t alignment) override {
+    Memory* allocShared(size_t size, size_t alignment) override {
         return alloc(size, alignment, cldnn::allocation_type::usm_shared);
     }
-    void* allocHost(size_t size, size_t alignment) override {
+    Memory* allocHost(size_t size, size_t alignment) override {
         return alloc(size, alignment, cldnn::allocation_type::usm_host);
     }
 
-    void free(void* ptr) override {
-        OPENVINO_ASSERT(ptr != nullptr, "[GPU] An MLIR program attempts to free a null pointer");
-        auto* held = reinterpret_cast<cldnn::memory::ptr*>(ptr);
-        OPENVINO_ASSERT(*held, "[GPU] An MLIR program attempts to free memory it does not own: ", ptr);
-        held->reset();
+    void free(Memory* ptr) override {
+        ptr->reset();
     }
 
-    Event* memcpy(const void* src, void* dst, size_t size, Event* const* deps, uint32_t n_deps) override {
-        const auto* src_mem = reinterpret_cast<const cldnn::memory::ptr*>(src);
-        auto* dst_mem = reinterpret_cast<cldnn::memory::ptr*>(dst);
-        OPENVINO_ASSERT(src_mem && *src_mem && dst_mem && *dst_mem, "[GPU] MLIR memcpy arguments must be memory::ptr*");
-
+    Event* memcpy(const Memory* src, Memory* dst, size_t size, Event* const* deps, uint32_t n_deps) override {
         if (n_deps > 0) {
             // copy_from() takes no dependencies, order the copy after them on the queue.
             gpuStream.enqueue_marker(collect_events(deps, n_deps), /*is_output_event=*/false);
             gpuStream.enqueue_barrier();
             eventScratch.clear();
         }
-        return store((*dst_mem)->copy_from(gpuStream, **src_mem, 0, 0, size, /*blocking=*/false));
+        return store_event((*dst)->copy_from(gpuStream, **src, 0, 0, size, /*blocking=*/false));
     }
 
     void wait(Event* const* events, uint32_t n_events) override {
         gpuStream.wait_for_events(collect_events(events, n_events));
-        for (uint32_t i = 0; i < n_events; ++i) {
-            as_slot(events[i]).reset();
-        }
+        std::for_each_n(events, n_events, [](Event* ev) {
+            ev->reset();
+        });
         eventScratch.clear();
     }
 
-    cldnn::memory::ptr* store_memory(cldnn::memory::ptr mem) {
+    Memory* store_memory(cldnn::memory::ptr mem) {
         memories.push_back(std::move(mem));
         return &memories.back();
     }
 
-    Event* store(cldnn::event::ptr event) {
+    Event* store_event(cldnn::event::ptr event) {
         events.push_back(std::move(event));
-        return as_event(events.back());
+        return &events.back();
     }
 
     // Copies the events into the scratch vector, reused to keep the capacity.
     const std::vector<cldnn::event::ptr>& collect_events(Event* const* events, uint32_t n) {
         eventScratch.clear();
         for (uint32_t i = 0; i < n; ++i) {
-            if (const auto& ev = as_slot(events[i])) {
+            if (const auto& ev = *events[i]) {
                 eventScratch.push_back(ev);
             }
         }
@@ -245,7 +234,7 @@ private:
         uint32_t mem_idx = 0;
         kd.desc.arguments.reserve(n_args);
         for (auto type : kernel.argTypes) {
-            if (type == Kernel::ArgType::PTR) {
+            if (type == ArgType::PTR) {
                 kd.desc.arguments.push_back({cldnn::argument_desc::Types::INTERNAL_BUFFER, mem_idx++});
             } else {
                 kd.desc.arguments.push_back({cldnn::argument_desc::Types::SCALAR, static_cast<uint32_t>(kd.desc.scalars.size())});
@@ -258,21 +247,22 @@ private:
         return cached;
     }
 
-    static void set_arg_values(KernelData& kd, const std::vector<Kernel::ArgType>& types, void** args) {
+    static void set_arg_values(KernelData& kd, const std::vector<ArgType>& types, void** args) {
         kd.args.intermediates.clear();
         size_t scalar_idx = 0;
         for (size_t i = 0; i < types.size(); ++i) {
-            if (types[i] == Kernel::ArgType::PTR) {
-                auto* held = *reinterpret_cast<cldnn::memory::ptr**>(args[i]);
+            if (types[i] == ArgType::PTR) {
+                // A pointer argument is a Memory*, returned by alloc*() or passed via storeMemref().
+                auto* held = *static_cast<Memory**>(args[i]);
                 OPENVINO_ASSERT(held && *held, "[GPU] MLIR kernel pointer argument ", i, " is null");
                 kd.args.intermediates.push_back(*held);
             } else {
-                std::memcpy(&kd.desc.scalars[scalar_idx++].v, args[i], Kernel::argSize(types[i]));
+                std::memcpy(&kd.desc.scalars[scalar_idx++].v, args[i], ::gc::gpu::argSize(types[i]));
             }
         }
     }
 
-    void* alloc(size_t size, size_t alignment, cldnn::allocation_type type) {
+    Memory* alloc(size_t size, size_t alignment, cldnn::allocation_type type) {
         cldnn::layout layout({static_cast<int64_t>(std::max<size_t>(size, 1))}, ov::element::u8, cldnn::format::bfyx);
         auto mem = gpuEngine.allocate_memory(layout, type, /*reset=*/false);
         void* ptr = mem->buffer_ptr();
@@ -293,9 +283,9 @@ private:
     std::deque<cldnn::memory::ptr> memories;
     std::deque<cldnn::event::ptr> events;
     std::vector<cldnn::event::ptr> eventScratch;
-    std::vector<::gc::gpu::GpuRuntime::Event*> eventHandles;
+    std::vector<Event*> eventHandles;
     ProgramArgs args;
-    ProgramStorage storage;
+    ProgramArgStorage arg_storage;
 
     static std::unique_ptr<MLIRGpuRuntime> create_runtime(cldnn::stream& stream, cldnn::engine& engine) {
         return std::make_unique<GcGpuRuntime>(stream, engine);
@@ -315,8 +305,7 @@ public:
         ::gc::gpu::GpuCompiler::Options opts(device_id);
         opts.wait = false;
         opts.dump = dump;
-        ::mlir::ModuleOp mod = module.get();
-        future = compiler.compile(mod, opts);
+        future = compiler.compile<GcGpuRuntime>(std::move(module), opts);
     }
 
     void wait_compiled() override {
@@ -336,11 +325,10 @@ public:
         OPENVINO_ASSERT(program != nullptr, "[GPU] MLIR program is not compiled");
         OPENVINO_ASSERT(op.get_input_size() == instance.inputs_memory_count(), "[GPU] mlir_primitive '", instance.id(), "': input count mismatch");
         OPENVINO_ASSERT(op.get_output_size() == instance.outputs_memory_count(), "[GPU] mlir_primitive '", instance.id(), "': output count mismatch");
+        // GcGpuRuntime is the only MLIRGpuRuntime, see create_runtime().
         auto& rt = static_cast<GcGpuRuntime&>(runtime);
-        rt.args.clear();
-        rt.storage.clear();
 
-        ::gc::gpu::Program::ArgsBuilder<ProgramArgs, ProgramStorage> builder(rt.args, rt.storage);
+        ::gc::gpu::Program::ArgsBuilder<ProgramArgs, ProgramArgStorage> builder(rt.args, rt.arg_storage);
         const auto store_memref = [&](const cldnn::memory::ptr& mem, size_t idx, bool input, unsigned rank, ov::element::Type type) {
             const auto argument = [&]() -> std::string {
                 if (!input) {
@@ -429,19 +417,15 @@ public:
         store_all(op.get_input_size(), /*input=*/true);
         store_all(op.get_output_size(), /*input=*/false);
 
-        size_t storage_idx = 0;
-        for (auto r : ranks) {
-            builder.appendStoredMemref(storage_idx, r);
-        }
-
         rt.eventHandles.clear();
         for (const auto& dep : deps) {
-            rt.eventHandles.push_back(rt.store(dep));
+            rt.eventHandles.push_back(rt.store_event(dep));
         }
 
-        auto* gc_runtime = static_cast<::gc::gpu::GpuRuntime*>(&rt);
         auto** events =
-            program->main(rt.args, gc_runtime, rt.eventHandles.empty() ? nullptr : rt.eventHandles.data(), static_cast<uint32_t>(rt.eventHandles.size()));
+            program->main(builder.build(), &rt, rt.eventHandles.empty() ? nullptr : rt.eventHandles.data(), static_cast<uint32_t>(rt.eventHandles.size()));
+        // Copy the completions out; do not wait(). OV owns the events after this.
+        // main() waits for the buffers it has allocated and frees them, so dropping the frame is safe.
         const auto& completions = rt.collect_events(events, program->eventNum());
         auto event = completions.empty() ? rt.stream().enqueue_marker(deps, need_event) : rt.stream().aggregate_events(completions, /*group=*/true, need_event);
         rt.events.clear();
