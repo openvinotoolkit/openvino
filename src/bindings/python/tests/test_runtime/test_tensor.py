@@ -374,28 +374,46 @@ def test_can_set_shape_other_dims():
 
 
 @pytest.mark.parametrize(
-    ("ov_type", "expected_msg"),
+    "ov_type",
     [
-        (ov.Type.u1, "cannot slice the innermost dimension"),
-        (ov.Type.u2, "cannot slice the innermost dimension"),
-        (ov.Type.u3, "span a byte boundary"),
-        (ov.Type.u4, "cannot slice the innermost dimension"),
-        (ov.Type.u6, "span a byte boundary"),
-        (ov.Type.i4, "cannot slice the innermost dimension"),
+        ov.Type.u1,
+        ov.Type.u2,
+        ov.Type.u3,
+        ov.Type.u4,
+        ov.Type.u6,
+        ov.Type.i4,
     ],
 )
-def test_cannot_create_roi_from_packed_tensor(ov_type, expected_msg):
+def test_cannot_create_roi_from_packed_tensor(ov_type):
     ov_tensor = ov.Tensor(ov_type, [1, 3, 48, 48])
     with pytest.raises(RuntimeError) as e:
         ov.Tensor(ov_tensor, [0, 0, 24, 24], [1, 3, 48, 48])
-    assert expected_msg in str(e.value)
+    assert "cannot slice the innermost dimension" in str(e.value)
 
 
-def test_cannot_create_roi_from_packed_tensor_when_not_contiguous():
+def test_roi_from_packed_tensor_when_strided_two_heads():
     ov_tensor = ov.Tensor(ov.Type.i4, [1, 2, 4095, 512])
-    with pytest.raises(RuntimeError) as e:
-        ov.Tensor(ov_tensor, [0, 0, 0, 0], [1, 2, 10, 512])
-    assert "not a single contiguous byte-aligned region" in str(e.value)
+    ov_tensor.data[:] = np.arange(ov_tensor.data.size, dtype=ov_tensor.data.dtype)
+
+    roi_tensor = ov.Tensor(ov_tensor, [0, 0, 0, 0], [1, 2, 10, 512])
+
+    assert list(roi_tensor.shape) == [1, 2, 10, 512]
+    assert not roi_tensor.is_continuous()
+    assert np.shares_memory(ov_tensor.data, roi_tensor.data)
+
+    row_bytes = 512 * 4 // 8
+    head_stride_bytes = 4095 * row_bytes
+    assert roi_tensor.strides[1] == head_stride_bytes
+
+    # roi_tensor.data is not usable directly here: for sub-byte types it is exposed as a flat
+    # byte_size-length view, which does not reflect a strided (non-contiguous) layout. copy_to
+    # goes through the real per-dimension strides instead, so use it to verify the content.
+    dense_tensor = ov.Tensor(ov.Type.i4, [1, 2, 10, 512])
+    roi_tensor.copy_to(dense_tensor)
+    for h in range(2):
+        src_start = h * head_stride_bytes
+        dst_start = h * 10 * row_bytes
+        assert np.array_equal(dense_tensor.data[dst_start : dst_start + 10 * row_bytes], ov_tensor.data[src_start : src_start + 10 * row_bytes])
 
 
 def test_roi_from_packed_tensor_when_contiguous():
@@ -410,21 +428,31 @@ def test_roi_from_packed_tensor_when_contiguous():
 
 
 @pytest.mark.parametrize(
+    ("ov_type", "row_bytes"),
+    [
+        (ov.Type.u1, 6),
+        (ov.Type.u2, 12),
+        (ov.Type.u4, 24),
+        (ov.Type.i4, 24),
+    ],
+)
+def test_can_get_strides_for_packed_tensor_with_aligned_row(ov_type, row_bytes):
+    ov_tensor = ov.Tensor(ov_type, [1, 3, 48, 48])
+    assert list(ov_tensor.get_strides())[-2] == row_bytes
+
+
+@pytest.mark.parametrize(
     "ov_type",
     [
-        (ov.Type.u1),
-        (ov.Type.u2),
         (ov.Type.u3),
-        (ov.Type.u4),
         (ov.Type.u6),
-        (ov.Type.i4),
     ],
 )
 def test_cannot_get_strides_for_packed_tensor(ov_type):
     ov_tensor = ov.Tensor(ov_type, [1, 3, 48, 48])
     with pytest.raises(RuntimeError) as e:
         ov_tensor.get_strides()
-    assert "Could not get strides for types with bitwidths less then 8 bit." in str(e.value)
+    assert "Could not get strides" in str(e.value)
 
 
 @pytest.mark.parametrize(

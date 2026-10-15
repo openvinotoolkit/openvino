@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -45,35 +46,16 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
 // Computes the byte offset of a ROI inside its owner tensor.
 size_t compute_roi_offset(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) {
     const auto& element_type = owner->get_element_type();
-    const auto bitwidth = element_type.bitwidth();
-    if (bitwidth >= 8) {
-        const auto& strides = owner->get_strides();
-        return std::inner_product(begin.begin(), begin.end(), strides.begin(), static_cast<size_t>(0));
+    if (element_type.bitwidth() < 8) {
+        // sub-byte types: only the innermost dimension must be taken in full - every other dimension's
+        // byte stride is always whole, so it may be an arbitrary sub-range
+        const auto& shape = owner->get_shape();
+        const auto is_inner_dim_full = !shape.empty() && begin.back() == 0 && end.back() == shape.back();
+        OPENVINO_ASSERT(is_inner_dim_full, "ROI cannot slice the innermost dimension of a sub-byte tensor");
     }
 
-    const auto& shape = owner->get_shape();
-    OPENVINO_ASSERT((8 % bitwidth) == 0, "ROI not supported: element may span a byte boundary");
-    OPENVINO_ASSERT(!shape.empty() && (shape.back() * bitwidth) % 8 == 0,
-                    "ROI requires a byte-aligned innermost dimension");
-
-    // find the first (innermost-to-outermost) dimension that is not fully spanned; every dimension
-    // beyond it must then be reduced to a single index, or the ROI would span disjoint memory runs
-    bool full_suffix = true;
-    for (size_t i = shape.size(); i-- > 0;) {
-        const auto len = end[i] - begin[i];
-        if (full_suffix) {
-            if (len != shape[i]) {
-                OPENVINO_ASSERT(i != shape.size() - 1, "ROI cannot slice the innermost dimension");
-                full_suffix = false;
-            }
-        } else {
-            OPENVINO_ASSERT(len == 1, "ROI is not a single contiguous byte-aligned region");
-        }
-    }
-
-    const auto element_strides = row_major_strides(shape);
-    const auto offset = std::inner_product(begin.begin(), begin.end(), element_strides.begin(), static_cast<size_t>(0));
-    return (offset * bitwidth) / 8;
+    const auto& strides = owner->get_strides();
+    return std::inner_product(begin.begin(), begin.end(), strides.begin(), static_cast<size_t>(0));
 }
 }  // namespace
 
@@ -171,9 +153,14 @@ public:
     }
 
     const Strides& get_strides() const override {
-        OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
-                        "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
-                        m_element_type);
+        const auto has_byte_strides = util::has_byte_strides(m_element_type, m_shape);
+        OPENVINO_ASSERT(has_byte_strides,
+                        "Could not get strides for tensor type: ",
+                        m_element_type,
+                        ", shape: ",
+                        m_shape,
+                        " - byte strides are only representable when the element bitwidth evenly divides a byte "
+                        "and the last dimension is byte-aligned");
         std::call_once(m_strides_once, &ViewTensor::update_strides, this);
         return m_strides;
     }
@@ -202,18 +189,8 @@ protected:
     }
 
     void update_strides() const {
-        if (m_element_type.bitwidth() < 8)
-            return;
-
-        auto& shape = get_shape();
-        if (m_strides.empty() && !shape.empty()) {
-            m_strides.resize(shape.size());
-            m_strides.back() = shape.back() == 0 ? 0 : m_element_type.size();
-            std::transform(shape.crbegin(),
-                           shape.crend() - 1,
-                           m_strides.rbegin(),
-                           m_strides.rbegin() + 1,
-                           std::multiplies<size_t>());
+        if (m_strides.empty() && util::has_byte_strides(m_element_type, get_shape())) {
+            m_strides = util::get_dense_byte_strides(m_element_type, get_shape());
         }
     }
 
@@ -282,16 +259,21 @@ class StridedViewTensor : public ViewTensor {
 public:
     StridedViewTensor(const element::Type element_type, const Shape& shape, void* ptr, const Strides& strides)
         : ViewTensor{element_type, shape, ptr} {
-        OPENVINO_ASSERT(
-            get_element_type().bitwidth() >= 8,
-            "Could not create strided access tensor for types with bitwidths less then 8 bit. Tensor type: ",
-            get_element_type());
+        const auto has_byte_strides = util::has_byte_strides(get_element_type(), shape);
+        OPENVINO_ASSERT(has_byte_strides,
+                        "Could not create strided access tensor for tensor type: ",
+                        get_element_type(),
+                        ", shape: ",
+                        shape,
+                        " - byte strides are only representable when the element bitwidth evenly divides a byte "
+                        "and the last dimension is byte-aligned");
         // Save default strides
         auto shape_strides = get_strides();
         // Change strides
         m_strides = strides;
         OPENVINO_ASSERT(m_shape.size() == m_strides.size());
 
+        const auto is_sub_byte = get_element_type().bitwidth() < 8;
         for (size_t i = 0; i < m_strides.size(); ++i) {
             OPENVINO_ASSERT(shape_strides[i] <= m_strides[i],
                             "shape stride: ",
@@ -303,13 +285,17 @@ public:
                             shape_strides[i],
                             ", stride: ",
                             m_strides[i]);
-            if (i) {
-                OPENVINO_ASSERT(m_strides[i - 1] >= m_strides[i] * shape[i],
-                                "Strides: ",
-                                m_strides,
-                                " are incompatible with shapes: ",
-                                m_shape);
-            }
+        }
+
+        // for sub-byte types the last dimension's stride is not addressable placeholder (already validated above),
+        // so it is excluded from the overlap check between neighboring dimensions
+        const auto overlap_check_end = is_sub_byte ? m_strides.size() - 1 : m_strides.size();
+        for (size_t i = 1; i < overlap_check_end; ++i) {
+            OPENVINO_ASSERT(m_strides[i - 1] >= m_strides[i] * shape[i],
+                            "Strides: ",
+                            m_strides,
+                            " are incompatible with shapes: ",
+                            m_shape);
         }
     }
 

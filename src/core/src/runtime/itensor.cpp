@@ -16,21 +16,6 @@
 
 namespace ov {
 
-namespace {
-Strides default_byte_strides(const Shape& shape, const element::Type& et) {
-    auto strides = Strides(shape.size());
-    if (!strides.empty()) {
-        strides.back() = et.size();
-        std::transform(shape.crbegin(),
-                       shape.crend() - 1,
-                       strides.rbegin(),
-                       strides.rbegin() + 1,
-                       std::multiplies<size_t>());
-    }
-    return strides;
-}
-}  // namespace
-
 ITensor::~ITensor() = default;
 
 size_t ITensor::get_size() const {
@@ -42,14 +27,15 @@ size_t ITensor::get_byte_size() const {
 }
 
 bool ITensor::is_continuous() const {
-    if ((get_element_type().bitwidth() < 8) || get_size() == 0) {
-        // OpenVINO doesn't support strides for lp types
+    const auto& type = get_element_type();
+    const auto& shape = get_shape();
+    if (shape_size(shape) == 0 || !util::has_byte_strides(type, shape)) {
         return true;
     }
 
     const auto& strides = get_strides();
     auto stride = strides.rbegin();
-    const auto default_strides = default_byte_strides(get_shape(), get_element_type());
+    const auto default_strides = util::get_dense_byte_strides(type, shape);
     auto default_stride = default_strides.rbegin();
 
     for (; stride != strides.rend(); ++stride, ++default_stride) {
@@ -61,7 +47,7 @@ bool ITensor::is_continuous() const {
     const auto default_last = default_strides.rend();
     // It assumed that `default_strides' and `strides' have the same size, thus `default_stride' iterator is valid
     // coverity[deref_iterator:SUPPRESS]
-    return (default_stride == default_last) || (*default_stride < *stride && (get_shape()[0] == 1) &&
+    return (default_stride == default_last) || (*default_stride < *stride && (shape[0] == 1) &&
                                                 std::all_of(default_stride, default_last, cmp::Equal(*default_stride)));
 }
 
@@ -72,14 +58,17 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
     OPENVINO_ASSERT(!dynamic_cast<const ov::IRemoteTensor*>(this),
                     "Default copy to doesn't support copy from remote tensor.");
-    OPENVINO_ASSERT(dst->get_element_type() == get_element_type(),
+
+    const auto& type = get_element_type();
+    const auto& shape = get_shape();
+
+    OPENVINO_ASSERT(dst->get_element_type() == type,
                     "Tensor element types are not equal. (src: ",
-                    get_element_type(),
+                    type,
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
 
-    const auto& shape = get_shape();
     if (shape != dst->get_shape()) {
         dst->set_shape(shape);
     }
@@ -96,16 +85,14 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     ov::Shape cur_pos{0};
     ov::Shape max_pos{1};
 
-    if (get_element_type().bitwidth() < 8 || (get_strides() == dst->get_strides() && is_continuous()) ||
+    if (!util::has_byte_strides(type, shape) || (get_strides() == dst->get_strides() && is_continuous()) ||
         (is_scalar(shape) && is_scalar(dst->get_shape()))) {
-        // OpenVINO doesn't support strides for LP types
-        // or both tensors have default strides
+        // byte strides are not representable for this LP type/shape or both tensors have default strides
         // Strides and positions already initialized
     } else {
         // Tensors have default strides
-        const auto& type = get_element_type();
         const auto shape_rank = shape.size();
-        const auto default_strides = default_byte_strides(shape, type);
+        const auto default_strides = util::get_dense_byte_strides(type, shape);
 
         src_strides = get_strides();
         dst_strides = dst->get_strides();
