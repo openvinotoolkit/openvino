@@ -249,8 +249,8 @@ TEST_F(GGUFShards, ExplicitListAllowsRenamedFilesInDifferentDirectoriesAndRevers
     const auto renamed =
         (std::filesystem::temp_directory_path() / (std::filesystem::path(m_base).filename().string() + "_renamed.gguf"))
             .string();
-    std::filesystem::rename(path(1), renamed);
     m_paths.push_back(renamed);
+    ASSERT_TRUE(std::filesystem::copy_file(path(1), renamed));
     const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{renamed, path(0)});
     EXPECT_EQ(std::get<1>(loaded).size(), 2);
     EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
@@ -315,7 +315,7 @@ TEST_F(GGUFShards, RejectsConflictingModelMetadata) {
 TEST_F(GGUFShards, ComparesRepeatedNumericAndStringArrayMetadata) {
     for (size_t index : {0, 1}) {
         GgufWriter writer;
-        writer.kv_u16("split.no", index);
+        writer.kv_u16("split.no", static_cast<uint16_t>(index));
         writer.kv_u16("split.count", 2);
         writer.kv_i32("split.tensors.count", 2);
         writer.kv_str("general.architecture", "qwen3");
@@ -340,7 +340,7 @@ TEST_F(GGUFShards, RejectsConflictingNumericMetadata) {
         SCOPED_TRACE(static_cast<int>(difference));
         for (size_t index : {0, 1}) {
             GgufWriter writer;
-            writer.kv_u16("split.no", index);
+            writer.kv_u16("split.no", static_cast<uint16_t>(index));
             writer.kv_u16("split.count", 2);
             writer.kv_i32("split.tensors.count", 2);
             writer.kv_str("general.architecture", "qwen3");
@@ -457,9 +457,9 @@ TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs)
     };
     size_t i = 0;
     for (auto* writer : {&first, &second}) {
-        writer->kv_u16("split.no", i++);
+        writer->kv_u16("split.no", static_cast<uint16_t>(i++));
         writer->kv_u16("split.count", 2);
-        writer->kv_i32("split.tensors.count", tensors.size());
+        writer->kv_i32("split.tensors.count", static_cast<int32_t>(tensors.size()));
     }
     i = 0;
     for (const auto& [name, shape] : tensors) {
