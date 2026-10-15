@@ -12,7 +12,7 @@ set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(gflags EXCLUDE_FROM_ALL)
 set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|IntelLLVM)$")
     # DEFINE_* macros may generate unused variables in consumers, e.g. test code.
     target_compile_options(gflags_nothreads_static PUBLIC -Wno-unused-variable)
 endif()
