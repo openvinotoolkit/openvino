@@ -8,84 +8,116 @@
 
 /*
  * Description:
- *     Converts an unsupported quantized Conv -> Multiply -> Add -> (Swish) ->
- *     FakeQuantize pattern to a floating convolution. The pass applies when:
- *       1. The Conv activation is produced by Subtract (zero-point dequantization), or
- *       2. The FakeQuantize output type differs from the Conv activation type.
+ *     FallbackUnsupportedLPConvToFloat detects quantized Convolution patterns with
+ *     Convolution -> Multiply -> Add -> (Swish) -> FakeQuantize that cannot execute as int8.
  *
- * Before (the two supported activation branches):
+ *     The pass fires when either:
+ *       1. The Convolution activation comes from a Subtract (zero-point dequantization),
+ *          indicating the int8 path is broken for this Conv (unconditional fallback).
+ *       2. The FakeQuantize output precision differs from Conv activation precision
+ *          (original type-mismatch case).
  *
- *     Case 1: X(u8/i8) -> [Convert] -> Subtract(zero_point) -> A
- *     Case 2: X(u8/i8) -> [Convert] -----------------------> A
+ *     The pass moves DQ scaling from Convolution output path to Convolution weights:
+ *     post-conv DQ Multiply is removed, and equivalent scaling is applied on weights
+ *     before Convolution.
+ *     This avoids fp16 overflow on large post-conv values that would otherwise be scaled
+ *     in the output path.
  *
- *     [Convert] is optional. The Subtract, when present, is preserved.
- *     For u8 X, weights W may be u8/i8; for i8 X, W must be i8.
+ * Before (case 1 - Subtract on activation):
  *
- *     +--------------+       +--------------+
- *     | Activation A |       |  Weights W   |
- *     +------+-------+       +------+-------+
- *            |                      |
- *            +----------+-----------+
- *                       v
- *                +-------------+
- *                | Convolution |
- *                +------+------+
- *                       |
- *                +------v------+       +-------------+
- *                |  Multiply   | <---- | DQ scales S |
- *                +------+------+       +-------------+
- *                       |
- *                +------v------+       +-------------+
- *                |     Add     | <---- | Float bias  |
- *                +------+------+       +-------------+
- *                       |
- *                   (Swish)
- *                       |
- *                +------v------+
- *                | FakeQuantize|
- *                +-------------+
+ *  +--------+     +----------+
+ *  |Convert | --> | Subtract | (zero-point)    +---------------+
+ *  +--------+     +-----+----+                 | Weights (i8)  |
+ *                       |                      +-------+-------+
+ *                       +----------+-----------+
+ *                                  |
+ *                            +-----v------+
+ *                            | Convolution |
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
+ *                            |  Multiply   |
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
+ *                            |     Add     |
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
+ *                            | FakeQuantize|
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
+ *                            |   Result    |
+ *                            +-------------+
+ *
+ * Before (case 2 - type mismatch, no Subtract):
+ *
+ * +--------------+      +---------------+
+ * | Input (u8/i8)|      | Weights (i8)  |
+ * +------+-------+      +-------+-------+
+ *        |                      |
+ *        +----------+-----------+
+ *                   |
+ *             +-----v------+
+ *             | Convolution |
+ *             +------+------+
+ *                    |
+ *                    v
+ *             +-------------+
+ *             |  Multiply   |
+ *             +------+------+
+ *                    |
+ *                    v
+ *             +-------------+
+ *             |     Add     |
+ *             +------+------+
+ *                    |
+ *                    v
+ *             +-------------+
+ *             | FakeQuantize|  (output precision != Conv activation precision)
+ *             +------+------+
+ *                    |
+ *                    v
+ *             +-------------+
+ *             |   Result    |
+ *             +-------------+
  *
  * After:
  *
- *     +--------------+       +--------------+       +-------------+
- *     | Activation A |       |  Weights W   |       | DQ scales S |
- *     +------+-------+       +------+-------+       +------+------+
- *            |                      |                      |
- *       Convert(T)             Convert(T)             Convert(T)
- *            |                      |                      |
- *            |                      |              Reshape[C,1,...,1]
- *            |                      |                      |
- *            |                +-----v------+               |
- *            |                |  Multiply  | <-------------+
- *            |                +-----+------+
- *            |                      |
- *            +----------+-----------+
- *                       v
- *                +-------------+
- *                | Convolution |  (activation, scaled weights and output: T)
- *                +------+------+
- *                       |
- *                +------v------+       +-------------+
- *                |     Add     | <---- | Float bias  |
- *                +------+------+       +-------------+
- *                       |
- *                   (Swish)
- *                       |
- *                +------v------+
- *                | FakeQuantize|
- *                +-------------+
+ * +--------------+      +----------------+                             +--------------+
+ * | Input (u8/i8)| ---> | Convert (T)    | --------------------------> |              |
+ * +--------------+      +----------------+                             | Convolution  |
+ *                                                                      |              |
+ * +---------------+      +----------------+      +------------------+  | (T act,      |
+ * | Weights (i8)  | ---> | Convert (T)    | ---> |     Multiply     |->| scaled T     |
+ * +---------------+      +----------------+      +--------+---------+  | weights)     |
+ *                                                         ^            +------+-------+
+ *                                                         |                   |
+ * +--------------+      +----------------+      +---------+--------+          v
+ * | DQ Scales    | ---> | Convert (T)    | ---> |    Reshape       |   +------+------+
+ * +--------------+      +----------------+      +------------------+   |     Add     |
+ *                                                                      +------+------+
+ *                                                                             |
+ *                                                                             v
+ *                                                                      +------+------+
+ *                                                                      | FakeQuantize|
+ *                                                                      +------+------+
+ *                                                                             |
+ *                                                                             v
+ *                                                                      +------+------+
+ *                                                                      |   Result    |
+ *                                                                      +-------------+
  *
- *     For f16/f32 floating graphs, T is the Add output type: f32 stays f32,
- *     f16 stays f16. Convert(T) is inserted only when the input type differs.
- *     The type-relaxed Conv output override is updated to T as well. This avoids
- *     mixed f16 source/weights with f32 destination, which selects reference Conv.
- *
- *     Per-output-channel scaling moves from the Conv result to its weights:
- *         Conv(A, W) * S  ->  Conv(A, W * Reshape(S)).
- *     C is 1 for per-tensor scales or OC for per-output-channel scales.
- *     This prevents large unscaled Conv outputs from overflowing in the f16 path.
- *     Add, optional Swish and FakeQuantize remain in the same order; the bias is
- *     not multiplied by S. Floating-point rounding can differ after this rewrite.
+ * Note:
+ *     T is the floating Add output type: f16 or f32. Convert(T) is inserted only
+ *     when needed; the type-relaxed Conv output is also set to T to avoid reference
+ *     execution for mixed f16 inputs and f32 output. Activation Subtract is preserved;
+ *     optional Swish remains between Add and FakeQuantize.
  */
 
 namespace ov::intel_cpu {
