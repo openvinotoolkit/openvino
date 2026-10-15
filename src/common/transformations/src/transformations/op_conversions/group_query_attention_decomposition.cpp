@@ -292,7 +292,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     } else if (node->get_sliding_window_cache()) {
         // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
         // row counts before/after appending the S new tokens (see windowed_cache_end).
-        const auto capacity = get_dimensions(register_new_node<v3::ShapeOf>(past_key), {2});
+        auto past_key_shape = register_new_node<v3::ShapeOf>(past_key);
+        const auto capacity = get_dimensions(past_key_shape, {2});
         const auto capacity_scalar = register_new_node<v0::Squeeze>(capacity);
         const auto abs_past_scalar = register_new_node<v0::Squeeze>(past_seqlen);  // P
         const auto abs_total_scalar = register_new_node<v0::Squeeze>(seqlens_1d);  // P + S
@@ -310,7 +311,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         const auto zeros =
             register_new_node<v3::Broadcast>(register_new_node(v0::Constant::create(kv_cache_type, ov::Shape{}, {0})),
-                                             register_new_node<v3::ShapeOf>(past_key));
+                                             past_key_shape);
 
         if (static_single_token) {
             // present = [survivors, new, zeros] left-aligned in the C buffer: the last kept = end_after - S
