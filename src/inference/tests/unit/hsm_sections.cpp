@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/hsm_sections.hpp"
+
 #include <gtest/gtest.h>
 
 #include <array>
@@ -54,6 +56,15 @@ TEST(HsmModelIdSectionTest, round_trips_through_a_real_writer_and_reader) {
     const auto payload = section->view();
     ASSERT_TRUE(payload.has_value());
     EXPECT_EQ(hsm::decode_model_id(*payload), id);
+}
+
+TEST(HsmModelIdSectionTest, inline_section_adds_no_payload_bytes_to_the_container) {
+    const auto bytes = container_with_model_id(hsm::any_device_id, 0x0123456789ABCDEF);
+
+    // model_id is inline-mode, so its payload lives in the manifest entry itself - the manifest must start
+    // right after the header, with no section-payload bytes written in between.
+    const auto& header = hsm::Header::view(reinterpret_cast<const uint8_t*>(bytes.data()));
+    EXPECT_EQ(header.manifest_offset, sizeof(hsm::Header));
 }
 
 TEST(HsmModelIdSectionTest, round_trips_the_maximum_id) {
