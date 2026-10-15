@@ -45,6 +45,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/api/metadata.cpp"
     "${FE_SRC_DIR}/builder/api/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/dspark_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mamba_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mmproj_builder.cpp"
     "${FE_SRC_DIR}/op/multimodal.cpp"

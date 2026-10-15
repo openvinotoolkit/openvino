@@ -14,8 +14,10 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
@@ -27,6 +29,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -34,6 +37,55 @@
 #include "openvino/op/variadic_split.hpp"
 
 namespace ov::frontend::gguf {
+
+ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input) {
+    const auto block = context.get_attribute<int64_t>("hadamard_block", 0);
+    if (block == 0)
+        return input;
+    using namespace ov::op;
+    const auto shape = input.get_partial_shape();
+    FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape.size() > 0 && shape[shape.size() - 1].is_static(),
+                                  "Hadamard requires a static feature width");
+    const auto width = shape[shape.size() - 1].get_length();
+    FRONT_END_OP_CONVERSION_CHECK(block > 0 && block <= 4096 && (block & (block - 1)) == 0 && width % block == 0,
+                                  "Invalid Hadamard block size/width");
+    const auto pattern = [&](const std::vector<int64_t>& dims) {
+        return v0::Constant::create(ov::element::i64, {dims.size()}, dims);
+    };
+    const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
+    const auto heads = context.get_attribute<std::vector<int64_t>>("hadamard_gdn_heads", {});
+    if (!heads.empty()) {
+        FRONT_END_OP_CONVERSION_CHECK(heads.size() == 3 && heads[0] * heads[1] * heads[2] == width,
+                                      "Invalid Hadamard GDN feature order");
+        input = std::make_shared<v1::Reshape>(input, pattern({-1, heads[0], heads[1], heads[2]}), false);
+        input = std::make_shared<v1::Transpose>(input, pattern({0, 2, 1, 3}));
+        input = std::make_shared<v1::Reshape>(input, original, false);
+    }
+    const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
+    const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
+    ov::Output<ov::Node> sign_node;
+    if (signs) {
+        sign_node = std::make_shared<v0::Constant>(signs);
+        if (sign_node.get_element_type() != input.get_element_type())
+            sign_node = std::make_shared<v1::ConvertLike>(sign_node, input);
+    }
+    if (signs && !inverse)
+        input = std::make_shared<v1::Multiply>(input, sign_node);
+    const auto axis = v0::Constant::create(ov::element::i64, {}, {2});
+    for (int64_t stride = 1; stride < block; stride *= 2) {
+        auto grouped = std::make_shared<v1::Reshape>(input, pattern({-1, block / (2 * stride), 2, stride}), false);
+        auto halves = std::make_shared<v1::Split>(grouped, axis, 2);
+        auto sum = std::make_shared<v1::Add>(halves->output(0), halves->output(1));
+        auto difference = std::make_shared<v1::Subtract>(halves->output(0), halves->output(1));
+        input = std::make_shared<v0::Concat>(ov::OutputVector{sum, difference}, 2);
+    }
+    const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
+    input = std::make_shared<v1::Multiply>(input, scale);
+    input = std::make_shared<v1::Reshape>(input, original, false);
+    if (signs && inverse)
+        input = std::make_shared<v1::Multiply>(input, sign_node);
+    return input;
+}
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto input_size = context.get_input_size();
