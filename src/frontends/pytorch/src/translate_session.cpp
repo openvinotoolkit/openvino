@@ -263,8 +263,9 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           " respectively.");
 
             std::map<size_t, size_t> sequence_aliases;
-            for (size_t i = 0; i < raw_inputs.size(); ++i) {
-                const auto elements = node->get_input_sequence(i);
+            const auto sequence_decoder = std::dynamic_pointer_cast<TorchDecoderV2>(node);
+            for (size_t i = 0; sequence_decoder && i < raw_inputs.size(); ++i) {
+                const auto elements = sequence_decoder->get_input_sequence(i);
                 if (elements.empty()) {
                     continue;
                 }

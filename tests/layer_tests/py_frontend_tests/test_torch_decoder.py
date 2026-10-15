@@ -849,3 +849,43 @@ def test_pytorch_decoder_input_sequence_default():
     from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
 
     assert TorchDecoderBase().get_input_sequence(0) == []
+
+
+@pytest.mark.precommit
+def test_pytorch_legacy_decoder_conversion():
+    import numpy as np
+    import openvino as ov
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder
+
+    class LegacyDecoder(_FrontEndPytorchDecoder):
+        def __init__(self, wrapped):
+            super().__init__()
+            self.wrapped = wrapped
+            self.children = []
+
+        def __getattr__(self, name):
+            if name == "get_input_sequence":
+                raise AssertionError("Legacy decoders must not be queried for sequence structure")
+            return getattr(self.wrapped, name)
+
+        def visit_subgraph(self, visitor):
+            def wrap_child(child):
+                decoder = LegacyDecoder(child)
+                self.children.append(decoder)
+                visitor(decoder)
+            self.wrapped.visit_subgraph(wrap_child)
+
+    graph = torch._C.parse_ir("""graph(%input : Tensor):
+      %result : Tensor = aten::alias(%input)
+      return (%result)
+    """)
+    decoder = LegacyDecoder(TorchScriptPythonDecoder(None, graph, alias_db=graph.alias_db()))
+    frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+    input_model = frontend.load(decoder)
+    input_model.set_element_type(input_model.get_inputs()[0], ov.Type.f32)
+    input_model.set_partial_shape(input_model.get_inputs()[0], ov.PartialShape([2, 3]))
+    converted = frontend.convert(input_model)
+    compiled = ov.Core().compile_model(converted, "CPU")
+    data = torch.arange(6, dtype=torch.float32).reshape(2, 3).numpy()
+    np.testing.assert_array_equal(compiled([data])[0], data)

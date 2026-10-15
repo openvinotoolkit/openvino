@@ -5,7 +5,7 @@
 # mypy: ignore-errors
 
 from openvino import OVAny
-from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
+from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoderV2 as Decoder
 
 
 class TorchDecoderBase(Decoder):

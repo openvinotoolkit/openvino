@@ -142,6 +142,11 @@ public:
 
     /// \brief Converts the node if `has_converter` returns true
     virtual OutputVector convert(const ov::frontend::NodeContext* context) const = 0;
+};
+
+class PYTORCH_FRONTEND_API TorchDecoderV2 : public TorchDecoder {
+public:
+    ~TorchDecoderV2() override;
 
     // Ordered output indices forming the complete sequence input; empty when unknown.
     virtual std::vector<size_t> get_input_sequence(size_t index) const {
