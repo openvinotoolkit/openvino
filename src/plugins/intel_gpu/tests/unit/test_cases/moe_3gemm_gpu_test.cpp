@@ -774,13 +774,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_hidden_not_multiple_of_1024,
 
 // Expert weights offloaded to disk (OFFLOAD_RATIO) with 4 of 8 experts resident. Two tokens with top-2 routing
 // always fit the resident slots, so the batched GEMV kernels run on remapped slot ids; eight tokens can exceed
-// them and fall back to the per-expert loop.
+// them and fall back to the per-expert loop. The fourth case calls execute() twice with new inputs of the same size,
+// so the second call's kernels read the slot-id buffer the first call allocated.
 INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_offload,
                          moe_3gemm_compressed_gpu_random,
                          ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX),
                                             ::testing::Values(Moe3GemmTestParams{2, false, 256, 256, 8, 2, 256, false, 4},
                                                               Moe3GemmTestParams{2, true, 256, 256, 8, 2, 256, false, 4},
-                                                              Moe3GemmTestParams{8, false, 256, 256, 8, 2, 256, false, 4})));
+                                                              Moe3GemmTestParams{8, false, 256, 256, 8, 2, 256, false, 4},
+                                                              Moe3GemmTestParams{2, true, 256, 256, 8, 2, 256, false, 4, false, 0, 2})));
 
 // Offloaded expert weights on the micro-GEMM prefill path: 40 tokens is above the batched GEMV threshold (32), and
 // micro-GEMM needs Xe2 and 4-bit weights. Routing restricted to 4 experts fits the 4 resident slots, so the prefill
