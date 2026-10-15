@@ -27,9 +27,9 @@ enum class EltwiseBroadcastingPolicy : uint8_t {
 struct EltwiseData {
     Algorithm algo = Algorithm::Default;
     dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
-    float alpha = 0.0F;
-    float beta = 0.0F;
-    float gamma = 0.0F;
+    double alpha = 0.0;
+    double beta = 0.0;
+    double gamma = 0.0;
     bool pythondiv = false;
 
     bool operator==(const EltwiseData& rhs) const noexcept {

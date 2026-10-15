@@ -357,8 +357,8 @@ struct EltwiseEmitter<jit_dnnl_aux_emitter> {
         ctx.emitter = std::make_shared<jit_dnnl_aux_emitter>(ctx.host,
                                                              ctx.host_isa,
                                                              algKind,
-                                                             ctx.opData.alpha,
-                                                             ctx.opData.beta,
+                                                             static_cast<float>(ctx.opData.alpha),
+                                                             static_cast<float>(ctx.opData.beta),
                                                              ctx.exec_prc);
     }
 };
@@ -368,9 +368,9 @@ struct EltwiseEmitter<jit_power_static_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<jit_power_static_emitter>(ctx.host,
                                                                  ctx.host_isa,
-                                                                 ctx.opData.alpha,
-                                                                 ctx.opData.beta,
-                                                                 ctx.opData.gamma,
+                                                                 static_cast<float>(ctx.opData.alpha),
+                                                                 static_cast<float>(ctx.opData.beta),
+                                                                 static_cast<float>(ctx.opData.gamma),
                                                                  ctx.exec_prc);
     }
 };
