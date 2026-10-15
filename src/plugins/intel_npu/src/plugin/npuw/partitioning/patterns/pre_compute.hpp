@@ -117,22 +117,22 @@ constexpr const char* longrope_sin_input = "npuw_lr_sin";
 // Nothing here aliases compiled-blob memory - a driver is free to repack the constants
 // it is given, so host data must never be assumed to still match them.
 //
-// Both regimes live in ONE tensor per trig function, [1, regimes * max_len,
+// Both modes live in ONE tensor per trig function, [1, modes * max_len,
 // rotary_ndims]: the short-factor rows first, the long-factor rows after. Because row i
 // means position i regardless of the variant, a leading slice of either half serves
 // prefill and every generate variant, whatever their individual LUT lengths - so
 // LLMCompiledModel keeps a single instance sized to the longest LUT in the model.
 //
-// The long half is omitted altogether (has_long == false) when the long regime cannot
+// The long half is omitted altogether (has_long == false) when the long mode cannot
 // be reached - the context limit is at or beyond the longest LUT - or when the two
 // factor sets are numerically identical, which is the case for models that declare
-// LongRoPE but never actually switch (e.g. MiniCPM). Both regimes then bind the same
+// LongRoPE but never actually switch (e.g. MiniCPM). Both modes then bind the same
 // rows.
 //
 // Only max_len/rotary_ndims/has_long and the two inverse-frequency arrays go to the
 // blob; rebuild_tables() regenerates the tensors on import.
 struct LongRopeCosSin {
-    size_t max_len = 0;       // rows per regime; == the longest sin/cos LUT in the model
+    size_t max_len = 0;       // rows per mode; == the longest sin/cos LUT in the model
     size_t rotary_ndims = 0;  // row width; 0 means "no LongRoPE in this model"
     bool has_long = false;
 
@@ -151,7 +151,7 @@ struct LongRopeCosSin {
     // frequency arrays. Used both at compile time and on blob import.
     void rebuild_tables();
 
-    // Dense, non-owning views over the first lut_len rows of the requested regime.
+    // Dense, non-owning views over the first lut_len rows of the requested mode.
     // The backing tensors must outlive them. Non-const because NPUW's input binding
     // path reaches for a writable data pointer.
     ov::Tensor cos_rows(size_t lut_len, bool is_long);
