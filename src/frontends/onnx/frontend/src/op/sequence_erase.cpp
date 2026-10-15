@@ -13,7 +13,11 @@
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 
-namespace ov::frontend::onnx::ai_onnx::opset_11 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_11 {
 
 /// @brief Implements the SequenceErase operator.
 /// @param node Input ONNX node. Inputs: sequence and optional position.
@@ -60,4 +64,8 @@ ov::OutputVector sequence_erase(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("SequenceErase", OPSET_SINCE(1), ai_onnx::opset_11::sequence_erase);
 
-}  // namespace ov::frontend::onnx::ai_onnx::opset_11
+}  // namespace opset_11
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

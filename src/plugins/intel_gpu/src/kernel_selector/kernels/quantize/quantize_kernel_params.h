@@ -63,9 +63,8 @@ struct quantize_params : public base_params {
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
-        if (scale_shift_opt) {
+        if (scale_shift_opt)
             k.EnableQuantizeScaleShiftOpt();
-        }
         return k;
     }
 };

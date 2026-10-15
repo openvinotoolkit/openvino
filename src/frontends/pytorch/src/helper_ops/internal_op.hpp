@@ -12,7 +12,9 @@
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 class InternalOpDecoder : public DummyDecoder {
 public:
@@ -59,4 +61,6 @@ public:
     OPENVINO_OP("InternalReverseOperation", "internal");
     InternalReverseOperation(const OutputVector& inputs) : ov::op::Op(inputs) {}
 };
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

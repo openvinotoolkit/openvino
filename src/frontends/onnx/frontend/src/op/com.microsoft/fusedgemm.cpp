@@ -16,7 +16,11 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::com_microsoft::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace com_microsoft {
+namespace opset_1 {
 ov::OutputVector fusedgemm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto num_inputs = inputs.size();
@@ -58,4 +62,8 @@ ov::OutputVector fusedgemm(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("FusedGemm", OPSET_SINCE(1), com_microsoft::opset_1::fusedgemm, MICROSOFT_DOMAIN);
-}  // namespace ov::frontend::onnx::com_microsoft::opset_1
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

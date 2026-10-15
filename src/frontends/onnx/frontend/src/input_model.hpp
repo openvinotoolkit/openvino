@@ -17,7 +17,9 @@
 
 using ::ONNX_NAMESPACE::ModelProto;
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 class InputModel : public ov::frontend::InputModel {
 public:
@@ -115,8 +117,9 @@ public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         unify::InputModel::Ptr parent_model);
 
-    /// \brief Returns the GraphIterator positioned for the next walk without building the Place graph.
-    ov::frontend::onnx::GraphIterator::Ptr get_graph_iterator_for_walk();
+    /// \brief Returns the underlying GraphIterator without forcing the Place graph to be built.
+    /// Used by the single-pass converter to translate directly from decoders.
+    ov::frontend::onnx::GraphIterator::Ptr get_graph_iterator() const;
 
     /// \brief True when load_model() has run and the Place graph is available.
     bool is_loaded() const;
@@ -159,4 +162,6 @@ public:
 };
 }  // namespace unify
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

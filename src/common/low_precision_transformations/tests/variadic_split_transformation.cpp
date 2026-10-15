@@ -66,6 +66,7 @@ public:
             ov::builder::subgraph::VariadicSplitFunction::getReference(testValues.inputShape,
                                                                            testValues.expected.inputPrecision,
                                                                            testValues.expected.dequantizationBefore,
+                                                                           testValues.expected.precisionAfterOperation,
                                                                            testValues.expected.dequantizationAfter,
                                                                            testValues.axis,
                                                                            testValues.splitLengths);

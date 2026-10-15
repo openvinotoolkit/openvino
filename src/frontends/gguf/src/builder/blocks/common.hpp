@@ -8,7 +8,10 @@
 
 #include "builder/graph_emitter.hpp"
 
-namespace ov::frontend::gguf::blocks {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace blocks {
 
 // Small, architecture-agnostic graph fragments shared by every model family.
 //
@@ -31,4 +34,7 @@ std::string scale(GraphEmitter& e, const std::string& x, float factor, const std
 // Elementwise add of a (broadcast) bias weight: GGML_OP_ADD(x, bias_weight).
 std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& bias_weight, const std::string& name);
 
-}  // namespace ov::frontend::gguf::blocks
+}  // namespace blocks
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

@@ -8,7 +8,10 @@
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -52,4 +55,7 @@ OutputVector translate_rsub_fx(const NodeContext& context) {
     return translate_rsub_common(context, self, other, alpha);
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

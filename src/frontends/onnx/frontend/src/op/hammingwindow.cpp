@@ -1,6 +1,5 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
 #define _USE_MATH_DEFINES
 
@@ -17,7 +16,11 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector hammingwindow(const ov::frontend::onnx::Node& node) {
     const auto size = node.get_ov_inputs().at(0);
     const auto output_datatype = common::get_ov_element_type(node.get_attribute_value<int64_t>("output_datatype", 1));
@@ -63,4 +66,8 @@ ov::OutputVector hammingwindow(const ov::frontend::onnx::Node& node) {
     }
 }
 ONNX_OP("HammingWindow", OPSET_SINCE(1), ai_onnx::opset_1::hammingwindow);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

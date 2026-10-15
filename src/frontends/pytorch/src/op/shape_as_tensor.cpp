@@ -6,7 +6,10 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -17,4 +20,7 @@ OutputVector translate_shape_as_tensor(const NodeContext& context) {
     return {shape};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

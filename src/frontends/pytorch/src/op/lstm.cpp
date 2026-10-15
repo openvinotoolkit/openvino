@@ -21,7 +21,10 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -380,7 +383,7 @@ OutputVector translate_rnn(const NodeContext& context) {
     const auto batch_first = context.const_input<bool>(8);
 
     const auto weight = get_list_as_outputs(weight_v);
-    const auto variant_it = RNN_VARIANT_MAP.find(normalize_op_type(context.get_op_type()));
+    const auto variant_it = RNN_VARIANT_MAP.find(context.get_op_type());
     PYTORCH_OP_CONVERSION_CHECK(variant_it != RNN_VARIANT_MAP.end(), "Unsupported RNN variant.");
     const auto res = generic_rnn(rg,
                                  variant_it->second,
@@ -395,4 +398,7 @@ OutputVector translate_rnn(const NodeContext& context) {
     return res;
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

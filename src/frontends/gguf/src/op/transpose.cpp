@@ -10,7 +10,10 @@
 #include "op_table.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 OutputVector translate_transpose(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
@@ -27,4 +30,7 @@ OutputVector translate_transpose(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

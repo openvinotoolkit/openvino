@@ -4,8 +4,14 @@
 
 #include "elementwise_ops.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs less_than(const NodeContext& node) {
     return elementwise_ops<default_opset::Less>(node);
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

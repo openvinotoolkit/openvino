@@ -13,7 +13,11 @@
 #include "openvino/op/subtract.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector shrink(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
     const float bias = node.get_attribute_value<float>("bias", 0.0f);
@@ -59,4 +63,8 @@ ov::OutputVector shrink(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Shrink", OPSET_SINCE(1), ai_onnx::opset_1::shrink);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

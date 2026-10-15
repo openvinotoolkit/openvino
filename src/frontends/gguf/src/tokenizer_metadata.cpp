@@ -4,11 +4,15 @@
 
 #include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 
-namespace ov::frontend::gguf {
+namespace ov {
+namespace frontend {
+namespace gguf {
 
 const std::string& gguf_tokenizer_metadata_key() {
     static const std::string key = "gguf_tokenizer_metadata";
     return key;
 }
 
-}  // namespace ov::frontend::gguf
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

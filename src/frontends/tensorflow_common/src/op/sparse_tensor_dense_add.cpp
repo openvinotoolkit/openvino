@@ -9,7 +9,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_sparse_tensor_dense_add_op(const NodeContext& node) {
     default_op_checks(node, 4, {"SparseTensorDenseAdd"});
     auto a_indices = node.get_input(0);
@@ -23,4 +26,7 @@ OutputVector translate_sparse_tensor_dense_add_op(const NodeContext& node) {
     return {res};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

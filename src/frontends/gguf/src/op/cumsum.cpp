@@ -10,7 +10,10 @@
 #include "openvino/op/cum_sum.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 // GGML_OP_CUMSUM computes a prefix sum along ggml dim 0 (the innermost/fastest dimension).
 // The frontend works in OV layout (ggml [ne0, ne1, ne2, ne3] -> OV [ne3, ne2, ne1, ne0]), so
@@ -25,4 +28,7 @@ OutputVector translate_cumsum(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

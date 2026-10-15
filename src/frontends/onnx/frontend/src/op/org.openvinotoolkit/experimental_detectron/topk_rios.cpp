@@ -7,7 +7,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::org_openvinotoolkit::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector experimental_detectron_topk_rois(const ov::frontend::onnx::Node& node) {
     using TopKROIs = v6::ExperimentalDetectronTopKROIs;
 
@@ -23,4 +27,8 @@ ONNX_OP("ExperimentalDetectronTopKROIs",
         OPSET_SINCE(1),
         org_openvinotoolkit::opset_1::experimental_detectron_topk_rois,
         OPENVINO_ONNX_DOMAIN);
-}  // namespace ov::frontend::onnx::org_openvinotoolkit::opset_1
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

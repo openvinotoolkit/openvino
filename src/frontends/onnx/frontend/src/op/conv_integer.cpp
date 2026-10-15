@@ -14,7 +14,9 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace {
 std::shared_ptr<ov::Node> get_filter_zero_point(const ov::OutputVector& inputs) {
     const auto& original_zero_point =
@@ -38,7 +40,8 @@ std::shared_ptr<ov::Node> get_filter_zero_point(const ov::OutputVector& inputs) 
     }
 }
 }  // namespace
-namespace ai_onnx::opset_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector conv_integer(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
@@ -76,5 +79,8 @@ ov::OutputVector conv_integer(const ov::frontend::onnx::Node& node) {
     return {conv_node};
 }
 ONNX_OP("ConvInteger", OPSET_SINCE(1), ai_onnx::opset_1::conv_integer);
-}  // namespace ai_onnx::opset_1
-}  // namespace ov::frontend::onnx
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

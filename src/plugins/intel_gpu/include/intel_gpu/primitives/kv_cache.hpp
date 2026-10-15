@@ -71,9 +71,8 @@ struct kv_cache : public primitive_base<kv_cache> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs)) {
+        if (!compare_common_params(rhs))
             return false;
-        }
 
         auto rhs_casted = downcast<const kv_cache>(rhs);
 

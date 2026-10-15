@@ -12,7 +12,10 @@
 #include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -59,4 +62,7 @@ OutputVector translate_roi_align(const NodeContext& context) {
     return {roi_align};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

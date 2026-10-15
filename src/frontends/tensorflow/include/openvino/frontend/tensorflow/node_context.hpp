@@ -12,7 +12,9 @@
 #include "variable.hpp"
 #include "variables_map.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 class TranslateSession;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
@@ -134,4 +136,6 @@ private:
 
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

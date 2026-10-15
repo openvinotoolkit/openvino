@@ -8,7 +8,10 @@
 #include "openvino/opsets/opset6.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 ov::op::PadType get_auto_pad(const NodeContext& node) {
     // Default value means use explicitly provided padding values.
     ov::op::PadType pad_type{ov::op::PadType::NOTSET};
@@ -80,4 +83,7 @@ std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, const int
     return std::make_shared<opset6::Reshape>(filters, target_filter_shape, false);
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

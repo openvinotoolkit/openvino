@@ -13,7 +13,11 @@
 #include "translate_session.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 
 namespace detail {
 ov::OutputVector if_legacy(const ov::frontend::onnx::Node& node) {
@@ -166,4 +170,8 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
     }
 }
 ONNX_OP("If", OPSET_SINCE(1), ai_onnx::opset_1::if_op);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

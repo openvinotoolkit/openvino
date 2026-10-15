@@ -9,13 +9,13 @@ add_definitions(-DAUTOBATCH_UNITTEST)
 
 set(SHARED_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/tests/ie_test_util")
 
-include(sources.cmake)
-
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
-        SOURCES
-            ${OV_AUTO_BATCH_UNIT_TESTS_SRC}
+        ROOT
+            ${CMAKE_CURRENT_SOURCE_DIR}
+        ADDITIONAL_SOURCE_DIRS
+            ${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src
@@ -24,7 +24,6 @@ ov_add_test_target(
             unit_test_utils
         DEPENDENCIES
             mock_engine
-        CHECK_SOURCES_LISTED
         LABELS
             OV UNIT AUTO_BATCH
 )

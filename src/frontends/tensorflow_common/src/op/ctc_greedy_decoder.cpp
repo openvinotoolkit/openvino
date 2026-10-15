@@ -22,7 +22,10 @@ using namespace ov::op;
 using namespace frontend;
 using namespace frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 NamedOutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     default_op_checks(node, 2, {"CTCGreedyDecoder"});
@@ -97,4 +100,7 @@ NamedOutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
             {"decoded_shape", dense_shape},
             {"log_probability", neg_sum_logits}};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

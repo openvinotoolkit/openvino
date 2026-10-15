@@ -7,7 +7,10 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 class PrimTupleUnpackReplacer : public ov::pass::MatcherPass {
 public:
@@ -21,4 +24,7 @@ public:
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

@@ -248,7 +248,7 @@ TEST_F(OVTensorTest, canCreateTensorU3UsingMockAllocator) {
 }
 
 TEST_F(OVTensorTest, canCreateTensorU6UsingMockAllocator) {
-    constexpr size_t exp_size = 5;
+    constexpr size_t exp_size = 6;
     ov::Shape shape = {1, 2, 3};
     OVMockAllocator allocator;
 
@@ -805,34 +805,34 @@ TEST_F(OVTensorTest, getByteSizeU2NotEvenDivByStorageUnit) {
     EXPECT_EQ(tensor.get_byte_size(), 5);
 }
 
-TEST_F(OVTensorTest, getByteSizeU3SmallShapeWithTailBits) {
+TEST_F(OVTensorTest, getByteSizeU3LessThanMinStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{3});
-    EXPECT_EQ(tensor.get_byte_size(), 2);
+    EXPECT_EQ(tensor.get_byte_size(), 3);
 }
 
-TEST_F(OVTensorTest, getByteSizeU3ShapeWithoutTailBits) {
+TEST_F(OVTensorTest, getByteSizeU3EvenDivByStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{16});
     EXPECT_EQ(tensor.get_byte_size(), 2 * 3);
 }
 
-TEST_F(OVTensorTest, getByteSizeU3LargeShapeWithTailBits) {
+TEST_F(OVTensorTest, getByteSizeU3NotEvenDivByStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{17});
-    EXPECT_EQ(tensor.get_byte_size(), 7);
+    EXPECT_EQ(tensor.get_byte_size(), 3 + 2 * 3);
 }
 
-TEST_F(OVTensorTest, getByteSizeU6SmallShapeWithTailBits) {
+TEST_F(OVTensorTest, getByteSizeU6LessThanMinStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{3});
     EXPECT_EQ(tensor.get_byte_size(), 3);
 }
 
-TEST_F(OVTensorTest, getByteSizeU6ShapeWithoutTailBits) {
+TEST_F(OVTensorTest, getByteSizeU6EvenDivByStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{16});
     EXPECT_EQ(tensor.get_byte_size(), 4 * 3);
 }
 
-TEST_F(OVTensorTest, getByteSizeU6LargeShapeWithTailBits) {
+TEST_F(OVTensorTest, getByteSizeU6NotEvenDivByStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{17});
-    EXPECT_EQ(tensor.get_byte_size(), 13);
+    EXPECT_EQ(tensor.get_byte_size(), 3 + 4 * 3);
 }
 
 TEST_F(OVTensorTest, checkIsContinuousTensorScalar) {

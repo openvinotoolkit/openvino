@@ -17,7 +17,9 @@
 #include "ov_tensorflow/tensor_shape.pb.h"
 #include "ov_tensorflow/types.pb.h"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 // stores information about shape, type, and shard id for Variable
 struct VariableInfo {
     ::tensorflow::TensorShapeProto variable_shape;
@@ -72,4 +74,6 @@ private:
                     uint64_t& restart_offset) const;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

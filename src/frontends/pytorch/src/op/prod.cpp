@@ -6,7 +6,10 @@
 #include "openvino/op/reduce_prod.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -81,4 +84,7 @@ OutputVector translate_prod_fx(const NodeContext& context) {
     return {prod};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

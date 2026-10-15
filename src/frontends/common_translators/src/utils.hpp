@@ -8,7 +8,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 
-namespace ov::frontend::common_translators {
+namespace ov {
+namespace frontend {
+namespace common_translators {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs, bool allow_complex = false);
 
@@ -37,4 +39,6 @@ ov::Output<ov::Node> create_same_type_const(const ov::Output<ov::Node>& same_typ
     }
 }
 
-}  // namespace ov::frontend::common_translators
+}  // namespace common_translators
+}  // namespace frontend
+}  // namespace ov

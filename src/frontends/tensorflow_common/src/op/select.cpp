@@ -19,7 +19,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_select_base_op(const NodeContext& node,
                                       const Output<Node>& condition,
                                       const Output<Node>& x,
@@ -113,4 +116,7 @@ OutputVector translate_select_op(const NodeContext& node) {
         return result;
     }
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

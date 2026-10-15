@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
@@ -22,6 +21,10 @@ auto make_const(element::Type et, const Shape& shape) {
     return Constant::create(et, shape, {0.f});
 }
 
+auto make_param(element::Type et, const PartialShape& shape) {
+    return std::make_shared<Parameter>(et, shape);
+}
+
 auto make_empty_bias() {
     return std::make_shared<Constant>(element::dynamic, Shape{0});
 }
@@ -35,9 +38,9 @@ using GatherMatmulCompressedTest = TypePropOpTest<ov::op::internal::GatherMatmul
 
 // Basic 3D compressed weights
 TEST_F(GatherMatmulCompressedTest, shape_basic_3d) {
-    auto a = ov::test::utils::make_param(element::f32, {1, 64, 2048});
+    auto a = make_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::u8, {8, 4096, 2048});
-    auto idx = ov::test::utils::make_param(element::i32, {64, 2});
+    auto idx = make_param(element::i32, {64, 2});
     auto bias = make_empty_bias();
     auto scales = make_const(element::f32, {8, 4096, 1});
     auto zp = make_const(element::u8, {8, 4096, 1});
@@ -50,9 +53,9 @@ TEST_F(GatherMatmulCompressedTest, shape_basic_3d) {
 
 // 4D group-compressed weights with scales/zp
 TEST_F(GatherMatmulCompressedTest, shape_grouped_4d) {
-    auto a = ov::test::utils::make_param(element::f32, {1, 64, 2048});
+    auto a = make_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::u8, {8, 4096, 16, 128});
-    auto idx = ov::test::utils::make_param(element::i32, {64, 2});
+    auto idx = make_param(element::i32, {64, 2});
     auto bias = make_empty_bias();
     auto scales = make_const(element::f32, {8, 4096, 16, 1});
     auto zp = make_const(element::u8, {8, 4096, 16, 1});
@@ -67,9 +70,9 @@ TEST_F(GatherMatmulCompressedTest, shape_grouped_4d) {
 // ============================================================================
 
 TEST_F(GatherMatmulCompressedTest, clone_preserves_output_shape) {
-    auto a = ov::test::utils::make_param(element::f32, {1, 64, 2048});
+    auto a = make_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::u8, {8, 4096, 2048});
-    auto idx = ov::test::utils::make_param(element::i32, {64, 2});
+    auto idx = make_param(element::i32, {64, 2});
     auto bias = make_empty_bias();
     auto scales = make_const(element::f32, {8, 4096, 1});
     auto zp = make_const(element::u8, {8, 4096, 1});

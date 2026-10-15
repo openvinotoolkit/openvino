@@ -5,7 +5,10 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_masked_fill(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
@@ -18,4 +21,7 @@ OutputVector translate_masked_fill(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

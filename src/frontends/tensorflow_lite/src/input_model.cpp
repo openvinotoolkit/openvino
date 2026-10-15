@@ -49,7 +49,9 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_output_te
 }
 }  // namespace
 
-namespace ov::frontend::tensorflow_lite {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
 
 class InputModel::InputModelTFLiteImpl {
 public:
@@ -477,4 +479,6 @@ std::vector<std::shared_ptr<InputModel>> InputModel::get_subgraphs() const {
     return _impl->get_subgraphs();
 }
 
-}  // namespace ov::frontend::tensorflow_lite
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

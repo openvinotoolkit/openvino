@@ -12,7 +12,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_enter_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Enter"});
@@ -25,4 +28,7 @@ OutputVector translate_enter_op(const NodeContext& node) {
     return enter_node->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

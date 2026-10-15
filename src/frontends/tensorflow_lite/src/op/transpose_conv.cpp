@@ -9,7 +9,10 @@
 using namespace std;
 using namespace ov::frontend::tensorflow::op;
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 OutputVector transpose_conv(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = node.get_decoder();
@@ -31,4 +34,7 @@ OutputVector transpose_conv(const ov::frontend::tensorflow_lite::NodeContext& no
     return outputs;
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

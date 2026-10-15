@@ -17,7 +17,10 @@
                            ("While validating node '" + node_context.get_op_type() + "'"), \
                            __VA_ARGS__)
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 #define OP_CONVERTER(op)       OutputVector op(const ov::frontend::NodeContext& node)
 #define OP_CONVERTER_NAMED(op) NamedOutputVector op(const ov::frontend::NodeContext& node)
 #define OP_T_CONVERTER(op) \
@@ -202,4 +205,7 @@ OP_CONVERTER(translate_zeros_like_op);
 // Translators for internal operations
 OP_CONVERTER_NAMED(translate_unique_op);
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

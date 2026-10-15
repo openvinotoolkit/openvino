@@ -12,7 +12,8 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/util/file_util.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 std::unordered_map<std::string, std::shared_ptr<void>>& get_shared_objects_map();
 std::mutex& get_shared_objects_mutex();
@@ -78,4 +79,5 @@ public:
 // Appends found plugins to existing list
 void find_plugins(const std::filesystem::path& dir_name, std::vector<PluginInfo>& res);
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

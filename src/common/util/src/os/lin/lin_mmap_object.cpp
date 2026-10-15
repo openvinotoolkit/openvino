@@ -13,7 +13,6 @@
 #include <cstring>
 #include <future>
 #include <mutex>
-#include <optional>
 #include <thread>
 #include <tuple>
 
@@ -109,9 +108,9 @@ public:
 class MapHolder final : public MappedMemory {
     void* m_mapped_view = MAP_FAILED;
     size_t m_mapped_view_size = 0;
-    std::byte* m_data = nullptr;
+    void* m_data = nullptr;
     size_t m_size = 0;
-    std::optional<uint64_t> m_id;
+    uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
     // Tasks adopted from hint_prefetch_async()'s token; joined before unmapping (see ~MapHolder).
     std::mutex m_pending_prefetch_mutex;
@@ -154,8 +153,7 @@ public:
                                      " for mapping. Ensure that file exists and has appropriate permissions.");
         }
         set_from_fd(fd, offset, size, mmap_mode);
-        m_id = (mmap_mode == MmapMode::READ_WRITE) ? std::nullopt
-                                                   : std::optional<uint64_t>(util::get_id_for_file(path, offset, size));
+        m_id = (mmap_mode == MmapMode::READ_WRITE) ? no_mapping_id : util::get_id_for_file(path, offset, size);
     }
 
     void set_from_fd(const int fd, const size_t offset, const size_t size, const MmapMode mmap_mode = MmapMode::READ) {
@@ -180,16 +178,16 @@ public:
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
             }
-            m_data = static_cast<std::byte*>(m_mapped_view) + gap;
+            m_data = static_cast<char*>(m_mapped_view) + gap;
         }
         // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
         m_id = (mmap_mode == MmapMode::READ_WRITE)
-                   ? std::nullopt
-                   : std::optional<uint64_t>(util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino),
-                                                                    {static_cast<uint64_t>(sb.st_dev), offset, size}));
+                   ? no_mapping_id
+                   : util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino),
+                                            {static_cast<uint64_t>(sb.st_dev), offset, size});
     }
 
-    std::optional<uint64_t> get_id() const noexcept override {
+    uint64_t get_id() const noexcept override {
         return m_id;
     }
 
@@ -201,15 +199,11 @@ public:
         }
     }
 
-    const std::byte* data() const noexcept override final {
-        return m_data;
+    char* data() noexcept override {
+        return static_cast<char*>(m_data);
     }
 
-    std::byte* data() noexcept override final {
-        return m_data;
-    }
-
-    size_t size() const noexcept override final {
+    size_t size() const noexcept override {
         return m_size;
     }
 
@@ -221,7 +215,7 @@ public:
         }
     }
 
-    void hint_prefetch(size_t offset, size_t size) noexcept override {
+    void hint_prefetch(size_t offset, size_t size) override {
         constexpr size_t one_mb = 1024 * 1024;
         // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
         if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {

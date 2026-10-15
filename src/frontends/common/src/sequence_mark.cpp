@@ -12,7 +12,8 @@
 #include "openvino/op/identity.hpp"
 #include "openvino/util/log.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 namespace {
 
@@ -185,4 +186,5 @@ ov::OutputVector SequenceMark::get_sequence() const {
     return result;
 }
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

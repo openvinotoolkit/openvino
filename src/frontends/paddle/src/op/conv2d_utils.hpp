@@ -6,7 +6,10 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 ov::op::PadType get_auto_pad(const NodeContext& node);
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node);
 std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, int32_t groups);
@@ -50,4 +53,7 @@ NamedOutputs conv2d_base(const NodeContext& node) {
     }
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

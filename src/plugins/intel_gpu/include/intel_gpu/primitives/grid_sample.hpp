@@ -39,9 +39,8 @@ struct grid_sample : primitive_base<grid_sample> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs)) {
+        if (!compare_common_params(rhs))
             return false;
-        }
 
         auto rhs_casted = downcast<const grid_sample>(rhs);
 

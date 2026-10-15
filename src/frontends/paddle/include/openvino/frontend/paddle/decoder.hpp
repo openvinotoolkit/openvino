@@ -7,7 +7,9 @@
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 using InPortName = std::string;
 using OutPortName = std::string;
 using TensorName = std::string;
@@ -60,4 +62,6 @@ public:
     /// \brief Destructor
     virtual ~DecoderBase();
 };
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

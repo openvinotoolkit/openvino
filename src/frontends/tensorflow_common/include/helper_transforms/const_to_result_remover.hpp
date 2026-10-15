@@ -6,7 +6,10 @@
 
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::tensorflow::pass {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace pass {
 
 // This transformation removes isolated subgraph Constant going to the Result node
 // It can be case that TensorFlow can remain training artifacts in the form
@@ -20,4 +23,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-}  // namespace ov::frontend::tensorflow::pass
+}  // namespace pass
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

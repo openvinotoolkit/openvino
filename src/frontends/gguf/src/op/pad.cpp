@@ -17,7 +17,10 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 namespace {
 ov::Output<ov::Node> translate_circular_pad(ov::Output<ov::Node> input,
@@ -92,4 +95,7 @@ OutputVector translate_pad(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

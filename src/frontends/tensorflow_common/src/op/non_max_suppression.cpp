@@ -19,7 +19,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 Output<Node> normalize_selected_indices(const Output<Node>& ov_selected_indices,
                                         const Output<Node>& max_output_size,
                                         bool pad_to_max_output_size) {
@@ -161,4 +164,7 @@ NamedOutputVector translate_non_max_suppression_op(const NodeContext& node) {
 
     return named_results;
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

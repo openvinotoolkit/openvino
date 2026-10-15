@@ -10,7 +10,10 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 // GGML_OP_SUM_ROWS: sum along the last (row) dimension, keeping rank.
 OutputVector translate_sum_rows(const NodeContext& context) {
@@ -25,4 +28,7 @@ OutputVector translate_sum_rows(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

@@ -15,7 +15,11 @@ using namespace ::ONNX_NAMESPACE;
 using namespace ov::op;
 using namespace ov::frontend::onnx::common;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> target_shape;
     const auto dtype = node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(TensorProto_DataType_FLOAT));
@@ -42,4 +46,8 @@ ov::OutputVector constant_fill(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("ConstantFill", OPSET_SINCE(1), ai_onnx::opset_1::constant_fill);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

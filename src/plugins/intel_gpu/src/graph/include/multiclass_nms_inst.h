@@ -32,9 +32,8 @@ public:
     }
 
     const program_node& roisnum() const {
-        if (!get_primitive()->has_roisnum) {
+        if (!get_primitive()->has_roisnum)
             throw std::runtime_error("there is no roisnum input");
-        }
         return get_dependency(2);
     }
 

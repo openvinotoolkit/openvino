@@ -9,7 +9,11 @@
 #include "openvino/op/squeeze.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector range(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     CHECK_VALID_NODE(node, inputs.size() >= 3, "Minimum 3 inputs are required. Got: ", inputs.size());
@@ -42,4 +46,8 @@ ov::OutputVector range(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Range", OPSET_SINCE(1), ai_onnx::opset_1::range);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

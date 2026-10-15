@@ -10,7 +10,9 @@
 
 #include "openvino/core/node.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 /// \brief      GraphCache stores and provides access to ONNX graph initializers.
 class GraphCache {
 public:
@@ -48,4 +50,6 @@ public:
 private:
     std::map<std::string, ov::Output<ov::Node>> m_graph_cache_map;
 };
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

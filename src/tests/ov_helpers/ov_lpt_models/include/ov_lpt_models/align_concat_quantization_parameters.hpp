@@ -21,7 +21,8 @@ public:
         const ov::element::Type inputPrecision,
         const ov::Shape& inputShape,
         const bool addFQ,
-        const std::string additionalLayer);
+        const std::string additionalLayer,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::element::Type precision,
@@ -30,6 +31,7 @@ public:
         const bool addFQ,
         const std::string additionalLayer,
         const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::element::Type precisionAfterOperation,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 

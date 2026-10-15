@@ -11,7 +11,10 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_assignvariable_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AssignVariableOp"});
     if (auto ref = as_type_ptr<Variable>(node.get_input_by_reference(0).get_node_shared_ptr())) {
@@ -32,4 +35,7 @@ OutputVector translate_assignvariable_op(const NodeContext& node) {
     return {};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

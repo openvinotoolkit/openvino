@@ -15,7 +15,10 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> data{node.get_ov_inputs().at(0)};
@@ -76,4 +79,7 @@ ov::OutputVector lp_pool(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("LpPool", OPSET_SINCE(2), ai_onnx::opset_2::lp_pool);
 }  // namespace opset_2
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

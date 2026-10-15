@@ -11,7 +11,11 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
     ov::OutputVector ov_inputs{node.get_ov_inputs()};
     const auto data = ov_inputs.at(0);
@@ -36,4 +40,8 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Reshape", OPSET_SINCE(1), ai_onnx::opset_1::reshape);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

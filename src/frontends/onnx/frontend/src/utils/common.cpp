@@ -29,7 +29,10 @@ using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
-namespace ov::frontend::onnx::common {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
 const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     switch (onnx_type) {
     case TensorProto_DataType::TensorProto_DataType_BOOL:
@@ -236,4 +239,7 @@ int64_t normalize_axis(const std::string& description, const int64_t axis, const
     return ov::util::normalize(axis, r);
 }
 
-}  // namespace ov::frontend::onnx::common
+}  // namespace  common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

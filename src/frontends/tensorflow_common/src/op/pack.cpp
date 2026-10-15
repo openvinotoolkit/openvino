@@ -12,7 +12,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_pack_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Pack", "PACK"}, true);
@@ -51,4 +54,7 @@ OutputVector translate_pack_op(const NodeContext& node) {
 
     return {pack};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

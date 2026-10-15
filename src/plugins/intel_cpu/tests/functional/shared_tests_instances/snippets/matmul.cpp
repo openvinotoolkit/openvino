@@ -117,18 +117,14 @@ std::vector<std::vector<ov::test::InputShape>> transpose_b_shapes{
     }
 };
 
-#if defined(OPENVINO_ARCH_RISCV64)
-static constexpr size_t expected_num_nodes = 2;
-#else
-static constexpr size_t expected_num_nodes = 1;
-#endif
+static constexpr size_t expected_num_subgraphs = 1; // MatMul
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulTransposeB, MatMulTransposeB,
                          ::testing::Combine(
                              ::testing::ValuesIn(transpose_b_shapes),
                              ::testing::ValuesIn(precisions()),
                              ::testing::Values(MatMulType::MatMul),
-                             ::testing::Values(expected_num_nodes),
+                             ::testing::Values(expected_num_subgraphs),
                              ::testing::Values(1), // Tokenized MatMul
                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                              ::testing::Values(CPUTestUtils::empty_plugin_config)),

@@ -11,7 +11,9 @@
 #include "openvino/opsets/opset1.hpp"
 #include "tensor_lite_place.hpp"
 
-namespace ov::frontend::tensorflow_lite {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
 
 class InputModel : public ov::frontend::InputModel {
     friend class ov::frontend::tensorflow_lite::FrontEnd;
@@ -54,4 +56,6 @@ public:
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
 };
 
-}  // namespace ov::frontend::tensorflow_lite
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

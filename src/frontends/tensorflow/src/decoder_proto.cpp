@@ -11,7 +11,9 @@
 #include "ov_tensorflow/types.pb.h"
 #include "tf_utils.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
@@ -189,4 +191,6 @@ std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const
         return {};
     }
 }
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

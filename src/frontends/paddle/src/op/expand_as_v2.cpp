@@ -5,7 +5,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs expand_as_v2(const NodeContext& node) {
     using namespace default_opset;
     auto x = node.get_input("X");
@@ -24,4 +27,7 @@ NamedOutputs expand_as_v2(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<Broadcast>(x, shape_expected_node)}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

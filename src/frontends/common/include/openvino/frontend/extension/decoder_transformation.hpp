@@ -14,7 +14,8 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 /// \brief Holds a transformation that is applied just after the original model graph is decoded.
 /// This class is a holder for transformation. The transformation can be specified as
@@ -52,4 +53,5 @@ protected:
 private:
     std::function<void(ov::pass::Manager&)> m_registration;
 };
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

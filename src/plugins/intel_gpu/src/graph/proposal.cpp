@@ -75,9 +75,8 @@ static inline std::string stringify_vector(std::vector<float> v) {
 
     for (size_t i = 0; i < v.size(); ++i) {
         s << v.at(i);
-        if (i + 1 < v.size()) {
+        if (i + 1 < v.size())
             s << ", ";
-        }
     }
 
     s << " }";

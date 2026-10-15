@@ -5,11 +5,17 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 NamedOutputs skip(const NodeContext& node) {
     const auto x = node.get_ng_inputs("X");
     return NamedOutputs({{"Out", x}});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

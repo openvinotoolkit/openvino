@@ -225,27 +225,25 @@ const std::vector<ShapeRelatedParams> IS2D_nightly = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D,
-                         MatMulLayerGPUTest,
-                         ::testing::Combine(::testing::ValuesIn(IS2D_smoke),
-                                            ::testing::Values(ov::element::f16),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(emptyAdditionalConfig)),
-                         MatMulLayerGPUTest::getTestCaseName);
+const auto testParams2D_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_smoke),
+                                                   ::testing::Values(ov::element::f16),
+                                                   ::testing::Values(ov::element::dynamic),
+                                                   ::testing::Values(ov::element::dynamic),
+                                                   ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                                   ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                                   ::testing::Values(emptyAdditionalConfig));
 
-INSTANTIATE_TEST_SUITE_P(nightly_FC_2D,
-                         MatMulLayerGPUTest,
-                         ::testing::Combine(::testing::ValuesIn(IS2D_nightly),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(emptyAdditionalConfig)),
-                         MatMulLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerGPUTest, testParams2D_smoke, MatMulLayerGPUTest::getTestCaseName);
+
+const auto testParams2D_nightly = ::testing::Combine(::testing::ValuesIn(IS2D_nightly),
+                                                     ::testing::Values(ov::element::f32),
+                                                     ::testing::Values(ov::element::dynamic),
+                                                     ::testing::Values(ov::element::dynamic),
+                                                     ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                                     ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                                     ::testing::Values(emptyAdditionalConfig));
+
+INSTANTIATE_TEST_SUITE_P(nightly_FC_2D, MatMulLayerGPUTest, testParams2D_nightly, MatMulLayerGPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS3D_smoke = {
     {ov::test::static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, false}},
@@ -364,16 +362,16 @@ const std::vector<ShapeRelatedParams> IS4D_smoke = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_4D,
-                         MatMulLayerGPUTest,
-                         ::testing::Combine(::testing::ValuesIn(IS4D_smoke),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(emptyAdditionalConfig)),
-                         MatMulLayerGPUTest::getTestCaseName);
+const auto fullyConnectedParams4D_smoke =
+    ::testing::Combine(::testing::ValuesIn(IS4D_smoke),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU),
+                       ::testing::Values(emptyAdditionalConfig));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_4D, MatMulLayerGPUTest, fullyConnectedParams4D_smoke, MatMulLayerGPUTest::getTestCaseName);
 
 /* ============= MatMul ============= */
 
@@ -680,47 +678,43 @@ const std::vector<ShapeRelatedParams> IS_Dynamic_nightly = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MM_Static,
-                         MatMulLayerGPUTest,
-                         ::testing::Combine(::testing::ValuesIn(IS),
-                                            ::testing::ValuesIn(netPRCs),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::ValuesIn(additional_config)),
-                         MatMulLayerGPUTest::getTestCaseName);
+const auto testParams = ::testing::Combine(::testing::ValuesIn(IS),
+                                           ::testing::ValuesIn(netPRCs),
+                                           ::testing::Values(ov::element::dynamic),
+                                           ::testing::Values(ov::element::dynamic),
+                                           ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
+                                           ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                           ::testing::ValuesIn(additional_config));
 
-INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_OneDNN,
-                         MatMulLayerGPUTest,
-                         ::testing::Combine(::testing::ValuesIn(IS_OneDNN),
-                                            ::testing::Values(ov::element::f16),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::ValuesIn(additional_config)),
-                         MatMulLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Static, MatMulLayerGPUTest, testParams, MatMulLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic,
-                         MatMulLayerGPUTest,
-                         ::testing::Combine(::testing::ValuesIn(IS_Dynamic),
-                                            ::testing::ValuesIn(netPRCs),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::ValuesIn(additional_config)),
-                         MatMulLayerGPUTest::getTestCaseName);
+const auto testParamsOneDNN = ::testing::Combine(::testing::ValuesIn(IS_OneDNN),
+                                                 ::testing::Values(ov::element::f16),
+                                                 ::testing::Values(ov::element::dynamic),
+                                                 ::testing::Values(ov::element::dynamic),
+                                                 ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
+                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                                 ::testing::ValuesIn(additional_config));
 
-INSTANTIATE_TEST_SUITE_P(nightly_MM_Dynamic,
-                         MatMulLayerGPUTest,
-                         ::testing::Combine(::testing::ValuesIn(IS_Dynamic_nightly),
-                                            ::testing::ValuesIn(netPRCs),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::ValuesIn(additional_config)),
-                         MatMulLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_OneDNN, MatMulLayerGPUTest, testParamsOneDNN, MatMulLayerGPUTest::getTestCaseName);
+
+const auto testParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynamic),
+                                                  ::testing::ValuesIn(netPRCs),
+                                                  ::testing::Values(ov::element::dynamic),
+                                                  ::testing::Values(ov::element::dynamic),
+                                                  ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
+                                                  ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                                  ::testing::ValuesIn(additional_config));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic, MatMulLayerGPUTest, testParamsDynamic, MatMulLayerGPUTest::getTestCaseName);
+
+const auto testParamsDynamic_nightly = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_nightly),
+                                                          ::testing::ValuesIn(netPRCs),
+                                                          ::testing::Values(ov::element::dynamic),
+                                                          ::testing::Values(ov::element::dynamic),
+                                                          ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
+                                                          ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                                          ::testing::ValuesIn(additional_config));
+
+INSTANTIATE_TEST_SUITE_P(nightly_MM_Dynamic, MatMulLayerGPUTest, testParamsDynamic_nightly, MatMulLayerGPUTest::getTestCaseName);
 } // namespace

@@ -1,13 +1,15 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include <onnx/onnx_pb.h>
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov::frontend::onnx::common {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ::ONNX_NAMESPACE::TensorShapeProto;
 
@@ -43,4 +45,7 @@ bool is_supported_ov_type(const ov::element::Type_t& ov_type);
 ///
 PartialShape onnx_to_ov_shape(const TensorShapeProto& onnx_shape);
 
-}  // namespace ov::frontend::onnx::common
+}  // namespace common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

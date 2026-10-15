@@ -9,7 +9,9 @@
 #include "internal_operation.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 // Internal operation for TensorList that represents a initial state of tensor list container
 class TensorList : public InternalOperation {
@@ -226,4 +228,6 @@ public:
     }
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

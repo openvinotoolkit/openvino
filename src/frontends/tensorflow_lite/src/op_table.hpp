@@ -14,7 +14,10 @@
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 using CreatorFunction = std::function<OutputVector(const ov::frontend::tensorflow_lite::NodeContext&)>;
 
 std::map<std::string, CreatorFunction> get_supported_ops();
@@ -65,4 +68,7 @@ OutputVector translate_binary(const ov::frontend::tensorflow_lite::NodeContext& 
     return ov::frontend::tensorflow::op::translate_binary_op<OV_TYPE>(context);
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

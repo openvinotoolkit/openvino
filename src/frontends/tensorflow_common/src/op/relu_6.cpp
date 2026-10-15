@@ -8,7 +8,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_relu_6_op(const NodeContext& node) {
     default_op_checks(node, 1, {});
 
@@ -17,4 +20,7 @@ OutputVector translate_relu_6_op(const NodeContext& node) {
     set_node_name(node.get_name(), res);
     return res->outputs();
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

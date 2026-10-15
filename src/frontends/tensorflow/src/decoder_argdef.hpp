@@ -15,7 +15,9 @@ class FunctionDef;
 class OpDef_ArgDef;
 }  // namespace tensorflow
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class DecoderArgDef : public ov::frontend::tensorflow::DecoderBase {
 public:
@@ -64,4 +66,6 @@ private:
     const std::string m_producer_name;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

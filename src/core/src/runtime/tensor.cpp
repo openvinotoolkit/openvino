@@ -233,9 +233,7 @@ Tensor read_tensor_data_mmap_impl(std::shared_ptr<MappedMemory> mapped_memory,
                                                                                              mapped_memory->size(),
                                                                                              mapped_memory);
     auto tensor = wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
-    if (const auto source_id = mapped_memory->get_id()) {
-        set_tensor_source_id(tensor, *source_id);
-    }
+    set_tensor_source_id(tensor, mapped_memory->get_id());
     return tensor;
 }
 }  // namespace

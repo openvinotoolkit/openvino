@@ -9,7 +9,10 @@
 #include "openvino/op/logical_xor.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -67,4 +70,7 @@ OutputVector translate_xor(const NodeContext& context) {
     return {xor_node};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

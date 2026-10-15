@@ -12,7 +12,10 @@
 #include "openvino/op/minimum.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
@@ -96,4 +99,7 @@ ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Clip", OPSET_SINCE(11), ai_onnx::opset_11::clip);
 }  // namespace opset_11
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

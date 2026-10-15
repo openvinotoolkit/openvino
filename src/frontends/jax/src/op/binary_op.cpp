@@ -15,7 +15,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::jax::op {
+namespace ov {
+namespace frontend {
+namespace jax {
+namespace op {
 
 template <typename T>
 OutputVector translate_binary_op(const NodeContext& context) {
@@ -33,4 +36,7 @@ template OutputVector translate_binary_op<v1::Less>(const NodeContext& context);
 template OutputVector translate_binary_op<v1::LessEqual>(const NodeContext& context);
 template OutputVector translate_binary_op<v1::NotEqual>(const NodeContext& context);
 
-}  // namespace ov::frontend::jax::op
+}  // namespace op
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

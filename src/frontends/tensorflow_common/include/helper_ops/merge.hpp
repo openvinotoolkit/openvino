@@ -11,7 +11,9 @@
 #include "openvino/core/type/element_type.hpp"
 #include "tf_utils.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 // Forwards the value of an available tensor from inputs to output
 // It has two outputs:
@@ -117,4 +119,6 @@ public:
     }
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

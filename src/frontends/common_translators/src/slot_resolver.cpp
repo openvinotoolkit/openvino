@@ -43,7 +43,10 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::pass::sal_detail {
+namespace ov {
+namespace frontend {
+namespace pass {
+namespace sal_detail {
 
 // Shape-preserving select using v8::If; unlike v1::Select, does not broadcast inputs.
 ov::Output<ov::Node> make_shape_preserving_select(const ov::Output<ov::Node>& cond_in,
@@ -962,4 +965,7 @@ std::optional<Slots> SlotResolver::slots_of_msg_output(const std::shared_ptr<ov:
     return outer_outputs;
 }
 
-}  // namespace ov::frontend::pass::sal_detail
+}  // namespace sal_detail
+}  // namespace pass
+}  // namespace frontend
+}  // namespace ov

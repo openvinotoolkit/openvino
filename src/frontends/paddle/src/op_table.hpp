@@ -10,9 +10,13 @@
 
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
 
 std::map<std::string, CreatorFunction> get_supported_ops();
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

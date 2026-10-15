@@ -25,7 +25,9 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::pass {
+namespace ov {
+namespace frontend {
+namespace pass {
 namespace {
 
 // Strip v16::Identity wrappers to expose the underlying node.
@@ -295,4 +297,6 @@ bool SequenceIfReplacer::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return overall_changed;
 }
 
-}  // namespace ov::frontend::pass
+}  // namespace pass
+}  // namespace frontend
+}  // namespace ov

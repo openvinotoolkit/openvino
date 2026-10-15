@@ -14,7 +14,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_adjust_contrast_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AdjustContrastv2"});
@@ -40,4 +43,7 @@ OutputVector translate_adjust_contrast_op(const NodeContext& node) {
     return {adjust_contrast};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

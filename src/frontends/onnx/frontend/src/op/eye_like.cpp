@@ -11,7 +11,10 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace detail {
 namespace {
 
@@ -60,4 +63,7 @@ ov::OutputVector eye_like(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("EyeLike", OPSET_SINCE(1), ai_onnx::opset_1::eye_like);
 }  // namespace opset_1
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

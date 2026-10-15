@@ -9,7 +9,9 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class FrameworkNode : public ov::op::util::FrameworkNode {
 public:
@@ -49,4 +51,6 @@ public:
 protected:
     std::shared_ptr<DecoderBase> m_decoder;
 };
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

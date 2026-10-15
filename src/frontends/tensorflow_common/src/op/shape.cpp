@@ -13,7 +13,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 std::shared_ptr<v8::Slice> compute_complex_shape(const ov::Output<ov::Node>& input, element::Type out_type) {
     auto shapeof = make_shared<v3::ShapeOf>(input, out_type);
@@ -72,4 +75,7 @@ OutputVector translate_shape_op(const NodeContext& node) {
     return outputs;
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

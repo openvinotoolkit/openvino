@@ -6,9 +6,11 @@
 
 #include <memory>
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "snippets/op/horizon.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov::snippets::op {
 
@@ -17,14 +19,16 @@ namespace ov::snippets::op {
  * @brief The operation calculates a horizon maximum of a vector register
  * @ingroup snippets
  */
-class HorizonMax : public HorizonBase {
+class HorizonMax : public ov::op::Op {
 public:
-    OPENVINO_OP("HorizonMax", "SnippetsOpset", HorizonBase);
+    OPENVINO_OP("HorizonMax", "SnippetsOpset");
 
-    using HorizonBase::HorizonBase;
+    explicit HorizonMax(const Output<Node>& x);
+    explicit HorizonMax(const OutputVector& x);
     HorizonMax() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    void validate_and_infer_types() override;
 };
 
 }  // namespace ov::snippets::op

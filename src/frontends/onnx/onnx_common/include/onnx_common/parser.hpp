@@ -3,14 +3,16 @@
 //
 
 #pragma once
-
 #include <onnx/onnx_pb.h>
 
 #include <filesystem>
 #include <fstream>
 #include <string>
 
-namespace ov::frontend::onnx::common {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
 using namespace ::ONNX_NAMESPACE;
 /// \brief   Parses an ONNX model from a file located on a storage device.
 ///
@@ -25,4 +27,7 @@ ModelProto parse_from_file(const std::filesystem::path& file_path);
 ///
 /// \return  The parsed in-memory representation of the ONNX model
 ModelProto parse_from_istream(std::istream& model_stream);
-}  // namespace ov::frontend::onnx::common
+}  // namespace common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

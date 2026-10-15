@@ -12,7 +12,10 @@
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
-namespace ov::frontend::onnx::conv_factory {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace conv_factory {
 std::shared_ptr<ov::op::Op> make_ng_convolution(const ov::Output<ov::Node>& data,
                                                 const ov::Output<ov::Node>& filters,
                                                 const ov::Strides& strides,
@@ -41,4 +44,7 @@ std::shared_ptr<ov::op::Op> make_ng_convolution(const ov::Output<ov::Node>& data
                                                          auto_pad);
     }
 }
-}  // namespace ov::frontend::onnx::conv_factory
+}  // namespace conv_factory
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

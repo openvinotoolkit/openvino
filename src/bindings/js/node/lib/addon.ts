@@ -574,8 +574,9 @@ export interface InferRequest {
   };
   /**
    * It infers specified input(s) in the asynchronous mode.
-   * @param inputData Either an object mapping input names to tensors, or an array
-   * of tensors in model input order.
+   * @param inputData An object with the key-value pairs where the key is the
+   * input name and value is a tensor or an array with tensors. If the model has
+   * multiple inputs, the Tensors must be passed in the correct order.
    */
   inferAsync(
     inputData: { [inputName: string]: Tensor } | Tensor[],

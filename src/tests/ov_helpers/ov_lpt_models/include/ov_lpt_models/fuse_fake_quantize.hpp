@@ -40,6 +40,7 @@ public:
         const Add& add,
         const ov::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
+        const ov::element::Type precisionAfterDequantization,
         const ov::element::Type precisionFqOnData,
         const FakeQuantizeOnDataWithConstant& fqOnData);
 

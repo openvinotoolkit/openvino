@@ -11,7 +11,11 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector constant_of_shape(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> constant_value;
     if (node.has_attribute("value")) {
@@ -30,4 +34,8 @@ ov::OutputVector constant_of_shape(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("ConstantOfShape", OPSET_SINCE(1), ai_onnx::opset_1::constant_of_shape);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

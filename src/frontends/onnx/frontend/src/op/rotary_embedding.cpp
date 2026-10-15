@@ -19,7 +19,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_23 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_23 {
 
 namespace {
 
@@ -219,4 +223,8 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("RotaryEmbedding", OPSET_SINCE(1), ai_onnx::opset_23::rotary_embedding);
 
-}  // namespace ov::frontend::onnx::ai_onnx::opset_23
+}  // namespace opset_23
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

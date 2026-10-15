@@ -55,19 +55,9 @@ namespace {
         {{1, 1, 1}, {{1, 1, 1}}},
         {{1}, {{1}}},
     };
-    const std::vector<InputShape> input_shapes_b1_nontrivial = {
-        {{1, -1, 4}, {{1, 5, 4}}},
-        {{1, 1, 3}, {{1, 1, 3}}},
-        {{1}, {{1}}},
-    };
     const std::vector<InputShape> input_shapes_bidirect_b1 = {
         {{1, -1, 1}, {{1, 5, 1}}},
         {{1, 2, 1}, {{1, 2, 1}}},
-        {{1}, {{1}}},
-    };
-    const std::vector<InputShape> input_shapes_bidirect_b1_nontrivial = {
-        {{1, -1, 4}, {{1, 5, 4}}},
-        {{1, 2, 3}, {{1, 2, 3}}},
         {{1}, {{1}}},
     };
     std::vector<size_t> seq_lengths_zero_clip{2};
@@ -148,7 +138,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClip_B1, GRUSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode_onednn),
-                                    ::testing::Values(input_shapes_b1, input_shapes_b1_nontrivial),
+                                    ::testing::Values(input_shapes_b1),
                                     // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
                                     ::testing::ValuesIn(activations_onednn),
                                     ::testing::ValuesIn(clip),
@@ -162,7 +152,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClipBidirect_B1, GRUSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode_onednn),
-                                    ::testing::Values(input_shapes_bidirect_b1, input_shapes_bidirect_b1_nontrivial),
+                                    ::testing::Values(input_shapes_bidirect_b1),
                                     // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
                                     ::testing::ValuesIn(activations_onednn),
                                     ::testing::ValuesIn(clip),

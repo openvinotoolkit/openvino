@@ -10,7 +10,11 @@
 #include "openvino/op/unsqueeze.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector matmul_integer(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
 
@@ -44,4 +48,8 @@ ov::OutputVector matmul_integer(const ov::frontend::onnx::Node& node) {
     return {result};
 }
 ONNX_OP("MatMulInteger", OPSET_SINCE(1), ai_onnx::opset_1::matmul_integer);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

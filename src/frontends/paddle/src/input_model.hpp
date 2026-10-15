@@ -9,7 +9,9 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/paddle/frontend.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 
 class OpPlace;
 class TensorPlace;
@@ -43,4 +45,6 @@ private:
     std::map<std::string, Output<Node>> get_tensor_values() const;
 };
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

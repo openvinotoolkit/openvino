@@ -12,7 +12,9 @@
 #include "schema_generated.h"
 #include "utils.hpp"
 
-namespace ov::frontend::tensorflow_lite {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
 
 namespace {
 void validate_tensor_name(const tflite::Tensor* tensor) {
@@ -448,4 +450,6 @@ DecoderFlatBufferTensors::DecoderFlatBufferTensors(const TensorInfo& tensor_info
     m_tensor_meta_info = extract_tensor_meta_info(tensor_info);
 };
 
-}  // namespace ov::frontend::tensorflow_lite
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

@@ -17,7 +17,9 @@
 #include "openvino/util/file_util.hpp"
 #include "ov_tensorflow/graph.pb.h"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class GraphIteratorProto : public GraphIterator {
 protected:
@@ -201,4 +203,6 @@ public:
     }
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

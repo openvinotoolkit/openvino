@@ -13,7 +13,10 @@
 #include "openvino/op/constant.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::jax::op {
+namespace ov {
+namespace frontend {
+namespace jax {
+namespace op {
 
 using namespace ov::op;
 
@@ -33,4 +36,7 @@ OutputVector translate_slice(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace ov::frontend::jax::op
+}  // namespace op
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

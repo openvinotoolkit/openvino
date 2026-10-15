@@ -11,7 +11,9 @@
 #include "openvino/frontend/exception.hpp"
 #include "tf_utils.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 // Internal operation for Switch
 // Forwards data to the output port determined by predicate
@@ -77,4 +79,6 @@ private:
     uint32_t m_switch_marker;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

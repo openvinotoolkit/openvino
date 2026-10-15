@@ -8,13 +8,11 @@ if(BUILD_SHARED_LIBS)
     set (OBJ_LIB $<TARGET_OBJECTS:openvino_hetero_plugin_obj>)
 endif()
 
-include(sources.cmake)
-
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
-        SOURCES
-            ${OV_HETERO_UNIT_TESTS_SRC}
+        ROOT
+            ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             PUBLIC
                 $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src
@@ -26,7 +24,6 @@ ov_add_test_target(
         DEPENDENCIES
             mock_engine
         ADD_CLANG_FORMAT
-        CHECK_SOURCES_LISTED
         LABELS
             OV UNIT HETERO
 )

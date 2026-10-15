@@ -53,12 +53,10 @@ ParamsKey convolution_params::GetParamsKey() const {
 
     if (deformable_mode) {
         k.EnableDeformableMode();
-        if (bilinear_interpolation_pad) {
+        if (bilinear_interpolation_pad)
             k.EnableBilinearInterpolationPad();
-        }
-        if (deformable_mask_enabled) {
+        if (deformable_mask_enabled)
             k.EnableDeformableMask();
-        }
     }
 
     k.EnableQuantization(quantization);

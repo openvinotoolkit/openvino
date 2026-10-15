@@ -86,9 +86,8 @@ struct paged_attention : public primitive_base<paged_attention> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs)) {
+        if (!compare_common_params(rhs))
             return false;
-        }
 
         auto rhs_casted = downcast<const paged_attention>(rhs);
 

@@ -13,7 +13,10 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
-namespace ov::frontend::onnx::detail {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace detail {
 TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
         if (entry.key() == "location") {
@@ -146,4 +149,7 @@ std::string TensorExternalData::to_string() const {
     }
     return s.str();
 }
-}  // namespace ov::frontend::onnx::detail
+}  // namespace detail
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

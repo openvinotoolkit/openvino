@@ -9,7 +9,9 @@
 #include "openvino/util/log.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::jax {
+namespace ov {
+namespace frontend {
+namespace jax {
 
 Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
     : m_input_model(input_model),
@@ -52,4 +54,6 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
     }
 }
 
-}  // namespace ov::frontend::jax
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

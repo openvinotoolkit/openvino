@@ -9,7 +9,11 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector multinomial(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
@@ -30,4 +34,8 @@ ov::OutputVector multinomial(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Multinomial", OPSET_SINCE(1), ai_onnx::opset_1::multinomial);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

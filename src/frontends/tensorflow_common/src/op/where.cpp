@@ -11,7 +11,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_where_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Where", "WHERE"});
@@ -23,4 +26,7 @@ OutputVector translate_where_op(const NodeContext& node) {
     return res->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

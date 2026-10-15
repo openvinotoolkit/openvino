@@ -11,7 +11,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::com_microsoft::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace com_microsoft {
+namespace opset_1 {
 ov::OutputVector range(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 2);
     auto nodes = node.get_ov_inputs();
@@ -33,4 +37,8 @@ ov::OutputVector range(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v4::Range>(start, limit, delta, start.get_element_type())};
 }
 ONNX_OP("Range", OPSET_SINCE(1), com_microsoft::opset_1::range, MICROSOFT_DOMAIN);
-}  // namespace ov::frontend::onnx::com_microsoft::opset_1
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

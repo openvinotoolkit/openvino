@@ -8,7 +8,11 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector flatten(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto data = inputs.at(0);
@@ -33,4 +37,8 @@ ov::OutputVector flatten(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Flatten", OPSET_SINCE(1), ai_onnx::opset_1::flatten);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

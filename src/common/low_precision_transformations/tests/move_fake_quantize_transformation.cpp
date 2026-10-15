@@ -131,6 +131,7 @@ public:
                                                                           {ov::PrecisionPreservedAttribute(true),
                                                                            ov::IntervalsAlignmentAttribute(interval, 256),
                                                                            ov::QuantizationAlignmentAttribute(false)},
+                                                                          ov::element::dynamic,
                                                                           testValues.axis,
                                                                           oneInputWithSplit);
 
@@ -174,6 +175,7 @@ public:
                                                              {ov::PrecisionPreservedAttribute(true),
                                                               ov::IntervalsAlignmentAttribute(interval, 256),
                                                               ov::QuantizationAlignmentAttribute(false)},
+                                                             testValues.result.precisionAfterOperation,
                                                              testValues.axis,
                                                              oneInputWithSplit);
     }

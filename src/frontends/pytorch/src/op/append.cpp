@@ -7,7 +7,10 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_append(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
@@ -26,4 +29,7 @@ OutputVector translate_append(const NodeContext& context) {
     return {result};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

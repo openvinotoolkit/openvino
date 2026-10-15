@@ -12,7 +12,9 @@
 #include <optional>
 #include <string>
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 // Strict integer parser for the output-index suffix of a TF node reference
 // like "RestoreV2:3". Returns nullopt for empty / non-numeric / trailing
@@ -41,4 +43,6 @@ inline std::optional<int> parse_output_index(const std::string& token) {
     return static_cast<int>(v);
 }
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -35,7 +35,6 @@ void register_implementations() {
     REGISTER_OCL(generate_proposals);
     REGISTER_OCL(grid_sample);
     REGISTER_OCL(kv_cache);
-    REGISTER_OCL(stateless_kv);
     REGISTER_OCL(lrn);
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(multinomial);

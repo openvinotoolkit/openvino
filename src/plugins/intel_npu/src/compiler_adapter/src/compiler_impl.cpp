@@ -5,14 +5,8 @@
 #include "compiler_impl.hpp"
 
 #include <algorithm>
-#include <cinttypes>
-#include <cstring>
 #include <limits>
 #include <mutex>
-#include <sstream>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -24,23 +18,54 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "vcl_version_utils.hpp"
 #include "weightless_utils.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
+namespace {
+
+struct UsedVersion {
+    int Major;
+    int Minor;
+    UsedVersion(int major, int minor) : Major(major), Minor(minor) {}
+};
+
+UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const vcl_version_info_t& loadedVersion) {
+    uint16_t usedMajor = pluginMajor, usedMinor = pluginMinor;
+    if (pluginMajor == loadedVersion.major) {
+        usedMinor = std::min(pluginMinor, loadedVersion.minor);
+    } else if (pluginMajor > loadedVersion.major) {
+        usedMajor = loadedVersion.major;
+        usedMinor = loadedVersion.minor;
+    }
+    return {usedMajor, usedMinor};
+}
+
+void checkVclVersion(const UsedVersion& usedVersion, const vcl_version_info_t& loadedVersion) {
+    if (usedVersion.Major < VCL_COMPILER_VERSION_MAJOR ||
+        (usedVersion.Major == VCL_COMPILER_VERSION_MAJOR && usedVersion.Minor < VCL_COMPILER_VERSION_MINOR)) {
+        OPENVINO_THROW("Unsupported VCL version: ",
+                       loadedVersion.major,
+                       ".",
+                       loadedVersion.minor,
+                       ", please use VCL ",
+                       VCL_COMPILER_VERSION_MAJOR,
+                       ".",
+                       VCL_COMPILER_VERSION_MINOR,
+                       " or later");
+    }
+}
+
+}  // namespace
+
 namespace intel_npu {
 
-using vcl_version_utils::checkVclVersion;
-using vcl_version_utils::getUsedVclVersion;
-using vcl_version_utils::UsedVersion;
-
-static inline std::string getLatestVCLLog(const VCLFunctionTable& functions, vcl_log_handle_t logHandle) {
+static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     Logger _logger("VCLAPI", Logger::global().level());
     _logger.debug("getLatestVCLLog start");
 
     vcl_version_info_t compilerVersion;
     vcl_version_info_t profilingVersion;
-    vcl_result_t ret = functions.vclGetVersion(&compilerVersion, &profilingVersion);
+    vcl_result_t ret = vclGetVersion(&compilerVersion, &profilingVersion);
 
     if (ret != VCL_RESULT_SUCCESS || compilerVersion.major < 3) {
         _logger.warning("Failed to get VCL version: 0x%x", ret);
@@ -50,7 +75,7 @@ static inline std::string getLatestVCLLog(const VCLFunctionTable& functions, vcl
     // Get log size
     size_t size = 0;
     // Null graph handle to get error log
-    ret = functions.vclLogHandleGetString(logHandle, &size, nullptr);
+    ret = vclLogHandleGetString(logHandle, &size, nullptr);
     if (VCL_RESULT_SUCCESS != ret) {
         return "Failed to get size of latest VCL log";
     }
@@ -62,7 +87,7 @@ static inline std::string getLatestVCLLog(const VCLFunctionTable& functions, vcl
     // Get log content
     std::string logContent{};
     logContent.resize(size);
-    ret = functions.vclLogHandleGetString(logHandle, &size, logContent.data());
+    ret = vclLogHandleGetString(logHandle, &size, const_cast<char*>(logContent.data()));
     if (VCL_RESULT_SUCCESS != ret) {
         return "Size of latest error log > 0, failed to get content";
     }
@@ -70,11 +95,10 @@ static inline std::string getLatestVCLLog(const VCLFunctionTable& functions, vcl
     return logContent;
 }
 
-static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTable& functions,
-                                                            vcl_executable_handle_t executable,
+static std::optional<std::string> getVCLCompatibilityString(vcl_executable_handle_t executable,
                                                             vcl_log_handle_t logHandle) {
     uint64_t compatibilityStringSize = 0;
-    auto result = functions.vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
+    auto result = vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
     if (result == VCL_RESULT_ERROR_UNSUPPORTED_FEATURE) {
         return std::nullopt;
     }
@@ -83,21 +107,20 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTab
                        std::hex,
                        uint64_t(result),
                        " - ",
-                       getLatestVCLLog(functions, logHandle));
+                       getLatestVCLLog(logHandle));
     }
 
     if (compatibilityStringSize > std::numeric_limits<size_t>::max()) {
         OPENVINO_THROW("Compatibility string size is too large to allocate a local buffer");
     }
     std::string compatibilityString(static_cast<size_t>(compatibilityStringSize), '\0');
-    result =
-        functions.vclExecutableGetCompatibilityString(executable, compatibilityString.data(), &compatibilityStringSize);
+    result = vclExecutableGetCompatibilityString(executable, compatibilityString.data(), &compatibilityStringSize);
     if (result != VCL_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to get compatibility string. vclExecutableGetCompatibilityString result: 0x",
                        std::hex,
                        uint64_t(result),
                        " - ",
-                       getLatestVCLLog(functions, logHandle));
+                       getLatestVCLLog(logHandle));
     }
     if (compatibilityStringSize > compatibilityString.size()) {
         OPENVINO_THROW("Returned compatibility string size exceeds the allocated buffer size");
@@ -111,44 +134,31 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTab
     return compatibilityString;
 }
 
-/**
- * @brief Throws with the VCL error log appended when `ret` is not VCL_RESULT_SUCCESS.
- * @param functions The function table to fetch the error log through, passed explicitly rather than
- * captured from the enclosing scope so the macro is usable outside VCLCompilerImpl members.
- */
-#define THROW_ON_FAIL_FOR_VCL(functions, step, ret, logHandle)       \
-    do {                                                             \
-        const vcl_result_t vclResult_ = (ret);                       \
-        if (vclResult_ != VCL_RESULT_SUCCESS) {                      \
-            OPENVINO_THROW("Failed to call VCL API : ",              \
-                           step,                                     \
-                           " result: 0x",                            \
-                           std::hex,                                 \
-                           vclResult_,                               \
-                           " - ",                                    \
-                           getLatestVCLLog((functions), logHandle)); \
-        }                                                            \
-    } while (0)
+#define THROW_ON_FAIL_FOR_VCL(step, ret, logHandle)     \
+    {                                                   \
+        vcl_result_t result = ret;                      \
+        if (result != VCL_RESULT_SUCCESS) {             \
+            OPENVINO_THROW("Failed to call VCL API : ", \
+                           step,                        \
+                           " result: 0x",               \
+                           std::hex,                    \
+                           result,                      \
+                           " - ",                       \
+                           getLatestVCLLog(logHandle)); \
+        }                                               \
+    }
 
-VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
-                                 const std::optional<IDevice::DeviceProperties>& deviceProperties,
-                                 ScopedOptionSupportCache optionSupportCache)
-    : _functions(std::move(functions)),
-      _logHandle(nullptr),
-      _optionSupportCache(std::move(optionSupportCache)),
+VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir,
+                                 const std::optional<IDevice::DeviceProperties>& deviceProperties)
+    : _logHandle(nullptr),
       _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
-    OPENVINO_ASSERT(_functions != nullptr, "VCLCompilerImpl requires a non-null VCLFunctionTable");
-    OPENVINO_ASSERT(_functions->hasAllRequiredSymbols(),
-                    "VCLCompilerImpl received a VCLFunctionTable with unresolved entry points. Was "
-                    "it populated from a VCLLoader?");
+    // Load VCL library
+    (void)VCLApi::getInstance(libraryDir);
 
     // Initialize the VCL API
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclGetVersion",
-                          _functions->vclGetVersion(&_vclVersion, &_vclProfilingVersion),
-                          nullptr);
+    THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
     _logger.info("Plugin VCL API Version: %d.%d", VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR);
     _logger.info("Plugin VCL Profiling API Version: %d.%d", VCL_PROFILING_VERSION_MAJOR, VCL_PROFILING_VERSION_MINOR);
     _logger.info("Lib VCL Compiler Version: %d.%d", _vclVersion.major, _vclVersion.minor);
@@ -196,13 +206,11 @@ VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functio
         vclDeviceDesc = {sizeof(vcl_device_desc_t), 0x00, std::numeric_limits<uint16_t>::max(), defaultTileCount};
     }
 
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclCompilerCreate",
-                          _functions->vclCompilerCreate(&compilerDesc, &vclDeviceDesc, &_compilerHandle, &_logHandle),
+    THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
+                          vclCompilerCreate(&compilerDesc, &vclDeviceDesc, &_compilerHandle, &_logHandle),
                           nullptr);
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclCompilerGetProperties",
-                          _functions->vclCompilerGetProperties(_compilerHandle, &_compilerProperties),
+    THROW_ON_FAIL_FOR_VCL("vclCompilerGetProperties",
+                          vclCompilerGetProperties(_compilerHandle, &_compilerProperties),
                           _logHandle);
     _logger.info("VCL Compiler created successfully");
     _logger.info("VCL Compiler Properties: ID: %s, Version: %d.%d, Supported Opsets: %u",
@@ -214,12 +222,12 @@ VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functio
 
 VCLCompilerImpl::~VCLCompilerImpl() {
     if (_compilerHandle) {
-        vcl_result_t result = _functions->vclCompilerDestroy(_compilerHandle);
+        vcl_result_t result = vclCompilerDestroy(_compilerHandle);
         _compilerHandle = nullptr;
         if (result != VCL_RESULT_SUCCESS) {
             _logger.warning("Failed to destroy VCL compiler: result 0x%x - %s",
                             result,
-                            getLatestVCLLog(*_functions, _logHandle).c_str());
+                            getLatestVCLLog(_logHandle).c_str());
         }
     }
 
@@ -229,27 +237,26 @@ VCLCompilerImpl::~VCLCompilerImpl() {
     _logger.info("VCL Compiler destroyed successfully");
 }
 
+std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
+    return VCLApi::getInstance()->getLibrary();
+}
+
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const Config& config) const {
+    const FilteredConfig& config) const {
     return compile(model, config, false);
 }
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const Config& config,
+    const FilteredConfig& config,
     const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
-    UsedVersion usedVersion =
-        getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
-    _logger.debug("The final vcl compiler version used is %d.%d", usedVersion.Major, usedVersion.Minor);
-    checkVclVersion(usedVersion,
-                    _vclVersion.major,
-                    _vclVersion.minor,
-                    VCL_COMPILER_VERSION_MAJOR,
-                    VCL_COMPILER_VERSION_MINOR);
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    checkVclVersion(usedVersion, _vclVersion);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -259,24 +266,27 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    const auto isOptionSupportedByCompiler = [this](const std::string& optionName,
-                                                    const std::optional<std::string>& optionValue = std::nullopt) {
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
                                                     config.get<MODEL_SERIALIZER_VERSION>(),
-                                                    isOptionSupportedByCompiler,
+                                                    isOptionValueSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
-    Config updatedConfig = config;
-    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+    FilteredConfig updatedConfig = config;
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
 
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
@@ -295,12 +305,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     uint64_t blobSize = 0;
     vcl_executable_handle_t executable = nullptr;
 
-    auto result = _functions->vclAllocatedExecutableCreate4(_compilerHandle,
-                                                            exeDesc,
-                                                            allocator.get(),
-                                                            &blob,
-                                                            &blobSize,
-                                                            &executable);
+    auto result =
+        vclAllocatedExecutableCreate4(_compilerHandle, exeDesc, allocator.get(), &blob, &blobSize, &executable);
     if (result != VCL_RESULT_SUCCESS) {
         // Check if allocations were performed before throwing exception
         auto tracked_allocations = allocator->m_info;
@@ -308,13 +314,13 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
             allocator->deallocate(allocator.get(), buffer);
         }
         if (executable != nullptr) {
-            _functions->vclExecutableDestroy(executable);
+            vclExecutableDestroy(executable);
         }
         OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate4 result: 0x",
                        std::hex,
                        uint64_t(result),
                        " - ",
-                       getLatestVCLLog(*_functions, _logHandle));
+                       getLatestVCLLog(_logHandle));
     }
     OPENVINO_ASSERT(executable != nullptr, "Failed to create VCL executable, executable handle is null");
     OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
@@ -339,9 +345,9 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
     std::optional<std::string> compatibilityString;
     try {
-        compatibilityString = getVCLCompatibilityString(*_functions, executable, _logHandle);
+        compatibilityString = getVCLCompatibilityString(executable, _logHandle);
     } catch (...) {
-        _functions->vclExecutableDestroy(executable);
+        vclExecutableDestroy(executable);
         throw;
     }
     if (!compatibilityString.has_value()) {
@@ -353,13 +359,13 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
         _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
     }
 
-    result = _functions->vclExecutableDestroy(executable);
+    result = vclExecutableDestroy(executable);
     if (result != VCL_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to destroy VCL executable. vclExecutableDestroy result: 0x",
                        std::hex,
                        uint64_t(result),
                        " - ",
-                       getLatestVCLLog(*_functions, _logHandle));
+                       getLatestVCLLog(_logHandle));
     }
 
     return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
@@ -368,18 +374,13 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
 std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::compileWsOneShot(
     const std::shared_ptr<ov::Model>& model,
-    const Config& config) const {
+    const FilteredConfig& config) const {
     _logger.debug("compileWsOneShot start");
 
     /// Check the linked vcl version whether supported in plugin
-    UsedVersion usedVersion =
-        getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
-    _logger.debug("The final vcl compiler version used is %d.%d", usedVersion.Major, usedVersion.Minor);
-    checkVclVersion(usedVersion,
-                    _vclVersion.major,
-                    _vclVersion.minor,
-                    VCL_COMPILER_VERSION_MAJOR,
-                    VCL_COMPILER_VERSION_MINOR);
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    checkVclVersion(usedVersion, _vclVersion);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -389,24 +390,27 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    const auto isOptionSupportedByCompiler = [this](const std::string& optionName,
-                                                    const std::optional<std::string>& optionValue = std::nullopt) {
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
                                                     config.get<MODEL_SERIALIZER_VERSION>(),
-                                                    isOptionSupportedByCompiler,
+                                                    isOptionValueSupportedByCompiler,
                                                     false,
                                                     true);
-    Config updatedConfig = config;
-    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+    FilteredConfig updatedConfig = config;
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
 
     _logger.debug("create build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, true);
@@ -424,24 +428,23 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     auto allocator = std::make_shared<vcl_allocator_2>();
     vcl_executable_handle_t executable = nullptr;
 
-    auto result =
-        _functions->vclAllocatedExecutableCreateWSOneShot2(_compilerHandle, exeDesc, allocator.get(), &executable);
+    auto result = vclAllocatedExecutableCreateWSOneShot2(_compilerHandle, exeDesc, allocator.get(), &executable);
     if (result != VCL_RESULT_SUCCESS) {
         if (executable != nullptr) {
-            _functions->vclExecutableDestroy(executable);
+            vclExecutableDestroy(executable);
         }
         OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreateWSOneShot2 result: 0x",
                        std::hex,
                        uint64_t(result),
                        " - ",
-                       getLatestVCLLog(*_functions, _logHandle));
+                       getLatestVCLLog(_logHandle));
     }
     if (executable == nullptr) {
         OPENVINO_THROW("Failed to create VCL executable, executable handle is null");
     }
 
     if (allocator->m_info.size() == 0) {
-        _functions->vclExecutableDestroy(executable);
+        vclExecutableDestroy(executable);
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
@@ -454,9 +457,9 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
 
     std::optional<std::string> compatibilityString;
     try {
-        compatibilityString = getVCLCompatibilityString(*_functions, executable, _logHandle);
+        compatibilityString = getVCLCompatibilityString(executable, _logHandle);
     } catch (...) {
-        _functions->vclExecutableDestroy(executable);
+        vclExecutableDestroy(executable);
         throw;
     }
     if (!compatibilityString.has_value()) {
@@ -467,13 +470,13 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
         _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
     }
 
-    result = _functions->vclExecutableDestroy(executable);
+    result = vclExecutableDestroy(executable);
     if (result != VCL_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to destroy executable. vclExecutableDestroy result: 0x",
                        std::hex,
                        uint64_t(result),
                        " - ",
-                       getLatestVCLLog(*_functions, _logHandle));
+                       getLatestVCLLog(_logHandle));
     }
 
     return std::make_pair(std::move(initMainTensors), std::move(compatibilityString));
@@ -481,11 +484,11 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIterative(
     const std::shared_ptr<ov::Model>& model,
-    const Config& config,
+    const FilteredConfig& config,
     size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    Config updatedConfig = config;
-    updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
+    FilteredConfig updatedConfig = config;
+    updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
     // Return the compatibility descriptor together with the compiled blob.
     return compile(model, updatedConfig, true);
 }
@@ -497,15 +500,13 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
     vcl_profiling_handle_t profilingHandle;
     vcl_profiling_input_t profilingInput = {network.data(), network.size(), profData.data(), profData.size()};
     vcl_log_handle_t logHandle;
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclProfilingCreate",
-                          _functions->vclProfilingCreate(&profilingInput, &profilingHandle, &logHandle),
+    THROW_ON_FAIL_FOR_VCL("vclProfilingCreate",
+                          vclProfilingCreate(&profilingInput, &profilingHandle, &logHandle),
                           nullptr);
 
     vcl_profiling_properties_t profProperties;
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclProfilingGetProperties",
-                          _functions->vclProfilingGetProperties(profilingHandle, &profProperties),
+    THROW_ON_FAIL_FOR_VCL("vclProfilingGetProperties",
+                          vclProfilingGetProperties(profilingHandle, &profProperties),
                           logHandle);
 
     _logger.info("VCL Profiling Properties: Version: %d.%d",
@@ -517,9 +518,8 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
 
     vcl_profiling_output_t profOutput;
     profOutput.data = NULL;
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclGetDecodedProfilingBuffer",
-                          _functions->vclGetDecodedProfilingBuffer(profilingHandle, request, &profOutput),
+    THROW_ON_FAIL_FOR_VCL("vclGetDecodedProfilingBuffer",
+                          vclGetDecodedProfilingBuffer(profilingHandle, request, &profOutput),
                           logHandle);
     if (profOutput.data == NULL) {
         OPENVINO_THROW("Failed to get VCL profiling output");
@@ -531,10 +531,7 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
         std::memcpy(layerInfo.data(), profOutput.data, profOutput.size);
     }
 
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclProfilingDestroy",
-                          _functions->vclProfilingDestroy(profilingHandle),
-                          logHandle);
+    THROW_ON_FAIL_FOR_VCL("vclProfilingDestroy", vclProfilingDestroy(profilingHandle), logHandle);
 
     // Return processed profiling info
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
@@ -544,18 +541,13 @@ uint32_t VCLCompilerImpl::get_version() const {
     return ZE_MAKE_VERSION(_compilerProperties.version.major, _compilerProperties.version.minor);
 }
 
-ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
+                                           const FilteredConfig& config) const {
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
-    UsedVersion usedVersion =
-        getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
-    _logger.debug("The final vcl compiler version used is %d.%d", usedVersion.Major, usedVersion.Minor);
-    checkVclVersion(usedVersion,
-                    _vclVersion.major,
-                    _vclVersion.minor,
-                    VCL_COMPILER_VERSION_MAJOR,
-                    VCL_COMPILER_VERSION_MINOR);
+    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    _logger.debug("the finally used vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -564,49 +556,43 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    Config updatedConfig = config;
-    const auto isOptionSupportedByCompiler = [this](const std::string& optionName,
-                                                    const std::optional<std::string>& optionValue = std::nullopt) {
+    FilteredConfig updatedConfig = config;
+    const auto isOptionValueSupportedByCompiler = [this](const std::string& optionName,
+                                                         const std::optional<std::string>& optionValue) {
         return is_option_supported(optionName, optionValue);
     };
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
                                                     config.get<MODEL_SERIALIZER_VERSION>(),
-                                                    isOptionSupportedByCompiler);
-    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
-                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+                                                    isOptionValueSupportedByCompiler);
+    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
+                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
     buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;
     vcl_query_desc_t queryDesc = {serializedIR.buffer.get(), serializedIR.size, buildFlags.c_str(), buildFlags.size()};
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclQueryNetworkCreate",
-                          _functions->vclQueryNetworkCreate(_compilerHandle, queryDesc, &queryHandle),
+    THROW_ON_FAIL_FOR_VCL("vclQueryNetworkCreate",
+                          vclQueryNetworkCreate(_compilerHandle, queryDesc, &queryHandle),
                           _logHandle);
 
     uint64_t size = 0;
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclQueryNetwork",
-                          _functions->vclQueryNetwork(queryHandle, nullptr, &size),
-                          _logHandle);
+    THROW_ON_FAIL_FOR_VCL("vclQueryNetwork", vclQueryNetwork(queryHandle, nullptr, &size), _logHandle);
 
     std::vector<char> supportedLayers(size);
-    THROW_ON_FAIL_FOR_VCL(
-        *_functions,
-        "vclQueryNetwork",
-        _functions->vclQueryNetwork(queryHandle, reinterpret_cast<uint8_t*>(supportedLayers.data()), &size),
-        _logHandle);
-
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclQueryNetworkDestroy",
-                          _functions->vclQueryNetworkDestroy(queryHandle),
+    THROW_ON_FAIL_FOR_VCL("vclQueryNetwork",
+                          vclQueryNetwork(queryHandle, reinterpret_cast<uint8_t*>(supportedLayers.data()), &size),
                           _logHandle);
+
+    THROW_ON_FAIL_FOR_VCL("vclQueryNetworkDestroy", vclQueryNetworkDestroy(queryHandle), _logHandle);
 
     const std::string deviceName = "NPU";
     ov::SupportedOpsMap result;
@@ -619,80 +605,44 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     return result;
 }
 
-std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
+void VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     _logger.debug("get_supported_options start");
-    uint64_t str_size = 0;
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclGetCompilerSupportedOptions",
-                          _functions->vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
+    size_t str_size = 0;
+    THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+                          vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
                           _logHandle);
 
     if (str_size == 0) {
         _logger.debug("Option list size 0!");
-        return {};
+        return;
     }
 
     _logger.debug("obtain list");
-    std::vector<char> options(str_size);
-    THROW_ON_FAIL_FOR_VCL(*_functions,
-                          "vclGetCompilerSupportedOptions",
-                          _functions->vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
+    options.resize(str_size);
+    THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+                          vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
                           _logHandle);
 
-    _logger.debug("Option list size %" PRIu64 ", got option list", str_size);
-
-    size_t optionsSize = options.size();
-    while (optionsSize > 0 && options[optionsSize - 1] == '\0') {
-        --optionsSize;
-    }
-    if (optionsSize == 0) {
-        return {};
-    }
-
-    std::string compilerOptionsStr(options.data(), optionsSize);
-    _logger.debug("VCLCompilerImpl return supported_options: %s", compilerOptionsStr.c_str());
-    // vectorize string
-    std::istringstream suppstream(compilerOptionsStr);
-    std::vector<std::string> compilerOpts;
-    std::string option;
-    while (suppstream >> option) {
-        compilerOpts.push_back(option);
-    }
-
-    _optionSupportCache.setSupportedOptions(compilerOpts);
-
-    return compilerOpts;
+    _logger.debug("Option list size %d, got option list", str_size);
 }
 
 bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::optional<std::string>& optValue) const {
-    // The cache is keyed by option name alone, so it can only answer queries that do not carry a value.
-    const bool useCache = !optValue.has_value();
-    if (useCache) {
-        const auto cachedSupport = _optionSupportCache.isOptionSupported(option);
-        if (cachedSupport.has_value()) {
-            return cachedSupport.value();
-        }
-    }
-
-    bool supported = false;
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
-        THROW_ON_FAIL_FOR_VCL(*_functions,
-                              "vclGetCompilerIsOptionSupported",
-                              _functions->vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, optvalue_ch),
+        _logger.debug("is_option_supported start for option: %s, value: %s",
+                      optname_ch,
+                      optvalue_ch ? optvalue_ch : "null");
+        THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
+                              vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, optvalue_ch),
                               _logHandle);
-        supported = true;
+        return true;
     } catch (const std::exception& e) {
         // The API is only supported in new version, just add log here
         _logger.debug("Exception in is_option_supported: %s", e.what());
     }
-
-    if (useCache) {
-        _optionSupportCache.addSupportedOption(option, supported);
-    }
-
-    return supported;
+    _logger.debug("option: %s is not supported", option.c_str());
+    return false;
 }
 
 }  // namespace intel_npu

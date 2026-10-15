@@ -19,7 +19,10 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_max_pool_util(const NodeContext& node,
                                      size_t spatial_dims_num,
@@ -211,4 +214,7 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
     }
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

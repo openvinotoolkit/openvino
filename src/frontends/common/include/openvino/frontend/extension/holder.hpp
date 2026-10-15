@@ -8,10 +8,12 @@
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 struct ExtensionHolder {
     std::shared_ptr<ProgressReporterExtension> progress_reporter{std::make_shared<ProgressReporterExtension>()};
     std::shared_ptr<TelemetryExtension> telemetry;
     std::vector<std::shared_ptr<ConversionExtensionBase>> conversions;
 };
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

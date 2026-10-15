@@ -41,7 +41,8 @@ struct MatrixNmsParams {
 class ReferenceMatrixNmsTest : public testing::TestWithParam<MatrixNmsParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.boxes.data, params.scores.data};
         refOutData = {params.expectedSelectedScores.data,
@@ -50,7 +51,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<MatrixNmsParams>& obj) {
-        const auto& param = obj.param;
+        auto param = obj.param;
         std::ostringstream result;
         result << "bType=" << param.boxes.type;
         result << "_bShape=" << param.boxes.shape;

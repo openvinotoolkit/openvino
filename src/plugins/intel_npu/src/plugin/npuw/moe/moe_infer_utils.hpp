@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "../perf.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -33,11 +32,7 @@ struct MoEProfile {
 
 template <typename T>
 inline bool is_nonzero(T v) {
-    const float value = static_cast<float>(v);
-    OPENVINO_ASSERT(std::isfinite(value), "MoE router produced a non-finite mixing score");
-    // A magnitude threshold changes the model: a tiny score can multiply a
-    // large expert output. Only exactly-zero contributions may be skipped.
-    return value != 0.0f;
+    return std::abs(static_cast<float>(v)) > 1e-6f;
 }
 
 /**

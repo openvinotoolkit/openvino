@@ -12,7 +12,10 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace opset_10 {
 ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
@@ -65,4 +68,7 @@ ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("Slice", OPSET_RANGE(1, 9), ai_onnx::opset_1::slice);
 }  // namespace opset_1
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

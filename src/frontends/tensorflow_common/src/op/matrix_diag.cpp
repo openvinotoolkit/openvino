@@ -18,7 +18,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_matrix_diag_op(const NodeContext& node) {
     default_op_checks(node, 1, {"MatrixDiag", "MATRIX_DIAG"});
@@ -96,4 +99,7 @@ OutputVector translate_matrix_diag_op(const NodeContext& node) {
     set_node_name(node.get_name(), resulted_diag);
     return {resulted_diag};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

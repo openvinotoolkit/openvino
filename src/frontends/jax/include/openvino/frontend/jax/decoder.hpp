@@ -13,7 +13,9 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/jax/visibility.hpp"
 
-namespace ov::frontend::jax {
+namespace ov {
+namespace frontend {
+namespace jax {
 
 class JAX_FRONTEND_API JaxDecoder : public IDecoder {
 public:
@@ -67,4 +69,6 @@ public:
     ~JaxDecoder() override;
 };
 
-}  // namespace ov::frontend::jax
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

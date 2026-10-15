@@ -19,7 +19,10 @@ using namespace ov;
 using namespace ov::op;
 using ov::CoordinateDiff;
 
-namespace ov::frontend::onnx::convpool {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace convpool {
 ov::Shape get_kernel_shape(const Node& node) {
     const auto& data_shape = node.get_ov_inputs().at(0).get_partial_shape();
     const size_t input_spatial_dims = data_shape.rank().get_length() - 2;
@@ -233,4 +236,7 @@ Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t g
 
     return reshaped_filters;
 }
-}  // namespace ov::frontend::onnx::convpool
+}  // namespace convpool
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

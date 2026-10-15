@@ -18,7 +18,11 @@
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 
-namespace ov::frontend::onnx::ai_onnx::opset_11 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_11 {
 
 /// @brief Implements the SequenceAt operator
 /// @param node Input ONNX node. Must have two inputs: a sequence and a position.
@@ -72,4 +76,9 @@ ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
 ///         Registering as available since opset 1 for compatibility with existing tests.
 ONNX_OP("SequenceAt", OPSET_SINCE(1), ai_onnx::opset_11::sequence_at);
 
-}  // namespace ov::frontend::onnx::ai_onnx::opset_11
+}  // namespace opset_11
+
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

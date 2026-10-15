@@ -28,7 +28,10 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 
 // Link with an existing translator
 namespace opset_1 {
@@ -433,4 +436,7 @@ static bool register_multiple_translators(void) {
 
 static bool registered = register_multiple_translators();
 }  // namespace opset_20
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

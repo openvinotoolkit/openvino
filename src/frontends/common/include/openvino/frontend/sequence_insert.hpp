@@ -7,7 +7,8 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 /// \brief SequenceInsert is a helper operation that represents inserting a tensor into a sequence.
 /// This operation is used during frontend conversion to mark sequence insert operations
@@ -58,4 +59,5 @@ public:
     }
 };
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

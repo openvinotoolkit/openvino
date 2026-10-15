@@ -10,7 +10,10 @@
 #include "openvino/op/mvn.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 // LayerNorm over the last dimension: (x - mean) / sqrt(var + eps).
 OutputVector translate_norm(const NodeContext& context) {
@@ -25,4 +28,7 @@ OutputVector translate_norm(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

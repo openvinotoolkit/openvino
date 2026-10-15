@@ -8,7 +8,10 @@
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_quantized_linear(const NodeContext& context) {
     // "quantized::linear(Tensor X, __torch__.torch.classes.quantized.LinearPackedParamsBase W_prepack, float Y_scale_i,
@@ -36,4 +39,7 @@ OutputVector translate_quantized_linear(const NodeContext& context) {
     return {quantize(context, linear, scale, zero_point, x)};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

@@ -11,7 +11,11 @@
 #include "exceptions.hpp"
 #include "utils/common.hpp"
 
-namespace ov::frontend::onnx::ai_onnx::opset_11 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_11 {
 
 ov::OutputVector concat_from_sequence(const ov::frontend::onnx::Node& node) {
     constexpr auto input_only = 1;
@@ -29,4 +33,8 @@ ov::OutputVector concat_from_sequence(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("ConcatFromSequence", OPSET_SINCE(1), ai_onnx::opset_11::concat_from_sequence);
 
-}  // namespace ov::frontend::onnx::ai_onnx::opset_11
+}  // namespace opset_11
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

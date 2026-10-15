@@ -14,7 +14,9 @@
 #include "tensor_lite_place.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::tensorflow_lite {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
 
 class TensorLitePlace;
 struct TensorInfo;
@@ -132,4 +134,6 @@ private:
     int64_t m_input_idx, m_output_idx;
 };
 
-}  // namespace ov::frontend::tensorflow_lite
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

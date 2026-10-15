@@ -10,7 +10,9 @@
 #include "openvino/util/log.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
     : m_input_model(input_model),
@@ -79,4 +81,6 @@ bool Place::is_equal(const Ptr& another) const {
     return this == another.get();
 }
 
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

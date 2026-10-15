@@ -13,7 +13,9 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/file_util.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class GraphIteratorProtoTxt : public GraphIteratorProto {
 public:
@@ -71,4 +73,6 @@ public:
         }
     }
 };
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

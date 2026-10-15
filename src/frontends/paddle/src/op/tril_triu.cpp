@@ -5,7 +5,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 NamedOutputs tril_triu(const NodeContext& node) {
     auto x = node.get_input("X");
@@ -43,4 +46,7 @@ NamedOutputs tril_triu(const NodeContext& node) {
                                               {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

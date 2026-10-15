@@ -1,6 +1,18 @@
-// Copyright (C) 2018-2026 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//*****************************************************************************
+// Copyright 2017-2022 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
 
 #include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -8,7 +20,11 @@
 #include "utils/convpool.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::org_openvinotoolkit::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector deformable_conv_2d(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
     const auto strides = convpool::get_strides(node);
@@ -47,4 +63,8 @@ ov::OutputVector deformable_conv_2d(const ov::frontend::onnx::Node& node) {
     }
 }
 ONNX_OP("DeformableConv2D", OPSET_SINCE(1), org_openvinotoolkit::opset_1::deformable_conv_2d, OPENVINO_ONNX_DOMAIN);
-}  // namespace ov::frontend::onnx::org_openvinotoolkit::opset_1
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

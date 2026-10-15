@@ -6,7 +6,6 @@
 
 #include <ze_graph_ext.h>
 
-#include <atomic>
 #include <mutex>
 
 #include "intel_npu/common/igraph.hpp"
@@ -21,6 +20,7 @@ class DynamicGraph final : public IGraph {
 public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
+                 const FilteredConfig& config,
                  BlobType blobType = BlobType::LLVM);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
@@ -57,10 +57,11 @@ public:
     BlobType get_blob_type() const override;
 
 private:
-    void initialize_impl(const Config& runtimeConfig) override;
-    bool release_blob();
-    void initialize_engine(const Config& config);
-    void create_execution_engine(const Config& config);
+    void initialize_impl(const FilteredConfig& config) override;
+
+    bool release_blob(const FilteredConfig& config);
+    void initialize_engine();
+    void create_execution_engine();
     void prepare_metadata();
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
@@ -74,6 +75,7 @@ private:
 
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;
+    std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
     BlobType _blobType = BlobType::LLVM;
@@ -89,9 +91,7 @@ private:
 
     npu_vm_runtime_handle_t _engine = nullptr;
     npu_vm_runtime_properties_t _engineProperties{};
-    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
-    // Set once the VM engine is created and _metadata is populated from it; get_metadata() throws before that
-    std::atomic<bool> _metadataInitialized{false};
+    bool _engineInitialized = false;
 };
 
 }  // namespace intel_npu

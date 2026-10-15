@@ -7,7 +7,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 using namespace default_opset;
 
@@ -23,4 +26,7 @@ NamedOutputs while_(const NodeContext& node) {
     named_outputs["Out"] = std::make_shared<ov::op::internal::While>(inputs, sub_block, outputs_info)->outputs();
     return named_outputs;
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

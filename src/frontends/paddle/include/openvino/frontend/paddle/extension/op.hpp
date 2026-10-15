@@ -6,9 +6,13 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/paddle/extension/conversion.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 
 template <typename OVOpType = void>
 using OpExtension = ov::frontend::OpExtensionBase<ConversionExtension, OVOpType>;
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

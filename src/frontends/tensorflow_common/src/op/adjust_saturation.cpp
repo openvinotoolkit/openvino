@@ -12,7 +12,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AdjustSaturation"});
@@ -38,4 +41,7 @@ OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     return {new_images_adjust_saturation};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

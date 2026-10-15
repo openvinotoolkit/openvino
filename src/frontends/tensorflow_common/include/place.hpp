@@ -7,7 +7,9 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/frontend.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class TensorPlace;
 class OpPlace;
@@ -197,4 +199,6 @@ private:
     std::vector<std::weak_ptr<InPortPlace>> m_consuming_ports;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

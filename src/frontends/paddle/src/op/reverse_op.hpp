@@ -6,7 +6,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 namespace {
 NamedOutputs reverse_op(const NodeContext& node) {
     const auto data_node = node.get_input("X");
@@ -29,4 +32,7 @@ NamedOutputs reverse_op(const NodeContext& node) {
         {"Out"});
 }
 }  // namespace
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

@@ -15,7 +15,10 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -139,4 +142,22 @@ OutputVector translate_adaptive_max_pool1d(const NodeContext& context) {
     return translate_adaptive_max_pool_base(context, const_tile_params, const_neg_1);
 };
 
-}  // namespace ov::frontend::pytorch::op
+OutputVector translate_adaptive_max_pool3d_fx(const NodeContext& context) {
+    auto outs = translate_adaptive_max_pool3d(context);
+    return {context.mark_node(make_list_construct(outs))};
+};
+
+OutputVector translate_adaptive_max_pool2d_fx(const NodeContext& context) {
+    auto outs = translate_adaptive_max_pool2d(context);
+    return {context.mark_node(make_list_construct(outs))};
+};
+
+OutputVector translate_adaptive_max_pool1d_fx(const NodeContext& context) {
+    auto outs = translate_adaptive_max_pool1d(context);
+    return {context.mark_node(make_list_construct(outs))};
+};
+
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

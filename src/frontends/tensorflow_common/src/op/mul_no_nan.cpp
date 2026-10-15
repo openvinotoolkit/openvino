@@ -11,7 +11,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_mul_no_nan_op(const NodeContext& node) {
     default_op_checks(node, 2, {"MulNoNan"});
 
@@ -34,4 +37,7 @@ OutputVector translate_mul_no_nan_op(const NodeContext& node) {
     set_node_name(node.get_name(), mul_no_nan);
     return mul_no_nan->outputs();
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

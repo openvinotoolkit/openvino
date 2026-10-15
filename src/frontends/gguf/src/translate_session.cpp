@@ -12,7 +12,6 @@
 #include <set>
 #include <unordered_set>
 
-#include "builder/gguf_builder_decoder.hpp"
 #include "input_model.hpp"
 #include "node_context.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -50,7 +49,9 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf {
+namespace ov {
+namespace frontend {
+namespace gguf {
 
 using namespace ov::op;
 
@@ -60,7 +61,7 @@ void add_sliced_mask(TensorMap& tensor_map) {
     // Publish the decoder's runtime-sized attention mask under the shared name
     // consumed by the attention translators.
     auto create_sliced_mask = [&](const std::string& mask_name, const std::string& sliced_name) {
-        if (tensor_map.count(mask_name) && !tensor_map.count(sliced_name)) {
+        if (tensor_map.find(mask_name) != tensor_map.end()) {
             auto mask = tensor_map.at(mask_name).get_node_shared_ptr();
             // The decoder binds the mask with its current runtime shape, so its
             // token axis already is the active token window.
@@ -85,7 +86,7 @@ void add_rope_sin_cos(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
     const auto& rope_config = rope_config_any.as<RopeConfig>();
     // n_dims == 0 means the model uses no RoPE; per_op means each ROPE op builds its own sin/cos
     // (e.g. gemma4 where SWA and global layers differ), so skip the shared table entirely.
-    if (tensor_map.count("rope_cos") || !tensor_map.count("inp_pos") || rope_config.n_dims == 0 || rope_config.per_op) {
+    if (tensor_map.find("inp_pos") == tensor_map.end() || rope_config.n_dims == 0 || rope_config.per_op) {
         return;
     }
     auto inp_pos = tensor_map.at("inp_pos").get_node_shared_ptr();
@@ -104,56 +105,13 @@ void add_rope_sin_cos(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
     tensor_map.insert({"rope_sin", sin_theta});
 }
 
-}  // namespace
-
-void prepare_graph_inputs(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
+// Create common patterns
+void preprocess(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
     add_sliced_mask(tensor_map);
     add_rope_sin_cos(tensor_map, gguf_model_decoder);
 }
 
-void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
-                    std::shared_ptr<TensorMap>& tensor_map,
-                    const std::unordered_map<std::string, CreatorFunction>& translators) {
-    const auto& operation_type = decoder->get_op_type();
-    if (operation_type == "GGML_OP_NONE") {
-        // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
-        // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
-        // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
-        // above) and there is nothing to translate.
-        const bool is_builder_weight =
-            decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
-        const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
-        if (!is_builder_weight && !is_cgraph_weight) {
-            return;
-        }
-    }
-
-    ov::OutputVector converted_outputs;
-    auto it = translators.find(operation_type);
-    FRONT_END_OP_CONVERSION_CHECK(it != translators.end(),
-                                  "Translation for operation type ",
-                                  operation_type,
-                                  " is not implemented.");
-    NodeContext node_context(decoder, tensor_map);
-    converted_outputs = it->second(node_context);
-
-    const auto& node_output_names = decoder->get_output_names();
-    FRONT_END_OP_CONVERSION_CHECK(node_output_names.size() == converted_outputs.size(),
-                                  "Number of ",
-                                  operation_type,
-                                  " outputs greater than number of converted outputs, which are ",
-                                  node_output_names.size(),
-                                  " and ",
-                                  converted_outputs.size(),
-                                  " respectively.");
-
-    for (size_t i = 0; i < node_output_names.size(); ++i) {
-        const auto& output_name = node_output_names[i];
-        if (i < converted_outputs.size() && converted_outputs[i].get_node_shared_ptr() != nullptr) {
-            (*tensor_map)[output_name] = converted_outputs[i];
-        }
-    }
-}
+}  // namespace
 
 TranslateSession::TranslateSession(const frontend::InputModel::Ptr& input_model,
                                    const std::unordered_map<std::string, CreatorFunction>& translator_map,
@@ -217,7 +175,45 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
-        translate_node(decoder, tensor_map, m_translator_map);
+        const auto& operation_type = decoder->get_op_type();
+        if (operation_type == "GGML_OP_NONE") {
+            // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
+            // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
+            // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
+            // above) and there is nothing to translate.
+            const bool is_builder_weight =
+                decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
+            const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
+            if (!is_builder_weight && !is_cgraph_weight) {
+                return;
+            }
+        }
+
+        ov::OutputVector converted_outputs;
+        auto it = m_translator_map.find(operation_type);
+        FRONT_END_OP_CONVERSION_CHECK(it != m_translator_map.end(),
+                                      "Translation for operation type ",
+                                      operation_type,
+                                      " is not implemented.");
+        NodeContext node_context(decoder, tensor_map);
+        converted_outputs = it->second(node_context);
+
+        const auto& node_output_names = decoder->get_output_names();
+        FRONT_END_OP_CONVERSION_CHECK(node_output_names.size() == converted_outputs.size(),
+                                      "Number of ",
+                                      operation_type,
+                                      " outputs greater than number of converted outputs, which are ",
+                                      node_output_names.size(),
+                                      " and ",
+                                      converted_outputs.size(),
+                                      " respectively.");
+
+        for (size_t i = 0; i < node_output_names.size(); ++i) {
+            const auto& output_name = node_output_names[i];
+            if (i < converted_outputs.size() && converted_outputs[i].get_node_shared_ptr() != nullptr) {
+                (*tensor_map)[output_name] = converted_outputs[i];
+            }
+        }
     };
 
     // Build the shared LLM scaffolding (sliced attention mask + rope sin/cos table) once, so all
@@ -226,13 +222,8 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // the model uses a shared rope table (n_dims != 0, not per-op). For a bare op / small cgraph
     // (no rope_config -> default n_dims == 0, no mask/pos inputs) both no-op, and the ROPE/attention
     // translators fall back to building their own -- so there is no separate "naive" mode.
-    const auto builder = std::dynamic_pointer_cast<GgufBuilderDecoder>(gguf_model_decoder);
-    if (builder) {
-        tensor_map = builder->values();
-    } else {
-        prepare_graph_inputs(*tensor_map, *gguf_model_decoder);
-        gguf_model_decoder->visit_subgraph(node_visitor);
-    }
+    preprocess(*tensor_map, *gguf_model_decoder);
+    gguf_model_decoder->visit_subgraph(node_visitor);
 
     for (const auto& name : gguf_model_decoder->get_model_output_names()) {
         FRONT_END_GENERAL_CHECK(tensor_map->find(name) != tensor_map->end(),
@@ -290,9 +281,6 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         }
     }
 
-    if (builder) {
-        resulting_model = resulting_model->clone();
-    }
     resulting_model = apply_transformations(resulting_model);
 
     // Auxiliary Parameters are kept through normalization in case a transformation extension
@@ -389,4 +377,6 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     return model;
 }
 
-}  // namespace ov::frontend::gguf
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

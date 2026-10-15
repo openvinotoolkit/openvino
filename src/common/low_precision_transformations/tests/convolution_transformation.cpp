@@ -94,7 +94,8 @@ public:
             testValues.expected.weights,
             testValues.expected.fakeQuantizeOnWeights,
             testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+            testValues.expected.dequantizationAfter,
+            testValues.expected.precisionAfterDequantization);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {

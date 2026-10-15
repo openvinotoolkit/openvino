@@ -19,7 +19,9 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 
 template <typename T>
 ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& same_type_output, const T& value) {
@@ -78,4 +80,6 @@ NamedOutputs atan2(const NodeContext& node) {
 }
 
 }  // namespace op
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

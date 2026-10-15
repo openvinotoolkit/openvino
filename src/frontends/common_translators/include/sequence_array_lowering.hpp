@@ -6,7 +6,9 @@
 
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::pass {
+namespace ov {
+namespace frontend {
+namespace pass {
 
 /// \brief Lowers loop-carried "sequence-of-N" patterns into N parallel tensors.
 ///
@@ -40,4 +42,6 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
-}  // namespace ov::frontend::pass
+}  // namespace pass
+}  // namespace frontend
+}  // namespace ov

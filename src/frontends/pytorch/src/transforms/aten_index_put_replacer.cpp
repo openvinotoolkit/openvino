@@ -29,13 +29,16 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 using namespace ov::op;
 
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
     auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
-        fw_node_predicate({"aten::index_put_", "aten.index_put.default", "aten.index_put_.default"}));
+        fw_node_predicate({"aten::index_put_", "aten.index_put.default"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto index_op = m.get_match_root();
@@ -261,4 +264,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

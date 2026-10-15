@@ -56,9 +56,8 @@ struct rope : public primitive_base<rope> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs)) {
+        if (!compare_common_params(rhs))
             return false;
-        }
 
         auto rhs_casted = downcast<const rope>(rhs);
 

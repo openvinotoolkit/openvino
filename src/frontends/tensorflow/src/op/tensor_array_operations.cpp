@@ -28,7 +28,10 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 namespace {
 // the function creates the constant imitating initial tensor array container
@@ -342,4 +345,7 @@ OutputVector translate_tensor_array_write_v3_op(const NodeContext& node) {
     return {scatter_update};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

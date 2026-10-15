@@ -12,9 +12,8 @@
 namespace cldnn {
 
 void event::wait() {
-    if (_set) {
+    if (_set)
         return;
-    }
 
     // TODO: refactor in context of multiple simultaneous calls (for generic engine)
     wait_impl();
@@ -22,18 +21,16 @@ void event::wait() {
 }
 
 void event::set() {
-    if (_set) {
+    if (_set)
         return;
-    }
     _set = true;
     set_impl();
     call_handlers();
 }
 
 bool event::is_set() {
-    if (_set) {
+    if (_set)
         return true;
-    }
 
     // TODO: refactor in context of multiple simultaneous calls (for generic engine)
     _set = is_set_impl();
@@ -49,9 +46,8 @@ bool event::add_event_handler(event_handler handler, void* data) {
     std::lock_guard<std::mutex> lock(_handlers_mutex);
     auto itr = _handlers.insert(_handlers.end(), {handler, data});
     auto ret = add_event_handler_impl(handler, data);
-    if (!ret) {
+    if (!ret)
         _handlers.erase(itr);
-    }
 
     return ret;
 }

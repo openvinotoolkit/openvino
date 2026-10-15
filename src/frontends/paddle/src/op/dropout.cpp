@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs dropout(const NodeContext& node) {
     auto data = node.get_input("X");
     auto dropout_implementation = node.get_attribute<std::string>("dropout_implementation");
@@ -22,4 +25,7 @@ NamedOutputs dropout(const NodeContext& node) {
     }
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

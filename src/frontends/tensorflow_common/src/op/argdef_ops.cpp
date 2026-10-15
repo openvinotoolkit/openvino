@@ -10,7 +10,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_input_arg_op(const NodeContext& node) {
     default_op_checks(node, 0, {"input_arg"});
     auto param_type = node.get_attribute<element::Type>("type");
@@ -27,4 +30,7 @@ OutputVector translate_output_arg_op(const NodeContext& node) {
     return result->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

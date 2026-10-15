@@ -12,7 +12,9 @@
 
 #include "core/operator_set.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 using ::ONNX_NAMESPACE::GraphProto;
 using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::NodeProto;
@@ -115,4 +117,6 @@ inline std::ostream& operator<<(std::ostream& outs, const Model& model) {
     return (outs << "<Model: " << model.get_producer_name() << ">");
 }
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

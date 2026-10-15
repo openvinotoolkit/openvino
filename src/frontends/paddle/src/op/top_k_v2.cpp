@@ -4,7 +4,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs top_k_v2(const NodeContext& node) {
     auto x = node.get_input("X");
     Output<Node> k_expected_node;
@@ -32,4 +35,7 @@ NamedOutputs top_k_v2(const NodeContext& node) {
 
     return named_outputs;
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

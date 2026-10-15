@@ -13,7 +13,8 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 OutputVector make_random_normal(pass::NodeRegistry& registry,
                                 const Output<Node>& sizes,
@@ -79,4 +80,5 @@ std::pair<OutputVector, pass::NodeRegistry> make_random_normal(const Output<Node
     return std::make_pair(res, registry);
 }
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

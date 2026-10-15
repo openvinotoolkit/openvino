@@ -9,7 +9,11 @@
 #include "core/operator_set.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::org_openvinotoolkit::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector fake_quantize(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto X = inputs.at(0);
@@ -24,4 +28,8 @@ ov::OutputVector fake_quantize(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("FakeQuantize", OPSET_SINCE(1), org_openvinotoolkit::opset_1::fake_quantize, OPENVINO_ONNX_DOMAIN);
-}  // namespace ov::frontend::onnx::org_openvinotoolkit::opset_1
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

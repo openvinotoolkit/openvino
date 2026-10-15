@@ -120,6 +120,7 @@ public:
                 interpAttrs,
                 testValues.expected.precisionBeforeDequantization,
                 testValues.expected.dequantizationBefore,
+                testValues.expected.precisionAfterOperation,
                 testValues.expected.dequantizationAfter);
         } else if (testValues.opset_version == 4) {
             ov::op::v4::Interpolate::InterpolateAttrs interp4Attrs;
@@ -147,6 +148,7 @@ public:
                 interp4Attrs,
                 testValues.expected.precisionBeforeDequantization,
                 testValues.expected.dequantizationBefore,
+                testValues.expected.precisionAfterOperation,
                 testValues.expected.dequantizationAfter);
         }
     }

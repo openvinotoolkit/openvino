@@ -9,7 +9,9 @@
 #include "internal_operation.hpp"
 #include "tf_utils.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 // Internal operation for Loop that represents the loop termination condition
 // by the pivot switches of a loop
@@ -38,4 +40,6 @@ public:
     }
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

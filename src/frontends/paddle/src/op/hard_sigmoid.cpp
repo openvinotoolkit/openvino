@@ -6,7 +6,10 @@
 #include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs hard_sigmoid(const NodeContext& node) {
     auto data = node.get_input("X");
     auto dtype = data.get_element_type();
@@ -17,4 +20,7 @@ NamedOutputs hard_sigmoid(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<ov::opset6::HardSigmoid>(data, alpha, beta)}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

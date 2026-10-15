@@ -245,4 +245,4 @@ TEST_F(DX11CachedTexture_Test, _make_shared_nv12_tensor_cached_inference_cached)
 }
 
 #endif // ENABLE_DX11
-#endif // _WIN32
+#endif // WIN32

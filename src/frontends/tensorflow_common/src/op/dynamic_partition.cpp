@@ -25,7 +25,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_dynamic_partition_op(const NodeContext& node) {
     default_op_checks(node, 2, {"DynamicPartition"});
     auto data = node.get_input(0);
@@ -93,4 +96,7 @@ OutputVector translate_dynamic_partition_op(const NodeContext& node) {
     set_node_name(node.get_name(), result);
     return result->outputs();
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

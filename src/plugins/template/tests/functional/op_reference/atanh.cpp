@@ -28,19 +28,14 @@ struct Builder : ParamsBuilder<AtanhParams> {
 class ReferenceAtanhLayerTest : public testing::TestWithParam<AtanhParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        /* Keep the legacy comparator for this test. Its expected outputs explicitly include ±INFINITY, but the modern
-         * comparator skips a value pair whenever both operands are classified as out-of-limits; consequently, an actual
-         * NaN is not compared against an expected infinity and the Atanh test can pass with the wrong special value.
-         * Enabling the legacy path here preserves the existing NaN-vs-infinity failure check until the modern
-         * comparator handles special values strictly. */
         legacy_compare = true;
-        const auto& params = GetParam();
+        auto params = GetParam();
         function = CreateFunction(params.input.shape, params.input.type);
         inputData = {params.input.data};
         refOutData = {params.expected.data};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<AtanhParams>& obj) {
-        const auto& param = obj.param;
+        auto param = obj.param;
         std::ostringstream result;
         result << "shape=" << param.input.shape << "_";
         result << "type=" << param.input.type;

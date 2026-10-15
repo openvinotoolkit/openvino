@@ -11,7 +11,10 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 bool DecomposeUnpackParameters::run_on_model(const std::shared_ptr<Model>& model) {
     bool at_least_one_decomposed = false;
@@ -116,4 +119,7 @@ bool DecomposeUnpackParameters::run_on_model(const std::shared_ptr<Model>& model
 
     return at_least_one_decomposed;
 };
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

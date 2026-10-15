@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "core/null_node.hpp"
-#include "exceptions.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -28,7 +27,10 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::recurrent {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace recurrent {
 
 ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                                            int64_t target_rank,
@@ -131,16 +133,9 @@ ov::Output<ov::Node> default_initial_state(const LSTMDimensions& dims, const ov:
 }
 
 OpInputMap::OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count) {
-    const auto layout = node.get_attribute_value<std::int64_t>("layout", 0);
-    validate_layout(node, layout);
-
     const auto& ng_inputs = node.get_ov_inputs();
 
-    // ONNX layout=1 keeps X as [batch, seq, input], which already matches the OV layout.
-    m_map[OpInput::X] = ng_inputs.at(0);
-    if (layout == 0) {
-        m_map[OpInput::X] = ov::op::util::reorder_axes(m_map[OpInput::X], {1, 0, 2});
-    }
+    m_map[OpInput::X] = ov::op::util::reorder_axes(ng_inputs.at(0), {1, 0, 2});
     m_map[OpInput::W] = ng_inputs.at(1);
     m_map[OpInput::R] = ng_inputs.at(2);
 
@@ -164,11 +159,7 @@ OpInputMap::OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_c
     }
     // The initial value of the hidden.
     if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
-        // ONNX layout=1 keeps initial_h as [batch, num_directions, hidden], which already matches the OV layout.
-        m_map[OpInput::INIT_H] = ng_inputs.at(5);
-        if (layout == 0) {
-            m_map[OpInput::INIT_H] = ov::op::util::reorder_axes(m_map[OpInput::INIT_H], {1, 0, 2});
-        }
+        m_map[OpInput::INIT_H] = ov::op::util::reorder_axes(ng_inputs.at(5), {1, 0, 2});
     } else {
         m_map[OpInput::INIT_H] = default_initial_state(dims, x_type);
     }
@@ -196,12 +187,13 @@ OpAttributes::OpAttributes(const Node& node)
       // as for corresponding ONNX operator.
       ,
       m_activations_alpha{node.get_attribute_value<std::vector<float>>("activation_alpha", std::vector<float>{})},
-      m_activations_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})},
-      m_layout{node.get_attribute_value<std::int64_t>("layout", 0)} {
-    validate_layout(node, m_layout);
+      m_activations_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})} {
     m_clip_threshold = std::abs(m_clip_threshold);
     std::string direction = ov::util::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
     m_direction = ov::as_enum<ov::op::RecurrentSequenceDirection>(direction);
 }
 
-}  // namespace ov::frontend::onnx::recurrent
+}  // namespace recurrent
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

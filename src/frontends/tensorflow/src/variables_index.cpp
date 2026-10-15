@@ -19,7 +19,9 @@
 #    include "snappy.h"
 #endif
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 namespace {
 // RestoreV2 data inputs (per the TF Op definition): prefix(0), tensor_names(1),
@@ -189,7 +191,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
     ::tensorflow::TrackableObjectGraph tog;
 
     if (m_mmap_enabled) {
-        auto srcPtr = shard->second.mmap->data_as<char>() + entry.offset() + chg;
+        auto srcPtr = static_cast<char*>(shard->second.mmap->data() + entry.offset() + chg);
         std::copy(srcPtr, srcPtr + entry.size() - chg, data.data());
     } else {
         shard->second.stream->seekg(entry.offset() + chg);
@@ -537,4 +539,6 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
     }
 }
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -23,11 +23,13 @@ public:
     DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                           const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 
-    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
+                                    const FilteredConfig& config) const override;
 
-    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const FilteredConfig& config) const override;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                              const FilteredConfig& config) const override;
 
     std::vector<std::string> get_supported_options() const override;
 
@@ -43,7 +45,7 @@ private:
     std::optional<std::string> get_compatibility_descriptor(ze_graph_handle_t graphHandle) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
-    ScopedOptionSupportCache _optionSupportCache;
+    std::shared_ptr<OptionSupportCache> _optionSupportCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
     ze_device_graph_properties_t _compilerProperties = {};

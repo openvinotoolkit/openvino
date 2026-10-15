@@ -9,7 +9,9 @@
 
 #include "quant/gguf.hpp"
 
-namespace ov::frontend::gguf {
+namespace ov {
+namespace frontend {
+namespace gguf {
 
 // Which FAMILY of model a .gguf file holds. This is the first thing the builder decides, before
 // any hyperparameter is read, because the metadata key layout itself differs per family: a causal
@@ -35,4 +37,6 @@ ModelKind detect_model_kind(const std::unordered_map<std::string, GGUFMetaData>&
 // Human-readable name for a kind, used in diagnostics.
 const char* model_kind_name(ModelKind kind);
 
-}  // namespace ov::frontend::gguf
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

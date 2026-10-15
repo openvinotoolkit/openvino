@@ -3,9 +3,13 @@
 //
 
 #pragma once
+
 #include <onnx/onnx_pb.h>
 
-namespace ov::frontend::onnx::transform {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace transform {
 
 using ::ONNX_NAMESPACE::ModelProto;
 
@@ -47,4 +51,7 @@ static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
 /// \param model_proto Protobuf message with ONNX model to transform.
 void fixup_legacy_operators(ModelProto& model_proto);
 
-}  // namespace ov::frontend::onnx::transform
+}  // namespace transform
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

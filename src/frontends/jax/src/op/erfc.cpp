@@ -11,7 +11,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::jax::op {
+namespace ov {
+namespace frontend {
+namespace jax {
+namespace op {
 
 OutputVector translate_erfc(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
@@ -24,4 +27,7 @@ OutputVector translate_erfc(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace ov::frontend::jax::op
+}  // namespace op
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

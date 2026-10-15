@@ -16,7 +16,8 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 /// \brief Structure containing information about unconverted operations
 /// Map of operation types with no conversion rule (op_type -> empty string)
@@ -71,4 +72,5 @@ void check_unconverted_ops(const UnconvertedOpsReport& report,
                            const AdditionalErrorCallback& additional_callback = nullptr,
                            bool throw_on_issues = true);
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

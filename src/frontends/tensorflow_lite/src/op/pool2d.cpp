@@ -8,7 +8,10 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 OutputVector pooling(const ov::frontend::tensorflow_lite::NodeContext& node,
                      ov::OutputVector (*converter)(const ov::frontend::NodeContext&)) {
@@ -33,4 +36,7 @@ OutputVector avg_pool_2d(const ov::frontend::tensorflow_lite::NodeContext& node)
     return pooling(node, &ov::frontend::tensorflow::op::translate_avg_pool_op);
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

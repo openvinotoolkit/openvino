@@ -20,7 +20,10 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 // GGML_OP_IM2COL: unfold a 1D/2D convolution input into column patches (conv / vision models).
 // The decoder exposes the conv params (strides/pads/dilations + is_2D) as a typed int vector.
@@ -111,11 +114,7 @@ OutputVector translate_im2col(const NodeContext& context) {
         res = std::make_shared<ov::op::v1::Reshape>(res, final_reshape_shape, false);
     }
 
-    // Older cgraph decoders expose ggml_im2col's dst_type as output_type.
-    const auto output_type = context.get_attribute<ov::element::Type>(
-        "dst_type",
-        context.get_attribute<ov::element::Type>("output_type", ov::element::dynamic));
-    FRONT_END_OP_CONVERSION_CHECK(output_type.is_static(), "IM2COL requires 'dst_type'");
+    auto output_type = context.get_attribute<ov::element::Type>("output_type");
     if (res.get_element_type() != output_type) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
@@ -123,4 +122,7 @@ OutputVector translate_im2col(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

@@ -8,9 +8,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
-#include <utility>
-#include <vector>
 
 #include "../common.hpp"
 
@@ -34,9 +31,7 @@ public:
     TelemetryClient();
     ~TelemetryClient();
 
-    // Resolves utilization for multiple (device_name, device_type) devices, keyed by device_name.
-    // Fetches and parses the underlying IPF snapshot only once regardless of device count.
-    std::unordered_map<std::string, float> utilizations(const std::vector<std::pair<std::string, std::string>>& devices);
+    std::optional<float> utilization(const std::string& device_name, const std::string& device_type = "");
 
     // Whether the platform is currently in low power mode, based on startup CurrentGear state and
     // any later IPF/DTT OnEpoGearChanged notifications. std::nullopt means the mode is unknown.
@@ -50,17 +45,6 @@ private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
 };
-
-// Parses utilization for multiple (device_name, device_type) devices from one snapshot,
-// keyed by device_name. Parses the snapshot only once regardless of device count.
-std::unordered_map<std::string, float> utilization_from_snapshot(
-    const std::string& snapshot,
-    const std::vector<std::pair<std::string, std::string>>& devices);
-
-// Parses one device's utilization from a snapshot.
-std::optional<float> utilization_from_snapshot(const std::string& snapshot,
-                                                const std::string& device_name,
-                                                const std::string& device_type = "");
 
 inline constexpr std::string_view k_cpu_utilization_metric = "CPUUtilization";
 inline constexpr std::string_view k_igpu_utilization_metric = "IGPUUtilization";

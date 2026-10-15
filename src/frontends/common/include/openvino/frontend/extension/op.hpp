@@ -14,7 +14,8 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/opsets/opset.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 /// \brief The helper function to return an instance of OpSet class initialized with
 /// operations from provided opset by name.
@@ -509,4 +510,5 @@ using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtens
             FRONTEND_CAT(MAKE_MAP_, FRAMEWORK)(__VA_ARGS__)                                   \
         }                                                                                     \
     };
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

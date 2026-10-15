@@ -17,7 +17,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 static void slice_pads_begin_end(const Output<Node>& paddings,
                                  shared_ptr<Node>& pads_begin,
                                  shared_ptr<Node>& pads_end,
@@ -136,4 +139,7 @@ OutputVector translate_mirror_pad_op(const NodeContext& node) {
     set_node_name(node.get_name(), pad);
     return {pad};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

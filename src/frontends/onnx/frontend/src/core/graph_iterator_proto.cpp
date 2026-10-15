@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "decoder_proto.hpp"
-#include "onnx_common/parser.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
@@ -319,7 +318,9 @@ void topological_sort_graph(GraphProto* graph) {
 }
 }  // namespace
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 namespace {
 bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_meta_info,
@@ -373,7 +374,8 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             (*cache)[full_path] = mapped_memory;
         }
         tensor_meta_info.m_is_raw = true;
-        tensor_meta_info.m_tensor_data = mapped_memory->data_as<uint8_t>() + ext_data_offset;
+        tensor_meta_info.m_tensor_data =
+            static_cast<uint8_t*>(static_cast<void*>(mapped_memory->data() + ext_data_offset));
         tensor_meta_info.m_tensor_data_size = resolved_data_length;
         return true;
     } else if (memory_mode == External_Stream) {
@@ -578,11 +580,6 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
     }
 }
 
-void GraphIteratorProto::initialize(std::istream& stream, const std::filesystem::path& path) {
-    m_model_dir = ov::util::get_directory(path);
-    initialize(std::make_shared<ModelProto>(common::parse_from_istream(stream)));
-}
-
 void GraphIteratorProto::initialize(std::shared_ptr<ModelProto> model) {
     m_model = std::move(model);
     if (m_model && m_model->has_graph()) {
@@ -613,19 +610,16 @@ std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::st
 }
 
 void GraphIteratorProto::reset() {
-    node_index = 0;
-    if (!m_decoders.empty() || !m_tensors.empty() || m_model == nullptr || m_graph == nullptr)
-        return;
-    // Decoders keep raw pointers into external data. Only clear storage before the top-level
-    // decoder cache is first built; nested iterators share the parent's storage.
-    if (m_parent == nullptr) {
-        if (m_data_holder != nullptr) {
-            m_data_holder->clear();
-        }
-        if (m_stream_cache != nullptr) {
-            m_stream_cache->clear();
-        }
+    // In case we have any stored external data - free it before beginning
+    if (m_data_holder != nullptr) {
+        m_data_holder->clear();
     }
+    if (m_stream_cache != nullptr) {
+        m_stream_cache->clear();
+    }
+    node_index = 0;
+    if (m_decoders.size() > 0 || m_model == nullptr || m_graph == nullptr)
+        return;
     const auto& graph = *m_graph;
     m_decoders.reserve(graph.initializer_size() + graph.input_size() + graph.output_size() + graph.node_size());
 
@@ -936,4 +930,6 @@ bool is_valid_model(std::istream& model) {
     }
 }
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

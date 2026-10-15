@@ -17,7 +17,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_segment_sum_op(const NodeContext& node) {
     default_op_checks(node, 2, {"SegmentSum", "SEGMENT_SUM"}, true);
     auto data = node.get_input(0);
@@ -58,4 +61,7 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     set_node_name(node.get_name(), emb_segment_sum);
     return {emb_segment_sum};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

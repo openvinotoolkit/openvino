@@ -17,7 +17,11 @@
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 
-namespace ov::frontend::onnx::ai_onnx::opset_23 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_23 {
 
 ov::OutputVector rms_normalization(const ov::frontend::onnx::Node& node) {
     // Operator definition: https://onnx.ai/onnx/operators/onnx__RMSNormalization.html
@@ -87,4 +91,8 @@ ov::OutputVector rms_normalization(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("RMSNormalization", OPSET_SINCE(1), ai_onnx::opset_23::rms_normalization);
 
-}  // namespace ov::frontend::onnx::ai_onnx::opset_23
+}  // namespace opset_23
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

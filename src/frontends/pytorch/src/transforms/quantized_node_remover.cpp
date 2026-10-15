@@ -13,7 +13,10 @@
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 QuantizedNodeRemover::QuantizedNodeRemover() {
     auto quantized_pt_node = ov::pass::pattern::wrap_type<ov::frontend::pytorch::QuantizedPtNode>();
@@ -33,4 +36,7 @@ QuantizedNodeRemover::QuantizedNodeRemover() {
     this->register_matcher(m, callback);
 };
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

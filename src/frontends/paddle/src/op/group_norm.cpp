@@ -6,7 +6,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
                                                      const Output<ov::Node>& expected_rank) {
@@ -110,4 +113,7 @@ NamedOutputs group_norm(const NodeContext& node) {
 
     return node.default_single_output_mapping({result}, {"Y"});
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

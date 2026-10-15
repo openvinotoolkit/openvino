@@ -8,7 +8,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::org_openvinotoolkit::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector experimental_detectron_generate_proposals(const ov::frontend::onnx::Node& node) {
     using GenerateProposalsSingleImage = v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
@@ -37,4 +41,8 @@ ONNX_OP("ExperimentalDetectronGenerateProposalsSingleImage",
         OPSET_SINCE(1),
         org_openvinotoolkit::opset_1::experimental_detectron_generate_proposals,
         OPENVINO_ONNX_DOMAIN);
-}  // namespace ov::frontend::onnx::org_openvinotoolkit::opset_1
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

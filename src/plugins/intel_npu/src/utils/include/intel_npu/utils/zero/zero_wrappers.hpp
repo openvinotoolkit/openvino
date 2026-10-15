@@ -56,19 +56,18 @@ public:
 
     bool operator==(const CommandQueueDesc& other) const;
 
-    bool shared_common_queue() const {
-        return _shared_common_queue;
-    }
+private:
+    bool owner_tag_required() const;
+    void update_key();
 
     uint32_t options() const {
         return _options;
     }
-
-private:
-    bool owner_tag_required() const;
-    void update_key();
     const void* owner_tag() const {
         return _owner_tag;
+    }
+    bool shared_common_queue() const {
+        return _shared_common_queue;
     }
 
     ze_command_queue_priority_t _priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;

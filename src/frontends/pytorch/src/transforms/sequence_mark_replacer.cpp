@@ -15,7 +15,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 using namespace ov::op;
 
@@ -69,4 +72,7 @@ SequenceMarkReplacer::SequenceMarkReplacer() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

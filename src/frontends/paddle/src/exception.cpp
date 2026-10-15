@@ -6,7 +6,9 @@
 
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 std::string OpValidationFailure::get_error_msg_prefix_paddle(const paddle::NodeContext& node) {
     std::stringstream ss;
     ss << "While validating node '" << node.get_op_type() << '\'';
@@ -20,4 +22,6 @@ void OpValidationFailure::create(const char* file,
                                  const std::string& explanation) {
     throw OpValidationFailure(make_what(file, line, check_string, get_error_msg_prefix_paddle(node), explanation));
 }
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

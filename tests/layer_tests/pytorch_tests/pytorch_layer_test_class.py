@@ -265,15 +265,6 @@ class PytorchLayerTest:
             return torch_compile_env == "EXPORT"
         return False
 
-    @staticmethod
-    def out_variant(eager_op, aten_out_op):
-        """Picks the callable that keeps an ``out=`` argument in the traced graph.
-
-        torch.export traces the Python ``out=`` API into its functional form, so the ATen
-        ``.out`` overload has to be called directly to exercise the out-variant conversion.
-        """
-        return aten_out_op if PytorchLayerTest.use_torch_export() else eager_op
-
 
     def _test(self, model, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
               **kwargs):
@@ -346,7 +337,7 @@ class PytorchLayerTest:
 
                 dynamic_shapes = kwargs.get('dynamic_shapes_for_export', {})
 
-                em = export(deepcopy(model), tuple(deepcopy(torch_inputs)), dynamic_shapes=dynamic_shapes)
+                em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes)
 
                 # Verify FX graph operations exist
                 # Use explicit fx_kind if provided, otherwise auto-derive from TorchScript kind

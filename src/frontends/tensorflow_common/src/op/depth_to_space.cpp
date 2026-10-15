@@ -10,7 +10,10 @@ using namespace std;
 using namespace ov::op;
 
 // Translate DepthToSpace op
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_depth_to_space_op(const NodeContext& node) {
     default_op_checks(node, 1, {"DepthToSpace", "DEPTH_TO_SPACE"});
@@ -33,4 +36,7 @@ OutputVector translate_depth_to_space_op(const NodeContext& node) {
     set_node_name(node.get_name(), depth_to_space.get_node_shared_ptr());
     return {depth_to_space};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

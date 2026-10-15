@@ -11,7 +11,8 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 class FRONTEND_API NodeContext {
 public:
@@ -168,4 +169,5 @@ using CreatorFunction = std::function<OutputVector(const NodeContext&)>;
 using CreatorFunctionNamed = std::function<std::map<std::string, OutputVector>(const NodeContext&)>;
 using CreatorFunctionNamedAndIndexed = std::function<NamedOutputVector(const NodeContext&)>;
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

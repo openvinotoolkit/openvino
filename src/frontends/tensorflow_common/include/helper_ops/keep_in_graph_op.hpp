@@ -8,7 +8,9 @@
 
 #include "helper_ops/internal_operation.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class KeepInGraphOp : public InternalOperation {
 public:
@@ -33,4 +35,6 @@ public:
 private:
     std::string m_op_type_name;
 };
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

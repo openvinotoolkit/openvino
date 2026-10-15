@@ -27,7 +27,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::com_microsoft::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace com_microsoft {
+namespace opset_1 {
 
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
     static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
@@ -152,4 +156,8 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("RotaryEmbedding", OPSET_SINCE(1), com_microsoft::opset_1::rotary_embedding, MICROSOFT_DOMAIN);
 
-}  // namespace ov::frontend::onnx::com_microsoft::opset_1
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -16,7 +16,9 @@
 #include "place.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::jax {
+namespace ov {
+namespace frontend {
+namespace jax {
 
 using namespace ov::op;
 
@@ -249,4 +251,6 @@ size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
     return static_cast<size_t>(std::stoll(name));
 }
 
-}  // namespace ov::frontend::jax
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

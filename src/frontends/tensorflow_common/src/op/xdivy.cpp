@@ -11,7 +11,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_x_div_y_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Xdivy"});
@@ -29,4 +32,7 @@ OutputVector translate_x_div_y_op(const NodeContext& node) {
     return {xdivy};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

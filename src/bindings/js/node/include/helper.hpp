@@ -7,7 +7,6 @@
 
 #include <filesystem>
 #include <unordered_set>
-#include <utility>
 #include <variant>
 
 #include "openvino/core/type/element_type.hpp"
@@ -143,11 +142,8 @@ Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_m
  */
 Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version);
 
-using NamedInputData = std::vector<std::pair<std::string, ov::Tensor>>;
-using ParsedInputData = std::variant<ov::TensorVector, NamedInputData>;
-
-/** @brief Parses positional or named input tensors without losing object keys. */
-ParsedInputData parse_input_data(const Napi::Value& input);
+/** @brief Takes Napi::Value and parse Napi::Array or Napi::Object to ov::TensorVector. */
+ov::TensorVector parse_input_data(const Napi::Value& input);
 
 /** @brief Gets an input/output tensor from InferRequest by key. */
 ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const std::string key);
@@ -200,5 +196,3 @@ ov::AnyMap to_anyMap(const Napi::Env&, const Napi::Value&);
 std::string buffer_to_string(const Napi::Value& value);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
-
-void release_tsfn_after_blocking_call(const Napi::ThreadSafeFunction& tsfn, napi_status call_status) noexcept;

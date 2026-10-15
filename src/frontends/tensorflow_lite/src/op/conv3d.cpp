@@ -6,7 +6,10 @@
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 OutputVector conv3d(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = node.get_decoder();
@@ -23,4 +26,7 @@ OutputVector conv3d(const ov::frontend::tensorflow_lite::NodeContext& node) {
     return output;
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

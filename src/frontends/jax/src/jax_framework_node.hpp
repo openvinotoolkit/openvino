@@ -7,7 +7,9 @@
 
 #pragma once
 
-namespace ov::frontend::jax {
+namespace ov {
+namespace frontend {
+namespace jax {
 class JaxFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("JaxFrameworkNode", "util", ::ov::op::util::FrameworkNode);
@@ -72,4 +74,6 @@ private:
     std::shared_ptr<JaxDecoder> m_decoder;
 };
 
-}  // namespace ov::frontend::jax
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

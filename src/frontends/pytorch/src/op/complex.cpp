@@ -10,7 +10,10 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -31,4 +34,7 @@ OutputVector translate_view_as_complex(const NodeContext& context) {
     return {context.mark_node(std::make_shared<ComplexTypeMark>(complex))};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

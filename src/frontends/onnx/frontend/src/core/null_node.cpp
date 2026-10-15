@@ -8,11 +8,15 @@
 
 #include "openvino/core/node.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 std::shared_ptr<ov::Node> NullNode::clone_with_new_inputs(const ov::OutputVector& /* new_args */) const {
     return std::make_shared<NullNode>();
 }
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 
 bool ov::op::util::is_null(const ov::Node* node) {
     return ov::as_type<const ov::frontend::onnx::NullNode>(node) != nullptr;

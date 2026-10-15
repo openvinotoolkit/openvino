@@ -37,6 +37,7 @@ public:
         const FakeQuantizeOnData& fqOnData3,
         const ov::element::Type precisionBeforeOp,
         const DequantizationOperations& dequantizationBefore,
+        const ov::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
 

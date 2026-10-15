@@ -19,7 +19,10 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_index_fill_(const NodeContext& context) {
     // aten::index_fill_(self, dim, index, value) --> Tensor
@@ -60,4 +63,7 @@ OutputVector translate_index_fill_(const NodeContext& context) {
     return {result};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

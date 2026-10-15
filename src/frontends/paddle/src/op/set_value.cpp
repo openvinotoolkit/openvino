@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 std::shared_ptr<Node> handle_minus_index(const std::vector<int64_t>& node, const Output<Node>& dim) {
     const auto new_node = default_opset::Constant::create(element::i64, {node.size()}, node);
@@ -281,4 +284,7 @@ NamedOutputs set_value(const NodeContext& node) {
                                               {"Out"});
 };
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

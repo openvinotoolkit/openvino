@@ -7,7 +7,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 // Paddle TensorArray is not natively supported by OpenVINO.
 // Here paddle frontend only partially support following circumstances:
 // 1. TensorArray could be indexed with paddle slice op.
@@ -40,4 +43,7 @@ NamedOutputs tensor_array_to_tensor(const NodeContext& node) {
 
     return node.default_single_output_mapping({placeholder}, {"Out"});
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

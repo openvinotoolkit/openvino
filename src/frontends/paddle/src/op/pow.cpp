@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs pow(const NodeContext& node) {
     auto x = node.get_input("X");
     auto dtype = x.get_element_type();
@@ -21,4 +24,7 @@ NamedOutputs pow(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<ov::opset6::Power>(x, factor_node)}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

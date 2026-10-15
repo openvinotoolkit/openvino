@@ -33,7 +33,10 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::attention {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace attention {
 
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
     static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
@@ -204,4 +207,7 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
     return {output, qk_debug_output};
 }
 
-}  // namespace ov::frontend::onnx::attention
+}  // namespace attention
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

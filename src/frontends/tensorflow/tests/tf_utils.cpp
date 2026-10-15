@@ -11,7 +11,10 @@ using namespace ov;
 using namespace ov::element;
 using namespace ov::frontend;
 
-namespace ov::frontend::tensorflow::tests {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace tests {
 
 const std::string TF_FE = "tf";
 
@@ -102,4 +105,7 @@ shared_ptr<Model> convert_model(const std::string& model_path,
     return model;
 }
 
-}  // namespace ov::frontend::tensorflow::tests
+}  // namespace tests
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

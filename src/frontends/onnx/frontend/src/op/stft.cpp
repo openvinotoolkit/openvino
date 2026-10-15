@@ -21,7 +21,11 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::ai_onnx::opset_17 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_17 {
 
 ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 2, 4);
@@ -141,4 +145,8 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("STFT", OPSET_SINCE(1), ai_onnx::opset_17::stft);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_17
+}  // namespace opset_17
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -8,7 +8,10 @@
 #include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::jax::op {
+namespace ov {
+namespace frontend {
+namespace jax {
+namespace op {
 
 using namespace ov::op;
 
@@ -19,4 +22,7 @@ OutputVector translate_square(const NodeContext& context) {
     return {std::make_shared<v1::Power>(x, const_two)};
 };
 
-}  // namespace ov::frontend::jax::op
+}  // namespace op
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

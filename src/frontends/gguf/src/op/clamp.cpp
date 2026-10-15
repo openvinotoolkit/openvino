@@ -10,7 +10,10 @@
 #include "op_table.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 // GGML_OP_CLAMP: elementwise clamp to [min, max]. The decoder exposes the bounds as typed
 // float attributes ("clamp_min"/"clamp_max"), so the translator never reads ggml op_params.
@@ -25,4 +28,7 @@ OutputVector translate_clamp(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

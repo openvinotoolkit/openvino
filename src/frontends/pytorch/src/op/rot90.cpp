@@ -13,7 +13,10 @@
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 using namespace ov::op;
 OutputVector translate_rot90(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
@@ -73,4 +76,7 @@ OutputVector translate_rot90(const NodeContext& context) {
     }
     return {tensor};
 }
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

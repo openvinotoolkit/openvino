@@ -7,7 +7,10 @@
 #include "op_utils.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 namespace {
 Output<Node> idx_node(const std::string& tensor_alias,
                       const std::string& list_alias,
@@ -70,4 +73,7 @@ NamedOutputs slice_op(const NodeContext& node, const bool& stride_input) {
     }
 }
 }  // namespace
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

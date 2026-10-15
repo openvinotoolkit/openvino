@@ -14,7 +14,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_transpose_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Transpose", "TRANSPOSE"}, true);
@@ -46,4 +49,7 @@ OutputVector translate_transpose_op(const NodeContext& node) {
     return {transpose};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

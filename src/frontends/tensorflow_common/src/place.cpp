@@ -7,7 +7,9 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/node_context.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 bool Place::is_input() const {
     const auto& model_ins = m_input_model.get_inputs();
 
@@ -335,4 +337,6 @@ ov::frontend::Place::Ptr OutPortPlace::get_producing_operation() const {
     FRONT_END_THROW("Operation has expired.");
 }
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

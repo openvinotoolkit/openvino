@@ -10,7 +10,10 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector add(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
@@ -43,4 +46,7 @@ namespace opset_14 {
 ONNX_OP("Add", OPSET_SINCE(14), ai_onnx::opset_7::add);
 }  // namespace opset_14
 
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

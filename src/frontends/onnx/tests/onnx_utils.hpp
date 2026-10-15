@@ -29,7 +29,10 @@ inline std::string backend_name_to_device(const std::string& backend_name) {
     throw "Unsupported backend name";
 }
 
-namespace ov::frontend::onnx::tests {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace tests {
 
 extern const std::string ONNX_FE;
 
@@ -86,7 +89,10 @@ inline bool is_graph_iterator_enabled() {
                              "'. Expected 1 (enable) or 0 (disable).");
 }
 
-}  // namespace ov::frontend::onnx::tests
+}  // namespace tests
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 
 // For compatibility purposes, need to remove when will be unused
 extern const std::string ONNX_FE;

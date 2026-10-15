@@ -55,7 +55,9 @@ using namespace ov::op;
 using namespace std;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 void set_node_name(const string& node_name, const shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
@@ -656,4 +658,6 @@ OutputVector pre_translate_string_tensor_input(const ov::Output<ov::Node>& input
     return std::make_shared<v15::StringTensorUnpack>(input)->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

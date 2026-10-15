@@ -394,7 +394,8 @@ event::ptr ze_stream::create_base_event() {
 }
 
 std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {
-    return std::make_unique<ze_surfaces_lock>(mem, *this);
+    // Level Zero engine currently does not support surfaces lock
+    return nullptr;
 }
 
 void ze_stream::flush() const {

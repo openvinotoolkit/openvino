@@ -9,7 +9,6 @@
 #include "compiler_impl.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -23,6 +22,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const GraphDescriptor& graphDesc,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
+             const FilteredConfig& config,
              const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent)
     : IGraph(),
@@ -33,7 +33,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
-      _logger("Graph", Logger::global().level()) {}
+      _logger("Graph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& Graph::get_metadata() const {
     return _metadata;
@@ -155,7 +155,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
     auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
-    auto compiler = std::make_shared<VCLCompilerImpl>(VCLLoader::getInstance(ov_lib_path)->sharedFunctions());
+    auto compiler = std::make_shared<VCLCompilerImpl>(ov_lib_path);
     OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
@@ -178,7 +178,7 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-void Graph::initialize_impl(const Config& config) {
+void Graph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
@@ -186,21 +186,17 @@ void Graph::initialize_impl(const Config& config) {
         return;
     }
 
-    bool sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
     uint32_t commandQueueOptions = 0;
-    if (config.get<TURBO>() && _zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-    }
-    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
-            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
-            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
-        } else {
-            OPENVINO_ASSERT(!sharedCommonQueue,
-                            "RUN_INFERENCES_SEQUENTIALLY requires a command queue with device-sync support when "
-                            "SHARED_COMMON_QUEUE is enabled");
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
+            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
+    }
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
+        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
     {
@@ -210,10 +206,10 @@ void Graph::initialize_impl(const Config& config) {
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
             this,
-            sharedCommonQueue,
+            config.get<SHARED_COMMON_QUEUE>(),
         };
 
-        if (sharedCommonQueue == false) {
+        if (config.get<SHARED_COMMON_QUEUE>() == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }
@@ -231,8 +227,8 @@ void Graph::initialize_impl(const Config& config) {
         _batchSize = determine_batch_size();
     }
 
-    if (config.get<RUN_INFERENCES_SEQUENTIALLY>() &&
-        _zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
         _lastSubmittedEvent.resize(numberOfCommandLists);
@@ -241,7 +237,7 @@ void Graph::initialize_impl(const Config& config) {
     _init_completed.store(true, std::memory_order_release);
 }
 
-bool Graph::release_blob(const Config& config) {
+bool Graph::release_blob(const FilteredConfig& config) {
     if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
         _blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) ||
         config.get<PERF_COUNT>()) {

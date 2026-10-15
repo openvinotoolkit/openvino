@@ -87,6 +87,7 @@ public:
             testValues.expected.add,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantization,
+            testValues.expected.precisionAfterDequantization,
             testValues.expected.precisionFakeQuantizeOnData,
             testValues.expected.fakeQuantizeOnData);
     }

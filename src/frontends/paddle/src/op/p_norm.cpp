@@ -5,7 +5,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs p_norm(const NodeContext& node) {
     auto data = node.get_input("X");
     const auto p = node.get_attribute<float>("porder", 2.0);
@@ -56,4 +59,7 @@ NamedOutputs p_norm(const NodeContext& node) {
     return node.default_single_output_mapping({p_norm_node}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

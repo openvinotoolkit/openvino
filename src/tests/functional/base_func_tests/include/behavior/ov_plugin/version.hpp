@@ -35,8 +35,7 @@ TEST_P(VersionTests, pluginCurrentVersionIsCorrect) {
         target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos) {
         std::map<std::string, ov::Version> versions = core->get_versions(target_device);
         ASSERT_EQ(versions.size(), 1);
-        const auto plugin_name = target_device.substr(0, target_device.find('.'));
-        ASSERT_EQ(versions.begin()->first, plugin_name);
+        ASSERT_EQ(versions.begin()->first, target_device);
         auto version = versions.begin()->second;
         EXPECT_TRUE(version.buildNumber != nullptr);
         EXPECT_TRUE(version.description != nullptr);

@@ -24,8 +24,12 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx {
-namespace opset_1::detail {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
+namespace detail {
 // Returns the element type in which the dequantization arithmetic is performed and which
 // is produced by the operator. It is defined by the "output_dtype" attribute (since opset 21)
 // and, in its absence, by the scale element type. FLOAT8E8M0 scales (used by MX formats since
@@ -89,9 +93,8 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node, int64_t
     auto result = ov::decomposition::low_precision_dequantize(x, scale, zero_point, {}, precision);
     return {result};
 }
-}  // namespace opset_1::detail
+}  // namespace detail
 
-namespace opset_1 {
 ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 2);
 
@@ -101,7 +104,8 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
 ONNX_OP("DequantizeLinear", {1, 12}, ai_onnx::opset_1::dequantize_linear);
 }  // namespace opset_1
 
-namespace opset_13::detail {
+namespace opset_13 {
+namespace detail {
 void validate_scale(const ov::Output<ov::Node> scale, const ov::Output<ov::Node> x, const int64_t axis) {
     const auto& scale_shape = scale.get_partial_shape();
     FRONT_END_GENERAL_CHECK(scale_shape.rank().get_length() == 0 || scale_shape.rank().get_length() == 1,
@@ -198,9 +202,8 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
     auto result = ov::decomposition::low_precision_dequantize(x, scale_reshaped, zp, {}, precision);
     return {result};
 }
-}  // namespace opset_13::detail
+}  // namespace detail
 
-namespace opset_13 {
 ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ov_inputs()};
 
@@ -335,4 +338,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("DequantizeLinear", OPSET_SINCE(21), ai_onnx::opset_21::dequantize_linear);
 }  // namespace opset_21
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -12,7 +12,10 @@
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 // GGML_OP_ARGSORT: return the indices that sort the last dimension. The decoder maps ggml's
 // GGML_SORT_ORDER_ASC/DESC enum to a plain int "sort_order" (0 = ascending, 1 = descending), so
@@ -35,14 +38,18 @@ OutputVector translate_argsort(const NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported ARGSORT order: ", sort_order);
     }
 
+    auto index_type = context.get_attribute<ov::element::Type>("output_type");
     // ggml ARGSORT sorts ne[0] == the OV last axis; derive it from the rank (rank-4 keeps axis 3).
     const auto& in_ps = input.get_partial_shape();
     const int64_t axis = in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 3;
     auto k = std::make_shared<ov::op::v0::Squeeze>(get_dimensions(input, {(int)axis}),
                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    auto indices = make_topk_indices(input, k, axis, mode);
+    auto indices = make_topk_indices(input, k, axis, mode, index_type);
 
     return rename_outputs_with_suffix({std::move(indices)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

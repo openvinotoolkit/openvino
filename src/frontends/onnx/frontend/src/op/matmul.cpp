@@ -6,7 +6,10 @@
 
 #include "core/operator_set.hpp"
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace detail {
 ov::OutputVector matmul(const ov::Output<ov::Node>& a, const ov::Output<ov::Node>& b) {
     return {std::make_shared<ov::op::v0::MatMul>(a, b)};
@@ -18,4 +21,7 @@ ov::OutputVector matmul(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("MatMul", OPSET_SINCE(1), ai_onnx::opset_1::matmul);
 }  // namespace opset_1
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -8,7 +8,6 @@
 #include <future>
 #include <map>
 #include <mutex>
-#include <optional>
 #include <shared_mutex>
 #include <stdexcept>
 #include <thread>
@@ -284,7 +283,7 @@ public:
     }
 };
 
-class MapHolder final : public ov::MappedMemory {
+class MapHolder : public ov::MappedMemory {
 public:
     MapHolder() = default;
     ~MapHolder() override;
@@ -298,23 +297,20 @@ public:
     bool try_remap_slot(uintptr_t fault_addr);
 
     // ov::MappedMemory interface
-    const std::byte* data() const noexcept override final {
-        return m_data;
+    char* data() noexcept override {
+        return static_cast<char*>(m_data);
     }
-    std::byte* data() noexcept override final {
-        return m_data;
-    }
-    size_t size() const noexcept override final {
+    size_t size() const noexcept override {
         return m_size;
     }
 
-    std::optional<uint64_t> get_id() const noexcept override {
+    uint64_t get_id() const noexcept override {
         return m_id;
     }
 
     void hint_evict(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch(size_t offset, size_t size) noexcept override;
+    void hint_prefetch(size_t offset, size_t size) override;
 
     void hint_prefetch_async(size_t offset, size_t size) override;
 
@@ -379,9 +375,9 @@ private:
                                 size_t file_tail_offset,
                                 size_t tail_data_size);
 
-    std::byte* m_data{};  //!< pointer exposed to callers
-    size_t m_size{};      //!< user-visible byte count
-    std::optional<uint64_t> m_id;
+    void* m_data{};   //!< pointer exposed to callers
+    size_t m_size{};  //!< user-visible byte count
+    uint64_t m_id{std::numeric_limits<uint64_t>::max()};
 
     HandleHolder m_handle{};       //!< section object from CreateFileMappingW
     HandleHolder m_file_handle{};  //!< file HANDLE kept open to block DeleteFile (set-by-path only)
@@ -618,7 +614,7 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
     m_view_base = base;
     m_total_va_size = total_va_size;
     m_file_mapped_size = actual_map_size;
-    m_data = reinterpret_cast<std::byte*>(base + head_pad);
+    m_data = base + head_pad;
     return true;
 }
 
@@ -630,7 +626,7 @@ void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size
                                     static_cast<DWORD>(aligned_offset & 0xFFFFFFFF),
                                     head_pad + size)) {
         m_view_base = static_cast<char*>(view);
-        m_data = reinterpret_cast<std::byte*>(m_view_base + head_pad);
+        m_data = m_view_base + head_pad;
     } else {
         throw std::runtime_error{"MapViewOfFile failed: " + std::to_string(::GetLastError())};
     }
@@ -657,7 +653,7 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
     set_id(file_handle, offset, size);
     if (mode == MmapMode::READ_WRITE) {
         // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
-        m_id = std::nullopt;
+        m_id = no_mapping_id;
     }
 
     if (m_size == 0) {
@@ -827,7 +823,7 @@ void MapHolder::wait_for_pending_prefetch() noexcept {
     m_pending_prefetch.clear();
 }
 
-void MapHolder::hint_prefetch(size_t offset, size_t size) noexcept {
+void MapHolder::hint_prefetch(size_t offset, size_t size) {
     // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
     if (const auto region = clamp_align_region(m_data, m_size, offset, size); region.m_length > 4 * util::one_mib) {
         const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
@@ -864,7 +860,7 @@ std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t siz
     const auto gran = util::get_system_alloc_granularity();
 
     // Convert user [offset, size) to a VA range relative to m_view_base.
-    const size_t head_pad = static_cast<size_t>(reinterpret_cast<char*>(m_data) - m_view_base);
+    const size_t head_pad = static_cast<size_t>(static_cast<char*>(m_data) - m_view_base);
     const size_t va_begin_raw = head_pad + clamped_offset;
     if (va_begin_raw >= m_total_va_size)
         return {};

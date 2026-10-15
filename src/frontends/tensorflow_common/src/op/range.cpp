@@ -10,7 +10,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_range_op(const NodeContext& node) {
     default_op_checks(node, 3, {"Range", "RANGE"});
@@ -30,4 +33,7 @@ OutputVector translate_range_op(const NodeContext& node) {
     return {range};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

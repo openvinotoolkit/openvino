@@ -12,7 +12,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_cumsum_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Cumsum", "CUMSUM"}, true);
@@ -41,4 +44,7 @@ OutputVector translate_cumsum_op(const NodeContext& node) {
     }
     return cum_sum->outputs();
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

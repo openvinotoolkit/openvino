@@ -10,10 +10,12 @@
 #include "openvino/op/embeddingbag_packed.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
-OutputVector translate_embedding_bag(const NodeContext& context) {
-    num_inputs_check(context, 3, 9);
+OutputVector translate_embedding_bag_common(const NodeContext& context) {
     // aten::embedding_bag(weight, input, offsets=None, scale_grad_by_freq=False, mode_enum=1, sparse=False,
     // per_sample_weights=None, include_last_offset=False, padding_idx=None)
     // we have only EmbeddingBag case support, check it before translation
@@ -73,4 +75,18 @@ OutputVector translate_embedding_bag(const NodeContext& context) {
     return {result, zero, zero, zero};
 };
 
-}  // namespace ov::frontend::pytorch::op
+OutputVector translate_embedding_bag(const NodeContext& context) {
+    num_inputs_check(context, 9, 9);
+    return translate_embedding_bag_common(context);
+}
+
+OutputVector translate_embedding_bag_fx(const NodeContext& context) {
+    num_inputs_check(context, 3, 9);
+    ov::OutputVector output = translate_embedding_bag_common(context);
+    return {context.mark_node(make_list_construct(output))};
+}
+
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

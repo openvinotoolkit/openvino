@@ -21,7 +21,9 @@
 #include "paddle_utils.hpp"
 #include "place.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 
 using namespace ::paddle::framework::proto;
 
@@ -182,7 +184,7 @@ ov::Shape make_shape_checked(const DimsT& dims) {
 }
 
 std::filesystem::path get_const_path(const std::filesystem::path& folder_with_weights, const std::string& name) {
-    return ov::util::sanitize_path(folder_with_weights, ov::util::make_path(name));
+    return folder_with_weights / ov::util::make_path(name);
 }
 
 bool is_pdmodel(const std::filesystem::path& path) {
@@ -638,4 +640,6 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
     _impl->set_tensor_value(place, value);
 }
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

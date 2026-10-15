@@ -9,7 +9,9 @@
 
 #include "openvino/frontend/exception.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 static const char escape1 = '\000';
 static const char null_character = '\xff';
@@ -270,4 +272,6 @@ const char* decode_entry(const char* p,
     }
     return p;
 }
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

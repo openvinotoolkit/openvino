@@ -26,7 +26,9 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::pass {
+namespace ov {
+namespace frontend {
+namespace pass {
 namespace {
 
 constexpr size_t INVALID_INDEX = std::numeric_limits<size_t>::max();
@@ -300,4 +302,6 @@ SequenceConcatReplacer::SequenceConcatReplacer() {
     register_matcher(m, callback);
 }
 
-}  // namespace ov::frontend::pass
+}  // namespace pass
+}  // namespace frontend
+}  // namespace ov

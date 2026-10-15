@@ -12,11 +12,14 @@
 
 namespace ov {
 
-namespace op::util {
+namespace op {
+namespace util {
 class FrameworkNode;
-}  // namespace op::util
+}  // namespace util
+}  // namespace op
 
-namespace frontend::jax {
+namespace frontend {
+namespace jax {
 
 const std::string jax_prefix = "[JAX Frontend] ";
 
@@ -76,5 +79,6 @@ ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& s
 
 }  // namespace op
 
-}  // namespace frontend::jax
+}  // namespace jax
+}  // namespace frontend
 }  // namespace ov

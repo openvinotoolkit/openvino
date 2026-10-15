@@ -6,7 +6,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/op/grid_sample.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 using namespace ov::op;
 
@@ -24,4 +27,7 @@ NamedOutputs grid_sampler(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<default_opset::GridSample>(data, grid, attributes)},
                                               {"Output"});
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

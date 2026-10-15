@@ -146,7 +146,9 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
 #endif
 }  // namespace
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 void copy_conditional_flow_marker(const CfMarkerType& copy_from, CfMarkerType& copy_to) {
     for (const auto& marker : copy_from.existing_markers_with_branches) {
@@ -603,4 +605,6 @@ void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
     }
 }
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

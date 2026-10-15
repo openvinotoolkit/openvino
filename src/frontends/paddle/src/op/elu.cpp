@@ -6,7 +6,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs elu(const NodeContext& node) {
     auto data = node.get_input("X");
     auto alpha = node.get_attribute<float>("alpha", 1.0);
@@ -14,4 +17,7 @@ NamedOutputs elu(const NodeContext& node) {
     return node.default_single_output_mapping({elu_node}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

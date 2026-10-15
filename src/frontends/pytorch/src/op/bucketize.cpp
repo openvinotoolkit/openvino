@@ -12,7 +12,10 @@
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -45,4 +48,7 @@ OutputVector translate_bucketize(const NodeContext& context) {
     return {bucketize};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

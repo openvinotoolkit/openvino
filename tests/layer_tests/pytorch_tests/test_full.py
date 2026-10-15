@@ -6,14 +6,14 @@ import platform
 import numpy as np
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestFull(PytorchLayerTest):
     def _prepare_input(self, value):
         return (np.array(value, dtype=np.float32),)
 
-    def create_model(self, shape, dtype=None, use_dtype=False, use_out=False):
+    def create_model(self, shape, dtype=None, use_dtype=False, use_out=False, with_names=False):
         import torch
         dtype_map = {
             "float32": torch.float32,
@@ -42,6 +42,15 @@ class TestFull(PytorchLayerTest):
             def forward(self, x: float):
                 return torch.full(self.shape, x, dtype=self.dtype)
 
+        class aten_full_dtype_with_names(torch.nn.Module):
+            def __init__(self, shape, dtype):
+                super().__init__()
+                self.shape = shape
+                self.dtype = dtype
+
+            def forward(self, x: float):
+                return torch.full(self.shape, x, dtype=self.dtype, names=None)
+
         class aten_full_out(torch.nn.Module):
             def __init__(self, shape, dtype):
                 super().__init__()
@@ -51,13 +60,22 @@ class TestFull(PytorchLayerTest):
             def forward(self, x: float):
                 return torch.full(self.shape, x, out=torch.zeros(self.shape, dtype=self.dtype))
 
+        class aten_full_out_with_names(torch.nn.Module):
+            def __init__(self, shape, dtype):
+                super().__init__()
+                self.shape = shape
+                self.dtype = dtype
+
+            def forward(self, x: float):
+                return torch.full(self.shape, x, out=torch.zeros(self.shape, dtype=self.dtype), names=None)
+
         model = aten_full(shape)
         if use_dtype or use_out:
             dtype = dtype_map.get(dtype, dtype)
             if not use_out:
-                model = aten_full_dtype(shape, dtype)
+                model = aten_full_dtype(shape, dtype) if not with_names else aten_full_dtype_with_names(shape, dtype)
             else:
-                model = aten_full_out(shape, dtype)
+                model = aten_full_out(shape, dtype) if not with_names else aten_full_out_with_names(shape, dtype)
 
         return model, "aten::full"
 
@@ -73,18 +91,20 @@ class TestFull(PytorchLayerTest):
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit_fx_backend
-    def test_full_dtype(self, shape, value, dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(shape, dtype=dtype, use_dtype=True), ie_device, precision,
+    def test_full_dtype(self, shape, value, dtype, with_names, ie_device, precision, ir_version):
+        self._test(*self.create_model(shape, dtype=dtype, use_dtype=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'value': value})
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
-    def test_full_out(self, shape, value, dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(shape, dtype=dtype, use_out=True), ie_device, precision,
+    def test_full_out(self, shape, value, dtype, with_names, ie_device, precision, ir_version):
+        self._test(*self.create_model(shape, dtype=dtype, use_out=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'value': value})
 
 class TestFill(PytorchLayerTest):
@@ -117,16 +137,6 @@ class TestFill(PytorchLayerTest):
 
 
         model = aten_fill(mode)
-        if self.use_torch_export():
-            # Tensor.fill is only exposed through the ATen API in eager PyTorch.
-            class ExportFill(torch.nn.Module):
-                def forward(self, input_t, x, out=None):
-                    if mode == "inplace":
-                        return input_t.fill_(x)
-                    if mode == "out":
-                        return torch.ops.aten.fill.Tensor_out(input_t, x, out=out), out
-                    return torch.ops.aten.fill.Tensor(input_t, x)
-            model = ExportFill()
 
         return model, "aten::fill_" if mode == "inplace" else "aten::fill"
 
@@ -139,7 +149,6 @@ class TestFill(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    @pytest.mark.precommit_torch_export
     def test_fill(self, shape, value, input_dtype, value_dtype, mode, ie_device, precision, ir_version):
         self._test(*self.create_model(mode), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
@@ -180,7 +189,6 @@ class TestFillDiagonal(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    @pytest.mark.precommit_torch_export
     def test_fill_diagonal(self, shape, value, input_dtype, value_dtype, wrap, ie_device, precision, ir_version):
         if ie_device == "GPU":
             pytest.xfail(reason="fill_diagonal is not supported on GPU")
@@ -356,7 +364,7 @@ class TestZerosAndOnes(PytorchLayerTest):
     def _prepare_input(self, shape):
         return (self.random.randn(*shape),)
 
-    def create_model(self, op_type, dtype=None, with_dtype=False, with_out=False):
+    def create_model(self, op_type, dtype=None, with_dtype=False, with_out=False, with_names=False):
         import torch
         ops = {
             "aten::zeros": torch.zeros,
@@ -401,6 +409,11 @@ class TestZerosAndOnes(PytorchLayerTest):
                 shape = x.shape
                 return self.op(shape, dtype=self.dtype), x
 
+        class aten_op_dtype_with_names(aten_op_dtype):
+            def forward(self, x):
+                shape = x.shape
+                return self.op(shape, dtype=self.dtype, names=None), x
+
         class aten_op_like_dtype(torch.nn.Module):
             def __init__(self, op, dtype):
                 super().__init__()
@@ -418,7 +431,17 @@ class TestZerosAndOnes(PytorchLayerTest):
 
             def forward(self, x):
                 shape = x.shape
-                return self.op(shape, out=torch.zeros_like(x, dtype=self.dtype)), x
+                return self.op(shape, out=torch.zeros_like(x, dtype=self.dtype))
+
+        class aten_op_out_with_names(torch.nn.Module):
+            def __init__(self, op, dtype):
+                super().__init__()
+                self.op = op
+                self.dtype = dtype
+
+            def forward(self, x):
+                shape = x.shape
+                return self.op(shape, out=torch.zeros_like(x, dtype=self.dtype), names=None)
 
         class aten_op_like_out(torch.nn.Module):
             def __init__(self, op, dtype):
@@ -436,9 +459,9 @@ class TestZerosAndOnes(PytorchLayerTest):
             if with_dtype or with_out:
                 dtype = dtype_map[dtype]
                 if with_dtype:
-                    model_cls = aten_op_dtype(op, dtype)
+                    model_cls = aten_op_dtype(op, dtype) if not with_names else aten_op_dtype_with_names(op, dtype)
                 if with_out:
-                    model_cls = aten_op_out(op, dtype)
+                    model_cls = aten_op_out(op, dtype) if not with_names else aten_op_out_with_names(op, dtype)
         else:
             model_cls = aten_op_like(op)
             if with_dtype or with_out:
@@ -462,21 +485,22 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.parametrize("shape", [(1, 1), (1, 2), (1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5, 6)])
     @pytest.mark.parametrize("op_type", ["aten::zeros", "aten::ones"])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
-    def test_zeros_ones_with_dtype(self, op_type, shape, dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(op_type, dtype=dtype, with_dtype=True), ie_device,
+    def test_zeros_ones_with_dtype(self, op_type, shape, dtype, with_names, ie_device, precision, ir_version):
+        self._test(*self.create_model(op_type, dtype=dtype, with_dtype=True, with_names=with_names), ie_device,
                    precision,
                    ir_version, kwargs_to_prepare_input={'shape': shape})
 
     @pytest.mark.parametrize("shape", [(1, 1), (1, 2), (1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5, 6)])
     @pytest.mark.parametrize("op_type", ["aten::zeros", "aten::ones"])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
-    @pytest.mark.precommit_torch_export
-    def test_zeros_ones_with_out(self, op_type, shape, dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(op_type, dtype=dtype, with_out=True), ie_device, precision,
+    def test_zeros_ones_with_out(self, op_type, shape, dtype, with_names, ie_device, precision, ir_version):
+        self._test(*self.create_model(op_type, dtype=dtype, with_out=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'shape': shape})
 
     @pytest.mark.parametrize("shape", [(1, 1), (1, 2), (1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5, 6)])

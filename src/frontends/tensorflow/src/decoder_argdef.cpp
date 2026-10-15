@@ -11,7 +11,9 @@
 #include "ov_tensorflow/types.pb.h"
 #include "tf_utils.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 size_t DecoderArgDef::get_input_size() const {
     FRONT_END_GENERAL_CHECK(m_op_type == "input_arg" || m_op_type == "output_arg",
@@ -47,4 +49,6 @@ ov::Any DecoderArgDef::get_attribute(const std::string& name) const {
     return get_ov_type(m_arg_def->type());
 }
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -29,7 +29,10 @@ std::shared_ptr<ov::op::v0::Concat> get_conj_ptr(const ov::Output<ov::Node>& nod
     return conj;
 }
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_conj_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Conj"}, true);
@@ -82,4 +85,7 @@ OutputVector translate_conj_transpose_op(const NodeContext& node) {
     return {conj_transpose};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

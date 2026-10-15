@@ -59,6 +59,7 @@ void MoveFakeQuantizeTransformation::SetUp() {
         param.convertAfter,
         param.dequantizationAfter,
         {},
+        {},
         param.axis,
         oneInputWithSplit);
 }

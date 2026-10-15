@@ -11,7 +11,10 @@
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -85,4 +88,7 @@ OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
     return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

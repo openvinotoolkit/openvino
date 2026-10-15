@@ -16,7 +16,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pt_framework_node.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 using namespace ov::pass;
 using namespace ov::op;
@@ -73,4 +76,7 @@ StringEqualityReplacer::StringEqualityReplacer() {
     this->register_matcher(m, callback);
 };
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

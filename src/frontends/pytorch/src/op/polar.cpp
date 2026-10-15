@@ -9,7 +9,10 @@
 #include "openvino/op/sin.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -25,4 +28,7 @@ OutputVector translate_polar(const NodeContext& context) {
     return {complex_tensor};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

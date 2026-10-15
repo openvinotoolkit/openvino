@@ -6,7 +6,10 @@
 
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::tensorflow::pass {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace pass {
 
 // This transformation fuses Switch-Merge sub-graphs into If operation
 // After control flow markers propagation, Switch and Merge nodes
@@ -23,4 +26,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-}  // namespace ov::frontend::tensorflow::pass
+}  // namespace pass
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <random>
@@ -12,8 +11,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "openvino/core/except.hpp"
 
 
 #define GET_SUITE_NAME  (std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) + \
@@ -62,9 +59,9 @@ public:
     }
 
     template<typename ReturnType>
-    ReturnType generate_random_val(double min, double max, int k = 8) {
+    ReturnType generate_random_val(int min, int max, int k = 8) {
         // 1/k is the resolution of the floating point numbers
-        auto distribution = make_distribution(min, max, k);
+        std::uniform_int_distribution<int> distribution(k * min, k * max);
         ReturnType val = static_cast<ReturnType>(distribution(this->generator));
         val /= k;
 
@@ -72,9 +69,9 @@ public:
     }
 
     template<typename ReturnType>
-    std::vector<ReturnType> generate_random_1d(size_t a, double min, double max, int k = 8) {
+    std::vector<ReturnType> generate_random_1d(size_t a, int min, int max, int k = 8) {
         // 1/k is the resolution of the floating point numbers
-        auto distribution = make_distribution(min, max, k);
+        std::uniform_int_distribution<int> distribution(k * min, k * max);
         std::vector<ReturnType> v(a);
 
         for (size_t i = 0; i < a; ++i) {
@@ -85,7 +82,7 @@ public:
     }
 
     template<typename ReturnType>
-    std::vector<std::vector<ReturnType>> generate_random_2d(size_t a, size_t b, double min, double max, int k = 8) {
+    std::vector<std::vector<ReturnType>> generate_random_2d(size_t a, size_t b, int min, int max, int k = 8) {
         std::vector<std::vector<ReturnType>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_1d<ReturnType>(b, min, max, k);
@@ -93,7 +90,7 @@ public:
     }
 
     template<typename ReturnType>
-    std::vector<std::vector<std::vector<ReturnType>>> generate_random_3d(size_t a, size_t b, size_t c, double min, double max, int k = 8) {
+    std::vector<std::vector<std::vector<ReturnType>>> generate_random_3d(size_t a, size_t b, size_t c, int min, int max, int k = 8) {
         std::vector<std::vector<std::vector<ReturnType>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_2d<ReturnType>(b, c, min, max, k);
@@ -102,8 +99,7 @@ public:
 
     // parameters order is assumed to be bfyx or bfyx
     template<typename ReturnType>
-    std::vector<std::vector<std::vector<std::vector<ReturnType>>>> generate_random_4d(size_t a, size_t b, size_t c, size_t d,
-                                                                                     double min, double max, int k = 8) {
+    std::vector<std::vector<std::vector<std::vector<ReturnType>>>> generate_random_4d(size_t a, size_t b, size_t c, size_t d, int min, int max, int k = 8) {
         std::vector<std::vector<std::vector<std::vector<ReturnType>>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_3d<ReturnType>(b, c, d, min, max, k);
@@ -113,7 +109,7 @@ public:
     // parameters order is assumed to be sbfyx for filters when split > 1
     template<typename ReturnType>
     std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>> generate_random_5d(size_t a, size_t b, size_t c, size_t d, size_t e,
-                                                                                                   double min, double max, int k = 8) {
+                                                                                                   int min, int max, int k = 8) {
         std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_4d<ReturnType>(b, c, d, e, min, max, k);
@@ -122,7 +118,7 @@ public:
 
     template<typename ReturnType>
     std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>>> generate_random_6d(size_t a, size_t b, size_t c, size_t d,
-                                                                                                    size_t e, size_t f, double min, double max, int k = 8) {
+                                                                                                    size_t e, size_t f, int min, int max, int k = 8) {
         std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_5d<ReturnType>(b, c, d, e, f, min, max, k);
@@ -159,28 +155,6 @@ public:
     }
 
 private:
-    // Values are drawn on a 1/k grid, so the integer bounds are k*min and k*max.
-    // min/max are taken as floating point on purpose: they used to be int, which silently truncated
-    // calls such as generate_random_1d<ov::float16>(n, -0.25f, 0.25f) into a constant-zero range.
-    static std::uniform_int_distribution<int> make_distribution(double min, double max, int k) {
-        OPENVINO_ASSERT(min <= max, "random_generator: min (", min, ") must not exceed max (", max, ")");
-        OPENVINO_ASSERT(k > 0, "random_generator: resolution k must be positive, got ", k);
-
-        if (min == max) {
-            const auto val = static_cast<int>(std::lround(min * k));
-            return std::uniform_int_distribution<int>(val, val);
-        }
-
-        // ceil/floor (rather than rounding) keeps every generated value inside [min, max]
-        const auto lo = static_cast<int>(std::ceil(min * k));
-        const auto hi = static_cast<int>(std::floor(max * k));
-        OPENVINO_ASSERT(lo < hi,
-                        "random_generator: range [", min, ", ", max, "] holds fewer than 2 values at resolution 1/", k,
-                        ", so the data would be constant. Pass k >= ", static_cast<int>(std::ceil(2.0 / (max - min))));
-
-        return std::uniform_int_distribution<int>(lo, hi);
-    }
-
     std::default_random_engine generator{DEFAULT_SEED};
 };
 

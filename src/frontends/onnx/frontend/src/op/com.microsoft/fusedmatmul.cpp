@@ -15,7 +15,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::com_microsoft::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace com_microsoft {
+namespace opset_1 {
 
 std::vector<size_t> get_transpose_axes(size_t rank) {
     std::vector<size_t> axes(rank);
@@ -78,4 +82,8 @@ ov::OutputVector fusedmatmul(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("FusedMatMul", OPSET_SINCE(1), com_microsoft::opset_1::fusedmatmul, MICROSOFT_DOMAIN);
 
-}  // namespace ov::frontend::onnx::com_microsoft::opset_1
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

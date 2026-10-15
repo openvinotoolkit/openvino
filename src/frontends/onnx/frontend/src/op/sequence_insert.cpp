@@ -13,7 +13,11 @@
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 
-namespace ov::frontend::onnx::ai_onnx::opset_11 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_11 {
 
 ov::OutputVector sequence_insert(const ov::frontend::onnx::Node& node) {
     constexpr auto min_inputs = 2;
@@ -46,4 +50,8 @@ ov::OutputVector sequence_insert(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("SequenceInsert", OPSET_SINCE(1), ai_onnx::opset_11::sequence_insert);
 
-}  // namespace ov::frontend::onnx::ai_onnx::opset_11
+}  // namespace opset_11
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

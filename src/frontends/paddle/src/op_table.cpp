@@ -3,7 +3,9 @@
 //
 #include "op_table.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 namespace op {
 #define OP_CONVERTER(op) NamedOutputs op(const NodeContext& node)
 OP_CONVERTER(argmax);
@@ -302,4 +304,6 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"reduce_any", op::reduce_any}};
 };
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

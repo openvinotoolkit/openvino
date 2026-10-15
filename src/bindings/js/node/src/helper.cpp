@@ -4,7 +4,6 @@
 
 #include "node/include/helper.hpp"
 
-#include <cassert>
 #include <sstream>
 
 #include "node/include/compiled_model.hpp"
@@ -14,16 +13,6 @@
 #include "node/include/type_validation.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/common_util.hpp"
-
-void release_tsfn_after_blocking_call(const Napi::ThreadSafeFunction& tsfn, napi_status call_status) noexcept {
-    assert((call_status == napi_ok || call_status == napi_closing) &&
-           "Unexpected ThreadSafeFunction::BlockingCall status");
-
-    if (call_status == napi_ok) {
-        [[maybe_unused]] const auto release_status = tsfn.Release();
-        assert(release_status == napi_ok && "ThreadSafeFunction::Release failed");
-    }
-}
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -360,26 +349,24 @@ Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version) {
     return version_obj;
 }
 
-ParsedInputData parse_input_data(const Napi::Value& input) {
+ov::TensorVector parse_input_data(const Napi::Value& input) {
+    ov::TensorVector parsed_input;
     if (input.IsArray()) {
-        ov::TensorVector parsed_input;
         auto inputs = input.As<Napi::Array>();
         for (uint32_t i = 0; i < inputs.Length(); ++i) {
             parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(inputs[i])));
         }
-        return parsed_input;
     } else if (input.IsObject()) {
-        NamedInputData parsed_input;
         auto inputs = input.ToObject();
         const auto& keys = inputs.GetPropertyNames();
         for (uint32_t i = 0; i < keys.Length(); ++i) {
-            auto name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-            parsed_input.emplace_back(name, cast_to_tensor(inputs.Get(name)));
+            auto value = inputs.Get(static_cast<Napi::Value>(keys[i]).ToString().Utf8Value());
+            parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(value)));
         }
-        return parsed_input;
     } else {
         OPENVINO_THROW("parse_input_data(): wrong arg");
     }
+    return parsed_input;
 }
 
 ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const std::string key) {

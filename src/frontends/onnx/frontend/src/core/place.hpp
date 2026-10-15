@@ -7,7 +7,9 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/frontend.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 class TensorPlace;
 class OpPlace;
@@ -193,4 +195,6 @@ private:
     std::vector<std::weak_ptr<InPortPlace>> m_consuming_ports;
 };
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

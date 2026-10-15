@@ -7,7 +7,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 template <typename T>
 NamedOutputs elementwise_ops(const NodeContext& node) {
@@ -36,4 +39,7 @@ NamedOutputs elementwise_ops(const NodeContext& node) {
     }
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

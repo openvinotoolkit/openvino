@@ -9,7 +9,9 @@
 
 #include "helper_ops/internal_operation.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class Iterator : public InternalOperation {
 public:
@@ -46,4 +48,6 @@ private:
     const std::vector<ov::PartialShape> m_output_shapes;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

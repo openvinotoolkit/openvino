@@ -6,7 +6,9 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov::op::internal {
+namespace ov {
+namespace op {
+namespace internal {
 class While : public Op {
 public:
     OPENVINO_OP("While", "internal");
@@ -33,4 +35,6 @@ private:
     std::vector<std::pair<ov::element::Type, ov::PartialShape>> m_output_infos;
 };
 
-}  // namespace ov::op::internal
+}  // namespace internal
+}  // namespace op
+}  // namespace ov

@@ -15,7 +15,9 @@
 #include "openvino/frontend/tensorflow_lite/node_context.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
-namespace ov::frontend::tensorflow_lite {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow_lite::NodeContext&)>;
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
@@ -72,4 +74,6 @@ protected:
 
     TranslatorDictionaryType m_op_translators;
 };
-}  // namespace ov::frontend::tensorflow_lite
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

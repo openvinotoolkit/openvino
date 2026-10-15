@@ -225,14 +225,8 @@ void perform_inference_thread(TsfnContext* context) {
     std::exception_ptr stored_exception;
     try {
         const std::lock_guard<std::mutex> lock(infer_mutex);
-        if (const auto* positional_inputs = std::get_if<ov::TensorVector>(&context->_inputs)) {
-            for (size_t i = 0; i < positional_inputs->size(); ++i) {
-                context->_ir->set_input_tensor(i, positional_inputs->at(i));
-            }
-        } else {
-            for (const auto& [name, tensor] : std::get<NamedInputData>(context->_inputs)) {
-                context->_ir->set_tensor(name, tensor);
-            }
+        for (size_t i = 0; i < context->_inputs.size(); ++i) {
+            context->_ir->set_input_tensor(i, context->_inputs[i]);
         }
         context->_ir->infer();
 
@@ -269,7 +263,10 @@ void perform_inference_thread(TsfnContext* context) {
     };
 
     const auto status = context->tsfn.BlockingCall(context, callback);
-    release_tsfn_after_blocking_call(context->tsfn, status);
+    if (status != napi_ok && status != napi_closing) {
+        std::cerr << "ThreadSafeFunction::BlockingCall failed with status " << status << '\n';
+    }
+    context->tsfn.Release();
 }
 }  // namespace
 
