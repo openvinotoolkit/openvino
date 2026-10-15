@@ -12,28 +12,24 @@
 
 namespace intel_npu {
 
-std::shared_ptr<IProfilingDecoder> ParserFactory::makeProfilingDecoderIfAvailable(bool perfCountEnabled) const {
-    if (!perfCountEnabled) {
-        return nullptr;
-    }
-
-    try {
-        auto vclLoader = VCLLoader::getInstance();
-        OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-        return std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
-    } catch (const std::exception& ex) {
-        Logger::global().warning("Failed to create the VCL profiling decoder for model import: %s", ex.what());
-        return nullptr;
-    }
-}
-
 std::unique_ptr<IParser> ParserFactory::getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs,
                                                   bool perfCountEnabled) const {
     OPENVINO_ASSERT(
         zeroInitStructs != nullptr,
         "Could not find an NPU device. The driver compiler requires a valid device to be present in the system.");
 
-    return std::make_unique<Parser>(zeroInitStructs, makeProfilingDecoderIfAvailable(perfCountEnabled));
+    std::shared_ptr<IProfilingDecoder> profilingDecoder;
+    if (perfCountEnabled) {
+        try {
+            auto vclLoader = VCLLoader::getInstance();
+            OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+            profilingDecoder = std::make_shared<VCLProfilingDecoder>(vclLoader->sharedFunctions());
+        } catch (const std::exception& ex) {
+            Logger::global().warning("Failed to create the VCL profiling decoder for model import: %s", ex.what());
+        }
+    }
+
+    return std::make_unique<Parser>(zeroInitStructs, profilingDecoder);
 }
 
 }  // namespace intel_npu
