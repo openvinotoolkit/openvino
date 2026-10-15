@@ -306,13 +306,6 @@ static constexpr ov::Property<LegacyPriority, ov::PropertyMutability::RO> legacy
 
 /**
  * @brief
- * Type: integer, default is -1
- * Device stepping ID. If unset, it will be automatically obtained from driver
- */
-static constexpr ov::Property<int64_t> stepping{"NPU_STEPPING"};
-
-/**
- * @brief
  * Selects different compilation pipelines.
  */
 static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MODE"};

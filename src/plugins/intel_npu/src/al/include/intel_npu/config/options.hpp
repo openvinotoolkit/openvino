@@ -623,24 +623,6 @@ struct TILES final : OptionBase<TILES, int64_t> {
 #endif
 };
 
-struct STEPPING final : OptionBase<STEPPING, int64_t> {
-    static std::string_view key() {
-        return ov::intel_npu::stepping.name();
-    }
-
-    static std::vector<std::string_view> deprecatedKeys() {
-        return {};
-    }
-
-    static int64_t defaultValue() {
-        return -1;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
     static std::string_view key() {
         return ov::intel_npu::dma_engines.name();

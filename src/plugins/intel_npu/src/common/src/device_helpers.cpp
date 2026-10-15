@@ -122,17 +122,6 @@ ov::device::LUID utils::getDeviceLUID(const ov::SoPtr<IEngineBackend>& engineBac
     }};
 }
 
-uint32_t utils::getSteppingNumber(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                  const std::string& specifiedDeviceName) {
-    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
-    auto device = getDeviceById(engineBackend, devName);
-    if (device) {
-        return device->getSubDevId();
-    }
-
-    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
-}
-
 uint32_t utils::getMaxTiles(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName) {
     const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
     auto device = getDeviceById(engineBackend, devName);

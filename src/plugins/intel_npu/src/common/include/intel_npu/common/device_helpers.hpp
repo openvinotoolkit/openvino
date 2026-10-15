@@ -29,7 +29,6 @@ std::string getDeviceArchitecture(const ov::SoPtr<IEngineBackend>& engineBackend
                                   const std::string& specifiedDeviceName);
 IDevice::Uuid getDeviceUuid(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
 ov::device::LUID getDeviceLUID(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
-uint32_t getSteppingNumber(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
 uint32_t getMaxTiles(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
 uint64_t getDeviceAllocMemSize(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);
 uint64_t getDeviceTotalMemSize(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName);

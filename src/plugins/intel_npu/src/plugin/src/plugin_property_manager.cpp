@@ -747,24 +747,6 @@ void PluginPropertyManager::registerProperties() {
             _config.update(ov::intel_npu::shared_common_queue.name(), value);
         }
     );
-    register_property(ov::intel_npu::stepping.name(), false, ov::PropertyMutability::RW, 
-        [this](const ov::AnyMap&) {
-            return _config.hasOpt(ov::intel_npu::stepping.name());
-        },
-        [this](const ov::AnyMap& arguments) {
-            if (!_config.has<STEPPING>()) {
-                try {
-                    return static_cast<int64_t>(utils::getSteppingNumber(_backend, getDeviceIdOrDefault(arguments)));
-                } catch (...) {
-                    _logger.warning("GetSteppingNumber failed to get value from device.");
-                }
-            }
-            return _config.get<STEPPING>();
-        },
-        [this](const ov::Any& value) {
-            _config.update(ov::intel_npu::stepping.name(), value.as<std::string>());
-        }
-    );
     register_property(ov::intel_npu::compile_log_level.name(), false, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::intel_npu::compile_log_level.name());
