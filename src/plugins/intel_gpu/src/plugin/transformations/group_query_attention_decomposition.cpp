@@ -112,8 +112,7 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     return true;
 }
 
-std::unique_ptr<ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata> GroupQueryAttentionDecomposition::create_metadata(
-    const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node) {
+std::unique_ptr<ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata> GroupQueryAttentionDecomposition::create_metadata() {
     return std::make_unique<StatelessKVMetadata>();
 }
 

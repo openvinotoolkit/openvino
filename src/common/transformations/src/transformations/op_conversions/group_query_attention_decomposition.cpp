@@ -85,8 +85,7 @@ ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
 }
 
 std::unique_ptr<ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata>
-ov::pass::GroupQueryAttentionDecomposition::create_metadata(
-    const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node) {
+ov::pass::GroupQueryAttentionDecomposition::create_metadata() {
     return std::make_unique<KVCacheMetadata>();
 }
 
@@ -122,7 +121,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_value = get_input(GQAInputs::PAST_VALUE);
     auto seqlens_k = get_input(GQAInputs::SEQLENS_K);
 
-    const auto metadata = create_metadata(node);
+    const auto metadata = create_metadata();
 
     // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8/f8e4m3 and are dequantized before the
     // attention math and (re)quantized when appended to the cache. Scales live at ONNX K_SCALE / V_SCALE positions.
@@ -244,6 +243,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         bias_col_offset = cache.bias_col_offset;
     }
 
+    // The explicit softcap chain consumes plain float K/V, so plugins must not keep a compressed KV for it.
+    if (use_softcap && kv_quantized) {
+        OPENVINO_ASSERT(metadata->should_dequantize_kv,
+                        "GroupQueryAttention with softcap requires dequantized KV cache");
+    }
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
     if (metadata->should_dequantize_kv) {
@@ -444,8 +448,8 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
             // Attention runs on the trimmed [survivors, new] buffer (end_after rows, no trailing padding), so
             // the kernel's native LOWER_RIGHT + window sees the newest token as the last row. present_k/present_v
             // (left-aligned, padded to capacity C) stay the ORT-compatible op outputs. Mirrors the staging path.
-            outputs.sdpa_key = register_new_node<v0::Concat>(ov::OutputVector{survivor_k, outputs.present_key}, 2);
-            outputs.sdpa_value = register_new_node<v0::Concat>(ov::OutputVector{survivor_v, outputs.present_value}, 2);
+            outputs.sdpa_key = register_new_node<v0::Concat>(ov::OutputVector{survivor_k, key}, 2);
+            outputs.sdpa_value = register_new_node<v0::Concat>(ov::OutputVector{survivor_v, value}, 2);
             outputs.mask_past_seqlen = register_new_node<v0::Unsqueeze>(kept, zero);
             // First resident slot holds absolute key P - kept (the survivors start there).
             outputs.bias_col_offset =

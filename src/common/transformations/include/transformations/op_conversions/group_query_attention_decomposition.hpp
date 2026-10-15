@@ -41,8 +41,7 @@ protected:
     };
 
     ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node);
-    virtual std::unique_ptr<KVCacheMetadata> create_metadata(
-        const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node);
+    virtual std::unique_ptr<KVCacheMetadata> create_metadata();
     virtual KVCacheOutputs construct_kvcache(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
                                              const ov::Output<ov::Node>& past_key,
                                              const ov::Output<ov::Node>& past_value,
