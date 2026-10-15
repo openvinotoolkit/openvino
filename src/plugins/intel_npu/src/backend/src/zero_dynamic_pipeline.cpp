@@ -263,6 +263,8 @@ void DynamicPipeline::push() {
 
     if (useV2Api) {
         if (commandQueueVersionChanged && commandQueueDesc.sharedCommonQueue()) {
+            // Keep the old queue alive until pull(); the runtime destroys its old fence during migration.
+            _retired_command_queue = _command_queue;
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
         }
 
@@ -273,6 +275,8 @@ void DynamicPipeline::push() {
             _runtime_config_command_queue_desc_valid = true;
         }
     } else if (commandQueueVersionChanged) {
+        // Keep the old queue alive until pull() so the old fences can be destroyed against a live queue.
+        _retired_command_queue = _command_queue;
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
 
         if (_sync_output_with_fences) {
@@ -542,6 +546,8 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         if (use_npu_vm_runtime_v2_api(_apiVersion)) {
             const auto commandQueueDesc = _graph->get_command_queue_desc();
             if (commandQueueDesc.sharedCommonQueue() && commandQueueDesc.key() != _command_queue->desc().key()) {
+                // Keep the old queue alive until pull(); the runtime destroys its old fence during migration.
+                _retired_command_queue = _command_queue;
                 _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
             }
         }
@@ -615,6 +621,9 @@ void DynamicPipeline::pull() {
     } else {
         _events.front()->hostSynchronize();
     }
+
+    // Migration and host sync are done; the queue retired during the last switch is no longer referenced.
+    _retired_command_queue.reset();
 
     _logger.debug("pull - completed");
 }
