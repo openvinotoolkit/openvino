@@ -213,6 +213,15 @@ void ov::npuw::EmbeddingInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input
     LOG_DEBUG("Calling inference for embedding prefill model...");
     LOG_BLOCK();
 
+    // The staging copies in infer_whole_prefill()/infer_chunked_prefill() use input_ids's/
+    // attention_mask's raw element/byte counts directly - a batch other than 1 (the top-level
+    // batch dimension is dynamic, so nothing earlier bounds it) would overflow the compiled
+    // prefill ports either function writes into.
+    OPENVINO_ASSERT(input_ids->get_shape().size() == 2 && input_ids->get_shape()[0] == 1,
+                    "Input ids must have shape [1, seq_len], got ",
+                    input_ids->get_shape(),
+                    ".");
+
     const auto prompt_length = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     if (prompt_length > kvcache_desc.max_prompt_size) {
@@ -223,6 +232,20 @@ void ov::npuw::EmbeddingInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input
     }
 
     prepare_for_new_conversation();
+
+    // attention_mask's length is caller-controlled and independent of input_ids's own
+    // (already bounded) prompt length - bound it directly against the compiled prefill port's
+    // capacity before infer_whole_prefill()/infer_chunked_prefill() copy from it. (In
+    // infer_whole_prefill() specifically this is also reached transitively: position_ids is
+    // built from attention_mask's own shape there and passed through pad_position_ids(), whose
+    // own bound catches an oversized mask first - this assert is kept as a direct, independent
+    // guard that does not depend on that coupling staying in place.)
+    OPENVINO_ASSERT(attention_mask->get_size() <= m_attn_mask_in_tensor->get_size(),
+                    "Input attention mask (",
+                    attention_mask->get_size(),
+                    " elements) is longer than the configured prefill capacity (",
+                    m_attn_mask_in_tensor->get_size(),
+                    ").");
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
