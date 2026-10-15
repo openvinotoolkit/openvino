@@ -6,9 +6,13 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 template <typename OVOpType = void>
 using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::pytorch::ConversionExtension, OVOpType>;
 
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

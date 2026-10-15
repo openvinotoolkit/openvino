@@ -4,7 +4,9 @@
 
 #include <paddle_fw_node.hpp>
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 void FrameworkNode::validate_and_infer_types() {
     ov::op::util::FrameworkNode::validate_and_infer_types();
     size_t idx = 0;
@@ -32,4 +34,6 @@ std::map<std::string, OutputVector> FrameworkNode::return_named_outputs() {
     });
 }
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

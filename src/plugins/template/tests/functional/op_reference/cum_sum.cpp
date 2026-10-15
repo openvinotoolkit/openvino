@@ -70,7 +70,8 @@ struct CumSumParams {
 class ReferenceCumSumLayerTest : public testing::TestWithParam<CumSumParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        auto params = GetParam();
         if (params.testDefaults) {
             function = CreateFunction(params.inShape, params.inType);
             inputData = {params.inputData};
@@ -87,7 +88,7 @@ public:
         }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<CumSumParams>& obj) {
-        const auto& param = obj.param;
+        auto param = obj.param;
         std::ostringstream result;
         result << "testDefaults=" << param.testDefaults << "_";
         result << "axisValue=" << param.axisValue << "_";

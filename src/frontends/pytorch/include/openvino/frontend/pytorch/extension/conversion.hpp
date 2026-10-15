@@ -9,7 +9,9 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 class ConversionExtension : public ConversionExtensionBase {
 public:
@@ -31,4 +33,6 @@ private:
     ov::frontend::CreatorFunction m_converter;
 };
 
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

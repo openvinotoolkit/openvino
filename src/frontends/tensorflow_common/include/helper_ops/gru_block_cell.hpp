@@ -9,7 +9,9 @@
 
 #include "internal_operation.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class GRUBlockCell : public InternalOperation {
 public:
@@ -117,4 +119,6 @@ private:
     ov::Dimension m_hidden_size;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

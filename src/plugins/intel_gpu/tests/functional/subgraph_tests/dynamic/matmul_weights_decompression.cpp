@@ -252,9 +252,6 @@ TEST_P(MatmulWeightsDecompression, Inference) {
                  abs_threshold_f16] = GetParam();
     // Sub-byte parameter weights need the non-transposed FC path which requires XMX
     if (param_weights && weights_precision.bitwidth() < 8) {
-        if (weights_precision.bitwidth() < 4) {
-            GTEST_SKIP() << "Compressed FC is not yet supported for parameter weights smaller than 4 bits.";
-        }
         if (transpose_weights) {
             GTEST_SKIP() << "Sub-byte parameter weights with transposed layout need runtime transpose, which GPU can't do";
         }
@@ -386,21 +383,6 @@ INSTANTIATE_TEST_SUITE_P(MatMulCompressedWeights_corner_cases_big,
                                             ::testing::Values(1.0f)),
                          MatmulWeightsDecompression::get_test_case_name);
 
-// Grouped scales/zp of non-transposed sub-byte parameter weights: large K is needed for an error in the groups order to exceed the threshold
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_transposed_param_weights_grouped,
-                         MatmulWeightsDecompression,
-                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, -1}, {{1, 1, 4096}}}, {4096, 512}, 128}),
-                                            ::testing::Values(ov::element::u4, ov::element::i4),
-                                            ::testing::Values(ov::element::f16),
-                                            ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(false),
-                                            ::testing::Values(ov::test::utils::DecompressionType::full),
-                                            ::testing::Values(false),
-                                            ::testing::Values(false),
-                                            ::testing::Values(true),
-                                            ::testing::Values(0),
-                                            ::testing::Values(1.0f)),
-                         MatmulWeightsDecompression::get_test_case_name);
 
 // per_tensor_zp=0 is not supported
 // transpose_weights is not supported
@@ -422,12 +404,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
 
-// Precomputed reduction is applied only to 8-bit weights, sub-byte weights check that it is skipped
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_precomputed_reduction,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1024, 1, 1024}}},
                                                                             {1024, 1024}, 128}),  // shape
-                                            ::testing::Values(ov::element::u8, ov::element::u4, ov::element::u3),
+                                            ::testing::Values(ov::element::u4),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(false),

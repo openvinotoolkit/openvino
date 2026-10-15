@@ -16,7 +16,10 @@
 #include "openvino/pass/node_registry.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 /// \brief Translate odml.rms_norm composite op.
 /// Builds the canonical RMSNorm decomposition via ov::decomposition::rms_norm,
@@ -119,4 +122,7 @@ OutputVector stablehlo_composite(const ov::frontend::tensorflow_lite::NodeContex
     return translate_decomposition_fallback(node, composite_name);
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

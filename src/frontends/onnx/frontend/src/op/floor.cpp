@@ -6,10 +6,18 @@
 
 #include "core/operator_set.hpp"
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector floor(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<ov::op::v0::Floor>(node.get_ov_inputs().at(0))};
 }
 
 ONNX_OP("Floor", OPSET_SINCE(1), ai_onnx::opset_1::floor);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

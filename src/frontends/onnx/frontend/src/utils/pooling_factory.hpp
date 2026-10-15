@@ -14,7 +14,10 @@
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
-namespace ov::frontend::onnx::pooling {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace pooling {
 ///
 /// \brief      Factory class which generates sub-graphs for ONNX 'regular' pooling
 ///             operators.
@@ -79,4 +82,7 @@ private:
     /// \param[in]  exclude_pad  Determines whether zero-padded values are counted in the divisor.
     ov::Output<ov::Node> make_avg_pool_op(const ov::Output<ov::Node>& data, bool exclude_pad) const;
 };
-}  // namespace ov::frontend::onnx::pooling
+}  // namespace pooling
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

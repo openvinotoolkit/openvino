@@ -3,8 +3,7 @@
 
 import logging
 import os
-# Docker/CLI orchestration in CI; commands are constructed by trusted workflow code.
-import subprocess  # nosec B404
+import subprocess
 from ghapi.all import GhApi
 from pathlib import Path
 

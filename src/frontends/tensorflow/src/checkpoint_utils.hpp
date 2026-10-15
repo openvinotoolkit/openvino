@@ -11,7 +11,9 @@
 
 #include "openvino/frontend/exception.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 #define VARIABLES_INDEX_FOOTER_SIZE 48
 #define BLOCK_TRAILER_SIZE          5
@@ -118,4 +120,6 @@ inline void validate_bundle_entry_bounds(int64_t offset, int64_t size, uint64_t 
                             " bytes)");
 }
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

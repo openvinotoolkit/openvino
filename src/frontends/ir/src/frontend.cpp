@@ -24,7 +24,9 @@
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::ir {
+namespace ov {
+namespace frontend {
+namespace ir {
 namespace {
 
 std::shared_ptr<ov::util::WeightsProvider> make_buffer_weights_provider(
@@ -284,7 +286,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.run_passes(model);
 }
 
-}  // namespace ov::frontend::ir
+}  // namespace ir
+}  // namespace frontend
+}  // namespace ov
 
 IR_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;

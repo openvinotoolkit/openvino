@@ -31,7 +31,7 @@ static init order across TUs is undefined, so there is no reliable hook.
 
 ## Supported values
 
-Case-insensitive:
+Case-insensitive. Ordered from lowest to highest:
 
 - `SSE41` (alias: `SSE42`)
 - `AVX`
@@ -45,15 +45,6 @@ Case-insensitive:
 - `AVX512_CORE_AMX`
 - `AVX512_CORE_AMX_FP16`
 - `ALL` / `DEFAULT` / unset — no cap
-
-Not a total order: a cap permits the values on the path from `SSE41` to itself
-(oneDNN's `is_subset()`). Note VEX-VNNI is a separate branch, so `AVX512_CORE`
-permits `AVX2` but not `AVX2_VNNI`.
-
-```
-SSE41 -> AVX -> AVX2 -+-> AVX2_VNNI -> AVX2_VNNI_2
-                      +-> AVX512_CORE -> _VNNI -> _BF16 -> _FP16 -> _AMX -> _AMX_FP16
-```
 
 Unknown values are treated as no cap on the OV side. oneDNN rejects unknown
 values on its side, so typos surface via oneDNN when both are set.
@@ -72,7 +63,8 @@ OV_CPU_MAX_ISA=AVX512_CORE_FP16 ONEDNN_MAX_CPU_ISA=AVX512_CORE_FP16 ./benchmark_
 
 ## Build requirement
 
-Both knobs are available in all builds, including release.
+`OV_CPU_MAX_ISA` requires `-DENABLE_DEBUG_CAPS=ON`. In release builds the cap
+check is compiled to `true` and inlined away — zero runtime cost.
 
 `ONEDNN_MAX_CPU_ISA` is always available, since OV forces
 `DNNL_ENABLE_MAX_CPU_ISA=ON` for the bundled oneDNN.

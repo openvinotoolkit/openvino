@@ -486,7 +486,7 @@ def parse_input_value(input_value: str):
 
 
 def split_inputs(input_str):
-    pattern = r'^(?:[^[\]()<]*(\[[\.0-9,\-\s?]*\])*,)*[^[\]()<]*(\[[\.0-9,\-\s?]*\])*$'
+    pattern = r'^(?:[^[\]()<]*(\[[\.)-9,\-\s?]*\])*,)*[^[\]()<]*(\[[\.0-9,\-\s?]*\])*$'
     if not re.match(pattern, input_str):
         raise Error(f"input value '{input_str}' is incorrect. Input should be in the following format: "
                     f"{get_convert_model_help_specifics()['input']['description']}")
@@ -495,7 +495,6 @@ def split_inputs(input_str):
     inputs = []
     while input_str:
         idx = 0
-        separator_found = False
         for c in input_str:
             if c == '[':
                 brakets_count += 1
@@ -506,10 +505,9 @@ def split_inputs(input_str):
                     idx += 1
                     continue
                 else:
-                    separator_found = True
                     break
             idx += 1
-        if not separator_found:
+        if idx >= len(input_str) - 1:
             inputs.append(input_str)
             break
         inputs.append(input_str[:idx])

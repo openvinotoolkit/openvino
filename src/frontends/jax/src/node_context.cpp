@@ -19,7 +19,9 @@
 #include "translate_session.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::jax {
+namespace ov {
+namespace frontend {
+namespace jax {
 
 using namespace ov::op;
 
@@ -239,4 +241,6 @@ Any NodeContext::get_values_from_const_input(int index) const {
     return 0;
 }
 
-}  // namespace ov::frontend::jax
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

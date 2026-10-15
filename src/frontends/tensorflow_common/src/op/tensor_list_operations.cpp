@@ -28,7 +28,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 namespace {
 Output<Node> create_initial_tensor_list(const NodeContext& node,
@@ -245,4 +248,7 @@ OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
     return {std::move(out)};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

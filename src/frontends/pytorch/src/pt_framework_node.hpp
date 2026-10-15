@@ -7,7 +7,9 @@
 
 #pragma once
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 class PtFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("PtFrameworkNode", "util", ::ov::op::util::FrameworkNode);
@@ -86,4 +88,6 @@ private:
     std::shared_ptr<TorchDecoder> m_decoder;
 };
 
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

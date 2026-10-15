@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs flatten_contiguous_range(const NodeContext& node) {
     auto x_node = node.get_input("X");
     auto shape_of_x = std::make_shared<opset6::ShapeOf>(x_node);
@@ -37,4 +40,7 @@ NamedOutputs flatten_contiguous_range(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<opset6::Reshape>(x_node, new_shape_node, false)},
                                               {"Out"});
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

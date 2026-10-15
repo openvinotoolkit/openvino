@@ -8,7 +8,10 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 OutputVector depthwise_conv2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = node.get_decoder();
@@ -34,4 +37,7 @@ OutputVector depthwise_conv2d(const ov::frontend::tensorflow_lite::NodeContext& 
     return output;
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

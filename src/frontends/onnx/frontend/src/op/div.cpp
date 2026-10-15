@@ -6,7 +6,10 @@
 #include "openvino/op/divide.hpp"
 #include "utils/common.hpp"
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector div(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Divide>(node);
@@ -22,4 +25,7 @@ ov::OutputVector div(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Div", OPSET_SINCE(7), ai_onnx::opset_7::div);
 }  // namespace opset_7
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

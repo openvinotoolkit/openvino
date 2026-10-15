@@ -10,7 +10,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_log_1p_op(const NodeContext& node) {
     // compute element-wise natural logarithm of (1 + x),
@@ -23,4 +26,7 @@ OutputVector translate_log_1p_op(const NodeContext& node) {
     set_node_name(node.get_name(), log1p);
     return {log1p};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 
-if sys.version_info[:2] < (3, 10):
+if sys.version_info[:2] < (3, 9):
     raise Exception("Python version must be >= 3.9")
 
 

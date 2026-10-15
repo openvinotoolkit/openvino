@@ -11,7 +11,9 @@
 #include "openvino/util/file_util.hpp"
 #include "variables_index.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 std::filesystem::path get_variables_index_name(const std::filesystem::path& name);
 
@@ -141,4 +143,6 @@ private:
     }
 };  // GraphIteratorMeta
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

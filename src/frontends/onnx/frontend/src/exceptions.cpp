@@ -6,7 +6,9 @@
 
 #include <sstream>
 
-namespace ov::frontend::onnx_error {
+namespace ov {
+namespace frontend {
+namespace onnx_error {
 namespace detail {
 std::string get_error_msg_prefix(const ov::frontend::onnx::Node& node) {
     std::stringstream ss;
@@ -23,4 +25,6 @@ void OnnxNodeValidationFailure::create(const char* file,
     throw OnnxNodeValidationFailure(
         make_what(file, line, check_string, detail::get_error_msg_prefix(node), explanation));
 }
-}  // namespace ov::frontend::onnx_error
+}  // namespace onnx_error
+}  // namespace frontend
+}  // namespace ov

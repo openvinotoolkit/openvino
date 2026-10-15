@@ -157,7 +157,9 @@ public:
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<lstm_seq>();
         ob << static_cast<int>(prim->direction);
-        ob << get_cache_blob();
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
 #endif
     }
 
@@ -224,7 +226,7 @@ public:
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
-        _prim = make_primitive_from_blob(prim_cache);
+        _prim = dnnl::primitive(_pd, prim_cache);
 #endif
     }
 

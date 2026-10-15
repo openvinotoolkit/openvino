@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs scale(const NodeContext& node) {
     auto data = node.get_input("X");
     auto dtype = data.get_element_type();
@@ -40,4 +43,7 @@ NamedOutputs scale(const NodeContext& node) {
     return node.default_single_output_mapping({result_node}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

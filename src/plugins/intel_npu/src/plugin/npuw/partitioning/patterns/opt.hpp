@@ -7,7 +7,6 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <set>
 #include <string>
 
 #include "openvino/openvino.hpp"
@@ -30,22 +29,12 @@ struct Context {
     using NPtr = std::shared_ptr<ov::Node>;
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
 
-    // Parameters [0, param_base_idx) of model are function inputs, not closures.
-    // Passes must not change them.
-    const std::shared_ptr<const ov::Model> model;
-    const std::size_t param_base_idx;
-    Context(std::shared_ptr<const ov::Model> model, std::size_t param_base_idx);
-    bool is_closure(const PPtr& param) const;
-
     using Axes = std::vector<std::size_t>;
     std::map<PPtr, Axes> closures_to_permute;
     void permute(const PPtr& orig_param, const Axes& order);
 
     std::set<PPtr> closures_to_f16;
     void to_f16(const PPtr& orig_param);
-
-    std::map<PPtr, PPtr> closures_to_subtract_128;
-    PPtr subtract_128(const PPtr& orig_param);
 
     using O = ov::Output<ov::Node>;
     struct DQParMM {
@@ -209,12 +198,6 @@ public:
 
 // Tail vocab unpacks
 
-class ConvertDQVocab : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvertDQVocab");
-    explicit ConvertDQVocab(Context::Ref ctx);
-};
-
 class DQUnpackDictMatMulCWu : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulCWu");
@@ -239,6 +222,7 @@ public:
     CompressDictMatMulf32(Context::Ref ctx);
 };
 
+// Tail vocab transformations
 class PreserveConstDictMatMulAsymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulAsymm");

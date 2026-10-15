@@ -9,7 +9,10 @@
 using namespace std;
 using namespace ov;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_partitioned_call_op(const NodeContext& node) {
     default_op_checks(node, 0, {"PartitionedCall", "StatefulPartitionedCall"});
     auto node_name = node.get_name();
@@ -69,4 +72,7 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
     return ov_outputs;
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

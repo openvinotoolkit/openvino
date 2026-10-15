@@ -132,4 +132,4 @@ If you run into issues, check the `Troubleshooting <#-troubleshooting>`__, and
 Additional Resources
 ####################
 
-* `OpenVINO™ Notebooks - Github Repository Source <https://github.com/openvinotoolkit/openvino_notebooks/>`_
+* `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/>`_

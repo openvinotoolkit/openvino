@@ -8,7 +8,10 @@
 #include "exceptions.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace {
 ov::OutputVector grid_sample_impl(const ov::frontend::onnx::Node& node,
                                   const std::unordered_map<std::string, v9::GridSample::InterpolationMode>& mode_map,
@@ -60,4 +63,7 @@ ov::OutputVector grid_sample(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("GridSample", OPSET_SINCE(20), ai_onnx::opset_20::grid_sample);
 }  // namespace opset_20
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

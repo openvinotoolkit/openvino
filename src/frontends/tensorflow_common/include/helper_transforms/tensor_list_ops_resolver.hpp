@@ -3,10 +3,14 @@
 //
 
 #pragma once
+
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::tensorflow::pass {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace pass {
 
 // Replace internal operation TensorListReserve with a sub-graph producing initial container
 class TensorListReplacer : public ov::pass::MatcherPass {
@@ -45,4 +49,7 @@ public:
     TensorListInLoopOptimization();
 };
 
-}  // namespace ov::frontend::tensorflow::pass
+}  // namespace pass
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

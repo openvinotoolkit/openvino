@@ -5,8 +5,7 @@ import os
 import re
 import argparse
 import platform
-# Local dev tool: pipes addresses to addr2line via fixed argv (no shell); paths from maintainer CLI args.
-import subprocess  # nosec B404
+import subprocess
 import sys
 from colorama import Fore
 

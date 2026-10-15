@@ -10,7 +10,9 @@
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 /// It returns decoders for model inputs and outputs (DecoderBaseTensor objects) and for operation nodes
@@ -57,4 +59,6 @@ public:
     virtual ~GraphIterator();
 };
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

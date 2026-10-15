@@ -7,21 +7,18 @@
 
 #include <thread>
 
-#include "node/include/helper.hpp"
 #include "openvino/runtime/infer_request.hpp"
 
 struct TsfnContext {
-    TsfnContext(Napi::Env env, const ov::InferRequest& infer_request)
-        : deferred(Napi::Promise::Deferred::New(env)),
-          _ir(infer_request) {};
+    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)), _ir(nullptr) {};
 
     std::thread native_thread;
 
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
-    ov::InferRequest _ir;
-    ParsedInputData _inputs;
+    ov::InferRequest* _ir;
+    std::vector<ov::Tensor> _inputs;
     std::map<std::string, ov::Tensor> result;
 };
 

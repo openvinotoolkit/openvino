@@ -6,11 +6,17 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_no_op(const NodeContext& node) {
     // the operation does nothing in terms of data generation
     default_op_checks(node, 0, {"NoOp", "SaveV2", "Assert", "LookupTableInsert", "LookupTableInsertV2"});
     return {};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

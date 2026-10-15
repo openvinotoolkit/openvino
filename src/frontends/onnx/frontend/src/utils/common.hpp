@@ -20,7 +20,10 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ov::frontend::onnx::common {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
 const ov::element::Type& get_ov_element_type(std::int64_t onnx_type);
 
 /// \brief Function does a default checks for a node. Raise an exception if checks are failed
@@ -201,4 +204,7 @@ int64_t normalize_axis(const std::string& description, const int64_t axis, const
 /// \return `true` if the node is a Constant with an empty data, else `false`.
 bool is_constant_empty_node(const std::shared_ptr<ov::Node>& node);
 
-}  // namespace ov::frontend::onnx::common
+}  // namespace  common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

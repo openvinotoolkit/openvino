@@ -16,7 +16,10 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::org_openvinotoolkit {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
 namespace detail {
 namespace {
 std::shared_ptr<v1::StridedSlice> make_slice(std::shared_ptr<ov::Node> node, int64_t start, int64_t end) {
@@ -112,4 +115,7 @@ static bool register_multiple_translators(void) {
 
 static bool registered = register_multiple_translators();
 }  // namespace opset_1
-}  // namespace ov::frontend::onnx::org_openvinotoolkit
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

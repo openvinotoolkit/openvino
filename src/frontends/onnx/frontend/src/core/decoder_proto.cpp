@@ -13,7 +13,9 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 const std::string empty_name = "";
 const std::string DEFAULT_DOMAIN = "";
@@ -107,12 +109,13 @@ const std::string& DecoderProto::get_op_name() const {
 
 bool DecoderProto::has_attribute(const std::string& name) const {
     for (const auto& attr : m_node->attribute()) {
-        if (attr.has_name() && attr.name() == name &&
-            attr.type() != AttributeProto_AttributeType::AttributeProto_AttributeType_UNDEFINED) {
+        if (attr.has_name() && attr.name() == name) {
             return true;
         }
     }
     return false;
 }
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

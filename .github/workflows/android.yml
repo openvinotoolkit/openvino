@@ -15,7 +15,7 @@ on:
   merge_group:
   push:
     branches:
-      - master
+      # - master
       - 'releases/**'
 
 concurrency:
@@ -51,7 +51,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
   Docker:
     needs: Smart_CI
@@ -138,9 +138,6 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
-      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
-      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
-      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -187,7 +184,6 @@ jobs:
         uses: ./openvino/.github/actions/system_info
 
       #
-      #
       # Build
       #
 
@@ -222,7 +218,7 @@ jobs:
             -B ${TBB_BUILD}
 
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
+        run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
 
       - name: Install OneTBB project
         run: cmake --install ${TBB_BUILD}
@@ -260,7 +256,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -293,7 +289,10 @@ jobs:
           # Install tests into tests dir
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
 
-          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR}
+          # Install runtime into install dir; fallback to full install if component is unavailable
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component cpu
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component template
 
           # mv (not cp) so CPU test binaries are not duplicated into both tests/ and bin/ in the artifact
           if [ -d "${INSTALL_TEST_DIR}/tests" ]; then
@@ -303,7 +302,8 @@ jobs:
             find ${INSTALL_TEST_DIR}/tests -name "libopenvino_template_plugin*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/lib/intel64/ \; 2>/dev/null || true
           fi
 
-          # NDK C++ runtime is not part of any OpenVINO install component
+          # Add TBB and libc++ shared to runtime package
+          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
 
       # Release build keeps -g (NDK default); strip unused debug symbols to shrink every download
@@ -414,9 +414,6 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          # Legacy "tools" package was removed from the SDK; ov_test image already has emulator/system-images.
-          packages: platform-tools
 
       - name: AVD cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -449,7 +446,8 @@ jobs:
             echo "Pushing unit test binary and libraries to device..."
             adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
             # Push OpenVINO libraries from runtime package
-            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so* ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/*.so* ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
             echo "Running CPU unit tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
@@ -510,9 +508,6 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          # Legacy "tools" package was removed from the SDK; ov_test image already has emulator/system-images.
-          packages: platform-tools
 
       - name: AVD cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -547,7 +542,8 @@ jobs:
             echo "Pushing functional test binary and libraries to device..."
             adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests
             # Push OpenVINO libraries from runtime package
-            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so* ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/*.so* ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
+            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
+            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
             adb shell "chmod 755 /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests"
             echo "Running CPU functional tests..."
             adb shell "cd /data/local/tmp/ov_test_func && export LD_LIBRARY_PATH=/data/local/tmp/ov_test_func/intel64/Release:$LD_LIBRARY_PATH && timeout 3600 ./intel64/Release/ov_cpu_func_tests  --gtest_filter=${{ env.GTEST_FILTER }} --gtest_output=xml:/data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; exit 1; }

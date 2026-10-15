@@ -9,7 +9,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_one_hot_op(const NodeContext& node) {
     default_op_checks(node, 4, {"OneHot", "ONE_HOT"});
@@ -23,4 +26,7 @@ OutputVector translate_one_hot_op(const NodeContext& node) {
     set_node_name(node.get_name(), one_hot);
     return {one_hot};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

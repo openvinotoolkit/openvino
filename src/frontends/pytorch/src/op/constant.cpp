@@ -4,10 +4,16 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_constant(const NodeContext& context) {
     return context.as_constant();
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

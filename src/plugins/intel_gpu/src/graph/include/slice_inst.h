@@ -80,9 +80,8 @@ inline const std::vector<size_t>& SliceKernelRefNeededInputs::GetNeededInputInde
 ///////////////////////////////////////////////////////////////////
 inline bool SliceKernelRefNeededInputs::IsInputNeededInRuntime(InputIndices type) const {
     for (auto idx : neededIndexes) {
-        if (idx == type) {
+        if (idx == type)
             return true;
-        }
     }
     return false;
 }

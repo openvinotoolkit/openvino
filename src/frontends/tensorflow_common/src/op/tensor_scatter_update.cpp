@@ -9,7 +9,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_tensor_scatter_update_op(const NodeContext& node) {
     default_op_checks(node, 3, {"TensorScatterUpdate"});
     auto tensor = node.get_input(0);
@@ -20,4 +23,7 @@ OutputVector translate_tensor_scatter_update_op(const NodeContext& node) {
     set_node_name(node.get_name(), scatter_nd);
     return {scatter_nd};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

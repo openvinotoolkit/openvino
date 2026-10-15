@@ -32,9 +32,8 @@ GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) 
 KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::GRN);
 
-    if (!Validate(params)) {
+    if (!Validate(params))
         return {};
-    }
 
     const grn_params& orgParams = static_cast<const grn_params&>(params);
 

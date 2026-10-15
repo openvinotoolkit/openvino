@@ -9,20 +9,8 @@ endif()
 set(TARGET_NAME "openvino_proxy_plugin_obj")
 
 set(PUBLIC_HEADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
-set(LIBRARY_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.cpp)
-
-set(LIBRARY_HEADERS
-    ${PUBLIC_HEADERS_DIR}/openvino/proxy/infer_request.hpp
-    ${PUBLIC_HEADERS_DIR}/openvino/proxy/plugin.hpp
-    ${PUBLIC_HEADERS_DIR}/openvino/proxy/properties.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.hpp)
+file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB LIBRARY_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

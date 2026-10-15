@@ -109,14 +109,8 @@ function(ov_add_target)
     # adding files to target
     if(ARG_SOURCES)
         # Explicit list provided — skip glob entirely
-        set(includes ${ARG_SOURCES})
-        list(FILTER includes INCLUDE REGEX "\\.(h|hpp)$")
-
+        set(includes)
         set(sources ${ARG_SOURCES})
-        list(FILTER sources EXCLUDE REGEX "\\.(h|hpp)$")
-
-        source_group("include" FILES ${includes})
-        source_group("src" FILES ${sources})
     elseif(ARG_ROOT)
         set(includeSearch)
         set(sourceSearch)

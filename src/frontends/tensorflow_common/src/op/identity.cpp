@@ -6,7 +6,10 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_identity_op(const NodeContext& node) {
     vector<string> supported_ops = {"CheckNumerics",
@@ -49,4 +52,7 @@ OutputVector translate_identity_n_op(const NodeContext& node) {
     return result;
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

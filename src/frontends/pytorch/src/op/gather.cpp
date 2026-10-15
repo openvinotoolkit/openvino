@@ -7,7 +7,10 @@
 #include "openvino/op/gather_elements.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_gather(const NodeContext& context) {
     // aten::gather(Tensor self, int dim, Tensor index, *, bool sparse_grad=False) -> Tensor
@@ -25,4 +28,7 @@ OutputVector translate_gather(const NodeContext& context) {
     return {gather_elements};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

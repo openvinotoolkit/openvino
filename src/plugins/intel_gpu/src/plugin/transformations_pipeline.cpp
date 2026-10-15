@@ -19,7 +19,6 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
-#include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
@@ -97,14 +96,11 @@
 #include "plugin/transformations/decompose_one_hot_non_const_values.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
-#include "plugin/transformations/dynamic_same_padding_fusion.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
-#include "plugin/transformations/fuse_avg_down.hpp"
 #include "plugin/transformations/fuse_gated_mlp.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
-#include "plugin/transformations/fuse_grouped_depth_to_space.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/group_query_attention_decomposition.hpp"
@@ -118,7 +114,6 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
-#include "plugin/transformations/stateless_kv_fusion.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
@@ -155,7 +150,6 @@
 #include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
-#include "transformations/fold_rms_transposes.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
@@ -175,9 +169,6 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
-#ifdef OV_GPU_MLIR_BACKEND_LINKED
-#    include "transformations/mlir/interface/convert.hpp"
-#endif  // OV_GPU_MLIR_BACKEND_LINKED
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
@@ -688,37 +679,43 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 false);
         }
 
+        const bool is_pa = [&func]() {
+            for (const auto& op : func->get_ops()) {
+                if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }();
+
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
         // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
         // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
-        // Also gated on inference precision: GatherMatmul and fused MoE kernels support only f16 activations.
-        const bool f16_activations_possible = infer_precision == ov::element::f16 || infer_precision == ov::element::dynamic;
-        if (device_info.supports_immad && config.get_use_onednn() && f16_activations_possible) {
+        if (device_info.supports_immad && config.get_use_onednn() && !config.get_moe_disable_fusion()) {
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
                                                                                     ov::element::u8};
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
+            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types);
 
-            // With f16 inference precision, f32 and bf16 activations are also supported: the MoE passes run before ConvertPrecision,
-            // which converts them to f16. With dynamic inference precision, the model activation types are kept as is.
-            std::vector<ov::element::Type> supported_activation_types{ov::element::f16};
-            if (infer_precision == ov::element::f16) {
-                supported_activation_types.insert(supported_activation_types.end(), {ov::element::f32, ov::element::bf16});
-            }
-            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types,
-                                                                                 supported_activation_types);
-            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
-                                                                                         supported_compressed_weights_types);
-            manager.register_pass<ov::intel_gpu::FuseMoERouter>(supported_activation_types);
+            // f32 listed because this pass runs before ConvertPrecision (line ~588);
+            // f32 activations are lowered to f16 before reaching the f16-only DPAS kernels.
+            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
+                std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
+                supported_compressed_weights_types);
+            manager.register_pass<ov::intel_gpu::FuseMoERouter>();
 
-            if (!config.get_moe_disable_fusion()) {
+            {
+                // PA models flatten batch into seq.
+                const bool has_batch_dim = !is_pa;
                 // MOE3GemmCompressed kernel dispatches expert GEMMs through
                 // oneDNN, which requires an in-order OCL queue.  If oneDNN is
                 // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
                 // queue stays out-of-order and the oneDNN stream creation may assert.
-                manager.register_pass<ov::pass::MoeOpFusion>();
+                manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
@@ -799,8 +796,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
-        manager.register_pass<ov::intel_gpu::FoldRMSTransposes>();
+        manager.register_pass<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         const bool fp16_activation_scaling_enabled =
             config.get_activations_scale_factor() > 0.f && infer_precision == ov::element::f16;
@@ -841,9 +837,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // whose ConstantFolding folds the mask away when indices and depth are constants.
         manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
 
-        // Fuse dynamic padding before CommonOptimizations decomposes its shape arithmetic.
-        manager.register_pass<ov::intel_gpu::DynamicSamePaddingFusion>();
-        manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
@@ -898,11 +891,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.
-                if (!check_xattn_gpu_compatibility()) {
+                if (!check_xattn_gpu_compatibility())
                     OPENVINO_THROW("[GPU] XAttention is not supported by your current GPU architecture or IGC version. "
-                                   "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
-                                   "architecture and ensure the latest IGC is installed.");
-                }
+                                "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
+                                "architecture and ensure the latest IGC is installed.");
             }
 
             // KVCache layout with default attention -
@@ -982,11 +974,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
-            // Never decompose if mlir-path is enabled
-            if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
-                return true;
-            }
-
             if (!config.get_enable_sdpa_optimization())
                 return false;
 
@@ -1709,25 +1696,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.run_passes(func);
     }
 
-    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
-        // Guarded by OV_GPU_MLIR_BACKEND_LINKED rather than ENABLE_MLIR_FOR_GPU: this file is also
-        // compiled into ov_gpu_unit_tests, which does not link the MLIR objects providing transformMLIR().
-#ifdef OV_GPU_MLIR_BACKEND_LINKED
-        auto loweringContext = std::make_shared<ov::EvaluationContext>();
-        auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
-        if (it != m_context->get_property().end()) {
-            // We assume here that there's only one device per context and that an
-            // actual device will be extracted later by the 'mlir_op'.
-            loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
-        }
-        ov::intel_gpu::mlir::transformMLIR(func, config, loweringContext);
-#else
-        OPENVINO_THROW("[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
-                        "but this binary was built without Graph Compiler support. "
-                        "Rebuild OpenVINO with -DENABLE_MLIR_FOR_GPU=ON to enable MLIR execution.");
-#endif  // OV_GPU_MLIR_BACKEND_LINKED
-    }
-
     {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
@@ -1792,7 +1760,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
         }
         manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
-        manager.register_pass<ov::intel_gpu::StatelessKVFusion>();
 
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
@@ -1812,8 +1779,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
-        manager.register_pass<ov::intel_gpu::FuseAvgDown>();
-
         manager.register_pass<ov::pass::TransposeToReshape>(); // Should be after all transformations that can produce transposes
 
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
@@ -1830,7 +1795,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // under per-token INT8 dyn-quant on `linear_attn.out_proj`. Force gs=128 for
             // the whole model if a linear-attention block is detected.
             const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
-            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2;
+            const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
+            // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
+            // This is unlikely to happen. But this WA is added just in case.
+            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
+                && group_dyn_quan_allowed;
 
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
@@ -1868,11 +1837,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
-                auto fc = ov::as_type_ptr<const ov::intel_gpu::op::FullyConnectedCompressed>(root);
-                auto weight_shape = fc->get_input_partial_shape(1);
-                const size_t k_axis = weight_shape.size() - (fc->get_transpose_b() ? 1 : 2);
-                const size_t n_axis = weight_shape.size() - (fc->get_transpose_b() ? 2 : 1);
-                const size_t innermost_size = weight_shape[k_axis].get_length();
+                auto weight_shape = root->get_input_partial_shape(1);
+                const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
                 const size_t simd = 16;
                 if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name()
@@ -1896,13 +1862,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
-                // A single output feature (N == 1) FC has a matmul too small to amortize
-                // the cost of dynamically quantizing its activation
-                const auto& n_dim = weight_shape[n_axis];
-                if (n_dim.is_static() && n_dim.get_length() == 1) {
+                const bool is_grouped = adj_group_size != UINT64_MAX;
+                // It should be either per-token or hardware should support grouped dyn_quan(through non-uniform-work-group)
+                if (is_grouped && !group_dyn_quan_allowed) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " compressed weight with N==1 (activation quantization is unprofitable;"
-                                                                    " keep weight-only quantization with f16 activation)" << std::endl;
+                                                                    " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;
                     return true;
                 }
 

@@ -17,7 +17,10 @@
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::onnx::utils {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace utils {
 
 ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
     : m_keep_dims{node.get_attribute_value<std::int64_t>("keepdims", 1)},
@@ -112,4 +115,7 @@ ov::Output<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) 
 
     return {result};
 }
-}  // namespace ov::frontend::onnx::utils
+}  // namespace utils
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -12,7 +12,11 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::com_microsoft::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace com_microsoft {
+namespace opset_1 {
 ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 3,
@@ -63,4 +67,8 @@ ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
     return {group_norm};
 }
 ONNX_OP("GroupNorm", OPSET_SINCE(1), com_microsoft::opset_1::group_norm, MICROSOFT_DOMAIN);
-}  // namespace ov::frontend::onnx::com_microsoft::opset_1
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

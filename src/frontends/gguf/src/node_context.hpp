@@ -33,16 +33,7 @@ public:
     }
 
     PartialShape get_input_shape(size_t input_index) const {
-        auto shape = m_decoder->get_input_shape(m_input_names[input_index]);
-        if (shape.rank().is_dynamic()) {
-            shape = get_input(static_cast<int>(input_index)).get_partial_shape();
-            if (shape.rank().is_static() && shape.size() < 4) {
-                std::vector<ov::Dimension> dims(4 - shape.size(), 1);
-                dims.insert(dims.end(), shape.begin(), shape.end());
-                shape = ov::PartialShape(dims);
-            }
-        }
-        return shape;
+        return m_decoder->get_input_shape(m_input_names[input_index]);
     }
 
     // Element offset of a VIEW input into a larger tensor (0 when not a view). The decoder
@@ -55,8 +46,14 @@ public:
         return m_decoder->get_output_shape();
     }
 
+    // Convenience typed reads over get_attribute, kept so both the attribute-style op bodies and
+    // the accessor-style (op_case / output_type) op bodies compile against one NodeContext.
     int get_op_case() const {
         return get_attribute<int>("op_case", 0);
+    }
+
+    ov::element::Type get_output_type() const {
+        return get_attribute<ov::element::Type>("output_type");
     }
 
     Output<Node> get_input(int idx) const override {

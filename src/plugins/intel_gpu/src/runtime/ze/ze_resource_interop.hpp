@@ -27,9 +27,8 @@ ze_device_resource ze_import_device(cl_device_id ocl_device);
 
 /// @brief Import Level Zero context resource from OpenCL context.
 /// @param ocl_context OpenCL context handle.
-/// @param is_borrowed If true, the resource will not release the OpenCL handle when destroyed.
 /// @return Level Zero context resource extracted from OpenCL context handle.
-ze_context_resource ze_import_context(cl_context ocl_context, bool is_borrowed = true);
+ze_context_resource ze_import_context(cl_context ocl_context);
 
 /// @brief Import Level Zero immediate command list resource from OpenCL command queue.
 /// @param ocl_command_queue OpenCL command queue handle.
@@ -39,15 +38,13 @@ ze_command_list_resource ze_import_command_list(cl_command_queue ocl_command_que
 /// @brief Import Level Zero USM (Unified Shared Memory) resource from OpenCL memory object.
 /// @param ocl_buffer OpenCL memory object handle.
 /// @param context Level Zero context resource.
-/// @param is_borrowed If true, the resource will not release the OpenCL handle when destroyed.
 /// @return Level Zero USM resource extracted from OpenCL memory object handle.
-ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context, bool is_borrowed = true);
+ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context);
 
 /// @brief Import Level Zero image resource from OpenCL image object.
 /// @param ocl_image OpenCL image object handle.
-/// @param is_borrowed If true, the resource will not release the OpenCL handle when destroyed.
 /// @return Level Zero image resource extracted from OpenCL image object handle.
-ze_image_resource ze_import_image(cl_mem ocl_image, bool is_borrowed = true);
+ze_image_resource ze_import_image(cl_mem ocl_image);
 
 /// @brief Exports Level Zero device to OpenCL device. Does nothing if resource already has OpenCL handle.
 /// @param device Device resource to export and attach OpenCL handle to.

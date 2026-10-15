@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs matrix_nms(const NodeContext& node) {
     using namespace opset8;
     using namespace element;
@@ -79,4 +82,7 @@ NamedOutputs matrix_nms(const NodeContext& node) {
     return named_outputs;
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

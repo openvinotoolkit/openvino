@@ -8,7 +8,10 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 OutputVector embedding_lookup(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto axis = opset10::Constant::create(element::i32, {}, {0});
@@ -19,4 +22,7 @@ OutputVector embedding_lookup(const ov::frontend::tensorflow_lite::NodeContext& 
     return res->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

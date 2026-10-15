@@ -15,7 +15,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_ones_like_op(const NodeContext& node) {
     default_op_checks(node, 1, {"OnesLike"}, true);
@@ -57,4 +60,7 @@ OutputVector translate_ones_like_op(const NodeContext& node) {
     set_node_name(node.get_name(), ones_like.get_node_shared_ptr());
     return {ones_like};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

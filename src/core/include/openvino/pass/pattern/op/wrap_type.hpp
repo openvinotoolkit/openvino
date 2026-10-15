@@ -60,7 +60,7 @@ public:
         m_strict_output_index = strict;
     }
 
-private:
+protected:
     void on_output_access(size_t output_index) override;
     void validate_output_index(size_t output_index) const override;
 

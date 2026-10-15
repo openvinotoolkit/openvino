@@ -8,7 +8,10 @@
 #include "openvino/op/relu.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -37,4 +40,7 @@ OutputVector translate_quantized_add_relu(const NodeContext& context) {
     return {quantize(context, quantized_add_relu, scale, zero_point, x)};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

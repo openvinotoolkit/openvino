@@ -15,7 +15,10 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -118,4 +121,7 @@ OutputVector translate_flatten(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v1::Reshape>(x, new_shape, true))};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

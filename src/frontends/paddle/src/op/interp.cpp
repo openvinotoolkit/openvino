@@ -6,7 +6,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset4.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 using namespace default_opset;
 
 static std::shared_ptr<ov::Node> calculate_output_shape_based_on_scales(const Output<ov::Node>& data,
@@ -175,4 +178,7 @@ NamedOutputs bicubic_interp_v2(const NodeContext& node) {
     return interpolate(node, mode, 2);
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

@@ -10,7 +10,9 @@
 #include "helper_ops/internal_operation.hpp"
 #include "openvino/core/validation_util.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class SparseSegmentSum : public ov::frontend::tensorflow::InternalOperation {
 public:
@@ -77,4 +79,6 @@ public:
         return sparse_segment_sum_node;
     }
 };
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

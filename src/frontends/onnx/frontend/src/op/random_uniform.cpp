@@ -10,7 +10,11 @@
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("shape"), "RandomUniform operator must specify a 'shape' attribute.");
@@ -31,4 +35,8 @@ ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("RandomUniform", OPSET_SINCE(1), ai_onnx::opset_1::random_uniform);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

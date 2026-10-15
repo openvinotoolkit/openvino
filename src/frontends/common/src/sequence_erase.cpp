@@ -4,7 +4,8 @@
 
 #include "openvino/frontend/sequence_erase.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 SequenceErase::SequenceErase(const Output<Node>& input_sequence) : FrameworkNode({input_sequence}, 1) {}
 
@@ -20,4 +21,5 @@ std::shared_ptr<Node> SequenceErase::clone_with_new_inputs(const OutputVector& i
     OPENVINO_THROW("SequenceErase requires 1 or 2 inputs");
 }
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

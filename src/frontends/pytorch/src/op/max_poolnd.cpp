@@ -7,11 +7,14 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
+OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool return_indices) {
     num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
 
@@ -53,7 +56,6 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
         rounding_type = context.const_input<bool>(5) ? RoundingType::CEIL_TORCH : RoundingType::FLOOR;
     }
 
-    const bool return_indices = context.get_op_type().find("_with_indices") != std::string::npos;
     ov::pass::NodeRegistry rg;
     auto res = build_static_max_pool(rg, input, dims, return_indices, kernel, strides, pads, dilations, rounding_type);
     context.mark_nodes(rg.get());
@@ -61,15 +63,28 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
 };
 
 OutputVector translate_max_pool1d(const NodeContext& context) {
-    return translate_max_pool_base(context, 1);
+    return translate_max_pool_base(context, 1, context.get_output_size() == 2);
 };
 
 OutputVector translate_max_pool2d(const NodeContext& context) {
-    return translate_max_pool_base(context, 2);
+    return translate_max_pool_base(context, 2, context.get_output_size() == 2);
 };
 
 OutputVector translate_max_pool3d(const NodeContext& context) {
-    return translate_max_pool_base(context, 3);
+    return translate_max_pool_base(context, 3, context.get_output_size() == 2);
 };
 
-}  // namespace ov::frontend::pytorch::op
+OutputVector translate_max_pool2d_fx(const NodeContext& context) {
+    auto output = translate_max_pool_base(context, 2, true);
+    return {context.mark_node(make_list_construct(output))};
+};
+
+OutputVector translate_max_pool3d_fx(const NodeContext& context) {
+    auto output = translate_max_pool_base(context, 3, true);
+    return {context.mark_node(make_list_construct(output))};
+};
+
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

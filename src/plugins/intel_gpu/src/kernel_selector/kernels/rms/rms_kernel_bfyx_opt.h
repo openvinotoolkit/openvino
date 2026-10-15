@@ -23,8 +23,7 @@ protected:
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
             FusedOpType::ELTWISE,
-            FusedOpType::REORDER,
-            FusedOpType::DYNAMIC_QUANTIZE
+            FusedOpType::REORDER
         };
     }
     bool Validate(const Params&) const override;

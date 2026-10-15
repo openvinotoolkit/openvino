@@ -4,7 +4,10 @@
 
 #include "partial_ops.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 NamedOutputs partial_sum(const NodeContext& node) {
     return partial_ops(node, "sum");
@@ -14,4 +17,7 @@ NamedOutputs partial_concat(const NodeContext& node) {
     return partial_ops(node, "concat");
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

@@ -11,7 +11,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 using namespace ov::pass;
 using namespace ov::op;
@@ -118,4 +121,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
     return changed;
 };
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

@@ -9,7 +9,10 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
@@ -38,4 +41,7 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
 
 ONNX_OP("MeanVarianceNormalization", OPSET_SINCE(9), ai_onnx::opset_9::mean_variance_normalization);
 }  // namespace opset_9
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

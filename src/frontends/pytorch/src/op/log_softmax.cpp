@@ -8,7 +8,10 @@
 #include "openvino/op/convert.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -45,4 +48,7 @@ OutputVector translate_log_softmax_fx(const NodeContext& context) {
     return translate_log_softmax_common(context, true);
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

@@ -6,7 +6,9 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov::op::internal {
+namespace ov {
+namespace op {
+namespace internal {
 class TensorArrayWrite : public Op {
 public:
     OPENVINO_OP("TensorArrayWrite", "internal");
@@ -24,4 +26,6 @@ public:
 private:
 };
 
-}  // namespace ov::op::internal
+}  // namespace internal
+}  // namespace op
+}  // namespace ov

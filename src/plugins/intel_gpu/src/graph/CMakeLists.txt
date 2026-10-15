@@ -2,15 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_graph${OV_GPU_SUFFIX}")
-if(NOT DEFINED OV_GPU_RT)
-    # Reachable only if this directory is added outside ov_gpu_build_stack(), which always sets a
-    # single runtime; COMBINED names two, so a stack built from it would belong to neither.
-    if(GPU_RT_TYPE STREQUAL "COMBINED")
-        message(FATAL_ERROR "OV_GPU_RT must be set to a single runtime before adding this directory; got COMBINED")
-    endif()
-    set(OV_GPU_RT "${GPU_RT_TYPE}")
-endif()
+set(TARGET_NAME "openvino_intel_gpu_graph")
 
 if(ENABLE_CM_FOR_GPU)
     add_compile_definitions(ENABLE_CM_FOR_GPU)
@@ -41,15 +33,15 @@ set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
 )
 
 set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
-                          openvino_intel_gpu_kernels${OV_GPU_SUFFIX} # for cl_kernel_data_serializer
-                          openvino_intel_gpu_runtime${OV_GPU_SUFFIX}
+                          openvino_intel_gpu_kernels # for cl_kernel_data_serializer
+                          openvino_intel_gpu_runtime
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
                           OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
 
-if(OV_GPU_RT STREQUAL "ZE")
+if(GPU_RT_TYPE STREQUAL "ZE")
     # Onednn needs ZE headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
 endif()
@@ -96,12 +88,12 @@ macro(ov_gpu_add_backend_target)
     target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
     target_compile_definitions(${TARGET_NAME} PRIVATE ${TARGET_DEFINITIONS})
     ov_set_threading_interface_for(${TARGET_NAME})
-    ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
+    ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
-        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt${OV_GPU_SUFFIX},INTERFACE_INCLUDE_DIRECTORIES>)
-        add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX} onednn_gpu_tgt${OV_GPU_SUFFIX})
+        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
+        add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
     endif()
 
     # The graph backend implementations are compiled in these per-backend OBJECT
@@ -115,13 +107,13 @@ set(CODEGEN_TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/test_kernels_d
 
 enable_testing()
 
-add_custom_target(run_codegen_test${OV_GPU_SUFFIX}
+add_custom_target(run_codegen_test
     COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
     DEPENDS "${CODEGEN_SCRIPT}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_test(NAME TestOCLCodePreprocessing${OV_GPU_SUFFIX}
+add_test(NAME TestOCLCodePreprocessing
          COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -129,9 +121,9 @@ foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
     if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
         continue()
     endif()
-    add_subdirectory(impls/${IMPL_TYPE} impls/${IMPL_TYPE}${OV_GPU_SUFFIX})
-    if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX})
-        list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX}>)
+    add_subdirectory(impls/${IMPL_TYPE})
+    if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj)
+        list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj>)
     endif()
 endforeach()
 
@@ -154,7 +146,7 @@ ov_add_target(
             ${EXTRA_LINK_LIBRARIES}
             openvino::reference # for loop primitive subroutines
     DEPENDENCIES
-        run_codegen_test${OV_GPU_SUFFIX}
+        run_codegen_test
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
@@ -162,7 +154,7 @@ ov_build_target_faster(${TARGET_NAME} PCH)
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

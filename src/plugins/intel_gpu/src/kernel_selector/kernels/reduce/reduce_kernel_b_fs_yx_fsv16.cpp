@@ -19,13 +19,12 @@ using NDims = std::vector<kernel_selector::Tensor::Dim>;
 
 static size_t calc_read_offset(const reduce_params& params) {
     auto read_offset = 1;
-    if (BytesPerElement(params.inputs[0].GetDType()) == 4) {
+    if (BytesPerElement(params.inputs[0].GetDType()) == 4)
         read_offset = 4;
-    } else if (BytesPerElement(params.inputs[0].GetDType()) == 2) {
+    else if (BytesPerElement(params.inputs[0].GetDType()) == 2)
         read_offset = 8;
-    } else if (BytesPerElement(params.inputs[0].GetDType()) == 1) {
+    else if (BytesPerElement(params.inputs[0].GetDType()) == 1)
         read_offset = 16;
-    }
     return read_offset;
 }
 
@@ -82,9 +81,8 @@ static bool can_opt_reduce_xy(const reduce_params& params) {
 
 static bool reducing_unaligned_f_axis(const reduce_params& params) {
     if (count(params.reduceAxes.begin(), params.reduceAxes.end(), AXIS_F) > 0) {
-        if (params.inputs[0].Feature().v % 16 != 0) {
+        if (params.inputs[0].Feature().v % 16 != 0)
             return true;
-        }
     }
 
     return false;

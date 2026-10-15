@@ -30,11 +30,7 @@ std::vector<std::vector<ov::test::InputShape>> inputShapesTransposedB {
     },
 };
 
-#if defined(OPENVINO_ARCH_RISCV64)
-static constexpr size_t expected_num_nodes = 2;
-#else
-static constexpr size_t expected_num_nodes = 1;
-#endif
+static constexpr size_t expected_num_nodes = 1; // MHA
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHATransposedB,

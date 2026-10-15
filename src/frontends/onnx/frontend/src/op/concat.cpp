@@ -8,7 +8,11 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector concat(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     std::int64_t axis = node.get_attribute_value<std::int64_t>("axis");
@@ -20,4 +24,8 @@ ov::OutputVector concat(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Concat", OPSET_SINCE(1), ai_onnx::opset_1::concat);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

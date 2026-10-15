@@ -6,9 +6,13 @@
 
 #include "openvino/frontend/tensorflow/visibility.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 // Type which is used to express empty list without any specific type
 class TENSORFLOW_FRONTEND_API EmptyList {};
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

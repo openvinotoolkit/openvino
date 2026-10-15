@@ -6,9 +6,13 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 template <typename OVOpType = void>
 using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::tensorflow::ConversionExtension, OVOpType>;
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

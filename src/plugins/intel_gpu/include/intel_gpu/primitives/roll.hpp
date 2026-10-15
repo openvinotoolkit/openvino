@@ -53,9 +53,8 @@ struct roll : primitive_base<roll> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs)) {
+        if (!compare_common_params(rhs))
             return false;
-        }
 
         auto rhs_casted = downcast<const roll>(rhs);
 

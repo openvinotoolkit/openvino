@@ -16,7 +16,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_linspace_op(const NodeContext& node) {
     // The operation is simple that generates a range [start, ..., stop]
     // with num elements staying in the same distance between each other
@@ -51,4 +54,7 @@ OutputVector translate_linspace_op(const NodeContext& node) {
     set_node_name(node.get_name(), linspace.get_node_shared_ptr());
     return {linspace};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

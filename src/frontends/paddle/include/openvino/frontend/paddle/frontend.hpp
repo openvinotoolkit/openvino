@@ -14,7 +14,9 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 
 class OpPlace;
 class TensorPlace;
@@ -97,4 +99,6 @@ protected:
     TranslatorDictionaryType m_op_translators;
 };
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

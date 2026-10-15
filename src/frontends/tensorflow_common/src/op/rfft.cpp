@@ -15,7 +15,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_rfft_op(const NodeContext& node) {
     default_op_checks(node, 2, {"RFFT", "RFFT2D", "RFFT3D"});
@@ -51,4 +54,7 @@ OutputVector translate_rfft_op(const NodeContext& node) {
     return {complex_type_mark};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

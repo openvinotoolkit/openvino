@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs unsqueeze(const NodeContext& node) {
     auto data = node.get_input("X");
     Output<Node> axesNode;
@@ -20,4 +23,7 @@ NamedOutputs unsqueeze(const NodeContext& node) {
     }
     return node.default_single_output_mapping({std::make_shared<ov::opset6::Unsqueeze>(data, axesNode)}, {"Out"});
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

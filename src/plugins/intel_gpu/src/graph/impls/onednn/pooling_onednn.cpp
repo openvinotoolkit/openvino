@@ -111,7 +111,9 @@ public:
         ob << typed_pd->get_padding_l();
         ob << typed_pd->get_padding_r();
 
-        ob << get_cache_blob();
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
 #endif
     }
 
@@ -157,7 +159,7 @@ public:
 
         _scratchpad_md = _pd.scratchpad_desc();
 
-        _prim = make_primitive_from_blob(prim_cache);
+        _prim = dnnl::primitive(_pd, prim_cache);
 #endif
     }
 

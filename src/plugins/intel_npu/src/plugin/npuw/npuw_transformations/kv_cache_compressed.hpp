@@ -34,8 +34,7 @@ struct KVCacheCompressionParams {
 // to be identifiable for later kv_cache_copy mechanics.
 
 void run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov::Model>& model,
-                                              const KVCacheCompressionParams& params,
-                                              bool v_tensors_transposed = false);
+                                              const KVCacheCompressionParams& params);
 
 /// Decomposition passes for ov::op::internal::DynamicQuantize.
 
@@ -43,21 +42,21 @@ void run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov::Model>& 
 class DecomposeDynamicQuantize : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::DecomposeDynamicQuantize");
-    explicit DecomposeDynamicQuantize(bool v_tensors_transposed = false);
+    DecomposeDynamicQuantize();
 };
 
 /// V2: ONNX DynamicQuantizeLinear style, u8 [0, 255]
 class DecomposeDynamicQuantize2 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::DecomposeDynamicQuantize2");
-    explicit DecomposeDynamicQuantize2(bool v_tensors_transposed = false);
+    DecomposeDynamicQuantize2();
 };
 
 /// V3: compiler pattern style, i8 [-128, 127]
 class DecomposeDynamicQuantize3 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::DecomposeDynamicQuantize3");
-    explicit DecomposeDynamicQuantize3(bool v_tensors_transposed = false);
+    DecomposeDynamicQuantize3();
 };
 
 // NOLINTNEXTLINE(readability/namespace)

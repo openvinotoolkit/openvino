@@ -4,134 +4,38 @@
 
 #include "utils.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <memory>
-#include <numeric>
 #include <string>
 
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/convert_like.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/variadic_split.hpp"
 
-namespace ov::frontend::gguf {
-
-ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input) {
-    const auto block = context.get_attribute<int64_t>("hadamard_block", 0);
-    if (block == 0)
-        return input;
-    using namespace ov::op;
-    const auto shape = input.get_partial_shape();
-    FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape.size() > 0 && shape[shape.size() - 1].is_static(),
-                                  "Hadamard requires a static feature width");
-    const auto width = shape[shape.size() - 1].get_length();
-    FRONT_END_OP_CONVERSION_CHECK(block > 0 && block <= 4096 && (block & (block - 1)) == 0 && width % block == 0,
-                                  "Invalid Hadamard block size/width");
-    const auto pattern = [&](const std::vector<int64_t>& dims) {
-        return v0::Constant::create(ov::element::i64, {dims.size()}, dims);
-    };
-    const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
-    const auto heads = context.get_attribute<std::vector<int64_t>>("hadamard_gdn_heads", {});
-    if (!heads.empty()) {
-        FRONT_END_OP_CONVERSION_CHECK(heads.size() == 3 && heads[0] * heads[1] * heads[2] == width,
-                                      "Invalid Hadamard GDN feature order");
-        input = std::make_shared<v1::Reshape>(input, pattern({-1, heads[0], heads[1], heads[2]}), false);
-        input = std::make_shared<v1::Transpose>(input, pattern({0, 2, 1, 3}));
-        input = std::make_shared<v1::Reshape>(input, original, false);
-    }
-    const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
-    const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
-    ov::Output<ov::Node> sign_node;
-    if (signs) {
-        sign_node = std::make_shared<v0::Constant>(signs);
-        if (sign_node.get_element_type() != input.get_element_type())
-            sign_node = std::make_shared<v1::ConvertLike>(sign_node, input);
-    }
-    if (signs && !inverse)
-        input = std::make_shared<v1::Multiply>(input, sign_node);
-    const auto axis = v0::Constant::create(ov::element::i64, {}, {2});
-    for (int64_t stride = 1; stride < block; stride *= 2) {
-        auto grouped = std::make_shared<v1::Reshape>(input, pattern({-1, block / (2 * stride), 2, stride}), false);
-        auto halves = std::make_shared<v1::Split>(grouped, axis, 2);
-        auto sum = std::make_shared<v1::Add>(halves->output(0), halves->output(1));
-        auto difference = std::make_shared<v1::Subtract>(halves->output(0), halves->output(1));
-        input = std::make_shared<v0::Concat>(ov::OutputVector{sum, difference}, 2);
-    }
-    const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
-    input = std::make_shared<v1::Multiply>(input, scale);
-    input = std::make_shared<v1::Reshape>(input, original, false);
-    if (signs && inverse)
-        input = std::make_shared<v1::Multiply>(input, sign_node);
-    return input;
-}
+namespace ov {
+namespace frontend {
+namespace gguf {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto input_size = context.get_input_size();
     FRONT_END_OP_CONVERSION_CHECK(input_size >= min_inputs, "Got less inputs than expected");
     FRONT_END_OP_CONVERSION_CHECK(input_size <= max_inputs, "Got more inputs than expected");
-}
-
-std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(const NodeContext& context) {
-    num_inputs_check(context, 1, 2);
-
-    ov::Output<ov::Node> src0;
-    ov::Output<ov::Node> src1;
-    if (context.get_input_size() == 2) {
-        src0 = context.get_input(0);
-        src1 = context.get_input(1);
-    } else {
-        // GGUF splits along ne[0] (OV last axis) using floor division. Both halves have nc
-        // elements; an odd trailing element is dropped.
-        auto combined = context.get_input(0);
-        const auto combined_shape = combined.get_partial_shape();
-        const auto last_dim = combined_shape[combined_shape.rank().get_length() - 1].get_length();
-        const auto half_dim = last_dim / 2;
-
-        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-        if (last_dim % 2 == 0) {
-            // VariadicSplit is the form GLUFusion matches.
-            auto lengths = ov::op::v0::Constant::create(ov::element::i64, {2}, {half_dim, half_dim});
-            auto split = std::make_shared<ov::op::v1::VariadicSplit>(combined, axis, lengths);
-            src0 = split->output(0);
-            src1 = split->output(1);
-        } else {
-            auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-            auto start0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-            auto stop0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
-            auto start1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
-            auto stop1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * half_dim});
-
-            src0 = std::make_shared<ov::op::v8::Slice>(combined, start0, stop0, step, axis);
-            src1 = std::make_shared<ov::op::v8::Slice>(combined, start1, stop1, step, axis);
-        }
-    }
-
-    if (context.get_attribute<bool>("swapped")) {
-        std::swap(src0, src1);
-    }
-    return {src0, src1};
 }
 
 std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model,
@@ -156,21 +60,8 @@ int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
     return 0;
 }
 
-ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps) {
-    auto sum = std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v1::Multiply>(x, x),
-                                                       ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
-                                                       true);
-    auto norm = std::make_shared<ov::op::v1::Maximum>(std::make_shared<ov::op::v0::Sqrt>(sum),
-                                                      ov::op::v0::Constant::create(ov::element::f32, {1}, {eps}));
-    return std::make_shared<ov::op::v1::Divide>(x, norm);
-}
-
-void name_output(const ov::Output<ov::Node>& out, const std::string& name) {
-    out.get_node_shared_ptr()->set_friendly_name(name);
-    out.get_node_shared_ptr()->output(0).set_names({name});
-}
-
-std::shared_ptr<ov::Node> gather_dims(const ov::Output<ov::Node>& shape, const std::vector<int>& dims) {
+std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
+                                         const std::vector<int>& dims) {
     using namespace ov::op;
     const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
@@ -178,7 +69,7 @@ std::shared_ptr<ov::Node> gather_dims(const ov::Output<ov::Node>& shape, const s
 }
 
 std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims) {
-    return gather_dims(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
+    return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
 
 OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix) {
@@ -196,13 +87,14 @@ ov::Output<ov::Node> make_topk_indices(const ov::Output<ov::Node>& input,
                                        const ov::Output<ov::Node>& k,
                                        int64_t axis,
                                        ov::op::v11::TopK::Mode mode,
+                                       const ov::element::Type& index_type,
                                        bool stable) {
     auto topk = std::make_shared<ov::op::v11::TopK>(input,
                                                     k,
                                                     axis,
                                                     mode,
                                                     ov::op::v11::TopK::SortType::SORT_VALUES,
-                                                    ov::element::i32,
+                                                    index_type,
                                                     stable);
     return topk->output(1);  // indices
 }
@@ -299,22 +191,8 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
     float mscale = attn_factor;
     if (imrope) {
         std::vector<int64_t> gather_indices(n_dims_half);
-        const auto& sections = rope_config.sections;
-        FRONT_END_GENERAL_CHECK(std::all_of(sections.begin(),
-                                            sections.end(),
-                                            [](int32_t s) {
-                                                return s >= 0;
-                                            }),
-                                "M-RoPE sections must be nonnegative");
-        // Four int32 counts always fit in 64 bits.
-        const int64_t total = std::accumulate(sections.begin(), sections.end(), int64_t{0});
         for (size_t j = 0; j < n_dims_half; j++) {
-            const size_t sector = total ? j % static_cast<size_t>(total) : j;
-            gather_indices[j] = !total                                                             ? j % 3
-                                : sector % 3 == 1 && sector < 3 * static_cast<size_t>(sections[1]) ? 1
-                                : sector % 3 == 2 && sector < 3 * static_cast<size_t>(sections[2]) ? 2
-                                : sector % 3 == 0 && sector < 3 * static_cast<size_t>(sections[0]) ? 0
-                                                                                                   : 3;
+            gather_indices[j] = j % 3;
             factor[j] = static_cast<float>(std::pow(theta_scale, j));
         }
         auto gather_indices_const =
@@ -395,29 +273,6 @@ ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_in
     // Only works for VIEW operations that slice at the lowest dimension
     // If the VIEW also reshape the result, `slice_len` should be provided
     auto input = context.get_input(input_index);
-
-    // The standalone VIEW translator may already have materialized this operand as a Slice and
-    // dynamic Reshape. Reapplying the consumer-side legacy view handling would slice the resolved
-    // tensor a second time. Falcon K/V projection views expose this at zero cache length: the
-    // second slice starts beyond the resolved head-width and produces [1,0,H,S]. Treat a shape
-    // matching the ggml view itself as authoritative and pass it through unchanged.
-    const auto& expected_shape = context.get_input_shape(input_index);
-    const auto actual_shape = input.get_partial_shape();
-    if (actual_shape.rank().is_static() && expected_shape.rank().is_static() &&
-        actual_shape.rank() == expected_shape.rank()) {
-        bool view_is_materialized = true;
-        for (int64_t i = 0; i < actual_shape.rank().get_length(); ++i) {
-            if (expected_shape[i].is_static() &&
-                (actual_shape[i].is_dynamic() || actual_shape[i] != expected_shape[i])) {
-                view_is_materialized = false;
-                break;
-            }
-        }
-        if (view_is_materialized) {
-            return input;
-        }
-    }
-
     // The decoder already returns the view start offset in ELEMENTS (it divides ggml's raw byte
     // offset by the element size), so no stride division is needed here.
     int64_t split_addr = context.get_input_view_element_offset(input_index);
@@ -449,4 +304,6 @@ ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_in
     return sliced;
 }
 
-}  // namespace ov::frontend::gguf
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

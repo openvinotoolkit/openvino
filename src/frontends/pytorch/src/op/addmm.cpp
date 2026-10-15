@@ -14,7 +14,10 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -74,4 +77,7 @@ OutputVector translate_conv1d_ext(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v1::Add>(mm, bias))};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

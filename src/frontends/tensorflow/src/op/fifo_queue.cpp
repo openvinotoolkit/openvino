@@ -10,7 +10,10 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_fifo_queue_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 0, {"FIFOQueue", "FIFOQueueV2"});
@@ -27,4 +30,7 @@ OutputVector translate_fifo_queue_op(const ov::frontend::tensorflow::NodeContext
     return {fifo_queue};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

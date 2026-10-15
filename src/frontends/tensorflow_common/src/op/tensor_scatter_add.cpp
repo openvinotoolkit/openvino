@@ -8,7 +8,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_tensor_scatter_add_op(const NodeContext& node) {
     default_op_checks(node, 3, {"TensorScatterAdd"});
     auto data = node.get_input(0);
@@ -20,4 +23,7 @@ OutputVector translate_tensor_scatter_add_op(const NodeContext& node) {
 
     return {scatter_add_op};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

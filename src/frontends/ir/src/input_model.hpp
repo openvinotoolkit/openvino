@@ -17,7 +17,9 @@ namespace ov::util {
 class WeightsProvider;
 }
 
-namespace ov::frontend::ir {
+namespace ov {
+namespace frontend {
+namespace ir {
 
 class InputModel : public ov::frontend::InputModel {
     class InputModelIRImpl;
@@ -37,4 +39,6 @@ public:
     std::shared_ptr<Model> convert();
 };
 
-}  // namespace ov::frontend::ir
+}  // namespace ir
+}  // namespace frontend
+}  // namespace ov

@@ -18,7 +18,9 @@ class NodeDef;
 class AttrValue;
 }  // namespace tensorflow
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 void parse_producer_name(const std::string& producer_port_name,
                          std::string& producer_name,
@@ -63,4 +65,6 @@ private:
     // both GraphDef and FunctionDef objects must be alive in the memory
     const std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
 };
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

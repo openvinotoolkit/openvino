@@ -9,7 +9,10 @@
 #include "openvino/op/convert_like.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -23,4 +26,7 @@ OutputVector translate_selu(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v0::Selu>(x, alpha, lambda))};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

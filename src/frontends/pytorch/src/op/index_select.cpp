@@ -6,7 +6,10 @@
 #include "openvino/op/gather.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_index_select(const NodeContext& context) {
     // aten::index_select(Tensor self, int dim, Tensor index) -> Tensor
@@ -22,4 +25,7 @@ OutputVector translate_index_select(const NodeContext& context) {
     return {gather};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

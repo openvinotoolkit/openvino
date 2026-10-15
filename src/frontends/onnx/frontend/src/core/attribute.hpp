@@ -12,7 +12,9 @@
 #include "core/tensor.hpp"
 #include "openvino/core/except.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 // forward declarations
 class Graph;
 class Subgraph;
@@ -22,7 +24,8 @@ using ::ONNX_NAMESPACE::AttributeProto;
 using ::ONNX_NAMESPACE::AttributeProto_AttributeType;
 using ::ONNX_NAMESPACE::AttributeProto_AttributeType_Name;
 
-namespace detail::attribute {
+namespace detail {
+namespace attribute {
 template <typename T>
 inline T get_value(const AttributeProto& attribute) {
     OPENVINO_THROW("Unsupported attribute type");
@@ -161,7 +164,8 @@ inline std::vector<std::string> get_value(const AttributeProto& attribute) {
     }
 }
 
-}  // namespace detail::attribute
+}  // namespace attribute
+}  // namespace detail
 
 class Attribute {
 public:
@@ -341,4 +345,6 @@ private:
     detail::MappedMemoryHandles m_mmap_cache;
 };
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

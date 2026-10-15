@@ -9,7 +9,9 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 
-namespace ov::op::util {
+namespace ov {
+namespace op {
+namespace util {
 OutputVector make_split(const Output<ov::Node>& value, const std::vector<int64_t>& split_lengths, int64_t axis) {
     const auto axis_node = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {axis});
     const auto split_lengths_node =
@@ -42,4 +44,6 @@ OutputVector make_split(const Output<ov::Node>& value, int64_t num_splits, int64
 
     return split->outputs();
 }
-}  // namespace ov::op::util
+}  // namespace util
+}  // namespace op
+}  // namespace ov

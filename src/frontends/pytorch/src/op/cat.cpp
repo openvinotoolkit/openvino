@@ -19,7 +19,10 @@
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -271,4 +274,7 @@ OutputVector translate_vstack(const NodeContext& context) {
     return out;
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

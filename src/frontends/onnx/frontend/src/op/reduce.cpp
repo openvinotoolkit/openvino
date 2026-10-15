@@ -28,7 +28,10 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 
 // Link with an existing translator
 namespace opset_1 {
@@ -268,7 +271,7 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
 ov::OutputVector reduce_l1(const Node& node) {
-    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+    return {make_ov_reduction_op<v4::ReduceL1>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
 ov::OutputVector reduce_l2(const Node& node) {
     return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2)};
@@ -278,7 +281,7 @@ ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     auto input = node.get_ov_inputs().at(0);
     auto keepdims = static_cast<bool>(node.get_attribute_value<std::int64_t>("keepdims", 1));
 
-    auto reduction_axes = get_reduction_axes_from_attr(node);
+    auto reduction_axes = get_reduction_axes_from_input(node);
 
     if (reduction_axes == nullptr) {
         return {std::make_shared<ov::op::v16::Identity>(input)};
@@ -290,7 +293,7 @@ ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
-    return onnx_reduce_log_sum_exp_stable(node, true);
+    return onnx_reduce_log_sum_exp_stable(node, false);
 }
 
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
@@ -433,4 +436,7 @@ static bool register_multiple_translators(void) {
 
 static bool registered = register_multiple_translators();
 }  // namespace opset_20
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

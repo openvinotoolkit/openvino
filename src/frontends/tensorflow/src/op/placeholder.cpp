@@ -11,7 +11,10 @@ using namespace std;
 using namespace ov::op;
 using namespace ov;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_placeholder_linked_op(const NodeContext& node) {
     default_op_checks(node, 0, {"Placeholder"});
@@ -22,4 +25,7 @@ OutputVector translate_placeholder_linked_op(const NodeContext& node) {
     return res->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -83,6 +83,7 @@ public:
             testValues.normalizeVariance,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
+            testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter,
             opset_version);
     }

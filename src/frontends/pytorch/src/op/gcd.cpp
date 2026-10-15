@@ -14,7 +14,10 @@
 #include "openvino/openvino.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -59,4 +62,7 @@ OutputVector translate_gcd(const NodeContext& context) {
     return {marked_gcd_node};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

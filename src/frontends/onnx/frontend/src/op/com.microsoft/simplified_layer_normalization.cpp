@@ -18,8 +18,11 @@
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 
-namespace ov::frontend::onnx {
-namespace ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 2);
@@ -78,15 +81,20 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
    in a folder with com.microsoft operations, because it isn't defined as a part of ONNX.
 */
 ONNX_OP("SimplifiedLayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::simplified_layer_normalization);
-}  // namespace ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
 
-namespace com_microsoft::opset_1 {
+namespace com_microsoft {
+namespace opset_1 {
 OPENVINO_DEPRECATED("'SimplifiedLayerNormalization' in the 'com_microsoft' domain is deprecated. Please use the "
                     "'ai_onnx' domain instead, which is adopted by ONNX Runtime Web.")
 ONNX_OP("SimplifiedLayerNormalization",
         OPSET_SINCE(1),
         ai_onnx::opset_1::simplified_layer_normalization,
         MICROSOFT_DOMAIN);
-}  // namespace com_microsoft::opset_1
+}  // namespace opset_1
+}  // namespace com_microsoft
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

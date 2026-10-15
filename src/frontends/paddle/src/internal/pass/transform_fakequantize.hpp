@@ -3,10 +3,14 @@
 //
 
 #pragma once
+
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::paddle::pass {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace pass {
 
 class TransformFakeQuantize : public ov::pass::MatcherPass {
 public:
@@ -16,4 +20,7 @@ public:
 private:
 };
 
-}  // namespace ov::frontend::paddle::pass
+}  // namespace pass
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

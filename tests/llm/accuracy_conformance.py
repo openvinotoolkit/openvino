@@ -8,12 +8,12 @@ import shutil
 import tempfile
 
 import pytest
-import torch
 from huggingface_hub import snapshot_download
 from optimum.intel.openvino import (OVModelForCausalLM,
                                     OVWeightQuantizationConfig)
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 import whowhatbench as wwb
+from whowhatbench.wwb import genai_gen_text
 from whowhatbench.model_loaders import load_model
 from openvino_tokenizers import convert_tokenizer
 from openvino import save_model
@@ -106,8 +106,7 @@ def setup_model(model_id):
     # Download original model from a Hugging Face snapshot to get a stable, canonical on-disk layout
     # (once cached, subsequent `from_pretrained(..., local_files_only=True)` calls are fully offline)
     model_cached = snapshot_download(model_id)
-    # transformers>=5 defaults to dtype="auto" (config dtype, e.g. bf16), while GT references were calibrated in fp32
-    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True, dtype=torch.float32)
+    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
     # Cache original model for reuse in repeated test runs and potential future tests
@@ -243,12 +242,12 @@ def test_accuracy_conformance(model_id, precision, device):
         tokenizer=tokenizer,
         similarity_model_id='sentence-transformers/all-mpnet-base-v2',
         num_samples=NUMBER_OF_SAMPLES,
+        gen_answer_fn=genai_gen_text,
         use_chat_template=use_chat_template,
-        is_genai=use_genai,
     )
 
     set_seed(42)
-    _, all_metrics = evaluator.score(target_model)
+    _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())
     metric = all_metrics[METRIC_OF_INTEREST].values[0]
     evaluator.dump_predictions(os.path.join(tmp_dir, f"{get_model_path(model_id, precision)}_{actual_device}_target.csv"))
 

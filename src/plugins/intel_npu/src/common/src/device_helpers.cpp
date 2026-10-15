@@ -35,9 +35,9 @@ std::string utils::getPlatformByDeviceName(const std::string_view deviceName) {
     return std::string(platformName);
 }
 
-std::string utils::getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                          const std::string_view platform,
-                                          const std::string_view deviceId) {
+std::string utils::getCompilationPlatform(const std::string_view platform,
+                                          const std::string_view deviceId,
+                                          std::vector<std::string> availableDevicesNames) {
     // Platform parameter has a higher priority than deviceID
     if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
         return ov::intel_npu::Platform::standardize(platform);
@@ -49,11 +49,6 @@ std::string utils::getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engin
     }
 
     // Automatic detection of compilation platform
-    if (engineBackend == nullptr) {
-        return std::string();
-    }
-
-    const auto availableDevicesNames = engineBackend->getDeviceNames();
     if (availableDevicesNames.empty()) {
         return std::string();
     }
@@ -89,19 +84,14 @@ std::string utils::getFullDeviceName(const ov::SoPtr<IEngineBackend>& engineBack
 
 std::string utils::getDeviceArchitecture(const ov::SoPtr<IEngineBackend>& engineBackend,
                                          const std::string& specifiedDeviceName) {
-    // Empty name falls back to the first available device inside the backend
-    auto device = getDeviceById(engineBackend, specifiedDeviceName);
-    if (device) {
-        return device->getName();
-    }
-
-    return std::string();
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    return getPlatformByDeviceName(devName);
 }
 
 IDevice::Uuid utils::getDeviceUuid(const ov::SoPtr<IEngineBackend>& engineBackend,
                                    const std::string& specifiedDeviceName) {
     const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
-    const auto& deviceToUse = getDeviceById(engineBackend, devName);
+    const auto deviceToUse = getDeviceById(engineBackend, devName);
     if (deviceToUse) {
         return deviceToUse->getUuid();
     }

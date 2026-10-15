@@ -9,7 +9,9 @@
 
 #include "helper_ops/internal_operation.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class FIFOQueue : public InternalOperation {
 public:
@@ -57,4 +59,6 @@ private:
     std::string m_shared_name;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

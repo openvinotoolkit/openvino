@@ -75,6 +75,7 @@ public:
             epsMode,
             axes,
             params.expected.dequantizationBefore,
+            params.expected.precisionAfterOperation,
             params.expected.dequantizationAfter);
     }
 

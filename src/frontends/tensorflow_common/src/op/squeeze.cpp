@@ -16,7 +16,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_squeeze_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Squeeze", "SQUEEZE"}, true);
@@ -67,4 +70,7 @@ OutputVector translate_squeeze_op(const NodeContext& node) {
     return {squeeze};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -8,7 +8,8 @@
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 class FRONTEND_API ConversionExtensionBase : public Extension {
 public:
@@ -64,4 +65,5 @@ private:
     CreatorFunctionNamedAndIndexed m_converter_named_and_indexed;
 };
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

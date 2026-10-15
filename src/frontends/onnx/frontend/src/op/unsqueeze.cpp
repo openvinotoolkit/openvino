@@ -8,7 +8,10 @@
 #include "exceptions.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
@@ -27,4 +30,7 @@ ov::OutputVector unsqueeze(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Unsqueeze", OPSET_SINCE(13), ai_onnx::opset_13::unsqueeze);
 }  // namespace opset_13
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

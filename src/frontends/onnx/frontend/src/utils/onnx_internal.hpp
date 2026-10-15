@@ -16,7 +16,10 @@ namespace ONNX_NAMESPACE {
 class ModelProto;
 }
 
-namespace ov::frontend::onnx::detail {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace detail {
 
 using ::ONNX_NAMESPACE::ModelProto;
 
@@ -57,4 +60,7 @@ std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ModelProto>
 ///            to a complete function with actual compute operations
 void convert_decoded_model(std::shared_ptr<ov::Model> model);
 
-}  // namespace ov::frontend::onnx::detail
+}  // namespace detail
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

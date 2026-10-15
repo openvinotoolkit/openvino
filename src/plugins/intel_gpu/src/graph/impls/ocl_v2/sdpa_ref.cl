@@ -188,10 +188,11 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #endif
 #endif
 #if HAS_SCALE_INPUT
-// Scale always occupies the fixed SCALE input slot (index 4) of the SDPA primitive,
-// regardless of whether the attention-mask input is actually used at runtime
-// (a placeholder attn_mask input is still present whenever scale is provided).
+#if HAS_ATTN_MASK_INPUT
 #define SCALE_TYPE INPUT4_TYPE
+#else
+#define SCALE_TYPE INPUT3_TYPE
+#endif
 #endif
 
 KERNEL(sdpa_ref)(
@@ -335,10 +336,6 @@ KERNEL(sdpa_ref)(
         #endif
 
         const ACCUMULATOR_TYPE inv_sum = ACCUMULATOR_VAL_ONE / exp_sum;
-#if OUTPUT_TYPE_SIZE == 2 && OUTPUT_IS_FP
-        // Work around observed FP16 scratch normalization errors in unrolled code.
-        #pragma unroll 1
-#endif
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +

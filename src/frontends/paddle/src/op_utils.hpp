@@ -6,8 +6,12 @@
 
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 
 Output<Node> get_tensor_list(const OutputVector& node);
 Output<Node> get_tensor_safe(const Output<Node>& node);
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

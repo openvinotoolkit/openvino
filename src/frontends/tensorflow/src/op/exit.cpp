@@ -12,7 +12,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_exit_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Exit"});
@@ -24,4 +27,7 @@ OutputVector translate_exit_op(const NodeContext& node) {
     return exit_node->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

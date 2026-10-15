@@ -16,7 +16,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_list_diff_op(const NodeContext& node) {
     // ListDiff computes the difference between two lists of numbers
     default_op_checks(node, 2, {"ListDiff"});
@@ -54,4 +57,7 @@ OutputVector translate_list_diff_op(const NodeContext& node) {
     set_out_name({node.get_name() + ":1"}, idx);
     return {out, idx};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -7,7 +7,8 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 /// \brief ConcatFromSequence is a helper operation that represents concatenating
 /// all tensors in a sequence along a specified axis.
@@ -66,4 +67,5 @@ private:
     bool m_new_axis = false;
 };
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

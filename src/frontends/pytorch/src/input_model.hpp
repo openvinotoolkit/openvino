@@ -8,7 +8,9 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/place.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 class FrontEnd;
 class TranslateSession;
@@ -53,4 +55,6 @@ private:
     const std::string m_decoder_type_name;
 };
 
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

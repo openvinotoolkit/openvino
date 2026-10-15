@@ -23,7 +23,10 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::pooling {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace pooling {
 
 namespace {
 std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_rank) {
@@ -154,4 +157,7 @@ ov::OutputVector PoolingFactory::make_max_pool_with_indices() const {
         return {max_pool->output(0), max_pool->output(1)};
     }
 }
-}  // namespace ov::frontend::onnx::pooling
+}  // namespace pooling
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -49,9 +49,8 @@ struct segment_max : public primitive_base<segment_max> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs)) {
+        if (!compare_common_params(rhs))
             return false;
-        }
 
         auto rhs_casted = downcast<const segment_max>(rhs);
 

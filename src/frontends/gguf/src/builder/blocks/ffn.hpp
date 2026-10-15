@@ -9,11 +9,14 @@
 #include "builder/decoder_config.hpp"
 #include "builder/graph_emitter.hpp"
 
-namespace ov::frontend::gguf::blocks {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace blocks {
 
 // Feed-forward sublayers of the decoder block, mirroring llm_graph_context::build_ffn /
 // build_moe_ffn. `prefix` is the layer prefix ("blk.<il>."), `ffn_norm` the pre-FFN normed hidden,
-// Each returns the sublayer output tensor name,
+// and `T` the representative static token length. Each returns the sublayer output tensor name,
 // before the residual add.
 
 // Dense SwiGLU FFN (llama/qwen/phi3/minicpm). Supports the fused gate+up projection (phi-3, no
@@ -22,13 +25,15 @@ namespace ov::frontend::gguf::blocks {
 std::string dense_ffn(GraphEmitter& e,
                       const DecoderConfig& cfg,
                       const std::string& prefix,
-                      const std::string& ffn_norm);
+                      const std::string& ffn_norm,
+                      int64_t T);
 
 // Dense GeGLU FFN (Gemma/Gemma2). Same layout as SwiGLU but uses GELU activation.
 std::string geglu_ffn(GraphEmitter& e,
                       const DecoderConfig& cfg,
                       const std::string& prefix,
-                      const std::string& ffn_norm);
+                      const std::string& ffn_norm,
+                      int64_t T);
 
 // Mixture-of-experts FFN (OLMoE / gpt-oss / qwen3moe), mirroring llm_graph_context::build_moe_ffn.
 // Routing: logits = gate_inp·x; probs = softmax/identity; pick top-k experts; per-token expert
@@ -37,14 +42,10 @@ std::string geglu_ffn(GraphEmitter& e,
 std::string moe_ffn(GraphEmitter& e,
                     const DecoderConfig& cfg,
                     const std::string& prefix,
-                    const std::string& input,
-                    const std::string& router_input = "");
+                    const std::string& ffn_norm,
+                    int64_t T);
 
-// Gemma4 uses separately normalized dense and routed experts and a scaled router.
-std::string gemma4_moe_ffn(GraphEmitter& e,
-                           const DecoderConfig& cfg,
-                           const std::string& prefix,
-                           const std::string& input,
-                           const std::string& dense_norm);
-
-}  // namespace ov::frontend::gguf::blocks
+}  // namespace blocks
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

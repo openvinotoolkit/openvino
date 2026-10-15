@@ -4,12 +4,9 @@
 
 set(TARGET_NAME ov_lp_transformations_tests)
 
-include(sources.cmake)
-
 ov_add_test_target(
     NAME ${TARGET_NAME}
-    SOURCES
-        ${LP_TRANSFORMATIONS_TESTS_SRCS}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDENCIES
     LINK_LIBRARIES
         gtest
@@ -21,7 +18,6 @@ ov_add_test_target(
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
     LABELS
         OV UNIT LP_TRANSFORMATIONS
-    CHECK_SOURCES_LISTED
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)

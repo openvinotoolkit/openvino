@@ -11,7 +11,10 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     const auto m_reshape0 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(ov::pass::pattern::has_static_shape());
@@ -73,4 +76,7 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
         });
 }
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

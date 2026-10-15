@@ -7,7 +7,10 @@
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_get_attr(const NodeContext& context) {
     auto decoder = context.get_decoder();
@@ -37,4 +40,7 @@ OutputVector translate_get_attr(const NodeContext& context) {
     }
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

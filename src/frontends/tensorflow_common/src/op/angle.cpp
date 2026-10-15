@@ -1,6 +1,5 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
 #include "common_op_table.hpp"
 #include "common_translators.hpp"
@@ -23,7 +22,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_angle_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Angle"}, true);
@@ -36,4 +38,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     set_node_name(node.get_name(), angle.get_node_shared_ptr());
     return {angle};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

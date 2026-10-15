@@ -8,7 +8,6 @@
 // Protobuf: conversion from 'XXX' to 'YYY', possible loss of data
 #    pragma warning(disable : 4244)
 #endif
-
 #include <onnx/onnx_pb.h>
 
 #include <functional>

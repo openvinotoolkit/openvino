@@ -11,7 +11,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector identity(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> input = node.get_ov_inputs().at(0);
     if (ov::is_type<v0::Constant>(input.get_node())) {
@@ -21,4 +25,8 @@ ov::OutputVector identity(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v16::Identity>(input)};
 }
 ONNX_OP("Identity", OPSET_SINCE(1), ai_onnx::opset_1::identity);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

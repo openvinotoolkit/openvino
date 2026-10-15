@@ -15,6 +15,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/power.hpp"
@@ -25,8 +26,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
-namespace ov::frontend {
-
+using namespace ov::frontend;
 using namespace ov::op;
 using namespace std;
 
@@ -365,5 +365,3 @@ ov::Output<ov::Node> ComplexTypeMark::exp(const NodeContext& context, const ov::
 
     return context.mark_node(make_shared<v0::Exp>(data));
 }
-
-}  // namespace ov::frontend

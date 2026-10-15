@@ -6,7 +6,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs unique(const NodeContext& node) {
     auto x = node.get_input("X");
 
@@ -28,4 +31,7 @@ NamedOutputs unique(const NodeContext& node) {
                         {"Counts", {outputs[3]}}};
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

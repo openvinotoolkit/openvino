@@ -9,7 +9,9 @@
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 using DecoderRTInfo = std::unordered_map<std::string, ov::Any>;
 
@@ -144,4 +146,6 @@ public:
     virtual OutputVector convert(const ov::frontend::NodeContext* context) const = 0;
 };
 
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

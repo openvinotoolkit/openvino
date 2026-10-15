@@ -7,12 +7,12 @@ set(TARGET_NAME ov_auto_unit_tests)
 set(CI_BUILD_NUMBER "unittest")
 add_definitions(-DMULTIUNITTEST)
 
-include(sources.cmake)
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        SOURCES
-            ${OV_AUTO_UNIT_TESTS_SRC}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        ADDITIONAL_SOURCE_DIRS
+            ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
+            ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils
         INCLUDES
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto
             ${CMAKE_CURRENT_SOURCE_DIR}
@@ -22,7 +22,6 @@ ov_add_test_target(
         DEPENDENCIES
             openvino_template_extension
             mock_engine
-        CHECK_SOURCES_LISTED
         LABELS
             OV UNIT MULTI AUTO
 )

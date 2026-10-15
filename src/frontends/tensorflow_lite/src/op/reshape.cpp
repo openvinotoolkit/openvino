@@ -8,7 +8,10 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 OutputVector reshape(const ov::frontend::tensorflow_lite::NodeContext& node) {
     size_t input_size = node.get_input_size();
@@ -33,4 +36,7 @@ OutputVector reshape(const ov::frontend::tensorflow_lite::NodeContext& node) {
     return reshape->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

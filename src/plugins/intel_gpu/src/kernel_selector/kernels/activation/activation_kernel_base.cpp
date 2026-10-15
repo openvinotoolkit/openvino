@@ -3,11 +3,9 @@
 //
 
 #include "activation_kernel_base.h"
-
+#include "kernel_selector_utils.h"
 #include <string>
 #include <vector>
-
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -31,10 +29,10 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
         dispatchData.lws = {1, 16, 16};
     } else {
         dispatchData.gws = {out.X().v, out.Y().v * out.Z().v * out.W().v * out.U().v * out.V().v, out.Feature().v * out.Batch().v};
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
-            {Tensor::DataChannelName::X},
-            {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W, Tensor::DataChannelName::U, Tensor::DataChannelName::V},
-            {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
+                                                                         {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
+                                                                          Tensor::DataChannelName::U, Tensor::DataChannelName::V},
+                                                                         {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
@@ -75,9 +73,8 @@ bool ActivationKernelBase::Validate(const Params& p) const {
     const activation_params& orgParams = static_cast<const activation_params&>(p);
 
     for (const auto& fused_op : orgParams.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
+        if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
     }
 
     return true;
@@ -110,19 +107,9 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params) con
     GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel,
-                     dispatchData,
-                     params.engineInfo,
-                     kernelName,
-                     jit,
-                     entry_point,
-                     EXE_MODE_DEFAULT,
-                     false,
-                     false,
-                     1,
-                     GetFusedPrimitiveInputsCount(params),
-                     1,
-                     newParams.is_shape_agnostic);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     EXE_MODE_DEFAULT, false, false, 1,
+                     GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
 
     if (!newParams.inputActivationParams.empty()) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});

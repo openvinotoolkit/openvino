@@ -8,7 +8,11 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector reciprocal(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
 
@@ -17,4 +21,8 @@ ov::OutputVector reciprocal(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Reciprocal", OPSET_SINCE(1), ai_onnx::opset_1::reciprocal);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

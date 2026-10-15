@@ -13,7 +13,11 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::org_openvinotoolkit::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
     auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
@@ -59,4 +63,8 @@ ov::OutputVector normalize(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Normalize", OPSET_SINCE(1), org_openvinotoolkit::opset_1::normalize, OPENVINO_ONNX_DOMAIN);
-}  // namespace ov::frontend::onnx::org_openvinotoolkit::opset_1
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

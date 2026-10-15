@@ -7,7 +7,10 @@
 #include "openvino/op/multiply.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -23,4 +26,7 @@ OutputVector translate_quantized_mul(const NodeContext& context) {
     return {quantize(context, quantized_mul, scale, zero_point, x)};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

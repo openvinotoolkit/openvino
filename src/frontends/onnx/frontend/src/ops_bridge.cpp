@@ -18,7 +18,9 @@
 
 using namespace ov::frontend::onnx;
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 namespace {
 template <typename Container = std::map<int64_t, Operator>>
@@ -282,4 +284,6 @@ const std::vector<std::pair<std::string, std::string>>& get_supported_ops_via_to
 }
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

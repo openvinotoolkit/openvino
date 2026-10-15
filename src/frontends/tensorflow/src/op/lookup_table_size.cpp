@@ -16,7 +16,10 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_lookup_table_size_op(const NodeContext& node) {
     default_op_checks(node, 1, {"LookupTableSize", "LookupTableSizeV2"});
     auto table_handle = as_type_ptr<HashTable>(node.get_input_by_reference(0).get_node_shared_ptr());
@@ -41,4 +44,7 @@ OutputVector translate_lookup_table_size_op(const NodeContext& node) {
     return {table_size};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -14,7 +14,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_strided_slice_op(const NodeContext& node) {
     default_op_checks(node, 4, {"StridedSlice", "STRIDED_SLICE"}, true);
@@ -104,4 +107,7 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
     return {strided_slice};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

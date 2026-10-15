@@ -6,9 +6,13 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts();
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx();
 
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

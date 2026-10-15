@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
@@ -21,7 +20,10 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -176,7 +178,7 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
         scale = context.get_input("scale");
         scale = context.mark_node(std::make_shared<v1::ConvertLike>(scale, query));
     }
-    if (get_const_input_or_attribute(context, 7, "enable_gqa", false)) {
+    if (!context.input_is_none(7) && context.const_input<bool>(7)) {
         return decompose_gqa(context, query, key, value, scale, attn_mask, is_causal);
     }
 
@@ -223,4 +225,7 @@ OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& contex
     return {context.mark_node(make_list_construct({sdpa}))};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

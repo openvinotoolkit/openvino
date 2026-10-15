@@ -6,7 +6,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 /*
     quantize_linear:
     INT ---------------------------> FLOAT
@@ -66,4 +69,7 @@ NamedOutputs quantize_linear(const NodeContext& node) {
     return node.default_single_output_mapping({q_node}, {"Y"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

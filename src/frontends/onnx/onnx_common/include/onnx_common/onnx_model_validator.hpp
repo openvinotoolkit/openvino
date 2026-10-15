@@ -6,8 +6,14 @@
 
 #include <istream>
 
-namespace ov::frontend::onnx::common {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace common {
 
 bool is_valid_model(std::istream& model);
 
-}  // namespace ov::frontend::onnx::common
+}  // namespace common
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

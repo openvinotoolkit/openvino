@@ -26,7 +26,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::com_microsoft::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace com_microsoft {
+namespace opset_1 {
 
 template <typename ActivationType>
 ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const ActivationType& activation_fn) {
@@ -146,4 +150,8 @@ bool register_multiple_operators(void) {
 
 static bool registered = register_multiple_operators();
 
-}  // namespace ov::frontend::onnx::com_microsoft::opset_1
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

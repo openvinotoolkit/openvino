@@ -12,7 +12,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::jax::op {
+namespace ov {
+namespace frontend {
+namespace jax {
+namespace op {
 
 template <typename T>
 OutputVector translate_reduce_op(const NodeContext& context) {
@@ -27,4 +30,7 @@ OutputVector translate_reduce_op(const NodeContext& context) {
 template OutputVector translate_reduce_op<v1::ReduceMax>(const NodeContext& node);
 template OutputVector translate_reduce_op<v1::ReduceSum>(const NodeContext& node);
 
-}  // namespace ov::frontend::jax::op
+}  // namespace op
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

@@ -20,7 +20,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 vector<int64_t> compute_non_contracting_dims(const NodeContext& node,
                                              const vector<int64_t>& batch_dims,
@@ -191,4 +194,7 @@ OutputVector translate_xla_dot_op(const NodeContext& node) {
     return {matmul};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

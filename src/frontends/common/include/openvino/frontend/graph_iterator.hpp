@@ -8,7 +8,8 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 class FRONTEND_API GraphIterator : ::ov::RuntimeAttribute {
@@ -49,4 +50,5 @@ public:
     virtual std::map<std::string, std::string> get_output_names_map() const;
 };
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

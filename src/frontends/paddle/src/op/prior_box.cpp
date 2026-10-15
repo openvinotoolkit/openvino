@@ -7,7 +7,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 using namespace default_opset;
 using namespace element;
 namespace detail {
@@ -60,4 +63,7 @@ NamedOutputs prior_box(const NodeContext& node) {
     outputs["Variances"] = {node_variances_reshape};
     return outputs;
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

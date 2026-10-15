@@ -14,7 +14,8 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 /// \brief Provides callback to report telemetry information back to Python code
 class FRONTEND_API TelemetryExtension : public ov::Extension {
@@ -39,4 +40,5 @@ private:
     error_callback m_send_stack_trace;
 };
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

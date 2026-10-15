@@ -12,9 +12,15 @@
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 const std::map<std::string, CreatorFunction> get_supported_ops();
 
 const std::vector<std::string> get_supported_ops_via_tokenizers();
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

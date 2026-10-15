@@ -9,7 +9,10 @@
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -25,4 +28,7 @@ OutputVector translate_len(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v1::ReduceSum>(slice, const_0, false))};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

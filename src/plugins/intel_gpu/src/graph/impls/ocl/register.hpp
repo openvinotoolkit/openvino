@@ -64,7 +64,6 @@
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
-#include "intel_gpu/primitives/stateless_kv.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -106,7 +105,6 @@ REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
 REGISTER_OCL(kv_cache);
-REGISTER_OCL(stateless_kv);
 REGISTER_OCL(lrn);
 REGISTER_OCL(multiclass_nms);
 REGISTER_OCL(multinomial);

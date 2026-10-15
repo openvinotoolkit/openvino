@@ -120,8 +120,7 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
         }
         if (snippets::utils::any_of(config.isa(),
                                     dnnl::impl::cpu::x64::avx512_core_vnni,
-                                    dnnl::impl::cpu::x64::avx2_vnni,
-                                    dnnl::impl::cpu::x64::avx2_vnni_2)) {
+                                    dnnl::impl::cpu::x64::avx2_vnni)) {
             supported_types.insert(form_precisions({element::u8, element::i8}));
         }
         if (config.isa() == dnnl::impl::cpu::x64::avx2_vnni_2) {

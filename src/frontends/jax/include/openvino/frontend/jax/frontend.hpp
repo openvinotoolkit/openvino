@@ -10,7 +10,9 @@
 #include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/frontend/jax/visibility.hpp"
 
-namespace ov::frontend::jax {
+namespace ov {
+namespace frontend {
+namespace jax {
 
 class JAX_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
@@ -62,4 +64,6 @@ protected:
     TelemetryExtension::Ptr m_telemetry;
 };
 
-}  // namespace ov::frontend::jax
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

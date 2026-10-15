@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "npuw_transformations/propagate_slice.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -377,6 +376,13 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
             return std::nullopt;
         }
 
+        // Capture value Concat axis before shrinking — needed for patch_reshape_constants below.
+        int64_t value_concat_axis = 0;
+        if (auto vc = std::dynamic_pointer_cast<ov::op::v0::Concat>(cloned_pattern.past_value_concat_node)) {
+            const auto& out_shape = vc->get_output_partial_shape(0);
+            value_concat_axis = ov::util::try_normalize_axis(vc->get_axis(), out_shape.rank(), *vc);
+        }
+
         auto shrunk_key = shrink_concat_inputs(cloned_pattern.past_key_concat_node);
         auto shrunk_value = shrink_concat_inputs(cloned_pattern.past_value_concat_node);
         if (!shrunk_key || !shrunk_value) {
@@ -386,27 +392,15 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
         LOG_DEBUG("  Concat nodes shrunk successfully for model[" << model_idx << "]");
 
-        // Apply the same pre-reshape patching as the non-block path:
+        // Apply the same pre-reshape patching + reshape sequence as the non-block path:
         //   1. patch_broadcast_constants — fix Broadcast shape constants referencing full_context_length
-        //   2. patch_reshape_constants  — use the K/V Concat sequence dimensions
-        //   3. set_partial_shape        — apply the mask shape update
+        //   2. patch_reshape_constants  — set seq dim to -1 in value-path Reshape shape constant
+        //                                 (pattern: value_Concat → Reshape → MatMul2 ← Softmax)
+        //   3. reshape(new_shapes)      — apply mask shape update and propagate all shapes
         //   4. validate_nodes_and_infer_types
-        const auto key_concat = ov::as_type_ptr<ov::op::v0::Concat>(shrunk_key);
-        const auto value_concat = ov::as_type_ptr<ov::op::v0::Concat>(shrunk_value);
-        const auto key_sequence_dim =
-            static_cast<size_t>(ov::util::try_normalize_axis(key_concat->get_axis(),
-                                                             key_concat->get_output_partial_shape(0).rank(),
-                                                             *key_concat));
-        const auto value_sequence_dim =
-            static_cast<size_t>(ov::util::try_normalize_axis(value_concat->get_axis(),
-                                                             value_concat->get_output_partial_shape(0).rank(),
-                                                             *value_concat));
         ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
-        // Block mode has no contiguous parameter names; the patcher only uses the map values.
-        ov::npuw::function::patch_reshape_constants(cloned_model,
-                                                    {{"", key_sequence_dim}},
-                                                    {{"", value_sequence_dim}},
-                                                    full_context_length);
+        // The map key is unused by patch_reshape_constants; only the dim-index value matters.
+        ov::npuw::function::patch_reshape_constants(cloned_model, {{"", static_cast<size_t>(value_concat_axis)}});
 
         // Directly set partial shape on the Parameter node — bypasses reshape() name/pointer
         // lookup entirely. reshape(Output<Node>) can silently miss, reshape(string) uses
@@ -528,15 +522,8 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     }
 
     // Apply pre-reshape patching using helper functions
-    if (past_key_sequence_dims.empty() || past_value_sequence_dims.empty()) {
-        LOG_WARN("Missing K/V sequence dimensions for pyramid model " << model_idx);
-        return std::nullopt;
-    }
     ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
-    ov::npuw::function::patch_reshape_constants(cloned_model,
-                                                past_key_sequence_dims,
-                                                past_value_sequence_dims,
-                                                full_context_length);
+    ov::npuw::function::patch_reshape_constants(cloned_model, past_value_sequence_dims);
 
     cloned_model->reshape(new_shapes);
     cloned_model->validate_nodes_and_infer_types();
@@ -573,27 +560,22 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
 
     LOG_INFO("Found SDPA pattern: MatMul -> Add -> Softmax -> MatMul");
 
-    // Extract query_length and full_context_length
-    // Strategy 1: Check if PropagateSliceUp has marked the SDPA (MatMul2) with original query_length
-    // Strategy 2: Fall back to Softmax output shape
+    // Extract query_length and full_context_length from Softmax output shape
     auto softmax_output_shape = pattern_nodes.softmax_node->get_output_shape(0);
     size_t query_length = 0;
     size_t full_context_length = 0;
 
-    // First, get full_context_length and the default (fallback) query_length from Softmax output
     if (softmax_output_shape.size() >= 2) {
-        full_context_length = softmax_output_shape.back();                     // Last dimension (context length)
+        full_context_length = softmax_output_shape.back();                     // Last dimension
         query_length = softmax_output_shape[softmax_output_shape.size() - 2];  // Second-to-last dimension
+
+        LOG_DEBUG("Extracted from Softmax output shape:");
+        LOG_DEBUG("  Query length: " << query_length);
+        LOG_DEBUG("  Full context length: " << full_context_length);
     } else {
         LOG_WARN("Softmax output shape has insufficient dimensions: " << softmax_output_shape.size());
         return std::nullopt;
     }
-
-    // Try to get query_length from PropagateSliceUp rt_info (more reliable after slice propagation)
-    query_length = ov::npuw::resolve_original_query_length(query_length, pattern_nodes.matmul2_node);
-
-    LOG_DEBUG("Pyramid attention parameters: query_length=" << query_length
-                                                            << ", full_context_length=" << full_context_length);
 
     // Early return for invalid parameters
     if (query_length == 0 || full_context_length == 0 || full_context_length < query_length) {
@@ -798,13 +780,8 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     bool is_generate = query_length == 1;
     size_t kv_step = full_context_length - full_past_kv_length;
     size_t pyramid_step = is_generate ? 1024u : kv_step;
-    // Round up: floor division would drop the remainder tier entirely (e.g.
-    // full_context_length=1536, pyramid_step=1024 -> 1 model, i.e. no tiering at all --
-    // every call would run the full-size model). The last model_idx (num_models - 1) below
-    // always reuses the original model directly (context = full_context_length) regardless
-    // of how num_models is computed, so a non-multiple remainder is still handled correctly
-    // -- rounding up just ensures we also get the smaller intermediate tier(s).
-    size_t num_models = (full_context_length + pyramid_step - 1) / pyramid_step;
+    // FIXME: Check all the right alignments
+    size_t num_models = full_context_length / pyramid_step;
     LOG_INFO("Creating " << num_models << " pyramid attention models");
 
     // Store Attention instances for each model
@@ -929,36 +906,12 @@ void PyramidAttentionContiguous::collect_strided_input_names(const ov::Model& mo
 }
 
 void PyramidAttentionContiguous::validate_port_indices() const {
-    if (_compiled_models.empty()) {
-        OPENVINO_THROW("NPU NPUW: pyramid attention has no compiled models");
-    }
     if (_attention_infos.size() != _compiled_models.size()) {
         OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
                        _attention_infos.size(),
                        ") does not match compiled model count (",
                        _compiled_models.size(),
                        ")");
-    }
-    if (_context_lengths.size() != _compiled_models.size()) {
-        OPENVINO_THROW("NPU NPUW: pyramid attention context length count (",
-                       _context_lengths.size(),
-                       ") does not match compiled model count (",
-                       _compiled_models.size(),
-                       ")");
-    }
-    const auto main_model_idx = _compiled_models.size() - 1;
-    if (!_compiled_models[main_model_idx]) {
-        OPENVINO_THROW("NPU NPUW: main compiled model at index ",
-                       main_model_idx,
-                       " is null while validating pyramid attention metadata");
-    }
-    const auto main_inputs_size = _compiled_models[main_model_idx]->inputs().size();
-    if (global_mask_idx >= main_inputs_size) {
-        OPENVINO_THROW("NPU NPUW: pyramid attention global_mask_idx (",
-                       global_mask_idx,
-                       ") out of bounds for main compiled model with ",
-                       main_inputs_size,
-                       " inputs");
     }
     for (size_t i = 0; i < _compiled_models.size(); ++i) {
         if (!_compiled_models[i]) {
@@ -985,25 +938,11 @@ void PyramidAttentionContiguous::validate_port_indices() const {
                                inputs_size,
                                " inputs");
             }
-            const auto& rank = _compiled_models[i]->inputs()[param.idx].get_partial_shape().rank();
-            if (rank.is_static() && param.dim >= static_cast<size_t>(rank.get_length())) {
-                OPENVINO_THROW("NPU NPUW: pyramid attention param dim (",
-                               param.dim,
-                               ") out of bounds for model ",
-                               i,
-                               " input ",
-                               param.idx,
-                               " with rank ",
-                               rank.get_length());
-            }
         }
     }
 }
 
 void PyramidAttentionBlock::validate_port_indices() const {
-    if (_compiled_models.empty()) {
-        OPENVINO_THROW("NPU NPUW: pyramid attention has no compiled models");
-    }
     if (_attention_infos.size() != _compiled_models.size()) {
         OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
                        _attention_infos.size(),
@@ -1011,21 +950,13 @@ void PyramidAttentionBlock::validate_port_indices() const {
                        _compiled_models.size(),
                        ")");
     }
-    if (_context_lengths.size() != _compiled_models.size()) {
-        OPENVINO_THROW("NPU NPUW: pyramid attention context length count (",
-                       _context_lengths.size(),
-                       ") does not match compiled model count (",
-                       _compiled_models.size(),
-                       ")");
-    }
 
-    if (past_key_block_global_param_indices.empty() ||
-        past_key_block_global_param_indices.size() != past_value_block_global_param_indices.size()) {
-        OPENVINO_THROW("NPU NPUW: pyramid attention block global metadata invalid: key indices count (",
+    if (past_key_block_global_param_indices.size() != past_value_block_global_param_indices.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention block global metadata mismatch: key indices count (",
                        past_key_block_global_param_indices.size(),
-                       "), value indices count (",
+                       ") does not match value indices count (",
                        past_value_block_global_param_indices.size(),
-                       ") must be non-empty and equal");
+                       ")");
     }
 
     if (!_compiled_models.empty()) {
@@ -1037,13 +968,6 @@ void PyramidAttentionBlock::validate_port_indices() const {
         }
 
         const auto main_inputs_size = _compiled_models[main_model_idx]->inputs().size();
-        if (global_mask_idx >= main_inputs_size) {
-            OPENVINO_THROW("NPU NPUW: pyramid attention global_mask_idx (",
-                           global_mask_idx,
-                           ") out of bounds for main compiled model with ",
-                           main_inputs_size,
-                           " inputs");
-        }
         for (const auto global_idx : past_key_block_global_param_indices) {
             if (global_idx >= main_inputs_size) {
                 OPENVINO_THROW("NPU NPUW: pyramid attention key block global param idx (",
@@ -1079,39 +1003,6 @@ void PyramidAttentionBlock::validate_port_indices() const {
                            inputs_size,
                            " inputs");
         }
-        for (const auto& kv : info.param_port_map) {
-            if (kv.second >= inputs_size) {
-                OPENVINO_THROW("NPU NPUW: pyramid attention param_port_map value (",
-                               kv.second,
-                               ") out of bounds for model ",
-                               i,
-                               " with ",
-                               inputs_size,
-                               " inputs");
-            }
-        }
-        for (const auto port : info.past_key_block_port_set) {
-            if (port >= inputs_size) {
-                OPENVINO_THROW("NPU NPUW: pyramid attention key block port (",
-                               port,
-                               ") out of bounds for model ",
-                               i,
-                               " with ",
-                               inputs_size,
-                               " inputs");
-            }
-        }
-        for (const auto port : info.past_value_block_port_set) {
-            if (port >= inputs_size) {
-                OPENVINO_THROW("NPU NPUW: pyramid attention value block port (",
-                               port,
-                               ") out of bounds for model ",
-                               i,
-                               " with ",
-                               inputs_size,
-                               " inputs");
-            }
-        }
     }
 }
 
@@ -1130,7 +1021,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
 
     if (!is_block) {
         auto obj = std::make_shared<PyramidAttentionContiguous>();
-        obj->original_query_length = func_pyramid._query_length;
+        obj->query_size = func_pyramid._query_length;
         obj->full_context_size = func_pyramid._full_context_length;
         obj->_models_to_compile = func_pyramid._models;
         obj->_data_left_aligned = func_pyramid._data_left_aligned;
@@ -1146,7 +1037,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
                 info.params.push_back({static_cast<std::size_t>(model->get_parameter_index(input.param)), input.dim});
             }
             info.mask_idx_local = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
-            info.compiled_query_size = func_attn.query_len();
+            info.query_size = func_attn.query_len();
             info.context_length = func_attn.context_len();
             obj->_context_lengths.push_back(info.context_length);
             obj->_attention_infos.push_back(std::move(info));
@@ -1159,7 +1050,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
         return obj;
     } else {
         auto obj = std::make_shared<PyramidAttentionBlock>();
-        obj->original_query_length = func_pyramid._query_length;
+        obj->query_size = func_pyramid._query_length;
         obj->full_context_size = func_pyramid._full_context_length;
         obj->_models_to_compile = func_pyramid._models;
         obj->past_key_block_global_param_indices = gk;
@@ -1175,7 +1066,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
             const auto& model = func_pyramid._models[i];
             PyramidAttentionBlockInfo info;
             info.mask_idx_local = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
-            info.compiled_query_size = func_attn.query_len();
+            info.query_size = func_attn.query_len();
             info.context_length = func_attn.context_len();
             // Covers every retained parameter (mask, retained KV blocks, everything else).
             // A dropped KV block simply has no entry here; see
@@ -1220,7 +1111,7 @@ namespace pyramid_attention {
 // Pyramid Attention PositionIDs implementation
 PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_query_size(d.original_query_length),
+      m_query_size(d.query_size),
       m_pyramid_attention(&d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
@@ -1228,8 +1119,15 @@ PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention
 }
 
 Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq) {
+    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
+        const auto& shape = p.get_shape();
+        // FIXME: 2D/3D position IDs are not supported here YET
+        return p.get_node()->get_friendly_name() == "position_ids" &&
+               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
+    };
+
     const auto& inputs = rq.get_inputs();
-    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), ov::npuw::util::is_supported_position_ids_input);
+    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
     if (pos_ids_iter == inputs.end()) {
         return Selector::Ptr{};
     }
@@ -1304,8 +1202,8 @@ GlobalPositionIDs::GlobalPositionIDs(std::size_t param_idx,
                                      const compiled::PyramidAttention& d,
                                      const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_query_size(d.original_query_length),
-      m_pyramid_step(d._context_lengths.empty() ? d.original_query_length : d._context_lengths[0]),
+      m_query_size(d.query_size),
+      m_pyramid_step(d._context_lengths.empty() ? d.query_size : d._context_lengths[0]),
       m_pyramid_attention(&d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!

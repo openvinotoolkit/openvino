@@ -118,9 +118,8 @@ KernelsPriority GatherNonzeroKernelGroup::GetKernelsPriority(const Params& /*par
 }
 
 bool GatherNonzeroKernelGroup::Validate(const Params& p) const {
-    if (!KernelBaseOpenCL::Validate(p)) {
+    if (!KernelBaseOpenCL::Validate(p))
         DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
 
     return true;
 }

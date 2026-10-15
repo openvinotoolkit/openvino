@@ -7,7 +7,10 @@
 #include "openvino/op/convert_like.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -24,4 +27,7 @@ OutputVector translate_type_as(const NodeContext& context) {
     return {ComplexTypeMark::convert_like(context, input, like)};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

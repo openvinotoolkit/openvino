@@ -20,7 +20,10 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -152,4 +155,7 @@ OutputVector translate_batch_norm_legit_no_stats_fx(const NodeContext& context) 
     return {context.mark_node(make_list_construct(output))};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

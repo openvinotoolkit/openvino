@@ -12,7 +12,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::com_microsoft::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace com_microsoft {
+namespace opset_1 {
 
 ov::OutputVector fast_gelu(const ov::frontend::onnx::Node& node) {
     // Original documentation:
@@ -41,4 +45,8 @@ ov::OutputVector fast_gelu(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("FastGelu", OPSET_SINCE(1), com_microsoft::opset_1::fast_gelu, MICROSOFT_DOMAIN);
 
-}  // namespace ov::frontend::onnx::com_microsoft::opset_1
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

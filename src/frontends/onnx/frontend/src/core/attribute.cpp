@@ -7,7 +7,9 @@
 #include "core/graph.hpp"
 #include "core/model.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 Subgraph Attribute::get_subgraph(Graph* parent_graph) const {
     if (m_attribute_proto->type() != AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPH) {
         ONNX_INVALID_ATTR(m_attribute_proto->type(), "GRAPH");
@@ -68,4 +70,6 @@ ov::Any Attribute::get_any() const {
     }
 }
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

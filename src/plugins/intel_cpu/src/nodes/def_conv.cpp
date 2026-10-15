@@ -1145,11 +1145,11 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
     const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector)
     : DefConvExecutor(defConvAttr, descVector) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (ov::with_cpu_x86_avx512_core()) {
+    if (mayiuse(cpu::x64::avx512_core)) {
         def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>>(jcp);
-    } else if (ov::with_cpu_x86_avx2()) {
+    } else if (mayiuse(cpu::x64::avx2)) {
         def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx2>>(jcp);
-    } else if (ov::with_cpu_x86_sse42()) {
+    } else if (mayiuse(cpu::x64::sse41)) {
         def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::sse41>>(jcp);
     } else {
         OPENVINO_THROW("Can't create DefConvJitExecutor");

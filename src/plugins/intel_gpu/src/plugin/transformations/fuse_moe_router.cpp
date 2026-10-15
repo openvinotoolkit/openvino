@@ -37,8 +37,8 @@ namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 using namespace ov::pass;
 
-FuseMoESoftmaxRouter::FuseMoESoftmaxRouter(const std::vector<ov::element::Type>& supported_activation_types) {
-    auto routing_matmul = wrap_type<ov::op::v0::MatMul>(type_matches_any(supported_activation_types));
+FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
+    auto routing_matmul = wrap_type<ov::op::v0::MatMul>();
 
     auto softmax_m = wrap_type<ov::op::v8::Softmax>({routing_matmul}, consumers_count(1));
     auto topk_k_m = wrap_const();
@@ -89,8 +89,8 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter(const std::vector<ov::element::Type>&
     this->register_matcher(matcher, callback);
 }
 
-FuseMoESigmoidRouter::FuseMoESigmoidRouter(const std::vector<ov::element::Type>& supported_activation_types) {
-    auto routing_matmul = wrap_type<ov::op::v0::MatMul>(type_matches_any(supported_activation_types));
+FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
+    auto routing_matmul = wrap_type<ov::op::v0::MatMul>();
 
     auto sigmoid_m = wrap_type<ov::op::v0::Sigmoid>({routing_matmul});
     auto routing_bias_m = any_input();
@@ -142,9 +142,9 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter(const std::vector<ov::element::Type>&
     this->register_matcher(matcher, callback);
 }
 
-FuseMoERouter::FuseMoERouter(const std::vector<ov::element::Type>& supported_activation_types) {
-    add_matcher<FuseMoESoftmaxRouter>(supported_activation_types);
-    add_matcher<FuseMoESigmoidRouter>(supported_activation_types);
+FuseMoERouter::FuseMoERouter() {
+    add_matcher<FuseMoESoftmaxRouter>();
+    add_matcher<FuseMoESigmoidRouter>();
 }
 
 }  // namespace ov::intel_gpu

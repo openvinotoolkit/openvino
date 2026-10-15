@@ -5,9 +5,15 @@
 #include "conv2d_utils.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs conv2d(const NodeContext& node) {
     return conv2d_base<opset6::GroupConvolution, opset6::Convolution>(node);
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

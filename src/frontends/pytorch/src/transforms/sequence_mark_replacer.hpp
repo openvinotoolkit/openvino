@@ -3,10 +3,14 @@
 //
 
 #pragma once
+
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 /// @brief Replaces remaining SequenceMark nodes with Concat operations.
 /// This transformation should run after all other transformations that might
@@ -18,4 +22,7 @@ public:
     SequenceMarkReplacer();
 };
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

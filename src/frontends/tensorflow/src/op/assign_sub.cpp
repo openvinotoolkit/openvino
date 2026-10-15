@@ -12,7 +12,10 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_assign_sub_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AssignSub"});
@@ -38,4 +41,7 @@ OutputVector translate_assign_sub_op(const NodeContext& node) {
     return {new_ref};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

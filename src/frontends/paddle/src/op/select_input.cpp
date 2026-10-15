@@ -5,7 +5,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs select_input(const NodeContext& node) {
     const auto x = node.get_ng_inputs("X");
     const auto mask = node.get_input("Mask");
@@ -59,4 +62,7 @@ NamedOutputs select_input(const NodeContext& node) {
     return node.default_single_output_mapping({if_node}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

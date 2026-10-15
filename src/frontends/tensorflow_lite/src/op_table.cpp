@@ -29,7 +29,10 @@ using namespace ov::frontend::tensorflow::op;
         return get_indexed_outputs(func(context));                               \
     }
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"ABS", translate_unary<opset10::Abs>},
@@ -193,4 +196,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ZEROS_LIKE", DEQUANTIZE_INPUTS(translate_zeros_like_op)},
     };
 }
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

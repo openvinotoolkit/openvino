@@ -5,7 +5,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs where_index(const NodeContext& node) {
     const auto condition = node.get_input("Condition");
     const auto perm = default_opset::Constant::create(element::i64, Shape{2}, {1, 0});
@@ -13,4 +16,7 @@ NamedOutputs where_index(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<default_opset::Transpose>(out, perm)}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

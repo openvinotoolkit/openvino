@@ -4,8 +4,14 @@
 
 #include "reduce_ops.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs reduce_sum(const NodeContext& node_context) {
     return reduce_ops<default_opset::ReduceSum>(node_context);
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

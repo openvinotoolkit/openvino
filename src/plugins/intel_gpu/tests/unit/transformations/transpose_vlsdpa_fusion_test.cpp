@@ -11,8 +11,6 @@
 
 #include "plugin/transformations/transpose_fusion.hpp"
 
-#include "intel_gpu/op/sdpa.hpp"
-
 #include "ov_ops/vl_sdpa.hpp"
 
 #include <openvino/pass/serialize.hpp>
@@ -31,10 +29,10 @@ namespace intel_gpu {
 namespace {
 const std::string mask_name = "cu_seq_lens";
 
-std::shared_ptr<ov::Model> build_model(ov::element::Type et = ov::element::f32) {
-    auto q = std::make_shared<Parameter>(et, PartialShape{-1,8,32});  /* L,H,S */
-    auto k = std::make_shared<Parameter>(et, PartialShape{-1,8,32});
-    auto v = std::make_shared<Parameter>(et, PartialShape{-1,8,32});
+std::shared_ptr<ov::Model> build_model() {
+    auto q = std::make_shared<Parameter>(element::f32, PartialShape{-1,8,32});  /* L,H,S */
+    auto k = std::make_shared<Parameter>(element::f32, PartialShape{-1,8,32});
+    auto v = std::make_shared<Parameter>(element::f32, PartialShape{-1,8,32});
     q->set_friendly_name("q");
     k->set_friendly_name("k");
     v->set_friendly_name("v");
@@ -61,10 +59,10 @@ std::shared_ptr<ov::Model> build_model(ov::element::Type et = ov::element::f32) 
     return std::make_shared<ov::Model>(OutputVector{transpose_o}, ParameterVector{q, k, v, cuseq_mask});
 }
 
-std::shared_ptr<ov::Model> build_target_model(ov::element::Type et = ov::element::f32) {
-    auto q = std::make_shared<Parameter>(et, PartialShape{-1,8,32});  /* L,H,S */
-    auto k = std::make_shared<Parameter>(et, PartialShape{-1,8,32});
-    auto v = std::make_shared<Parameter>(et, PartialShape{-1,8,32});
+std::shared_ptr<ov::Model> build_target_model() {
+    auto q = std::make_shared<Parameter>(element::f32, PartialShape{-1,8,32});  /* L,H,S */
+    auto k = std::make_shared<Parameter>(element::f32, PartialShape{-1,8,32});
+    auto v = std::make_shared<Parameter>(element::f32, PartialShape{-1,8,32});
 
     q->set_friendly_name("q");
     k->set_friendly_name("k");
@@ -83,25 +81,14 @@ std::shared_ptr<ov::Model> build_target_model(ov::element::Type et = ov::element
 }
 };   // namespace
 
-class TransposeVLSDPAFusionPrecisionTest : public TransformationTestsF,
-                                           public ::testing::WithParamInterface<ov::element::Type> {};
-
-TEST_P(TransposeVLSDPAFusionPrecisionTest, TransposesFusedIntoVLSDPA) {
-    const auto input_type = GetParam();
+TEST_F(TransformationTestsF, TransposeVLSDPATest) {
     disable_rt_info_check();
     {
-        model = build_model(input_type);
+        model = build_model();
         manager.register_pass<TransposeFusion>();
     }
-    { model_ref = build_target_model(input_type); }
+    { model_ref = build_target_model(); }
 }
-
-INSTANTIATE_TEST_SUITE_P(TransposeVLSDPAFusionInputPrecision,
-                         TransposeVLSDPAFusionPrecisionTest,
-                         ::testing::ValuesIn(ov::intel_gpu::op::SDPA::get_supported_precisions()),
-                         [](const ::testing::TestParamInfo<ov::element::Type>& info) {
-                             return info.param.get_type_name();
-                         });
 
 }  // namespace intel_gpu
 }  // namespace test

@@ -8,7 +8,10 @@
 #include "openvino/op/floor.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -21,4 +24,7 @@ OutputVector translate_floor_divide(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v0::Floor>(div))};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

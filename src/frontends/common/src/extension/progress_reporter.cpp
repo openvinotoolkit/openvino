@@ -6,7 +6,8 @@
 
 #include "openvino/frontend/exception.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 void ProgressReporterExtension::report_progress(float progress,
                                                 unsigned int total_steps,
                                                 unsigned int completed_steps) const {
@@ -17,4 +18,5 @@ void ProgressReporterExtension::report_progress(float progress,
                             "The reported progress needs to be a value between 0.0 and 1.0");
     m_callback(progress, total_steps, completed_steps);
 }
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

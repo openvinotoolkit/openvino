@@ -3,10 +3,14 @@
 //
 
 #pragma once
+
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::pytorch::pass {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
 
 /**
  * Quantized Node Remover
@@ -20,4 +24,7 @@ public:
     QuantizedNodeRemover();
 };
 
-}  // namespace ov::frontend::pytorch::pass
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

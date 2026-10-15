@@ -7,7 +7,11 @@
 #include "core/operator_set.hpp"
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector lrn(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     const double alpha = node.get_attribute_value<double>("alpha", 1e-4);
@@ -19,4 +23,8 @@ ov::OutputVector lrn(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("LRN", OPSET_SINCE(1), ai_onnx::opset_1::lrn);
-}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

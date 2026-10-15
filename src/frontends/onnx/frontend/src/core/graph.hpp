@@ -19,7 +19,9 @@
 #include "ops_bridge.hpp"
 #include "utils/tensor_external_data.hpp"
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
     Graph(const std::filesystem::path& model_dir,
@@ -137,4 +139,6 @@ inline std::ostream& operator<<(std::ostream& outs, const Graph& graph) {
 
 static const char* const ONNX_GRAPH_RT_ATTRIBUTE = "onnx_graph";
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

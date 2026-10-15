@@ -8,7 +8,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_square_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Square", "SQUARE"});
@@ -19,4 +22,7 @@ OutputVector translate_square_op(const NodeContext& node) {
     return res->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

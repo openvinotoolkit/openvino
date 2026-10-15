@@ -7,7 +7,8 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 /// \brief SequenceAt is a helper operation that represents extracting a single element
 /// from a sequence at a given position. It is emitted by frontends when the sequence
@@ -38,4 +39,5 @@ public:
     }
 };
 
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

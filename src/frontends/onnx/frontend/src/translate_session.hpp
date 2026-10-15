@@ -10,10 +10,10 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/op/parameter.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 
 class TelemetryExtension;
-class ProgressReporterExtension;
 
 namespace onnx {
 
@@ -28,8 +28,7 @@ class TranslateSession {
 public:
     TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                      const std::shared_ptr<OperatorsBridge>& translator_map,
-                     const std::string& model_name,
-                     const std::shared_ptr<ProgressReporterExtension>& progress_reporter = nullptr);
+                     const std::string& model_name);
     TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                      TranslateSession* parent_session,
                      const std::string& model_name);
@@ -79,8 +78,7 @@ private:
     /// \brief Materialize a graph tensor as a Constant (data) or Parameter (no data), register it in
     /// m_tensor_values, append a created Parameter to m_parameters, and return the node.
     std::shared_ptr<ov::Node> create_const_or_param(const std::string& name,
-                                                    const std::shared_ptr<TensorONNXPlace>& input_tensor,
-                                                    bool is_model_input = false);
+                                                    const std::shared_ptr<TensorONNXPlace>& input_tensor);
 
     /// \brief Emit per-op "op_count" telemetry accumulated during the single-pass walk (the two-pass
     /// path emits it from load_model()). No-op when telemetry is null.
@@ -90,8 +88,6 @@ private:
     const ov::frontend::InputModel::Ptr m_input_model;
     const std::shared_ptr<OperatorsBridge> m_translator_map;
     const std::string m_model_name;
-    // Only the top-level session reports progress; subgraphs complete as part of their parent operation.
-    const std::shared_ptr<ProgressReporterExtension> m_progress_reporter;
     std::shared_ptr<ov::Model> m_ov_model;
     std::unordered_map<std::string, Output<ov::Node>> m_tensor_values;
     bool m_fail_fast;
@@ -99,4 +95,5 @@ private:
     ParameterVector m_parameters;
 };
 }  // namespace onnx
-}  // namespace ov::frontend
+}  // namespace frontend
+}  // namespace ov

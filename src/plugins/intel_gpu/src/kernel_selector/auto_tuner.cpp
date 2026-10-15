@@ -32,6 +32,7 @@
 #else
 #include <unistd.h>
 #include <climits>
+#include <link.h>
 #include <dlfcn.h>
 #endif
 
@@ -158,19 +159,16 @@ TuningCache::Entry TuningCache::LoadKernel_v1(const Params& params, uint32_t com
     auto computeUnitsStr = std::to_string(computeUnitsCount);
 
     auto v1It = impl->cache.FindMember(version1Marker);
-    if (v1It == impl->cache.MemberEnd()) {
+    if (v1It == impl->cache.MemberEnd())
         return result;
-    }
 
     auto computeUnitsIt = v1It->value.FindMember(computeUnitsStr.c_str());
-    if (computeUnitsIt == v1It->value.MemberEnd()) {
+    if (computeUnitsIt == v1It->value.MemberEnd())
         return result;
-    }
 
     auto hashIt = computeUnitsIt->value.FindMember(hashStr.c_str());
-    if (hashIt == computeUnitsIt->value.MemberEnd()) {
+    if (hashIt == computeUnitsIt->value.MemberEnd())
         return result;
-    }
 
     auto& prog = hashIt->value;
     return std::make_tuple(prog[0].GetString(), prog[1].GetInt());
@@ -184,24 +182,20 @@ TuningCache::Entry TuningCache::LoadKernel_v2(const Params& params, uint32_t com
     auto computeUnitsStr = std::to_string(computeUnitsCount);
 
     auto v2It = impl->cache.FindMember(version2Marker);
-    if (v2It == impl->cache.MemberEnd()) {
+    if (v2It == impl->cache.MemberEnd())
         return result;
-    }
 
     auto computeUnitsIt = v2It->value.FindMember(computeUnitsStr.c_str());
-    if (computeUnitsIt == v2It->value.MemberEnd()) {
+    if (computeUnitsIt == v2It->value.MemberEnd())
         return result;
-    }
 
     auto kTypeIt = computeUnitsIt->value.FindMember(kTypeStr.c_str());
-    if (kTypeIt == computeUnitsIt->value.MemberEnd()) {
+    if (kTypeIt == computeUnitsIt->value.MemberEnd())
         return result;
-    }
 
     auto paramIt = kTypeIt->value.FindMember(paramStr.c_str());
-    if (paramIt == kTypeIt->value.MemberEnd()) {
+    if (paramIt == kTypeIt->value.MemberEnd())
         return result;
-    }
 
     auto& prog = paramIt->value;
     return std::make_tuple(prog[0].GetString(), prog[1].GetInt());
@@ -211,9 +205,8 @@ std::tuple<std::string, int> AutoTuner::LoadKernelOffline(const Params& params) 
     std::lock_guard<std::mutex> lock(mutex);
     static const uint32_t defaultComputeUnits = 24;
     TuningCache* deviceCache = TuningCache::get();
-    if (!deviceCache) {
+    if (!deviceCache)
         return {};
-    }
     auto result = deviceCache->LoadKernel(params);
     if (std::get<0>(result).empty() && params.engineInfo.computeUnitsCount != defaultComputeUnits) {
         result = deviceCache->LoadKernel(params, defaultComputeUnits);
@@ -235,7 +228,7 @@ TuningCache* TuningCache::get() {
     GetModuleFileName(hm, module_path, sizeof(module_path));
     std::string bin_path(module_path);
     path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
-#elif defined(__linux__) || defined(__APPLE__)
+#elif __linux__
     const char* device_info_failed_msg = "Device lookup failed";
     Dl_info dl_info;
     dladdr((void*)(device_info_failed_msg), &dl_info);  // NOLINT

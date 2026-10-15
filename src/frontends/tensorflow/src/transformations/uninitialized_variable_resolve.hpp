@@ -3,13 +3,17 @@
 //
 
 #pragma once
+
 #include <memory>
 #include <utility>
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov::frontend::tensorflow::pass {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace pass {
 
 // This transformation tries to resolve uninitialized variables (like HashTable)
 // it borrows value of Variable that was used for some state (or node) in a graph
@@ -19,4 +23,7 @@ public:
     UninitializedVariableResolver();
 };
 
-}  // namespace ov::frontend::tensorflow::pass
+}  // namespace pass
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

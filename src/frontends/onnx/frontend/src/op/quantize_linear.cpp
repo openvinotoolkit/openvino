@@ -21,7 +21,10 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace detail {
 namespace {
 ov::Output<ov::Node> get_zero_point(const Node& onnx_node, const ov::OutputVector& inputs) {
@@ -236,7 +239,8 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 ONNX_OP("QuantizeLinear", {1, 12}, ai_onnx::opset_1::quantize_linear);
 }  // namespace opset_1
 
-namespace opset_13::detail {
+namespace opset_13 {
+namespace detail {
 const int64_t BLOCKED_QUANTIZATION_DISABLED_SIZE = 0;
 ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                                  ov::Output<ov::Node> y_scale,
@@ -322,9 +326,8 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
-}  // namespace opset_13::detail
+}  // namespace detail
 
-namespace opset_13 {
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ov_inputs()};
     common::default_op_checks(node, 2, 3);
@@ -369,4 +372,7 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("QuantizeLinear", OPSET_SINCE(21), ai_onnx::opset_21::quantize_linear);
 }  // namespace opset_21
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

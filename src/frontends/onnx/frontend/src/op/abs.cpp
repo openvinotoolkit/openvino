@@ -8,7 +8,10 @@
 #include "exceptions.hpp"
 #include "utils/common.hpp"
 
-namespace ov::frontend::onnx::ai_onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector abs(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 1);
@@ -27,4 +30,7 @@ ONNX_OP("Abs", OPSET_RANGE(6, 12), ai_onnx::opset_1::abs);
 namespace opset_13 {
 ONNX_OP("Abs", OPSET_SINCE(13), ai_onnx::opset_1::abs);
 }  // namespace opset_13
-}  // namespace ov::frontend::onnx::ai_onnx
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -21,7 +21,6 @@ Checks: >
   readability-redundant-string-cstr,
   readability-qualified-auto,
   readability-else-after-return,
-  readability-braces-around-statements,
   modernize-use-equals-default,
   modernize-use-equals-delete,
   readability-implicit-bool-conversion,
@@ -51,6 +50,4 @@ CheckOptions:
     value: true
   - key: readability-simplify-boolean-expr.SimplifyDeMorganRelaxed
     value: true
-  - key: readability-braces-around-statements.ShortStatementLines
-    value: "2"
 ---

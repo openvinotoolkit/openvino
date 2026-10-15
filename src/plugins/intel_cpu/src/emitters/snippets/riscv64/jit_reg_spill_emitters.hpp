@@ -35,8 +35,7 @@ protected:
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs,
-                        const std::vector<size_t>& pool_fp_gpr_idxs) const override;
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     std::vector<snippets::Reg> m_regs_to_spill;
     std::shared_ptr<EmitABIRegSpills> m_abi_reg_spiller;
@@ -56,8 +55,7 @@ protected:
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs,
-                        const std::vector<size_t>& pool_fp_gpr_idxs) const override;
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     std::shared_ptr<EmitABIRegSpills> m_abi_reg_spiller;
 };

@@ -11,7 +11,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 OutputVector translate_if_op(const NodeContext& node) {
     default_op_checks(node, 1, {"If", "StatelessIf"});
     auto node_name = node.get_name();
@@ -85,4 +88,7 @@ OutputVector translate_if_op(const NodeContext& node) {
     return ov_outputs;
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

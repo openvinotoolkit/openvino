@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs deformable_conv(const NodeContext& node) {
     auto input = node.get_input("Input");
     auto filter = node.get_input("Filter");
@@ -57,4 +60,7 @@ NamedOutputs deformable_conv(const NodeContext& node) {
     return node.default_single_output_mapping({output_node}, {"Output"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

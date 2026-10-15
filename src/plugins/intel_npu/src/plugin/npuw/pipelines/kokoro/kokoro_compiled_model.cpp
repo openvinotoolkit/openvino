@@ -115,6 +115,11 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
         properties_model_b["NPUW_ONLINE_AVOID"] = "P:FloorModFP32/NPU,P:CumSumSinGen/NPU,"
                                                   "P:BoxMullerNoise/NPU,P:AngleComplex/NPU";
     }
+    // FIXME: workaround to solve a problem with an MVN layer in subgraph 8
+    // switch to using avoid pattern / remove after a proper fix is introduced
+    if (!properties_model_b.count("NPUW_SUBMODEL_DEVICE")) {
+        properties_model_b["NPUW_SUBMODEL_DEVICE"] = "8:CPU";
+    }
     set_default_cpu_inference_precision(properties_model_b);
     m_model_b_compiled = std::dynamic_pointer_cast<ov::npuw::ICompiledModel>(
         ov::npuw::ICompiledModel::create(split_result.model_b, plugin, properties_model_b));
@@ -142,15 +147,9 @@ std::shared_ptr<const ov::Model> ov::npuw::KokoroCompiledModel::get_runtime_mode
 }
 
 void ov::npuw::KokoroCompiledModel::set_property(const ov::AnyMap& properties) {
+    // FIXME Not implemented
     LOG_DEBUG("Setting properties to KokoroCompiledModel");
-    // Both models are NPUW compiled models, they validate which keys are mutable
-    std::lock_guard<std::mutex> lock(m_set_property_mutex);
-    if (m_model_a_compiled) {
-        m_model_a_compiled->set_property(properties);
-    }
-    if (m_model_b_compiled) {
-        m_model_b_compiled->set_property(properties);
-    }
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::Any ov::npuw::KokoroCompiledModel::get_property(const std::string& name) const {

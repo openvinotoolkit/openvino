@@ -9,7 +9,9 @@
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class ConversionExtension : public ConversionExtensionBase {
 public:
@@ -36,4 +38,6 @@ private:
     ov::frontend::tensorflow::CreatorFunction m_converter;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

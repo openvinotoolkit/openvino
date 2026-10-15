@@ -10,7 +10,10 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 OutputVector quantize(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto convert = make_shared<opset10::Convert>(node.get_input(0), element::f32);
@@ -28,4 +31,7 @@ OutputVector dequantize(const ov::frontend::tensorflow_lite::NodeContext& node) 
     return convert->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

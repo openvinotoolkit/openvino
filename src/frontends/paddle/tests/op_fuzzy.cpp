@@ -148,7 +148,6 @@ static const std::vector<std::string> models{
     std::string("depthwise_conv2d_convolution/depthwise_conv2d_convolution.pdmodel"),
     std::string("depthwise_conv2d_transpose_convolution/depthwise_conv2d_transpose_convolution.pdmodel"),
     std::string("dropout/dropout.pdmodel"),
-    std::string("dropout_float64/dropout_float64.pdmodel"),
     std::string("dropout_upscale_in_train/dropout_upscale_in_train.pdmodel"),
     std::string("elementwise_add1/elementwise_add1.pdmodel"),
     std::string("elementwise_div1/elementwise_div1.pdmodel"),
@@ -681,7 +680,6 @@ static const std::vector<std::string> models{
     std::string("reduce_any_test_4/reduce_any_test_4.pdmodel"),
     std::string("scatter_test_1/scatter_test_1.pdmodel"),
     std::string("scatter_test_2/scatter_test_2.pdmodel"),
-    std::string("scatter_test_3/scatter_test_3.pdmodel"),
     std::string("scatter_nd_add_test_1/scatter_nd_add_test_1.pdmodel"),
     // Temporarily disable them until root caused to secure CI stable.
     // CVS-66703 to track this.

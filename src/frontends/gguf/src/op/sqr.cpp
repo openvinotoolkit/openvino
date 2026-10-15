@@ -10,7 +10,10 @@
 #include "openvino/op/sqrt.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::gguf::op {
+namespace ov {
+namespace frontend {
+namespace gguf {
+namespace op {
 
 // GGML_OP_SQR: element-wise square (x * x).
 OutputVector translate_sqr(const NodeContext& context) {
@@ -31,4 +34,7 @@ OutputVector translate_sqrt(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace ov::frontend::gguf::op
+}  // namespace op
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

@@ -3,15 +3,13 @@
 //
 
 #include "convolution_kernel_b_fs_yx_fsv16_1x1.h"
-
-#include <string>
-
 #include "kernel_selector_utils.h"
+#include <string>
 
 namespace kernel_selector {
 
 ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionKernel_b_fs_yx_fsv16_1x1() : ConvolutionKernelBase("convolution_gpu_bfyx_f16_1x1") {
-    std::vector<size_t> outputBlockWidths = {1, 2, 4, 8};
+    std::vector<size_t> outputBlockWidths = { 1, 2, 4, 8 };
     std::vector<std::string> executionModes = ConvolutionKernelBase::autoTuneOptions;
 
     for (auto w : outputBlockWidths) {
@@ -29,16 +27,15 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
         auto f = params.outputs[0].Feature().v;
 
         if (x == 1 && y == 1) {
-            return {1, EXE_MODE_DEFAULT};
+            return { 1, EXE_MODE_DEFAULT };
         }
         if (x * f <= 256) {
-            if (x < 8 || x * f <= 128) {
-                return {2, EXE_MODE_DEFAULT};
-            }
+            if (x < 8 || x * f <= 128)
+                return { 2, EXE_MODE_DEFAULT };
             return {4, EXE_MODE_DEFAULT};
         }
         if (x * f <= 1536) {
-            return {4, EXE_MODE_DEFAULT};
+            return { 4, EXE_MODE_DEFAULT };
         }
         return {8, EXE_MODE_DEFAULT};
 
@@ -47,7 +44,8 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
     return {8, EXE_MODE_DEFAULT};
 }
 
-float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) const {
+float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_params& params,
+                                                             const ConvolutionTuningData& tuning_data) const {
     auto tuneOptions = GetAutoTuneOptions(params, 0);
     auto blockWidth = tuneOptions.blockWidth;
 
@@ -74,9 +72,8 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_f
             size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
 
             while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
-                   EstimateOccupancy(params, tuning_data) < 4.0) {
+                EstimateOccupancy(params, tuning_data) < 4.0)
                 tuning_data.slm_div_factor *= 2;
-            }
         }
     }
 
@@ -111,7 +108,8 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_1x1::get_required_device_featu
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefault(const convolution_params& params, int autoTuneIndex) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefault(const convolution_params& params,
+                                                                               int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
@@ -180,14 +178,15 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
     const bool bPadding = (!input.Feature().pad.is_dynamic && input.Feature().pad.before % tuning_data.feature_block_size != 0) ||
                           (!output.Feature().pad.is_dynamic && output.Feature().pad.before % tuning_data.feature_block_size != 0);
 
-    if (bOutputSizes || bFilterSize || bStride || bPadding) {
+    if  (bOutputSizes || bFilterSize || bStride || bPadding) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
 }
 
-JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolution_params& params,
+                                                                  const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
@@ -195,16 +194,16 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf_vec = {"_VEC",
-                                          {"b", "(feature_block * 16)", "y", "x"},
-                                          "dst",
-                                          input_dt,
-                                          blockWidth,
-                                          LoadType::LT_ALIGNED_READ,
-                                          BoundaryCheck::ENABLED,
-                                          IndexType::TENSOR_COORD,
-                                          Tensor::DataChannelName::X};
-        FusedOpsConfiguration conf_scalar1 = {"_SCALAR",
+        FusedOpsConfiguration conf_vec = { "_VEC",
+                                           {"b", "(feature_block * 16)", "y", "x"},
+                                           "dst",
+                                           input_dt,
+                                           blockWidth,
+                                           LoadType::LT_ALIGNED_READ,
+                                           BoundaryCheck::ENABLED,
+                                           IndexType::TENSOR_COORD,
+                                           Tensor::DataChannelName::X };
+        FusedOpsConfiguration conf_scalar1 = { "_SCALAR",
                                               {"b", "(feature_block * 16)", "yi", "xi"},
                                               "dst[i]",
                                               input_dt,
@@ -212,8 +211,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
                                               LoadType::LT_ALIGNED_READ,
                                               BoundaryCheck::ENABLED,
                                               IndexType::TENSOR_COORD,
-                                              Tensor::DataChannelName::X};
-        FusedOpsConfiguration conf_scalar2 = {"_SCALAR_B1",
+                                              Tensor::DataChannelName::X };
+        FusedOpsConfiguration conf_scalar2 = { "_SCALAR_B1",
                                               {"b", "(feature_block * 16)", "0", "0"},
                                               "dst",
                                               input_dt,
@@ -221,8 +220,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
                                               LoadType::LT_ALIGNED_READ,
                                               BoundaryCheck::ENABLED,
                                               IndexType::TENSOR_COORD,
-                                              Tensor::DataChannelName::X};
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar1, conf_scalar2}));
+                                              Tensor::DataChannelName::X };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf_vec, conf_scalar1, conf_scalar2 }));
     }
 
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", blockWidth));
@@ -242,7 +241,10 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
                 if (t.PitchesDifferFromLogicalDims()) {
                     padded_output = true;
                 }
-                if ((t.X().v > 1) || (t.Y().v > 1) || (t.Z().v > 1) || (t.W().v > 1)) {
+                if ((t.X().v > 1) ||
+                    (t.Y().v > 1) ||
+                    (t.Z().v > 1) ||
+                    (t.W().v > 1)) {
                     non_unit_fused_op_spatial = true;
                 }
             }
@@ -305,7 +307,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     return jit;
 }
 
-KernelsData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsData(const Params& params) const {
+ KernelsData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsData(const Params& params) const {
     size_t num_kernels = params.is_shape_agnostic ? 4 : 1;
     KernelData kd = KernelData::Default<convolution_params>(params, num_kernels);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
@@ -315,7 +317,12 @@ KernelsData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsData(const Params& pa
     }
 
     auto preferredWeightsLayout = GetPreferredWeightsLayout(newParams);
-    bool succeed = UpdateWeightsParams(newParams, preferredWeightsLayout, kd.weightsReorderParams, GetSupportedKey(), newParams.groups, newParams.transposed);
+    bool succeed = UpdateWeightsParams(newParams,
+                                       preferredWeightsLayout,
+                                       kd.weightsReorderParams,
+                                       GetSupportedKey(),
+                                       newParams.groups,
+                                       newParams.transposed);
 
     bool bSupportedWeightsLayout = newParams.weights.GetLayout() == preferredWeightsLayout;
     const bool bWeightsOK = bSupportedWeightsLayout || newParams.allowStaticInputReordering;
@@ -326,15 +333,13 @@ KernelsData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsData(const Params& pa
 
     if (NeedPaddedInput()) {
         if (newParams.has_dynamic_inputs()) {
-            if (!CheckConvolutionExplicitPaddings(newParams)) {
+            if (!CheckConvolutionExplicitPaddings(newParams))
                 return {};
-            }
         } else {
             kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
-            if (kd.reorderInput && !newParams.allowInputReordering) {
+            if (kd.reorderInput && !newParams.allowInputReordering)
                 return {};
-            }
         }
     }
 
@@ -367,40 +372,34 @@ KernelsData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsData(const Params& pa
 
         auto& kernel = kd.kernels[i];
         FillCLKernelData(kernel,
-                         dispatchData,
-                         params.engineInfo,
-                         finalKernelName,
-                         jit,
-                         entryPoint,
-                         EXE_MODE_DEFAULT,
-                         true,
-                         !newParams.bias.empty(),
-                         1,
-                         0,
-                         1,
-                         newParams.is_shape_agnostic);
+                        dispatchData,
+                        params.engineInfo,
+                        finalKernelName,
+                        jit,
+                        entryPoint,
+                        EXE_MODE_DEFAULT,
+                        true,
+                        !newParams.bias.empty(),
+                        1, 0, 1,
+                        newParams.is_shape_agnostic);
 
         if (newParams.deformable_mode) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-            if (newParams.deformable_mask_enabled) {
+            if (newParams.deformable_mask_enabled)
                 kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-            }
         }
 
-        if (!newParams.weights_zero_points.empty()) {
+        if (!newParams.weights_zero_points.empty())
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
-        }
-        if (!newParams.activations_zero_points.empty()) {
+        if (!newParams.activations_zero_points.empty())
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
-        }
-        if (!newParams.compensation.empty()) {
+        if (!newParams.compensation.empty())
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
-        }
 
         uint32_t fused_deps_total = 0;
         for (auto& fused_dep : newParams.fused_ops) {
             for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-                kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total});
+                kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
                 fused_deps_total++;
             }
         }
@@ -408,7 +407,7 @@ KernelsData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsData(const Params& pa
     kd.autoTuneIndex = -1;
 
     return {kd};
-}
+ }
 
 void ConvolutionKernel_b_fs_yx_fsv16_1x1::GetUpdateDispatchDataFunc(KernelData& kd) const {
     if (kd.kernels.size() == 1) {

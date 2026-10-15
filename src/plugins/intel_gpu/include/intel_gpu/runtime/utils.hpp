@@ -137,15 +137,10 @@ template <typename derived_type, typename base_type, std::enable_if_t<std::is_ba
 inline derived_type& downcast(base_type& base) {
     try {
         return dynamic_cast<derived_type&>(base);
-    } catch (std::bad_cast&) {
-        OPENVINO_THROW("Unable to cast reference from base (",
-                        typeid(base_type).name(),
-                        ") actual dynamic type (",
-                        typeid(base).name(),
-                        ") to derived (",
-                        typeid(derived_type).name(),
-                        ") type");
+    } catch (std::bad_cast& /* ex */) {
+        throw std::runtime_error("Unable to cast reference from base to derived type");
     }
+    throw std::runtime_error("downcast failed with unhandled exception");
 }
 
 template <typename T>

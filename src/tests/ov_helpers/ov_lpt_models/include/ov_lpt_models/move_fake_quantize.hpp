@@ -28,6 +28,7 @@ public:
         const DequantizationOperations::Convert& convertAfter,
         const DequantizationOperations& dequantizationAfter,
         const std::vector<ov::Any>& concatAttributes,
+        const ov::element::Type precisionAfterOperation,
         const std::int64_t& axis,
         const bool oneInputWithSplit);
 };

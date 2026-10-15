@@ -25,12 +25,9 @@ if(ENABLE_OV_IR_FRONTEND)
     list(APPEND COMPILE_DEFINITIONS IR_FRONTEND_ENABLED)
 endif()
 
-include(sources.cmake)
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        SOURCES
-            ${OV_PROXY_PLUGIN_TESTS_SRC}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             ${DEPENDENCIES}
         LINK_LIBRARIES
@@ -39,7 +36,6 @@ ov_add_test_target(
             gtest_main
             common_test_utils
         ADD_CLANG_FORMAT
-        CHECK_SOURCES_LISTED
         LABELS
             OV UNIT PROXY
 )

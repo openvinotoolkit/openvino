@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include <cmath>
 #include <numeric>
 
@@ -23,7 +22,11 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::onnx::ai_onnx_ml::opset_1 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx_ml {
+namespace opset_1 {
 
 const ov::Output<ov::Node> check_zero_divisor(const ov::Output<ov::Node>& val) {
     const auto zero = ov::op::v0::Constant::create(val.get_element_type(), ov::Shape{}, {0.0f});
@@ -71,4 +74,8 @@ ov::OutputVector normalizer(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Normalizer", OPSET_SINCE(1), ai_onnx_ml::opset_1::normalizer, AIONNX_ML_DOMAIN);
-}  // namespace ov::frontend::onnx::ai_onnx_ml::opset_1
+}  // namespace opset_1
+}  // namespace ai_onnx_ml
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

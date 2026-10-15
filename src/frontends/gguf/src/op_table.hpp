@@ -6,22 +6,19 @@
 
 #include "node_context.hpp"
 
-namespace ov::frontend::gguf {
+namespace ov {
+namespace frontend {
+namespace gguf {
 
 namespace op {
 
 #define GGUF_OP_CONVERTER(op) OutputVector op(const NodeContext& context)
-
-GGUF_OP_CONVERTER(translate_add);
 
 // Structural / memory ops.
 GGUF_OP_CONVERTER(translate_concat);
 GGUF_OP_CONVERTER(translate_cont);
 GGUF_OP_CONVERTER(translate_cpy);
 GGUF_OP_CONVERTER(translate_get_rows);
-GGUF_OP_CONVERTER(translate_get_rel_pos);
-GGUF_OP_CONVERTER(translate_win_part);
-GGUF_OP_CONVERTER(translate_win_unpart);
 GGUF_OP_CONVERTER(translate_permute);
 GGUF_OP_CONVERTER(translate_repeat);
 GGUF_OP_CONVERTER(translate_reshape);
@@ -44,9 +41,7 @@ GGUF_OP_CONVERTER(translate_scale);
 
 // Gated linear units.
 GGUF_OP_CONVERTER(translate_glu_geglu);
-GGUF_OP_CONVERTER(translate_glu_geglu_quick);
 GGUF_OP_CONVERTER(translate_glu_swiglu);
-GGUF_OP_CONVERTER(translate_glu_swiglu_clamp);
 GGUF_OP_CONVERTER(translate_glu_swiglu_oai);
 
 // MoE (mixture-of-experts) routing ops.
@@ -84,14 +79,8 @@ GGUF_OP_CONVERTER(translate_fill);
 
 // Convolution-family / sequence ops.
 GGUF_OP_CONVERTER(translate_im2col);
-GGUF_OP_CONVERTER(translate_pool_2d);
-GGUF_OP_CONVERTER(translate_conv_2d);
-GGUF_OP_CONVERTER(translate_upscale);
 GGUF_OP_CONVERTER(translate_pad);
-GGUF_OP_CONVERTER(translate_roll);
-GGUF_OP_CONVERTER(translate_solve_tri);
 GGUF_OP_CONVERTER(translate_ssm_conv);
-GGUF_OP_CONVERTER(translate_ssm_scan);
 GGUF_OP_CONVERTER(translate_gated_delta_net);
 
 GGUF_OP_CONVERTER(translate_weight);
@@ -100,4 +89,6 @@ GGUF_OP_CONVERTER(translate_weight);
 
 std::unordered_map<std::string, CreatorFunction> get_supported_ops();
 
-}  // namespace ov::frontend::gguf
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

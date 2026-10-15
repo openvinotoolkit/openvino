@@ -8,7 +8,9 @@
 
 #include "internal_operation.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 // Internal operation for TensorArrayV3
 // An array of Tensors of given size
@@ -70,4 +72,6 @@ private:
     bool m_dynamic_size;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

@@ -9,7 +9,11 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "utils/common.hpp"
 
-namespace ov::frontend::onnx::ai_onnx::opset_11 {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace ai_onnx {
+namespace opset_11 {
 
 ov::OutputVector sequence_construct(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 1);
@@ -25,4 +29,8 @@ ov::OutputVector sequence_construct(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("SequenceConstruct", OPSET_SINCE(1), ai_onnx::opset_11::sequence_construct);
 
-}  // namespace ov::frontend::onnx::ai_onnx::opset_11
+}  // namespace opset_11
+}  // namespace ai_onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

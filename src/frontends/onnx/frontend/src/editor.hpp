@@ -19,7 +19,9 @@
 
 using ::ONNX_NAMESPACE::ModelProto;
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 /// \brief A class representing a set of utilities allowing modification of an ONNX model
 ///
 /// \note This class can be used to modify an ONNX model before it gets translated to
@@ -314,4 +316,6 @@ private:
     struct Impl;
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
 };
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <memory>
 #include <set>
-#include <tuple>
 #include <unordered_set>
 #include <vector>
 
@@ -130,18 +129,20 @@ jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* 
     if (clamp == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }
-    std::tie(minimum, maximum) = get_clamp_min_max(clamp->get_min(), clamp->get_max(), exec_prc_);
+    min = static_cast<float>(clamp->get_min());
+    max = static_cast<float>(clamp->get_max());
 
     prepare_table();
 }
 
 jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                     const double alpha,
-                                     const double beta,
+                                     const float min,
+                                     const float max,
                                      const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
-    std::tie(minimum, maximum) = get_clamp_min_max(alpha, beta, exec_prc_);
+    : jit_emitter(host, host_isa, exec_prc),
+      min(min),
+      max(max) {
     prepare_table();
 }
 
@@ -158,8 +159,8 @@ size_t jit_clamp_emitter::get_aux_gprs_count() const {
 }
 
 void jit_clamp_emitter::register_table_entries() {
-    push_arg_entry_of("min", minimum, true);
-    push_arg_entry_of("max", maximum, true);
+    push_arg_entry_of("min", dnnl::impl::float2int(min), true);
+    push_arg_entry_of("max", dnnl::impl::float2int(max), true);
 }
 
 void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -174,32 +175,22 @@ void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_clamp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_vec_idxs[0]);
     auto aux = TReg(aux_vec_idxs[0]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    switch (exec_prc_) {
-    case element::f32:
-        h->ld1r(aux.s, table_val2("min"));
-        h->fmax(dst.s, src.s, aux.s);
-        h->ld1r(aux.s, table_val2("max"));
-        h->fmin(dst.s, dst.s, aux.s);
-        break;
-    case element::i32:
-        h->ld1r(aux.s, table_val2("min"));
-        h->smax(dst.s, src.s, aux.s);
-        h->ld1r(aux.s, table_val2("max"));
-        h->smin(dst.s, dst.s, aux.s);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("unsupported precision: " + exec_prc_.to_string());
-    }
+    h->ld1r(aux.s, table_val2("min"));
+    h->fmax(dst.s, src.s, aux.s);
+    h->ld1r(aux.s, table_val2("max"));
+    h->fmin(dst.s, dst.s, aux.s);
 }
 
 std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}, {element::i32}};
+    return {{element::f32}};
 }
 
 /// DIVIDE ///

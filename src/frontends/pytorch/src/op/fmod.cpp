@@ -6,7 +6,10 @@
 #include "openvino/op/mod.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_fmod(const NodeContext& context) {
     // aten::fmod with schema aten::fmod.Tensor(Tensor self, Tensor other) -> Tensor
@@ -22,4 +25,7 @@ OutputVector translate_fmod(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

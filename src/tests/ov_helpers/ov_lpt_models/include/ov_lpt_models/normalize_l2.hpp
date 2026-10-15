@@ -41,6 +41,7 @@ public:
         const ov::op::EpsMode& epsMode,
         const std::vector<size_t>& axes,
         const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::element::Type precisionAfterOperation,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 

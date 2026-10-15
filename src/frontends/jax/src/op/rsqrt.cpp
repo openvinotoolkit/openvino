@@ -9,7 +9,10 @@
 #include "openvino/op/sqrt.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::jax::op {
+namespace ov {
+namespace frontend {
+namespace jax {
+namespace op {
 
 using namespace ov::op;
 
@@ -22,4 +25,7 @@ OutputVector translate_rsqrt(const NodeContext& context) {
     return {std::make_shared<v1::Divide>(one_const_casted, sqrt_data)};
 };
 
-}  // namespace ov::frontend::jax::op
+}  // namespace op
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

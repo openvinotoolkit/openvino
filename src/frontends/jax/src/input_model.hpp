@@ -7,7 +7,9 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/place.hpp"
 
-namespace ov::frontend::jax {
+namespace ov {
+namespace frontend {
+namespace jax {
 
 class TranslateSession;
 class Place;
@@ -38,4 +40,6 @@ private:
     std::vector<std::shared_ptr<frontend::Place>> m_outputs;
 };
 
-}  // namespace ov::frontend::jax
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

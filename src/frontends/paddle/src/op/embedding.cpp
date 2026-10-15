@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 using namespace opset8;
 using namespace element;
 
@@ -46,4 +49,7 @@ NamedOutputs embedding(const NodeContext& node) {
 
     return node.default_single_output_mapping({node_embedding}, {"Out"});
 }
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

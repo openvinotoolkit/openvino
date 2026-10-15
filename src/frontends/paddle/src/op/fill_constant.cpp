@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs fill_constant(const NodeContext& node) {
     auto shape = node.get_attribute<std::vector<int64_t>>("shape");
     auto dtype = node.get_attribute<ov::element::Type>("dtype");
@@ -66,4 +69,7 @@ NamedOutputs fill_constant(const NodeContext& node) {
                                               {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

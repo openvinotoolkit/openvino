@@ -13,7 +13,9 @@
 #include "translate_session.hpp"
 #include "unconverted_ops_report.hpp"
 
-namespace ov::frontend::jax {
+namespace ov {
+namespace frontend {
+namespace jax {
 
 namespace {
 
@@ -132,4 +134,6 @@ std::map<std::string, CreatorFunction> FrontEnd::get_supported_ops(const ov::fro
     return supported_ops;
 }
 
-}  // namespace ov::frontend::jax
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

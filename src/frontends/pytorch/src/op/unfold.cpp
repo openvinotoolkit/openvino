@@ -21,7 +21,10 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_unfold(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
@@ -99,4 +102,7 @@ OutputVector translate_unfold(const NodeContext& context) {
     return {transpose};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

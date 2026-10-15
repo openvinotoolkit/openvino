@@ -48,7 +48,9 @@ using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
 using namespace ov::frontend;
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 namespace {
 
 NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& nodes,
@@ -559,7 +561,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.run_passes(model);
 }
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov
 
 PADDLE_FRONTEND_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;

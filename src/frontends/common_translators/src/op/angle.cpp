@@ -9,7 +9,9 @@
 #include "openvino/op/select.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::common_translators {
+namespace ov {
+namespace frontend {
+namespace common_translators {
 
 using namespace ov::op;
 using namespace std;
@@ -48,4 +50,6 @@ OutputVector translate_angle(const NodeContext& context) {
     return {angle};
 }
 
-}  // namespace ov::frontend::common_translators
+}  // namespace common_translators
+}  // namespace frontend
+}  // namespace ov

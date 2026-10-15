@@ -11,7 +11,9 @@
 #include "openvino/core/except.hpp"
 #include "utils/tensor_external_data.hpp"
 
-namespace ov::frontend::onnx_error {
+namespace ov {
+namespace frontend {
+namespace onnx_error {
 
 namespace detail {
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -40,11 +42,19 @@ struct invalid_external_data : ov::Exception {
 };
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-}  // namespace ov::frontend::onnx_error
+}  // namespace onnx_error
+}  // namespace frontend
+}  // namespace ov
 
-namespace ov::frontend::onnx::error {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace error {
 using namespace ov::frontend::onnx_error;
-}  // namespace ov::frontend::onnx::error
+}  // namespace error
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
 
 #define CHECK_VALID_NODE(node_, cond_, ...) \
     OPENVINO_ASSERT_HELPER(ov::frontend::onnx_error::OnnxNodeValidationFailure, (node_), (cond_), ##__VA_ARGS__)

@@ -7,7 +7,8 @@
 #include "openvino/frontend/exception.hpp"
 
 namespace ov {
-namespace frontend::paddle {
+namespace frontend {
+namespace paddle {
 
 class NodeContext;
 
@@ -25,7 +26,8 @@ protected:
 private:
     static std::string get_error_msg_prefix_paddle(const NodeContext& node);
 };
-}  // namespace frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
 
 /// \brief Macro to check whether a boolean condition holds.
 /// \param node_context Object of NodeContext class

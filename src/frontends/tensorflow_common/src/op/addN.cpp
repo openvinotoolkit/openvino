@@ -10,7 +10,10 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_add_n_op(const NodeContext& node) {
     default_op_checks(node, 1, {"AddN", "ADD_N"}, true);
@@ -43,4 +46,7 @@ OutputVector translate_add_n_op(const NodeContext& node) {
     set_node_name(node.get_name(), result.get_node_shared_ptr());
     return {result};
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

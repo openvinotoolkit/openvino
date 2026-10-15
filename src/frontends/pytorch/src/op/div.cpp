@@ -12,7 +12,10 @@
 
 using namespace ov::op;
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 namespace {
 OutputVector translate_div_common(const NodeContext& context,
@@ -41,14 +44,14 @@ OutputVector translate_div_common(const NodeContext& context,
                                   is_python_scalar_input(context, 0),
                                   is_python_scalar_input(context, 1));
     }
-    // Without python division, integer division already rounds toward zero, as "trunc" requires.
-    auto res = context.mark_node(std::make_shared<v1::Divide>(x, y, rounding_mode != "trunc"));
+    auto res = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
     // TODO: ticket 103296; Temporarily disable ConvertDivide transformation
     disable_divide_conversion(res);
     if (rounding_mode == "floor") {
         res = context.mark_node(std::make_shared<v0::Floor>(res));
     } else if (rounding_mode == "trunc") {
-        res = trunc_toward_zero(context, res).get_node_shared_ptr();
+        const auto convert = context.mark_node(std::make_shared<v0::Convert>(res, element::i32));
+        res = context.mark_node(std::make_shared<v1::ConvertLike>(convert, x));
     }
     if (inplace)
         context.mutate_input(0, res);
@@ -100,4 +103,7 @@ OutputVector translate_div_fx_(const NodeContext& context) {
     return translate_div_common(context, x, y, rounding_mode, true);
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

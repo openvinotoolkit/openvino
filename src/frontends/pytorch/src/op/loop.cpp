@@ -15,7 +15,10 @@
 #include "translate_session.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 OutputVector translate_loop(const NodeContext& context) {
     const auto& inputs = context.inputs();
@@ -294,4 +297,7 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
     return {context.mark_node(make_list_construct(outputs))};
 }
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

@@ -19,7 +19,10 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_gru_block_cell_op(const ov::frontend::tensorflow::NodeContext& node) {
     // GRUBlockCell computes the GRU cell forward propagation for 1 time step
@@ -135,4 +138,7 @@ OutputVector translate_gru_block_cell_op(const ov::frontend::tensorflow::NodeCon
     return results;
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

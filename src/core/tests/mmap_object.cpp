@@ -175,10 +175,8 @@ TEST_P(RangedMappingTest, compare_data) {
 
     EXPECT_EQ(mm_1->size(), m_sector_1.size());
     EXPECT_EQ(mm_2->size(), m_sector_2.size());
-    const auto mm_1_data = mm_1->data_as<char>();
-    const auto mm_2_data = mm_2->data_as<char>();
-    EXPECT_EQ(m_sector_1, std::vector<char>(mm_1_data, mm_1_data + mm_1->size()));
-    EXPECT_EQ(m_sector_2, std::vector<char>(mm_2_data, mm_2_data + mm_2->size()));
+    EXPECT_EQ(m_sector_1, std::vector<char>(mm_1->data(), mm_1->data() + mm_1->size()));
+    EXPECT_EQ(m_sector_2, std::vector<char>(mm_2->data(), mm_2->data() + mm_2->size()));
 }
 
 TEST_P(RangedMappingTest, compare_id) {
@@ -289,8 +287,8 @@ TEST_F(ReadWriteMappingTest, read_write_mappings_report_no_mapping_id) {
     ASSERT_NE(rw_whole, nullptr);
     ASSERT_NE(rw_part, nullptr);
 
-    EXPECT_EQ(rw_whole->get_id(), std::nullopt);
-    EXPECT_EQ(rw_part->get_id(), std::nullopt);
+    EXPECT_EQ(rw_whole->get_id(), no_mapping_id);
+    EXPECT_EQ(rw_part->get_id(), no_mapping_id);
 }
 
 class HintEvictTest : public ::testing::Test {
@@ -517,9 +515,9 @@ TEST_F(HintPrefetchTest, hint_prefetch_sequential_eviction_check) {
     }
 
     auto mapped = load_mmap_object(m_file_path);
-    volatile std::byte sink{};
+    volatile char sink = 0;
     for (size_t i = 0; i < prefix_size; i += page) {
-        sink = sink | mapped->data()[i];
+        sink += mapped->data()[i];
     }
     const size_t pages_before = utils::count_resident_pages(mapped->data(), prefix_size);
     ASSERT_EQ(pages_before, total_prefix_pages)
@@ -592,7 +590,7 @@ TEST_F(HintPrefetchAsyncTest, pages_resident_eventually) {
 
     mapped->hint_prefetch_async();
 
-    const size_t pages_resident = wait_for_resident_pages(mapped->data_as<char>(), file_size, total_pages);
+    const size_t pages_resident = wait_for_resident_pages(mapped->data(), file_size, total_pages);
     EXPECT_EQ(pages_resident, total_pages) << "Expected all pages resident after hint_prefetch_async().";
 }
 
@@ -633,7 +631,7 @@ TEST_F(HintPrefetchAsyncTest, partial_region_populated_and_correct) {
     mapped->hint_prefetch_async(prefetch_offset, prefetch_size);
 
     const size_t pages_resident =
-        wait_for_resident_pages(mapped->data_as<char>() + prefetch_offset, prefetch_size, region_pages);
+        wait_for_resident_pages(mapped->data() + prefetch_offset, prefetch_size, region_pages);
     EXPECT_EQ(pages_resident, region_pages) << "Expected the requested region to be fully resident.";
 
     EXPECT_EQ(read_mapped(*mapped), data);

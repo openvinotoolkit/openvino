@@ -483,7 +483,6 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                 Algorithm::EltwiseSqrt,
                 Algorithm::EltwiseSquaredDifference,
                 Algorithm::EltwiseSubtract,
-                Algorithm::EltwiseSwish,
                 Algorithm::EltwiseTanh)) {
         return false;
     }

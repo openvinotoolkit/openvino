@@ -158,7 +158,7 @@ std::vector<Case> make_cases() {
             "NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS",
             "32",
             uint64_t{32}),
-        bool_case<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "NO", false),
+        bool_case<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES", true),
         enum_case<::intel_npu::NPUW_LLM_PREFILL_HINT>("NPUW_LLM_PREFILL_HINT", "STATIC", "STATIC"),
         enum_case<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>("NPUW_LLM_PREFILL_ATTENTION_HINT",
                                                                 "DYNAMIC",
@@ -213,18 +213,6 @@ TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
 
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>(), "PYRAMID");
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
-}
-
-// The scoring tags are ordinary exposed options and must parse and survive a
-// config string round trip like any other.
-TEST(NPUWConfigOptionsSmokeTest, ScoringTagsSurviveConfigStringRoundTrip) {
-    const auto cfg = make_config({{"NPUW_TEXT_RERANK", "YES"}, {"NPUW_TEXT_EMBED", "YES"}});
-
-    ::intel_npu::Config restored(make_options_desc());
-    restored.fromString(cfg.toString());
-
-    EXPECT_TRUE(restored.get<::intel_npu::NPUW_TEXT_RERANK>());
-    EXPECT_TRUE(restored.get<::intel_npu::NPUW_TEXT_EMBED>());
 }
 
 }  // namespace

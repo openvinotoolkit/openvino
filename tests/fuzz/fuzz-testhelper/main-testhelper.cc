@@ -27,11 +27,11 @@ the inputs.
 #include <vector>
 #ifdef _WIN32
 # include <windows.h>
-#else  // _WIN32
+#else  // WIN32
 # include <dirent.h>
 # include <sys/stat.h>
 # include <sys/types.h>
-#endif  // _WIN32
+#endif  // WIN32
 
 /// Fuzzing target
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size);
@@ -57,7 +57,7 @@ std::vector<std::string> list_dir(std::string const& path) {
         } while (FindNextFile(find_handle, &find_data));
         FindClose(find_handle);
     }
-#else   // _WIN32
+#else   // WIN32
     DIR* dir = opendir(path.c_str());
     if (dir) {
         struct dirent* entry;
@@ -67,7 +67,7 @@ std::vector<std::string> list_dir(std::string const& path) {
         closedir(dir);
         dir = NULL;
     }
-#endif  // _WIN32
+#endif  // WIN32
     return res;
 }
 
@@ -75,11 +75,11 @@ std::vector<std::string> list_dir(std::string const& path) {
 bool is_dir(std::string const& path) {
 #ifdef _WIN32
     return 0 != (FILE_ATTRIBUTE_DIRECTORY & GetFileAttributes(path.c_str()));
-#else   // _WIN32
+#else   // WIN32
     struct stat stat_res = {0};
     stat(path.c_str(), &stat_res);
     return S_IFDIR & stat_res.st_mode;
-#endif  // _WIN32
+#endif  // WIN32
 }
 
 // Print usage help

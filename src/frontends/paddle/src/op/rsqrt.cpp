@@ -5,7 +5,10 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 
 NamedOutputs rsqrt(const NodeContext& node) {
     auto data = node.get_input("X");
@@ -17,4 +20,7 @@ NamedOutputs rsqrt(const NodeContext& node) {
     return node.default_single_output_mapping({rsqrt}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

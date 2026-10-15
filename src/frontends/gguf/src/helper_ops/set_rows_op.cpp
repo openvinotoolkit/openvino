@@ -4,7 +4,9 @@
 
 #include "openvino/frontend/gguf/set_rows_op.hpp"
 
-namespace ov::frontend::gguf {
+namespace ov {
+namespace frontend {
+namespace gguf {
 
 SetRows::SetRows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices, const ov::Output<ov::Node>& dst)
     : ov::op::Op({data, indices, dst}) {
@@ -22,4 +24,6 @@ std::shared_ptr<ov::Node> SetRows::clone_with_new_inputs(const ov::OutputVector&
     return std::make_shared<SetRows>(new_args[0], new_args[1], new_args[2]);
 }
 
-}  // namespace ov::frontend::gguf
+}  // namespace gguf
+}  // namespace frontend
+}  // namespace ov

@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs cast(const NodeContext& node) {
     auto data = node.get_input("X");
     auto out_dtype = node.get_attribute<ov::element::Type>("out_dtype");
@@ -13,4 +16,7 @@ NamedOutputs cast(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<ov::opset6::Convert>(data, out_dtype)}, {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

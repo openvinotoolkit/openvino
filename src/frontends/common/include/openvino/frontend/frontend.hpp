@@ -16,7 +16,8 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov::frontend {
+namespace ov {
+namespace frontend {
 /// \brief An interface for identifying a frontend for a particular framework.
 /// Provides an ability to load and convert of input model
 class FRONTEND_API FrontEnd {
@@ -176,4 +177,6 @@ inline bool FrontEnd::supported(const std::vector<ov::Any>& variants) const {
     return supported_impl(variants);
 }
 
-}  // namespace ov::frontend
+}  // namespace frontend
+
+}  // namespace ov

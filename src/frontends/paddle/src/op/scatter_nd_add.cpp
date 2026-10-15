@@ -5,7 +5,10 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset15.hpp"
 
-namespace ov::frontend::paddle::op {
+namespace ov {
+namespace frontend {
+namespace paddle {
+namespace op {
 NamedOutputs scatter_nd_add(const NodeContext& node) {
     auto x = node.get_input("X");
     auto index = node.get_input("Index");
@@ -18,4 +21,7 @@ NamedOutputs scatter_nd_add(const NodeContext& node) {
         {"Out"});
 }
 
-}  // namespace ov::frontend::paddle::op
+}  // namespace op
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

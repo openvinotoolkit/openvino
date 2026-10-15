@@ -27,7 +27,9 @@
 using namespace ov;
 using namespace ::ONNX_NAMESPACE;
 
-namespace ov::frontend::onnx {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace detail {
 bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
     const auto first_out_node = outputs.at(0).get_node();
@@ -488,4 +490,6 @@ void Subgraph::infer_inputs_from_parent() {
     }
 }
 
-}  // namespace ov::frontend::onnx
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

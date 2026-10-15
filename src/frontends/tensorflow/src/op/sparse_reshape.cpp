@@ -8,7 +8,10 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 NamedOutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeContext& node) {
     // Currently, the translation for SparseReshape is possible only if new shape value is the same as the input shape
     // value or it is different just by one dynamic dimension of the new shape that can be replace with the
@@ -95,4 +98,7 @@ OutputVector translate_sparse_segment_sum_op(const ov::frontend::tensorflow::Nod
     return sparse_segment_sum->outputs();
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

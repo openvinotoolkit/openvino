@@ -23,7 +23,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 template <typename T>
 OutputVector translate_direct_reduce_op(const NodeContext& node) {
@@ -113,4 +116,7 @@ template OutputVector translate_direct_reduce_op<v1::ReduceMin>(const NodeContex
 template OutputVector translate_direct_reduce_op<v1::ReduceProd>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<v1::ReduceSum>(const NodeContext& node);
 template OutputVector translate_direct_reduce_op<v4::ReduceL2>(const NodeContext& node);
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

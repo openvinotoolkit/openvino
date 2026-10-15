@@ -42,13 +42,6 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
         export DYLD_LIBRARY_PATH=${OV_PLUGINS_PATH}/Release:${OV_PLUGINS_PATH}/Debug${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
         export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}/Release:${OV_PLUGINS_PATH}/Debug${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-        # Multi-config generator dirs (RelWithDebInfo, MinSizeRel) are only present in local builds
-        for config in RelWithDebInfo MinSizeRel; do
-            if [ -d "${OV_PLUGINS_PATH}/${config}" ]; then
-                export DYLD_LIBRARY_PATH=${OV_PLUGINS_PATH}/${config}:${DYLD_LIBRARY_PATH}
-                export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}/${config}:${LD_LIBRARY_PATH}
-            fi
-        done
         export PKG_CONFIG_PATH=${OV_PLUGINS_PATH}/Release/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     else
         export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
@@ -107,8 +100,8 @@ if command -v lsb_release >/dev/null 2>&1; then
 fi
 
 PYTHON_VERSION_MAJOR="3"
-MIN_REQUIRED_PYTHON_VERSION_MINOR="11"
-MAX_SUPPORTED_PYTHON_VERSION_MINOR="15"
+MIN_REQUIRED_PYTHON_VERSION_MINOR="10"
+MAX_SUPPORTED_PYTHON_VERSION_MINOR="14"
 
 check_python_version () {
     if [ -z "$python_version" ]; then

@@ -7,7 +7,9 @@
 #include "internal_op.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 class PackPadded : public InternalOperation {
 public:
@@ -36,4 +38,6 @@ public:
         set_output_type(1, get_input_element_type(1), get_input_partial_shape(1));
     }
 };
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

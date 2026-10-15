@@ -9,7 +9,9 @@
 
 #include "internal_operation.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class BlockLSTM : public InternalOperation {
 public:
@@ -156,4 +158,6 @@ private:
     bool m_use_peephole;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

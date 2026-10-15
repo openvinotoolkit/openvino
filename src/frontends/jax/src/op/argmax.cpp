@@ -8,7 +8,10 @@
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::jax::op {
+namespace ov {
+namespace frontend {
+namespace jax {
+namespace op {
 
 using namespace ov::op;
 
@@ -33,4 +36,7 @@ OutputVector translate_argmax(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace ov::frontend::jax::op
+}  // namespace op
+}  // namespace jax
+}  // namespace frontend
+}  // namespace ov

@@ -11,7 +11,10 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/topk.hpp"
 
-namespace ov::frontend::onnx::utils {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace utils {
 /// \brief  Factory class which generates sub-graphs for ONNX ArgMin, ArgMax ops.
 class ArgMinMaxFactory {
 public:
@@ -36,4 +39,7 @@ private:
     std::int64_t m_select_last_index;
 };
 
-}  // namespace ov::frontend::onnx::utils
+}  // namespace utils
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

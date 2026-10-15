@@ -7,7 +7,9 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/place.hpp"
 
-namespace ov::frontend::pytorch {
+namespace ov {
+namespace frontend {
+namespace pytorch {
 
 class InputModel;
 
@@ -64,4 +66,6 @@ private:
     bool m_is_output = false;
 };
 
-}  // namespace ov::frontend::pytorch
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov

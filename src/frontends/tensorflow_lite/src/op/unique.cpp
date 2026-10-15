@@ -8,10 +8,16 @@
 
 using namespace std;
 
-namespace ov::frontend::tensorflow_lite::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow_lite {
+namespace op {
 
 OutputVector unique(const ov::frontend::tensorflow_lite::NodeContext& node) {
     return indexed_from_named(ov::frontend::tensorflow::op::translate_unique_op(node));
 }
 
-}  // namespace ov::frontend::tensorflow_lite::op
+}  // namespace op
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

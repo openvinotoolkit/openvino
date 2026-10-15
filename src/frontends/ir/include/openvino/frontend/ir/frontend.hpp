@@ -10,7 +10,9 @@
 #include "openvino/frontend/ir/visibility.hpp"
 #include "openvino/openvino.hpp"
 
-namespace ov::frontend::ir {
+namespace ov {
+namespace frontend {
+namespace ir {
 
 class IR_API FrontEnd : public ov::frontend::FrontEnd {
 public:
@@ -50,4 +52,6 @@ private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
-}  // namespace ov::frontend::ir
+}  // namespace ir
+}  // namespace frontend
+}  // namespace ov

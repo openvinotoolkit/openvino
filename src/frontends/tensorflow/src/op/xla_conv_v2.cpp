@@ -22,7 +22,10 @@ using namespace ov;
 using namespace ov::op;
 using namespace xla;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 namespace {
 vector<int64_t> get_const_vector(const NodeContext& node, const Output<Node>& input, const string& input_name) {
@@ -223,4 +226,7 @@ OutputVector translate_xla_conv_v2_op(const NodeContext& node) {
     return {conv};
 }
 
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

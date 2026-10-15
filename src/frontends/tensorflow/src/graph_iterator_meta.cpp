@@ -13,7 +13,9 @@
 #include "ov_tensorflow/tensor_bundle.pb.h"
 #include "ov_tensorflow/trackable_object_graph.pb.h"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 bool GraphIteratorMeta::is_valid_signature(const ::tensorflow::SignatureDef& signature) const {
     for (const auto& it : signature.inputs()) {
@@ -31,4 +33,6 @@ std::filesystem::path get_variables_index_name(const std::filesystem::path& name
     return std::filesystem::path(name) += ".index";
 }
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

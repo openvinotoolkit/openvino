@@ -6,9 +6,15 @@
 #include "utils.hpp"
 
 // Translate Conv3D Op
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_conv_3d_op(const NodeContext& node) {
     return translate_convolution_op(node, 3);
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

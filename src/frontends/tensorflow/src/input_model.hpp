@@ -13,7 +13,9 @@
 #include "translate_session.hpp"
 #include "variables_index.hpp"
 
-namespace ov::frontend::tensorflow {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
 
 class OpPlace;
 class TensorPlace;
@@ -67,4 +69,6 @@ public:
     std::vector<std::string> get_input_names() const;
 };
 
-}  // namespace ov::frontend::tensorflow
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

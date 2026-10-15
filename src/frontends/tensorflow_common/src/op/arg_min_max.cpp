@@ -11,7 +11,10 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov::frontend::tensorflow::op {
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+namespace op {
 
 OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
     default_op_checks(node, 1, {"ArgMax", "ArgMin", "ARG_MAX", "ARG_MIN"});
@@ -59,4 +62,7 @@ OutputVector translate_arg_max_op(const NodeContext& node) {
 OutputVector translate_arg_min_op(const NodeContext& node) {
     return (translate_arg_min_max(node, "min"));
 }
-}  // namespace ov::frontend::tensorflow::op
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov

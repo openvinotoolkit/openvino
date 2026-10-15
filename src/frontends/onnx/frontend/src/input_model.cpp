@@ -548,7 +548,10 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
     }
 }
 
-namespace ov::frontend::onnx::unify {
+namespace ov {
+namespace frontend {
+namespace onnx {
+namespace unify {
 
 class InputModel::InputModelONNXImpl {
 public:
@@ -562,13 +565,9 @@ public:
                        const ov::frontend::InputModel& input_model,
                        unify::InputModel::Ptr parent_model);
 
-    // The caller supplies an iterator already positioned at its first decoder. Rewind only
-    // after this InputModel has consumed it in an earlier walk.
-    GraphIterator::Ptr get_graph_iterator_for_walk() {
-        if (m_iterator_walked) {
-            m_graph_iterator->reset();
-        }
-        m_iterator_walked = true;
+    // Returns the raw iterator so the single-pass converter can translate directly from
+    // decoders, bypassing the Place graph built by load_model().
+    GraphIterator::Ptr get_graph_iterator() const {
         return m_graph_iterator;
     }
 
@@ -651,7 +650,6 @@ private:
     }
 
     bool m_loaded = false;
-    bool m_iterator_walked = false;
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
     std::map<std::string, std::shared_ptr<TensorONNXPlace>> m_tensor_places;
@@ -702,14 +700,6 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
 }  // namespace
 
 void InputModel::InputModelONNXImpl::load_model() {
-    // A previous walk may have stopped partway through after an exception.
-    m_op_places.clear();
-    m_op_places_map.clear();
-    m_tensor_places.clear();
-    m_inputs.clear();
-    m_outputs.clear();
-    m_metadata.clear();
-    get_graph_iterator_for_walk();
     std::map<std::string, uint64_t> op_statistics;  // for telemetry
 
     // Track output indices separately from TensorPlace (handles duplicate output names correctly)
@@ -726,8 +716,7 @@ void InputModel::InputModelONNXImpl::load_model() {
             tensor_place->set_input_index(tensor_decoder->get_input_idx());
             tensor_place->set_output_index(output_idx);
 
-            const bool has_data = tensor_place->get_data() != nullptr || tensor_place->get_data_location() != nullptr ||
-                                  !tensor_place->get_data_any().empty();
+            const bool has_data = tensor_place->get_data() != nullptr || tensor_place->get_data_location() != nullptr;
             // Skip constants that are not graph outputs — they don't contribute to the model graph.
             if (has_data && output_idx < 0)
                 continue;
@@ -1055,8 +1044,8 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const bool reuse_const_data)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry, enable_mmap, reuse_const_data)} {}
 
-ov::frontend::onnx::GraphIterator::Ptr InputModel::get_graph_iterator_for_walk() {
-    return _impl->get_graph_iterator_for_walk();
+ov::frontend::onnx::GraphIterator::Ptr InputModel::get_graph_iterator() const {
+    return _impl->get_graph_iterator();
 }
 
 bool InputModel::is_loaded() const {
@@ -1164,4 +1153,7 @@ std::filesystem::path InputModel::get_model_dir() const {
     return _impl->get_model_dir();
 }
 
-}  // namespace ov::frontend::onnx::unify
+}  // namespace unify
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

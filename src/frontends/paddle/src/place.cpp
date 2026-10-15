@@ -7,7 +7,9 @@
 #include "decoder_proto.hpp"
 #include "framework.pb.h"
 
-namespace ov::frontend::paddle {
+namespace ov {
+namespace frontend {
+namespace paddle {
 
 bool Place::is_input() const {
     const auto& model_ins = m_input_model.get_inputs();
@@ -365,4 +367,6 @@ Place::Ptr OutPortPlace::get_producing_operation() const {
     FRONT_END_THROW("Operation has expired.");
 }
 
-}  // namespace ov::frontend::paddle
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov

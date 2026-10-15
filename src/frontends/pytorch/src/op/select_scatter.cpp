@@ -8,7 +8,10 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
 
-namespace ov::frontend::pytorch::op {
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
 
 using namespace ov::op;
 
@@ -21,4 +24,7 @@ OutputVector translate_select_scatter_fx(const NodeContext& context) {
     return {context.mark_node(std::make_shared<GatherAssign>(data, updates, index, dim))};
 };
 
-}  // namespace ov::frontend::pytorch::op
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov
