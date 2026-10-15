@@ -1482,6 +1482,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 }
 
 bool primitive_inst::use_async_compilation() {
+    return false;
     GPU_DEBUG_IF(get_config().get_disable_async_compilation()) {
         return false;
     }
@@ -3531,6 +3532,9 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
                 impl->set_kernels(kernels);
             }
             if (impl) {
+                // std::cout << "[async compilation] " << inst.id() << " (" << inst.get_node().get_primitive()->type_string() << "): compiled "
+                //                << impl->m_manager->get_impl_type() << " static impl " << impl->get_kernel_name()
+                //                << ", inputs: " << updated_params.input_layouts << ", outputs: " << updated_params.output_layouts << std::endl;
                 cache.add(updated_params, std::move(impl));
             }
         });

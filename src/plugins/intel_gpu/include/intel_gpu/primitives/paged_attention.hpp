@@ -5,7 +5,9 @@
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 
+#include <cstdlib>
 #include <vector>
 
 namespace cldnn {
@@ -46,6 +48,205 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     static constexpr size_t block_size = 16;
     static constexpr size_t block_size_xattn = 256;
+
+    // K cache layout selector. Off => the legacy d-major
+    // [num_blocks, kv_heads, k_head_size, block_size]; on => token-major
+    // [num_blocks, kv_heads, block_size, k_head_size], matching the V cache and the
+    // XAttention K cache, so a cache page is the same geometry the prefill 2D block
+    // reads already use.
+    // TODO: temporary staging switch, to be removed once token-major is unconditional.
+    static bool k_token_major() {
+        static const bool enabled = []() {
+            const char* env = std::getenv("OV_GPU_PA_K_TOKEN_MAJOR");
+            return env != nullptr && env[0] == '1';
+        }();
+        return enabled;
+    }
+
+    // Whether THIS cache can be token-major. Every site that decides the K layout must agree, so
+    // they all go through here rather than re-deriving the condition.
+    //
+    // i8/u8 BY_TOKEN qualifies: its scale/zp are two f16 arrays appended AFTER the data region
+    // (at k_head_size * block_size), so the data region is a plain [block_size, k_head_size] tile
+    // and flipping the in-page strides leaves the comp region untouched.
+    //
+    // BY_CHANNEL and INT4 do NOT: BY_CHANNEL appends a scale/zp pair to every COLUMN
+    // (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE = block_size + 4) and INT4 packs two head dims per byte
+    // with inline per-row comp. Both interleave comp with data along the axis token-major flips,
+    // so they stay d-major.
+    static bool k_token_major_for(const ov::element::Type& key_cache_precision, bool is_key_by_channel) {
+        if (!k_token_major())
+            return false;
+        if (key_cache_precision.is_real())
+            return true;
+        const bool is_i8_u8 = key_cache_precision == ov::element::i8 || key_cache_precision == ov::element::u8;
+        return is_i8_u8 && !is_key_by_channel;
+    }
+
+    // Staging switch for a TOKEN-MAJOR i8 BY_CHANNEL K page, where the per-channel scale/zp pairs move
+    // out of the columns and into a trailing region:
+    //     rows 0..block_size-1        the tokens, row pitch k_head_size  (as BY_TOKEN)
+    //     k_head_size*block_size ..   k_head_size interleaved (scale, zp) f16 pairs, indexed by channel
+    // The page SIZE is unchanged -- k_head_size * (block_size + 4) either way -- so nothing about the
+    // allocation or the tensor's element count moves; only the in-page addressing does.
+    //
+    // Deliberately SEPARATE from k_token_major(): only four kernels understand this layout -- the
+    // pa_kv_cache_update writer, kv_cache_rotate, sdpa_ocl_decode (GENERATE) and sdpa_ocl (MIXED).
+    // Every other K-cache reader takes the page d-major: pa_single_token / pa_gqa_single_token /
+    // pa_multi_token (paged_attention_opt.cl), sdpa_micro MIXED, pa_kv_cache_reorder and the adaptive
+    // R-KV diversity kernel. So the switch alone does not make the page token-major;
+    // by_channel_token_major_readable() below must also say that the two token-major readers get
+    // selected for every PagedAttention op of the model.
+    // TODO: retire together with k_token_major() once the d-major readers follow and the BY_CHANNEL
+    // page can flip unconditionally.
+    static bool k_by_channel_token_major() {
+        static const bool enabled = []() {
+            const char* env = std::getenv("OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR");
+            return env == nullptr ? true : (env != nullptr && env[0] == '1');
+        }();
+        return enabled;
+    }
+
+    // i8 and u4 only.
+    //
+    // i8 rather than is_i8_u8, because sdpa_ocl_decode widens the stored byte as SIGNED and a u8 cache
+    // would decode with the wrong sign. u4 is safe the other way round: the int4 quantizer clamps to
+    // [0, 15] with zp = -min*scale and no CHAR_MIN, so its nibbles are unsigned by construction. Its
+    // token-major page also fits the upstream allocation exactly -- 16*(h/2) data bytes + 4*h comp
+    // bytes == the 12*h a d-major INT4 BY_CHANNEL page already occupies -- so nothing about the
+    // allocation moves, only the in-page addressing. i4 is deliberately NOT accepted.
+    //
+    // ⚠ MUST be given the CONFIGURED kv-cache precision, not the KEY_CACHE layout dtype: an int4 cache
+    // is materialized as u8 (and an i4 one as i8, which would otherwise masquerade as a real i8 cache).
+    // See paged_attention_opt.cpp's get_k_token_major() for the same lookup.
+    //
+    // This predicate is only meaningful at LAYOUT-CREATION time (transformations_pipeline.cpp and its
+    // unit-test mirror), together with by_channel_token_major_readable(). Every OTHER site that needs
+    // to know the page layout must derive it from the actual K cache shape via
+    // k_by_channel_token_major_layout() below instead of re-running either predicate -- the layout is
+    // the single source of truth once created.
+    static bool k_by_channel_token_major_for(const ov::element::Type& key_cache_precision, bool is_key_by_channel) {
+        if (!k_by_channel_token_major() || !is_key_by_channel) {
+            return false;
+        }
+        return key_cache_precision == ov::element::i8 || key_cache_precision == ov::element::u4;
+    }
+
+    // TEST_USE_SDPA_OCL: unset or '1' => sdpa_ocl where it runs (see sdpa_ocl_selected()); '0' => sdpa_micro everywhere.
+    // TEST_USE_SDPA_OCL_DECODE: unset or '1' => sdpa_ocl_decode may serve GENERATE.
+    // Read once per process. The SDPA / PA gates and by_channel_token_major_readable() all go through these,
+    // so the K layout and the kernel choice never see different values.
+    static bool sdpa_ocl_enabled() {
+        static const bool enabled = []() {
+            const char* env = std::getenv("TEST_USE_SDPA_OCL");
+            return env == nullptr || env[0] == '1';
+        }();
+        return enabled;
+    }
+    static bool sdpa_ocl_decode_enabled() {
+        static const bool enabled = []() {
+            const char* env = std::getenv("TEST_USE_SDPA_OCL_DECODE");
+            return env == nullptr || env[0] == '1';
+        }();
+        return enabled;
+    }
+
+    // TEST_USE_SDPA_OCL_HPG: '1' => xe_hpg (DG2/Arc-A, ARL-H) may take the sdpa_ocl lane. Default OFF (xe_hpg keeps
+    // sdpa_micro) until the default flip. Has no effect on Xe2+. Read once per process.
+    static bool sdpa_ocl_hpg_enabled() {
+        static const bool enabled = []() {
+            const char* env = std::getenv("TEST_USE_SDPA_OCL_HPG");
+            return env != nullptr && env[0] == '1';
+        }();
+        return enabled;
+    }
+
+    // Device generations sdpa_ocl may run on (arch only; XMX and the switches are in sdpa_ocl_selected()).
+    // The two-argument form is pure so a host test can walk the whole table; the one-argument form reads the process env.
+    static bool sdpa_ocl_arch_ok(const device_info& info, bool hpg_opt_in) {
+        return info.arch >= gpu_arch::xe2 || (info.arch == gpu_arch::xe_hpg && hpg_opt_in);
+    }
+    static bool sdpa_ocl_arch_ok(const device_info& info) {
+        return sdpa_ocl_arch_ok(info, sdpa_ocl_hpg_enabled());
+    }
+
+    // Which DPAS SDPA kernel plain SDPA and PA PREFILL/MIXED use on this device: sdpa_ocl on Xe2+ XMX (unless
+    // TEST_USE_SDPA_OCL=0), sdpa_micro elsewhere, as upstream. One choice per device, never per op: where the chosen
+    // kernel refuses an op, the opt kernels run, not the other DPAS kernel.
+    // This is the lane, i.e. which kernel serves PREFILL/MIXED. It is NOT "a GENERATE reader exists": ask
+    // sdpa_ocl_decode_reader_available() for that.
+    static bool sdpa_ocl_selected(const device_info& info, bool ocl_enabled, bool hpg_opt_in) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        return ocl_enabled && info.supports_immad && sdpa_ocl_arch_ok(info, hpg_opt_in);
+#else
+        // Neither DPAS kernel is built without oneDNN.
+        (void)info;
+        (void)ocl_enabled;
+        (void)hpg_opt_in;
+        return false;
+#endif
+    }
+    static bool sdpa_ocl_selected(const device_info& info) {
+        return sdpa_ocl_selected(info, sdpa_ocl_enabled(), sdpa_ocl_hpg_enabled());
+    }
+
+    // Whether sdpa_ocl_decode (the only reader of the token-major BY_CHANNEL K page in GENERATE) can serve this device.
+    // Mirrors the device/switch part of SDPAOclDecodeGenerator::supported(), which calls this itself so the two cannot drift.
+    // Deliberately no HPG term and no oneDNN guard: the decode kernel is SG16 + 2D block IO and does not need oneDNN.
+    static bool sdpa_ocl_decode_reader_available(const device_info& info, bool decode_enabled) {
+        return decode_enabled && info.supports_immad && info.arch >= gpu_arch::xe2;
+    }
+    static bool sdpa_ocl_decode_reader_available(const device_info& info) {
+        return sdpa_ocl_decode_reader_available(info, sdpa_ocl_decode_enabled());
+    }
+
+    // What the gates of the two token-major readers look at in one PagedAttention op.
+    struct by_channel_tm_op_info {
+        size_t k_head_size = 0;   // 0 = unknown
+        size_t v_head_size = 0;   // 0 = unknown
+        size_t heads_num = 0;     // 0 = unknown
+        size_t kv_heads_num = 0;  // 0 = unknown
+        bool has_alibi = false;
+        bool has_scores_output = false;
+        bool has_adaptive_rkv = false;
+        bool has_qq_bias = false;
+    };
+
+    // Whether a model whose PagedAttention ops are `ops` may keep its i8/u4 BY_CHANNEL K cache
+    // token-major on this device: true only if every op's MIXED dispatch will run sdpa_ocl
+    // (sdpa_ocl_selected(), the sdpa_ocl branch of PagedAttentionOptImpl::choose_dpas_backend) AND every GENERATE
+    // dispatch sdpa_ocl_decode (sdpa_ocl_decode_reader_available(), SDPAOclDecodeGenerator::supported). The two are
+    // independent: folding them into one would give xe_hpg a token-major page that only d-major readers see. The layout is decided once per model but
+    // the reader per dispatch, and a refused gate lands on a d-major reader that returns garbage, so
+    // this must never say yes where a gate says no. Saying no where a gate would say yes only costs
+    // speed: the d-major page has a correct reader in every stage. Keep it in step with those two
+    // gates; PagedAttentionOptImpl::update_rt_params() throws if they ever disagree.
+    // `microkernels_supported` is cldnn::query_microkernels_supported() -- the MIXED gate requires it;
+    // callers only need to query it when sdpa_ocl_selected(info) && sdpa_ocl_decode_reader_available(info).
+    // `infer_precision` is the plugin's inference precision (the PA op's Q/output type).
+    // Defined next to the gates, in graph/impls/ocl_v2/sdpa/paged_attention_opt.cpp.
+    static bool by_channel_token_major_readable(const device_info& info,
+                                                bool microkernels_supported,
+                                                const ov::element::Type& infer_precision,
+                                                const std::vector<by_channel_tm_op_info>& ops);
+
+    // Whether the K cache layout holds token-major BY_CHANNEL pages, derived from the PHYSICAL cache
+    // shape. Token-major puts the (adjusted) block size at dim[2]; the upstream d-major BY_CHANNEL
+    // page keeps it at dim[3]. Every consumer of the K cache (writer, rotate, decode, mixed, reorder, the
+    // PagedAttentionOptImpl reader check, graph/ops head-size indexers) must use this rather than
+    // k_by_channel_token_major_for() / by_channel_token_major_readable(), so the
+    // model-wide decision made once in transformations_pipeline.cpp cannot drift between sites.
+    // adjusted_block_size: i8 = block_size + block_size/16*4 (20), u4 = block_size/2 + 4 (12) -- the
+    // same value graph/paged_attention.cpp's expected_block_size and the ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE
+    // jit constants carry. A dynamic dim[2] is treated as not-token-major (conservative d-major).
+    static bool k_by_channel_token_major_layout(const ov::PartialShape& key_cache_ps, size_t adjusted_block_size) {
+        if (key_cache_ps.size() != 4) {
+            return false;
+        }
+        const auto& block_dim = key_cache_ps[2];
+        return block_dim.is_static() &&
+               block_dim.get_length() == static_cast<ov::Dimension::value_type>(adjusted_block_size);
+    }
 
     paged_attention() : primitive_base("", {}) {}
 

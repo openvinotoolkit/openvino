@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
+#include "dpas_backend_test_helper.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -437,9 +438,9 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto adaptive_rkv_diversity_block_set_indices_begins_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_begins_layout);
 
-    auto token_type_ids_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto token_type_ids_layout = layout{ov::PartialShape{9}, data_types::i32, format::bfyx};
     auto token_type_ids_mem = engine.allocate_memory(token_type_ids_layout);
-    set_values(token_type_ids_mem, {1});
+    set_values(token_type_ids_mem, {0, 0, 0, 0, 0, 0, 0, 0, 0});
 
     auto qq_bias_layout = layout{ov::PartialShape{16}, data_types::u8, format::bfyx};
     auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
@@ -572,8 +573,9 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     const auto& intermediate_mems = pa_inst->get_intermediates_memories();
 
     // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
-    // as the wrong buffer count. token_type_ids no longer forces the non-micro path in MIXED.
-    const bool micro_layout = engine.get_device_info().supports_immad;
+    // as the wrong buffer count. MIXED with token_type_ids stays on the DPAS kernel only where that is
+    // sdpa_ocl, which implements the bidirectional mask; sdpa_micro leaves it to pa_multi_token.
+    const bool micro_layout = tests::expected_dpas_backend(engine, true, 64) == tests::dpas_backend::ocl;
     ASSERT_EQ(intermediate_mems.size(), micro_layout ? 4u : 7u);
 }
 }  // update_shape_test
