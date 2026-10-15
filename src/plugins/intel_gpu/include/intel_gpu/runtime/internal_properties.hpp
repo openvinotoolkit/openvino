@@ -141,7 +141,7 @@ static constexpr Property<std::string, PropertyMutability::RW> config_file{"CONF
 static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_ratio{"GPU_BUFFERS_PREALLOCATION_RATIO"};
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONEDNN"};
-static constexpr Property<bool, PropertyMutability::RW> disable_sdpa_micro{"GPU_DISABLE_SDPA_MICRO"};
+static constexpr Property<bool, PropertyMutability::RW> enable_sdpa_micro{"GPU_ENABLE_SDPA_MICRO"};
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
 static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
 static constexpr Property<bool, PropertyMutability::RW> record_replay{"GPU_RECORD_REPLAY"};
