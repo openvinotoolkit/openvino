@@ -231,6 +231,13 @@ void ov::npuw::EmbeddingInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input
                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
     }
 
+    OPENVINO_ASSERT(attention_mask->get_size() >= prompt_length,
+                    "Input attention mask (",
+                    attention_mask->get_size(),
+                    " elements) does not cover the input prompt (",
+                    prompt_length,
+                    " tokens).");
+
     prepare_for_new_conversation();
 
     // attention_mask's length is caller-controlled and independent of input_ids's own

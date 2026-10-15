@@ -1363,6 +1363,23 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
     }
 
+    OPENVINO_ASSERT(attention_mask->get_size() >= prompt_length,
+                    "Input attention mask (",
+                    attention_mask->get_size(),
+                    " elements) does not cover the input prompt (",
+                    prompt_length,
+                    " tokens).");
+    if (token_type_ids) {
+        const uint64_t required_tokens =
+            static_cast<uint64_t>(m_continued_prefill_base) + static_cast<uint64_t>(prompt_length);
+        OPENVINO_ASSERT(token_type_ids->get_size() >= required_tokens,
+                        "Input token_type_ids (",
+                        token_type_ids->get_size(),
+                        " elements) do not cover the input prompt through token ",
+                        required_tokens,
+                        ".");
+    }
+
     m_llm_profile["1/prefill:1.prepare_for_new_conversation"].record([&]() {
         if (m_continued_prefill_base > 0u) {
             prepare_for_continued_prefill(m_continued_prefill_base, input_ids, attention_mask, position_ids);
