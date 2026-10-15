@@ -20,8 +20,8 @@ and inserts an `ov::intel_gpu::op::MLIROp` operation representing the converted 
 An actual compilation and execution of the converted MLIR module happens in a separate project called
 `graph-compiler (GC)` - the project is "ingress-agnostic" and doesn't depend on OV specifically, it handles
 an arbitrary mlir-linalg-code as an input and produces a GPU-binary combined with a cpu-side launching code.
-The generated host code drives an abstract `gc::gpu::GpuRuntime` interface, which the plugin implements on top
-of `cldnn::stream`/`cldnn::engine`, so the kernels are scheduled into the command list of the OV stream. The
+The generated host code drives the `gc::gpu::GpuRuntime<Kernel, Event, Memory>` interface, which the plugin implements
+on top of `cldnn::stream`/`cldnn::engine` with `cldnn::event::ptr` events and `cldnn::memory::ptr` memory, so the kernels are scheduled into the command list of the OV stream. The
 OpenVINO side is only responsible for matching a suitable subgraph in `ov::Model`, converting it to MLIR as is
 (all the optimizations are made on the graph-compiler side), and providing the runtime-info on inference
 (buffers, dependencies, etc).
@@ -55,7 +55,7 @@ The op becomes a `cldnn::mlir_primitive` that owns nothing but the `MLIROp` itse
 compile or cache for it. At inference `mlir_primitive_impl::execute_impl` calls `MLIRGpuProgram::execute()`,
 which:
 
-* stores one memref per input/output buffer via `Program::ArgsBuilder` (the USM pointer plus the shape and the
+* stores one memref per input/output buffer via `gc::gpu::ArgsBuilder` (the USM pointer plus the shape and the
   dense row-major strides of the leading dimensions expected by the module);
 * calls `gc::gpu::Program::main(args, runtime, deps, nDeps)`, passing the dependency events of the primitive;
 * aggregates the events returned by the program into the event of the primitive.
