@@ -15,9 +15,9 @@
 namespace intel_npu {
 
 Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-               std::shared_ptr<IProfilingDecoder> profilingDecoder)
+               const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : _zeroInitStruct(zeroInitStruct),
-      _profilingDecoder(std::move(profilingDecoder)),
+      _profilingDecoder(profilingDecoder),
       _logger("Parser", Logger::global().level()) {
     _logger.info("initialize Parser start");
 

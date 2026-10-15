@@ -33,8 +33,8 @@ public:
      * @param profilingDecoder The profiling decoder to hand to every compiled graph; may be empty.
      */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                          std::shared_ptr<IVCLCompiler> compiler,
-                          std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
+                          const std::shared_ptr<IVCLCompiler>& compiler,
+                          const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const Config& config,

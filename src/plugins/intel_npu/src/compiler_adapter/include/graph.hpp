@@ -27,7 +27,7 @@ public:
           std::optional<ov::Tensor> blob,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false,
-          std::shared_ptr<IProfilingDecoder> profilingDecoder = nullptr);
+          const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 

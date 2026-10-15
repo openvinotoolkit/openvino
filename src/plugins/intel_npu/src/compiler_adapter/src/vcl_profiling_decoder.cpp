@@ -49,8 +49,8 @@ private:
 
 }  // namespace
 
-VCLProfilingDecoder::VCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions)
-    : _functions(std::move(functions)),
+VCLProfilingDecoder::VCLProfilingDecoder(const std::shared_ptr<const VCLFunctionTable>& functions)
+    : _functions(functions),
       _logger("VCLProfilingDecoder", Logger::global().level()) {
     OPENVINO_ASSERT(_functions != nullptr, "VCLProfilingDecoder requires a non-null VCLFunctionTable");
     OPENVINO_ASSERT(_functions->vclGetVersion && _functions->vclLogHandleGetString && _functions->vclProfilingCreate &&
@@ -120,8 +120,8 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
 }
 
-std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions) {
-    return std::make_shared<VCLProfilingDecoder>(std::move(functions));
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(const std::shared_ptr<const VCLFunctionTable>& functions) {
+    return std::make_shared<VCLProfilingDecoder>(functions);
 }
 
 }  // namespace intel_npu

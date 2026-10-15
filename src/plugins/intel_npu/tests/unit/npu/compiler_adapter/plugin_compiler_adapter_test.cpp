@@ -9,7 +9,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "fake_vcl_compiler.hpp"
@@ -71,8 +70,8 @@ struct PluginCompilerAdapterTest : public ::testing::Test {
     // The adapter is built with a null ZeroInitStructsHolder throughout: that is the no-driver path,
     // which is the only one reachable without an NPU.
     std::unique_ptr<PluginCompilerAdapter> makeAdapter(
-        std::shared_ptr<::intel_npu::IProfilingDecoder> profilingDecoder = nullptr) {
-        return std::make_unique<PluginCompilerAdapter>(nullptr, compiler, std::move(profilingDecoder));
+        const std::shared_ptr<::intel_npu::IProfilingDecoder>& profilingDecoder = nullptr) {
+        return std::make_unique<PluginCompilerAdapter>(nullptr, compiler, profilingDecoder);
     }
 
     static std::shared_ptr<OptionsDesc> makeOptionsDesc() {

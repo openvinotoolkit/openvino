@@ -23,7 +23,7 @@ public:
     /**
      * @param functions A shared pointer to the VCL function table. Must expose the profiling entry points.
      */
-    explicit VCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions);
+    explicit VCLProfilingDecoder(const std::shared_ptr<const VCLFunctionTable>& functions);
 
     std::vector<ov::ProfilingInfo> decode(const std::vector<uint8_t>& profData,
                                           const ov::Tensor& network) const override;
@@ -38,6 +38,6 @@ private:
  * @brief Constructs a profiling decoder dispatching into the given VCL function table.
  * @param functions The resolved VCL function table. Must expose the profiling entry points.
  */
-std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(std::shared_ptr<const VCLFunctionTable> functions);
+std::shared_ptr<IProfilingDecoder> makeVCLProfilingDecoder(const std::shared_ptr<const VCLFunctionTable>& functions);
 
 }  // namespace intel_npu

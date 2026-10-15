@@ -264,7 +264,7 @@ WeightlessGraph::WeightlessGraph(
         weightsSource,
     const bool blobIsPersistent,
     const std::optional<std::string>& compatibilityDescriptor,
-    std::shared_ptr<IProfilingDecoder> profilingDecoder)
+    const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
@@ -272,7 +272,7 @@ WeightlessGraph::WeightlessGraph(
             std::move(mainBlob),
             compatibilityDescriptor,
             blobIsPersistent,
-            std::move(profilingDecoder)),
+            profilingDecoder),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),

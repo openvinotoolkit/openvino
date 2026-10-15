@@ -14,34 +14,6 @@
 
 namespace intel_npu {
 
-std::shared_ptr<const VCLFunctionTable> CompilerAdapterFactory::resolveVCLFunctions() const {
-    auto vclLoader = VCLLoader::getInstance();
-    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-    return vclLoader->sharedFunctions();
-}
-
-std::shared_ptr<IVCLCompiler> CompilerAdapterFactory::makePluginCompiler(
-    const std::shared_ptr<IDevice>& device,
-    const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
-    try {
-        return makeVCLCompiler(
-            resolveVCLFunctions(),
-            device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
-            optionSupportCache);
-    } catch (const std::exception& vclException) {
-        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
-    }
-}
-
-std::shared_ptr<IProfilingDecoder> CompilerAdapterFactory::makeProfilingDecoderIfAvailable() const {
-    try {
-        return makeVCLProfilingDecoder(resolveVCLFunctions());
-    } catch (const std::exception& ex) {
-        Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s", ex.what());
-        return nullptr;
-    }
-}
-
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,
     ov::intel_npu::CompilerType& compilerType,
@@ -59,9 +31,31 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     }
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
+        std::shared_ptr<const VCLFunctionTable> functions;
+        std::shared_ptr<IVCLCompiler> compiler;
+        try {
+            auto vclLoader = VCLLoader::getInstance();
+            OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+            functions = vclLoader->sharedFunctions();
+            compiler = makeVCLCompiler(
+                functions,
+                device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
+                optionSupportCache);
+        } catch (const std::exception& vclException) {
+            OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
+        }
+
+        std::shared_ptr<IProfilingDecoder> profilingDecoder;
+        try {
+            profilingDecoder = makeVCLProfilingDecoder(functions);
+        } catch (const std::exception& ex) {
+            Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s",
+                                     ex.what());
+        }
+
         return std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                       makePluginCompiler(device, optionSupportCache),
-                                                       makeProfilingDecoderIfAvailable());
+                                                       compiler,
+                                                       profilingDecoder);
     }
 
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
@@ -130,8 +124,15 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
 
     if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
         std::shared_ptr<IVCLCompiler> pluginCompiler;
+        std::shared_ptr<const VCLFunctionTable> functions;
         try {
-            pluginCompiler = makePluginCompiler(device, optionSupportCache);
+            auto vclLoader = VCLLoader::getInstance();
+            OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+            functions = vclLoader->sharedFunctions();
+            pluginCompiler = makeVCLCompiler(
+                functions,
+                device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
+                optionSupportCache);
         } catch (...) {
             _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
             if (onlineCompilation) {
@@ -141,10 +142,18 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         }
 
         _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
+        std::shared_ptr<IProfilingDecoder> profilingDecoder;
+        try {
+            profilingDecoder = makeVCLProfilingDecoder(functions);
+        } catch (const std::exception& ex) {
+            Logger::global().warning("Failed to create the VCL profiling decoder for plugin compilation: %s",
+                                     ex.what());
+        }
+
         auto pluginAdapter =
             std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                    std::move(pluginCompiler),
-                                                    makeProfilingDecoderIfAvailable());
+                                                    pluginCompiler,
+                                                    profilingDecoder);
         return {std::move(pluginAdapter), ov::intel_npu::CompilerType::PLUGIN};
     }
 

@@ -74,10 +74,10 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTab
     return compatibilityString;
 }
 
-VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
+VCLCompilerImpl::VCLCompilerImpl(const std::shared_ptr<const VCLFunctionTable>& functions,
                                  const std::optional<IDevice::DeviceProperties>& deviceProperties,
                                  ScopedOptionSupportCache optionSupportCache)
-    : _functions(std::move(functions)),
+    : _functions(functions),
       _logHandle(nullptr),
       _optionSupportCache(std::move(optionSupportCache)),
       _logger("VCLCompilerImpl", Logger::global().level()) {
@@ -595,10 +595,10 @@ constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
     static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
 }  // namespace
 
-std::shared_ptr<IVCLCompiler> makeVCLCompiler(std::shared_ptr<const VCLFunctionTable> functions,
+std::shared_ptr<IVCLCompiler> makeVCLCompiler(const std::shared_ptr<const VCLFunctionTable>& functions,
                                               const std::optional<IDevice::DeviceProperties>& deviceProperties,
                                               const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
-    return std::make_shared<VCLCompilerImpl>(std::move(functions),
+    return std::make_shared<VCLCompilerImpl>(functions,
                                              deviceProperties,
                                              ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
 }

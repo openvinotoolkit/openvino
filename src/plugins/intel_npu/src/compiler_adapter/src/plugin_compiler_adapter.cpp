@@ -22,11 +22,11 @@
 namespace intel_npu {
 
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             std::shared_ptr<IVCLCompiler> compiler,
-                                             std::shared_ptr<IProfilingDecoder> profilingDecoder)
+                                             const std::shared_ptr<IVCLCompiler>& compiler,
+                                             const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : _zeroInitStruct(zeroInitStruct),
-      _compiler(std::move(compiler)),
-      _profilingDecoder(std::move(profilingDecoder)),
+      _compiler(compiler),
+      _profilingDecoder(profilingDecoder),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 

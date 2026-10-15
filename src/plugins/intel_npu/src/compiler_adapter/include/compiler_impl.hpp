@@ -31,7 +31,7 @@ public:
      * @param optionSupportCache The cache used for storing the compiler's option support answers, already bound to
      *        this compiler's cache key. May be disabled, in which case the compiler is queried every time.
      */
-    VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
+    VCLCompilerImpl(const std::shared_ptr<const VCLFunctionTable>& functions,
                     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
                     ScopedOptionSupportCache optionSupportCache = {});
     ~VCLCompilerImpl() override;
@@ -140,7 +140,7 @@ private:
  *        that belongs to a different compiler's answers.
  */
 std::shared_ptr<IVCLCompiler> makeVCLCompiler(
-    std::shared_ptr<const VCLFunctionTable> functions,
+    const std::shared_ptr<const VCLFunctionTable>& functions,
     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
     const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 
