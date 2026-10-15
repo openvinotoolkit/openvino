@@ -471,6 +471,27 @@ TEST(BatchReplicatedBranches, PreservesReplicaNamesForQueryModel) {
     }
 }
 
+TEST(BatchReplicatedBranches, DoesNotCopyConcatInputMetadataToReshapePorts) {
+    auto model = make_camera_model({0, 1, 2, 3});
+    auto concat = ov::as_type_ptr<ov::op::v0::Concat>(
+        model->get_results().front()->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(concat, nullptr);
+    concat->input(0).get_rt_info()["concat_input_0"] = int64_t{0};
+    concat->input(1).get_rt_info()["concat_input_1"] = int64_t{1};
+    concat->input(3).get_rt_info()["concat_input_3"] = int64_t{3};
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+    manager.run_passes(model);
+
+    auto repacked = ov::as_type_ptr<ov::op::v1::Reshape>(
+        model->get_results().front()->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(repacked, nullptr);
+    EXPECT_FALSE(repacked->input(0).get_rt_info().count("concat_input_0"));
+    EXPECT_FALSE(repacked->input(1).get_rt_info().count("concat_input_1"));
+    EXPECT_FALSE(repacked->input(1).get_rt_info().count("concat_input_3"));
+}
+
 TEST(BatchReplicatedBranches, ActivatesWithDistinctEndpointNamesAndDecompression) {
     auto model = make_camera_model({0, 1, 2, 3},
                                    false,

@@ -551,7 +551,7 @@ bool branch_nodes_are_disjoint(const std::vector<BranchInfo>& branches) {
     return disjoint;
 }
 
-void copy_node_metadata(const NodePtr& original, const NodePtr& replacement) {
+void copy_node_metadata_common(const NodePtr& original, const NodePtr& replacement) {
     replacement->set_friendly_name(original->get_friendly_name());
     ov::copy_runtime_info(original, replacement);
     // Decompression is non-copyable by design because it must not propagate
@@ -569,13 +569,21 @@ void copy_node_metadata(const NodePtr& original, const NodePtr& replacement) {
     if (precision_marker != original->get_rt_info().end()) {
         replacement->get_rt_info()[kRequiresPrecisionConversionKey] = precision_marker->second;
     }
-    for (size_t i = 0; i < std::min(original->get_input_size(), replacement->get_input_size()); ++i) {
-        replacement->input(i).get_rt_info() = original->input(i).get_rt_info();
-    }
     for (size_t i = 0; i < std::min(original->get_output_size(), replacement->get_output_size()); ++i) {
         replacement->output(i).get_rt_info() = original->output(i).get_rt_info();
         replacement->output(i).set_names(original->output(i).get_names());
     }
+}
+
+void copy_node_metadata(const NodePtr& original, const NodePtr& replacement) {
+    copy_node_metadata_common(original, replacement);
+    for (size_t i = 0; i < std::min(original->get_input_size(), replacement->get_input_size()); ++i) {
+        replacement->input(i).get_rt_info() = original->input(i).get_rt_info();
+    }
+}
+
+void copy_replacement_metadata(const NodePtr& original, const NodePtr& replacement) {
+    copy_node_metadata_common(original, replacement);
 }
 
 void merge_fused_names(const NodePtr& source,
@@ -750,7 +758,7 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
 
     auto reshape_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, reshape_shape_values);
     auto repacked_output = std::make_shared<ov::op::v1::Reshape>(repack_transpose, reshape_shape, false);
-    copy_node_metadata(output_concat, repacked_output);
+    copy_replacement_metadata(output_concat, repacked_output);
     ov::copy_runtime_info({output_concat, repack_transpose}, repacked_output);
     ov::replace_node(output_concat, repacked_output);
     return true;
