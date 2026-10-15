@@ -19,6 +19,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -80,7 +81,7 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         // SDPAWithTransposeReshape reads the key and value at the query's precision, so an integer
         // one would be reinterpreted rather than converted. Decline: the unfused SDPA gets its key
         // and value converted on the way in.
-        if (op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
+        if (ov::op::util::sdpa_has_integer_kv(*sdpa)) {
             return false;
         }
 

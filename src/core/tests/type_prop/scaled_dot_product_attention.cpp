@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/openvino.hpp"
 
 using namespace ov;
@@ -661,11 +662,12 @@ TEST(type_prop, scaled_dot_product_attention_quantized_scale_still_rejected) {
 
 // Seven consumers gate on these two predicates, so pin the set here: a consumer that disagrees
 // with the op about which operands are integers would reinterpret them instead of converting them.
-TEST(type_prop, scaled_dot_product_attention_quantized_kv_type_predicate) {
+TEST(type_prop, scaled_dot_product_attention_integer_kv_type_predicate) {
     using SDPA = op::v13::ScaledDotProductAttention;
+    using op::util::is_sdpa_integer_kv_type, op::util::sdpa_has_integer_kv;
 
     for (const auto& type : {element::i8, element::u8, element::i4, element::u4}) {
-        EXPECT_TRUE(SDPA::is_quantized_kv_type(type)) << type;
+        EXPECT_TRUE(is_sdpa_integer_kv_type(type)) << type;
     }
     for (const auto& type : {element::f16,
                              element::f32,
@@ -681,7 +683,7 @@ TEST(type_prop, scaled_dot_product_attention_quantized_kv_type_predicate) {
                              element::nf4,
                              element::f8e4m3,
                              element::dynamic}) {
-        EXPECT_FALSE(SDPA::is_quantized_kv_type(type)) << type;
+        EXPECT_FALSE(is_sdpa_integer_kv_type(type)) << type;
     }
 
     const auto query = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
@@ -690,7 +692,7 @@ TEST(type_prop, scaled_dot_product_attention_quantized_kv_type_predicate) {
     const auto f16_value = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 5, 6});
     const auto u4_value = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{2, 5, 6});
 
-    EXPECT_FALSE(SDPA::has_quantized_kv(SDPA(query, f16_key, f16_value, false)));
-    EXPECT_TRUE(SDPA::has_quantized_kv(SDPA(query, i8_key, f16_value, false)));
-    EXPECT_TRUE(SDPA::has_quantized_kv(SDPA(query, f16_key, u4_value, false)));
+    EXPECT_FALSE(sdpa_has_integer_kv(SDPA(query, f16_key, f16_value, false)));
+    EXPECT_TRUE(sdpa_has_integer_kv(SDPA(query, i8_key, f16_value, false)));
+    EXPECT_TRUE(sdpa_has_integer_kv(SDPA(query, f16_key, u4_value, false)));
 }

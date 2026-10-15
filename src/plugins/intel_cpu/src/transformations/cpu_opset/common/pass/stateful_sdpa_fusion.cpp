@@ -33,6 +33,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -124,7 +125,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         // an integer one would be reinterpreted rather than converted. Decline: the unfused SDPA
         // gets its key and value converted on the way in.
         const auto sdpa_root = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(root);
-        if (sdpa_root && ov::op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa_root)) {
+        if (sdpa_root && ov::op::util::sdpa_has_integer_kv(*sdpa_root)) {
             return false;
         }
 

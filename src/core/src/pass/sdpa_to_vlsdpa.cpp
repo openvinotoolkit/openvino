@@ -15,6 +15,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/node_util.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/vl_sdpa.hpp"
 #include "transformations/utils/utils.hpp"
@@ -71,7 +72,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
                     }
                     // VLSDPA takes its key and value in the query's type, while the SDPA op
                     // also admits an integer key or value.
-                    if (v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
+                    if (ov::op::util::sdpa_has_integer_kv(*sdpa)) {
                         consumers_are_sdpa = false;
                         break;
                     }
