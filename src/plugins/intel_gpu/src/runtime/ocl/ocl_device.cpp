@@ -376,6 +376,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         if (product.family == ngen::ProductFamily::Unknown) {
             info.supports_immad = false;
         }
+        if (std::getenv("OV_TMP_FORCE_NO_IMMAD"))  // TMP local CI repro, do not commit
+            info.supports_immad = false;
     }
 #else   // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;

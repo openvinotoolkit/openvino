@@ -7,6 +7,20 @@
 #include "include/batch_headers/int4_utils.cl"
 #include "include/batch_headers/int2_utils.cl"
 
+#if COMPRESSED_WEIGHTS_UINT3
+// u3 weights are a tightly packed LSB-first bit stream: element i occupies bits [3 * i, 3 * i + 3),
+// so it may span two bytes. The second byte is read only when needed to stay inside the buffer.
+inline uchar get_uint3_weight(const __global uchar* weights, uint idx) {
+    const uint bit_offset = idx * 3;
+    const uint byte_idx = bit_offset / 8;
+    const uint shift = bit_offset % 8;
+    uint packed = weights[byte_idx];
+    if (shift > 5)
+        packed |= (uint)weights[byte_idx + 1] << 8;
+    return (uchar)((packed >> shift) & 0x7);
+}
+#endif
+
 KERNEL(fc)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -72,6 +86,10 @@ KERNEL(fc)(
                 ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 4];
                 ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
+            #elif COMPRESSED_WEIGHTS_UINT3
+                ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(get_uint3_weight(weights, filter_idx));
+                ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
+                dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
             #else
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
             #endif
@@ -124,6 +142,10 @@ KERNEL(fc)(
                     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) filter_unpacked = UNPACK_UINT2x4(ACCUMULATOR_TYPE, *((UINT2_PACKED_TYPE*)&filter_packed));
 
                     ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 4];
+                    ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
+                    dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
+                #elif COMPRESSED_WEIGHTS_UINT3
+                    ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(get_uint3_weight(weights, filter_idx));
                     ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
                 #else
