@@ -7,7 +7,6 @@
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
-#include <algorithm>
 #include <common/primitive_hashing.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
@@ -226,9 +225,9 @@ private:
     impl_desc_type m_impl_type = impl_desc_type::unknown;
 };
 
-// ---- row rounding -------------------------------------------------------------
+namespace {
 
-namespace gathermatmul {
+// ---- normalizeM helper -------------------------------------------------------
 
 Dim normalizeM(Dim M) {
     if (M < 512) {
@@ -240,14 +239,6 @@ Dim normalizeM(Dim M) {
     }
     return M;
 }
-
-size_t gemmRows(size_t num_valid_rows, size_t M_size) {
-    return std::min<size_t>(normalizeM(num_valid_rows), M_size);
-}
-
-}  // namespace gathermatmul
-
-namespace {
 
 // ---- GatherMatmulDnnlExecutor -----------------------------------------------
 
@@ -423,7 +414,7 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
         m_implType = m_gemvImpl->get_impl_type();
         return true;
     }
-    const Dim M = gathermatmul::normalizeM(srcShape[1]);
+    const Dim M = normalizeM(srcShape[1]);
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     const auto srcPrc = srcMem->getDesc().getPrecision();
 
@@ -469,35 +460,30 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
                         makeBiasMd(static_cast<dnnl::memory::dim>(weights_md.get_dims()[0]), memory.at(ARG_BIAS)),
                         scale_shape,
                         zp_shape};
-    const auto& eng = m_context->getEngine();
-    const auto threadPool = m_context->getThreadPool();
-    auto cache = m_context->getRuntimeCache();
-    std::tie(m_gemmImpl, std::ignore) = cache->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
-        return std::make_shared<InnerProduct>(eng, threadPool, k);
-    });
-    // The GEMM (not the GEMV) is what executes for M > 1, so report its implementation type
-    m_implType = m_gemmImpl->get_impl_type();
-
-    // Right-sized GEMMs: same weights/bias/scale/zp, only the number of source rows differs.
-    // Primitives are shared through the runtime cache, so each (rows, weights shape) pair is built once.
-    const auto srcDataType = DnnlExtensionUtils::ElementTypeToDataType(srcPrc);
-    const auto K = static_cast<dnnl::memory::dim>(srcShape[2]);
-    m_makeGemm = [this, key, srcDataType, K](size_t rows) {
-        InnerProductKey sizedKey = key;
-        sizedKey.src_md =
-            dnnl::memory::desc({static_cast<dnnl::memory::dim>(rows), K}, srcDataType, dnnl::memory::format_tag::ab);
-        const auto& engine = m_context->getEngine();
-        const auto pool = m_context->getThreadPool();
-        InnerProductPtr impl;
-        std::tie(impl, std::ignore) =
-            m_context->getRuntimeCache()->getOrCreate(sizedKey, [&engine, &pool](const InnerProductKey& k) {
-                return std::make_shared<InnerProduct>(engine, pool, k);
-            });
-        return impl;
-    };
+    // The GEMMs are created on first use, each sized to the rows its gather index receives (getGemm), so the
+    // oneDNN primitive that will execute is not known here. DNNL_VERBOSE reports the implementation.
+    m_implType = impl_desc_type::unknown;
+    m_gemmKey = std::make_shared<InnerProductKey>(std::move(key));
     m_gemmBySize.clear();
-    m_gemmBySize[M] = m_gemmImpl;
     return true;
+}
+
+GatherMatmulDnnlExecutor::InnerProductPtr GatherMatmulDnnlExecutor::getGemm(size_t rows) {
+    OPENVINO_ASSERT(m_gemmKey, "GEMM key is not initialized");
+    auto& gemm = m_gemmBySize[rows];
+    if (!gemm) {
+        InnerProductKey key = *m_gemmKey;
+        key.src_md = dnnl::memory::desc({static_cast<dnnl::memory::dim>(rows), key.src_md.get_dims()[1]},
+                                        key.src_md.get_data_type(),
+                                        dnnl::memory::format_tag::ab);
+        const auto& eng = m_context->getEngine();
+        const auto threadPool = m_context->getThreadPool();
+        std::tie(gemm, std::ignore) =
+            m_context->getRuntimeCache()->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
+                return std::make_shared<InnerProduct>(eng, threadPool, k);
+            });
+    }
+    return gemm;
 }
 
 void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
@@ -558,7 +544,6 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             auto tmp_input_offset = OffsetHelper::createOffsetHelper(tmpInput);
             auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
 
-            OPENVINO_ASSERT(m_gemmImpl, "GEMM implementation is not created");
             for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
                 const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
                 if (0 == num_valid_rows) {
@@ -567,11 +552,10 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
 
                 // Size the GEMM to the rows routed to this gather index (rounded up by normalizeM), not to
                 // the full input length: with top-k routing most rows of a full-length GEMM are zero padding.
-                const size_t gemm_rows = gathermatmul::gemmRows(num_valid_rows, M_size);
-                auto& gemmImpl = m_gemmBySize[gemm_rows];
-                if (!gemmImpl) {
-                    gemmImpl = m_makeGemm(gemm_rows);
-                }
+                OPENVINO_ASSERT(num_valid_rows <= M_size,
+                                "GatherMatmul: a gather index received more rows than the input has");
+                const size_t gemm_rows = normalizeM(num_valid_rows);
+                const auto gemmImpl = getGemm(gemm_rows);
 
                 cpu_parallel->parallel_for(gemm_rows, [&](size_t m) {
                     auto* dst_row = tmp_input_offset(m);

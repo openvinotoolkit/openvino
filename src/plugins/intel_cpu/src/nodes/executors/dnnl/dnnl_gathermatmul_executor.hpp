@@ -5,13 +5,11 @@
 #pragma once
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <unordered_map>
 
 #include "cpu_memory.h"
-#include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
@@ -20,16 +18,7 @@
 
 namespace ov::intel_cpu {
 
-namespace gathermatmul {
-// Rows of the oneDNN inner_product run for an input of M rows: M rounded up to the block the GEMM wants,
-// 16 below 512 rows, 32 below 1024 rows and 256 from 1024 rows on.
-Dim normalizeM(Dim M);
-// Rows of the GEMM run for one gather index that received num_valid_rows rows of an input whose normalized
-// length is M_size. normalizeM is monotonic and num_valid_rows <= M, so the result never exceeds M_size.
-size_t gemmRows(size_t num_valid_rows, size_t M_size);
-}  // namespace gathermatmul
-
-struct GatherMatmulDnnlExecutorTestPeer;
+struct InnerProductKey;
 
 class GatherMatmulDnnlExecutor : public Executor {
 public:
@@ -44,10 +33,11 @@ public:
     [[nodiscard]] impl_desc_type implType() const override;
 
 private:
-    friend struct GatherMatmulDnnlExecutorTestPeer;
-
     class InnerProduct;
     using InnerProductPtr = std::shared_ptr<InnerProduct>;
+
+    // The GEMM for an input of the given number of rows, created on first use from m_gemmKey.
+    [[nodiscard]] InnerProductPtr getGemm(size_t rows);
 
     ExecutorContext::CPtr m_context;
 
@@ -56,11 +46,10 @@ private:
     MemoryPtr m_zpMemory;
 
     InnerProductPtr m_gemvImpl;
-    InnerProductPtr m_gemmImpl;
-    // GEMM primitives keyed by row count, so each gather index (expert) can run a GEMM sized to the
-    // rows actually routed to it instead of the full input length.
+    // GEMM primitives keyed by row count, so each gather index (expert) runs a GEMM sized to the rows
+    // routed to it instead of the full input length. The key holds everything but the row count.
+    std::shared_ptr<InnerProductKey> m_gemmKey;
     std::unordered_map<size_t, InnerProductPtr> m_gemmBySize;
-    std::function<InnerProductPtr(size_t)> m_makeGemm;
 
     MemoryPtr m_tmpInpBuffer;
     MemoryDescPtr m_tmpInputDesc;
