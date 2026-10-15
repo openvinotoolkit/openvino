@@ -645,6 +645,9 @@ void PagedAttnTestBase::prepare() {
         }
     }
     if (has_pa) {
+        // 32 is the CPU plugin's fixed PagedAttention block size: ConvertPagedAttnInputs
+        // bakes keyCacheBlockSize = 32 into the reshaped K-cache ([num_blocks, H, 32, S]),
+        // so the runtime model always reports 32 for the CPU plugin.
         ASSERT_TRUE(runtime_model->has_rt_info("paged_attention_block_size"));
         EXPECT_EQ(runtime_model->get_rt_info<size_t>("paged_attention_block_size"), 32);
     }

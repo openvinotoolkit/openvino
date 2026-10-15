@@ -52,6 +52,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     static bool isQuantByChannel(Config::CacheQuantMode mode, ov::element::Type precision, bool isKey);
+    static size_t get_key_cache_params_size(ov::element::Type precision);
     std::optional<size_t> get_block_size() const;
 
 private:
