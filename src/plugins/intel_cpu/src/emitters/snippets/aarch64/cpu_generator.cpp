@@ -404,7 +404,6 @@ std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
     const auto num_gp_regs = 32;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
-        // Note: more details on the usage of reserved registers in aarch64/jit_kernel_emitter.cpp
         if (!utils::is_reserved_gpr(i)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }

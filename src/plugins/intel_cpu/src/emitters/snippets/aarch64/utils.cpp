@@ -199,12 +199,12 @@ namespace utils {
 bool is_reserved_gpr(size_t idx) {
     using Xbyak_aarch64::Operand;
     return ov::intel_cpu::any_of(idx,
-                                 Operand::X18,
-                                 Operand::X23,
-                                 Operand::X24,
-                                 Operand::X28,
-                                 Operand::X29,
-                                 Operand::SP);
+                                 Operand::X18,  // Platform register.
+                                 Operand::X23,  // Kernel temporary X_TMP_0.
+                                 Operand::X24,  // Kernel temporary X_TMP_1.
+                                 Operand::X28,  // Kernel default address register.
+                                 Operand::X29,  // Frame pointer.
+                                 Operand::SP);  // Stack pointer.
 }
 
 std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count) {
@@ -213,7 +213,9 @@ std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gp
 
     // Iterate from X30 down to X0 (allocate from the end)
     for (size_t idx = 30; idx != SIZE_MAX && aux_regs.size() < count; --idx) {
+        // Register assignments are documented in jit_kernel_emitter.cpp.
         if (std::find(used_gpr_idxs.begin(), used_gpr_idxs.end(), idx) != used_gpr_idxs.end() ||
+            // X0 and X1 - runtime parameter registers in the kernel
             idx == static_cast<size_t>(abi_param1.getIdx()) || idx == static_cast<size_t>(abi_param2.getIdx()) ||
             is_reserved_gpr(idx)) {
             continue;
