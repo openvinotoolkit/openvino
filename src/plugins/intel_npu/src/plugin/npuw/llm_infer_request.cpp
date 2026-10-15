@@ -136,14 +136,7 @@ void stage_additive_attention_mask_for_prefill(const ov::SoPtr<ov::ITensor>& src
                     ".");
 
     fill_additive_attention_mask(dst);
-    copy_additive_attention_block(src,
-                                  dst,
-                                  0,
-                                  0,
-                                  dst_shape[2] - query_len,
-                                  dst_shape[3] - key_len,
-                                  query_len,
-                                  key_len);
+    copy_additive_attention_block(src, dst, 0, 0, dst_shape[2] - query_len, dst_shape[3] - key_len, query_len, key_len);
 }
 
 void stage_additive_attention_mask_for_generate(const ov::SoPtr<ov::ITensor>& src,
