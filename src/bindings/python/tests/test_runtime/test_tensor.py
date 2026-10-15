@@ -374,7 +374,7 @@ def test_can_set_shape_other_dims():
 
 
 @pytest.mark.parametrize(
-    ("ov_type", "expected_msg"),
+    "ov_type",
     [
         ov.Type.u1,
         ov.Type.u2,
@@ -384,7 +384,7 @@ def test_can_set_shape_other_dims():
         ov.Type.i4,
     ],
 )
-def test_cannot_create_roi_from_packed_tensor(ov_type, expected_msg):
+def test_cannot_create_roi_from_packed_tensor(ov_type):
     ov_tensor = ov.Tensor(ov_type, [1, 3, 48, 48])
     with pytest.raises(RuntimeError) as e:
         ov.Tensor(ov_tensor, [0, 0, 24, 24], [1, 3, 48, 48])
