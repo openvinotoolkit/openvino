@@ -49,9 +49,7 @@ protected:
     void SetUp() override {
         const auto& [quantizedPrecision, stride, padding, excludePad, inferencePrecision, cpuParams] = GetParam();
         targetDevice = utils::DEVICE_CPU;
-        configuration = {{ov::hint::inference_precision(inferencePrecision)},
-                         {ov::num_streams(1)},
-                         {ov::inference_num_threads(1)}};
+        configuration = {ov::hint::inference_precision(inferencePrecision)};
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         // CPU execution graphs report I8 primitives for both i8 and u8 tensors.
         selectedType = makeSelectedTypeStr(selectedType, element::i8);
@@ -125,20 +123,24 @@ protected:
         inputs.insert({param, tensor});
     }
 
+    void validate() override {
+        SubgraphBaseTest::validate();
+        CheckNumberOfNodesWithType(compiledModel, "Pooling", 1);
+        CheckPluginRelatedResults(compiledModel, "Pooling");
+        const auto expectedPrecision = std::get<0>(GetParam());
+        const auto poolingNodes = GetNodesWithTypes(compiledModel.get_runtime_model(), {"Pooling"});
+        for (const auto& node : poolingNodes) {
+            const auto& rtInfo = node->get_rt_info();
+            EXPECT_EQ(rtInfo.at(ov::exec_model_info::RUNTIME_PRECISION).as<element::Type>(), expectedPrecision);
+            EXPECT_EQ(node->get_output_element_type(0), expectedPrecision);
+        }
+    }
+
     static constexpr float weightScale = 0.125f;
 };
 
 TEST_P(PoolingAndFQ, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Pooling", 1);
-    CheckPluginRelatedResults(compiledModel, "Pooling");
-    const auto expectedPrecision = std::get<0>(GetParam());
-    const auto poolingNodes = GetNodesWithTypes(compiledModel.get_runtime_model(), {"Pooling"});
-    for (const auto& node : poolingNodes) {
-        const auto& rtInfo = node->get_rt_info();
-        EXPECT_EQ(rtInfo.at(ov::exec_model_info::RUNTIME_PRECISION).as<element::Type>(), expectedPrecision);
-        EXPECT_EQ(node->get_output_element_type(0), expectedPrecision);
-    }
 }
 
 namespace {
