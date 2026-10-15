@@ -372,20 +372,23 @@ def extract_input_info_from_example(args, inputs):
             input_arg.append(single_input_to_input_cut_info((shape, dtype)))
     if inputs is not None and len(inputs) != 0:
         if len(inputs) == len(input_arg):
-            # we can update input argument with info from examples
+            # Pass 1: exact name matches. Pass 2: unmatched descriptors take leftover
+            # examples in order; a named descriptor may only take an unnamed example.
+            by_name = {ex.name: ex for ex in input_arg if ex.name is not None}
+            matched = [by_name.get(desc.name) for desc in args.input]
+            used = {id(ex) for ex in matched if ex is not None}
+            leftover = [ex for ex in input_arg if id(ex) not in used]
             new_input = []
-            for i in range(len(input_arg)):
-                input_desc = args.input[i]
-                name = input_desc.name
-                dtype = input_desc.type
-                shape = input_desc.shape
-                if name is None:
-                    name = input_arg[i].name
-                if dtype is None:
-                    dtype = input_arg[i].type
-                if shape is None:
-                    shape = input_arg[i].shape
-                new_input.append(_InputCutInfo(name, shape, dtype, input_desc.value))
+            for desc, ex in zip(args.input, matched):
+                if ex is None:
+                    ex = next((e for e in leftover if desc.name is None or e.name is None), None)
+                    if ex is not None:
+                        leftover.remove(ex)
+                name, shape, dtype = (ex.name, ex.shape, ex.type) if ex is not None else (None, None, None)
+                new_input.append(_InputCutInfo(desc.name if desc.name is not None else name,
+                                               desc.shape if desc.shape is not None else shape,
+                                               desc.type if desc.type is not None else dtype,
+                                               desc.value))
             input_arg = new_input
         else:
             # we can't update args.input
