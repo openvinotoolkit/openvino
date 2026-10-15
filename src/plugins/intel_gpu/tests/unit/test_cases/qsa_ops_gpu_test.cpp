@@ -44,9 +44,13 @@
 #include <intel_gpu/primitives/qsa_indexer.hpp>
 #include <intel_gpu/primitives/sparse_pa.hpp>
 #include <intel_gpu/primitives/sparse_sdpa.hpp>
+#include <openvino/op/assign.hpp>
+#include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/parameter.hpp>
+#include <openvino/op/read_value.hpp>
 #include <openvino/op/result.hpp>
+#include <openvino/op/util/variable.hpp>
 
 #include "impls/ocl/kernel_selector_helper.h"
 #include "openvino/runtime/core.hpp"
@@ -547,15 +551,65 @@ ExecutionConfig make_config(engine& engine) {
     return cfg;
 }
 
-std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs& in, Stage stage) {
+/// Adds a per-call tensor: a constant in a static topology, a network input (with the given
+/// dynamic shape) in a dynamic one, where set_*_inputs() feeds it on every call.
+void add_call_tensor(topology& topo, bool dynamic, const primitive_id& id, const ov::PartialShape& dyn_shape, const memory::ptr& mem) {
+    if (dynamic) {
+        topo.add(input_layout(id, layout{dyn_shape, mem->get_layout().data_type, format::bfyx}));
+    } else {
+        topo.add(data(id, mem));
+    }
+}
+
+void set_paged_inputs(engine& engine, network& net, const paged_inputs& in, Stage stage, bool dynamic) {
     const auto& d = in.d;
     const auto q = I(in.q_len);
     const auto np = I(in.num_pages);
+    if (dynamic) {
+        net.set_input_data("block_indices", make_i32(engine, {np}, in.block_indices));
+        net.set_input_data("block_indices_begins", make_i32(engine, {I(in.block_indices_begins.size())}, in.block_indices_begins));
+        net.set_input_data("subsequence_begins", make_i32(engine, {I(in.subsequence_begins.size())}, in.subsequence_begins));
+        net.set_input_data("past_lens", make_i32(engine, {I(in.past_lens.size())}, in.past_lens));
+    }
+    if (stage != Stage::AttentionOnly) {
+        if (dynamic) {
+            net.set_input_data("rotary", make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary));
+            net.set_input_data("q_norm", make_f16(engine, {I(d.Di)}, in.q_norm));
+            net.set_input_data("k_norm", make_f16(engine, {I(d.Di)}, in.k_norm));
+        }
+        net.set_input_data("q_idx", make_f16(engine, {q, I(d.Hiq * d.Di)}, in.q_idx));
+        net.set_input_data("k_idx", make_f16(engine, {q, I(d.Di)}, in.k_idx));
+        net.set_input_data("position_ids", make_i32(engine, {q}, in.position_ids));
+        net.set_input_data("summary_cache", make_f16(engine, {np, 1, I(in.spp), I(d.Di)}, in.summary_cache));
+        net.set_input_data("raw_k_cache", make_f16(engine, {np, 1, I(d.page_size), I(d.Di)}, in.raw_k_cache));
+        net.set_input_data("position_cache", make_i32(engine, {np, I(in.spp)}, in.position_cache));
+    }
+    if (stage != Stage::IndexerOnly) {
+        if (dynamic) {
+            net.set_input_data("qb_start", make_i32(engine, {I(in.qb_start.size())}, in.qb_start));
+        }
+        net.set_input_data("query", make_f16(engine, {q, I(d.Hq * d.Dh)}, in.query));
+        net.set_input_data("key", make_f16(engine, {q, I(d.Hkv * d.Dh)}, in.key));
+        net.set_input_data("value", make_f16(engine, {q, I(d.Hkv * d.Dv)}, in.value));
+        net.set_input_data("key_cache", make_f16(engine, {np, I(d.Hkv), I(d.page_size), I(d.Dh)}, in.key_cache));
+        net.set_input_data("value_cache", make_f16(engine, {np, I(d.Hkv), I(d.page_size), I(d.Dv)}, in.value_cache));
+    }
+}
+
+/// `dynamic`: token/page/sequence extents are dynamic and every per-call tensor is an input,
+/// so ONE network serves any (past_len, q_len) through the shape-agnostic impls.
+std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs& in, Stage stage, bool dynamic = false) {
+    const auto& d = in.d;
+    const auto dyn = [dynamic](int64_t v) {
+        return dynamic ? int64_t{-1} : v;
+    };
+    const auto q = dyn(I(in.q_len));
+    const auto np = dyn(I(in.num_pages));
     topology topo;
-    topo.add(data("block_indices", make_i32(engine, {np}, in.block_indices)));
-    topo.add(data("block_indices_begins", make_i32(engine, {I(in.block_indices_begins.size())}, in.block_indices_begins)));
-    topo.add(data("subsequence_begins", make_i32(engine, {I(in.subsequence_begins.size())}, in.subsequence_begins)));
-    topo.add(data("past_lens", make_i32(engine, {I(in.past_lens.size())}, in.past_lens)));
+    add_call_tensor(topo, dynamic, "block_indices", {-1}, make_i32(engine, {I(in.num_pages)}, in.block_indices));
+    add_call_tensor(topo, dynamic, "block_indices_begins", {-1}, make_i32(engine, {I(in.block_indices_begins.size())}, in.block_indices_begins));
+    add_call_tensor(topo, dynamic, "subsequence_begins", {-1}, make_i32(engine, {I(in.subsequence_begins.size())}, in.subsequence_begins));
+    add_call_tensor(topo, dynamic, "past_lens", {-1}, make_i32(engine, {I(in.past_lens.size())}, in.past_lens));
 
     if (stage != Stage::AttentionOnly) {
         ov::intel_gpu::op::PagedQSAIndexer::Config cfg;
@@ -571,11 +625,11 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
         topo.add(input_layout("q_idx", layout{{q, I(d.Hiq * d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("k_idx", layout{{q, I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("position_ids", layout{{q}, data_types::i32, format::bfyx}));
-        topo.add(data("rotary", make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary)));
+        add_call_tensor(topo, dynamic, "rotary", {-1, I(d.rotary)}, make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary));
         topo.add(input_layout("summary_cache", layout{{np, 1, I(in.spp), I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("raw_k_cache", layout{{np, 1, I(d.page_size), I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(data("q_norm", make_f16(engine, {I(d.Di)}, in.q_norm)));
-        topo.add(data("k_norm", make_f16(engine, {I(d.Di)}, in.k_norm)));
+        add_call_tensor(topo, dynamic, "q_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.q_norm));
+        add_call_tensor(topo, dynamic, "k_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.k_norm));
         topo.add(input_layout("position_cache", layout{{np, I(in.spp)}, data_types::i32, format::bfyx}));
         static_assert(PagedIn::COUNT == 13, "keep the test input order in sync with PagedQSAIndexer::InputIdx");
         topo.add(paged_qsa_indexer("indexer",
@@ -613,11 +667,11 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
         topo.add(input_layout("value", layout{{q, I(d.Hkv * d.Dv)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("key_cache", layout{{np, I(d.Hkv), I(d.page_size), I(d.Dh)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("value_cache", layout{{np, I(d.Hkv), I(d.page_size), I(d.Dv)}, data_types::f16, format::bfyx}));
-        topo.add(data("qb_start", make_i32(engine, {I(in.qb_start.size())}, in.qb_start)));
+        add_call_tensor(topo, dynamic, "qb_start", {-1}, make_i32(engine, {I(in.qb_start.size())}, in.qb_start));
         input_info sel("indexer", 0), count("indexer", 1);
         if (stage == Stage::AttentionOnly) {
-            topo.add(data("sel", make_i32(engine, {q, 1, I(d.block_topk)}, in.plan.sel)));
-            topo.add(data("count", make_i32(engine, {q, 1}, in.plan.count)));
+            topo.add(data("sel", make_i32(engine, {I(in.q_len), 1, I(d.block_topk)}, in.plan.sel)));
+            topo.add(data("count", make_i32(engine, {I(in.q_len), 1}, in.plan.count)));
             sel = input_info("sel");
             count = input_info("count");
         }
@@ -639,21 +693,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
     }
 
     auto net = std::make_unique<network>(engine, topo, make_config(engine));
-    if (stage != Stage::AttentionOnly) {
-        net->set_input_data("q_idx", make_f16(engine, {q, I(d.Hiq * d.Di)}, in.q_idx));
-        net->set_input_data("k_idx", make_f16(engine, {q, I(d.Di)}, in.k_idx));
-        net->set_input_data("position_ids", make_i32(engine, {q}, in.position_ids));
-        net->set_input_data("summary_cache", make_f16(engine, {np, 1, I(in.spp), I(d.Di)}, in.summary_cache));
-        net->set_input_data("raw_k_cache", make_f16(engine, {np, 1, I(d.page_size), I(d.Di)}, in.raw_k_cache));
-        net->set_input_data("position_cache", make_i32(engine, {np, I(in.spp)}, in.position_cache));
-    }
-    if (stage != Stage::IndexerOnly) {
-        net->set_input_data("query", make_f16(engine, {q, I(d.Hq * d.Dh)}, in.query));
-        net->set_input_data("key", make_f16(engine, {q, I(d.Hkv * d.Dh)}, in.key));
-        net->set_input_data("value", make_f16(engine, {q, I(d.Hkv * d.Dv)}, in.value));
-        net->set_input_data("key_cache", make_f16(engine, {np, I(d.Hkv), I(d.page_size), I(d.Dh)}, in.key_cache));
-        net->set_input_data("value_cache", make_f16(engine, {np, I(d.Hkv), I(d.page_size), I(d.Dv)}, in.value_cache));
-    }
+    set_paged_inputs(engine, *net, in, stage, dynamic);
     return net;
 }
 
@@ -760,11 +800,44 @@ dense_inputs dense_inputs_synthetic(const split_dims& dims, size_t past_len, siz
     return in;
 }
 
-std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs& in, Stage stage) {
+void set_dense_inputs(engine& engine, network& net, const dense_inputs& in, Stage stage, bool dynamic) {
     const auto& d = in.d;
     const auto B = I(in.batch);
     const auto q = I(in.q_len);
     const auto total = I(in.past_len + in.q_len);
+    if (stage != Stage::AttentionOnly) {
+        if (dynamic) {
+            net.set_input_data("rotary", make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary));
+            net.set_input_data("q_norm", make_f16(engine, {I(d.Di)}, in.q_norm));
+            net.set_input_data("k_norm", make_f16(engine, {I(d.Di)}, in.k_norm));
+            net.set_input_data("past_lens", make_i32(engine, {B}, in.past_lens));
+        }
+        net.set_input_data("q_idx", make_f16(engine, {B, q, I(d.Hiq), I(d.Di)}, in.q_idx));
+        net.set_input_data("k_idx", make_f16(engine, {B, q, 1, I(d.Di)}, in.k_idx));
+        net.set_input_data("position_ids", make_i32(engine, {B, q}, in.position_ids));
+        net.set_input_data("summary_cache", make_f16(engine, {B, 1, I(in.summary_cap), I(d.Di)}, in.summary_cache));
+        net.set_input_data("raw_k_cache", make_f16(engine, {B, 1, I(in.s_cap), I(d.Di)}, in.raw_k_cache));
+        net.set_input_data("position_cache", make_i32(engine, {B, I(in.summary_cap)}, in.position_cache));
+    }
+    if (stage != Stage::IndexerOnly) {
+        net.set_input_data("query", make_f16(engine, {B, I(d.Hq), q, I(d.Dh)}, in.query_bhld));
+        net.set_input_data("key", make_f16(engine, {B, I(d.Hkv), total, I(d.Dh)}, in.key_bhsd));
+        net.set_input_data("value", make_f16(engine, {B, I(d.Hkv), total, I(d.Dv)}, in.value_bhsd));
+    }
+}
+
+/// `dynamic`: B/L/S and cache capacities are dynamic and every per-call tensor is an input,
+/// so ONE network serves any (batch, past_len, q_len) through the shape-agnostic impls.
+std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs& in, Stage stage, bool dynamic = false) {
+    const auto& d = in.d;
+    const auto dyn = [dynamic](int64_t v) {
+        return dynamic ? int64_t{-1} : v;
+    };
+    const auto B = dyn(I(in.batch));
+    const auto q = dyn(I(in.q_len));
+    const auto total = dyn(I(in.past_len + in.q_len));
+    const auto s_cap = dyn(I(in.s_cap));
+    const auto summary_cap = dyn(I(in.summary_cap));
     topology topo;
 
     if (stage != Stage::AttentionOnly) {
@@ -780,13 +853,13 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
         topo.add(input_layout("q_idx", layout{{B, q, I(d.Hiq), I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("k_idx", layout{{B, q, 1, I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("position_ids", layout{{B, q}, data_types::i32, format::bfyx}));
-        topo.add(data("rotary", make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary)));
-        topo.add(input_layout("summary_cache", layout{{B, 1, I(in.summary_cap), I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(input_layout("raw_k_cache", layout{{B, 1, I(in.s_cap), I(d.Di)}, data_types::f16, format::bfyx}));
-        topo.add(data("q_norm", make_f16(engine, {I(d.Di)}, in.q_norm)));
-        topo.add(data("k_norm", make_f16(engine, {I(d.Di)}, in.k_norm)));
-        topo.add(data("past_lens", make_i32(engine, {B}, in.past_lens)));
-        topo.add(input_layout("position_cache", layout{{B, I(in.summary_cap)}, data_types::i32, format::bfyx}));
+        add_call_tensor(topo, dynamic, "rotary", {-1, I(d.rotary)}, make_f16(engine, {I(d.max_positions), I(d.rotary)}, in.rotary));
+        topo.add(input_layout("summary_cache", layout{{B, 1, summary_cap, I(d.Di)}, data_types::f16, format::bfyx}));
+        topo.add(input_layout("raw_k_cache", layout{{B, 1, s_cap, I(d.Di)}, data_types::f16, format::bfyx}));
+        add_call_tensor(topo, dynamic, "q_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.q_norm));
+        add_call_tensor(topo, dynamic, "k_norm", {I(d.Di)}, make_f16(engine, {I(d.Di)}, in.k_norm));
+        add_call_tensor(topo, dynamic, "past_lens", {-1}, make_i32(engine, {I(in.batch)}, in.past_lens));
+        topo.add(input_layout("position_cache", layout{{B, summary_cap}, data_types::i32, format::bfyx}));
         static_assert(DenseIdxIn::COUNT == 10, "keep the test input order in sync with QSAIndexer::InputIdx");
         topo.add(qsa_indexer("indexer",
                              {input_info("q_idx"),
@@ -818,8 +891,8 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
         topo.add(input_layout("value", layout{{B, I(d.Hkv), total, I(d.Dv)}, data_types::f16, format::bfyx}));
         input_info sel("indexer", 0), count("indexer", 1);
         if (stage == Stage::AttentionOnly) {
-            topo.add(data("sel", make_i32(engine, {1, 1, q, I(d.block_topk)}, in.plan.sel)));
-            topo.add(data("count", make_i32(engine, {1, 1, q}, in.plan.count)));
+            topo.add(data("sel", make_i32(engine, {1, 1, I(in.q_len), I(d.block_topk)}, in.plan.sel)));
+            topo.add(data("count", make_i32(engine, {1, 1, I(in.q_len)}, in.plan.count)));
             sel = input_info("sel");
             count = input_info("count");
         }
@@ -828,19 +901,7 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
     }
 
     auto net = std::make_unique<network>(engine, topo, make_config(engine));
-    if (stage != Stage::AttentionOnly) {
-        net->set_input_data("q_idx", make_f16(engine, {B, q, I(d.Hiq), I(d.Di)}, in.q_idx));
-        net->set_input_data("k_idx", make_f16(engine, {B, q, 1, I(d.Di)}, in.k_idx));
-        net->set_input_data("position_ids", make_i32(engine, {B, q}, in.position_ids));
-        net->set_input_data("summary_cache", make_f16(engine, {B, 1, I(in.summary_cap), I(d.Di)}, in.summary_cache));
-        net->set_input_data("raw_k_cache", make_f16(engine, {B, 1, I(in.s_cap), I(d.Di)}, in.raw_k_cache));
-        net->set_input_data("position_cache", make_i32(engine, {B, I(in.summary_cap)}, in.position_cache));
-    }
-    if (stage != Stage::IndexerOnly) {
-        net->set_input_data("query", make_f16(engine, {B, I(d.Hq), q, I(d.Dh)}, in.query_bhld));
-        net->set_input_data("key", make_f16(engine, {B, I(d.Hkv), total, I(d.Dh)}, in.key_bhsd));
-        net->set_input_data("value", make_f16(engine, {B, I(d.Hkv), total, I(d.Dv)}, in.value_bhsd));
-    }
+    set_dense_inputs(engine, *net, in, stage, dynamic);
     return net;
 }
 
@@ -869,6 +930,9 @@ void read_pair_outputs(network& net, pair_outputs& out) {
     auto indexer = net.get_primitive("indexer");
     out.plan.sel = read_i32(indexer->output_memory_ptr(0));
     out.plan.count = read_i32(indexer->output_memory_ptr(1));
+    // Dynamic networks may keep a larger buffer from an earlier call.
+    out.plan.sel.resize(indexer->get_output_layout(0).count());
+    out.plan.count.resize(indexer->get_output_layout(1).count());
     out.indexer_kernels = executed_kernels(net, "indexer");
     out.attention_kernels = executed_kernels(net, "attn");
 }
@@ -888,7 +952,7 @@ std::vector<std::string> expected_indexer_kernels(bool paged, const route& r) {
     switch (r.indexer) {
     case IndexerPath::Decode:
         for (size_t i = 0; i < r.decode_chunks; i++) {
-            k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk"});
+            k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk_decode"});
         }
         break;
     case IndexerPath::Dpas:
@@ -941,20 +1005,24 @@ pair_outputs run_paged_pair(engine& engine, const split_reference& ref) {
     return out;
 }
 
-pair_outputs run_dense_pair(engine& engine, const split_reference& ref) {
-    const auto& d = ref.d;
-    auto net = build_dense_network(engine, dense_inputs_from_reference(ref), Stage::Pair);
-    auto outputs = net->execute();
-    const auto attn_bhld = read_f16(outputs.at("attn").get_memory());
-    pair_outputs out;
-    out.attn.resize(attn_bhld.size());
-    for (size_t t = 0; t < ref.q_len; t++) {
+/// [Hq, L, Dv] (B == 1) -> token-major [L, Hq*Dv], the reference's layout.
+std::vector<float> bhld_to_token_major(const std::vector<float>& bhld, const split_dims& d, size_t q_len) {
+    std::vector<float> out(bhld.size());
+    for (size_t t = 0; t < q_len; t++) {
         for (size_t h = 0; h < d.Hq; h++) {
             for (size_t j = 0; j < d.Dv; j++) {
-                out.attn[(t * d.Hq + h) * d.Dv + j] = attn_bhld[(h * ref.q_len + t) * d.Dv + j];
+                out[(t * d.Hq + h) * d.Dv + j] = bhld[(h * q_len + t) * d.Dv + j];
             }
         }
     }
+    return out;
+}
+
+pair_outputs run_dense_pair(engine& engine, const split_reference& ref) {
+    auto net = build_dense_network(engine, dense_inputs_from_reference(ref), Stage::Pair);
+    auto outputs = net->execute();
+    pair_outputs out;
+    out.attn = bhld_to_token_major(read_f16(outputs.at("attn").get_memory()), ref.d, ref.q_len);
     read_pair_outputs(*net, out);
     return out;
 }
@@ -1469,6 +1537,318 @@ TEST(qsa_ops_gpu_test, qwen38_paged_long_context_accumulation_matches_reference)
 
 TEST(qsa_ops_gpu_test, qwen38_dense_long_context_accumulation_matches_reference) {
     run_pair_test(false, qwen38_dims(), 8192, 128, Positions::Sequential, dpas_gqa, 3e-3f);
+}
+
+// ---------------------------------------------------------------------------
+// Dynamic shapes: ONE network built with dynamic layouts is executed for several
+// (past_len, q_len). Every call must reuse the same shape-agnostic impls (no per-shape
+// recompilation), pick its route at runtime and match the reference.
+// ---------------------------------------------------------------------------
+
+struct dynamic_step {
+    size_t past_len;
+    size_t q_len;
+    route r;
+};
+
+void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dynamic_step>& steps, float rtol, float atol = 2e-3f) {
+    if (!cm_qsa_ops_available()) {
+        GTEST_SKIP() << "CM is not supported on this device";
+    }
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+    std::unique_ptr<network> net;
+    const primitive_impl* indexer_impl = nullptr;
+    const primitive_impl* attn_impl = nullptr;
+    for (const auto& step : steps) {
+        SCOPED_TRACE("past_len=" + std::to_string(step.past_len) + " q_len=" + std::to_string(step.q_len));
+        const auto ref = make_split_reference(rg, d, step.past_len, step.q_len, Positions::Sequential);
+        if (paged) {
+            const auto in = paged_inputs_from_reference(ref);
+            if (net) {
+                set_paged_inputs(engine, *net, in, Stage::Pair, true);
+            } else {
+                net = build_paged_network(engine, in, Stage::Pair, true);
+            }
+        } else {
+            const auto in = dense_inputs_from_reference(ref);
+            if (net) {
+                set_dense_inputs(engine, *net, in, Stage::Pair, true);
+            } else {
+                net = build_dense_network(engine, in, Stage::Pair, true);
+            }
+        }
+        auto outputs = net->execute();
+        pair_outputs gpu;
+        auto attn = read_f16(outputs.at("attn").get_memory());
+        attn.resize(net->get_primitive("attn")->get_output_layout().count());
+        gpu.attn = paged ? attn : bhld_to_token_major(attn, ref.d, ref.q_len);
+        read_pair_outputs(*net, gpu);
+
+        const auto* indexer = net->get_primitive("indexer")->get_impl();
+        const auto* attention = net->get_primitive("attn")->get_impl();
+        ASSERT_TRUE(indexer->is_dynamic());
+        ASSERT_TRUE(attention->is_dynamic());
+        if (indexer_impl == nullptr) {
+            indexer_impl = indexer;
+            attn_impl = attention;
+        }
+        EXPECT_EQ(indexer, indexer_impl) << "a new shape must reuse the shape-agnostic indexer impl";
+        EXPECT_EQ(attention, attn_impl) << "a new shape must reuse the shape-agnostic attention impl";
+        expect_route(paged, gpu, step.r);
+        validate_pair(ref, gpu, atol, rtol);
+    }
+}
+
+const std::vector<dynamic_step> toy_dynamic_steps = {{0, 37, fused_scalar}, {37, 1, decode_scalar}, {38, 1, decode_scalar}, {39, 6, fused_scalar}, {45, 1, decode_scalar}};
+const std::vector<dynamic_step> qwen38_dynamic_steps = {{2100, 17, dpas_gqa}, {2117, 1, decode_gqa}, {2118, 1, decode_gqa}, {40, 9, dpas_gqa}};
+
+TEST(qsa_ops_gpu_test, paged_pair_dynamic_shapes_reuse_one_network) {
+    run_dynamic_pair_test(true, split_dims{}, toy_dynamic_steps, 2e-3f);
+}
+
+TEST(qsa_ops_gpu_test, dense_pair_dynamic_shapes_reuse_one_network) {
+    run_dynamic_pair_test(false, split_dims{}, toy_dynamic_steps, 2e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_paged_pair_dynamic_shapes_reuse_one_network) {
+    run_dynamic_pair_test(true, qwen38_dims(), qwen38_dynamic_steps, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_pair_dynamic_shapes_reuse_one_network) {
+    run_dynamic_pair_test(false, qwen38_dims(), qwen38_dynamic_steps, 3e-3f);
+}
+
+// ---------------------------------------------------------------------------
+// SparseSDPA over K/V buffers whose sequence axis is padded past the logical history,
+// as a KVCache producer hands them over: the kernels must step by the allocated pitch.
+// ---------------------------------------------------------------------------
+
+/// [1, Hkv, S + pad, D] f16 memory holding token-major `src` ([S, Hkv*D]); padded rows are NaN
+/// so any read through the logical (unpadded) pitch poisons the output.
+memory::ptr make_seq_padded_f16(engine& eng, const std::vector<float>& src, size_t hkv, size_t s, size_t dim, size_t pad) {
+    const layout l{ov::PartialShape{1, I(hkv), I(s), I(dim)}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, static_cast<int32_t>(pad), 0})};
+    std::vector<ov::float16> host(hkv * (s + pad) * dim, ov::float16(std::numeric_limits<float>::quiet_NaN()));
+    for (size_t h = 0; h < hkv; h++) {
+        for (size_t p = 0; p < s; p++) {
+            for (size_t j = 0; j < dim; j++) {
+                host[(h * (s + pad) + p) * dim + j] = ov::float16(src[p * hkv * dim + h * dim + j]);
+            }
+        }
+    }
+    auto mem = eng.allocate_memory(l, allocation_type::usm_device);
+    mem->copy_from(get_test_stream(), host.data(), true);
+    return mem;
+}
+
+std::vector<std::vector<size_t>> plan_selections(const selection_plan& plan, size_t q_len, size_t topk) {
+    std::vector<std::vector<size_t>> out(q_len);
+    for (size_t t = 0; t < q_len; t++) {
+        for (int32_t i = 0; i < plan.count[t]; i++) {
+            out[t].push_back(static_cast<size_t>(plan.sel[t * topk + i]));
+        }
+    }
+    return out;
+}
+
+void run_padded_kv_attention_test(const split_dims& d, size_t past_len, size_t q_len, size_t k_pad, size_t v_pad, AttnPath path, float rtol, float atol = 2e-3f) {
+    if (!cm_qsa_ops_available()) {
+        GTEST_SKIP() << "CM is not supported on this device";
+    }
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto ref = make_split_reference(rg, d, past_len, q_len, Positions::Sequential);
+    const auto total = ref.total_len();
+    const auto plan = synthetic_plan(d, past_len, q_len);
+    const auto in = dense_inputs_from_reference(ref);
+
+    auto key = make_seq_padded_f16(engine, ref.key_all, d.Hkv, total, d.Dh, k_pad);
+    auto value = make_seq_padded_f16(engine, ref.value_all, d.Hkv, total, d.Dv, v_pad);
+
+    ov::intel_gpu::op::SparseSDPA::Config cfg;
+    cfg.num_heads = d.Hq;
+    cfg.num_kv_heads = d.Hkv;
+    cfg.h_sel = 1;
+    cfg.k_head_size = d.Dh;
+    cfg.v_head_size = d.Dv;
+    cfg.sel_block_size = d.r;
+    cfg.q_block_size = 1;
+    cfg.causal = true;
+
+    topology topo;
+    topo.add(input_layout("query", layout{{1, I(d.Hq), I(q_len), I(d.Dh)}, data_types::f16, format::bfyx}));
+    topo.add(input_layout("key", key->get_layout()));
+    topo.add(input_layout("value", value->get_layout()));
+    topo.add(data("sel", make_i32(engine, {1, 1, I(q_len), I(d.block_topk)}, plan.sel)));
+    topo.add(data("count", make_i32(engine, {1, 1, I(q_len)}, plan.count)));
+    topo.add(sparse_sdpa("attn",
+                         {input_info("query"), input_info("key"), input_info("value"), input_info("sel"), input_info("count")},
+                         cfg,
+                         1.0f / std::sqrt(static_cast<float>(d.Dh))));
+    network net(engine, topo, make_config(engine));
+    net.set_input_data("query", make_f16(engine, {1, I(d.Hq), I(q_len), I(d.Dh)}, in.query_bhld));
+    net.set_input_data("key", key);
+    net.set_input_data("value", value);
+    auto outputs = net.execute();
+
+    const auto attn_params = net.get_primitive("attn")->get_impl_params();
+    ASSERT_TRUE(static_cast<bool>(attn_params->get_input_layout(SparseSDPAIn::KEY).data_padding)) << "SparseSDPA must see the padded key buffer";
+    EXPECT_EQ(executed_kernels(net, "attn"), expected_attention_kernels(false, route{IndexerPath::Decode, path}));
+    const auto gpu = bhld_to_token_major(read_f16(outputs.at("attn").get_memory()), d, q_len);
+    const auto expected = ref.attention(plan_selections(plan, q_len, d.block_topk));
+    const auto stats = compute_error_stats(gpu, expected);
+    print_error_stats("padded_kv_attention", stats);
+    ASSERT_EQ(stats.non_finite, 0u) << "a padded K/V row was read: the kernel ignored the allocated sequence pitch";
+    size_t mismatches = 0;
+    for (size_t i = 0; i < expected.size(); i++) {
+        if (std::fabs(gpu[i] - expected[i]) > atol + rtol * std::fabs(expected[i]) && mismatches++ < 8) {
+            ADD_FAILURE() << "attn[" << i << "] gpu=" << gpu[i] << " ref=" << expected[i];
+        }
+    }
+    EXPECT_EQ(mismatches, 0u);
+}
+
+/// Two KV heads, so a wrong per-head pitch lands in another head's (or padded) rows.
+split_dims two_kv_head_dims() {
+    split_dims d;
+    d.Hq = 4;
+    d.Hkv = 2;
+    return d;
+}
+
+TEST(qsa_ops_gpu_test, dense_attention_scalar_reads_padded_kv) {
+    run_padded_kv_attention_test(two_kv_head_dims(), 37, 5, 11, 7, AttnPath::Scalar, 2e-3f);
+}
+
+TEST(qsa_ops_gpu_test, dense_attention_split_reads_padded_kv) {
+    run_padded_kv_attention_test(two_kv_head_dims(), 2050, 1, 128, 64, AttnPath::Split, 2e-3f);
+}
+
+TEST(qsa_ops_gpu_test, dense_attention_plain_dpas_reads_padded_kv) {
+    auto d = non_gqa_dpas_dims();
+    d.Hq = 8;
+    d.Hkv = 2;
+    run_padded_kv_attention_test(d, 37, 20, 13, 5, AttnPath::Dpas, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_attention_gqa_dpas_reads_padded_kv) {
+    run_padded_kv_attention_test(qwen38_dims(), 37, 5, 9, 17, AttnPath::GqaDpas, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_attention_gqa_split_reads_padded_kv) {
+    run_padded_kv_attention_test(qwen38_dims(), 40, 1, 9, 17, AttnPath::GqaSplit, 3e-3f);
+}
+
+// ---------------------------------------------------------------------------
+// End to end through ov::Core: SparseSDPA reads K/V straight from KVCache nodes
+// (ReadValue -> Concat -> Assign), one compiled model, several infer() calls with growing
+// history. KVCache pre-allocates ahead on the sequence axis, i.e. hands over padded K/V.
+// ---------------------------------------------------------------------------
+
+void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
+    if (!cm_qsa_ops_available()) {
+        GTEST_SKIP() << "CM is not supported on this device";
+    }
+    ov::Core core;
+    const auto f16 = ov::element::f16;
+    auto query = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, I(d.Hq), -1, I(d.Dh)});
+    auto key_new = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, I(d.Hkv), -1, I(d.Dh)});
+    auto value_new = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, I(d.Hkv), -1, I(d.Dv)});
+    auto sel = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, -1, I(d.block_topk)});
+    auto count = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, -1});
+
+    ov::SinkVector sinks;
+    auto kv_cache = [&](const std::shared_ptr<ov::op::v0::Parameter>& fresh, size_t head_size, const std::string& name) {
+        auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{1, I(d.Hkv), -1, I(head_size)}, f16, name});
+        auto past = std::make_shared<ov::op::v6::ReadValue>(var);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past, fresh}, 2);
+        sinks.push_back(std::make_shared<ov::op::v6::Assign>(concat, var));
+        return concat;
+    };
+
+    ov::op::internal::SparseSDPA::Config cfg;
+    cfg.num_heads = d.Hq;
+    cfg.num_kv_heads = d.Hkv;
+    cfg.h_sel = 1;
+    cfg.k_head_size = d.Dh;
+    cfg.v_head_size = d.Dv;
+    cfg.sel_block_size = d.r;
+    cfg.q_block_size = 1;
+    cfg.causal = true;
+    auto attn = std::make_shared<ov::op::internal::SparseSDPA>(
+        ov::OutputVector{query, kv_cache(key_new, d.Dh, "k_cache"), kv_cache(value_new, d.Dv, "v_cache"), sel, count},
+        cfg);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attn)},
+                                             sinks,
+                                             ov::ParameterVector{query, key_new, value_new, sel, count});
+    auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(f16));
+    auto request = compiled.create_infer_request();
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    split_reference ref;
+    ref.d = d;
+    for (size_t q_len : q_lens) {
+        SCOPED_TRACE("past_len=" + std::to_string(ref.total_len()) + " q_len=" + std::to_string(q_len));
+        ref.past_len = ref.total_len();
+        ref.q_len = q_len;
+        ref.query_cur = random_vec(rg, q_len * d.Hq * d.Dh, 1.0f);
+        auto key_cur = random_vec(rg, q_len * d.Hkv * d.Dh, 1.0f);
+        auto value_cur = random_vec(rg, q_len * d.Hkv * d.Dv, 1.0f);
+        for (auto* v : {&ref.query_cur, &key_cur, &value_cur}) {
+            quantize_f16(*v);
+        }
+        append(ref.key_all, key_cur);
+        append(ref.value_all, value_cur);
+        const auto plan = synthetic_plan(d, ref.past_len, q_len);
+
+        // Token-major [L, H*D] -> [1, H, L, D].
+        auto to_bhld = [q_len](const std::vector<float>& src, size_t heads, size_t dim) {
+            ov::Tensor t(ov::element::f16, ov::Shape{1, heads, q_len, dim});
+            auto* dst = t.data<ov::float16>();
+            for (size_t l = 0; l < q_len; l++) {
+                for (size_t h = 0; h < heads; h++) {
+                    for (size_t j = 0; j < dim; j++) {
+                        dst[(h * q_len + l) * dim + j] = ov::float16(src[(l * heads + h) * dim + j]);
+                    }
+                }
+            }
+            return t;
+        };
+        request.set_tensor(query, to_bhld(ref.query_cur, d.Hq, d.Dh));
+        request.set_tensor(key_new, to_bhld(key_cur, d.Hkv, d.Dh));
+        request.set_tensor(value_new, to_bhld(value_cur, d.Hkv, d.Dv));
+        ov::Tensor sel_t(ov::element::i32, ov::Shape{1, 1, q_len, d.block_topk});
+        std::copy(plan.sel.begin(), plan.sel.end(), sel_t.data<int32_t>());
+        ov::Tensor count_t(ov::element::i32, ov::Shape{1, 1, q_len});
+        std::copy(plan.count.begin(), plan.count.end(), count_t.data<int32_t>());
+        request.set_tensor(sel, sel_t);
+        request.set_tensor(count, count_t);
+        request.infer();
+
+        const auto out = request.get_output_tensor(0);
+        ASSERT_EQ(out.get_shape(), (ov::Shape{1, d.Hq, q_len, d.Dv}));
+        const auto* out_data = out.data<ov::float16>();
+        const auto gpu = bhld_to_token_major(std::vector<float>(out_data, out_data + out.get_size()), d, q_len);
+        const auto expected = ref.attention(plan_selections(plan, q_len, d.block_topk));
+        const auto stats = compute_error_stats(gpu, expected);
+        print_error_stats("kv_cache_model_attention", stats);
+        ASSERT_EQ(stats.non_finite, 0u);
+        size_t mismatches = 0;
+        for (size_t i = 0; i < expected.size(); i++) {
+            if (std::fabs(gpu[i] - expected[i]) > atol + rtol * std::fabs(expected[i]) && mismatches++ < 8) {
+                ADD_FAILURE() << "attn[" << i << "] gpu=" << gpu[i] << " ref=" << expected[i];
+            }
+        }
+        ASSERT_EQ(mismatches, 0u);
+    }
+}
+
+TEST(qsa_ops_gpu_test, sparse_sdpa_reads_kv_cache_across_infer_calls) {
+    run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 2e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_sparse_sdpa_reads_kv_cache_across_infer_calls) {
+    run_sparse_sdpa_kv_cache_model_test(qwen38_dims(), {37, 1, 1, 9, 1}, 3e-3f);
 }
 
 // ---------------------------------------------------------------------------

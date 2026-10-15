@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <functional>
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
@@ -22,6 +24,7 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/swish.hpp"
@@ -47,28 +50,29 @@ std::shared_ptr<ov::op::v1::Reshape> reshape_to(const ov::Output<ov::Node>& src,
 }
 
 /// Builds the canonical GR READ sub-graph and returns the final `mixed` node.
-std::shared_ptr<ov::Node> build_gr_read(const std::shared_ptr<ov::op::v0::Parameter>& residual, float low_scale, float mix_scale, int64_t branches) {
+std::shared_ptr<ov::Node> build_gr_read(const std::shared_ptr<ov::op::v0::Parameter>& residual, float low_scale, float mix_scale, int64_t branches,
+                                       const ov::element::Type& et = ov::element::f16) {
     auto r3 = reshape_to(residual, {-1, branches, D});
     // The gain is per (branch, channel): shape [C, D], i.e. C independent groups of width D.
-    auto gamma = ov::op::v0::Constant::create(ov::element::f32,
+    auto gamma = ov::op::v0::Constant::create(et,
                                               ov::Shape{static_cast<size_t>(branches), static_cast<size_t>(D)},
                                               std::vector<float>(branches * D, 1.0f));
     auto rms = std::make_shared<ov::op::internal::RMS>(r3, gamma, EPS);
     auto rbar = reshape_to(rms, {-1, branches * D});
 
-    auto w_down = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{L, static_cast<size_t>(branches * D)}, std::vector<float>(L * branches * D, 0.01f));
+    auto w_down = ov::op::v0::Constant::create(et, ov::Shape{L, static_cast<size_t>(branches * D)}, std::vector<float>(L * branches * D, 0.01f));
     auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down, false, true);
-    auto low_scaled = std::make_shared<ov::op::v1::Multiply>(low, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {low_scale}));
+    auto low_scaled = std::make_shared<ov::op::v1::Multiply>(low, ov::op::v0::Constant::create(et, ov::Shape{}, {low_scale}));
     auto act = std::make_shared<ov::op::v4::Swish>(low_scaled);
 
-    auto w_up = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{static_cast<size_t>(branches * D), L}, std::vector<float>(branches * D * L, 0.01f));
+    auto w_up = ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(branches * D), L}, std::vector<float>(branches * D * L, 0.01f));
     auto up = std::make_shared<ov::op::v0::MatMul>(act, w_up, false, true);
     auto gate = std::make_shared<ov::op::v0::Sigmoid>(up);
     auto weighted = std::make_shared<ov::op::v1::Multiply>(gate, rbar);
 
     auto weighted3 = reshape_to(weighted, {-1, branches, D});
     auto reduced = std::make_shared<ov::op::v1::ReduceSum>(weighted3, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}), false);
-    return std::make_shared<ov::op::v1::Multiply>(reduced, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {mix_scale}));
+    return std::make_shared<ov::op::v1::Multiply>(reduced, ov::op::v0::Constant::create(et, ov::Shape{}, {mix_scale}));
 }
 
 /// Builds the GR READ sub-graph in the *decomposed* form emitted by checkpoints that
@@ -77,23 +81,23 @@ std::shared_ptr<ov::Node> build_gr_read(const std::shared_ptr<ov::op::v0::Parame
 /// (rather than ReduceSum + Multiply) for the branch mix.
 std::shared_ptr<ov::Node> build_gr_read_decomposed(const std::shared_ptr<ov::op::v0::Parameter>& residual, float low_scale, int64_t branches) {
     auto r3 = reshape_to(residual, {-1, branches, D});
-    auto sq = std::make_shared<ov::op::v1::Power>(r3, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f}));
+    auto sq = std::make_shared<ov::op::v1::Power>(r3, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {2.0f}));
     auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), true);
-    auto biased = std::make_shared<ov::op::v1::Add>(mean, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {EPS}));
+    auto biased = std::make_shared<ov::op::v1::Add>(mean, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {EPS}));
     auto rms = std::make_shared<ov::op::v0::Sqrt>(biased);
-    auto inv_rms = std::make_shared<ov::op::v1::Divide>(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f}), rms);
+    auto inv_rms = std::make_shared<ov::op::v1::Divide>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f}), rms);
     auto normalized = std::make_shared<ov::op::v1::Multiply>(r3, inv_rms);
     auto normalized_flat = reshape_to(normalized, {-1, branches * D});
-    auto gain_raw = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{static_cast<size_t>(branches * D)}, std::vector<float>(branches * D, 0.0f));
-    auto gain_plus_one = std::make_shared<ov::op::v1::Add>(gain_raw, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f}));
+    auto gain_raw = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(branches * D)}, std::vector<float>(branches * D, 0.0f));
+    auto gain_plus_one = std::make_shared<ov::op::v1::Add>(gain_raw, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f}));
     auto rbar = std::make_shared<ov::op::v1::Multiply>(normalized_flat, gain_plus_one);
 
-    auto w_down = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{L, static_cast<size_t>(branches * D)}, std::vector<float>(L * branches * D, 0.01f));
+    auto w_down = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{L, static_cast<size_t>(branches * D)}, std::vector<float>(L * branches * D, 0.01f));
     auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down, false, true);
-    auto low_scaled = std::make_shared<ov::op::v1::Multiply>(low, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {low_scale}));
+    auto low_scaled = std::make_shared<ov::op::v1::Multiply>(low, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {low_scale}));
     auto act = std::make_shared<ov::op::v4::Swish>(low_scaled);
 
-    auto w_up = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{static_cast<size_t>(branches * D), L}, std::vector<float>(branches * D * L, 0.01f));
+    auto w_up = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(branches * D), L}, std::vector<float>(branches * D * L, 0.01f));
     auto up = std::make_shared<ov::op::v0::MatMul>(act, w_up, false, true);
     auto gate = std::make_shared<ov::op::v0::Sigmoid>(up);
 
@@ -113,10 +117,52 @@ size_t count_gated_residual(const std::shared_ptr<ov::Model>& model) {
     return count;
 }
 
+using split_fn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::vector<int64_t>&)>;
+
+/// [B, L, X] -> [B, L, tail...] with a target built from ShapeOf, as dynamic exporters emit it.
+ov::Output<ov::Node> shape_of_split(const ov::Output<ov::Node>& src, const std::vector<int64_t>& tail) {
+    auto shape = std::make_shared<ov::op::v3::ShapeOf>(src, ov::element::i64);
+    auto lead = std::make_shared<ov::op::v8::Gather>(shape,
+                                                     ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1}),
+                                                     ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    auto tail_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{tail.size()}, tail);
+    auto target = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{lead, tail_c}, 0);
+    return std::make_shared<ov::op::v1::Reshape>(src, target, false);
+}
+
+/// [B, L, X] -> [B, L, tail...] via a special_zero Constant target.
+ov::Output<ov::Node> zero_split(const ov::Output<ov::Node>& src, const std::vector<int64_t>& tail) {
+    std::vector<int64_t> target = {0, 0};
+    target.insert(target.end(), tail.begin(), tail.end());
+    auto c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{target.size()}, target);
+    return std::make_shared<ov::op::v1::Reshape>(src, c, true);
+}
+
+/// GR READ over a rank-3 [B, L, C*D] residual; `split` produces the rank-4 branch views.
+std::shared_ptr<ov::Node> build_gr_read_rank3(const std::shared_ptr<ov::op::v0::Parameter>& residual, const split_fn& split) {
+    auto r4 = split(residual, {C, D});
+    auto gamma = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{C, D}, std::vector<float>(C * D, 1.0f));
+    auto rms = std::make_shared<ov::op::internal::RMS>(r4, gamma, EPS);
+    auto rbar = zero_split(rms, {C * D});
+
+    auto w_down = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{L, C * D}, std::vector<float>(L * C * D, 0.01f));
+    auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down, false, true);
+    auto low_scaled = std::make_shared<ov::op::v1::Multiply>(low, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f / C}));
+    auto act = std::make_shared<ov::op::v4::Swish>(low_scaled);
+    auto w_up = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{C * D, L}, std::vector<float>(C * D * L, 0.01f));
+    auto up = std::make_shared<ov::op::v0::MatMul>(act, w_up, false, true);
+    auto gate = std::make_shared<ov::op::v0::Sigmoid>(up);
+    auto weighted = std::make_shared<ov::op::v1::Multiply>(gate, rbar);
+
+    auto weighted4 = split(weighted, {C, D});
+    auto reduced = std::make_shared<ov::op::v1::ReduceSum>(weighted4, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-2}), false);
+    return std::make_shared<ov::op::v1::Multiply>(reduced, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f / C}));
+}
+
 }  // namespace
 
 TEST(qsa_gr_fusion, gated_residual_read_is_fused) {
-    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
 
@@ -141,7 +187,7 @@ TEST(qsa_gr_fusion, gated_residual_read_is_fused) {
 
 TEST(qsa_gr_fusion, gated_residual_read_requires_both_inv_c_scalings) {
     // The 1/C inside SiLU(W_down * Rbar / C) is model semantics, not a foldable constant.
-    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read(residual, 1.0f, 1.0f / C, C);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
 
@@ -154,7 +200,7 @@ TEST(qsa_gr_fusion, gated_residual_read_requires_both_inv_c_scalings) {
 
 TEST(qsa_gr_fusion, gated_residual_read_rejects_unsupported_branch_count) {
     constexpr int64_t branches = 2;
-    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, branches * D});
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, branches * D});
     auto mixed = build_gr_read(residual, 1.0f / branches, 1.0f / branches, branches);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
 
@@ -169,7 +215,7 @@ TEST(qsa_gr_fusion, gated_residual_read_decomposed_form_is_fused) {
     // Mirrors the graph shape actually emitted by the Qwen4-Exp checkpoint export:
     // decomposed RMSNorm (no fused ov::op::internal::RMS) and a ReduceMean-based
     // branch mix (no trailing 1/C Multiply).
-    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read_decomposed(residual, 1.0f / C, C);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
 
@@ -193,9 +239,9 @@ TEST(qsa_gr_fusion, gated_residual_read_decomposed_form_is_fused) {
 }
 
 TEST(qsa_gr_fusion, gated_residual_write_is_fused) {
-    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
-    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, D});
-    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C});
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, D});
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C});
 
     auto s3 = reshape_to(s, {-1, C, 1});
     auto y3 = reshape_to(y, {-1, 1, D});
@@ -227,9 +273,9 @@ TEST(qsa_gr_fusion, gated_residual_write_rejects_wrong_broadcast_axis) {
     // Broadcasting the gate along the channel axis instead of the branch axis is a
     // different operator and must not be fused. The graph itself stays valid so that
     // the matcher - not shape inference - is what rejects it.
-    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
-    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, D});
-    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, D});
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, D});
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, D});
 
     auto s3 = reshape_to(s, {-1, 1, D});  // channel-wise gate, not [T, C, 1]
     auto y3 = reshape_to(y, {-1, 1, D});
@@ -251,9 +297,9 @@ TEST(qsa_gr_fusion, gated_residual_write_decomposed_form_is_fused) {
     // Mirrors the real export: the gate/y are broadcast to 3D via Unsqueeze (not
     // Reshape), and the Add happens in the flat [*, C*D] domain against an
     // already-flat residual, with the split-form reshape appearing *after* the Add.
-    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
-    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, D});
-    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C});
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, D});
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C});
 
     auto gate_3d = std::make_shared<ov::op::v0::Unsqueeze>(s, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
     auto y_3d = std::make_shared<ov::op::v0::Unsqueeze>(y, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
@@ -281,5 +327,108 @@ TEST(qsa_gr_fusion, gated_residual_write_decomposed_form_is_fused) {
         EXPECT_EQ(gr->get_output_partial_shape(0), (ov::PartialShape{T, C * D}));
     }
 }
+
+class qsa_gr_fusion_dynamic_split : public ::testing::TestWithParam<bool> {};
+
+TEST_P(qsa_gr_fusion_dynamic_split, gated_residual_read_rank3_dynamic_is_fused) {
+    const split_fn split = GetParam() ? split_fn(shape_of_split) : split_fn(zero_split);
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C * D});
+    auto mixed = build_gr_read_rank3(residual, split);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualReadFusion>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_gated_residual(model), 1u);
+    for (const auto& node : model->get_ops()) {
+        if (auto gr = ov::as_type_ptr<op::GatedResidual>(node)) {
+            EXPECT_EQ(gr->get_hc_count(), static_cast<size_t>(C));
+            EXPECT_EQ(gr->get_hidden_size(), static_cast<size_t>(D));
+            EXPECT_EQ(gr->get_output_partial_shape(0), (ov::PartialShape{-1, -1, D}));
+        }
+    }
+}
+
+TEST_P(qsa_gr_fusion_dynamic_split, gated_residual_write_rank3_dynamic_is_fused) {
+    const split_fn split = GetParam() ? split_fn(shape_of_split) : split_fn(zero_split);
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C * D});
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, D});
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C});
+
+    auto s4 = std::make_shared<ov::op::v0::Unsqueeze>(s, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
+    auto y4 = std::make_shared<ov::op::v0::Unsqueeze>(y, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(s4, y4);
+    auto r4 = split(residual, {C, D});
+    auto added = std::make_shared<ov::op::v1::Add>(r4, scaled);
+    auto out = zero_split(added, {C * D});
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{residual, y, s});
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualWriteFusion>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_gated_residual(model), 1u);
+    for (const auto& node : model->get_ops()) {
+        if (auto gr = ov::as_type_ptr<op::GatedResidual>(node)) {
+            EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::WRITE);
+            EXPECT_EQ(gr->get_output_partial_shape(0), (ov::PartialShape{-1, -1, C * D}));
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, qsa_gr_fusion_dynamic_split, ::testing::Values(false, true), [](const ::testing::TestParamInfo<bool>& info) {
+    return info.param ? std::string("shape_of_target") : std::string("constant_target");
+});
+
+TEST(qsa_gr_fusion, gated_residual_read_rejects_rank_changing_split) {
+    // [B, L, C*D] -> [-1, C, D] flattens B and L; the fused op would keep them.
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, T, C * D});
+    auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualReadFusion>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_gated_residual(model), 0u);
+}
+
+TEST(qsa_gr_fusion, gated_residual_read_rejects_f32) {
+    // The CM kernels are f16-only; an f32 pattern must stay decomposed rather than be
+    // fused into a node with no available GPU implementation.
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
+    auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C, ov::element::f32);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualReadFusion>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_gated_residual(model), 0u);
+}
+
+TEST(qsa_gr_fusion, gated_residual_write_rejects_f32) {
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, D});
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C});
+
+    auto s3 = reshape_to(s, {-1, C, 1});
+    auto y3 = reshape_to(y, {-1, 1, D});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(s3, y3);
+    auto r3 = reshape_to(residual, {-1, C, D});
+    auto added = std::make_shared<ov::op::v1::Add>(r3, scaled);
+    auto out = reshape_to(added, {-1, C * D});
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{residual, y, s});
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualWriteFusion>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_gated_residual(model), 0u);
+}
+
 
 

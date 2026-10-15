@@ -63,9 +63,10 @@ JitConstants make_jit(const std::shared_ptr<const sparse_pa>& desc) {
 // defining it twice with different values for the same compiled program.
 JitConstants make_jit_with_topk(const std::shared_ptr<const sparse_pa>& desc, const RuntimeParams& params) {
     auto jit = make_jit(desc);
-    const auto& sel_shape = params.get_input_layout(SparsePAIn::SEL_INDICES).get_shape();
-    OPENVINO_ASSERT(sel_shape.size() >= 2, "[GPU][CM] sparse_pa expects a rank>=2 sel_indices input");
-    jit.make("QSA_BLOCK_TOPK", sel_shape.back());
+    const auto& sel_ps = params.get_input_layout(SparsePAIn::SEL_INDICES).get_partial_shape();
+    OPENVINO_ASSERT(sel_ps.rank().is_static() && sel_ps.size() >= 2 && sel_ps[sel_ps.size() - 1].is_static(),
+                    "[GPU][CM] sparse_pa expects a rank>=2 sel_indices input with a static K_max");
+    jit.make("QSA_BLOCK_TOPK", sel_ps[sel_ps.size() - 1].get_length());
     return jit;
 }
 
@@ -108,9 +109,8 @@ size_t split_reduce_cols(size_t v_head_size) {
     return v_head_size % 32 == 0 ? 32 : 16;
 }
 
-/// Whether every sequence in this call contributes exactly one query token - a static
-/// (shape-only) property, so it can be decided once at impl-construction time, exactly
-/// like the dpas capability gates below.
+/// Whether every sequence in this call contributes exactly one query token. A
+/// shape-agnostic impl keeps the decode stages too and decides per call.
 bool is_decode_shape(const kernel_impl_params& params) {
     const auto& q_layout = params.get_input_layout(SparsePAIn::QUERY);
     const auto& past_lens_layout = params.get_input_layout(SparsePAIn::PAST_LENS);
@@ -120,6 +120,10 @@ bool is_decode_shape(const kernel_impl_params& params) {
     const auto tokens = q_layout.get_shape()[0];
     const auto seqs = past_lens_layout.get_shape()[0];
     return seqs > 0 && tokens == seqs;
+}
+
+bool may_decode(const kernel_impl_params& params) {
+    return params.is_dynamic() || is_decode_shape(params);
 }
 
 /// Heads that share one dpas tile. See qsa.cpp's identical dpas_heads_per_tile() for the
@@ -619,26 +623,23 @@ public:
         add_stage(attention, params);
         if (use_gqa_dpas_attention(params)) {
             add_stage(attention_gqa_dpas, params);
-            if (is_decode_shape(params)) {
+            if (may_decode(params)) {
                 add_stage(attention_gqa_split, params);
                 add_stage(split_reduce, params);
             }
-        } else if (use_dpas_attention(params)) {
-            add_stage(attention_dpas, params);
-        }
-        if (use_split_stages(params)) {
-            add_stage(split, params);
-            add_stage(split_reduce, params);
+        } else {
+            if (use_dpas_attention(params)) {
+                add_stage(attention_dpas, params);
+            }
+            if (may_decode(params)) {
+                add_stage(split, params);
+                add_stage(split_reduce, params);
+            }
         }
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<SparsePACmImpl>(this);
-    }
-
-    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
-        update_rt_params(inst);
-        PrimitiveImplCM::update(inst, impl_params);
     }
 
     [[nodiscard]] bool requires_update(primitive_inst& /*inst*/, const kernel_impl_params& /*impl_params*/) const override {
@@ -656,15 +657,14 @@ public:
 
     // Split-selected-KV is only a decode fallback for configs without GQA-DPAS: on BMG
     // (Qwen3.8 dims) GQA-DPAS decode measured ~2.5x faster than split+reduce at 4K-16K.
-    static bool use_split_stages(const kernel_impl_params& params) {
-        return is_decode_shape(params) && !use_gqa_dpas_attention(params);
-    }
-
-    bool use_split_attention(const kernel_impl_params& params) {
-        return use_split_stages(params) && rt().is_decode && rt().min_past_len >= split_decode_min_past;
+    bool use_split_attention() {
+        return has_stage(split) && rt().is_decode && rt().min_past_len >= split_decode_min_past;
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
+        if (params.is_dynamic()) {
+            return {};
+        }
         const auto tokens = std::max<size_t>(1, params.get_input_layout(SparsePAIn::QUERY).get_shape()[0]);
         const auto seqs = std::max<size_t>(1, params.get_input_layout(SparsePAIn::PAST_LENS).get_shape()[0]);
         // One 16-query tile per sequence-local boundary, upper-bounded (see qsa.cpp).
@@ -705,12 +705,12 @@ public:
             }
             return execute_stage(attn_deps, instance, attention_gqa_dpas);
         }
-        if (use_split_attention(params)) {
+        if (use_split_attention()) {
             auto split_event = execute_stage(attn_deps, instance, split);
             return execute_stage({split_event}, instance, split_reduce);
         }
         // Plain dpas needs a multi-token query tile; decode keeps the scalar kernel.
-        if (use_dpas_attention(params) && !rt().is_decode) {
+        if (has_stage(attention_dpas) && !rt().is_decode) {
             upload_tile_map(instance);
             return execute_stage(attn_deps, instance, attention_dpas);
         }

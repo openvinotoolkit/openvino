@@ -97,7 +97,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
                                         half* output ATTR,                    // [B, Hq, L, Dv]
                                         uint32_t num_tiles,
                                         uint32_t seq_len,      // L
-                                        uint32_t history_len) {  // S
+                                        uint32_t history_len,  // S
+                                        uint32_t k_seq_pitch,  // padded S of key
+                                        uint32_t v_seq_pitch) {  // padded S of value
     constexpr uint HQ = QSA_HEADS;
     constexpr uint HKV = QSA_KV_HEADS;
     constexpr uint DH = QSA_K_HEAD_SIZE;
@@ -259,8 +261,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
         }
         if (contiguous) {
             const uint first_pos = (uint)step_blocks[0] * R;
-            const half* kbase = key + qsa_ops::kv_offset_dense(batch, kv_head, first_pos, HKV, history_len, DH);
-            const half* vbase = value + qsa_ops::kv_offset_dense(batch, kv_head, first_pos, HKV, history_len, DV);
+            const half* kbase = key + qsa_ops::kv_offset_dense(batch, kv_head, first_pos, HKV, k_seq_pitch, DH);
+            const half* vbase = value + qsa_ops::kv_offset_dense(batch, kv_head, first_pos, HKV, v_seq_pitch, DV);
 #pragma unroll
             for (uint c = 0; c < QSA_K_CHUNKS; c++) {
                 matrix<half, NKV, QSA_WIDE_COLS> ktmp;
@@ -282,8 +284,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
             for (uint j = 0; j < QSA_BLKS_PER_STEP; j++) {
                 if (step_blocks[j] >= 0) {
                     const uint pos0 = (uint)step_blocks[j] * R;
-                    const half* kbase = key + qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, history_len, DH);
-                    const half* vbase = value + qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, history_len, DV);
+                    const half* kbase = key + qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, k_seq_pitch, DH);
+                    const half* vbase = value + qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, v_seq_pitch, DV);
 #pragma unroll
                     for (uint c = 0; c < QSA_K_CHUNKS; c++) {
                         matrix<half, R, QSA_WIDE_COLS> ktmp;
@@ -402,8 +404,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
             const uint pos = base + j * R;
             if (pos <= tail_end) {
                 const uint rows = cm_min<uint>(R, tail_end - pos + 1);
-                const half* kbase = key + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, history_len, DH);
-                const half* vbase = value + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, history_len, DV);
+                const half* kbase = key + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, k_seq_pitch, DH);
+                const half* vbase = value + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, v_seq_pitch, DV);
 #pragma unroll
                 for (uint c = 0; c < QSA_K_CHUNKS; c++) {
                     matrix<half, R, QSA_WIDE_COLS> ktmp;
@@ -497,7 +499,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
                 const uint pos = base + i;
                 vector<half, QSA_REG_N> v = (half)0.0f;
                 if (pos <= tail_end) {
-                    const half* vbase = value + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, history_len, DV);
+                    const half* vbase = value + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, v_seq_pitch, DV);
                     qsa_gr::load_hv<QSA_REG_N>(v, vbase, worker * DV_W + d * QSA_REG_N);
                 }
                 vvnni.row(i / 2).select<QSA_REG_N, 2>(i % 2) = v;

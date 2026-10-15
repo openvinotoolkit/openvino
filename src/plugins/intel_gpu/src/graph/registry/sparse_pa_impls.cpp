@@ -17,7 +17,7 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<sparse_pa>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
 #if OV_GPU_WITH_CM
-        OV_GPU_CREATE_INSTANCE_CM(cm::SparsePACMImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_CM(cm::SparsePACMImplementationManager, shape_types::any)
 #endif
     };
 

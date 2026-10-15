@@ -114,7 +114,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
     uint32_t num_entries,
     uint32_t seq_len,       // L
-    uint32_t history_len) {  // S
+    uint32_t history_len,   // S
+    uint32_t k_seq_pitch,   // padded S of key
+    uint32_t v_seq_pitch) {  // padded S of value
     constexpr uint HQ = QSA_HEADS, HKV = QSA_KV_HEADS;
     constexpr uint DH = QSA_K_HEAD_SIZE, DV = QSA_V_HEAD_SIZE;
     constexpr uint R = QSA_COMPRESS_RATIO;
@@ -217,8 +219,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             contiguous = contiguous && positions[j] == positions[0] + j * R;
         if (contiguous) {
             const uint pos = positions[0];
-            const half* kb = key + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, history_len, DH);
-            const half* vb = value + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, history_len, DV);
+            const half* kb = key + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, k_seq_pitch, DH);
+            const half* vb = value + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, v_seq_pitch, DV);
 #pragma unroll
             for (uint c = 0; c < GQA_DH / 32; c++) {
                 matrix<half, 16, 32> tmp;
@@ -236,8 +238,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             for (uint j = 0; j < GQA_BLOCKS; j++) {
                 if (rows[j] != 0) {
                     const uint pos = positions[j];
-                    const half* kb = key + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, history_len, DH);
-                    const half* vb = value + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, history_len, DV);
+                    const half* kb = key + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, k_seq_pitch, DH);
+                    const half* vb = value + qsa_ops::kv_offset_dense(batch, kv_head, pos, HKV, v_seq_pitch, DV);
 #pragma unroll
                     for (uint c = 0; c < GQA_DH / 32; c++) {
                         matrix<half, R, 32> tmp;

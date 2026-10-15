@@ -38,11 +38,12 @@ QSAIndexerRuntimeParams* rt_of(ImplRuntimeParams* rt) {
     return p;
 }
 
-/// H_iq / H_ik, derived from the 4D [B, L, H, D_idx] q_idx/k_idx layouts.
+/// H_iq / H_ik, derived from the 4D [B, L, H, D_idx] q_idx/k_idx layouts (B/L may be dynamic).
 size_t index_heads_4d(const layout& l) {
-    const auto& shape = l.get_shape();
-    OPENVINO_ASSERT(shape.size() >= 3, "[GPU][CM] qsa_indexer: expected a rank-4 [B, L, H, D_idx] input");
-    return shape[2];
+    const auto& ps = l.get_partial_shape();
+    OPENVINO_ASSERT(ps.rank().is_static() && ps.size() >= 3 && ps[2].is_static(),
+                    "[GPU][CM] qsa_indexer: expected a rank-4 [B, L, H, D_idx] input with a static head count");
+    return static_cast<size_t>(ps[2].get_length());
 }
 
 JitConstants make_jit(const std::shared_ptr<const qsa_indexer>& desc, const RuntimeParams& params) {
@@ -96,9 +97,8 @@ size_t score_budget_bytes() {
     return 128 * 1024 * 1024;
 }
 
-/// Whether every batch row in this call has exactly one query token - a static
-/// (shape-only) property, decidable once at impl-construction time like the dpas
-/// capability gates below.
+/// Whether every batch row in this call has exactly one query token. A shape-agnostic
+/// impl keeps both the decode and prefill stages and decides per call.
 bool is_decode_shape(const kernel_impl_params& params) {
     const auto& q_idx_layout = params.get_input_layout(QSAIn::Q_IDX);
     if (q_idx_layout.is_dynamic()) {
@@ -109,10 +109,18 @@ bool is_decode_shape(const kernel_impl_params& params) {
     return shape[1] == 1;
 }
 
+bool may_decode(const kernel_impl_params& params) {
+    return params.is_dynamic() || is_decode_shape(params);
+}
+
+bool may_prefill(const kernel_impl_params& params) {
+    return params.is_dynamic() || !is_decode_shape(params);
+}
+
 /// Cooperative top-k work-group size: decode rows span the whole history, while prefill
 /// rows are short and numerous, so smaller work-groups pack the GPU better.
-size_t topk_wg_size(const kernel_impl_params& params) {
-    return is_decode_shape(params) ? 16 : 8;
+constexpr size_t topk_wg_size(bool decode) {
+    return decode ? 16 : 8;
 }
 
 /// f32 element capacity of BLOCK_SCORES. Static shapes only, so allocation and per-call
@@ -266,7 +274,9 @@ protected:
 // ===========================================================================
 class DenseTopkGenerator : public KernelGenerator {
 public:
-    DenseTopkGenerator() : KernelGenerator("qsa_indexer_topk", "_cm") {}
+    explicit DenseTopkGenerator(bool decode = false)
+        : KernelGenerator("qsa_indexer_topk", decode ? "_decode_cm" : "_cm"),
+          m_decode(decode) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -276,7 +286,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         jit.add(make_jit(params.typed_desc<qsa_indexer>(), params));
-        jit.make("QSA_TOPK_WG", topk_wg_size(params));
+        jit.make("QSA_TOPK_WG", topk_wg_size(m_decode));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -294,14 +304,14 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
+        return DispatchDataFunc{[decode = m_decode](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
             if (params.is_dynamic()) {
                 return;
             }
             auto* rtp = rt_of(rt);
             auto& wgs = kd.params.workGroups;
             // One work-group cooperatively finalizes one token's row.
-            const auto wg = topk_wg_size(params);
+            const auto wg = topk_wg_size(decode);
             wgs.global = {std::max<size_t>(1, rtp->chunk_row_end - rtp->chunk_row_begin) * wg, 1, 1};
             wgs.local = {wg, 1, 1};
 
@@ -313,6 +323,9 @@ protected:
             push_u32(kd, rtp->chunk_row_end);
         }};
     }
+
+private:
+    bool m_decode;
 };
 
 // ===========================================================================
@@ -432,6 +445,7 @@ public:
     Stage::Ptr score_dpas = make_stage<DenseScoreDpasGenerator>();
     Stage::Ptr score_partition = make_stage<DenseScorePartitionGenerator>();
     Stage::Ptr topk = make_stage<DenseTopkGenerator>();
+    Stage::Ptr topk_decode = make_stage<DenseTopkGenerator>(true);
 
     QSAIndexerCmImpl() : PrimitiveImplCM(QSAIndexerCMImplementationManager::get_type_info_static()) {
         m_rt_params = std::make_unique<QSAIndexerRuntimeParams>();
@@ -448,24 +462,22 @@ public:
     // or the fused score+top-k kernel when dpas is unavailable (old qsa.cpp's routing).
     explicit QSAIndexerCmImpl(const RuntimeParams& params) : QSAIndexerCmImpl() {
         add_stage(prepare, params);
-        if (is_decode_shape(params)) {
+        if (may_decode(params)) {
             add_stage(score_partition, params);
-            add_stage(topk, params);
-        } else if (use_dpas_score(params)) {
-            add_stage(score_dpas, params);
-            add_stage(topk, params);
-        } else {
-            add_stage(score_topk_fused, params);
+            add_stage(topk_decode, params);
+        }
+        if (may_prefill(params)) {
+            if (use_dpas_score(params)) {
+                add_stage(score_dpas, params);
+                add_stage(topk, params);
+            } else {
+                add_stage(score_topk_fused, params);
+            }
         }
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<QSAIndexerCmImpl>(this);
-    }
-
-    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
-        update_rt_params(inst);
-        PrimitiveImplCM::update(inst, impl_params);
     }
 
     [[nodiscard]] bool requires_update(primitive_inst& /*inst*/, const kernel_impl_params& /*impl_params*/) const override {
@@ -481,6 +493,9 @@ public:
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
+        if (params.is_dynamic()) {
+            return {};
+        }
         const auto desc = params.typed_desc<qsa_indexer>();
         const auto& q_idx_shape = params.get_input_layout(QSAIn::Q_IDX).get_shape();
         const auto batch = std::max<size_t>(1, q_idx_shape[0]);
@@ -516,9 +531,9 @@ public:
                 rtp->chunk_row_begin = begin;
                 rtp->chunk_row_end = std::min(rtp->num_tokens, begin + rtp->chunk_rows);
                 force_stage_refresh(*score_partition);
-                force_stage_refresh(*topk);
+                force_stage_refresh(*topk_decode);
                 auto scored = execute_stage({last}, instance, score_partition);
-                last = execute_stage({scored}, instance, topk);
+                last = execute_stage({scored}, instance, topk_decode);
             }
             return last;
         }
@@ -635,13 +650,13 @@ bool QSAIndexerCMImplementationManager::validate_impl(const cldnn::program_node&
     if (desc->h_sel != 1) {
         return false;
     }
-    const auto h_ik = index_heads_4d(node.get_input_layout(QSAIn::K_IDX));
-    if (h_ik != 1) {
+    // B and L may be dynamic; only the head axes are needed statically.
+    const auto& q_idx_ps = node.get_input_layout(QSAIn::Q_IDX).get_partial_shape();
+    const auto& k_idx_ps = node.get_input_layout(QSAIn::K_IDX).get_partial_shape();
+    if (q_idx_ps.rank().is_dynamic() || q_idx_ps.size() != 4 || q_idx_ps[2].is_dynamic()) {
         return false;
     }
-
-    const auto& q_idx_shape = node.get_input_layout(QSAIn::Q_IDX).get_shape();
-    if (q_idx_shape.size() != 4) {
+    if (k_idx_ps.rank().is_dynamic() || k_idx_ps.size() != 4 || k_idx_ps[2].is_dynamic() || k_idx_ps[2].get_length() != 1) {
         return false;
     }
 

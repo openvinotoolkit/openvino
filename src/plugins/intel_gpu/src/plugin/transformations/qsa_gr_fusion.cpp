@@ -145,7 +145,26 @@ bool second_to_last_dim_is_one(const ov::Output<ov::Node>& out) {
     return ps.rank().is_static() && ps.size() >= 2 && !ps[ps.size() - 2].is_dynamic() && ps[ps.size() - 2].get_length() == 1;
 }
 
+/// The CM kernels are f16-only; fusing an f32 (or other) subgraph would produce a node with
+/// no available GPU implementation at all, turning a working decomposed graph into a hard
+/// compile failure.
+bool is_f16(const ov::Output<ov::Node>& out) {
+    return out.get_element_type() == ov::element::f16;
+}
+
 constexpr size_t supported_branch_count = 4;
+
+/// Reads the [..., C, D] branch split from a Reshape's inferred output shape, so rank-4
+/// [B, L, C, D] splits and ShapeOf-built (non-Constant) targets of dynamic models qualify.
+bool get_branch_split(const ov::Output<ov::Node>& split, size_t& C, size_t& D) {
+    const auto& ps = split.get_partial_shape();
+    if (ps.rank().is_dynamic() || ps.size() < 3 || ps[ps.size() - 2].is_dynamic() || ps[ps.size() - 1].is_dynamic()) {
+        return false;
+    }
+    C = static_cast<size_t>(ps[ps.size() - 2].get_length());
+    D = static_cast<size_t>(ps[ps.size() - 1].get_length());
+    return true;
+}
 
 }  // namespace
 
@@ -214,6 +233,9 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         if (transformation_callback(root)) {
             return false;
         }
+        if (!is_f16(root->output(0))) {
+            return false;
+        }
 
         const bool is_fused_norm = pm.count(norm_fused) > 0;
         const bool is_decomposed_norm = pm.count(gain_plus_one) > 0;
@@ -230,12 +252,11 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         }
 
         // --- branch geometry must be static and provable -----------------------
-        std::vector<int64_t> branch_shape;
-        if (!get_i64_vector(pm.at(residual_3d).get_node_shared_ptr()->input_value(1), branch_shape) || branch_shape.size() != 3) {
+        size_t C = 0;
+        size_t D = 0;
+        if (!get_branch_split(pm.at(residual_3d), C, D)) {
             return false;
         }
-        const auto C = static_cast<size_t>(branch_shape[1]);
-        const auto D = static_cast<size_t>(branch_shape[2]);
         if (C != supported_branch_count || D == 0) {
             return false;
         }
@@ -342,6 +363,11 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
                                                       /*norm_gain_plus_one=*/false,
                                                       /*produce_write_gate=*/false,
                                                       root->get_output_element_type(0));
+        // A split that also flattens leading axes (e.g. [B, L, C*D] -> [-1, C, D]) would
+        // change the output rank, which the fused op cannot reproduce.
+        if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
+            return false;
+        }
         gr->set_friendly_name(root->get_friendly_name());
         new_ops.push_back(gr);
 
@@ -404,6 +430,9 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         if (transformation_callback(root)) {
             return false;
         }
+        if (!is_f16(root->output(0))) {
+            return false;
+        }
 
         // --- branch geometry derived directly from how the gate/y operands
         // broadcast: gate is [*, C, 1], y is [*, 1, D]. -------------------------
@@ -430,11 +459,11 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         const ov::Output<ov::Node> gate_out = pm.at(write_gate);
 
         if (pm.count(result_a)) {
-            // Case A: residual_3d's own reshape target additionally proves the split
-            // geometry matches the one derived from gate/y above.
-            std::vector<int64_t> branch_shape;
-            if (!get_i64_vector(pm.at(residual_3d).get_node_shared_ptr()->input_value(1), branch_shape) || branch_shape.size() != 3 ||
-                static_cast<size_t>(branch_shape[1]) != C || static_cast<size_t>(branch_shape[2]) != D) {
+            // Case A: residual_3d's own split additionally proves the geometry matches
+            // the one derived from gate/y above.
+            size_t split_c = 0;
+            size_t split_d = 0;
+            if (!get_branch_split(pm.at(residual_3d), split_c, split_d) || split_c != C || split_d != D) {
                 return false;
             }
             residual_out = pm.at(residual_3d).get_node_shared_ptr()->input_value(0);
@@ -459,6 +488,9 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
                                                       /*norm_gain_plus_one=*/false,
                                                       /*produce_write_gate=*/false,
                                                       root->get_output_element_type(0));
+        if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
+            return false;
+        }
         gr->set_friendly_name(root->get_friendly_name());
 
         ov::copy_runtime_info(m.get_matched_nodes(), gr);

@@ -61,7 +61,8 @@ CM_INLINE uint offset_dense(uint b, uint pos, uint stride, uint di) {
     return (b * stride + pos) * di;
 }
 
-/// Dense element offset into a `[B, Hkv, S, head_size]` main K/V buffer.
+/// Dense element offset into a `[B, Hkv, S, head_size]` main K/V buffer; `s` is the
+/// (possibly padded) allocated sequence pitch, not the logical history length.
 CM_INLINE uint kv_offset_dense(uint b, uint kv_head, uint pos, uint hkv, uint s, uint head_size) {
     return (((b * hkv) + kv_head) * s + pos) * head_size;
 }

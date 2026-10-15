@@ -17,7 +17,7 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<gated_residual>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
 #if OV_GPU_WITH_CM
-        OV_GPU_CREATE_INSTANCE_CM(cm::GatedResidualCMImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_CM(cm::GatedResidualCMImplementationManager, shape_types::any)
 #endif
     };
 

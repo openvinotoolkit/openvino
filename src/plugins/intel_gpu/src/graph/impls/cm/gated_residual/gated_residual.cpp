@@ -534,6 +534,9 @@ public:
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
+        if (params.is_dynamic()) {
+            return {};
+        }
         const auto desc = params.typed_desc<gated_residual>();
         const size_t cd = desc->hc_count * desc->hidden_size;
         const size_t num_rows = std::max<size_t>(1, get_num_rows(params.get_input_layout(0), cd));

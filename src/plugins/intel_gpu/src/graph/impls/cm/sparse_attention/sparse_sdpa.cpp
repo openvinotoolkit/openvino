@@ -32,8 +32,9 @@ SparseSDPARuntimeParams* rt_of(ImplRuntimeParams* rt) {
 }
 
 JitConstants make_jit(const std::shared_ptr<const sparse_sdpa>& desc, const RuntimeParams& params) {
-    const auto& sel_shape = params.get_input_layout(SparseSDPAIn::SEL_INDICES).get_shape();
-    OPENVINO_ASSERT(sel_shape.size() >= 2, "[GPU][CM] sparse_sdpa expects a rank>=2 sel_indices input");
+    const auto& sel_ps = params.get_input_layout(SparseSDPAIn::SEL_INDICES).get_partial_shape();
+    OPENVINO_ASSERT(sel_ps.rank().is_static() && sel_ps.size() >= 2 && sel_ps[sel_ps.size() - 1].is_static(),
+                    "[GPU][CM] sparse_sdpa expects a rank>=2 sel_indices input with a static K_max");
 
     JitConstants jit;
     jit.make("QSA_HEADS", desc->num_heads);
@@ -41,7 +42,7 @@ JitConstants make_jit(const std::shared_ptr<const sparse_sdpa>& desc, const Runt
     jit.make("QSA_K_HEAD_SIZE", desc->k_head_size);
     jit.make("QSA_V_HEAD_SIZE", desc->v_head_size);
     jit.make("QSA_COMPRESS_RATIO", desc->sel_block_size);
-    jit.make("QSA_BLOCK_TOPK", sel_shape.back());
+    jit.make("QSA_BLOCK_TOPK", sel_ps[sel_ps.size() - 1].get_length());
     jit.add(make_jit_constant("QSA_SCALE", desc->scale));
     return jit;
 }
@@ -81,8 +82,8 @@ size_t split_reduce_cols(size_t v_head_size) {
     return v_head_size % 32 == 0 ? 32 : 16;
 }
 
-/// Whether this call's query length is 1 - a static (shape-only) property, decidable
-/// once at impl-construction time, exactly like the dpas capability gates below.
+/// Whether this call's query length is 1. A shape-agnostic impl must keep both the
+/// decode and prefill stages, so it is "maybe decode" while L is unknown.
 bool is_decode_shape(const kernel_impl_params& params) {
     const auto& q_layout = params.get_input_layout(SparseSDPAIn::QUERY);
     if (q_layout.is_dynamic()) {
@@ -91,6 +92,22 @@ bool is_decode_shape(const kernel_impl_params& params) {
     const auto& shape = q_layout.get_shape();
     OPENVINO_ASSERT(shape.size() == 4, "[GPU][CM] sparse_sdpa expects a rank-4 [B,H,*,D] query input");
     return shape[2] == 1;
+}
+
+bool may_decode(const kernel_impl_params& params) {
+    return params.is_dynamic() || is_decode_shape(params);
+}
+
+/// Allocated sequence pitch of a [B, H, S, D] K/V input. KVCache hands its consumers a
+/// buffer with dynamic upper padding on S, so this can exceed the logical S.
+size_t seq_pitch(const layout& l, const char* name) {
+    const auto& pad = l.data_padding;
+    for (size_t axis : {size_t{0}, size_t{1}, size_t{3}}) {
+        OPENVINO_ASSERT(pad._lower_size[axis] == 0 && pad._upper_size[axis] == 0,
+                        "[GPU][CM] sparse_sdpa: ", name, " padding is only supported on the sequence axis, got ", l.to_short_string());
+    }
+    OPENVINO_ASSERT(pad._lower_size[2] == 0, "[GPU][CM] sparse_sdpa: ", name, " lower sequence padding is not supported, got ", l.to_short_string());
+    return l.get_shape()[2] + static_cast<size_t>(pad._upper_size[2]);
 }
 
 /// Heads that share one dpas tile. See qsa.cpp's dpas_heads_per_tile() for the rationale.
@@ -205,7 +222,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t i = 0; i < 5; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -227,6 +244,8 @@ protected:
             push_u32(kd, rtp->seq_len);
             push_u32(kd, rtp->history_len);
             push_u32(kd, rtp->batch * rtp->seq_len);
+            push_u32(kd, rtp->k_seq_pitch);
+            push_u32(kd, rtp->v_seq_pitch);
         }};
     }
 };
@@ -262,7 +281,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::TILE_MAP});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t i = 0; i < 5; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -286,6 +305,8 @@ protected:
             push_u32(kd, rtp->tile_count);
             push_u32(kd, rtp->seq_len);
             push_u32(kd, rtp->history_len);
+            push_u32(kd, rtp->k_seq_pitch);
+            push_u32(kd, rtp->v_seq_pitch);
         }};
     }
 };
@@ -333,7 +354,7 @@ protected:
         } else {
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         }
-        for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t i = 0; i < 5; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -357,6 +378,8 @@ protected:
             push_u32(kd, tokens);
             push_u32(kd, rtp->seq_len);
             push_u32(kd, rtp->history_len);
+            push_u32(kd, rtp->k_seq_pitch);
+            push_u32(kd, rtp->v_seq_pitch);
         }};
     }
 
@@ -392,7 +415,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparseSDPAIn::SEL_COUNT});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ACC});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparseSDPAInternalBufIdx::SPLIT_ML});
-        for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t i = 0; i < 5; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -414,6 +437,8 @@ protected:
             push_u32(kd, rtp->seq_len);
             push_u32(kd, rtp->history_len);
             push_u32(kd, rtp->batch * rtp->seq_len);
+            push_u32(kd, rtp->k_seq_pitch);
+            push_u32(kd, rtp->v_seq_pitch);
         }};
     }
 };
@@ -495,16 +520,18 @@ public:
         add_stage(attention, params);
         if (use_gqa_dpas_attention(params)) {
             add_stage(attention_gqa_dpas, params);
-            if (is_decode_shape(params)) {
+            if (may_decode(params)) {
                 add_stage(attention_gqa_split, params);
                 add_stage(split_reduce, params);
             }
-        } else if (use_dpas_attention(params)) {
-            add_stage(attention_dpas, params);
-        }
-        if (use_split_stages(params)) {
-            add_stage(split, params);
-            add_stage(split_reduce, params);
+        } else {
+            if (use_dpas_attention(params)) {
+                add_stage(attention_dpas, params);
+            }
+            if (may_decode(params)) {
+                add_stage(split, params);
+                add_stage(split_reduce, params);
+            }
         }
     }
 
@@ -532,15 +559,14 @@ public:
 
     // Split-selected-KV is only a decode fallback for configs without GQA-DPAS (see
     // sparse_pa.cpp's identical gate and BMG measurement).
-    static bool use_split_stages(const kernel_impl_params& params) {
-        return is_decode_shape(params) && !use_gqa_dpas_attention(params);
-    }
-
-    bool use_split_attention(const kernel_impl_params& params) {
-        return use_split_stages(params) && rt().is_decode && rt().history_len >= split_decode_min_past;
+    bool use_split_attention() {
+        return has_stage(split) && rt().is_decode && rt().history_len >= split_decode_min_past;
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
+        if (params.is_dynamic()) {
+            return {};
+        }
         const auto& query_shape = params.get_input_layout(SparseSDPAIn::QUERY).get_shape();
         const auto batch = std::max<size_t>(1, query_shape[0]);
         const auto seq_len = std::max<size_t>(1, query_shape[2]);
@@ -573,12 +599,12 @@ public:
             }
             return execute_stage(events, instance, attention_gqa_dpas);
         }
-        if (use_split_attention(params)) {
+        if (use_split_attention()) {
             auto split_event = execute_stage(events, instance, split);
             return execute_stage({split_event}, instance, split_reduce);
         }
         // Plain dpas needs a multi-token query tile; decode keeps the scalar kernel.
-        if (use_dpas_attention(params) && !rt().is_decode) {
+        if (has_stage(attention_dpas) && !rt().is_decode) {
             upload_tile_map(instance);
             return execute_stage(events, instance, attention_dpas);
         }
@@ -596,9 +622,14 @@ public:
         OPENVINO_ASSERT(query_shape.size() == 4 && key_shape.size() == 4,
                         "[GPU][CM] sparse_sdpa expects rank-4 [B,H,*,D] query/key inputs");
 
+        OPENVINO_ASSERT(!params.get_input_layout(SparseSDPAIn::QUERY).data_padding && !params.get_output_layout(0).data_padding,
+                        "[GPU][CM] sparse_sdpa: padded query/output buffers are not supported");
+
         rtp->batch = query_shape[0];
         rtp->seq_len = query_shape[2];
         rtp->history_len = key_shape[2];
+        rtp->k_seq_pitch = seq_pitch(params.get_input_layout(SparseSDPAIn::KEY), "key");
+        rtp->v_seq_pitch = seq_pitch(params.get_input_layout(SparseSDPAIn::VALUE), "value");
         rtp->is_decode = rtp->seq_len == 1;
 
         rtp->tile_map.clear();

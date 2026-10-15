@@ -37,9 +37,10 @@ CM_INLINE void sparse_attention_split_dense_softmax_step(float score, float& run
 
 template <int DH, int DV, int HKV, int SPAN>
 CM_INLINE void sparse_attention_split_attend_span_dense(vector_ref<float, DH> q, vector_ref<float, DV> acc, float& running_max, float& running_sum,
-                                                        const half* key ATTR, const half* value ATTR, uint batch, uint kv_head, uint s_cap, uint pos0) {
-    const uint base_k = qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, s_cap, DH);
-    const uint base_v = qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, s_cap, DV);
+                                                        const half* key ATTR, const half* value ATTR, uint batch, uint kv_head, uint k_pitch,
+                                                        uint v_pitch, uint pos0) {
+    const uint base_k = qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, k_pitch, DH);
+    const uint base_v = qsa_ops::kv_offset_dense(batch, kv_head, pos0, HKV, v_pitch, DV);
 
     vector<half, SPAN * DH> ktile;
     qsa_gr::load_hv<SPAN * DH>(ktile, key, base_k);
@@ -76,7 +77,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
                                         float* partial_ml ATTR,               // [B*L, Hq, P, 2]
                                         uint32_t seq_len,                     // L
                                         uint32_t history_len,                 // S
-                                        uint32_t num_rows) {                  // B*L
+                                        uint32_t num_rows,                    // B*L
+                                        uint32_t k_seq_pitch,                 // padded S of key
+                                        uint32_t v_seq_pitch) {               // padded S of value
     constexpr uint HQ = QSA_HEADS;
     constexpr uint HKV = QSA_KV_HEADS;
     constexpr uint DH = QSA_K_HEAD_SIZE;
@@ -118,11 +121,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,               //
         if (b < 0) {
             continue;
         }
-        sparse_attention_split_attend_span_dense<DH, DV, HKV, R>(q, acc, running_max, running_sum, key, value, batch, kv_head, history_len, (uint)b * R);
+        sparse_attention_split_attend_span_dense<DH, DV, HKV, R>(q, acc, running_max, running_sum, key, value, batch, kv_head, k_seq_pitch, v_seq_pitch,
+                                                                 (uint)b * R);
     }
     if (part == P - 1) {
         for (uint pos = qsa_ops::num_complete_blocks(q_abs) * R; pos <= q_abs; pos++) {
-            sparse_attention_split_attend_span_dense<DH, DV, HKV, 1>(q, acc, running_max, running_sum, key, value, batch, kv_head, history_len, pos);
+            sparse_attention_split_attend_span_dense<DH, DV, HKV, 1>(q, acc, running_max, running_sum, key, value, batch, kv_head, k_seq_pitch, v_seq_pitch,
+                                                                     pos);
         }
     }
 
