@@ -53,7 +53,7 @@ struct LLMVariantSwitchTestAccess {
     static void set_total_size(ov::npuw::LLMInferRequest& req, uint32_t total_size) {
         req.m_npuw_llm_compiled_model->m_kvcache_desc.total_size = total_size;
     }
-  
+
     static void set_kv_dim(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t dim) {
         compiled->m_kvcache_desc.dim = dim;
     }
@@ -120,6 +120,18 @@ struct LLMVariantSwitchTestAccess {
 
     static const auto& kvcache_request(const ov::npuw::LLMInferRequest& req) {
         return req.m_kvcache_request;
+    }
+
+    static void generate(ov::npuw::LLMInferRequest& req,
+                         ov::SoPtr<ov::ITensor> input_ids,
+                         ov::SoPtr<ov::ITensor> attention_mask,
+                         ov::SoPtr<ov::ITensor> position_ids) {
+        req.m_generate_initialized = true;
+        req.infer_generate(std::move(input_ids), std::move(attention_mask), std::move(position_ids), {});
+    }
+
+    static ov::SoPtr<ov::ITensor> generate_attention_mask(const ov::npuw::LLMInferRequest& req) {
+        return req.m_kvcache_request->get_tensor(req.m_kvcache_in_ports.at("attention_mask"));
     }
 
     static void set_kvcache_sizes(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
@@ -191,18 +203,6 @@ struct LLMVariantSwitchTestAccess {
                                                                    const std::shared_ptr<const ov::IPlugin>& plugin) {
         ov::npuw::s11n::CompiledContext ctx(false, nullptr, nullptr);
         return ov::npuw::LLMCompiledModel::deserialize(stream, plugin, {}, ctx);
-    }
-
-    static void generate(ov::npuw::LLMInferRequest& req,
-                         ov::SoPtr<ov::ITensor> input_ids,
-                         ov::SoPtr<ov::ITensor> attention_mask,
-                         ov::SoPtr<ov::ITensor> position_ids) {
-        req.m_generate_initialized = true;
-        req.infer_generate(std::move(input_ids), std::move(attention_mask), std::move(position_ids), {});
-    }
-
-    static ov::SoPtr<ov::ITensor> generate_attention_mask(const ov::npuw::LLMInferRequest& req) {
-        return req.m_kvcache_request->get_tensor(req.m_kvcache_in_ports.at("attention_mask"));
     }
 };
 
@@ -586,6 +586,52 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedKvcacheDimOutOfPrefillTe
 
     LLMVariantSwitchTestAccess::set_kv_dim(compiled, 2u);
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, GenerateBuildsInternalMaskFromStaticCallerMaskAndClearsTrimmedPast) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    ov::npuw::LLMInferRequest req(compiled);
+    auto internal_mask = LLMVariantSwitchTestAccess::generate_attention_mask(req);
+    const auto max_generation_len = compiled->m_kvcache_desc.max_generation_token_len;
+    ASSERT_GE(internal_mask->get_size(), max_generation_len);
+    const size_t dest_past_capacity = internal_mask->get_size() - max_generation_len;
+    ASSERT_GT(dest_past_capacity, 3u);
+
+    auto input_ids = ov::make_tensor(ov::element::i64, ov::Shape{1, 1});
+    input_ids->data<int64_t>()[0] = 42;
+    auto position_ids = ov::make_tensor(ov::element::i64, ov::Shape{1, 1});
+    position_ids->data<int64_t>()[0] = 3;
+    auto static_attention_mask = ov::make_tensor(ov::element::i64, ov::Shape{1, 64});
+    std::fill_n(static_attention_mask->data<int64_t>(), static_attention_mask->get_size(), 1);
+    static_attention_mask->data<int64_t>()[1] = 0;
+    ASSERT_GT(static_attention_mask->get_size(), 4u);
+
+    LLMVariantSwitchTestAccess::set_num_stored_tokens(req, 3u);
+    LLMVariantSwitchTestAccess::set_total_size(req, 4u);
+    LLMVariantSwitchTestAccess::generate(req, input_ids, static_attention_mask, position_ids);
+
+    EXPECT_EQ(internal_mask->data<int64_t>()[0], 1);
+    EXPECT_EQ(internal_mask->data<int64_t>()[1], 0);
+    EXPECT_EQ(internal_mask->data<int64_t>()[2], 1);
+    for (size_t i = 3u; i < dest_past_capacity; ++i) {
+        EXPECT_EQ(internal_mask->data<int64_t>()[i], 0);
+    }
+    for (size_t i = internal_mask->get_size() - max_generation_len; i < internal_mask->get_size() - 1u; ++i) {
+        EXPECT_EQ(internal_mask->data<int64_t>()[i], 0);
+    }
+    EXPECT_EQ(internal_mask->data<int64_t>()[internal_mask->get_size() - 1u], 1);
+
+    LLMVariantSwitchTestAccess::set_num_stored_tokens(req, 1u);
+    LLMVariantSwitchTestAccess::set_total_size(req, 2u);
+    LLMVariantSwitchTestAccess::generate(req, input_ids, static_attention_mask, position_ids);
+
+    EXPECT_EQ(internal_mask->data<int64_t>()[0], 1);
+    for (size_t i = 1u; i < dest_past_capacity; ++i) {
+        EXPECT_EQ(internal_mask->data<int64_t>()[i], 0);
+    }
 }
 
 }  // namespace
