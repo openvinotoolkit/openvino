@@ -14,7 +14,6 @@ from optimum.intel.openvino import (OVModelForCausalLM,
                                     OVWeightQuantizationConfig)
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 import whowhatbench as wwb
-from whowhatbench.wwb import genai_gen_text
 from whowhatbench.model_loaders import load_model
 from openvino_tokenizers import convert_tokenizer
 from openvino import save_model
@@ -244,7 +243,6 @@ def test_accuracy_conformance(model_id, precision, device):
         tokenizer=tokenizer,
         similarity_model_id='sentence-transformers/all-mpnet-base-v2',
         num_samples=NUMBER_OF_SAMPLES,
-        gen_answer_fn=genai_gen_text,
         use_chat_template=use_chat_template,
     )
 
