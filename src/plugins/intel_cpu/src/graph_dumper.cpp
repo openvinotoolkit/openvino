@@ -242,7 +242,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
     auto runtime_model = std::make_shared<ov::Model>(results, params, graph._name);
     if (auto pa_bs = graph.get_paged_attention_block_size()) {
-        runtime_model->get_rt_info()["paged_attention_block_size"] = pa_bs.value();
+        runtime_model->get_rt_info()[ov::exec_model_info::PAGED_ATTENTION_BLOCK_SIZE] = pa_bs.value();
     }
     return runtime_model;
 }

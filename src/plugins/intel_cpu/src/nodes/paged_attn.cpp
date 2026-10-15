@@ -290,7 +290,9 @@ std::optional<size_t> PagedAttention::get_block_size() const {
     // K-cache layout is [block_number, H, block_size, S]; dim[2] is the page block size.
     // ConvertPagedAttnInputs fixes dim[2] to the plugin's compile-time block size (plus
     // by-channel quantization parameter rows) — only block_number (dim[0]) stays dynamic.
-    // The nullopt guard is defensive for models that bypass that transformation.
+    // This reads the compile-time shape (getInputShapeAtPort), while execute() reads the live
+    // runtime tensor (getStaticDims()); they agree because dim[2] is static after that
+    // transformation. The nullopt guard is defensive for models that bypass it.
     const auto& dims = kcache_shape.getDims();
     if (dims.size() < 3 || dims[2] == Shape::UNDEFINED_DIM) {
         return std::nullopt;

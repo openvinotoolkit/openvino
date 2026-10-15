@@ -615,7 +615,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
     auto runtime_model = std::make_shared<ov::Model>(results, params, "runtime_gpu_graph");
     if (m_paged_attention_block_size.has_value()) {
-        runtime_model->get_rt_info()["paged_attention_block_size"] = m_paged_attention_block_size.value();
+        runtime_model->get_rt_info()[ov::exec_model_info::PAGED_ATTENTION_BLOCK_SIZE] = m_paged_attention_block_size.value();
     }
     return runtime_model;
 }

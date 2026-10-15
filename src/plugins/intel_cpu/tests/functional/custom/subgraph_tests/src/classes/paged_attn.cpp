@@ -29,6 +29,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
@@ -648,8 +649,8 @@ void PagedAttnTestBase::prepare() {
         // 32 is the CPU plugin's fixed PagedAttention block size: ConvertPagedAttnInputs
         // bakes keyCacheBlockSize = 32 into the reshaped K-cache ([num_blocks, H, 32, S]),
         // so the runtime model always reports 32 for the CPU plugin.
-        ASSERT_TRUE(runtime_model->has_rt_info("paged_attention_block_size"));
-        EXPECT_EQ(runtime_model->get_rt_info<size_t>("paged_attention_block_size"), 32);
+        ASSERT_TRUE(runtime_model->has_rt_info(ov::exec_model_info::PAGED_ATTENTION_BLOCK_SIZE));
+        EXPECT_EQ(runtime_model->get_rt_info<size_t>(ov::exec_model_info::PAGED_ATTENTION_BLOCK_SIZE), 32);
     }
 }
 void PagedAttnTestBase::reset() {
