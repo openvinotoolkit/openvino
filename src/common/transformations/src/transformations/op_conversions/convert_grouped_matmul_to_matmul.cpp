@@ -16,10 +16,13 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -30,6 +33,7 @@ namespace ov::pass {
 namespace {
 
 namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 namespace v17 = ov::op::v17;
 
@@ -100,25 +104,30 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
             return false;
         }
 
-        auto step = rg.make<v0::Constant>(i32, ov::Shape{1}, 1);
-        auto slice_axis = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
-        auto gather_axis = rg.make<v0::Constant>(i32, ov::Shape{}, 0);
+        auto axis_scalar = rg.make<v0::Constant>(i32, ov::Shape{}, 0);
+        auto axis_1d = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
+
+        // offsets are cumulative ends, so per-group row counts are offsets - [0, offsets[:-1]].
+        ov::Output<ov::Node> split_lengths = offsets_i32;
+        if (num_groups > 1) {
+            auto zero = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
+            auto head_stop = rg.make<v0::Constant>(i32, ov::Shape{1}, num_groups - 1);
+            auto step = rg.make<v0::Constant>(i32, ov::Shape{1}, 1);
+            auto offsets_head = rg.make<v8::Slice>(offsets_i32, zero, head_stop, step, axis_1d);
+            auto shifted = rg.make<v0::Concat>(ov::OutputVector{zero, offsets_head}, 0);
+            split_lengths = rg.make<v1::Subtract>(offsets_i32, shifted);
+        }
+
+        auto a_split = rg.make<v1::VariadicSplit>(mat_a, axis_scalar, split_lengths);  // G x [Mg, K]
+        auto b_split = rg.make<v1::Split>(mat_b, axis_scalar, num_groups);             // G x [1, N, K]
 
         ov::OutputVector group_outputs;
         group_outputs.reserve(static_cast<size_t>(num_groups));
 
-        ov::Output<ov::Node> start = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
         for (int64_t g = 0; g < num_groups; ++g) {
-            auto end_index = rg.make<v0::Constant>(i32, ov::Shape{1}, g);
-            ov::Output<ov::Node> end = rg.make<v8::Gather>(offsets_i32, end_index, gather_axis);
-
-            auto a_g = rg.make<v8::Slice>(mat_a, start, end, step, slice_axis);  // [Mg, K]
-            auto b_index = rg.make<v0::Constant>(i32, ov::Shape{}, g);
-            auto b_g = rg.make<v8::Gather>(mat_b, b_index, gather_axis);  // [N, K]
-            auto mm = rg.make<v0::MatMul>(a_g, b_g, false, true);         // [Mg, N]
+            auto b_g = rg.make<v0::Squeeze>(b_split->output(g), axis_1d);                  // [N, K]
+            auto mm = rg.make<v0::MatMul>(a_split->output(g), b_g, false, true);           // [Mg, N]
             group_outputs.push_back(std::move(mm));
-
-            start = std::move(end);
         }
 
         auto replacement = rg.make<v0::Concat>(group_outputs, 0);  // [T, N]

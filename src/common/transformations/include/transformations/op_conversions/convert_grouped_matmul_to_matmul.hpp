@@ -23,15 +23,13 @@ public:
 /// @brief Decomposes the 2Dx3D v17::GroupedMatMul (with offsets) into per-group MatMuls.
 ///
 ///     A:[T,K], B:[G,N,K], offs:[G]  ->  out:[T,N]
-///     The rows of A are partitioned per expert by `offsets` (cumulative end
-///     offsets) and each partition is multiplied by its own weight matrix:
-///         for g in [0, G):
-///             start_g = (g == 0) ? 0 : offsets[g-1]
-///             end_g   = offsets[g]
-///             A_g     = Slice(A, start_g, end_g, axis=0)             // [Mg, K]
-///             B_g     = Gather(B, g, axis=0)                         // [N, K]
-///             out_g   = MatMul(A_g, B_g, transpose_a=false, transpose_b=true)
-///         out = Concat(out_0, ..., out_{G-1}, axis=0)               // [T, N]
+///     `offsets` holds cumulative end offsets, so the per-group row counts are
+///     `offsets - [0, offsets[:-1]]`. A is partitioned by those lengths and each
+///     partition is multiplied by its own weight matrix:
+///         A_0..A_{G-1} = VariadicSplit(A, axis=0, split_lengths)   // [Mg, K]
+///         B_0..B_{G-1} = Squeeze(Split(B, axis=0, G), axis=0)      // [N, K]
+///         out_g        = MatMul(A_g, B_g, transpose_a=false, transpose_b=true)
+///         out          = Concat(out_0, ..., out_{G-1}, axis=0)     // [T, N]
 ///     Requires the group dimension G (mat_b.shape[0]) to be static so that a
 ///     fixed number of MatMuls can be generated.
 class TRANSFORMATIONS_API ConvertGroupedMatMul2Dx3DToMatMul : public ov::pass::MatcherPass {

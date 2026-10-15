@@ -15,14 +15,18 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 namespace v17 = ov::op::v17;
 
@@ -42,21 +46,27 @@ ov::Output<ov::Node> ref_2dx3d_decomposition(const ov::Output<ov::Node>& mat_a,
         offsets_i32 = std::make_shared<v0::Convert>(offsets, i32);
     }
 
-    auto step = v0::Constant::create(i32, ov::Shape{1}, {1});
-    auto slice_axis = v0::Constant::create(i32, ov::Shape{1}, {0});
-    auto gather_axis = v0::Constant::create(i32, ov::Shape{}, {0});
+    auto axis_scalar = v0::Constant::create(i32, ov::Shape{}, {0});
+    auto axis_1d = v0::Constant::create(i32, ov::Shape{1}, {0});
+
+    ov::Output<ov::Node> split_lengths = offsets_i32;
+    if (num_groups > 1) {
+        auto zero = v0::Constant::create(i32, ov::Shape{1}, {0});
+        auto head_stop = v0::Constant::create(i32, ov::Shape{1}, {num_groups - 1});
+        auto step = v0::Constant::create(i32, ov::Shape{1}, {1});
+        auto offsets_head = std::make_shared<v8::Slice>(offsets_i32, zero, head_stop, step, axis_1d);
+        auto shifted = std::make_shared<v0::Concat>(ov::OutputVector{zero, offsets_head}, 0);
+        split_lengths = std::make_shared<v1::Subtract>(offsets_i32, shifted);
+    }
+
+    auto a_split = std::make_shared<v1::VariadicSplit>(mat_a, axis_scalar, split_lengths);
+    auto b_split = std::make_shared<v1::Split>(mat_b, axis_scalar, num_groups);
 
     ov::OutputVector group_outputs;
-    ov::Output<ov::Node> start = v0::Constant::create(i32, ov::Shape{1}, {0});
     for (int64_t g = 0; g < num_groups; ++g) {
-        auto end_index = v0::Constant::create(i32, ov::Shape{1}, {g});
-        ov::Output<ov::Node> end = std::make_shared<v8::Gather>(offsets_i32, end_index, gather_axis);
-        auto a_g = std::make_shared<v8::Slice>(mat_a, start, end, step, slice_axis);
-        auto b_index = v0::Constant::create(i32, ov::Shape{}, {g});
-        auto b_g = std::make_shared<v8::Gather>(mat_b, b_index, gather_axis);
-        auto mm = std::make_shared<v0::MatMul>(a_g, b_g, /*transpose_a=*/false, /*transpose_b=*/true);
+        auto b_g = std::make_shared<v0::Squeeze>(b_split->output(g), axis_1d);
+        auto mm = std::make_shared<v0::MatMul>(a_split->output(g), b_g, /*transpose_a=*/false, /*transpose_b=*/true);
         group_outputs.push_back(mm);
-        start = end;
     }
     return std::make_shared<v0::Concat>(group_outputs, 0);
 }
