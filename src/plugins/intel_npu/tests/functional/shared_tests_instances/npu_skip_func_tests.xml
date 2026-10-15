@@ -318,16 +318,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#185847 -->
-    <skip_config>
-        <message>Write only (WO) properties will return empty ov::Any objects</message>
-        <filters>
-            <filter>.*OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
-            <filter>.*OVPropertiesTests.canSetPropertyAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
-            <filter>.*OVPropertiesDefaultSupportedTests.CanSetDefaultValueBackToPlugin.*</filter>
-        </filters>
-    </skip_config>
-
     <skip_config>
         <message>UD12 driver does not support CACHE_ENCRYPTION_CALLBACKS on MTL</message>
         <enable_rules>
