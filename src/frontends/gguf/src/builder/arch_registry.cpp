@@ -55,6 +55,12 @@ const ArchitectureEntry architectures[] = {
     {"hunyuan-dense", RopeMode::Neox},
     {"hunyuan-moe", RopeMode::Neox},
     {"jais2", RopeMode::Neox},
+    {"this model cannot be used as LLM, use it via --model-vocoder in TTS examples",
+     make_lfm2_vocoder_builder,
+     [](const GgufMetadata& meta) {
+         return meta.has("depthformer_n_layer") && meta.has("depthformer_n_embd");
+     },
+     "lfm2.audio_vocoder"},
     {"lfm2", make_lfm2_builder},
     {"lfm2moe", make_lfm2_builder},
     {"llama", RopeMode::Normal},

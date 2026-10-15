@@ -38,6 +38,7 @@ enum class EncoderTopology {
     PHI4,
     LFM2,
     GEMMA4_AUDIO,
+    LFM2_AUDIO,
     OCR,
     OCR2
 };
@@ -71,6 +72,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM},
     {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION},
     {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO},
+    {"audio", "lfm2a", EncoderTopology::LFM2_AUDIO},
     {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
     {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
     {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
@@ -949,6 +951,74 @@ private:
         x = concat(x, reshape(g.tensors().require("v.view_seperator"), {1, 1, 1, width}), 1);
         return gather_rows(x, "output_indices");
     }
+    GgufValue lfm2_audio(const EncoderConfig& c) {
+        const auto mel = positive(g.metadata(), "clip.audio.num_mel_bins");
+        auto x = transpose(g.add_input("audio.features", ov::element::f32, {1, 1, mel, -1}));
+        for (int i : {0, 2, 3, 5, 6}) {
+            const auto p = "a.conv1d." + std::to_string(i);
+            const bool depthwise = i == 2 || i == 5;
+            const int64_t stride = i == 0 || depthwise ? 2 : 1;
+            x = g.node("GGML_OP_CONV_2D",
+                       {g.tensors().require(p + ".weight"), x},
+                       0,
+                       {{"conv_params", std::vector<int64_t>{stride, stride, stride - 1, stride - 1, 1, 1}},
+                        {"depthwise", depthwise}});
+            x = add(x, g.tensors().require(p + ".bias"));
+            if (i == 0 || i == 3 || i == 6)
+                x = g.node("GGML_UNARY_OP_RELU", {x});
+        }
+        const auto flattened = g.tensors().require("a.pre_encode.out.weight").ne(0);
+        x = linear(reshape(transpose(x, {0, 2, 1, 3}), {1, 1, -1, flattened}), "a.pre_encode.out");
+        const auto pos_width = g.tensors().require("a.blk.0.linear_pos.weight").ne(0);
+        auto positions = g.add_input("audio.pos_emb", ov::element::f32, {1, 1, -1, pos_width});
+        const auto head = c.width / c.heads;
+        const auto half_ffn = [&](const GgufValue& value, const std::string& p, const std::string& suffix) {
+            return add(value,
+                       scale(ffn(norm(value, p + "ffn_norm" + suffix, c.eps),
+                                 p + "ffn_up" + suffix,
+                                 p + "ffn_down" + suffix,
+                                 "GGML_UNARY_OP_SILU"),
+                             .5f));
+        };
+        for (int64_t i = 0; i < c.layers; ++i) {
+            const auto p = "a.blk." + std::to_string(i) + ".";
+            x = half_ffn(x, p, "");
+            auto z = norm(x, p + "ln1", c.eps);
+            auto q = reshape(linear(z, p + "attn_q"), {1, -1, c.heads, head});
+            const auto biased_query = [&](const char* name) {
+                return transpose(add(q, reshape(g.tensors().require(p + name), {1, 1, c.heads, head})), {0, 2, 1, 3});
+            };
+            auto k = transpose(reshape(linear(z, p + "attn_k"), {1, -1, c.heads, head}), {0, 2, 1, 3});
+            auto v = transpose(reshape(linear(z, p + "attn_v"), {1, -1, c.heads, head}), {0, 2, 3, 1});
+            auto pos =
+                transpose(reshape(linear(positions, p + "linear_pos", false), {1, -1, c.heads, head}), {0, 2, 1, 3});
+            auto content = g.node("GGML_OP_MUL_MAT", {k, biased_query("pos_bias_u")});
+            auto relative = g.node("GGML_OP_MUL_MAT", {pos, biased_query("pos_bias_v")});
+            relative = g.node("GGML_OP_GET_ROWS", {relative}, 0, {{"relative_shift", true}});
+            auto probability = g.node("GGML_OP_SOFT_MAX",
+                                      {scale(add(content, relative), 1.f / std::sqrt(float(head)))},
+                                      0,
+                                      {{"scale", 1.f}});
+            z = g.node("GGML_OP_MUL_MAT", {v, probability});
+            x = add(x, linear(reshape(transpose(z, {0, 2, 1, 3}), {1, 1, -1, c.width}), p + "attn_out"));
+            z = linear(norm(x, p + "norm_conv", c.eps), p + "conv_pw1");
+            z = transpose(
+                mul(slice(z, 3, 0, c.width), g.node("GGML_UNARY_OP_SIGMOID", {slice(z, 3, c.width, c.width)})));
+            const auto kernel = g.tensors().require(p + "conv_dw.weight").ne(0);
+            OPENVINO_ASSERT(kernel % 2 == 1, "[GGUF] LFM2 audio requires an odd convolution kernel");
+            z = g.node(
+                "GGML_OP_PAD",
+                {z},
+                0,
+                {{"pad_params", std::vector<int32_t>{int32_t(kernel / 2), int32_t(kernel / 2), 0, 0, 0, 0, 0, 0}}});
+            z = add(g.node("GGML_OP_SSM_CONV", {z, g.tensors().require(p + "conv_dw.weight")}),
+                    g.tensors().require(p + "conv_dw.bias"));
+            z = add(mul(z, g.tensors().require(p + "conv_norm.weight")), g.tensors().require(p + "conv_norm.bias"));
+            x = add(x, linear(g.node("GGML_UNARY_OP_SILU", {z}), p + "conv_pw2"));
+            x = norm(half_ffn(x, p, "_1"), p + "ln2", c.eps);
+        }
+        return ffn(norm(x, "mm.a.mlp.0", c.eps), "mm.a.mlp.1", "mm.a.mlp.3", "GGML_UNARY_OP_GELU_ERF");
+    }
     GgufValue gemma4_audio(const EncoderConfig& c) {
         const auto mel = positive(g.metadata(), "clip.audio.num_mel_bins");
         auto x = g.add_input("audio.features", ov::element::f32, {1, 1, mel, -1});
@@ -1054,6 +1124,8 @@ private:
         return linear(x, "mm.a.input_projection", false);
     }
     GgufValue audio(const EncoderConfig& c) {
+        if (c.topology == EncoderTopology::LFM2_AUDIO)
+            return lfm2_audio(c);
         if (c.topology == EncoderTopology::GEMMA4_AUDIO)
             return gemma4_audio(c);
         if (c.topology == EncoderTopology::UNIFIED_AUDIO) {

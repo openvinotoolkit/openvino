@@ -146,6 +146,8 @@ fixture NMSE gate. Checkpoint revisions are `8fdc9d526b7ed346b19257551b05816c791
 
 Noncausal LFM2 embedding/encoder/ColBERT variants need centered convolution and their
 embedding/pooling output contracts and are rejected explicitly. LFM2.5-Audio's `lfm2a`
-conformer projector, audio decoder and vocoder are not implemented; enabling the language
-backbone alone does not enable audio inference. Other sizes, quantizations, long contexts,
+conformer projector and LFM2.5 speech components are supported as described in
+[mmproj.md](mmproj.md#lfm2-audio-components). GenAI waveform preprocessing and generation
+require the `gguf-frontend-mmproj` integration. Older Mimi-based LFM2 speech output
+requires a separate codec. Other sizes, quantizations, long contexts,
 and downstream fine-tunes require their own checkpoint validation.

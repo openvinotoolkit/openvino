@@ -7,4 +7,5 @@
 
 namespace ov::frontend::gguf {
 std::shared_ptr<ModelBuilder> make_lfm2_builder(const BuildContext& context);
+std::shared_ptr<ModelBuilder> make_lfm2_vocoder_builder(const BuildContext& context);
 }  // namespace ov::frontend::gguf

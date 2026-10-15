@@ -676,3 +676,76 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                              return name;
                          });
 }  // namespace
+
+TEST(GGUFLFM2SpeechAccuracy, DepthformerFeedbackAndCodecMatchLiquidReference) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/lfm2_speech.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(temporary.path));
+    auto request = ov::Core{}
+                       .compile_model(model,
+                                      "CPU",
+                                      ov::hint::inference_precision(ov::element::f32),
+                                      ov::hint::dynamic_quantization_group_size(0))
+                       .create_infer_request();
+    for (const auto& [input, reference] :
+         std::vector<std::pair<std::string, std::string>>{{"audio.hidden_states", "hidden"},
+                                                          {"audio.depth_codes", "depth_codes"},
+                                                          {"audio.codes", "codes"}}) {
+        const auto& array = ov_gguf_test::npz_array(arrays, reference);
+        ov::Tensor tensor(reference == "hidden" ? ov::element::f32 : ov::element::i32, array.shape);
+        std::memcpy(tensor.data(), array.data<char>(), tensor.get_byte_size());
+        request.set_tensor(input, tensor);
+    }
+    request.infer();
+    for (const auto& [output, reference] :
+         std::vector<std::pair<std::string, std::string>>{{"audio.depth_logits", "logits"},
+                                                          {"audio.feedback", "feedback"},
+                                                          {"audio.codec_features", "codec"}}) {
+        const auto actual = request.get_tensor(output);
+        const auto& expected = ov_gguf_test::npz_array(arrays, reference);
+        ASSERT_EQ(actual.get_size(), expected.num_vals) << output;
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), actual.get_size()),
+            1e-5);
+    }
+}
+
+TEST(GGUFLFM2SpeechAccuracy, DetokenizerPreservesAllFramesAcrossSlidingWindow) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/lfm2_detokenizer.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>(
+        ov::frontend::gguf::GenAIExtension::InputMode::EMBEDS_TO_LOGITS));
+    auto model = frontend.convert(frontend.load(temporary.path));
+    auto request = ov::Core{}
+                       .compile_model(model,
+                                      "CPU",
+                                      ov::hint::inference_precision(ov::element::f32),
+                                      ov::hint::dynamic_quantization_group_size(0),
+                                      ov::hint::kv_cache_precision(ov::element::f32))
+                       .create_infer_request();
+    const auto& source = ov_gguf_test::npz_array(arrays, "embeds");
+    for (size_t frames : {18, 37, 18}) {
+        SCOPED_TRACE(frames);
+        request.reset_state();
+        ov::Tensor embeds(ov::element::f32, {1, frames, 32}), mask(ov::element::i64, {1, frames}),
+            positions(ov::element::i64, {1, frames}), beam(ov::element::i32, {1});
+        std::memcpy(embeds.data(), source.data<char>(), embeds.get_byte_size());
+        std::fill_n(mask.data<int64_t>(), frames, 1);
+        for (size_t i = 0; i < frames; ++i)
+            positions.data<int64_t>()[i] = i;
+        beam.data<int32_t>()[0] = 0;
+        request.set_tensor("inputs_embeds", embeds);
+        request.set_tensor("attention_mask", mask);
+        request.set_tensor("position_ids", positions);
+        request.set_tensor("beam_idx", beam);
+        request.infer();
+        const auto actual = request.get_tensor("logits");
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{1, frames, 1282}));
+        ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(actual.data<const float>(),
+                                                           ov_gguf_test::npz_array(arrays, "spectral").data<float>(),
+                                                           actual.get_size()),
+                                        1e-5);
+    }
+}

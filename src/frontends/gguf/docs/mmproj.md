@@ -34,7 +34,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
 Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`,
-`kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `lfm2a`, `glm4v`, `youtuvl`, `yasa2`,
+`kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `glm4v`, `youtuvl`, `yasa2`,
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
 `granite4_vision`. `gemma3na` has no graph builder in the reference.
 
@@ -267,8 +267,8 @@ The `lfm2` projector supports LFM2-VL and LFM2.5-VL SigLIP encoders, resized squ
 position embeddings, spatial pixel unshuffle, optional input LayerNorm and a GELU MLP.
 Native IO is `vision.pixel_values` (NCHW) plus `vision.merge_indices` (row-major indices
 grouped by each spatial merge window). The embedding adapter preserves these inputs and
-exposes `image_features`. An Optimum/GenAI `VISION_ENCODERS` application layout is not
-provided for this projector.
+exposes `image_features`. The `VISION_ENCODERS` adapter exposes the same native pixels
+and merge-index layout for a GenAI LFM2 vision encoder.
 
 Two nonzero F32 fixtures compare raw and adapted embeddings at multiple rectangular sizes
 on one compiled model, with and without projector input normalization. LFM2-VL-450M's
@@ -276,4 +276,32 @@ Q8_0 projector from `LiquidAI/LFM2-VL-450M-GGUF` revision
 `7cf9679aa137039135e342aa77014f7b5f2bef73` matches a represented-F32 llama.cpp CPU
 reference at 256x128 and 128x192 pixels with NMSE `1.79e-6` and `7.38e-7`. This validates
 the encoder graph, not image preprocessing, chat assembly or full multimodal generation.
-LFM2.5-Audio's separate `lfm2a` projector remains unsupported.
+
+## LFM2 audio components
+
+The `lfm2a` audio projector supports the LFM2/LFM2.5 conformer encoder: depthwise
+subsampling, relative-position attention, half-step feed-forward branches, temporal
+convolution and the GELU language projection. Native inputs are `audio.features`
+`[1,1,mel_bins,frames]` and `audio.pos_emb`
+`[1,1,2*ceil(frames/8)-1,encoder_width]`, with interleaved sine/cosine positions.
+The audio adapter exposes `features`, `pos_emb` and `audio_features` `[1,tokens,hidden]`.
+GenAI supplies mono 16 kHz waveform preprocessing; the frontend accepts features.
+
+A pinned llama.cpp fixture checks 49/101/49 frames on one compiled model. The
+LFM2.5-Audio-1.5B Q4_0 encoder from LiquidAI revision
+`7d525f883a077e20afb782f2ff618edcae0e39e4` matches exact F32 expansions of the same
+weights with NMSE `3.81e-10` and `2.35e-9`. This is represented-F32 reference parity.
+
+LFM2.5 Audio's separate vocoder GGUF is identified by its publisher architecture
+string and `depthformer_n_layer`/`depthformer_n_embd` metadata. It exposes
+`audio.depth_logits`, summed `audio.feedback`, averaged `audio.codec_features`, and
+`audio.istft_window`. Its `lfm2` detokenizer uses a 1282-channel `dense_2` spectral
+head and preserves all frames, including after GenAI adaptation. Pinned publisher
+PyTorch fixtures check depthformer outputs and detokenizer sliding-window boundaries.
+Actual Q4_0 depthformer and detokenizer represented-F32 comparisons have NMSE
+`2.62e-12` and `1.32e-9`; feedback and codec lookups match exactly.
+
+The GenAI `gguf-frontend-mmproj` integration supplies audio input through
+`VLMPipeline` and LFM2.5 speech output through `OmniPipeline`, including audio
+feedback and 24 kHz ISTFT reconstruction. Older Mimi-based LFM2 speech output
+requires a different codec and is not covered by the LFM2.5 vocoder builder.
