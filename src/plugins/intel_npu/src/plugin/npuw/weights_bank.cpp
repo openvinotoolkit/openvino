@@ -184,13 +184,21 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
 
         auto& stored_tensor = device_bank.storage.at(uid);
 
-        // check whether the constant shared buffer was already allocated or not if yes, reuse it automatically.
-        // Somewhere else in the code, there must be a check on "device_bank.storage.at(uid).tensor"
-        // whether it was already allocated or not before evaluate anything.
-        // Therefore, for the simplicity I will not check it again here, assuming it has been handled elsewhere.
-        // If the tensor was already allocated, its memory will be reused and new ov::Tensor as a wrapper over that memory
-        // will be created as assigned to "device_bank.storage.at(uid).tensor".
-        // I assume that it is safe.
+        // Each LazyTensor describes either a shared `constant` or a shared `transformation` of such constants.
+        // "Shared" means that, once allocated, the tensor's memory may be reused across different compiled-model instances
+        // if the same `transformation` is repeated.
+        // If other models repeat the same `transformations`, the LazyTensor representing a given `transformation`
+        // will have the same UID in the `Bank`.
+        // Encountering the same UID while compiling another model using the same `Bank` means that the `transformation`
+        // has already been encountered and its memory may already be allocated.
+        // The memory for a shared `transformation` is allocated as follows:
+        // 1. Allocate memory for the shared `transformation`, aligned to the page size for subsequent use.
+        // 2. Register the allocated memory as a `source_id` in `ov::weight_sharing::Context`.
+        //    The `source_id` has the same value as the UID of the shared `transformation` represented by the LazyTensor.
+        // 3. Create an `ov::Tensor` using the allocated memory.
+        // `WeightSharingContextAccessor` only introduces step 2, while encapsulating step 1 internally.
+        // `WeightSharingContextAccessor` owns and manages access to the shared weight memory.
+        // It also provides access to `ov::weight_sharing::Context`.
         auto handle = this->get_handle();
         auto size = ov::util::get_memory_size_safe(t.get_element_type(), t.get_shape());
         OPENVINO_ASSERT(size.has_value(), "LazyTensor size overflow, uid: ", uid, " device: CPU");
@@ -243,13 +251,22 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         const auto evaluated_byte_size = ov::util::get_memory_size_safe(allocated.meta.type, allocated.meta.shape);
         OPENVINO_ASSERT(evaluated_byte_size.has_value(), "LazyTensor size overflow, uid: ", allocated.uid);
 
-        // check whether the constant shared buffer was already allocated or not if yes, reuse it automatically.
-        // Somewhere else in the code, there must be a check on "device_bank.storage.at(uid).tensor"
-        // whether it was already allocated or not before evaluate anything.
-        // Therefore, for the simplicity I will not check it again here, assuming it has been handled elsewhere.
-        // If the tensor was already allocated, its memory will be reused and new ov::Tensor as a wrapper over that memory
-        // will be created as assigned to "device_bank.storage.at(uid).tensor".
-        // I assume that it is safe.
+        // Each LazyTensor describes either a shared `constant` or a shared `transformation` of such constants.
+        // "Shared" means that, once allocated, the tensor's memory may be reused across different compiled-model instances
+        // if the same `transformation` is repeated.
+        // If other models repeat the same `transformations`, the LazyTensor representing a given `transformation`
+        // will have the same UID in the `Bank`.
+        // Encountering the same UID while compiling another model using the same `Bank` means that the `transformation`
+        // has already been encountered and its memory may already be allocated.
+        // The memory for a shared `transformation` is allocated as follows:
+        // 1. Allocate memory for the shared `transformation`, aligned to the page size for subsequent use.
+        // 2. Register the allocated memory as a `source_id` in `ov::weight_sharing::Context`.
+        //    The `source_id` has the same value as the UID of the shared `transformation` represented by the LazyTensor.
+        // 3. Provided that these steps are successful, import RemoteTensor from the remote context using the allocated memory.
+        // 4. Otherwise, assuming that ov::weight_sharing::Context is omitted, fallback to the original RemoteTensor creation mechanism.
+        // `WeightSharingContextAccessor` only introduces step 2, while encapsulating step 1 internally.
+        // `WeightSharingContextAccessor` owns and manages access to the shared weight memory.
+        // It also provides access to `ov::weight_sharing::Context`.
         auto handle = this->get_handle();
         auto weight_shared_source_buffer = this->request_shared_weight_source_buffer(allocated.uid, *evaluated_byte_size, device, handle);
 

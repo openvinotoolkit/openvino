@@ -6,7 +6,6 @@
 
 #include <filesystem>
 #include <optional>
-#include <string_view>
 #include <unordered_map>
 
 #include "openvino/core/core_visibility.hpp"
@@ -208,7 +207,7 @@ OPENVINO_API bool set_weight_source(Context& shared_context, const ov::op::v0::C
  */
 OPENVINO_API bool set_runtime_weight_source(Context& shared_context,
                                             const WeightBuffer& source_buffer,
-                                            std::string_view device = {});
+                                            const std::string& device = {});
 
 OPENVINO_API WeightSource get_runtime_weight_source(const Context& shared_context, size_t source_id);
 }  // namespace ov::weight_sharing
