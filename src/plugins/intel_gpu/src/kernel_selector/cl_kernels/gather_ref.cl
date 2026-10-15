@@ -2,12 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/int4_utils.cl"
-#if INPUT0_IS_F8E4M3
-#include "include/f8_utils.cl"  // fp8e4m3_t typedef
-#endif
-
 #ifdef INDEX_DIM
 inline uint FUNC(get_positive_index)(OPTIONAL_SHAPE_INFO_ARG int in)
 {

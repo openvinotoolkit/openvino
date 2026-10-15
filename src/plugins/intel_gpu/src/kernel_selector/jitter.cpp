@@ -138,6 +138,9 @@ std::string toCLType(WeightsType wType) {
             return GetTypeName<int8_t>();
         case WeightsType::UINT4:
         case WeightsType::UINT8:
+        case WeightsType::F8E4M3:
+        case WeightsType::F8E5M2:
+        case WeightsType::F8E8M0:
             return GetTypeName<uint8_t>();
         case WeightsType::F16:
             return "half";
@@ -159,6 +162,9 @@ std::string toCLType(Datatype dType) {
             return GetTypeName<int8_t>();
         case Datatype::UINT4:
         case Datatype::UINT8:
+        case Datatype::F8E4M3:
+        case Datatype::F8E5M2:
+        case Datatype::F8E8M0:
             return GetTypeName<uint8_t>();
         case Datatype::INT16:
             return GetTypeName<int16_t>();
@@ -1506,6 +1512,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
     std::string to_vector_type_sat = "undefined";
     bool is_fp;
     bool is_bf16 = false;
+    bool is_f8 = false;
     switch (dataType) {
         case Datatype::INT8:
             type = "char";
@@ -1702,40 +1709,57 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             is_fp = true;
             break;
         case Datatype::F8E4M3:
-            type = "fp8e4m3_t";
-            max_val = "(fp8e4m3_t){as_char((char)0x7E)}"; // 448.0
-            min_val = "(fp8e4m3_t){as_char((char)0xFE)}"; // -448.0
-            val_one = "(fp8e4m3_t){as_char((char)0x38)}";
-            val_zero = "(fp8e4m3_t){as_char((char)0x0)}";
-            to_type = "_convert_fp8e4m3_t(v)";
-            to_type_sat = "_convert_fp8e4m3_t_sat(v)";
-            as_type = "as_fp8e4m3_t(v)";
+            type = "uchar";
+            max_val = "_intel_convert_hf8_to_f16((uchar)0x7E)"; // 448.0
+            min_val = "_intel_convert_hf8_to_f16((uchar)0xFE)"; // -448.0
+            val_one = "_intel_convert_hf8_to_f16((uchar)0x38)";
+            val_zero = "_intel_convert_hf8_to_f16((uchar)0x0)";
+            to_type = "_intel_convert_f16_to_hf8(convert_half(v))";
+            to_type_sat = "_intel_convert_f16_to_hf8_sat(convert_half(v))";
+            to_vector_type = "CONVERT_F8E4M3_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
+            to_vector_type_sat = "CONVERT_F8E4M3_AS_UCHAR_SAT(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
+            compute_type = "half";
+            to_compute_type = "convert_half(v)";
+            decode_compute_type = "_intel_convert_hf8_to_f16(v)";
+            decode_compute_vector_type = "CONVERT_AS_F8E4M3_HALF(v, size)";
             type_size = "1";
             is_fp = true;
+            is_f8 = true;
             break;
         case Datatype::F8E5M2:
-            type = "fp8e5m2_t";
-            max_val = "(fp8e5m2_t){as_uchar((uchar)0x7B)}"; // 57344.0
-            min_val = "(fp8e5m2_t){as_uchar((uchar)0xFB)}"; // -57344.0
-            val_one = "(fp8e5m2_t){as_uchar((uchar)0x3C)}";
-            val_zero = "(fp8e5m2_t){as_uchar((uchar)0x0)}";
-            to_type = "_convert_fp8e5m2_t(v)";
-            to_type_sat = "_convert_fp8e5m2_t_sat(v)";
-            as_type = "as_fp8e5m2_t(v)";
+            type = "uchar";
+            max_val = "_intel_convert_bf8_to_f16((uchar)0x7B)";  // 57344.0
+            min_val = "_intel_convert_bf8_to_f16((uchar)0xFB)";  // -57344.0
+            val_one = "_intel_convert_bf8_to_f16((uchar)0x3C)";
+            val_zero = "_intel_convert_bf8_to_f16((uchar)0x0)";
+            to_type = "_intel_convert_f16_to_bf8(convert_half(v))";
+            to_type_sat = "_intel_convert_f16_to_bf8_sat(convert_half(v))";
+            to_vector_type = "CONVERT_F8E5M2_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
+            to_vector_type_sat = "CONVERT_F8E5M2_AS_UCHAR_SAT(CAT(convert_, MAKE_VECTOR_TYPE(half, size))(v), size)";
+            compute_type = "half";
+            to_compute_type = "convert_half(v)";
+            decode_compute_type = "_intel_convert_bf8_to_f16(v)";
+            decode_compute_vector_type = "CONVERT_AS_F8E5M2_HALF(v, size)";
             type_size = "1";
             is_fp = true;
+            is_f8 = true;
             break;
         case Datatype::F8E8M0:
-            type = "fp8e8m0_t";
-            max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}"; // 2^127
-            min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}"; // 2^(-127)
-            val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
-            val_zero = ""; // There is no representation of zero in FP8E8M0
-            to_type = "_convert_fp8e8m0_t(v)";
-            to_type_sat = "_convert_fp8e8m0_t_sat(v)";
-            as_type = "as_fp8e8m0_t(v)";
+            type = "uchar";
+            max_val = "_intel_convert_e8m0_to_f32((uchar)0xFE)";  // 2^127
+            min_val = "_intel_convert_e8m0_to_f32((uchar)0x00)";  // 2^(-127)
+            val_one = "_intel_convert_e8m0_to_f32((uchar)0x7F)";
+            to_type = "_intel_convert_f32_to_e8m0(convert_float(v))";
+            to_type_sat = "_intel_convert_f32_to_e8m0_sat(convert_float(v))";
+            to_vector_type = "CONVERT_F8E8M0_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(float, size))(v), size)";
+            to_vector_type_sat = "CONVERT_F8E8M0_AS_UCHAR(CAT(convert_, MAKE_VECTOR_TYPE(float, size))(v), size)";
+            compute_type = "float";
+            to_compute_type = "convert_float(v)";
+            decode_compute_type = "_intel_convert_e8m0_to_f32(v)";
+            decode_compute_vector_type = "CONVERT_AS_F8E8M0_FLOAT(v, size)";
             type_size = "1";
             is_fp = true;
+            is_f8 = true;
             break;
         default:
             type = "float";
@@ -1782,6 +1806,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         MakeJitConstant(macroName + "_TYPE_SIZE", type_size),
         MakeJitConstant(macroName + "_IS_FP", is_fp),
         MakeJitConstant(macroName + "_IS_BF16", is_bf16),
+        MakeJitConstant(macroName + "_IS_F8", is_f8),
         MakeJitConstant(macroName + "_COMPUTE_TYPE", compute_type),
         MakeJitConstant("TO_" + macroName + "_COMPUTE_TYPE(v)", to_compute_type),
         MakeJitConstant("DECODE_" + macroName + "_COMPUTE_TYPE(v)", decode_compute_type),
@@ -2467,7 +2492,7 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
                 block_read = CastToType(" _sub_group_block_read_us" + vs + "("
                                         + "(const __global ushort*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
-            } else if (input_dt == Datatype::UINT8 || input_dt == Datatype::INT8) {
+            } else if (input_dt == Datatype::UINT8 || input_dt == Datatype::INT8 || input_dt == Datatype::F8E4M3 || input_dt == Datatype::F8E5M2 || input_dt == Datatype::F8E8M0) {
                 block_read = CastToType(" _sub_group_block_read_uc" + vs + "("
                                         + "(const __global uchar*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
@@ -2535,9 +2560,17 @@ std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size, size_t idx) co
 }
 
 std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, size_t vec_size) const {
-    if (dt == Datatype::BF16)
-        return "CONVERT_BFLOAT16_AS_USHORT(" + var + ", " + toCodeString(vec_size) + ")";
-    return "convert_" + GetType(dt, vec_size) + "(" + var + ")";
+    std::string ret = "convert_" + GetType(dt, vec_size) + "(" + var + ")";
+    if (dt == Datatype::BF16) {
+        ret = "CONVERT_BFLOAT16_AS_USHORT(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E4M3) {
+        ret = "CONVERT_F8E4M3_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E5M2) {
+        ret = "CONVERT_F8E5M2_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E8M0) {
+        ret = "CONVERT_F8E8M0_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
+    }
+    return ret;
 }
 
 std::string FusedOpsCodeGenerator::CastToType(std::string var, Datatype dt, size_t vec_size) const {
@@ -2549,9 +2582,17 @@ std::string FusedOpsCodeGenerator::ConvertToOutputType(std::string var, size_t v
 }
 
 std::string FusedOpsCodeGenerator::DecodeComputeType(std::string var, Datatype dt, size_t vec_size) const {
-    if (dt == Datatype::BF16)
-        return "CONVERT_AS_BFLOAT16_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
-    return var;
+    std::string ret = var;
+    if (dt == Datatype::BF16) {
+        ret = "CONVERT_AS_BFLOAT16_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E4M3) {
+        ret = "CONVERT_AS_F8E4M3_HALF(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E5M2) {
+        ret = "CONVERT_AS_F8E5M2_HALF(" + var + ", " + toCodeString(vec_size) + ")";
+    } else if (dt == Datatype::F8E8M0) {
+        ret = "CONVERT_AS_F8E8M0_FLOAT(" + var + ", " + toCodeString(vec_size) + ")";
+    }
+    return ret;
 }
 
 std::string FusedOpsCodeGenerator::Broadcast(std::string var, Datatype dt, size_t vec_size) const {

@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
-#if INPUT0_IS_F8E4M3
-#include "include/f8_utils.cl"  // fp8e4m3_t typedef
-#endif
-
 #define GET_INDEX(prefix, ORDER) CAT(prefix, _GET_INDEX)(ORDER)
 
 KERNEL(concatenation_gpu_ref)(

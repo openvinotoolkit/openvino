@@ -88,6 +88,7 @@ inline JitConstants MakeReorderWeightsJitConstants(const reorder_weights_params&
     } else {
         jit.Merge(MakeUnitTypeJitConstants(Datatype::F32));
     }
+
     return jit;
 }
 

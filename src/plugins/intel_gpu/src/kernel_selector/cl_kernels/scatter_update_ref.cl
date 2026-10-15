@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
-#if INPUT0_IS_F8E4M3 || INPUT2_IS_F8E4M3
-#include "include/f8_utils.cl"  // fp8e4m3_t typedef
-#endif
-
 #define AXIS_B (0)
 #define AXIS_F (1)
 #define AXIS_W (2)
