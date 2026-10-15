@@ -191,6 +191,14 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
     state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
     if (!state.hfa_selector) {
+        // No position_ids: a foreign host drives a plain CompiledModel and does its own chunked
+        // prefill. Read the KV length out of the model's attention mask instead.
+        LOG_VERB("No position_ids found for HFA - falling back to the mask-derived KV length");
+        state.hfa_selector = runtime::host_flash_attention::MaskLength::find(hfa->_past_tile_size,
+                                                                             hfa->_sdpa_attention_info._context_size,
+                                                                             request);
+    }
+    if (!state.hfa_selector) {
         OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
     }
 }

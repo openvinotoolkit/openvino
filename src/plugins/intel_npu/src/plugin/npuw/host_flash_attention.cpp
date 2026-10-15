@@ -9,6 +9,11 @@
 
 #include "host_flash_attention.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <utility>
+
 #include "intel_npu/ops/flash_attention_tile.hpp"
 #include "logging.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
@@ -1484,6 +1489,186 @@ void PositionIDs::prepare(int64_t past_len) {
 int64_t PositionIDs::context_length() const {
     // Use original_query_length for context calculation (not query_size which may be sliced to 1)
     return _original_query_length + _past_length;
+}
+
+// ============================================================================
+// MaskLength Selector
+// ============================================================================
+
+namespace {
+// Measure the leading run of *visible* entries in the first scan_len entries of one row of an
+// additive attention mask. The row itself is full_len long.
+//
+// The masked-out fill value is whatever the producer chose (-inf, -FLT_MAX, -65504, -1e9 ...), so
+// instead of testing against a magic threshold we take it to be the row's minimum.
+//
+// That minimum is established over the WHOLE row even though only the first scan_len entries are
+// measured, and the difference matters: the scanned region is the past-cache part of the merged KV,
+// which on the very first prefill call is masked end to end. Judged on its own it is a constant
+// region, indistinguishable from a fully visible one, and the first call would give up its entire
+// speedup. The full row also spans the present slice, where the row's own query position is
+// visible by construction - so as soon as anything is masked at all, the row shows both values.
+//
+// Returns {run_length, is_clean_prefix}. is_clean_prefix is false when a visible entry appears
+// *after* the run - i.e. the occupied positions are not a contiguous prefix, which is what a
+// right-aligned or wrapped (sliding-window) cache looks like. Callers must not optimize in that
+// case: the run length says nothing useful about how much of the cache is live.
+template <typename T>
+std::pair<std::size_t, bool> leading_visible_run(const T* row, std::size_t full_len, std::size_t scan_len) {
+    if (full_len == 0 || scan_len == 0) {
+        return {0u, true};
+    }
+    auto lo = static_cast<float>(row[0]);
+    auto hi = lo;
+    for (std::size_t i = 1; i < full_len; ++i) {
+        const auto v = static_cast<float>(row[i]);
+        lo = std::min(lo, v);
+        hi = std::max(hi, v);
+    }
+    if (lo == hi) {
+        return {scan_len, true};  // nothing is masked anywhere in this row
+    }
+    const auto visible = [&](std::size_t i) {
+        return static_cast<float>(row[i]) > lo;
+    };
+    std::size_t run = 0;
+    while (run < scan_len && visible(run)) {
+        ++run;
+    }
+    for (std::size_t i = run; i < scan_len; ++i) {
+        if (visible(i)) {
+            return {run, false};
+        }
+    }
+    return {run, true};
+}
+
+// Is this top-level input plausibly the additive attention mask covering `context_size` KV
+// positions, for a block whose tile is `tile_size`?
+//
+// Structure alone is not enough to be safe here. A [B,1,S,D] KV cache can pass a purely
+// dimensional test - e.g. a V cache stored as [1, 1, head_dim, past] when head_dim happens to be
+// within one tile of the context. So the name is required too, following the precedent
+// PositionIDs::find sets by matching "position_ids" literally.
+bool looks_like_attention_mask(const ov::Output<const ov::Node>& p, std::size_t tile_size, std::size_t context_size) {
+    const auto& type = p.get_element_type();
+    if (type != ov::element::f32 && type != ov::element::f16) {
+        return false;
+    }
+    const auto& shape = p.get_shape();
+    // [batch, 1, query_rows, kv_positions] - anything else and we cannot locate a query row.
+    if (shape.size() != 4 || shape[1] != 1) {
+        return false;
+    }
+    // The mask may be up to one tile short of the context: it can describe the KV length before
+    // the graph pads it to a whole number of tiles, and that padding carries no mask of its own.
+    const auto kv_positions = shape[3];
+    if (kv_positions > context_size || context_size - kv_positions >= tile_size) {
+        return false;
+    }
+    auto name = p.get_node()->get_friendly_name();
+    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return name.find("mask") != std::string::npos;
+}
+}  // anonymous namespace
+
+MaskLength::MaskLength(std::size_t mask_idx,
+                       std::size_t tile_size,
+                       std::size_t context_size,
+                       const ov::ISyncInferRequest& rq)
+    : _mask_idx(mask_idx),
+      _tile_size(tile_size),
+      _context_size(context_size),
+      _context_length(static_cast<int64_t>(context_size)),
+      _rq(rq) {
+    _case = Case::PREFILL;
+}
+
+Selector::Ptr MaskLength::find(std::size_t tile_size, std::size_t context_size, const ov::ISyncInferRequest& rq) {
+    if (tile_size == 0 || context_size == 0 || tile_size > context_size) {
+        return Selector::Ptr{};
+    }
+    // Search the top-level request's own inputs. The attention block's mask Parameter cannot be
+    // used: it is the tiled (and padded) mask built outside the block, so it is an intermediate
+    // tensor that is only bound once the subgraph runs - well after prepare() needs to read it.
+    // The model-level mask is the same data before tiling, and its untiled query rows are in fact
+    // the more direct thing to read.
+    const auto& inputs = rq.get_inputs();
+    std::size_t found = inputs.size();
+    for (std::size_t i = 0; i < inputs.size(); ++i) {
+        if (!looks_like_attention_mask(inputs[i], tile_size, context_size)) {
+            continue;
+        }
+        // Prefer the longest candidate (an exact context match over a padded one). With one mask
+        // per attention family (e.g. sliding-window and global) the context/tile pair already
+        // picks out a single input, so this only breaks ties.
+        if (found == inputs.size() || inputs[i].get_shape()[3] > inputs[found].get_shape()[3]) {
+            found = i;
+        }
+    }
+    if (found == inputs.size()) {
+        LOG_WARN("HFA: no model input looks like a [B,1,Q,~" << context_size
+                                                             << "] attention mask - cannot derive the KV length");
+        return Selector::Ptr{};
+    }
+    LOG_VERB("HFA: deriving the KV length from model input "
+             << found << " ('" << inputs[found].get_node()->get_friendly_name() << "', " << inputs[found].get_shape()
+             << ")");
+    return Selector::Ptr{new MaskLength(found, tile_size, context_size, rq)};
+}
+
+void MaskLength::prepare(int64_t past_len) {
+    // past_len is ignored on purpose: on this path it comes from history_size(), which the host
+    // driving us does not maintain. The mask is the authority.
+    const auto& iport = _rq.get().get_compiled_model()->inputs()[_mask_idx];
+    const auto in_tensor = _rq.get().get_tensor(iport);
+    const auto dims = in_tensor->get_shape();
+
+    const std::size_t row_len = dims.back();
+    const std::size_t num_rows = dims[dims.size() - 2];
+
+    // The merged KV is laid out [ past cache | present slice ], and the runtime's tile loop always
+    // feeds the trailing present slice through the final tile. So only the past region is measured;
+    // the present slice is added back below. The row can be shorter than the context (it describes
+    // the KV length before tile alignment padding), hence the clamp.
+    const std::size_t past_len_max = std::min(_context_size - _tile_size, row_len);
+
+    // Take the union over every query row of the chunk. Under a sliding window the last row sees
+    // the LEAST of the past, not the most: once the window has slid into the present slice it may
+    // see none of it while earlier rows still do. A single row whose occupied past positions are
+    // not a contiguous prefix makes the whole chunk fall back to the full context.
+    std::size_t max_past = 0;
+    for (std::size_t r = 0; r < num_rows; ++r) {
+        const std::size_t row_offset = r * row_len;
+        std::pair<std::size_t, bool> run{past_len_max, true};
+        if (in_tensor->get_element_type() == ov::element::f32) {
+            run = leading_visible_run(in_tensor->data<float>() + row_offset, row_len, past_len_max);
+        } else {
+            run = leading_visible_run(in_tensor->data<ov::float16>() + row_offset, row_len, past_len_max);
+        }
+
+        if (!run.second) {
+            // Occupied positions are not a contiguous prefix - fall back to the full context, which
+            // is exactly what the static graph would have done.
+            LOG_DEBUG("HFA: mask row " << r << " is not prefix-shaped, using the full context");
+            _context_length = static_cast<int64_t>(_context_size);
+            return;
+        }
+        max_past = std::max(max_past, run.first);
+    }
+
+    // Round the past up to whole tiles (the extra positions are masked out anyway) and add the
+    // present slice, which is always exactly one tile.
+    const std::size_t past_tiles = (max_past + _tile_size - 1) / _tile_size;
+    _context_length = static_cast<int64_t>(std::min((past_tiles + 1) * _tile_size, _context_size));
+    LOG_DEBUG("HFA mask-derived KV length: past " << max_past << " -> " << _context_length << " total (tile "
+                                                  << _tile_size << ")");
+}
+
+int64_t MaskLength::context_length() const {
+    return _context_length;
 }
 
 // ============================================================================

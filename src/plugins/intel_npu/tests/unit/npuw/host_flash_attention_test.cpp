@@ -6,8 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <limits>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
@@ -20,6 +23,7 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace {
 
@@ -818,4 +822,144 @@ TEST(HostFlashAttentionPositionIdsFindTest, RejectsNonUnitBatchDim) {
 TEST(HostFlashAttentionPositionIdsFindTest, RejectsNonUnitBatchDimIn3D) {
     auto rq = make_position_ids_request(ov::Shape{3, 2, 16});
     EXPECT_EQ(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
+}
+
+// ---------------------------------------------------------------------------
+// runtime::host_flash_attention::MaskLength
+// ---------------------------------------------------------------------------
+namespace {
+
+// Builds a request whose only input is an f32 mask of the given shape and name (reusing the
+// PosIds* stubs above) and binds `data` to it: unlike PositionIDs::find(), which only reads
+// shapes, MaskLength::prepare() reads the tensor contents.
+std::shared_ptr<ov::ISyncInferRequest> make_mask_length_request(const ov::Shape& mask_shape,
+                                                                const std::vector<float>& data,
+                                                                const std::string& name = "attn_mask.0") {
+    auto mask_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, mask_shape);
+    mask_param->set_friendly_name(name);
+    mask_param->output(0).get_tensor().set_names({name});
+    auto result = std::make_shared<ov::op::v0::Result>(mask_param);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{mask_param});
+
+    auto plugin = std::make_shared<PosIdsNullPlugin>();
+    auto compiled = std::make_shared<PosIdsStubCompiledModel>(model, plugin);
+    auto rq = std::make_shared<PosIdsFakeInferRequest>(compiled);
+
+    ov::Tensor tensor(ov::element::f32, mask_shape);
+    std::copy(data.begin(), data.end(), tensor.data<float>());
+    rq->set_tensor(compiled->inputs()[0], ov::get_tensor_impl(tensor));
+    return rq;
+}
+
+const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+const float kVisible = 0.0f;
+
+}  // namespace
+
+// Sliding window with past capacity == chunk == window == 4: the LAST row's window has slid
+// entirely into the present slice, but rows 0-2 still see 1-3 real past columns. The past tile
+// must not be skipped, and tiles only come whole, so the answer is the full context.
+TEST(HostFlashAttentionMaskLengthSelectorTest, SWALastRowFullyMasked_PastTileMustNotBeSkipped) {
+    constexpr std::size_t kTileSize = 4;
+    constexpr std::size_t kContextSize = 8;  // past (4) + present (4)
+
+    // [B=1, 1, query_rows=4, kv_positions=8]; each row is past[0..3] then present[4..7].
+    // clang-format off
+    const std::vector<float> mask_data = {
+        kMasked, kVisible, kVisible, kVisible,  kVisible, kVisible, kVisible, kVisible,  // row 0
+        kMasked, kMasked,  kVisible, kVisible,  kVisible, kVisible, kVisible, kVisible,  // row 1
+        kMasked, kMasked,  kMasked,  kVisible,  kVisible, kVisible, kVisible, kVisible,  // row 2
+        kMasked, kMasked,  kMasked,  kMasked,   kVisible, kVisible, kVisible, kVisible,  // row 3 (last)
+    };
+    // clang-format on
+
+    auto rq = make_mask_length_request(ov::Shape{1, 1, 4, kContextSize}, mask_data);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kContextSize, *rq);
+    ASSERT_NE(selector, nullptr);
+
+    selector->prepare(/*past_len=*/0);  // ignored on this path -- the mask is the authority
+    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(kContextSize));
+}
+
+// First prefill call: nothing has been written to the past yet, so every row's past region is
+// masked end to end and the past tile is skipped.
+TEST(HostFlashAttentionMaskLengthSelectorTest, FirstCallNoPastWritten_PastTileSkipped) {
+    constexpr std::size_t kTileSize = 4;
+    constexpr std::size_t kContextSize = 8;  // past (4) + present (4)
+
+    // clang-format off
+    const std::vector<float> mask_data = {
+        kMasked, kMasked, kMasked, kMasked,  kVisible, kMasked,  kMasked,  kMasked,   // row 0
+        kMasked, kMasked, kMasked, kMasked,  kVisible, kVisible, kMasked,  kMasked,   // row 1
+        kMasked, kMasked, kMasked, kMasked,  kVisible, kVisible, kVisible, kMasked,   // row 2
+        kMasked, kMasked, kMasked, kMasked,  kVisible, kVisible, kVisible, kVisible,  // row 3
+    };
+    // clang-format on
+
+    auto rq = make_mask_length_request(ov::Shape{1, 1, 4, kContextSize}, mask_data);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kContextSize, *rq);
+    ASSERT_NE(selector, nullptr);
+
+    selector->prepare(/*past_len=*/0);
+    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(kTileSize));
+}
+
+// Global (non-windowed) attention: a partially filled past is a clean prefix on every row, so
+// only the occupied past tile is kept and the unoccupied one is skipped.
+TEST(HostFlashAttentionMaskLengthSelectorTest, PartiallyFilledPast_OccupiedTilesOnly) {
+    constexpr std::size_t kTileSize = 4;
+    constexpr std::size_t kContextSize = 12;  // past (8, two tiles) + present (4)
+
+    // 3 past positions written; present carries a causal diagonal.
+    // clang-format off
+    const std::vector<float> mask_data = {
+        kVisible, kVisible, kVisible, kMasked, kMasked, kMasked, kMasked, kMasked,  kVisible, kMasked,  kMasked,  kMasked,   // row 0
+        kVisible, kVisible, kVisible, kMasked, kMasked, kMasked, kMasked, kMasked,  kVisible, kVisible, kMasked,  kMasked,   // row 1
+        kVisible, kVisible, kVisible, kMasked, kMasked, kMasked, kMasked, kMasked,  kVisible, kVisible, kVisible, kMasked,   // row 2
+        kVisible, kVisible, kVisible, kMasked, kMasked, kMasked, kMasked, kMasked,  kVisible, kVisible, kVisible, kVisible,  // row 3
+    };
+    // clang-format on
+
+    auto rq = make_mask_length_request(ov::Shape{1, 1, 4, kContextSize}, mask_data);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kContextSize, *rq);
+    ASSERT_NE(selector, nullptr);
+
+    selector->prepare(/*past_len=*/0);
+    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(2 * kTileSize));
+}
+
+// Every row sees the entire two-tile past: nothing may be dropped.
+TEST(HostFlashAttentionMaskLengthSelectorTest, FullyVisiblePastAcrossMultipleTiles_EntireContextKept) {
+    constexpr std::size_t kTileSize = 4;
+    constexpr std::size_t kContextSize = 12;  // past (8, two tiles) + present (4)
+
+    // clang-format off
+    const std::vector<float> mask_data = {
+        kVisible, kVisible, kVisible, kVisible, kVisible, kVisible, kVisible, kVisible,  kVisible, kMasked,  kMasked,  kMasked,   // row 0
+        kVisible, kVisible, kVisible, kVisible, kVisible, kVisible, kVisible, kVisible,  kVisible, kVisible, kMasked,  kMasked,   // row 1
+        kVisible, kVisible, kVisible, kVisible, kVisible, kVisible, kVisible, kVisible,  kVisible, kVisible, kVisible, kMasked,   // row 2
+        kVisible, kVisible, kVisible, kVisible, kVisible, kVisible, kVisible, kVisible,  kVisible, kVisible, kVisible, kVisible,  // row 3
+    };
+    // clang-format on
+
+    auto rq = make_mask_length_request(ov::Shape{1, 1, 4, kContextSize}, mask_data);
+    auto selector = ov::npuw::runtime::host_flash_attention::MaskLength::find(kTileSize, kContextSize, *rq);
+    ASSERT_NE(selector, nullptr);
+
+    selector->prepare(/*past_len=*/0);
+    EXPECT_EQ(selector->context_length(), static_cast<int64_t>(kContextSize));
+}
+
+// find() needs a mask-named [B, 1, Q, ~context] input: a mask for another context, or a
+// same-shaped tensor under another name (e.g. a KV cache), is not taken for the mask.
+TEST(HostFlashAttentionMaskLengthSelectorTest, FindMatchesOnlyAMaskForThisContext) {
+    using ov::npuw::runtime::host_flash_attention::MaskLength;
+    const std::vector<float> data(1 * 1 * 4 * 8, kVisible);
+
+    auto mask_rq = make_mask_length_request(ov::Shape{1, 1, 4, 8}, data, "attention_mask");
+    EXPECT_NE(MaskLength::find(/*tile_size=*/4, /*context_size=*/8, *mask_rq), nullptr);
+    EXPECT_EQ(MaskLength::find(/*tile_size=*/4, /*context_size=*/16, *mask_rq), nullptr);
+
+    auto cache_rq = make_mask_length_request(ov::Shape{1, 1, 4, 8}, data, "past_key_values.0.value");
+    EXPECT_EQ(MaskLength::find(/*tile_size=*/4, /*context_size=*/8, *cache_rq), nullptr);
 }

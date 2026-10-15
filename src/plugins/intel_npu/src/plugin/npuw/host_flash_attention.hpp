@@ -528,6 +528,39 @@ public:
     static Selector::Ptr find(std::size_t original_query_length, const ov::ISyncInferRequest& rq);
 };
 
+// Define execution selection by reading the live attention mask.
+//
+// PositionIDs above needs a Parameter literally named "position_ids" and a host that reports its
+// KV history through update_history_size(). Both exist only on NPUW's own LLM pipeline; a plain
+// CompiledModel driven by a foreign host (e.g. LiteRT-LM, which does its own chunked prefill) has
+// neither -- position_ids is not in the graph and history_size() stays 0 forever.
+//
+// The additive mask is always present though, and it already encodes the answer: each query row
+// is unmasked precisely over the KV positions it attends to, so the union over the chunk's rows of
+// the leading visible run is the KV length the chunk needs.
+//
+// SCOPE: like PositionIDs, this reads the *top-level* infer request. Its _mask_idx therefore
+// indexes that request's inputs -- NOT the attention function body's parameters. The two are
+// unrelated numbering schemes, so find() locates the mask itself rather than accepting an index:
+// HostFlashAttention::_attention_mask_param_idx is function-local (it addresses the tiled/padded
+// mask *inside* the block, which is not even bound yet when prepare() runs) and must never be
+// passed in here.
+class MaskLength final : public Selector {
+    std::size_t _mask_idx = 0u;  // index into the top-level request's inputs
+    std::size_t _tile_size = 1u;
+    std::size_t _context_size = 0u;
+    int64_t _context_length = 0;
+
+    std::reference_wrapper<const ov::ISyncInferRequest> _rq;
+
+    MaskLength(std::size_t mask_idx, std::size_t tile_size, std::size_t context_size, const ov::ISyncInferRequest& rq);
+    void prepare(int64_t past_len) override;
+    int64_t context_length() const override;
+
+public:
+    static Selector::Ptr find(std::size_t tile_size, std::size_t context_size, const ov::ISyncInferRequest& rq);
+};
+
 }  // namespace host_flash_attention
 }  // namespace runtime
 
