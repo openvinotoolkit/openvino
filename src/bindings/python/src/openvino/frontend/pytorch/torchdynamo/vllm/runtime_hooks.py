@@ -22,6 +22,12 @@ _fastinfer_out_cache = {}   # id(req) -> {out_port: numpy_view}
 _fastinfer_out_static = {}  # id(compiled) -> bool: output views are reusable
 
 
+def clear_caches():
+    """Drop the fast-infer caches. Their keys are id(compiled)/id(req), reused once those are freed."""
+    for cache in (_fastinfer_port_cache, _fastinfer_bound_ids, _fastinfer_out_cache, _fastinfer_out_static):
+        cache.clear()
+
+
 # Sentinel returned by run_pa_infer to signal "skip this infer; use eager".
 class _PaSkip:
     __slots__ = ()
@@ -72,7 +78,12 @@ def should_skip_pa_infer() -> bool:
     There the side channel can only supply zero-length metadata, so the OV
     PA kernel would read uninitialized memory. Neither caller of this state
     (determine_available_memory, dummy_run) consumes the output, so skipping
-    to eager is safe. Any exception falls through to False.
+    to eager is safe.
+
+    A missing forward context is not such a state and returns False on
+    purpose: the eager path can't write the KV cache (the OV attention op
+    owns that write), so skipping a real step would decode garbage silently,
+    while running PA without a context fails loudly in the binder.
     """
     try:
         from vllm.forward_context import get_forward_context
