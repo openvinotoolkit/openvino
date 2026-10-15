@@ -5,6 +5,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "scaled_dot_product_attention_shape_inference.hpp"
 
 using namespace std;
@@ -58,20 +59,24 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
             attention_type.is_real() || attention_type == element::boolean || attention_type.is_dynamic(),
             "The element type of attention_mask must be either floating-point or boolean.");
     }
-    for (size_t i = 1; i < input_size; i++) {
-        const auto& element_type = get_input_element_type(i);
-        // An integer key or value is converted to the query's type, so it does not take part in the
-        // type merge, and the output type keeps following the query.
-        if ((i == 1 || i == 2) && is_quantized_kv_type(element_type)) {
-            continue;
-        }
-        if (i == 3 && (element_type == element::boolean || causal)) {
-            // Skip checking attention_mask in loop when boolean or skipped to not affect merged dtype.
-            continue;
-        }
+    const auto merge_input_type = [&](size_t i) {
         NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(out_type, out_type, element_type),
+                              element::Type::merge(out_type, out_type, get_input_element_type(i)),
                               "Mixed input types are not supported.");
+    };
+    // key and value: T, or T_QUANT, which the operation converts to T.
+    for (size_t i = 1; i <= 2; i++) {
+        if (!util::is_sdpa_integer_kv_type(get_input_element_type(i))) {
+            merge_input_type(i);
+        }
+    }
+    // attention_mask: T, or boolean; ignored when causal.
+    if (input_size >= 4 && !causal && get_input_element_type(3) != element::boolean) {
+        merge_input_type(3);
+    }
+    // scale and sink: T.
+    for (size_t i = 4; i < input_size; i++) {
+        merge_input_type(i);
     }
     NODE_VALIDATION_CHECK(this,
                           out_type.is_real() || out_type.is_dynamic(),
@@ -87,14 +92,15 @@ std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(
     return std::make_shared<ScaledDotProductAttention>(new_args, m_causal);
 }
 
-bool op::v13::ScaledDotProductAttention::is_quantized_kv_type(const element::Type& type) {
+bool op::util::is_sdpa_integer_kv_type(const element::Type& type) {
     // The signed and unsigned 8- and 4-bit integer types, which is what a quantized key or value
     // cache is stored as.
     return type == element::i8 || type == element::u8 || type == element::i4 || type == element::u4;
 }
 
-bool op::v13::ScaledDotProductAttention::has_quantized_kv(const ScaledDotProductAttention& node) {
-    return is_quantized_kv_type(node.get_input_element_type(1)) || is_quantized_kv_type(node.get_input_element_type(2));
+bool op::util::sdpa_has_integer_kv(const op::v13::ScaledDotProductAttention& sdpa) {
+    return is_sdpa_integer_kv_type(sdpa.get_input_element_type(1)) ||
+           is_sdpa_integer_kv_type(sdpa.get_input_element_type(2));
 }
 
 bool op::v13::ScaledDotProductAttention::visit_attributes(AttributeVisitor& visitor) {

@@ -13,6 +13,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/fuse_ssm.hpp"
@@ -89,15 +90,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     // otherwise be left half-converted by a throw from inside the matcher callback.
     for (const auto& op : model->get_ordered_ops()) {
         const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
-        if (sdpa && ov::op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
-            OPENVINO_THROW("SDPAToPagedAttention does not support a quantized key or value operand. ",
-                           "Node ",
+        if (sdpa && ov::op::util::sdpa_has_integer_kv(*sdpa)) {
+            OPENVINO_THROW("SDPAToPagedAttention does not support a quantized key or value operand. Node ",
                            sdpa->get_friendly_name(),
                            " has key type ",
                            sdpa->get_input_element_type(1),
                            " and value type ",
-                           sdpa->get_input_element_type(2),
-                           ".");
+                           sdpa->get_input_element_type(2));
         }
     }
 
