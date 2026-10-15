@@ -405,8 +405,8 @@ TEST(HsmReaderTest, device_overrides_core_tag_by_reusing_it_under_its_own_device
     EXPECT_EQ(reader->count(hsm::Tags::compiled_options), 1U);
     EXPECT_EQ(reader->count(fake_device_id, hsm::Tags::compiled_options), 1U);
 
-    // A device that published no override of its own finds nothing under its id, and so falls back to the
-    // shared any_device_id entry - the resolution order every such lookup follows.
+    // A device that published no override of its own finds nothing under its id because section(device, tag)
+    // performs an exact (device, tag) lookup; callers that want shared content must explicitly query any_device_id.
     EXPECT_FALSE(reader->section(other_device_id, hsm::Tags::compiled_options).has_value());
 }
 
