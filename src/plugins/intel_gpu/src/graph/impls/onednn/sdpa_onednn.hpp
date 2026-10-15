@@ -250,6 +250,10 @@ private:
         if (prim.attn_mask_val.has_value())
             return false;
 
+        // oneDNN SDPA has no sliding-window mask type.
+        if (prim.sliding_window != 0)
+            return false;
+
         if (!is_identity_order(prim.input_q_transpose_order) ||
             !is_identity_order(prim.input_k_transpose_order) ||
             !is_identity_order(prim.input_v_transpose_order) ||

@@ -770,7 +770,8 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
                                       bool use_onednn,
                                       const std::optional<float>& scale_val,
                                       bool is_causal = false,
-                                      bool causal_lower_right = false) {
+                                      bool causal_lower_right = false,
+                                      int64_t sliding_window = 0) {
         auto& engine = get_test_engine();
 
         topology topo;
@@ -802,6 +803,7 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         if (scale_val.has_value()) {
             sdpa.scale_val = scale_val.value();
         }
+        sdpa.sliding_window = sliding_window;
 
         topo.add(sdpa);
 
@@ -993,6 +995,31 @@ TEST(onednn_sdpa_gpu_validation_test, rejects_unsupported_runtime_scale_and_batc
                                                                   true,
                                                                   std::nullopt);
     onednn_sdpa_gpu_test::assert_onednn_sdpa_not_selected(batch_broadcast_net);
+}
+
+TEST(onednn_sdpa_gpu_validation_test, rejects_sliding_window) {
+    auto& engine = get_test_engine();
+#ifndef ENABLE_DEBUG_CAPS
+    GTEST_SKIP() << "oneDNN SDPA debug option requires ENABLE_DEBUG_CAPS";
+#endif
+    if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown) {
+        GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU with known architecture";
+    }
+
+    const layout q_layout({1, 2, 6, 32}, data_types::f16, format::bfyx);
+    const layout kv_layout({1, 2, 6, 32}, data_types::f16, format::bfyx);
+
+    auto sliding_window_net = onednn_sdpa_gpu_test::build_network(q_layout,
+                                                                  kv_layout,
+                                                                  kv_layout,
+                                                                  std::nullopt,
+                                                                  std::nullopt,
+                                                                  true,
+                                                                  std::nullopt,
+                                                                  true,
+                                                                  true,
+                                                                  2);
+    onednn_sdpa_gpu_test::assert_onednn_sdpa_not_selected(sliding_window_net);
 }
 
 INSTANTIATE_TEST_SUITE_P(
