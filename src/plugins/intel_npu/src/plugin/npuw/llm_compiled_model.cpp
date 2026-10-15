@@ -58,7 +58,10 @@
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
+#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
+#include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "util.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 #include "whisper/whisper_infer_request.hpp"
@@ -516,7 +519,79 @@ void apply_moe_config(ov::AnyMap& stage_config,
                     "MoE DENSE mode requires CPU-only device (NPUW_DEVICES must be 'CPU'). "
                     "DENSE activates all experts simultaneously, causing extremely long NPU compilation time. "
                     "Please set NPUW_DEVICES to 'CPU'.");
+    } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::FUSED) {
+        // The expert subgraph was already collapsed into a single MOECompressed op earlier
+        // (see apply_moe_fusion), so no per-expert partitioning hints are needed here.
+        LOG_INFO("MoE config for " << stage_name
+                                   << " stage: FUSED (single MOECompressed op, device dynamic-sparse"
+                                      " kernel)");
     }
+}
+
+// MoeOpFusion replaces the matched tiled-MoE block with a MOE(Compressed) node whose output rank
+// ([B,S,H]) can differ from the rank the original (unfused) block produced (e.g. flattened
+// [tokens,H]). Leftover Reshape ops right after the block - which existed to restore [B,S,H] from
+// that original rank and may carry stale/baked target values for it - no longer agree with the new
+// rank once ReshapeToStatic turns shapes concrete, and fail shape validation. Collapse such a
+// Reshape->Reshape pair into just the second Reshape: when its special_zero is false its output
+// shape depends only on its own target (not on the intermediate shape), so this is safe regardless
+// of the first reshape's target values, as long as it has no other consumers.
+class CollapseRedundantReshapePair : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("CollapseRedundantReshapePair");
+    CollapseRedundantReshapePair() {
+        using namespace ov::pass::pattern;
+        auto reshape_input = any_input();
+        auto reshape_a_target = any_input();
+        auto reshape_a = wrap_type<ov::op::v1::Reshape>({reshape_input, reshape_a_target}, consumers_count(1));
+        auto reshape_b_target = any_input();
+        auto reshape_b = wrap_type<ov::op::v1::Reshape>({reshape_a, reshape_b_target});
+
+        ov::matcher_pass_callback callback = [=](Matcher& m) {
+            const auto& pm = m.get_pattern_value_map();
+            auto reshape_b_node = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());
+            if (!reshape_b_node || reshape_b_node->get_special_zero()) {
+                return false;
+            }
+            auto reshape_a_node = pm.at(reshape_a).get_node_shared_ptr();
+            auto new_reshape =
+                std::make_shared<ov::op::v1::Reshape>(pm.at(reshape_input), pm.at(reshape_b_target), false);
+            new_reshape->set_friendly_name(reshape_b_node->get_friendly_name());
+            ov::copy_runtime_info({reshape_a_node, reshape_b_node}, new_reshape);
+            ov::replace_node(reshape_b_node, new_reshape);
+            return true;
+        };
+        auto m = std::make_shared<Matcher>(reshape_b, "CollapseRedundantReshapePair");
+        register_matcher(m, callback);
+    }
+};
+
+// Collapse the decomposed tiled-MoE expert subgraph (Tile + batched MatMul + ScatterElementsUpdate
+// routing) into single MOE/MOECompressed ops, so the NPU compiler can lower each MoE block to a
+// single dynamic-sparse kernel instead of partitioning the unrolled expert graph.
+// Must run while the given model is still dynamic-shaped (before ReshapeToStatic): the
+// GatherMatmul-based pattern relies on dynamic per-token routing shapes and leaves stale
+// shape-compute chains if applied afterwards. Applied independently per stage (PREFILL /
+// GENERATE), since the kernel team may bring up FUSED support for one stage before the other.
+void apply_moe_fusion(const std::shared_ptr<ov::Model>& model) {
+    LOG_INFO("Fusing MoE expert subgraphs into MOECompressed ops (MoEHint::FUSED)");
+    const std::vector<ov::element::Type> supported_weights_types{ov::element::u4,
+                                                                 ov::element::i4,
+                                                                 ov::element::u8,
+                                                                 ov::element::i8};
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32, ov::element::f16};
+
+    ov::pass::Manager manager("NPUW:MoEFusion");
+    manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_weights_types);
+    manager.register_pass<ov::pass::Validate>();
+    // No SupportsPredicate yet: accept every matched config until NPU kernel limits are finalized
+    // with the kernel team, then gate IC/OC/group_size here.
+    manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
+                                                                                 supported_weights_types);
+    manager.register_pass<ov::pass::MoeOpFusion>();
+    manager.register_pass<CollapseRedundantReshapePair>();
+    manager.register_pass<ov::pass::Validate>();
+    manager.run_passes(model);
 }
 
 // Apply DEVICE_ROUTED MoE transformations to models
@@ -1032,6 +1107,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
+    // FUSED is resolved independently per stage (PREFILL / GENERATE), since the kernel team may
+    // bring up dynamic-sparse single-op MoE support for one stage before the other.
+    const bool is_moe = is_moe_model(model);
+    const bool fuse_prefill_moe =
+        is_moe && m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>() == ::intel_npu::npuw::llm::MoEHint::FUSED;
+    const bool fuse_generate_moe =
+        is_moe && m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>() == ::intel_npu::npuw::llm::MoEHint::FUSED;
+
+    // Must run on the still-dynamic models, before ReshapeToStatic below: the GatherMatmul-based
+    // fusion pattern relies on dynamic per-token routing shapes and leaves stale shape-compute
+    // chains if applied after the model is forced static.
+    if (fuse_prefill_moe) {
+        apply_moe_fusion(prefill_model);
+    }
+
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
@@ -1123,6 +1213,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // A bidirectional encoder embedding model has no autoregressive generate step (no KV cache,
     // no single-token decode), so the seq_len=1 generate graph is invalid for it and must not be
     // built/compiled. Only the (whole-sequence) prefill model is used at inference time.
+    // kvcache_model is still dynamic here (prefill_model already branched off above), so fuse MoE
+    // in place before each generate variant is cloned off and reshaped to static.
+    if (fuse_generate_moe) {
+        apply_moe_fusion(kvcache_model);
+    }
     std::vector<std::shared_ptr<ov::Model>> generate_model_variants;
     if (!m_is_encoder_embedding) {
         generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
@@ -1393,7 +1488,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_longrope_tables.rebuild_tables();
     }
 
-    if (is_moe_model(model)) {
+    if (is_moe) {
         // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
         // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
         // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
