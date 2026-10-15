@@ -5,6 +5,18 @@ llama.cpp OpenVINO backend and GenAI. Use [testing.md](../../../../src/frontends
 for build targets, fixture generation and individual tests. Registration or
 conversion alone does not establish accuracy or end-to-end integration.
 
+## Family contract
+
+Before implementing a family, inspect the pinned reference loader and graph. Record consumed
+metadata and defaults, optional tensors, layer ordering, normalization/RoPE/routing order,
+tensor layouts and recurrent state shapes. Metadata present in a file may be ignored by the
+reference loader. Identify decoder, projector, embedding and audio contracts separately while
+preserving the user's requested scope. Distinguish implemented behavior from validated checkpoints;
+an unimplemented contract remains outstanding work, not an implicit scope reduction.
+
+Test layout-sensitive recurrent paths with batching early, alongside single-sequence numerics.
+Include multiple heads/tokens and unequal Q/KV dimensions where applicable.
+
 ## Define the matrix and reference
 
 Record repository revisions, model/projector paths and revisions, tensor-type
@@ -14,8 +26,11 @@ and build wrapper files used. Verify the libraries actually loaded after
 inference; read [build and runtime identity](build-runtime.md) for overlays,
 incremental builds, multiple worktrees or dispatched CPU kernels.
 
-Specify selected scenarios, expected test counts and allowed skips, numerical
-metrics/tolerances, per-case timeouts and artifact paths. Distinguish conversion,
+Use one reusable runner and task manifest, extending the existing harness where available.
+Specify selected scenarios, per-case environments, expected test counts and allowed skips,
+existing numerical metrics/tolerances, timeouts and artifact paths. Keep runtime identity,
+completed cases and failed attempts in its reports; preserve the tests' acceptance gates
+rather than duplicating numerical assertions in a report parser. Distinguish conversion,
 decoder numerics, text quality, vision/audio, PA/SDPA and Optimum compatibility.
 Passing one scenario does not establish support for the others. Keep exclusions
 and missing coverage explicit. A quantized reference checks backend parity, not
@@ -44,6 +59,17 @@ Keep the chosen reference and criteria. Never silently change precision,
 thresholds, expected failures or coverage to obtain a pass. For performance,
 preserve hardware, load, warmup and repetition settings; noisy measurements do
 not establish a regression or improvement.
+
+## Scenario environments
+
+Set the environment before each process starts; do not inherit checkpoint settings into the
+unfiltered unit suite. Record precision, KV precision and activation quantization independently.
+
+| Scenario | Zero-point setting | Acceptance |
+|---|---|---|
+| Unfiltered frontend unit suite | Unset `OV_GGUF_Q4_K_ZP_F16` | Default test expectations, required fixtures and op coverage |
+| Strict quantized checkpoint comparison | `OV_GGUF_Q4_K_ZP_F16=1` | Original full-logit or feature parity gate |
+| Represented-F32 diagnostic | Explicit environment and tensor-type inventory | Arithmetic isolation; does not replace quantized parity |
 
 ## Multimodal and API coverage
 
@@ -128,9 +154,11 @@ needed. Wait for execution and the provenance check to finish before committing,
 merging or rebuilding those inputs. Report useful checkpoints from the workflow
 artifacts without per-test polling.
 
-Return tested revisions and runtime identity, completed/remaining cases, exact
-selected counts/skips, failures with excerpts, reproduction commands and artifact
-paths. Distinguish selected skips from filtered or unregistered suites and disclose
+Keep full XML, logs and inventories on disk. Return tested revisions and runtime identity,
+completed/remaining cases, exact selected counts/skips, grouped failure signatures, reproduction
+commands and artifact paths. Aim for at most 1,500 tokens per routine summary; read larger excerpts
+only for a concrete investigation. Send checkpoints for completion, failure, missing prerequisites
+or a material state change. Distinguish selected skips from filtered or unregistered suites and disclose
 standalone fixture adapters. Group equivalent errors without asserting a common
 cause. Preserve original failures and numerical differences for diagnosis; known
 arithmetic differences remain failed parity checks unless the user changes the
