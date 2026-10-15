@@ -89,7 +89,8 @@ bool is_decode_shape(const kernel_impl_params& params) {
 /// Heads that share one dpas tile. See qsa.cpp's dpas_heads_per_tile() for the rationale.
 size_t dpas_heads_per_tile(const sparse_sdpa& desc) {
     const auto n_rep = desc.num_heads / desc.num_kv_heads;
-    for (size_t ht : {size_t{16}, size_t{8}, size_t{4}, size_t{2}}) {
+    // 16 heads would leave one token per tile, and load_vnni_cols<1> does not compile.
+    for (size_t ht : {size_t{8}, size_t{4}, size_t{2}}) {
         if (n_rep % ht == 0) {
             return ht;
         }
@@ -528,6 +529,7 @@ public:
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        kernel_dump_info.clear_entries();
         update_rt_params(instance);
         const auto& params = *instance.get_impl_params();
         if (use_gqa_dpas_attention(params)) {

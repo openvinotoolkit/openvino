@@ -34,6 +34,7 @@
 #include <memory>
 #include <numeric>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -104,6 +105,30 @@ split_dims qwen38_dims() {
     d.Hkv = 2;
     d.Dh = 256;
     d.Dv = 256;
+    return d;
+}
+
+/// Plain DPAS attention with one worker and 4 heads per tile; GQA-DPAS needs Dh % 128 == 0.
+split_dims non_gqa_dpas_dims() {
+    auto d = qwen38_dims();
+    d.Dh = 64;
+    d.Dv = 64;
+    return d;
+}
+
+/// n_rep = 32 exceeds GQA-DPAS's limit of 16; plain DPAS needs 4 workers and 8 heads per tile.
+split_dims wide_group_dims() {
+    auto d = qwen38_dims();
+    d.Hq = 32;
+    d.Hkv = 1;
+    return d;
+}
+
+/// n_rep = 1: plain DPAS with one head per tile.
+split_dims mha_dpas_dims() {
+    auto d = non_gqa_dpas_dims();
+    d.Hq = 4;
+    d.Hkv = 4;
     return d;
 }
 
@@ -820,16 +845,90 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
 struct pair_outputs {
     selection_plan plan;     // GPU indexer outputs, flat
     std::vector<float> attn; // token-major [q_len, Hq*Dv]
+    std::vector<std::string> indexer_kernels, attention_kernels;
 };
+
+/// CM kernels the primitive's last execute() enqueued, in order, without the `_cm_<hash>` suffix.
+std::vector<std::string> executed_kernels(network& net, const primitive_id& id) {
+    auto inst = net.get_primitive(id);
+    std::istringstream entries(inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries());
+    std::vector<std::string> names;
+    for (std::string entry; entries >> entry;) {
+        names.push_back(entry.substr(0, entry.rfind("_cm_")));
+    }
+    return names;
+}
+
+void read_pair_outputs(network& net, pair_outputs& out) {
+    auto indexer = net.get_primitive("indexer");
+    out.plan.sel = read_i32(indexer->output_memory_ptr(0));
+    out.plan.count = read_i32(indexer->output_memory_ptr(1));
+    out.indexer_kernels = executed_kernels(net, "indexer");
+    out.attention_kernels = executed_kernels(net, "attn");
+}
+
+enum class IndexerPath { Decode, Dpas, Fused };
+enum class AttnPath { Scalar, Dpas, GqaDpas, Split };
+
+/// Expected kernel routing of one pair execution; `decode_chunks` counts BLOCK_SCORES row chunks.
+struct route {
+    IndexerPath indexer;
+    AttnPath attention;
+    size_t decode_chunks = 1;
+};
+
+std::vector<std::string> expected_indexer_kernels(bool paged, const route& r) {
+    std::vector<std::string> k = {paged ? "qsa_indexer_prepare_paged" : "qsa_indexer_prepare_dense"};
+    switch (r.indexer) {
+    case IndexerPath::Decode:
+        for (size_t i = 0; i < r.decode_chunks; i++) {
+            k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk"});
+        }
+        break;
+    case IndexerPath::Dpas:
+        k.insert(k.end(), {"qsa_indexer_score_dpas", "qsa_indexer_topk"});
+        break;
+    case IndexerPath::Fused:
+        k.push_back("qsa_indexer_score_topk_fused");
+        break;
+    }
+    return k;
+}
+
+std::vector<std::string> expected_attention_kernels(bool paged, const route& r) {
+    const std::string base = paged ? "sparse_attention_paged" : "sparse_attention_dense";
+    std::vector<std::string> k;
+    if (paged) {
+        k.push_back("sparse_attention_kv_write");
+    }
+    switch (r.attention) {
+    case AttnPath::Scalar:
+        k.push_back(base);
+        break;
+    case AttnPath::Dpas:
+        k.push_back(base + "_dpas");
+        break;
+    case AttnPath::GqaDpas:
+        k.push_back(base + "_gqa_dpas");
+        break;
+    case AttnPath::Split:
+        k.insert(k.end(), {base + "_split", base + "_split_reduce"});
+        break;
+    }
+    return k;
+}
+
+void expect_route(bool paged, const pair_outputs& gpu, const route& r) {
+    EXPECT_EQ(gpu.indexer_kernels, expected_indexer_kernels(paged, r));
+    EXPECT_EQ(gpu.attention_kernels, expected_attention_kernels(paged, r));
+}
 
 pair_outputs run_paged_pair(engine& engine, const split_reference& ref) {
     auto net = build_paged_network(engine, paged_inputs_from_reference(ref), Stage::Pair);
     auto outputs = net->execute();
     pair_outputs out;
     out.attn = read_f16(outputs.at("attn").get_memory());
-    auto indexer = net->get_primitive("indexer");
-    out.plan.sel = read_i32(indexer->output_memory_ptr(0));
-    out.plan.count = read_i32(indexer->output_memory_ptr(1));
+    read_pair_outputs(*net, out);
     return out;
 }
 
@@ -847,9 +946,7 @@ pair_outputs run_dense_pair(engine& engine, const split_reference& ref) {
             }
         }
     }
-    auto indexer = net->get_primitive("indexer");
-    out.plan.sel = read_i32(indexer->output_memory_ptr(0));
-    out.plan.count = read_i32(indexer->output_memory_ptr(1));
+    read_pair_outputs(*net, out);
     return out;
 }
 
@@ -937,20 +1034,42 @@ void validate_pair(const split_reference& ref, const pair_outputs& gpu, float at
     EXPECT_EQ(mismatches, 0u);
 }
 
-void validate_and_run_pair(bool paged, engine& engine, const split_reference& ref, float atol, float rtol) {
+void validate_and_run_pair(bool paged, engine& engine, const split_reference& ref, const route& r, float atol, float rtol) {
     const auto gpu = paged ? run_paged_pair(engine, ref) : run_dense_pair(engine, ref);
+    expect_route(paged, gpu, r);
     validate_pair(ref, gpu, atol, rtol);
 }
 
-void run_pair_test(bool paged, const split_dims& d, size_t past_len, size_t q_len, Positions kind, float rtol, float atol = 2e-3f, float scale = 1.0f) {
+void run_pair_case(bool paged, const split_dims& d, size_t past_len, size_t q_len, Positions kind, const route& r, float rtol, float atol, float scale) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto ref = make_split_reference(rg, d, past_len, q_len, kind, scale);
+    validate_and_run_pair(paged, engine, ref, r, atol, rtol);
+}
+
+void run_pair_test(bool paged,
+                   const split_dims& d,
+                   size_t past_len,
+                   size_t q_len,
+                   Positions kind,
+                   const route& r,
+                   float rtol,
+                   float atol = 2e-3f,
+                   float scale = 1.0f) {
     if (!cm_qsa_ops_available()) {
         GTEST_SKIP() << "CM is not supported on this device";
     }
     ASSERT_GT((past_len + q_len) / d.r, d.block_topk) << "the selection must drop some complete blocks to be meaningful";
-    auto& engine = get_test_engine();
-    tests::random_generator rg(GET_SUITE_NAME);
-    const auto ref = make_split_reference(rg, d, past_len, q_len, kind, scale);
-    validate_and_run_pair(paged, engine, ref, atol, rtol);
+    run_pair_case(paged, d, past_len, q_len, kind, r, rtol, atol, scale);
+}
+
+/// Short context: every query sees at most block_topk complete blocks, so top-k selects all of them.
+void run_full_selection_pair_test(bool paged, const split_dims& d, size_t past_len, size_t q_len, const route& r, float rtol, float atol = 2e-3f) {
+    if (!cm_qsa_ops_available()) {
+        GTEST_SKIP() << "CM is not supported on this device";
+    }
+    ASSERT_LE((past_len + q_len) / d.r, d.block_topk);
+    run_pair_case(paged, d, past_len, q_len, Positions::Sequential, r, rtol, atol, 1.0f);
 }
 
 template <typename T>
@@ -1004,7 +1123,8 @@ paged_inputs pack_paged_inputs(const std::vector<split_reference>& refs) {
     return in;
 }
 
-void validate_slices(const std::vector<split_reference>& refs, const pair_outputs& all, float atol, float rtol) {
+void validate_slices(bool paged, const std::vector<split_reference>& refs, const pair_outputs& all, const route& r, float atol, float rtol) {
+    expect_route(paged, all, r);
     const auto& d = refs.front().d;
     size_t t0 = 0;
     for (const auto& ref : refs) {
@@ -1019,7 +1139,7 @@ void validate_slices(const std::vector<split_reference>& refs, const pair_output
 }
 
 /// Multi-sequence paged batch: all decode (q_len == 1 each) or mixed decode/prefill.
-void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& seqs, float rtol, float atol = 2e-3f) {
+void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& seqs, const route& r, float rtol, float atol = 2e-3f) {
     if (!cm_qsa_ops_available()) {
         GTEST_SKIP() << "CM is not supported on this device";
     }
@@ -1029,14 +1149,12 @@ void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_
     auto outputs = net->execute();
     pair_outputs all;
     all.attn = read_f16(outputs.at("attn").get_memory());
-    auto indexer = net->get_primitive("indexer");
-    all.plan.sel = read_i32(indexer->output_memory_ptr(0));
-    all.plan.count = read_i32(indexer->output_memory_ptr(1));
-    validate_slices(refs, all, atol, rtol);
+    read_pair_outputs(*net, all);
+    validate_slices(true, refs, all, r, atol, rtol);
 }
 
 /// Dense batch of `batch` rows sharing one (past_len, q_len), as SparseSDPA requires.
-void run_dense_batch_test(const split_dims& d, size_t batch, size_t past_len, size_t q_len, float rtol, float atol = 2e-3f) {
+void run_dense_batch_test(const split_dims& d, size_t batch, size_t past_len, size_t q_len, const route& r, float rtol, float atol = 2e-3f) {
     if (!cm_qsa_ops_available()) {
         GTEST_SKIP() << "CM is not supported on this device";
     }
@@ -1069,13 +1187,11 @@ void run_dense_batch_test(const split_dims& d, size_t batch, size_t past_len, si
             }
         }
     }
-    auto indexer = net->get_primitive("indexer");
-    all.plan.sel = read_i32(indexer->output_memory_ptr(0));
-    all.plan.count = read_i32(indexer->output_memory_ptr(1));
-    validate_slices(refs, all, atol, rtol);
+    read_pair_outputs(*net, all);
+    validate_slices(false, refs, all, r, atol, rtol);
 }
 
-/// Forces the decode Q2 chunk loop to run once per sequence (tiny BLOCK_SCORES budget).
+/// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
 struct scoped_score_budget {
     explicit scoped_score_budget(const char* bytes) {
         setenv("QSA_TEST_SCORE_BUDGET_BYTES", bytes, 1);
@@ -1085,85 +1201,200 @@ struct scoped_score_budget {
     }
 };
 
+const route decode_gqa{IndexerPath::Decode, AttnPath::GqaDpas};
+const route dpas_gqa{IndexerPath::Dpas, AttnPath::GqaDpas};
+const route dpas_dpas{IndexerPath::Dpas, AttnPath::Dpas};
+const route decode_scalar{IndexerPath::Decode, AttnPath::Scalar};
+const route decode_split{IndexerPath::Decode, AttnPath::Split};
+const route fused_scalar{IndexerPath::Fused, AttnPath::Scalar};
+
 // Decode batches: Q2 score_partition + top-k, Q3 GQA-DPAS (qwen38 dims).
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_matches_reference) {
-    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, 3e-3f);
+    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, decode_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_matches_reference) {
-    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, 3e-3f);
+    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, decode_gqa, 3e-3f);
 }
 
-// Same, with BLOCK_SCORES capped to one row so every sequence is its own chunk.
+// Same, with a one-row BLOCK_SCORES budget. The paged scratch row spans the whole 487-page
+// pool (1948 blocks), so two 768-block rows fit: chunks of 2 + 1 sequences.
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_chunked_scores_match_reference) {
     scoped_score_budget budget("1");
-    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, 3e-3f);
+    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, {IndexerPath::Decode, AttnPath::GqaDpas, 2}, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_chunked_scores_match_reference) {
     scoped_score_budget budget("1");
-    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, 3e-3f);
+    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaDpas, 3}, 3e-3f);
+}
+
+// Budget of exactly two 768-block rows: a full chunk followed by a partial one.
+TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_partial_last_chunk_matches_reference) {
+    scoped_score_budget budget("6144");
+    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaDpas, 2}, 3e-3f);
 }
 
 // Mixed batches (decode + prefill sequences in one call): dpas Q2 with qwen38 dims, the
 // fused non-dpas Q2 with the toy dims (Di = 16 fails the dpas score gate).
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_mixed_matches_reference) {
-    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {1990, 64}, {2500, 1}}, 3e-3f);
+    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {1990, 64}, {2500, 1}}, dpas_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, paged_batch_mixed_fused_score_topk_matches_reference) {
-    run_paged_batch_test(split_dims{}, {{20, 1}, {22, 42}, {30, 1}}, 2e-2f);
+    run_paged_batch_test(split_dims{}, {{20, 1}, {22, 42}, {30, 1}}, fused_scalar, 2e-2f);
 }
 
 TEST(qsa_ops_gpu_test, paged_batch_decode_toy_dims_matches_reference) {
-    run_paged_batch_test(split_dims{}, {{20, 1}, {37, 1}, {63, 1}}, 2e-2f);
+    run_paged_batch_test(split_dims{}, {{20, 1}, {37, 1}, {63, 1}}, decode_scalar, 2e-2f);
 }
 
 // Toy dims have no GQA-DPAS, so long decode takes the split + reduce fallback.
 TEST(qsa_ops_gpu_test, paged_batch_long_decode_split_fallback_matches_reference) {
-    run_paged_batch_test(split_dims{}, {{2100, 1}, {2500, 1}}, 2e-2f);
+    run_paged_batch_test(split_dims{}, {{2100, 1}, {2500, 1}}, decode_split, 2e-2f);
 }
 
 TEST(qsa_ops_gpu_test, dense_batch_long_decode_split_fallback_matches_reference) {
-    run_dense_batch_test(split_dims{}, 2, 2100, 1, 2e-2f);
+    run_dense_batch_test(split_dims{}, 2, 2100, 1, decode_split, 2e-2f);
 }
 
+// Toy Dh = 16 is below the 64-byte DPAS row minimum, so prefill takes the scalar Q3 kernel.
 TEST(qsa_ops_gpu_test, paged_pair_matches_reference) {
-    run_pair_test(true, split_dims{}, 20, 44, Positions::Sequential, 2e-2f);
+    run_pair_test(true, split_dims{}, 20, 44, Positions::Sequential, fused_scalar, 2e-2f);
 }
 
 TEST(qsa_ops_gpu_test, dense_pair_matches_reference) {
-    run_pair_test(false, split_dims{}, 20, 44, Positions::Sequential, 2e-2f);
+    run_pair_test(false, split_dims{}, 20, 44, Positions::Sequential, fused_scalar, 2e-2f);
 }
 
 TEST(qsa_ops_gpu_test, paged_pair_mrope_positions_match_reference) {
-    run_pair_test(true, split_dims{}, 22, 42, Positions::MRoPELike, 2e-2f);
+    run_pair_test(true, split_dims{}, 22, 42, Positions::MRoPELike, fused_scalar, 2e-2f);
 }
 
 TEST(qsa_ops_gpu_test, dense_pair_mrope_positions_match_reference) {
-    run_pair_test(false, split_dims{}, 22, 42, Positions::MRoPELike, 2e-2f);
+    run_pair_test(false, split_dims{}, 22, 42, Positions::MRoPELike, fused_scalar, 2e-2f);
 }
 
 // Qwen3.8-Flash-Next shapes: decode one token over a long history (partial last block
 // completed by this call), and a 64-token prefill chunk on top of a cached prefix.
 TEST(qsa_ops_gpu_test, qwen38_paged_decode_matches_reference) {
-    run_pair_test(true, qwen38_dims(), 8191, 1, Positions::Sequential, 3e-3f);
+    run_pair_test(true, qwen38_dims(), 8191, 1, Positions::Sequential, decode_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_paged_prefill_matches_reference) {
-    run_pair_test(true, qwen38_dims(), 4032, 64, Positions::Sequential, 3e-3f);
+    run_pair_test(true, qwen38_dims(), 4032, 64, Positions::Sequential, dpas_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_paged_prefill_mrope_matches_reference) {
-    run_pair_test(true, qwen38_dims(), 4030, 66, Positions::MRoPELike, 3e-3f);
+    run_pair_test(true, qwen38_dims(), 4030, 66, Positions::MRoPELike, dpas_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_decode_matches_reference) {
-    run_pair_test(false, qwen38_dims(), 8191, 1, Positions::Sequential, 3e-3f);
+    run_pair_test(false, qwen38_dims(), 8191, 1, Positions::Sequential, decode_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_prefill_matches_reference) {
-    run_pair_test(false, qwen38_dims(), 4032, 64, Positions::Sequential, 3e-3f);
+    run_pair_test(false, qwen38_dims(), 4032, 64, Positions::Sequential, dpas_gqa, 3e-3f);
+}
+
+// Prefill rows on both sides of the top-k boundary (510..514 complete blocks vs K = 512):
+// one top-k dispatch mixes select-all rows with real selections.
+TEST(qsa_ops_gpu_test, qwen38_paged_prefill_crossing_topk_boundary_matches_reference) {
+    run_pair_test(true, qwen38_dims(), 2040, 17, Positions::Sequential, dpas_gqa, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_prefill_crossing_topk_boundary_matches_reference) {
+    run_pair_test(false, qwen38_dims(), 2040, 17, Positions::Sequential, dpas_gqa, 3e-3f);
+}
+
+// ---------------------------------------------------------------------------
+// Short context: at most block_topk complete blocks, so the top-k selects every block
+// without reading scores and early tokens attend to the causal tail only.
+// ---------------------------------------------------------------------------
+
+TEST(qsa_ops_gpu_test, qwen38_paged_short_prefill_selects_every_block) {
+    run_full_selection_pair_test(true, qwen38_dims(), 0, 17, dpas_gqa, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_short_prefill_selects_every_block) {
+    run_full_selection_pair_test(false, qwen38_dims(), 0, 17, dpas_gqa, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_paged_short_decode_selects_every_block) {
+    run_full_selection_pair_test(true, qwen38_dims(), 15, 1, decode_gqa, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_short_decode_selects_every_block) {
+    run_full_selection_pair_test(false, qwen38_dims(), 15, 1, decode_gqa, 3e-3f);
+}
+
+// One decode batch with 4, exactly 512 (score bypass) and 513 (scored) complete blocks.
+TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_around_topk_boundary_matches_reference) {
+    run_paged_batch_test(qwen38_dims(), {{15, 1}, {2047, 1}, {2051, 1}}, decode_gqa, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_at_topk_boundary_matches_reference) {
+    run_dense_batch_test(qwen38_dims(), 2, 2047, 1, decode_gqa, 3e-3f);
+}
+
+// Short decode, a long decode and a fresh prefill sequence in one call.
+TEST(qsa_ops_gpu_test, qwen38_paged_batch_mixed_short_and_long_matches_reference) {
+    run_paged_batch_test(qwen38_dims(), {{15, 1}, {2100, 1}, {0, 17}}, dpas_gqa, 3e-3f);
+}
+
+// ---------------------------------------------------------------------------
+// Plain (non-GQA) DPAS attention: dims that fail the GQA-DPAS gate but fit plain DPAS.
+// q_len = 17 leaves a one-token last query tile; q_len = 16 is exactly one tile.
+// ---------------------------------------------------------------------------
+
+TEST(qsa_ops_gpu_test, paged_pair_plain_dpas_attention_matches_reference) {
+    run_pair_test(true, non_gqa_dpas_dims(), 2100, 17, Positions::Sequential, dpas_dpas, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, dense_pair_plain_dpas_attention_matches_reference) {
+    run_pair_test(false, non_gqa_dpas_dims(), 2100, 17, Positions::Sequential, dpas_dpas, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, paged_pair_plain_dpas_four_workers_matches_reference) {
+    run_pair_test(true, wide_group_dims(), 2100, 16, Positions::Sequential, dpas_dpas, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, dense_pair_plain_dpas_four_workers_matches_reference) {
+    run_pair_test(false, wide_group_dims(), 2100, 16, Positions::Sequential, dpas_dpas, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, paged_pair_plain_dpas_one_head_per_tile_matches_reference) {
+    run_pair_test(true, mha_dpas_dims(), 2100, 17, Positions::Sequential, dpas_dpas, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, dense_pair_plain_dpas_one_head_per_tile_matches_reference) {
+    run_pair_test(false, mha_dpas_dims(), 2100, 17, Positions::Sequential, dpas_dpas, 3e-3f);
+}
+
+// Per-sequence query tiles: two single-token decode tiles plus a 16 + 1 prefill.
+TEST(qsa_ops_gpu_test, paged_batch_mixed_plain_dpas_attention_matches_reference) {
+    run_paged_batch_test(non_gqa_dpas_dims(), {{15, 1}, {2100, 1}, {2040, 17}}, dpas_dpas, 3e-3f);
+}
+
+// ---------------------------------------------------------------------------
+// Decode split-KV threshold for non-GQA dims. Paged compares the shortest past_len with
+// 2048; dense compares the whole K length (past_len + 1).
+// ---------------------------------------------------------------------------
+
+TEST(qsa_ops_gpu_test, paged_batch_decode_below_split_threshold_uses_scalar) {
+    run_paged_batch_test(non_gqa_dpas_dims(), {{2047, 1}, {3000, 1}}, decode_scalar, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, paged_batch_decode_at_split_threshold_uses_split) {
+    run_paged_batch_test(non_gqa_dpas_dims(), {{2048, 1}, {3000, 1}}, decode_split, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, dense_batch_decode_below_split_threshold_uses_scalar) {
+    run_dense_batch_test(non_gqa_dpas_dims(), 2, 2046, 1, decode_scalar, 3e-3f);
+}
+
+TEST(qsa_ops_gpu_test, dense_batch_decode_at_split_threshold_uses_split) {
+    run_dense_batch_test(non_gqa_dpas_dims(), 2, 2047, 1, decode_split, 3e-3f);
 }
 
 // ---------------------------------------------------------------------------
@@ -1183,11 +1414,11 @@ TEST(qsa_ops_gpu_test, paged_pair_large_magnitude_inputs_stay_finite_and_accurat
     // of elements with closely competing logits -- this is expected floating-point
     // behavior, not a kernel bug, and a tighter bound here would be testing summation
     // order, not correctness.
-    run_pair_test(true, qwen38_dims(), 4032, 64, Positions::Sequential, /*rtol=*/1e-2f, /*atol=*/1e-2f, /*scale=*/3.0f);
+    run_pair_test(true, qwen38_dims(), 4032, 64, Positions::Sequential, dpas_gqa, /*rtol=*/1e-2f, /*atol=*/1e-2f, /*scale=*/3.0f);
 }
 
 TEST(qsa_ops_gpu_test, dense_pair_large_magnitude_inputs_stay_finite_and_accurate) {
-    run_pair_test(false, qwen38_dims(), 4032, 64, Positions::Sequential, /*rtol=*/1e-2f, /*atol=*/1e-2f, /*scale=*/3.0f);
+    run_pair_test(false, qwen38_dims(), 4032, 64, Positions::Sequential, dpas_gqa, /*rtol=*/1e-2f, /*atol=*/1e-2f, /*scale=*/3.0f);
 }
 
 TEST(qsa_ops_gpu_test, paged_pair_dominant_outlier_component_stays_accurate) {
@@ -1204,7 +1435,7 @@ TEST(qsa_ops_gpu_test, paged_pair_dominant_outlier_component_stays_accurate) {
     ref.q_idx_cur[0] = static_cast<float>(ov::float16(40.0f));
     ref.k_idx_all[0] = static_cast<float>(ov::float16(40.0f));
     ref.summary_memo.clear();
-    validate_and_run_pair(true, engine, ref, /*atol=*/4e-3f, /*rtol=*/5e-3f);
+    validate_and_run_pair(true, engine, ref, dpas_gqa, /*atol=*/4e-3f, /*rtol=*/5e-3f);
 }
 
 TEST(qsa_ops_gpu_test, dense_pair_dominant_outlier_component_stays_accurate) {
@@ -1218,17 +1449,17 @@ TEST(qsa_ops_gpu_test, dense_pair_dominant_outlier_component_stays_accurate) {
     ref.q_idx_cur[0] = static_cast<float>(ov::float16(40.0f));
     ref.k_idx_all[0] = static_cast<float>(ov::float16(40.0f));
     ref.summary_memo.clear();
-    validate_and_run_pair(false, engine, ref, /*atol=*/4e-3f, /*rtol=*/5e-3f);
+    validate_and_run_pair(false, engine, ref, dpas_gqa, /*atol=*/4e-3f, /*rtol=*/5e-3f);
 }
 
 // Many more blocks than the prefill cases above: checks that per-block summary error and
 // online-softmax accumulation error do not grow with the number of terms summed.
 TEST(qsa_ops_gpu_test, qwen38_paged_long_context_accumulation_matches_reference) {
-    run_pair_test(true, qwen38_dims(), 8192, 128, Positions::Sequential, 3e-3f);
+    run_pair_test(true, qwen38_dims(), 8192, 128, Positions::Sequential, dpas_gqa, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_long_context_accumulation_matches_reference) {
-    run_pair_test(false, qwen38_dims(), 8192, 128, Positions::Sequential, 3e-3f);
+    run_pair_test(false, qwen38_dims(), 8192, 128, Positions::Sequential, dpas_gqa, 3e-3f);
 }
 
 // ---------------------------------------------------------------------------

@@ -120,7 +120,8 @@ bool is_decode_shape(const kernel_impl_params& params) {
 /// per-tile top-k union from 16 independent selections down to 16/HT.
 size_t dpas_heads_per_tile(const sparse_pa& desc) {
     const auto n_rep = desc.num_heads / desc.num_kv_heads;
-    for (size_t ht : {size_t{16}, size_t{8}, size_t{4}, size_t{2}}) {
+    // 16 heads would leave one token per tile, and load_vnni_cols<1> does not compile.
+    for (size_t ht : {size_t{8}, size_t{4}, size_t{2}}) {
         if (n_rep % ht == 0) {
             return ht;
         }
@@ -651,6 +652,7 @@ public:
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        kernel_dump_info.clear_entries();
         update_rt_params(instance);
 
         // Q0 (main K/V write) and Q3 (selection read + attention) are independent of

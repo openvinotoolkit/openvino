@@ -496,6 +496,7 @@ public:
     // chaining the default implementation would have done, plus records every stage's own
     // event for roofline test consumption.
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        kernel_dump_info.clear_entries();
         if (instance.can_be_optimized()) {
             return instance.get_network().get_stream().aggregate_events(events, events.size() > 1, instance.is_output());
         }

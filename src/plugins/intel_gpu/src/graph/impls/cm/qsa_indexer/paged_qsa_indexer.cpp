@@ -503,6 +503,7 @@ public:
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        kernel_dump_info.clear_entries();
         update_rt_params(instance);
         upload_prepare_map(instance);
 

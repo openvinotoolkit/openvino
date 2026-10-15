@@ -21,6 +21,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/runtime/profiling.hpp>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "gated_residual_inst.h"
@@ -55,6 +56,7 @@ struct gr_ref_params {
     size_t D = 0;
     size_t L = 0;
     float eps = 1e-6f;
+    bool gain_plus_one = false;
 };
 
 /// Reference branch-wise grouped RMSNorm: each branch normalizes over its own D channels.
@@ -70,7 +72,8 @@ std::vector<float> reference_rbar(const gr_ref_params& p, const std::vector<floa
             const float inv = 1.0f / std::sqrt(static_cast<float>(sumsq / p.D) + p.eps);
             for (size_t d = 0; d < p.D; d++) {
                 const size_t idx = row * p.C * p.D + c * p.D + d;
-                rbar[idx] = residual[idx] * inv * gain[c * p.D + d];
+                const float g = gain[c * p.D + d] + (p.gain_plus_one ? 1.0f : 0.0f);
+                rbar[idx] = residual[idx] * inv * g;
             }
         }
     }
@@ -156,11 +159,34 @@ memory::ptr make_f16(engine& eng, const ov::PartialShape& shape, const std::vect
     return mem;
 }
 
+/// Stage names recorded by the last GatedResidualCMImpl::execute() on this thread.
+std::vector<std::string> executed_stages() {
+    std::vector<std::string> names;
+    for (const auto& stage_event : ov::intel_gpu::cm::gr_debug::take_stage_events()) {
+        names.push_back(stage_event.first);
+    }
+    return names;
+}
+
+/// With C = 4, C*D is always a multiple of 64, so only L decides the DPAS READ pipeline.
+std::vector<std::string> expected_read_stages(size_t L, bool write_gate) {
+    if (L % 32 != 0) {
+        return {"READ"};
+    }
+    std::vector<std::string> stages = {"RBAR", "DOWN_PROJ", "UP_PROJ"};
+    if (write_gate) {
+        stages.push_back("WRITE_GATE");
+    }
+    stages.push_back("COMBINE");
+    return stages;
+}
+
 struct gr_read_case {
     size_t rows;
     size_t D;
     size_t L;
     bool produce_write_gate;
+    bool gain_plus_one = false;
 };
 
 class gated_residual_read_test : public ::testing::TestWithParam<gr_read_case> {};
@@ -175,13 +201,15 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
     p.rows = tc.rows;
     p.D = tc.D;
     p.L = tc.L;
+    p.gain_plus_one = tc.gain_plus_one;
 
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
 
     const size_t CD = p.C * p.D;
     const auto residual = random_vec(rg, p.rows * CD, 1.0f);
-    const auto gain = random_vec(rg, CD, 0.5f, 1.0f);
+    // Effective gain in [0.5, 1.5] either way; stored as w with the (1 + w) convention.
+    const auto gain = random_vec(rg, CD, 0.5f, tc.gain_plus_one ? 0.0f : 1.0f);
     const auto w_down = random_vec(rg, p.L * CD, 0.1f);
     const auto w_up = random_vec(rg, CD * p.L, 0.1f);
     const auto w_inject = random_vec(rg, p.C * CD, 0.1f);
@@ -209,7 +237,7 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
         inputs.emplace_back("w_inject");
     }
 
-    gated_residual prim("gr_read", inputs, gated_residual::Mode::READ, p.C, p.D, p.L, p.eps, /*norm_gain_plus_one=*/false, tc.produce_write_gate);
+    gated_residual prim("gr_read", inputs, gated_residual::Mode::READ, p.C, p.D, p.L, p.eps, tc.gain_plus_one, tc.produce_write_gate);
     topology.add(prim);
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -222,6 +250,7 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
     ASSERT_TRUE(outputs.count("gr_read") > 0);
 
     cldnn::mem_lock<ov::float16> mixed_out(outputs.at("gr_read").get_memory(), get_test_stream());
+    EXPECT_EQ(executed_stages(), expected_read_stages(p.L, tc.produce_write_gate));
     ASSERT_EQ(mixed_out.size(), ref_mixed.size());
     for (size_t i = 0; i < ref_mixed.size(); i++) {
         ASSERT_NEAR(static_cast<float>(mixed_out[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at " << i;
@@ -254,17 +283,26 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            // instead of the scalar gr_read.cm kernel.
                                            gr_read_case{32, 64, 32, true},    // exact N-tile boundary (2x16), GR_COMBINE_TILE=64
                                            gr_read_case{37, 96, 32, false},   // partial last N-tile (37=2*16+5), no write gate, tile=32
-                                           gr_read_case{41, 48, 64, true}));  // partial tile; D=48 forces GR_COMBINE_TILE/GR_WRITE_TILE down to 16
+                                           gr_read_case{41, 48, 64, true},    // partial tile; D=48 forces GR_COMBINE_TILE/GR_WRITE_TILE down to 16
+                                           gr_read_case{16, 64, 32, true},    // exactly one N-tile
+                                           gr_read_case{48, 64, 32, false},   // three full N-tiles
+                                           gr_read_case{3, 32, 32, true},     // D=32 -> GR_COMBINE_TILE=32
+                                           gr_read_case{5, 64, 16, true, true},   // scalar path, gain stored as w (1 + w)
+                                           gr_read_case{19, 64, 32, true, true},  // DPAS path, gain stored as w (1 + w)
+                                           gr_read_case{1, 640, 320, true},   // production width, decode
+                                           gr_read_case{17, 640, 320, true}));  // production width, prefill with a partial tile
 
-TEST(gated_residual_gpu_test, final_mix_matches_read) {
+class gated_residual_final_mix_test : public ::testing::TestWithParam<gr_read_case> {};
+
+TEST_P(gated_residual_final_mix_test, matches_read) {
     if (!cm_gr_available()) {
         GTEST_SKIP() << "CM JIT / systolic GPU is required for gated_residual";
     }
 
     gr_ref_params p;
-    p.rows = 4;
-    p.D = 64;
-    p.L = 16;
+    p.rows = GetParam().rows;
+    p.D = GetParam().D;
+    p.L = GetParam().L;
 
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
@@ -307,11 +345,17 @@ TEST(gated_residual_gpu_test, final_mix_matches_read) {
 
     auto outputs = network.execute();
     cldnn::mem_lock<ov::float16> out(outputs.at("gr_final").get_memory(), get_test_stream());
+    EXPECT_EQ(executed_stages(), expected_read_stages(p.L, false));
     ASSERT_EQ(out.size(), ref_mixed.size());
     for (size_t i = 0; i < ref_mixed.size(); i++) {
         ASSERT_NEAR(static_cast<float>(out[i]), ref_mixed[i], 2e-2f);
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_final_mix_test,
+                         ::testing::Values(gr_read_case{4, 64, 16, false},     // scalar gr_read
+                                           gr_read_case{17, 64, 32, false}));  // DPAS pipeline, partial N-tile
 
 TEST(gated_residual_gpu_test, write_combines_branches) {
     if (!cm_gr_available()) {
@@ -361,6 +405,7 @@ TEST(gated_residual_gpu_test, write_combines_branches) {
 
     auto outputs = network.execute();
     cldnn::mem_lock<ov::float16> out(outputs.at("gr_write").get_memory(), get_test_stream());
+    EXPECT_EQ(executed_stages(), std::vector<std::string>{"WRITE"});
     ASSERT_EQ(out.size(), ref.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_NEAR(static_cast<float>(out[i]), ref[i], 1e-2f) << "residual update mismatch at " << i;
@@ -425,6 +470,7 @@ TEST(gated_residual_gpu_test, write_combines_branches_narrow_tile) {
 
     auto outputs = network.execute();
     cldnn::mem_lock<ov::float16> out(outputs.at("gr_write_narrow").get_memory(), get_test_stream());
+    EXPECT_EQ(executed_stages(), std::vector<std::string>{"WRITE"});
     ASSERT_EQ(out.size(), ref.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_NEAR(static_cast<float>(out[i]), ref[i], 1e-2f) << "residual update mismatch at " << i;
