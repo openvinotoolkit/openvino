@@ -73,7 +73,6 @@ constexpr auto get_qsa_indexer_build_options() {
 }
 
 // qsa_indexer_topk's cooperative work-group size (see qsa_topk_radix_wg.cm's proven choice).
-constexpr size_t topk_wg_size = 16;
 
 constexpr size_t dpas_query_tile = 16;  // dpas N axis == GRF width on Xe2
 constexpr size_t dpas_k_step = 16;      // fp16 K elements per dpas
@@ -108,6 +107,12 @@ bool is_decode_shape(const kernel_impl_params& params) {
     const auto& shape = q_idx_layout.get_shape();
     OPENVINO_ASSERT(shape.size() >= 2, "[GPU][CM] qsa_indexer: expected a rank-4 [B, L, H, D_idx] input");
     return shape[1] == 1;
+}
+
+/// Cooperative top-k work-group size: decode rows span the whole history, while prefill
+/// rows are short and numerous, so smaller work-groups pack the GPU better.
+size_t topk_wg_size(const kernel_impl_params& params) {
+    return is_decode_shape(params) ? 16 : 8;
 }
 
 /// f32 element capacity of BLOCK_SCORES. Static shapes only, so allocation and per-call
@@ -271,7 +276,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         jit.add(make_jit(params.typed_desc<qsa_indexer>(), params));
-        jit.make("QSA_TOPK_WG", topk_wg_size);
+        jit.make("QSA_TOPK_WG", topk_wg_size(params));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -295,9 +300,10 @@ protected:
             }
             auto* rtp = rt_of(rt);
             auto& wgs = kd.params.workGroups;
-            // One work-group of topk_wg_size threads cooperatively finalizes one token's row.
-            wgs.global = {std::max<size_t>(1, rtp->chunk_row_end - rtp->chunk_row_begin) * topk_wg_size, 1, 1};
-            wgs.local = {topk_wg_size, 1, 1};
+            // One work-group cooperatively finalizes one token's row.
+            const auto wg = topk_wg_size(params);
+            wgs.global = {std::max<size_t>(1, rtp->chunk_row_end - rtp->chunk_row_begin) * wg, 1, 1};
+            wgs.local = {wg, 1, 1};
 
             kd.params.scalars.clear();
             push_u32(kd, rtp->num_tokens);

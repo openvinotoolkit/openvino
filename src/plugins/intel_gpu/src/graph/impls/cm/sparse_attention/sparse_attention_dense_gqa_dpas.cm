@@ -37,6 +37,11 @@
 #ifndef QSA_GQA_HEAD_MAJOR
 #define QSA_GQA_HEAD_MAJOR 0
 #endif
+// Decode: partition each row's block steps over QSA_SPLIT_PARTITIONS work-groups and emit
+// sparse_attention_dense_split_reduce.cm's partial (max, sum, unnormalized V) state.
+#ifndef QSA_GQA_SPLIT
+#define QSA_GQA_SPLIT 0
+#endif
 #define GQA_DH (QSA_K_HEAD_SIZE / GQA_W)
 #define GQA_DV (QSA_V_HEAD_SIZE / GQA_W)
 #define GQA_KT (GQA_DH / 16)
@@ -45,6 +50,35 @@
 #define GQA_ST_BYTES (16 * 16 * 4)
 #define GQA_SLM_BYTES (2 * GQA_W * GQA_ST_BYTES)
 #define GQA_NEG_INF (-3.0e38f)
+
+// The split and non-split variants are batched into one program; define helpers once.
+#ifndef SPARSE_ATTENTION_DENSE_GQA_HELPERS
+#define SPARSE_ATTENTION_DENSE_GQA_HELPERS
+template <uint B>
+CM_INLINE vector<int, B> gqa_load_step_ids(const int32_t* selected_blocks ATTR, uint row_base, uint step, uint count) {
+    vector<uint, B> slots;
+#pragma unroll
+    for (uint j = 0; j < B; j++) slots[j] = step * B + j;
+    return cm_ptr_load<int>(selected_blocks, (row_base + slots) * 4, slots < count);
+}
+
+/// KV start position and row count of each block slot of `step`; `step == steps` is the tail.
+template <uint B, uint R>
+CM_INLINE void gqa_step_meta(uint step, uint steps, uint count, uint tail_begin, uint tail_rows, vector<int, B> ids,
+                             vector_ref<uint, B> positions, vector_ref<uint, B> rows) {
+    positions = 0;
+    rows = 0;
+    if (step != steps) {
+        vector<uint, B> slots;
+#pragma unroll
+        for (uint j = 0; j < B; j++) slots[j] = step * B + j;
+        positions = ids * R;
+        rows.merge(R, slots < count);
+    } else {
+        positions[0] = tail_begin;
+        rows[0] = tail_rows;
+    }
+}
 
 CM_INLINE void gqa_dense_reduce_st16(matrix_ref<float, 16, 16> st, uint slm, uint slot, uint worker) {
     auto flat = st.format<float>();
@@ -63,6 +97,7 @@ CM_INLINE void gqa_dense_reduce_st16(matrix_ref<float, 16, 16> st, uint slm, uin
         }
     }
 }
+#endif
 
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const half* query ATTR,               // [B, Hq, L, Dh]
@@ -71,7 +106,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const int32_t* selected_blocks ATTR,  // [B*L, block_topk] ascending
     const int32_t* selected_counts ATTR,  // [B*L]
     const int32_t* token_map ATTR,        // [B*L, 2] = (batch, token_begin_local), one per token
+#if QSA_GQA_SPLIT
+    float* partial_acc ATTR,              // [B*L, Hq, P, Dv]
+    float* partial_ml ATTR,               // [B*L, Hq, P, 2]
+#else
     half* output ATTR,                    // [B, Hq, L, Dv]
+#endif
     uint32_t num_entries,
     uint32_t seq_len,       // L
     uint32_t history_len) {  // S
@@ -124,25 +164,34 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint tail_begin = (abs_pos + 1) / R * R;
     const uint tail_rows = abs_pos + 1 - tail_begin;
 
-    for (uint step = 0; step < steps + (tail_rows != 0); step++) {
+#if QSA_GQA_SPLIT
+    constexpr uint P = QSA_SPLIT_PARTITIONS;
+    const uint part = cm_group_id(2);
+    // The last partition exclusively owns the tail step.
+    const uint step_begin = steps * part / P;
+    const uint step_end = steps * (part + 1) / P + (part == P - 1 && tail_rows != 0);
+#else
+    const uint step_begin = 0, step_end = steps + (tail_rows != 0);
+#endif
+#if QSA_GQA_VECTOR_META
+    // Software-pipelined metadata: the next step's block ids are in flight while the
+    // current step computes, so KV loads never wait on them.
+    const uint id_row = row * QSA_BLOCK_TOPK;
+    vector<uint, GQA_BLOCKS> cur_positions, cur_rows;
+    gqa_step_meta<GQA_BLOCKS, R>(step_begin, steps, count, tail_begin, tail_rows,
+        gqa_load_step_ids<GQA_BLOCKS>(selected_blocks, id_row, step_begin, count), cur_positions, cur_rows);
+    vector<int, GQA_BLOCKS> next_ids = gqa_load_step_ids<GQA_BLOCKS>(selected_blocks, id_row, step_begin + 1, count);
+#endif
+    for (uint step = step_begin; step < step_end; step++) {
         const bool tail = step == steps;
         vector<uint, GQA_BLOCKS> positions = 0, rows = 0;
         uint valid_kv = 0;
 #if QSA_GQA_VECTOR_META
-        vector<uint, GQA_BLOCKS> meta_lane;
-    #pragma unroll
-        for (uint j = 0; j < GQA_BLOCKS; j++) meta_lane[j] = j;
-        if (!tail) {
-            vector<uint, GQA_BLOCKS> slots = step * GQA_BLOCKS + meta_lane;
-            vector<int, GQA_BLOCKS> ids = cm_ptr_load<int>(selected_blocks,
-                (row * QSA_BLOCK_TOPK + slots) * 4, slots < count);
-            positions = ids * R;
-            rows.merge(R, slots < count);
-        } else {
-            positions[0] = tail_begin;
-            rows[0] = tail_rows;
-        }
+        positions = cur_positions;
+        rows = cur_rows;
         valid_kv = cm_sum<uint>(rows);
+        gqa_step_meta<GQA_BLOCKS, R>(step + 1, steps, count, tail_begin, tail_rows, next_ids, cur_positions, cur_rows);
+        next_ids = gqa_load_step_ids<GQA_BLOCKS>(selected_blocks, id_row, step + 2, count);
 #else
 #pragma unroll
         for (uint j = 0; j < GQA_BLOCKS; j++) {
@@ -262,6 +311,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     }
 
     // No output gate in the split ABI; never store padded heads.
+#if QSA_GQA_SPLIT
+    for (uint h = 0; h < HEADS; h++) {
+        const uint prow = (row * HQ + head_base + h) * P + part;
+        if (worker == 0) {
+            // Reduce expects natural-log maxima; scores here are in log2 units.
+            partial_ml[prow * 2] = running_max[h] * 0.6931471805599453f;
+            partial_ml[prow * 2 + 1] = running_sum[h];
+        }
+#pragma unroll
+        for (uint d = 0; d < GQA_VT; d++) {
+            auto o = ro.row((h / 8) * GQA_VT + d).format<float, 8, 16>();
+            vector<float, 16> value = o.row(h % 8);
+            cm_ptr_store<float, 16>(partial_acc, (prow * DV + worker * GQA_DV + d * 16) * (uint)sizeof(float), value);
+        }
+    }
+#else
     for (uint h = 0; h < HEADS; h++) {
         const float inv = running_sum[h] > 0 ? 1.0f / running_sum[h] : 0.0f;
         vector<half, GQA_DV> out;
@@ -273,4 +338,5 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         }
         qsa_gr::store_hv<GQA_DV>(output, ((batch * HQ + head_base + h) * (uint)seq_len + l) * DV + worker * GQA_DV, out);
     }
+#endif
 }

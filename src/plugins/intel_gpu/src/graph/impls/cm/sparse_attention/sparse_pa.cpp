@@ -99,7 +99,14 @@ constexpr size_t dpas_wide_cols = 32;   // halfs per 2D block row (64-byte hardw
 // hundreds). Only ever used for pure-decode calls (every sequence has q_len == 1) whose
 // shortest past length clears the threshold, matching the old code's GENERATE-stage gate.
 constexpr size_t split_partitions = 16;
+// One GQA-DPAS WG serves all n_rep heads of a KV head, so decode needs more WGs per token.
+constexpr size_t gqa_split_partitions = 64;
 constexpr size_t split_decode_min_past = 2048;
+
+/// Dv slice merged by one split_reduce thread.
+size_t split_reduce_cols(size_t v_head_size) {
+    return v_head_size % 32 == 0 ? 32 : 16;
+}
 
 /// Whether every sequence in this call contributes exactly one query token - a static
 /// (shape-only) property, so it can be decided once at impl-construction time, exactly
@@ -205,6 +212,11 @@ bool can_use_gqa_dpas_attention(const sparse_pa& desc, const cldnn::device_info&
         return false;
     }
     return desc.causal;
+}
+
+/// Partitions behind SPLIT_ACC/SPLIT_ML and split_reduce for this config's decode producer.
+size_t decode_split_partitions(const sparse_pa& desc, const cldnn::device_info& info) {
+    return can_use_gqa_dpas_attention(desc, info) ? gqa_split_partitions : split_partitions;
 }
 
 // ===========================================================================
@@ -396,7 +408,9 @@ protected:
 // token share one KV read), not a union of several tokens' independent top-k selections.
 class AttentionPagedGqaDpasGenerator : public KernelGenerator {
 public:
-    AttentionPagedGqaDpasGenerator() : KernelGenerator("sparse_attention_paged_gqa_dpas", "_cm") {}
+    explicit AttentionPagedGqaDpasGenerator(bool split = false)
+        : KernelGenerator("sparse_attention_paged_gqa_dpas", split ? "_split_cm" : "_cm"),
+          m_split(split) {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -410,6 +424,10 @@ protected:
         jit.make("QSA_IS_CAUSAL", desc->causal ? 1 : 0);
         jit.make("QSA_GQA_HEAD_MAJOR", 1);
         jit.make("QSA_GQA_VECTOR_META", 1);
+        if (m_split) {
+            jit.make("QSA_GQA_SPLIT", 1);
+            jit.make("QSA_SPLIT_PARTITIONS", gqa_split_partitions);
+        }
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -426,7 +444,12 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, SparsePAIn::SEL_COUNT});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::TOKEN_MAP});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        if (m_split) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ACC});
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, SparsePAInternalBufIdx::SPLIT_ML});
+        } else {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        }
         for (uint32_t i = 0; i < 3; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
@@ -434,7 +457,7 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
+        return DispatchDataFunc{[split = m_split](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
             if (params.is_dynamic()) {
                 return;
             }
@@ -445,7 +468,7 @@ protected:
             // QSA_GQA_HEAD_MAJOR=1: dim0 enumerates (token, W4 worker), dim1 the KV head,
             // so consecutive work-groups share a KV head.
             const size_t tokens = std::max<size_t>(1, rtp->num_tokens);
-            wgs.global = {tokens * 4, desc->num_kv_heads, 1};
+            wgs.global = {tokens * 4, desc->num_kv_heads, split ? gqa_split_partitions : 1};
             wgs.local = {4, 1, 1};
 
             const auto& q_layout = params.get_input_layout(SparsePAIn::QUERY);
@@ -455,6 +478,9 @@ protected:
             push_u32(kd, token_pitch(q_layout));
         }};
     }
+
+private:
+    bool m_split;
 };
 
 // ===========================================================================
@@ -532,7 +558,8 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         jit.add(make_jit(params.typed_desc<sparse_pa>()));
-        jit.make("QSA_SPLIT_PARTITIONS", split_partitions);
+        jit.make("QSA_SPLIT_PARTITIONS", decode_split_partitions(*params.typed_desc<sparse_pa>(), params.get_device_info()));
+        jit.make("QSA_REDUCE_COLS", split_reduce_cols(params.typed_desc<sparse_pa>()->v_head_size));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -555,7 +582,7 @@ protected:
             auto* rtp = rt_of(rt);
 
             auto& wgs = kd.params.workGroups;
-            wgs.global = {desc->num_heads, std::max<size_t>(1, rtp->num_tokens), 1};
+            wgs.global = {desc->num_heads, std::max<size_t>(1, rtp->num_tokens), desc->v_head_size / split_reduce_cols(desc->v_head_size)};
             wgs.local = {1, 1, 1};
 
             kd.params.scalars.clear();
@@ -572,6 +599,7 @@ public:
     Stage::Ptr attention = make_stage<AttentionPagedGenerator>();
     Stage::Ptr attention_dpas = make_stage<AttentionPagedDpasGenerator>();
     Stage::Ptr attention_gqa_dpas = make_stage<AttentionPagedGqaDpasGenerator>();
+    Stage::Ptr attention_gqa_split = make_stage<AttentionPagedGqaDpasGenerator>(true);
     Stage::Ptr split = make_stage<SplitPagedGenerator>();
     Stage::Ptr split_reduce = make_stage<SplitReducePagedGenerator>();
 
@@ -591,6 +619,10 @@ public:
         add_stage(attention, params);
         if (use_gqa_dpas_attention(params)) {
             add_stage(attention_gqa_dpas, params);
+            if (is_decode_shape(params)) {
+                add_stage(attention_gqa_split, params);
+                add_stage(split_reduce, params);
+            }
         } else if (use_dpas_attention(params)) {
             add_stage(attention_dpas, params);
         }
@@ -645,9 +677,10 @@ public:
         // SPLIT_ACC/SPLIT_ML: only ever dispatched for decode-shaped calls, where `tokens`
         // equals the (small) sequence count, so this is cheap even at the full partition
         // width regardless of whether split actually fires for this particular call.
-        const auto split_rows = use_split_stages(params) ? tokens : size_t{1};
-        bufs.emplace_back(split_rows * desc->num_heads * split_partitions * desc->v_head_size, ov::element::f32);  // SPLIT_ACC
-        bufs.emplace_back(split_rows * desc->num_heads * split_partitions * 2, ov::element::f32);                  // SPLIT_ML
+        const auto split_rows = is_decode_shape(params) ? tokens : size_t{1};
+        const auto partitions = decode_split_partitions(*desc, params.get_device_info());
+        bufs.emplace_back(split_rows * desc->num_heads * partitions * desc->v_head_size, ov::element::f32);  // SPLIT_ACC
+        bufs.emplace_back(split_rows * desc->num_heads * partitions * 2, ov::element::f32);                  // SPLIT_ML
         return bufs;
     }
 
@@ -666,6 +699,10 @@ public:
         // GQA-DPAS wins for decode too (fills dpas N with the n_rep heads of one token).
         if (use_gqa_dpas_attention(params)) {
             upload_token_map(instance);
+            if (has_stage(attention_gqa_split) && rt().is_decode) {
+                auto split_event = execute_stage(attn_deps, instance, attention_gqa_split);
+                return execute_stage({split_event}, instance, split_reduce);
+            }
             return execute_stage(attn_deps, instance, attention_gqa_dpas);
         }
         if (use_split_attention(params)) {

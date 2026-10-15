@@ -150,16 +150,22 @@ void quantize_f16(std::vector<float>& v) {
     }
 }
 
-memory::ptr make_f16(engine& eng, const ov::PartialShape& shape, const std::vector<float>& data) {
-    auto mem = eng.allocate_memory(layout{shape, data_types::f16, format::bfyx});
-    set_values(mem, to_f16(data));
+/// Device-resident like real model tensors; the default lockable allocation is usm_shared on dGPU.
+template <typename T>
+memory::ptr make_device(engine& eng, const ov::PartialShape& shape, data_types dt, const std::vector<T>& data) {
+    auto mem = eng.allocate_memory(layout{shape, dt, format::bfyx}, allocation_type::usm_device);
+    if (!data.empty()) {
+        mem->copy_from(get_test_stream(), data.data(), true);
+    }
     return mem;
 }
 
+memory::ptr make_f16(engine& eng, const ov::PartialShape& shape, const std::vector<float>& data) {
+    return make_device(eng, shape, data_types::f16, to_f16(data));
+}
+
 memory::ptr make_i32(engine& eng, const ov::PartialShape& shape, const std::vector<int32_t>& data) {
-    auto mem = eng.allocate_memory(layout{shape, data_types::i32, format::bfyx});
-    set_values(mem, data);
-    return mem;
+    return make_device(eng, shape, data_types::i32, data);
 }
 
 std::vector<int32_t> read_i32(const memory::ptr& mem) {
@@ -868,7 +874,7 @@ void read_pair_outputs(network& net, pair_outputs& out) {
 }
 
 enum class IndexerPath { Decode, Dpas, Fused };
-enum class AttnPath { Scalar, Dpas, GqaDpas, Split };
+enum class AttnPath { Scalar, Dpas, GqaDpas, GqaSplit, Split };
 
 /// Expected kernel routing of one pair execution; `decode_chunks` counts BLOCK_SCORES row chunks.
 struct route {
@@ -910,6 +916,9 @@ std::vector<std::string> expected_attention_kernels(bool paged, const route& r) 
         break;
     case AttnPath::GqaDpas:
         k.push_back(base + "_gqa_dpas");
+        break;
+    case AttnPath::GqaSplit:
+        k.insert(k.end(), {base + "_gqa_dpas_split", base + "_split_reduce"});
         break;
     case AttnPath::Split:
         k.insert(k.end(), {base + "_split", base + "_split_reduce"});
@@ -1201,7 +1210,7 @@ struct scoped_score_budget {
     }
 };
 
-const route decode_gqa{IndexerPath::Decode, AttnPath::GqaDpas};
+const route decode_gqa{IndexerPath::Decode, AttnPath::GqaSplit};
 const route dpas_gqa{IndexerPath::Dpas, AttnPath::GqaDpas};
 const route dpas_dpas{IndexerPath::Dpas, AttnPath::Dpas};
 const route decode_scalar{IndexerPath::Decode, AttnPath::Scalar};
@@ -1221,18 +1230,18 @@ TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_matches_reference) {
 // pool (1948 blocks), so two 768-block rows fit: chunks of 2 + 1 sequences.
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_chunked_scores_match_reference) {
     scoped_score_budget budget("1");
-    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, {IndexerPath::Decode, AttnPath::GqaDpas, 2}, 3e-3f);
+    run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_chunked_scores_match_reference) {
     scoped_score_budget budget("1");
-    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaDpas, 3}, 3e-3f);
+    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
 }
 
 // Budget of exactly two 768-block rows: a full chunk followed by a partial one.
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_partial_last_chunk_matches_reference) {
     scoped_score_budget budget("6144");
-    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaDpas, 2}, 3e-3f);
+    run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
 }
 
 // Mixed batches (decode + prefill sequences in one call): dpas Q2 with qwen38 dims, the

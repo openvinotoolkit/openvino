@@ -9,9 +9,9 @@
 // `[B, Hq, L, Dv]` output layout (bottom-right causal addressing is already resolved by
 // pass 1, this pass only merges per-row partitions).
 //
-// JIT constants: QSA_HEADS, QSA_V_HEAD_SIZE, QSA_SPLIT_PARTITIONS
+// JIT constants: QSA_HEADS, QSA_V_HEAD_SIZE, QSA_SPLIT_PARTITIONS, QSA_REDUCE_COLS
 //
-// Dispatch: gws = [QSA_HEADS, B*L, 1], lws = [1, 1, 1]
+// Dispatch: gws = [QSA_HEADS, B*L, QSA_V_HEAD_SIZE / QSA_REDUCE_COLS], lws = [1, 1, 1]
 
 #ifndef ATTR
 #define ATTR [[type("svmptr_t")]]
@@ -27,49 +27,43 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const float* partial_acc ATTR,  // [B*L,
     constexpr uint HQ = QSA_HEADS;
     constexpr uint DV = QSA_V_HEAD_SIZE;
     constexpr uint P = QSA_SPLIT_PARTITIONS;
+    constexpr uint COLS = QSA_REDUCE_COLS;
+    static_assert(P == 4 || P == 8 || P == 16 || P == 32 || P == 64, "partition (max, sum) pairs are loaded as whole vectors");
+    static_assert(COLS % 16 == 0 && DV % COLS == 0, "invalid reduce column slice");
 
     const uint head = cm_global_id(0);
     const uint row = cm_global_id(1);
-    if (head >= HQ || row >= num_rows) {
+    const uint col0 = cm_global_id(2) * COLS;
+    if (head >= HQ || row >= num_rows || col0 >= DV) {
         return;
     }
 
     const uint row0 = (row * HQ + head) * P;
-    float m = -1e30f;
-    for (uint p = 0; p < P; p++) {
-        const float l = partial_ml[(row0 + p) * 2 + 1];
-        if (l > 0.0f) {
-            const float mp = partial_ml[(row0 + p) * 2];
-            m = mp > m ? mp : m;
-        }
-    }
-
-    float sum = 0.0f;
-    vector<float, DV> acc = 0.0f;
-    for (uint p = 0; p < P; p++) {
-        const uint r = row0 + p;
-        const float l = partial_ml[r * 2 + 1];
-        if (!(l > 0.0f)) {
-            continue;
-        }
-        vector<float, 1> exponent = (partial_ml[r * 2] - m) * qsa_gr::LOG2E;
-        const float weight = cm_exp(exponent)[0];
-        sum += l * weight;
+    constexpr uint ML_CHUNK = 2 * P < 64 ? 2 * P : 64;
+    vector<float, 2 * P> ml;
 #pragma unroll
-        for (uint k = 0; k < DV; k += 16) {
-            vector<float, 16> a = cm_ptr_load<float, 16>(partial_acc, (r * DV + k) * (uint)sizeof(float));
-            acc.select<16, 1>(k) += a * weight;
-        }
+    for (uint i = 0; i < 2 * P; i += ML_CHUNK) {
+        ml.select<ML_CHUNK, 1>(i) = cm_ptr_load<float, ML_CHUNK>(partial_ml, (row0 * 2 + i) * (uint)sizeof(float));
+    }
+    const vector<float, P> lsum = ml.select<P, 2>(1);
+    vector<float, P> m = ml.select<P, 2>(0);
+    m.merge(-1e30f, lsum <= 0.0f);
+    const float m_max = cm_reduced_max<float>(m);
+    vector<float, P> w = cm_exp((m - m_max) * qsa_gr::LOG2E);
+    w.merge(0.0f, lsum <= 0.0f);
+    const float sum = cm_sum<float>(w * lsum);
+
+    vector<float, COLS> acc = 0.0f;
+    // Every producer writes all P rows (zeros when empty), so unconditional loads are safe.
+#pragma unroll
+    for (uint p = 0; p < P; p++) {
+        vector<float, COLS> a = cm_ptr_load<float, COLS>(partial_acc, ((row0 + p) * DV + col0) * (uint)sizeof(float));
+        acc += a * w[p];
     }
     const float inv_sum = sum > 0.0f ? 1.0f / sum : 0.0f;
 
     const uint batch = row / seq_len;
     const uint l = row - batch * seq_len;
-    vector<half, DV> out;
-#pragma unroll
-    for (uint k = 0; k < DV; k += 16) {
-        vector<float, 16> o = acc.select<16, 1>(k) * inv_sum;
-        out.select<16, 1>(k) = o;
-    }
-    qsa_gr::store_hv<DV>(output, ((batch * HQ + head) * seq_len + l) * DV, out);
+    vector<half, COLS> out = acc * inv_sum;
+    qsa_gr::store_hv<COLS>(output, ((batch * HQ + head) * seq_len + l) * DV + col0, out);
 }
