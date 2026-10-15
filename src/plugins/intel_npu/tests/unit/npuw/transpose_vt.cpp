@@ -11,7 +11,6 @@
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "openvino/op/ops.hpp"
 #include "partitioning/partitioning.hpp"
-#include "partitioning/patterns/fold_const.hpp"
 
 /*
  * conditional compilation that can be used during test regression debug
@@ -624,12 +623,12 @@ TEST(TransposeVTShapeComputeTest, smoke_GQA_ShapeOfVFeedsAttentionMask) {
     auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(matmul)},
                                              ov::ParameterVector{past_value, new_value, attention_scores});
 
-    ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model);
-
     bool transposed = false;
     ASSERT_NO_THROW(transposed = ov::npuw::util::OptimizeValueTensors(false).run_on_model(model));
     ASSERT_TRUE(transposed);
     ASSERT_EQ(concat->get_axis(), 3);
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(kv_len->get_input_node_ptr(0)))
+        << "ShapeOf of the transposed V concat should be frozen to its original shape";
     ASSERT_EQ(add->get_output_partial_shape(0), ov::PartialShape({B, q_heads, 1, L}));
     ASSERT_EQ(matmul->get_output_partial_shape(0), ov::PartialShape({B, q_heads, 1, D}));
 }
