@@ -704,8 +704,8 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          Expand-Archive "${{ env.INSTALL_DIR }}\\openvino_package.zip" -DestinationPath "${{ env.INSTALL_DIR }}"
-          Expand-Archive "${{ env.INSTALL_TEST_DIR }}\\openvino_tests.zip" -DestinationPath "${{ env.INSTALL_DIR }}"
+          Expand-Archive "${{ env.INSTALL_DIR }}\\openvino_package.zip" -DestinationPath "${{ env.INSTALL_DIR }}" -Force
+          Expand-Archive "${{ env.INSTALL_TEST_DIR }}\\openvino_tests.zip" -DestinationPath "${{ env.INSTALL_DIR }}" -Force
 
       - name: Run GPU functional smoke tests
         run: |
