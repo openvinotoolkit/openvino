@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected: undef_f32 Expected: acl_f32 (PoolingLayerCPUTest MaxPool ACL primitive)|Flaky Test",
+    "signature_hash": "2640902748a867ec",
+    "title": "smoke_MaxPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+    "category": "Flaky Test",
+    "count": 1,
+    "first_seen": "2026-10-15T22:12:14Z",
+    "last_seen": "2026-10-15T22:12:14Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/38808374504"
+    ],
+    "affected_commits": [
+        "86a5e9edc9dc9d9144f8b7f2fc4a4b0712830997"
+    ],
+    "recent_timestamps": [
+        "2026-10-15T22:12:14Z"
+    ]
+}

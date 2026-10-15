@@ -1,0 +1,38 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-15-22-12-14-619-38808374504",
+    "timestamp": "2026-10-15T22:12:14Z",
+    "run_id": "38808374504",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38808374504",
+    "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "86a5e9edc9dc9d9144f8b7f2fc4a4b0712830997",
+    "pr_number": "38859",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38859",
+    "author": "allnes",
+    "category": "Flaky Test",
+    "title": "smoke_MaxPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected: undef_f32 Expected: acl_f32 (PoolingLayerCPUTest MaxPool ACL primitive)|Flaky Test",
+    "signature_hash": "2640902748a867ec",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "CPU functional tests / CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "1 of 71707 smoke tests failed: PoolingLayerCPUTest MaxPool primitive type check expected acl_f32 but got undef_f32"
+        }
+    ],
+    "key_errors": [
+        "[ RUN      ] smoke_MaxPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs/IS=([1..10.16.8.8])_TS=(1.16.8.8)_(2.16.8.8)_Prc=f32_MaxPool_K(2.2)_S(2.2)_PB(0.0)_PE(0.0)_Rounding=ceil_AutoPad=same_lower_INT8=0__primitive=acl\nsrc/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32\n[  FAILED  ] smoke_MaxPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs/... (50 ms)",
+        "ERROR:test_parallel_runner:Run is not successful\n##[error]Process completed with exit code 255."
+    ],
+    "root_cause": "A single ARM64 CPU functional smoke test (PoolingLayerCPUTest MaxPool, ACL primitive variant) asserts the executed node's selected implementation type equals 'acl_f32', but at runtime it executed with 'undef_f32' (no implementation type recorded), i.e. the ARM Compute Library (ACL) pooling executor was not selected/attached for this MaxPool configuration in this run. Only 1 of 71707 executed smoke tests failed, and the triggering commit (#38859, 'Fold FakeQuantize output shift in ACL pooling') only touches the quantized (u8/i8) FakeQuantize destination-quantization branch of AclPoolingExecutor::init, which is not exercised by this f32, non-quantized MaxPool test case. This is consistent with the previously recorded 'smoke_AvgPool_CPU_4D ... undef_f32 vs acl_f32' pattern (signature d94563b07437b23b, first seen 2026-09-30), indicating a recurring, intermittent ACL pooling-executor selection/fallback issue that affects different pooling test instantiations (AvgPool, now MaxPool) rather than a regression from this specific commit.",
+    "reproduction_steps": "Build OpenVINO for ARM64 with ACL enabled (ENABLE_ACL=ON) and run: `./ov_cpu_func_tests --gtest_filter='*smoke_MaxPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs*K_2.2_*S_2.2_*ceil*same_lower*primitive=acl*'` repeatedly; failure appears intermittent (only 1/71707 smoke tests failed in this run) and may not reproduce deterministically outside the exact ARM64 CI runner/build.",
+    "recommended_actions": [
+        "Re-run the specific failing test case in isolation on the same ARM64 runner to confirm flakiness vs. a deterministic regression.",
+        "Inspect src/plugins/intel_cpu/src/nodes/executors/acl/acl_pooling.cpp::isSupported / NEPoolingLayer::validate selection path for the MaxPool K(2,2) S(2,2) PB(0,0) PE(0,0) ceil/same_lower configuration to see whether ACL silently rejects this shape/padding combination and falls back to undef instead of a different (logged) backend.",
+        "Cross-reference with pattern d94563b07437b23b (AvgPool variant) to determine whether both failures share a common root cause in executor-selection/priority logic rather than being independent flakes.",
+        "If confirmed non-reproducible/flaky, consider adding stricter DEBUG_LOG output on ACL pooling executor fallback so future occurrences are diagnosable without re-running, or add a temporary known-flaky marker referencing this signature."
+    ],
+    "prevention_strategies": "Add explicit logging/telemetry in AclPoolingExecutor::isSupported when NEPoolingLayer::validate fails or ACL is skipped, so intermittent pooling-executor selection issues become deterministically traceable instead of surfacing as a single flaky smoke-test failure. Consider tracking recurring 'primType is unexpected: undef_f32' pooling failures with a dedicated CI label distinct from genuine regressions.",
+    "historical_context": "A closely related failure was previously recorded: pattern d94563b07437b23b, 'smoke_AvgPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)' (first/last seen 2026-09-30, count=1, from run 36698768818, PR #38484). That investigation concluded the issue was an intermittent ACL pooling-executor selection fallback unrelated to the triggering commit. The current MaxPool failure is a distinct test instantiation but the identical primTypeCheck symptom, suggesting a shared underlying intermittent ACL pooling-executor issue worth tracking as a recurring class of flakiness."
+}

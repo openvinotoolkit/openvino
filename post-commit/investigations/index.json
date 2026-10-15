@@ -1,6 +1,6 @@
 {
     "schema_version": "1.0",
-    "total": 35,
+    "total": 36,
     "entries": [
         {
             "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -368,6 +368,15 @@
             "category": "Network",
             "signature_hash": "eeae3ce3f5218e80",
             "commit_sha": "529331f083ebed40ccba117ba3a443c5468c8d89"
+        },
+        {
+            "investigation_id": "2026-10-15-22-12-14-619-38808374504",
+            "run_id": "38808374504",
+            "timestamp": "2026-10-15T22:12:14Z",
+            "title": "smoke_MaxPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+            "category": "Flaky Test",
+            "signature_hash": "2640902748a867ec",
+            "commit_sha": "86a5e9edc9dc9d9144f8b7f2fc4a4b0712830997"
         }
     ]
 }
