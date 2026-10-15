@@ -49,10 +49,21 @@ std::vector<T> permute(const std::vector<T>& x, const std::vector<size_t>& perm)
     return result;
 }
 
+// Select entries out of an already computed shape vector. Prefer this over repeated get_dimensions
+// calls on one tensor, which build a fresh ShapeOf each time.
+std::shared_ptr<ov::Node> gather_dims(const ov::Output<ov::Node>& shape, const std::vector<int>& dims);
+
+// Use gather_dims for an existing shape: an Output overload would take its ShapeOf again.
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
-                                         const std::vector<int>& dims);
+                                         const std::vector<int>& dims) = delete;
 // Takes the Output rather than the node so a producer with several outputs keeps the right port.
 std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims);
+
+// x / max(sqrt(sum(x^2, -1)), eps), matching ggml's l2_norm.
+ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps);
+
+/// \brief Give `out`'s producer and its first output tensor the same name.
+void name_output(const ov::Output<ov::Node>& out, const std::string& name);
 
 // Take ownership of the temporary output vector assembled by translators, rename its producers,
 // then return the same vector without an extra copy.
