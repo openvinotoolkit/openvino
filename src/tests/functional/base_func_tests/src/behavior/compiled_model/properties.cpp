@@ -6,6 +6,7 @@
 
 #include <locale.h>
 
+#include <algorithm>
 #include <cstdint>
 
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
@@ -248,7 +249,10 @@ TEST_P(OVClassCompiledModelPropertiesTests, canCompileModelWithPropertiesAndChec
     auto compiled_model = core->compile_model(model, target_device, properties);
     auto supported_properties = compiled_model.get_property(ov::supported_properties);
     for (const auto& property_item : properties) {
-        if (util::contains(supported_properties, property_item.first)) {
+        const auto supported_property =
+            std::find(supported_properties.begin(), supported_properties.end(), property_item.first);
+        if (supported_property != supported_properties.end() &&
+            supported_property->get_mutability() != ov::PropertyMutability::WO) {
             Any property;
             OV_ASSERT_NO_THROW(property = compiled_model.get_property(property_item.first));
             ASSERT_FALSE(property.empty());

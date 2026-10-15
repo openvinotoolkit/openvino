@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "behavior/ov_plugin/properties_tests.hpp"
+
+#include <algorithm>
 #include <cstdint>
 
-#include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
 #include "openvino/util/common_util.hpp"
@@ -109,7 +111,14 @@ TEST_P(OVPropertiesTests, SetCorrectProperties) {
 
 TEST_P(OVPropertiesTests, canSetPropertyAndCheckGetProperty) {
     core->set_property(target_device, properties);
+    const auto supported_properties = core->get_property(target_device, ov::supported_properties);
     for (const auto& property_item : properties) {
+        const auto supported_property =
+            std::find(supported_properties.begin(), supported_properties.end(), property_item.first);
+        if (supported_property != supported_properties.end() &&
+            supported_property->get_mutability() == ov::PropertyMutability::WO) {
+            continue;
+        }
         Any property;
         OV_ASSERT_NO_THROW(property = core->get_property(target_device, property_item.first));
         ASSERT_FALSE(property.empty());
