@@ -305,3 +305,15 @@ The GenAI `gguf-frontend-mmproj` integration supplies audio input through
 `VLMPipeline` and LFM2.5 speech output through `OmniPipeline`, including audio
 feedback and 24 kHz ISTFT reconstruction. Older Mimi-based LFM2 speech output
 requires a different codec and is not covered by the LFM2.5 vocoder builder.
+
+Final GenAI acceptance used the same pinned LFM2.5 audio bundle and the
+LFM2-VL-450M language/projector pair. Audio SDPA and PagedAttention each matched
+109/109 greedy reference choices over text, spoken input, multiple/reversed clips,
+audio chat and reset. Vision SDPA/PagedAttention passed seven scenarios each for
+square, JPEG and tiled inputs, including reversed images and both chat APIs.
+These are teacher-forced greedy-choice checks on the generated history, not
+strict full-logit parity or identical free-running speech reference generation.
+Speech API tests check deterministic repeated output, waveform chunk reconstruction,
+text-only output, retained audio inputs, cancellation recovery and sequential TTS.
+Speech chunks are delivered after decoding the complete waveform; low-latency
+streaming and replay of assistant codec tokens in chat history are not implemented.
