@@ -12,14 +12,14 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
 {
     const uint batch_index = DIM_IDX_BATCH;
     const uint feature_index = DIM_IDX_FEATURE;
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_DIMS == 4
     const uint y_index = DIM_IDX_Y;
     const uint x_index = DIM_IDX_X;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     const uint z_index = DIM_IDX_Z;
     const uint y_index = DIM_IDX_Y;
     const uint x_index = DIM_IDX_X;
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif OUTPUT_DIMS == 6
     const uint w_index = DIM_IDX_W;
     const uint z_index = DIM_IDX_Z;
     const uint y_index = DIM_IDX_Y;
@@ -28,13 +28,13 @@ inline void FUNC(get_slice_step)(OPTIONAL_SHAPE_INFO_ARG
 
     *step_batch = batch_index < STRIDE_DIMS ? stride[batch_index] : 1;
     *step_feature = feature_index < STRIDE_DIMS ? stride[feature_index] : 1;
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_DIMS == 4
     *step_w = 1;
     *step_z = 1;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     *step_w = 1;
     *step_z = z_index < STRIDE_DIMS ? stride[z_index] : 1;
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif OUTPUT_DIMS == 6
     *step_w = w_index < STRIDE_DIMS ? stride[w_index] : 1;
     *step_z = z_index < STRIDE_DIMS ? stride[z_index] : 1;
 #endif
@@ -57,14 +57,14 @@ inline void FUNC(get_slice_end)(OPTIONAL_SHAPE_INFO_ARG
     const uint out_x_num = INPUT0_SIZE_X;
     const uint batch_index = DIM_IDX_BATCH;
     const uint feature_index = DIM_IDX_FEATURE;
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_DIMS == 4
     const uint y_index = DIM_IDX_Y;
     const uint x_index = DIM_IDX_X;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     const uint z_index = DIM_IDX_Z;
     const uint y_index = DIM_IDX_Y;
     const uint x_index = DIM_IDX_X;
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif OUTPUT_DIMS == 6
     const uint w_index = DIM_IDX_W;
     const uint z_index = DIM_IDX_Z;
     const uint y_index = DIM_IDX_Y;
@@ -72,10 +72,10 @@ inline void FUNC(get_slice_end)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     END_TYPE batch = batch_index < END_DIMS ? end[batch_index] : 0;
     END_TYPE feature = feature_index < END_DIMS ? end[feature_index] : 0;
-#ifdef OUTPUT_LAYOUT_BFWZYX
+#if OUTPUT_DIMS == 6
     END_TYPE w = w_index < END_DIMS ? end[w_index] : 0;
     END_TYPE z = z_index < END_DIMS ? end[z_index] : 0;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     END_TYPE z = z_index < END_DIMS ? end[z_index] : 0;
 #endif
     END_TYPE y = y_index < END_DIMS ? end[y_index] : 0;
@@ -83,10 +83,10 @@ inline void FUNC(get_slice_end)(OPTIONAL_SHAPE_INFO_ARG
 
     *end_batch = (END_BATCH == 0) ? batch : TO_END_TYPE(out_batch_num);
     *end_feature = (END_FEATURE == 0) ? feature : TO_END_TYPE(out_feature_num);
-#ifdef OUTPUT_LAYOUT_BFWZYX
+#if OUTPUT_DIMS == 6
     *end_w = (END_W == 0) ? w: TO_END_TYPE(out_w_num);
     *end_z = (END_Z == 0) ? z: TO_END_TYPE(out_z_num);
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     *end_z = (END_Z == 0) ? z: TO_END_TYPE(out_z_num);
 #endif
     *end_y = (END_Y == 0) ? y : TO_END_TYPE(out_y_num);
@@ -102,14 +102,14 @@ inline void FUNC(get_slice_begin)(OPTIONAL_SHAPE_INFO_ARG
 {
     const uint batch_index = DIM_IDX_BATCH;
     const uint feature_index = DIM_IDX_FEATURE;
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_DIMS == 4
     const uint y_index = DIM_IDX_Y;
     const uint x_index = DIM_IDX_X;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     const uint z_index = DIM_IDX_Z;
     const uint y_index = DIM_IDX_Y;
     const uint x_index = DIM_IDX_X;
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif OUTPUT_DIMS == 6
     const uint w_index = DIM_IDX_W;
     const uint z_index = DIM_IDX_Z;
     const uint y_index = DIM_IDX_Y;
@@ -118,10 +118,10 @@ inline void FUNC(get_slice_begin)(OPTIONAL_SHAPE_INFO_ARG
 
     BEGIN_TYPE batch = batch_index < BEGIN_DIMS ? begin[batch_index] : 0;
     BEGIN_TYPE feature = feature_index < BEGIN_DIMS ? begin[feature_index] : 0;
-#ifdef OUTPUT_LAYOUT_BFWZYX
+#if OUTPUT_DIMS == 6
     BEGIN_TYPE w = w_index < BEGIN_DIMS ? begin[w_index] : 0;
     BEGIN_TYPE z = z_index < BEGIN_DIMS ? begin[z_index] : 0;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     BEGIN_TYPE z = z_index < BEGIN_DIMS ? begin[z_index] : 0;
 #endif
     BEGIN_TYPE y = y_index < BEGIN_DIMS ? begin[y_index] : 0;
@@ -129,10 +129,10 @@ inline void FUNC(get_slice_begin)(OPTIONAL_SHAPE_INFO_ARG
 
     *begin_batch = (BEGIN_BATCH == 0) ? batch : 0;
     *begin_feature = (BEGIN_FEATURE == 0) ? feature : 0;
-#ifdef OUTPUT_LAYOUT_BFWZYX
+#if OUTPUT_DIMS == 6
     *begin_w = (BEGIN_W == 0) ? w: 0;
     *begin_z = (BEGIN_Z == 0) ? z: 0;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     *begin_z = (BEGIN_Z == 0) ? z: 0;
 #endif
     *begin_y = (BEGIN_Y == 0) ? y : 0;
@@ -242,35 +242,35 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef SHRINK_MODE
     FUNC_CALL(calculate_index)(&step_batch, &begin_batch, &end_batch, INPUT0_BATCH_NUM, SHRINK_BATCH);
     FUNC_CALL(calculate_index)(&step_feature, &begin_feature, &end_feature, INPUT0_FEATURE_NUM, SHRINK_FEATURE);
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_DIMS == 4
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y, SHRINK_Y);
     FUNC_CALL(calculate_index)(&step_x, &begin_x, &end_x, INPUT0_SIZE_X, SHRINK_X);
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     FUNC_CALL(calculate_index)(&step_z, &begin_z, &end_z, INPUT0_SIZE_Z, SHRINK_Z);
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y, SHRINK_Y);
     FUNC_CALL(calculate_index)(&step_x, &begin_x, &end_x, INPUT0_SIZE_X, SHRINK_X);
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif OUTPUT_DIMS == 6
     FUNC_CALL(calculate_index)(&step_w, &begin_w, &end_w, INPUT0_SIZE_W, SHRINK_W);
     FUNC_CALL(calculate_index)(&step_z, &begin_z, &end_z, INPUT0_SIZE_Z, SHRINK_Z);
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y, SHRINK_Y);
     FUNC_CALL(calculate_index)(&step_x, &begin_x, &end_x, INPUT0_SIZE_X, SHRINK_X);
-#endif // OUTPUT_LAYOUT_BFYX
+#endif // OUTPUT_DIMS == 4
 #else // SHRINK_MODE
     FUNC_CALL(calculate_index)(&step_batch, &begin_batch, &end_batch, INPUT0_BATCH_NUM);
     FUNC_CALL(calculate_index)(&step_feature, &begin_feature, &end_feature, INPUT0_FEATURE_NUM);
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_DIMS == 4
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y);
     FUNC_CALL(calculate_index)(&step_x, &begin_x, &end_x, INPUT0_SIZE_X);
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     FUNC_CALL(calculate_index)(&step_z, &begin_z, &end_z, INPUT0_SIZE_Z);
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y);
     FUNC_CALL(calculate_index)(&step_x, &begin_x, &end_x, INPUT0_SIZE_X);
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif OUTPUT_DIMS == 6
     FUNC_CALL(calculate_index)(&step_w, &begin_w, &end_w, INPUT0_SIZE_W);
     FUNC_CALL(calculate_index)(&step_z, &begin_z, &end_z, INPUT0_SIZE_Z);
     FUNC_CALL(calculate_index)(&step_y, &begin_y, &end_y, INPUT0_SIZE_Y);
     FUNC_CALL(calculate_index)(&step_x, &begin_x, &end_x, INPUT0_SIZE_X);
-#endif // OUTPUT_LAYOUT_BFYX
+#endif // OUTPUT_DIMS == 4
 #endif // SHRINK_MODE
 
     const int slice_begin_batch = begin_batch;
@@ -296,20 +296,20 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint b_input = linear_pos / (INPUT0_FEATURE_NUM * spatial_size);
     const uint fwzyx_pos = linear_pos % (INPUT0_FEATURE_NUM * spatial_size);
     const uint f_input = fwzyx_pos / spatial_size;
-#ifdef INPUT0_LAYOUT_BFYX
+#if INPUT0_DIMS == 4
     const uint w_input = 0;
     const uint z_input = 0;
     const uint yx_pos = fwzyx_pos % spatial_size;
     const uint y_input = yx_pos / INPUT0_SIZE_X;
     const uint x_input = yx_pos % INPUT0_SIZE_X;
-#elif INPUT0_LAYOUT_BFZYX
+#elif INPUT0_DIMS == 5
     const uint w_input = 0;
     const uint zyx_pos = fwzyx_pos % spatial_size;
     const uint z_input = zyx_pos / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
     const uint yx_pos = zyx_pos % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
     const uint y_input = yx_pos / INPUT0_SIZE_X;
     const uint x_input = yx_pos % INPUT0_SIZE_X;
-#elif INPUT0_LAYOUT_BFWZYX
+#elif INPUT0_DIMS == 6
     const uint wzyx_pos = fwzyx_pos % spatial_size;
     const uint w_input = wzyx_pos / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
     const uint zyx_pos = wzyx_pos % (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X );
@@ -327,17 +327,17 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
         y_input * INPUT0_Y_PITCH +
         x_input * INPUT0_X_PITCH;
 
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_DIMS == 4
     const uint y = (uint)get_global_id(2) / OUTPUT_SIZE_X;
     const uint x = (uint)get_global_id(2) % OUTPUT_SIZE_X;
     const uint output_index = OUTPUT_GET_INDEX(batch, feature, y, x);
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     const uint yx = (uint)get_global_id(2) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const uint z = (uint)get_global_id(2) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const uint y = yx / OUTPUT_SIZE_X;
     const uint x = yx % OUTPUT_SIZE_X;
     const uint output_index = OUTPUT_GET_INDEX(batch, feature, z, y, x);
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif OUTPUT_DIMS == 6
     const uint zyx = (uint)get_global_id(2) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
     const uint w = (uint)get_global_id(2) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
     const uint z = zyx / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
@@ -356,18 +356,18 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #else // NEW_AXIS_MODE
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_DIMS == 4
     const uint w = 0;
     const uint z = 0;
     const uint y = get_global_id(2) / OUTPUT_SIZE_X;
     const uint x = get_global_id(2) % OUTPUT_SIZE_X;
-#elif OUTPUT_LAYOUT_BFZYX
+#elif OUTPUT_DIMS == 5
     const uint w = 0;
     const uint yx = get_global_id(2) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const uint z = get_global_id(2) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const uint y = yx / OUTPUT_SIZE_X;
     const uint x = yx % OUTPUT_SIZE_X;
-#elif OUTPUT_LAYOUT_BFWZYX
+#elif OUTPUT_DIMS == 6
     const uint zyx = (uint)get_global_id(2) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
     const uint w = (uint)get_global_id(2) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z);
     const uint z = zyx / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
@@ -381,12 +381,12 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint input_index = INPUT0_OFFSET +
         (slice_begin_batch + in_indices[0] * slice_steps_batch) * INPUT0_BATCH_PITCH +
         (slice_begin_feature + in_indices[1] * slice_steps_feature) * INPUT0_FEATURE_PITCH +
-    #if INPUT0_LAYOUT_BFWZYX
+    #if INPUT0_DIMS == 6
         (slice_begin_w + in_indices[2] * slice_steps_w) * INPUT0_W_PITCH +
         (slice_begin_z + in_indices[3] * slice_steps_z) * INPUT0_Z_PITCH +
         (slice_begin_y + in_indices[4] * slice_steps_y) * INPUT0_Y_PITCH +
         (slice_begin_x + in_indices[5] * slice_steps_x) * INPUT0_X_PITCH;
-    #elif INPUT0_LAYOUT_BFZYX
+    #elif INPUT0_DIMS == 5
         (slice_begin_z + in_indices[2] * slice_steps_z) * INPUT0_Z_PITCH +
         (slice_begin_y + in_indices[3] * slice_steps_y) * INPUT0_Y_PITCH +
         (slice_begin_x + in_indices[4] * slice_steps_x) * INPUT0_X_PITCH;
@@ -398,12 +398,12 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint input_index = INPUT0_OFFSET +
             (slice_begin_batch + batch * slice_steps_batch) * INPUT0_BATCH_PITCH +
             (slice_begin_feature + feature * slice_steps_feature) * INPUT0_FEATURE_PITCH +
-    #if INPUT0_LAYOUT_BFWZYX
+    #if INPUT0_DIMS == 6
             (slice_begin_w + w * slice_steps_w) * INPUT0_W_PITCH +
             (slice_begin_z + z * slice_steps_z) * INPUT0_Z_PITCH +
             (slice_begin_y + y * slice_steps_y) * INPUT0_Y_PITCH +
             (slice_begin_x + x * slice_steps_x) * INPUT0_X_PITCH;
-    #elif INPUT0_LAYOUT_BFZYX
+    #elif INPUT0_DIMS == 5
             (slice_begin_z + z * slice_steps_z) * INPUT0_Z_PITCH +
             (slice_begin_y + y * slice_steps_y) * INPUT0_Y_PITCH +
             (slice_begin_x + x * slice_steps_x) * INPUT0_X_PITCH;
