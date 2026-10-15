@@ -16,11 +16,13 @@ CommandQueueDesc::CommandQueueDesc() {
 }
 CommandQueueDesc::CommandQueueDesc(ze_command_queue_priority_t priority,
                                    std::optional<ze_command_queue_workload_type_t> workload,
+                                   std::optional<ze_command_queue_qos_ext_t> qos,
                                    uint32_t options,
                                    const void* owner_tag,
                                    bool shared_common_queue)
     : _priority(priority),
       _workload(workload),
+      _qos(qos),
       _options(options),
       _owner_tag(owner_tag),
       _shared_common_queue(shared_common_queue) {
@@ -34,9 +36,13 @@ void CommandQueueDesc::setWorkload(std::optional<ze_command_queue_workload_type_
     _workload = workload;
     updateKey();
 }
+void CommandQueueDesc::setQos(std::optional<ze_command_queue_qos_ext_t> qos) {
+    _qos = qos;
+    updateKey();
+}
 bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
-    if (_priority != other._priority || _workload != other._workload || _options != other._options ||
-        _shared_common_queue != other._shared_common_queue) {
+    if (_priority != other._priority || _workload != other._workload || _qos != other._qos ||
+        _options != other._options || _shared_common_queue != other._shared_common_queue) {
         return false;
     }
 
@@ -59,6 +65,12 @@ void CommandQueueDesc::updateKey() {
     if (_workload.has_value()) {
         hash = zero_hashing::hashCombine64(hash, 1ULL);
         hash = zero_hashing::hashCombine64(hash, static_cast<uint64_t>(_workload.value()));
+    } else {
+        hash = zero_hashing::hashCombine64(hash, 0ULL);
+    }
+    if (_qos.has_value()) {
+        hash = zero_hashing::hashCombine64(hash, 1ULL);
+        hash = zero_hashing::hashCombine64(hash, static_cast<uint64_t>(_qos.value()));
     } else {
         hash = zero_hashing::hashCombine64(hash, 0ULL);
     }
@@ -316,6 +328,17 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         }
     }
 
+    ze_command_queue_qos_ext_desc_t qos_desc = {};
+    if (_desc.qos().has_value()) {
+        if (!_init_structs->isCommandQueueQosSupported()) {
+            OPENVINO_THROW("The QoS property is not supported by the current Driver Version!");
+        }
+        qos_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_QOS_EXT_DESC;
+        qos_desc.pNext = ze_queue_desc.pNext;
+        qos_desc.qos = _desc.qos().value();
+        ze_queue_desc.pNext = &qos_desc;
+    }
+
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandQueueCreate",
         zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &ze_queue_desc, &_handle));
@@ -346,6 +369,22 @@ void CommandQueue::setPriority(ze_command_queue_priority_t priority) const {
         OPENVINO_THROW("The Priority property is not supported by the current Driver Version!");
     }
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueSetPriorityExt", zeCommandQueueSetPriorityExt(_handle, priority));
+}
+void CommandQueue::setQos(ze_command_queue_qos_ext_t qos) const {
+    if (!_init_structs->isCommandQueueQosSupported()) {
+        OPENVINO_THROW("The QoS property is not supported by the current Driver Version!");
+    }
+    ze_command_queue_qos_ext_desc_t qos_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_QOS_EXT_DESC, nullptr, qos};
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueSetQosExt", zeCommandQueueSetQosExt(_handle, &qos_desc));
+}
+ze_command_queue_qos_ext_properties_t CommandQueue::getQos() const {
+    if (!_init_structs->isCommandQueueQosSupported()) {
+        OPENVINO_THROW("The QoS property is not supported by the current Driver Version!");
+    }
+    ze_command_queue_qos_ext_properties_t qos_properties = {};
+    qos_properties.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_QOS_EXT_PROPERTIES;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueGetQosExt", zeCommandQueueGetQosExt(_handle, &qos_properties));
+    return qos_properties;
 }
 void CommandQueue::executeCommandList(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",

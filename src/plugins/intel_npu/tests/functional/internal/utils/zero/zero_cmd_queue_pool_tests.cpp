@@ -76,6 +76,7 @@ public:
 TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeForNewQueue) {
     ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_BACKGROUND,
+                                                     std::nullopt,
                                                      0,
                                                      nullptr,
                                                      true};
@@ -99,6 +100,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeOnExistingQueue) {
     int owner = 1;
     ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     std::nullopt,
                                                      0,
                                                      &owner,
                                                      false};
@@ -118,6 +120,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnExistingQueue) {
     int owner = 1;
     ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     std::nullopt,
                                                      0,
                                                      &owner,
                                                      false};
@@ -132,6 +135,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnExistingQueue) {
 TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledRequiresOwnerTag) {
     OV_EXPECT_THROW_HAS_SUBSTRING((::intel_npu::CommandQueueDesc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                                   std::nullopt,
+                                                                  std::nullopt,
                                                                   0,
                                                                   nullptr,
                                                                   false}),
@@ -141,7 +145,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledRequiresOwnerTag) {
 
 TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityTest) {
     // Test that the pool correctly reuses queues after weak_ptr cleanup
-    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, std::nullopt, 0, nullptr, true};
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, std::nullopt, std::nullopt, 0, nullptr, true};
 
     // First allocation
     std::shared_ptr<::intel_npu::CommandQueue> queue1 =
@@ -170,6 +174,7 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
     int pointer1 = 1;  // Just a dummy pointer value for testing
     ::intel_npu::CommandQueueDesc command_queue_desc1{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                       std::nullopt,
+                                                      std::nullopt,
                                                       0,
                                                       &pointer1,
                                                       false};
@@ -181,6 +186,7 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
 
     int pointer2 = 2;  // Just a dummy pointer value for testing
     ::intel_npu::CommandQueueDesc command_queue_desc2{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                      std::nullopt,
                                                       std::nullopt,
                                                       0,
                                                       &pointer2,
@@ -195,6 +201,7 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
 
     int pointer3 = 3;  // Just a dummy pointer value for testing
     ::intel_npu::CommandQueueDesc command_queue_desc3{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                      std::nullopt,
                                                       std::nullopt,
                                                       0,
                                                       &pointer3,
@@ -216,7 +223,7 @@ TEST_P(ZeroCmdQueuePoolTests, PoolReusabilityDisabledTest) {
 TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescriptorChanges) {
     int owner = 1;
 
-    ::intel_npu::CommandQueueDesc base_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, std::nullopt, 0, &owner, false};
+    ::intel_npu::CommandQueueDesc base_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL, std::nullopt, std::nullopt, 0, &owner, false};
     auto base_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, base_desc);
     auto same_base_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, base_desc);
 
@@ -225,6 +232,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
 
     ::intel_npu::CommandQueueDesc priority_desc{
         ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH,
+        std::nullopt,
         std::nullopt,
         0,
         &owner,
@@ -240,6 +248,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
         ::intel_npu::CommandQueueDesc workload_desc{
             ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
             ZE_WORKLOAD_TYPE_BACKGROUND,
+            std::nullopt,
             0,
             &owner,
             false,
@@ -254,6 +263,7 @@ TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledUsesNewQueueWhenDescripto
     if (init_struct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
         ::intel_npu::CommandQueueDesc option_desc{
             ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+            std::nullopt,
             std::nullopt,
             ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC,
             &owner,
@@ -292,7 +302,7 @@ TEST_P(ZeroCmdQueuePoolTests, AllCommandQueueOptionsCombinations) {
         for (auto workload_type : workload_types) {
             for (auto options : option_combinations) {
                 static int owner = 1;  // Just a dummy pointer value for testing
-                ::intel_npu::CommandQueueDesc cmd_desc{priority, workload_type, options, &owner, true};
+                ::intel_npu::CommandQueueDesc cmd_desc{priority, workload_type, std::nullopt, options, &owner, true};
 
                 auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, cmd_desc);
 
@@ -327,6 +337,7 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
     // including when DEVICE_SYNC is enabled.
     ::intel_npu::CommandQueueDesc device_sync_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     std::nullopt,
                                                      ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC,
                                                      &owner_a,
                                                      true};
@@ -341,6 +352,7 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
 
     ::intel_npu::CommandQueueDesc device_sync_desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     std::nullopt,
                                                      ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC,
                                                      &owner_b,
                                                      true};
@@ -354,11 +366,13 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
     // Without DEVICE_SYNC, owner_tag must not affect pooling.
     ::intel_npu::CommandQueueDesc no_device_sync_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                         ZE_WORKLOAD_TYPE_DEFAULT,
+                                                        std::nullopt,
                                                         0,
                                                         &owner_a,
                                                         true};
     ::intel_npu::CommandQueueDesc no_device_sync_desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                         ZE_WORKLOAD_TYPE_DEFAULT,
+                                                        std::nullopt,
                                                         0,
                                                         &owner_b,
                                                         true};
@@ -374,11 +388,13 @@ TEST_P(ZeroCmdQueuePoolTests, OwnerTagAffectsPoolingOnlyWhenSharedCommonQueueIsD
     // With shared_common_queue disabled, owner_tag differentiates pooled queues.
     ::intel_npu::CommandQueueDesc non_shared_desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                     ZE_WORKLOAD_TYPE_DEFAULT,
+                                                    std::nullopt,
                                                     0,
                                                     &owner_a,
                                                     false};
     ::intel_npu::CommandQueueDesc non_shared_desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                     ZE_WORKLOAD_TYPE_DEFAULT,
+                                                    std::nullopt,
                                                     0,
                                                     &owner_b,
                                                     false};
@@ -439,6 +455,7 @@ TEST_P(ZeroCmdQueuePoolTests, MultiThreadingTest) {
 
             ::intel_npu::CommandQueueDesc command_queue_desc{priority,
                                                              workload_type,
+                                                             std::nullopt,
                                                              commandQueueOptions,
                                                              nullptr,
                                                              true};
@@ -510,6 +527,7 @@ TEST_P(ZeroCmdQueuePoolTests, MultiThreadingTestWithDestroyCmdQueue) {
 
                 ::intel_npu::CommandQueueDesc command_queue_desc{priority,
                                                                  workload_type,
+                                                                 std::nullopt,
                                                                  commandQueueOptions,
                                                                  nullptr,
                                                                  true};
