@@ -151,3 +151,44 @@ conformer projector and LFM2.5 speech components are supported as described in
 require the `gguf-frontend-mmproj` integration. Older Mimi-based LFM2 speech output
 requires a separate codec. Other sizes, quantizations, long contexts,
 and downstream fine-tunes require their own checkpoint validation.
+
+## Bonsai and Bonsai-2
+
+The native GGUF frontend supports the following model families and weight formats:
+
+| Family | Sizes | Architecture | Weight formats |
+|---|---|---|---|
+| Bonsai | 1.7B, 4B, 8B | `qwen3` | Q1_0 |
+| Bonsai | 27B | `qwen35` | Q1_0, F16 |
+| Ternary-Bonsai | 1.7B, 4B, 8B | `qwen3` | F16, Q2_0 per-64/per-128, PQ2_0 |
+| Ternary-Bonsai | 27B | `qwen35` | F16, Q2_0 per-64/per-128, PQ2_0 |
+| Ternary-Bonsai-2 | 27B | `qwen35` | F16, PQ2_0, PTQ1_0, development Q2_0 per-64 |
+
+Bonsai-2 uses folded Hadamard weights, including its F16 checkpoints. Supported metadata is
+version 1 or tied-output version 2, normalized Sylvester, input-last-dimension, identity or
+explicit ±1 signs, and blocks up to 4096. The frontend applies the input activation transform
+for annotated projections and the inverse transform after latent token lookup, preserving
+annotations when splitting QKV and Q/gate weights.
+
+The BF16 and Q8_0 multimodal projector variants are supported directly by the built-in
+`qwen3vl_merger`; see [supported projectors](mmproj.md#supported-projectors).
+
+## Block drafters
+
+| Architecture | Supported models | Features |
+|---|---|---|
+| `dspark` | Bonsai-27B and Ternary-Bonsai-27B BF16/Q4_1 drafts | Noncausal block attention, captured target features, log-SNR conditioning, optional Markov/confidence outputs |
+
+DSpark accepts a fixed draft block in `inp_tokens` and captured target-layer features in
+`dspark_ctx_feat` (`[1,1,context_rows,capture_count*embedding_width]`). Positions and cache-write
+indices cover context plus draft rows; callers provide a fully open attention mask for the
+noncausal round. Outputs include `logits`, `dspark.hidden`, per-layer caches and, when present,
+`dspark.corrected_logits` and raw `dspark.confidence_score`. `dspark_prev_tokens` supplies the
+sampled predecessor for each auxiliary-head row. Sequential sampling and target-layer capture
+belong to the caller. Log-SNR uses Prism's round-1 inference convention: the first draft
+position is at `max_log_snr`, and the remaining masked positions are at `min_log_snr`.
+Normalization `(log_snr - min_log_snr) / (max_log_snr - min_log_snr) * 1000` maps these
+endpoints to 1000 and 0, independent of the bounds. Both bounds must still be present,
+finite and strictly ordered, as required by the model's conditioning metadata.
+Hidden-correction checkpoints and generic GenAI decoder adaptation are not supported.
+Draft blocks up to 4096 tokens are supported.
