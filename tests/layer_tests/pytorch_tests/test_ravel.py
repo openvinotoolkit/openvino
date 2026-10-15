@@ -29,6 +29,7 @@ class TestRavel(PytorchLayerTest):
         [1],
         [5],
         [1, 1, 1],
+        [],
     ])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8"])
     @pytest.mark.nightly
@@ -41,4 +42,36 @@ class TestRavel(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input={"shape": shape, "dtype": dtype},
+        )
+
+
+class TestRavelComplex(PytorchLayerTest):
+    def _prepare_input(self, shape):
+        return (self.random.randn(*shape, 2).astype(np.float32),)
+
+    def create_model(self):
+        import torch
+
+        class aten_ravel(torch.nn.Module):
+            def forward(self, x):
+                x = torch.view_as_complex(x)
+                return torch.view_as_real(torch.ravel(x))
+
+        return aten_ravel(), "aten::ravel"
+
+    @pytest.mark.parametrize("shape", [
+        [2, 3],
+        [2, 3, 4],
+        [],
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_ravel_complex(self, shape, ie_device, precision, ir_version):
+        self._test(
+            *self.create_model(),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"shape": shape},
         )

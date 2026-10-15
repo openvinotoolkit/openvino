@@ -6,7 +6,6 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
 #include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
@@ -27,7 +26,6 @@ OutputVector translate_ravel(const NodeContext& context) {
     if (complex_type_mark) {
         tensor = complex_type_mark->get_data();
         auto const_2 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
-        const_2 = context.mark_node(std::make_shared<v1::ConvertLike>(const_2, shape));
         shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{shape, const_2}, 0));
     }
 
