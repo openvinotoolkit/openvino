@@ -148,6 +148,8 @@ std::vector<Case> make_cases() {
         enum_case<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>("NPUW_LLM_GENERATE_MOE_HINT",
                                                            "DEVICE_ROUTED",
                                                            "DEVICE_ROUTED"),
+        enum_case<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>("NPUW_LLM_PREFILL_MOE_HINT_FUSED", "FUSED", "FUSED"),
+        enum_case<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>("NPUW_LLM_GENERATE_MOE_HINT_FUSED", "FUSED", "FUSED"),
         bool_case<::intel_npu::NPUW_LLM_GENERATE_PYRAMID>("NPUW_LLM_GENERATE_PYRAMID", "YES", true),
         numeric_case<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>("NPUW_LLM_PREFILL_CHUNK_SIZE", "256", uint64_t{256}),
         bool_case<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>("NPUW_LLM_ENABLE_PREFIX_CACHING", "YES", true),
