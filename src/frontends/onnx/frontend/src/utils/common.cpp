@@ -181,11 +181,7 @@ ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
             rhs_node = std::make_shared<v3::Broadcast>(rhs_node, std::make_shared<v0::ShapeOf>(lhs_node));
         }
     }
-    if constexpr (std::is_same_v<T, v1::Divide>) {
-        return {std::make_shared<T>(lhs_node, rhs_node, false)};
-    } else {
-        return {std::make_shared<T>(lhs_node, rhs_node)};
-    }
+    return {std::make_shared<T>(lhs_node, rhs_node, !std::is_same_v<T, v1::Divide>)};
 }
 
 template ov::OutputVector handle_opset6_binary_op<v1::Add>(const Node& node);

@@ -33,6 +33,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/reference/divide.hpp"
 #include "openvino/reference/erfinv.hpp"
+#include "openvino/reference/floor_mod.hpp"
+#include "openvino/reference/mod.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -358,10 +360,18 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = -src_f[0];
                 break;
             case Algorithm::EltwiseFloorMod:
-                *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1];
+                if constexpr (std::is_integral_v<T>) {
+                    *dst_ptr_f = ov::reference::func::floor_mod(src_f[0], src_f[1]);
+                } else {
+                    *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1];
+                }
                 break;
             case Algorithm::EltwiseMod:
-                *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1];
+                if constexpr (std::is_integral_v<T>) {
+                    *dst_ptr_f = ov::reference::func::mod(src_f[0], src_f[1]);
+                } else {
+                    *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1];
+                }
                 break;
             case Algorithm::EltwiseMaximum:
                 *dst_ptr_f = std::max(src_f[0], src_f[1]);

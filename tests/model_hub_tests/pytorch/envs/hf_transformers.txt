@@ -3,6 +3,8 @@
 # before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
 transformers==4.47.1
 datasets==3.0.1
+# PyArrow 26 requires NumPy 2, while the Python <3.12 test environment pins NumPy 1.26.
+pyarrow<26; python_version < "3.12"
 huggingface-hub==0.25.2
 hf_transfer==0.1.9
 sentencepiece==0.2.1
