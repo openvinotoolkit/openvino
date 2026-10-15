@@ -61,8 +61,9 @@ size_t get_x_pitch(const layout& layout) {
 }
 
 template <class T>
-std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string& info) {
-    if (!mem) {
+std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string& info, bool throw_for_inf_nan) {
+    if (!mem || mem->size() == 0 || data_layout.bytes_count() == 0) {
+        GPU_DEBUG_INFO << "empty tensor : " << info << " (n=0)" << std::endl;
         return {0.0f, 0.0f};
     }
 
@@ -83,7 +84,9 @@ std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, c
             auto val = convert_element(mem_ptr[i]);
             if (std::isinf(val) || std::isnan(val)) {
                 std::string err_str = std::isinf(val) ? "inf" : "nan";
-                GPU_DEBUG_COUT << err_str << " WAS FOUND: " << info << "  *********************" << std::endl;
+                GPU_DEBUG_COUT << "[VALIDATE_OUTPUT_BUFFER: ERROR] " << err_str << " WAS FOUND: " << info << "  *********************" << std::endl;
+                if (throw_for_inf_nan)
+                    OPENVINO_THROW("Invalid value found in output buffer: " + info);
                 return {0.0f, 0.0f};
             }
             if (val > val_max) {
@@ -108,7 +111,9 @@ std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, c
                                     auto val = convert_element(mem_ptr[input_it]);
                                     if (std::isinf(val) || std::isnan(val)) {
                                         std::string err_str = std::isinf(val) ? "inf" : "nan";
-                                        GPU_DEBUG_COUT << err_str << " WAS FOUND: " << info << "  *********************" << std::endl;
+                                        GPU_DEBUG_COUT << "[VALIDATE_OUTPUT_BUFFER: ERROR] " << err_str << " WAS FOUND: " << info << "  *********************" << std::endl;
+                                        if (throw_for_inf_nan)
+                                            OPENVINO_THROW("Invalid value found in output buffer: " + info);
                                         return {0.0f, 0.0f};
                                     }
                                     if (val > val_max) {
@@ -135,22 +140,22 @@ std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, c
     return {val_min, val_max};
 }
 
-std::pair<float, float> validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string& info) {
+std::pair<float, float> validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string& info, bool throw_for_inf_nan) {
     auto data_type = data_layout.data_type;
     if (data_type == cldnn::data_types::f32) {
-        return __validate_data_range<float>(mem, stream, data_layout, info);
+        return __validate_data_range<float>(mem, stream, data_layout, info, throw_for_inf_nan);
     }
     if (data_type == cldnn::data_types::f16) {
-        return __validate_data_range<ov::float16>(mem, stream, data_layout, info);
+        return __validate_data_range<ov::float16>(mem, stream, data_layout, info, throw_for_inf_nan);
     }
     if (data_type == cldnn::data_types::bf16) {
-        return __validate_data_range<ov::bfloat16>(mem, stream, data_layout, info);
+        return __validate_data_range<ov::bfloat16>(mem, stream, data_layout, info, throw_for_inf_nan);
     }
     if (data_type == cldnn::data_types::i8) {
-        return __validate_data_range<int8_t>(mem, stream, data_layout, info);
+        return __validate_data_range<int8_t>(mem, stream, data_layout, info, throw_for_inf_nan);
     }
     if (data_type == cldnn::data_types::u8) {
-        return __validate_data_range<uint8_t>(mem, stream, data_layout, info);
+        return __validate_data_range<uint8_t>(mem, stream, data_layout, info, throw_for_inf_nan);
     }
     GPU_DEBUG_INFO << "Unsupport data type for validating data range " << data_type << std::endl;
     return {0.0f, 0.0f};
@@ -541,11 +546,12 @@ NodeDebugHelper::~NodeDebugHelper() {
     const auto& config = m_network.get_config();
 
     if (config.get_validate_output_buffer() && !m_network.is_internal()) {
+        const bool throw_for_error = config.get_validate_output_buffer() >= 2;
         m_stream.finish();  // Wait for stream completion before checking output buffers
         for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
             auto output_mem = m_inst.output_memory_ptr(i);
             std::string info = m_inst.id() + "(" + std::to_string(i) + ") at iteration " + std::to_string(m_network.get_current_iteration_num());
-            validate_data_range(output_mem, m_stream, m_inst.get_output_layout(i), info);
+            validate_data_range(output_mem, m_stream, m_inst.get_output_layout(i), info, throw_for_error);
         }
 
         // FP16 mantissa loss early warning for Sin/Cos activation inputs
@@ -557,12 +563,14 @@ NodeDebugHelper::~NodeDebugHelper() {
                 auto input_layout = dep.first->get_output_layout(dep.second);
                 if (input_layout.data_type == cldnn::data_types::f16) {
                     std::string input_info = m_inst.id() + " (sincos_input) at iteration " + std::to_string(m_network.get_current_iteration_num());
-                    auto [val_min, val_max] = validate_data_range(input_mem, m_stream, input_layout, input_info);
+                    auto [val_min, val_max] = validate_data_range(input_mem, m_stream, input_layout, input_info, throw_for_error);
                     float abs_max = std::max(std::abs(val_min), std::abs(val_max));
                     constexpr float threshold = 1024.0f;
                     if (abs_max >= threshold) {
-                        GPU_DEBUG_COUT << "*** FP16 MANTISSA LOSS WARNING *** : " << m_inst.id() << " input max(abs)=" << abs_max << " (threshold=" << threshold
+                        GPU_DEBUG_COUT << "[VALIDATE_OUTPUT_BUFFER: WARNING] *** FP16 MANTISSA LOSS WARNING *** : " << m_inst.id() << " input max(abs)=" << abs_max << " (threshold=" << threshold
                                        << ")" << " — Sin/Cos output will lose fractional precision" << std::endl;
+                        if (throw_for_error)
+                            OPENVINO_THROW("FP16 mantissa loss warning: " + m_inst.id() + " input max(abs)=" + std::to_string(abs_max) + " (threshold=" + std::to_string(threshold) + ") — Sin/Cos output will lose fractional precision");
                     }
                 }
             }

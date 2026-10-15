@@ -56,7 +56,7 @@ distilbert,distilbert/distilbert-base-uncased-finetuned-sst-2-english
 donut-swin,pasusarla/donut_encoder
 dpr,facebook/dpr-question_encoder-single-nq-base
 dpt,Intel/dpt-large
-efficientformer,DunnBC22/efficientformer-l3-300-Brain_Tumors_Image_Classification
+efficientformer,snap-research/efficientformer-l1-300
 efficientnet,google/efficientnet-b7,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 2560) larger than the data shape after padding (dim: 19) at axis 0.
 electra,google/electra-base-discriminator
 encodec,facebook/encodec_24khz

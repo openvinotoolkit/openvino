@@ -9,10 +9,7 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 static const std::unordered_set<std::string> supported_modes = {"nearest", "linear", "cubic"};
 
@@ -162,7 +159,4 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Resize", OPSET_RANGE(1, 10), ai_onnx::opset_1::resize);
 }  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx
