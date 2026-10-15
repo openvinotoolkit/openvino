@@ -159,7 +159,7 @@ set(dev_api_headers
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/hsm_deferred_writer.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/hsm_format.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/hsm_reader.hpp
-    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/hsm_sections.hpp
+    ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/hsm_codecs.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/hsm_writer.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/iasync_infer_request.hpp
     ${OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/runtime/icache_manager.hpp

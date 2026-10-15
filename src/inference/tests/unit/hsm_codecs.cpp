@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/hsm_sections.hpp"
+#include "openvino/runtime/hsm_codecs.hpp"
 
 #include <gtest/gtest.h>
 
