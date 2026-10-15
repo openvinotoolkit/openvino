@@ -7,10 +7,7 @@
 #include "openvino/op/scatter_nd_update.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
     ov::OutputVector ov_inputs{node.get_ov_inputs()};
@@ -65,7 +62,4 @@ ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("ScatterND", OPSET_SINCE(16), ai_onnx::opset_16::scatter_nd);
 }  // namespace opset_16
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

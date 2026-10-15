@@ -78,6 +78,9 @@ public:
     inline bool isExternalMemoryFdWin32Supported() const {
         return _external_memory_fd_win32_supported;
     }
+    inline bool isCommandQueueSetPrioritySupported() const {
+        return _command_queue_set_priority_supported;
+    }
     inline uint32_t getCommandQueueGroupOrdinal() const {
         return _command_queue_group_ordinal;
     }
@@ -130,6 +133,7 @@ private:
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
+    bool _command_queue_set_priority_supported = false;
 
     uint32_t _context_options = 0;
 

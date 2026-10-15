@@ -10,9 +10,7 @@
 #include "openvino/frontend/decoder.hpp"
 #include "tf_framework_node.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 class DecoderFake : public ov::frontend::DecoderBase {
 public:
@@ -73,6 +71,4 @@ public:
 private:
     std::string m_no_conversion_reason;
 };
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow
