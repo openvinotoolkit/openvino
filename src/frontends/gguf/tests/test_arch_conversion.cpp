@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -364,6 +365,10 @@ TEST(GGUFArchConversionManifest, IsPresentAndComplete) {
     // means the suite above skips.  "Some present" is not: it means the generator ran and produced
     // an incomplete set, which would silently shrink coverage to whatever happened to be written.
     const size_t present = present_fixture_count();
+    const char* require_fixtures = std::getenv("OV_GGUF_REQUIRE_ARCH_FIXTURES");
+    if (require_fixtures && std::string(require_fixtures) == "1") {
+        ASSERT_EQ(present, fixtures.size()) << "CI requires every architecture fixture to be installed";
+    }
     if (present != 0) {
         for (const auto& f : fixtures) {
             const std::string path = ov::util::path_join({fixture_dir(), f.header_file}).string();

@@ -7,6 +7,7 @@
 #include "sycl_stream.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "sycl_event.hpp"
+#include "sycl_user_event.hpp"
 #include "sycl_command_queues_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "sycl_base_kernel.hpp"
@@ -130,7 +131,8 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
     return std::make_shared<sycl_event>(ret_ev, _command_queue, ++_queue_counter);
 }
 
-void sycl_stream::enqueue_barrier() {
+void sycl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
+    OPENVINO_ASSERT(deps.empty(), "sycl_stream::enqueue_barrier implements only global barrier");
     try {
         _command_queue.ext_oneapi_submit_barrier();
     } catch (::sycl::exception const& err) {
@@ -187,8 +189,9 @@ event::ptr sycl_stream::group_events(std::vector<event::ptr> const& deps) {
 }
 
 event::ptr sycl_stream::create_user_event(bool set) {
-    OPENVINO_ASSERT(set, "[GPU] create user event with set=false is not supported in SYCL runtime");
-    return std::make_shared<sycl_event>(::sycl::event(), _command_queue);
+    // SYCL has no native user event, so the completion state is kept on the host side.
+    // See sycl_user_event for the implications.
+    return std::make_shared<sycl_user_event>(set);
 }
 
 event::ptr sycl_stream::create_base_event() {
