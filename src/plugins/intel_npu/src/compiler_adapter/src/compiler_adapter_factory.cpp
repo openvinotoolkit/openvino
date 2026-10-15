@@ -14,6 +14,20 @@
 
 namespace intel_npu {
 
+std::shared_ptr<IVCLCompiler> CompilerAdapterFactory::makePluginCompiler(
+    std::shared_ptr<const VCLFunctionTable>& functions,
+    const std::shared_ptr<IDevice>& device,
+    const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
+    auto vclLoader = VCLLoader::getInstance();
+    OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+    functions = vclLoader->sharedFunctions();
+    return std::make_shared<VCLCompilerImpl>(
+        functions,
+        device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
+        ScopedOptionSupportCache{optionSupportCache,
+                                 static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
+}
+
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,
     ov::intel_npu::CompilerType& compilerType,
@@ -34,15 +48,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
         std::shared_ptr<const VCLFunctionTable> functions;
         std::shared_ptr<IVCLCompiler> compiler;
         try {
-            auto vclLoader = VCLLoader::getInstance();
-            OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-            functions = vclLoader->sharedFunctions();
-            compiler = std::make_shared<VCLCompilerImpl>(
-                functions,
-                device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
-                ScopedOptionSupportCache{
-                    optionSupportCache,
-                    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
+            compiler = makePluginCompiler(functions, device, optionSupportCache);
         } catch (const std::exception& vclException) {
             OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
         }
@@ -128,15 +134,7 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         std::shared_ptr<IVCLCompiler> pluginCompiler;
         std::shared_ptr<const VCLFunctionTable> functions;
         try {
-            auto vclLoader = VCLLoader::getInstance();
-            OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-            functions = vclLoader->sharedFunctions();
-            pluginCompiler = std::make_shared<VCLCompilerImpl>(
-                functions,
-                device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
-                ScopedOptionSupportCache{
-                    optionSupportCache,
-                    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
+            pluginCompiler = makePluginCompiler(functions, device, optionSupportCache);
         } catch (...) {
             _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
             if (onlineCompilation) {
