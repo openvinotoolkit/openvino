@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "intel_npu/common/iparser.hpp"
 #include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -18,7 +20,7 @@ namespace intel_npu {
 class Parser final : public IParser {
 public:
     Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-           const std::shared_ptr<IProfilingDecoder>& profilingDecoder);
+           const std::optional<std::shared_ptr<IProfilingDecoder>>& profilingDecoder = std::nullopt);
 
     std::shared_ptr<IGraph> parse(const ov::Tensor& mainBlob,
                                   const Config& config,
