@@ -23,7 +23,13 @@ overlay is necessary, check the actual compile and link commands:
 
 ## Runtime preflight
 
-Before a checkpoint batch, run a small conversion/inference through the same harness and launch
+Before a broad test or checkpoint batch, preflight the runtime and prerequisites selected
+by its actual commands. Check frontend discovery, each requested device (including a default
+device wrapper when used), tokenizer extensions, fixture registration and required media/model
+files. Missing optional data must produce explicit skips; missing required data blocks that
+scenario. Do not require unused devices or export/download unrelated models.
+
+Run a small conversion/inference through the same harness and launch
 environment. Record intended core/frontend/plugin paths and hashes, then check the libraries
 actually loaded after inference. On Linux, `/proc/self/maps` shows plugins loaded lazily; `ldd`
 and pre-run hashes alone do not establish execution identity. Fix stale frontend or missing plugin
@@ -36,7 +42,7 @@ and SHA-256 values captured before launch:
 
 ```json
 {
-  "core": {"path": "/task/runtime/libopenvino.so.2650", "sha256": "<expected SHA-256>"},
+  "core": {"path": "/task/runtime/<resolved-core-library>", "sha256": "<expected SHA-256>"},
   "frontend": {"path": "/task/runtime/libopenvino_gguf_frontend.so", "sha256": "<expected SHA-256>"},
   "cpu": {"path": "/task/runtime/libopenvino_intel_cpu_plugin.so", "sha256": "<expected SHA-256>"}
 }

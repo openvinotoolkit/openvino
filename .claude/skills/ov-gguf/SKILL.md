@@ -23,10 +23,10 @@ converters; builders and validation differ. Registration or conversion alone nev
 | Is a model supported? | [supported_models.md](../../../src/frontends/gguf/docs/supported_models.md) or [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md#supported-projectors); quote the checkpoint result and limitations, not just the catalog entry |
 | Load a model, make it stateful/GenAI/PA-ready, tokenizer, IR export | [runtime.md](../../../src/frontends/gguf/docs/runtime.md) |
 | Add or port an architecture | [architectures.md](../../../src/frontends/gguf/docs/architectures.md) and the [family contract](references/validation.md#family-contract); [extensions.md](../../../src/frontends/gguf/docs/extensions.md) when shipping it as a plugin |
-| Add or replace an mmproj branch | [extensions.md](../../../src/frontends/gguf/docs/extensions.md#extend-mmproj-with-a-projector-component), then the graph contracts in [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md) |
+| Add or replace an mmproj branch | [extensions.md](../../../src/frontends/gguf/docs/extensions.md#extend-mmproj-with-a-projector-component), then the graph contracts in [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Missing ggml operation or `op_case` | [how_to_add_op.md](../../../src/frontends/gguf/docs/how_to_add_op.md) |
 | Wrong numbers | [debugging_accuracy.md](../../../src/frontends/gguf/docs/debugging_accuracy.md) |
-| GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) |
+| GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Unsupported weight type | [quantization.md](../../../src/frontends/gguf/docs/quantization.md); the fix belongs in `src/quant/`, not a builder |
 | Build, run tests, regenerate fixtures | [testing.md](../../../src/frontends/gguf/docs/testing.md) |
 | Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use existing GHA workflows and focused local tests, preserving revisions, coverage and failures |
