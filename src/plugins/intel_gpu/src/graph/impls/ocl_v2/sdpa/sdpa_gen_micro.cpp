@@ -1329,7 +1329,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_ATTN_MASK", 0);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
         const auto desc = params.typed_desc<paged_attention>();
-        if (desc->has_token_type_ids && m_is_prefill) {
+        if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
         }
     }
@@ -1670,7 +1670,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
                 {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
         }
 
-        if (desc->has_token_type_ids && m_is_prefill) {
+        if (desc->has_token_type_ids) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
         }
 
