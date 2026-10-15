@@ -6,6 +6,7 @@
 
 #include "../util.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -113,6 +114,44 @@ public:
     }
 };
 
+class RemoveEmptyGQAPastInputs : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::RemoveEmptyGQAPastInputs");
+
+    using Context = RemoveEmptyKVTensors::Context;
+
+    RemoveEmptyGQAPastInputs(Context::Ref ctx) {
+        auto past_key = opp::wrap_type<ov::op::v0::Parameter>(opp::has_static_shape());
+        auto past_value = opp::wrap_type<ov::op::v0::Parameter>(opp::has_static_shape());
+        auto query = opp::any_input();
+        auto key = opp::any_input();
+        auto value = opp::any_input();
+        auto other_past = opp::any_input();
+        auto gqa_key = opp::wrap_type<ov::op::internal::GroupQueryAttention>({query, key, value, past_key, other_past});
+        auto gqa_value =
+            opp::wrap_type<ov::op::internal::GroupQueryAttention>({query, key, value, other_past, past_value});
+        auto gqa = std::make_shared<opp::op::Or>(ov::OutputVector{gqa_key, gqa_value});
+
+        auto callback = [=](opp::Matcher& m) {
+            auto matched_gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(m.get_match_root());
+            bool changed = false;
+            for (size_t input_pos : {size_t{3}, size_t{4}}) {
+                auto past =
+                    ov::as_type_ptr<ov::op::v0::Parameter>(matched_gqa->input_value(input_pos).get_node_shared_ptr());
+                if (!past || !past->get_partial_shape().is_static() || ov::shape_size(past->get_shape()) != 0) {
+                    continue;
+                }
+                auto empty = std::make_shared<ov::op::v0::Constant>(past->get_element_type(), past->get_shape());
+                ov::replace_node(past, empty);
+                ctx.get().old_params.push_back(past);
+                changed = true;
+            }
+            return changed;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(gqa, "RemoveEmptyGQAPastInputs"), std::move(callback));
+    }
+};
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
@@ -121,6 +160,7 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     RemoveEmptyKVTensors::Context ctx;
     rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
+    rewr.add_matcher<RemoveEmptyGQAPastInputs>(std::ref(ctx));
     rewr.run_on_model(model);
     for (auto old_param : ctx.old_params) {
         model->remove_parameter(old_param);

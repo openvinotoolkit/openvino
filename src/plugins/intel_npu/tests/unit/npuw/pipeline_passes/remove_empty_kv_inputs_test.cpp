@@ -6,11 +6,48 @@
 
 #include "embedding/remove_empty_kv_inputs.hpp"
 #include "llm_pass_test_fixture.hpp"
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/opsets/opset13.hpp"
 
 namespace {
 
 class RemoveEmptyKVInputsPassTest : public ov::test::npuw::LLMPassTestFixture {};
+
+TEST_F(RemoveEmptyKVInputsPassTest, GQAEmptyPastInputsBecomeConstants) {
+    using namespace ov::opset13;
+
+    auto query = std::make_shared<Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
+    auto key = std::make_shared<Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+    auto value = std::make_shared<Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+    auto past_key = std::make_shared<Parameter>(ov::element::f16, ov::Shape{1, 2, 0, 16});
+    auto past_value = std::make_shared<Parameter>(ov::element::f16, ov::Shape{1, 2, 0, 16});
+    auto seqlens = std::make_shared<Parameter>(ov::element::i32, ov::Shape{1});
+    auto total_length = std::make_shared<Parameter>(ov::element::i32, ov::Shape{1});
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+        ov::OutputVector{query, key, value, past_key, past_value, seqlens, total_length},
+        4,
+        2,
+        0.0f,
+        false,
+        false);
+    auto model = std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<Result>(gqa->output(0)),
+                         std::make_shared<Result>(gqa->output(1)),
+                         std::make_shared<Result>(gqa->output(2))},
+        ov::ParameterVector{query, key, value, past_key, past_value, seqlens, total_length});
+
+    ov::npuw::RemoveEmptyKVInputs pass;
+    EXPECT_TRUE(pass.run_on_model(model));
+    EXPECT_EQ(model->get_parameters().size(), 5u);
+    for (size_t input_pos : {size_t{3}, size_t{4}}) {
+        auto empty = ov::as_type_ptr<Constant>(gqa->input_value(input_pos).get_node_shared_ptr());
+        ASSERT_NE(empty, nullptr);
+        EXPECT_EQ(empty->get_shape(), (ov::Shape{1, 2, 0, 16}));
+        EXPECT_EQ(empty->get_element_type(), ov::element::f16);
+    }
+    EXPECT_EQ(model->get_results().size(), 3u);
+    EXPECT_FALSE(pass.run_on_model(model));
+}
 
 // Direct unit test for RemoveEmptyKVInputs: only the minimal past/current KV concat subgraph
 // is needed. This avoids relying on LLMCompiledModel orchestration to validate the matcher.
