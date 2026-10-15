@@ -42,6 +42,7 @@ DecoderDimensions GgufGraphContext::configure_decoder(RopeMode rope, const Decod
     m_impl->check_open();
     OPENVINO_ASSERT(!m_impl->decoder, "[GGUF] decoder is already configured");
     auto normalized = decoder_config_from_meta(detail::MetadataAccess::get(metadata()).map);
+    m_impl->emitter.configure_hadamard(normalized);
     auto config = std::make_unique<DecoderConfig>(normalized, m_impl->build_ctx.weights->weights, rope, options);
     auto& graph = *m_impl->emitter.graph();
     graph.has_rope = true;
@@ -244,6 +245,7 @@ void GgufGraphContext::add_recurrent_state(const GgufValue& input, const GgufVal
 
 std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
     m_impl->check_open();
+    m_impl->emitter.validate_hadamard();
     const auto graph = m_impl->emitter.graph();
     OPENVINO_ASSERT(!graph->model_output_names.empty(), "[GGUF] graph has no outputs");
     std::set<std::string> available;
