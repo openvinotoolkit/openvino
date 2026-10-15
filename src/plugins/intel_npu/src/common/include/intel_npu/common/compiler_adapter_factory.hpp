@@ -19,10 +19,6 @@
 
 namespace intel_npu {
 
-class IVCLCompiler;
-class IProfilingDecoder;
-struct VCLFunctionTable;
-
 class CompilerAdapterFactory final {
 public:
     std::unique_ptr<ICompilerAdapter> getCompiler(
