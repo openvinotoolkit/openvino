@@ -38,7 +38,8 @@ Shared changes require the affected architecture/projector numerical and structu
 
 `GGUFShards` covers discovery from either shard, unordered explicit lists, renamed files in
 different directories, metadata-only first shards, mapping lifetime, invalid or incomplete
-shard sets, and conversion equivalence with a single-file model. Its generated fixtures use
+shard sets, repeated scalar/array metadata, and conversion equivalence with a single-file model,
+including Unicode filenames. Its generated fixtures use
 the standard `split.no` (u16), `split.count` (u16) and `split.tensors.count` (i32) metadata.
 
 ## Fixtures and oracles

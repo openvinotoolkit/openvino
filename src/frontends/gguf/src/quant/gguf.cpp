@@ -30,8 +30,10 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/variant_visitor.hpp"
 #include "weights.hpp"
 
 namespace ov::frontend::gguf {
@@ -447,11 +449,11 @@ struct GgufFile {
     uint64_t data_off;
 };
 
-GgufFile read_gguf_file(const std::string& file) {
+GgufFile read_gguf_file(const std::filesystem::path& file) {
     std::unordered_map<std::string, GGUFMetaData> metadata;
 
     auto mapped = ov::load_mmap_object(file);
-    OPENVINO_ASSERT(mapped && mapped->data(), "[load_gguf] failed to mmap '", file, "'");
+    OPENVINO_ASSERT(mapped && mapped->data(), "[load_gguf] failed to mmap '", ov::util::path_to_string(file), "'");
     const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
     const uint64_t fsize = mapped->size();
 
@@ -459,7 +461,10 @@ GgufFile read_gguf_file(const std::string& file) {
 
     // ---- Header ----
     uint32_t magic = cur.read<uint32_t>();
-    OPENVINO_ASSERT(magic == GGUF_MAGIC, "[load_gguf] '", file, "' is not a GGUF file (bad magic)");
+    OPENVINO_ASSERT(magic == GGUF_MAGIC,
+                    "[load_gguf] '",
+                    ov::util::path_to_string(file),
+                    "' is not a GGUF file (bad magic)");
     uint32_t version = cur.read<uint32_t>();
     OPENVINO_ASSERT(version == 2 || version == 3, "[load_gguf] unsupported GGUF version ", version);
     uint64_t tensor_count = cur.read<uint64_t>();
@@ -663,20 +668,17 @@ bool same_metadata(const GGUFMetaData& lhs, const GGUFMetaData& rhs) {
     if (lhs.index() != rhs.index()) {
         return false;
     }
-    if (const auto* a = std::get_if<ov::Tensor>(&lhs)) {
-        const auto& b = std::get<ov::Tensor>(rhs);
-        return a->get_element_type() == b.get_element_type() && a->get_shape() == b.get_shape() &&
-               (a->get_byte_size() == 0 || std::memcmp(a->data(), b.data(), a->get_byte_size()) == 0);
-    }
     return std::visit(
-        [&](const auto& a) {
+        ov::util::VariantVisitor{[&](const auto& a) {
             using T = std::decay_t<decltype(a)>;
+            const auto& b = std::get<T>(rhs);
             if constexpr (std::is_same_v<T, ov::Tensor>) {
-                return false;
+                return a.get_element_type() == b.get_element_type() && a.get_shape() == b.get_shape() &&
+                       (a.get_byte_size() == 0 || std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0);
             } else {
-                return a == std::get<T>(rhs);
+                return a == b;
             }
-        },
+        }},
         lhs);
 }
 
@@ -746,7 +748,7 @@ GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
 
 }  // namespace
 
-GGUFLoad get_gguf_data(const std::string& file) {
+GGUFLoad get_gguf_data(const std::filesystem::path& file) {
     auto initial = read_gguf_file(file);
     const auto count = split_count(initial);
     if (count <= 1) {
@@ -756,9 +758,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
     }
     const auto index = split_value(initial, "split.no", ov::element::u16);
     OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
-    const std::filesystem::path path(file);
-    const auto filename = path.filename().string();
-    const auto suffix = split_suffix(index, count);
+    const auto filename = file.filename().native();
+    const auto suffix = std::filesystem::path(split_suffix(index, count)).native();
     OPENVINO_ASSERT(filename.size() >= suffix.size() &&
                         filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0,
                     "[load_gguf] split GGUF filename does not match its metadata; provide an explicit list of shards");
@@ -770,22 +771,22 @@ GGUFLoad get_gguf_data(const std::string& file) {
             files.push_back(std::move(initial));
             continue;
         }
-        const auto sibling = path.parent_path() / (prefix + split_suffix(i, count));
+        const auto sibling = file.parent_path() / (prefix + std::filesystem::path(split_suffix(i, count)).native());
         OPENVINO_ASSERT(std::filesystem::is_regular_file(sibling),
                         "[load_gguf] missing GGUF shard: '",
-                        sibling.string(),
+                        ov::util::path_to_string(sibling),
                         "'");
-        auto next = read_gguf_file(sibling.string());
+        auto next = read_gguf_file(sibling);
         OPENVINO_ASSERT(split_value(next, "split.no", ov::element::u16) == i,
                         "[load_gguf] split.no does not match shard filename: '",
-                        sibling.string(),
+                        ov::util::path_to_string(sibling),
                         "'");
         files.push_back(std::move(next));
     }
     return load_gguf_files(std::move(files));
 }
 
-GGUFLoad get_gguf_data(const std::vector<std::string>& paths) {
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& paths) {
     OPENVINO_ASSERT(!paths.empty(), "[load_gguf] GGUF shard list is empty");
     std::vector<GgufFile> files;
     files.reserve(paths.size());

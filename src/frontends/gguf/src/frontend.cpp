@@ -23,6 +23,7 @@
 #include "openvino/frontend/gguf/extension/genai.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/util/file_util.hpp"
 #include "translate_session.hpp"
 
 namespace ov::frontend::gguf {
@@ -192,16 +193,14 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     // Path 2: GGUF file paths -> native builder -> GgufBuilderDecoder.
     if (auto paths = model_paths(variants)) {
         FRONT_END_GENERAL_CHECK(!paths->empty(), "GGUF Frontend file list is empty");
-        std::vector<std::string> files;
         for (const auto& path : *paths) {
             FRONT_END_GENERAL_CHECK(path.extension() == ".gguf",
                                     "GGUF Frontend file loading expects a .gguf file, got: ",
-                                    path.string());
-            files.push_back(path.string());
+                                    ov::util::path_to_string(path));
         }
-        const auto discover = files.size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
-        const auto builder = discover ? load_gguf_builder(files.front(), m_impl->arch_registry)
-                                      : load_gguf_builder(files, m_impl->arch_registry);
+        const auto discover = paths->size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
+        const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry)
+                                      : load_gguf_builder(*paths, m_impl->arch_registry);
         return std::make_shared<InputModel>(builder, m_extensions);
     }
 

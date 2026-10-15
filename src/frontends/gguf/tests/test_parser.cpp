@@ -192,7 +192,7 @@ protected:
         for (const auto& path : m_paths) {
             if (std::filesystem::exists(path)) {
                 EXPECT_TRUE(std::filesystem::is_regular_file(path)) << path;
-                ov::test::utils::removeFile(path);
+                std::filesystem::remove(path);
             }
         }
     }
@@ -223,7 +223,7 @@ protected:
     }
 
     std::string m_base;
-    std::vector<std::string> m_paths;
+    std::vector<std::filesystem::path> m_paths;
 };
 
 TEST_F(GGUFShards, DiscoversSiblingsFromEitherShardAndKeepsMappingsAlive) {
@@ -251,7 +251,7 @@ TEST_F(GGUFShards, ExplicitListAllowsRenamedFilesInDifferentDirectoriesAndRevers
             .string();
     std::filesystem::rename(path(1), renamed);
     m_paths.push_back(renamed);
-    const auto loaded = get_gguf_data(std::vector<std::string>{renamed, path(0)});
+    const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{renamed, path(0)});
     EXPECT_EQ(std::get<1>(loaded).size(), 2);
     EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
     OV_EXPECT_THROW(get_gguf_data(renamed), ov::Exception, testing::HasSubstr("explicit list"));
@@ -264,7 +264,7 @@ TEST_F(GGUFShards, ReportsMissingSibling) {
 
 TEST_F(GGUFShards, RejectsIncompleteExplicitList) {
     ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
-    OV_EXPECT_THROW(get_gguf_data(std::vector<std::string>{path(0)}),
+    OV_EXPECT_THROW(get_gguf_data(std::vector<std::filesystem::path>{path(0)}),
                     ov::Exception,
                     testing::HasSubstr("expected 2 GGUF shards"));
     ov::frontend::gguf::FrontEnd frontend;
@@ -276,7 +276,7 @@ TEST_F(GGUFShards, RejectsIncompleteExplicitList) {
 TEST_F(GGUFShards, RejectsDuplicateShardIndices) {
     ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
     ASSERT_NO_FATAL_FAILURE(write_shard(1, 0));
-    OV_EXPECT_THROW(get_gguf_data(std::vector<std::string>{path(0), path(1)}),
+    OV_EXPECT_THROW(get_gguf_data(std::vector<std::filesystem::path>{path(0), path(1)}),
                     ov::Exception,
                     testing::HasSubstr("duplicate GGUF shard index"));
     OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("split.no does not match"));
@@ -310,6 +310,62 @@ TEST_F(GGUFShards, RejectsConflictingModelMetadata) {
     ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
     ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, 2, {}, "llama"));
     OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("inconsistent metadata"));
+}
+
+TEST_F(GGUFShards, ComparesRepeatedNumericAndStringArrayMetadata) {
+    for (size_t index : {0, 1}) {
+        GgufWriter writer;
+        writer.kv_u16("split.no", index);
+        writer.kv_u16("split.count", 2);
+        writer.kv_i32("split.tensors.count", 2);
+        writer.kv_str("general.architecture", "qwen3");
+        writer.kv_f32("test.scalar", 1.5f);
+        writer.kv_u32_array("test.array", {1, 2});
+        writer.kv_u32_array("test.empty", {});
+        writer.kv_str_array("test.strings", {"one", "two"});
+        writer.tensor("weight" + std::to_string(index), {2});
+        m_paths.push_back(path(index));
+        ASSERT_TRUE(writer.write(path(index)));
+    }
+    EXPECT_EQ(std::get<1>(get_gguf_data(path(0))).size(), 2);
+}
+
+TEST_F(GGUFShards, RejectsConflictingNumericMetadata) {
+    enum class Difference { ScalarValue, ScalarType, ArrayValue, ArrayType, ArrayShape };
+    for (auto difference : {Difference::ScalarValue,
+                            Difference::ScalarType,
+                            Difference::ArrayValue,
+                            Difference::ArrayType,
+                            Difference::ArrayShape}) {
+        SCOPED_TRACE(static_cast<int>(difference));
+        for (size_t index : {0, 1}) {
+            GgufWriter writer;
+            writer.kv_u16("split.no", index);
+            writer.kv_u16("split.count", 2);
+            writer.kv_i32("split.tensors.count", 2);
+            writer.kv_str("general.architecture", "qwen3");
+            if (index == 1 && difference == Difference::ScalarType) {
+                writer.kv_u32("test.scalar", 1);
+            } else {
+                writer.kv_f32("test.scalar", index == 1 && difference == Difference::ScalarValue ? 2.f : 1.f);
+            }
+            if (index == 1 && difference == Difference::ArrayType) {
+                writer.kv_u16_array("test.array", {1, 2});
+            } else {
+                std::vector<uint32_t> values{1, 2};
+                if (index == 1 && difference == Difference::ArrayValue) {
+                    values[1] = 3;
+                } else if (index == 1 && difference == Difference::ArrayShape) {
+                    values.resize(1);
+                }
+                writer.kv_u32_array("test.array", values);
+            }
+            writer.tensor("weight" + std::to_string(index), {2});
+            m_paths.push_back(path(index));
+            ASSERT_TRUE(writer.write(path(index)));
+        }
+        OV_EXPECT_THROW(get_gguf_data(path(0)), ov::Exception, testing::HasSubstr("inconsistent metadata"));
+    }
 }
 
 TEST_F(GGUFShards, RejectsOutOfRangeShardNumber) {
@@ -364,10 +420,10 @@ TEST_F(GGUFShards, RejectsUnrelatedModelsAndEmptyLists) {
         m_paths.push_back(path(index));
         ASSERT_TRUE(writer.write(path(index)));
     }
-    OV_EXPECT_THROW(get_gguf_data(std::vector<std::string>{path(0), path(1)}),
+    OV_EXPECT_THROW(get_gguf_data(std::vector<std::filesystem::path>{path(0), path(1)}),
                     ov::Exception,
                     testing::HasSubstr("one split GGUF model"));
-    OV_EXPECT_THROW(get_gguf_data(std::vector<std::string>{}), ov::Exception, testing::HasSubstr("empty"));
+    OV_EXPECT_THROW(get_gguf_data(std::vector<std::filesystem::path>{}), ov::Exception, testing::HasSubstr("empty"));
 }
 
 TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs) {
@@ -432,6 +488,25 @@ TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs)
         const auto model = frontend.convert(frontend.load(representation));
         EXPECT_EQ(model->get_ordered_ops().size(), reference->get_ordered_ops().size());
         const auto comparison = comparator.compare(model, reference);
+        EXPECT_TRUE(comparison.valid) << comparison.message;
+    }
+    const auto unicode_prefix = ov::util::make_path(m_base + u8"_模型_żółć");
+    const auto unicode_first =
+        std::filesystem::path(unicode_prefix.native() + std::filesystem::path("-00001-of-00002.gguf").native());
+    const auto unicode_second =
+        std::filesystem::path(unicode_prefix.native() + std::filesystem::path("-00002-of-00002.gguf").native());
+    const auto unicode_single =
+        std::filesystem::path(unicode_prefix.native() + std::filesystem::path(".gguf").native());
+    std::filesystem::rename(path(0), unicode_first);
+    std::filesystem::rename(path(1), unicode_second);
+    std::filesystem::rename(reference_path, unicode_single);
+    m_paths.insert(m_paths.end(), {unicode_first, unicode_second, unicode_single});
+    for (const ov::Any& representation : {ov::Any(unicode_first),
+                                          ov::Any(unicode_second),
+                                          ov::Any(unicode_single),
+                                          ov::Any(std::vector<std::filesystem::path>{unicode_second, unicode_first})}) {
+        EXPECT_TRUE(frontend.supported(representation));
+        const auto comparison = comparator.compare(frontend.convert(frontend.load(representation)), reference);
         EXPECT_TRUE(comparison.valid) << comparison.message;
     }
     EXPECT_FALSE(frontend.supported(std::vector<std::string>{}));

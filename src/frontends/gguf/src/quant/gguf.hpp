@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -130,8 +131,8 @@ void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
 // Parse GGUF metadata and tensors. Each repacked quantized tensor owns its buffer.
-GGUFLoad get_gguf_data(const std::string& file);
-GGUFLoad get_gguf_data(const std::vector<std::string>& files);
+GGUFLoad get_gguf_data(const std::filesystem::path& file);
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files);
 
 // Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,
 // head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base, file_type, ...)

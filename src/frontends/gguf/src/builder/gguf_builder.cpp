@@ -91,11 +91,11 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
 
 }  // namespace
 
-GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& registry) {
+GraphBuilder load_gguf_builder(const std::filesystem::path& file, const ArchRegistry& registry) {
     return make_gguf_builder(get_gguf_data(file), registry);
 }
 
-GraphBuilder load_gguf_builder(const std::vector<std::string>& files, const ArchRegistry& registry) {
+GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files, const ArchRegistry& registry) {
     return make_gguf_builder(get_gguf_data(files), registry);
 }
 
