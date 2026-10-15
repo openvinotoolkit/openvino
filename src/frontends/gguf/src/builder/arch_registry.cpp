@@ -7,8 +7,8 @@
 #include <optional>
 #include <utility>
 
-#include "builder/arch/lfm2_builder.hpp"
 #include "builder/arch/dspark_builder.hpp"
+#include "builder/arch/lfm2_builder.hpp"
 #include "builder/arch/mamba_builder.hpp"
 #include "builder/arch/mmproj_builder.hpp"
 #include "openvino/core/except.hpp"
