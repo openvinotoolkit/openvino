@@ -37,6 +37,7 @@ public:
     CommandQueueDesc();
     CommandQueueDesc(ze_command_queue_priority_t priority,
                      std::optional<ze_command_queue_workload_type_t> workload,
+                     std::optional<ze_command_queue_qos_ext_t> qos,
                      uint32_t options,
                      const void* owner_tag,
                      bool shared_common_queue);
@@ -46,6 +47,9 @@ public:
     }
     std::optional<ze_command_queue_workload_type_t> workload() const {
         return _workload;
+    }
+    std::optional<ze_command_queue_qos_ext_t> qos() const {
+        return _qos;
     }
     uint64_t key() const {
         return _key;
@@ -59,6 +63,7 @@ public:
 
     void setPriority(ze_command_queue_priority_t priority);
     void setWorkload(std::optional<ze_command_queue_workload_type_t> workload);
+    void setQos(std::optional<ze_command_queue_qos_ext_t> qos);
 
     bool operator==(const CommandQueueDesc& other) const;
 
@@ -72,6 +77,7 @@ private:
 
     ze_command_queue_priority_t _priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
     std::optional<ze_command_queue_workload_type_t> _workload = std::nullopt;
+    std::optional<ze_command_queue_qos_ext_t> _qos = std::nullopt;
     uint32_t _options = 0;
     const void* _owner_tag = nullptr;
     bool _shared_common_queue = true;
@@ -149,6 +155,8 @@ public:
     CommandQueue& operator=(CommandQueue&&) = delete;
 
     void setPriority(ze_command_queue_priority_t priority) const;
+    void setQos(ze_command_queue_qos_ext_t qos) const;
+    ze_command_queue_qos_ext_properties_t getQos() const;
     void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;
