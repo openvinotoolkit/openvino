@@ -75,7 +75,7 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         assert(node.is_type<fully_connected>());
         const auto& fc_node = node.as<fully_connected>();
         const auto& fc_prim = fc_node.get_primitive();
-        if (node.get_program().get_config().get_disable_ternocl_int2())
+        if (!node.get_program().get_config().get_enable_ternocl_int2())
             return false;
         // The kernels use SIMD16 DPAS and 2D block loads.
         const auto& device_info = node.get_program().get_engine().get_device_info();

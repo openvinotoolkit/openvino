@@ -1746,7 +1746,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Ternary (u2) checkpoints on the TernOCL path run faster with gate/up merged into
         // one FC followed by the SwiGLU primitive.
-        const bool ternocl_int2 = m_context->get_engine().runtime_type() == cldnn::runtime_types::ocl && !config.get_disable_ternocl_int2() &&
+        const bool ternocl_int2 = m_context->get_engine().runtime_type() == cldnn::runtime_types::ocl && config.get_enable_ternocl_int2() &&
                                   device_info.arch >= cldnn::gpu_arch::xe2 && device_info.supports_immad;
         bool has_u2_weights = false;
         for (const auto& op : func->get_ops()) {
@@ -1778,7 +1778,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // After the horizontal fusion so a merged gate/up FC absorbs the shared
         // rotation once. Only the TernOCL impl applies a fused rotation, so without it
         // the rotation stays in the graph.
-        if (ternocl_int2 && !GPU_DEBUG_VALUE_OR(config.get_disable_hadamard_fc_fusion(), false)) {
+        if (ternocl_int2 && GPU_DEBUG_VALUE_OR(config.get_enable_hadamard_fc_fusion(), true)) {
             manager.register_pass<ov::intel_gpu::FuseHadamardIntoFC>();
         }
 

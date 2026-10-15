@@ -87,7 +87,7 @@ A node whose primitive carries a Hadamard input transform (section 7) is
 rejected with an error rather than falling through, because no other
 implementation applies the transform.
 
-For models with `u2` weights on the OpenCL runtime (and TernOCL not disabled),
+For models with `u2` weights on the OpenCL runtime (with `GPU_ENABLE_TERNOCL_INT2`, the default),
 the pipeline always enables the existing gate/up horizontal FC fusion
 (`FullyConnectedHorizontalFusion` with the SwiGLU split), which it otherwise
 skips on some devices. The merged `[K, 2I]` int2 projection followed by the
@@ -289,5 +289,5 @@ primitive (part of its hash and serialization). At execution the impl runs
 `hadamard_fwht_1024` into a per-node scratch and points the GEMM at it.
 The pass is registered only on the OpenCL runtime with TernOCL enabled, since no
 other implementation applies a fused rotation; otherwise (and with
-`GPU_DISABLE_HADAMARD_FC_FUSION` in debug-caps builds) the rotation stays in the graph.
+`GPU_ENABLE_HADAMARD_FC_FUSION=0` in debug-caps builds) the rotation stays in the graph.
 `OV_VERBOSE=4` traces the match per FC.

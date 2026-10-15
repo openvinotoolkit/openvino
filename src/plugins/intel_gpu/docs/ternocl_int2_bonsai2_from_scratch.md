@@ -221,7 +221,7 @@ OpenVINO FC kernels; the score then measures what the TernOCL kernels change:
 
 ```bash
 cd $WORK/openvino.genai/tools/who_what_benchmark
-OV_GPU_DISABLE_TERNOCL_INT2=1 wwb --base-model $WORK/bonsai2-27b-genai --gt-data gt_stock.csv \
+OV_GPU_ENABLE_TERNOCL_INT2=0 wwb --base-model $WORK/bonsai2-27b-genai --gt-data gt_stock.csv \
     --model-type visual-text-only --genai --device GPU          # reference; the stock kernels run at ~2 tokens/s
 wwb --target-model $WORK/bonsai2-27b-genai --gt-data gt_stock.csv \
     --model-type visual-text-only --genai --device GPU
@@ -257,8 +257,8 @@ On/off values are `1`/`0`, `true`/`false`, `on`/`off` or `yes`/`no`.
 | Option | Default | Effect |
 |---|---|---|
 | `GPU_TERNOCL_INT2_INT8_PREFILL` | 0 | `1`: prompts and batches (M > 8) on the int2 x int8 DPAS kernel (activations quantized to int8 per 128-group); same weights, GSM8K within the standard error of the default |
-| `GPU_DISABLE_TERNOCL_INT2` | 0 | `1`: use the stock OpenVINO FC kernels instead of TernOCL (the Hadamard rotation then runs as graph ops and the gate/up merge follows the stock heuristic) |
-| `GPU_DISABLE_HADAMARD_FC_FUSION` | 0 | debug-caps builds only; `1` leaves the Hadamard rotation as separate graph ops (slower) |
+| `GPU_ENABLE_TERNOCL_INT2` | 1 | `0`: use the stock OpenVINO FC kernels instead of TernOCL (the Hadamard rotation then runs as graph ops and the gate/up merge follows the stock heuristic) |
+| `GPU_ENABLE_HADAMARD_FC_FUSION` | 1 | debug-caps builds only; `0` leaves the Hadamard rotation as separate graph ops (slower) |
 | `GPU_ENABLE_RMS_ROPE_FUSION` | 1 | `0` keeps the per-head Q/K RMSNorm as its own kernel instead of folding it into RoPE. No effect on Bonsai 2 27B, whose heads are only partly rotated |
 
 With `-DENABLE_DEBUG_CAPS=ON`, `OV_VERBOSE=3` logs which FCs the TernOCL impl
