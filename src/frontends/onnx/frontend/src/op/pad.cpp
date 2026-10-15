@@ -37,10 +37,7 @@ ov::op::PadMode get_pad_mode(std::string mode) {
 }  // namespace
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
@@ -70,6 +67,7 @@ ONNX_OP("Pad", OPSET_RANGE(1, 10), ai_onnx::opset_1::pad);
 namespace opset_11 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
+    CHECK_VALID_NODE(node, inputs.size() >= 2, "Pad expects at least 2 inputs (data, pads). Got: ", inputs.size());
     const auto& data = inputs[0];
     const auto& pads = inputs[1];
     ov::Output<ov::Node> values;
@@ -127,7 +125,4 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Pad", OPSET_SINCE(11), ai_onnx::opset_11::pad);
 }  // namespace opset_11
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

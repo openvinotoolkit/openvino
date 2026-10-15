@@ -8,9 +8,7 @@
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 class Node;
 
 class ONNX_FRONTEND_API NodeContext : public ov::frontend::NodeContext {
@@ -33,6 +31,4 @@ private:
     ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
 };
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::onnx::Node&)>;
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

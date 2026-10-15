@@ -7,8 +7,7 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 /// \brief SequenceMark serves to mark places that require a sequence type propagation.
 /// This class represents list or tuple constructs in frameworks like PyTorch, ONNX, etc.
@@ -36,5 +35,4 @@ public:
     ov::OutputVector get_sequence() const;
 };
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

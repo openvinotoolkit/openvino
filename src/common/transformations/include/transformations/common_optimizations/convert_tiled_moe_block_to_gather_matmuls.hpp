@@ -90,7 +90,11 @@ class TRANSFORMATIONS_API ConvertTiledMoeBlockToGatherMatmuls;
 class ov::pass::ConvertTiledMoeBlockTo2GatherMatmuls : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertTiledMoeBlockTo2GatherMatmuls");
-    ConvertTiledMoeBlockTo2GatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {});
+    ConvertTiledMoeBlockTo2GatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {},
+                                         const std::vector<ov::element::Type>& supported_activation_types = {
+                                             ov::element::f32,
+                                             ov::element::f16,
+                                             ov::element::bf16});
 };
 
 // ============================================================================
@@ -150,15 +154,27 @@ public:
 class ov::pass::ConvertTiledMoeBlockTo3GatherMatmuls : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertTiledMoeBlockTo3GatherMatmuls");
-    ConvertTiledMoeBlockTo3GatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {});
+    ConvertTiledMoeBlockTo3GatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {},
+                                         const std::vector<ov::element::Type>& supported_activation_types = {
+                                             ov::element::f32,
+                                             ov::element::f16,
+                                             ov::element::bf16});
 };
 
 // CPU uses BGM-producing passes only (stops at BGMs)
+// supported_weights_types: if not empty, only blocks with compressed expert weights of these types are converted.
+// supported_activation_types: only blocks with experts_input of these types are converted.
 class ov::pass::ConvertTiledMoeBlockToGatherMatmuls : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("ConvertTiledMoeBlockToGatherMatmuls");
-    explicit ConvertTiledMoeBlockToGatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {}) {
-        add_matcher<ov::pass::ConvertTiledMoeBlockTo2GatherMatmuls>(supported_weights_types);
-        add_matcher<ov::pass::ConvertTiledMoeBlockTo3GatherMatmuls>(supported_weights_types);
+    explicit ConvertTiledMoeBlockToGatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {},
+                                                 const std::vector<ov::element::Type>& supported_activation_types = {
+                                                     ov::element::f32,
+                                                     ov::element::f16,
+                                                     ov::element::bf16}) {
+        add_matcher<ov::pass::ConvertTiledMoeBlockTo2GatherMatmuls>(supported_weights_types,
+                                                                    supported_activation_types);
+        add_matcher<ov::pass::ConvertTiledMoeBlockTo3GatherMatmuls>(supported_weights_types,
+                                                                    supported_activation_types);
     }
 };
