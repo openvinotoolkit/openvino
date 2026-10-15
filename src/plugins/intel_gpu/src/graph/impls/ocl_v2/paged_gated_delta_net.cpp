@@ -77,6 +77,27 @@ bool is_short_call(const RuntimeParams& params) {
     return sequences == 1 ? tokens <= 4 : tokens <= per_sequence * sequences;
 }
 
+// Xe cores: the slices times the sub-slices per slice, or 0 where the driver
+// does not report them.
+size_t get_xe_core_count(const cldnn::device_info& info) {
+    return static_cast<size_t>(info.num_slices) * info.num_sub_slices_per_slice;
+}
+
+// A call runs in the short stage where is_short_call() holds, and every call does
+// on devices with more than 20 Xe cores.
+//
+// NOTE: On the B70 (BMG-G31), the general stage's kernel run on its own, at
+// (k_head_dims, v_head_dims) = (128, 128) with 16 key and 32 value heads, in f16,
+// for one subsequence, was on par with the short kernel at 256 tokens and faster
+// on longer subsequences up to 16Ki tokens, but the gain did not appear inside
+// Qwen3.5-9B-int4-ov. The cause is not known, nor whether it lies in the general
+// stage's kernel.
+// TODO: Find the cause on the B70 and run the general stage on the devices with
+// more than 20 Xe cores again.
+bool uses_short_stage(const RuntimeParams& params) {
+    return get_xe_core_count(params.get_device_info()) > 20 || is_short_call(params);
+}
+
 class PagedGatedDeltaNetBaseGenerator : public KernelGenerator {
 public:
     PagedGatedDeltaNetBaseGenerator(std::string_view kernel_name, bool force_ref_path) : KernelGenerator(kernel_name), m_force_ref_path(force_ref_path) {}
@@ -343,7 +364,7 @@ public:
         // The general stage is always added, and added first: set_kernels() gives
         // the i-th compiled kernel to the i-th stage declared with make_stage().
         add_stage(paged_gated_delta_net, params);
-        if (params.is_dynamic() || is_short_call(params)) {
+        if (params.is_dynamic() || uses_short_stage(params)) {
             add_stage(paged_gated_delta_net_short, params);
         }
     }
@@ -354,7 +375,7 @@ public:
 
     // Indices in the order of make_stage().
     [[nodiscard]] std::vector<size_t> get_stages_execution_order(const RuntimeParams& params) const override {
-        return {has_stage(paged_gated_delta_net_short) && is_short_call(params) ? size_t{1} : size_t{0}};
+        return {has_stage(paged_gated_delta_net_short) && uses_short_stage(params) ? size_t{1} : size_t{0}};
     }
 };
 
