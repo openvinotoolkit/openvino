@@ -14,7 +14,7 @@
 
 namespace {
 
-bool set_source_buffer(ov::wsh::WeightSourceRegistry& sources, const ov::wsh::WeightBuffer& buffer, std::string_view device = {}) {
+bool set_source_buffer(ov::wsh::WeightSourceRegistry& sources, const ov::wsh::WeightBuffer& buffer, const std::string& device = {}) {
     const auto& desc = buffer ? buffer->get_descriptor() : nullptr;
     const auto source_id = desc ? desc->get_id() : ov::wsh::invalid_source_id;
     if (source_id != ov::wsh::invalid_source_id) {
@@ -187,7 +187,7 @@ bool set_weight_source(Context& shared_context, const ov::op::v0::Constant& cons
     return set_source_buffer(shared_context.m_cache_sources, source_buffer);
 }
 
-bool set_runtime_weight_source(Context& shared_context, const WeightBuffer& source_buffer, std::string_view device = {}) {
+bool set_runtime_weight_source(Context& shared_context, const WeightBuffer& source_buffer, const std::string& device) {
     return set_source_buffer(shared_context.m_runtime_sources, source_buffer, device);
 }
 
