@@ -112,7 +112,6 @@
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
-#include "plugin/transformations/convert_moe_3gemm_zp_to_u8.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
@@ -717,7 +716,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::MoeOpFusion>();
             manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
             manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
-            manager.register_pass<ov::intel_gpu::ConvertMOE3GemmZpToU8>();
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();

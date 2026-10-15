@@ -11,6 +11,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -31,6 +32,7 @@
 #include "ov_ops/gather_matmul.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
 
@@ -40,6 +42,7 @@ using ov::op::internal::MOECompressed;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v7 = ov::op::v7;
 namespace v8 = ov::op::v8;
@@ -48,6 +51,29 @@ namespace v8 = ov::op::v8;
 static size_t weight_logical_K(const ov::Shape& shape) {
     OPENVINO_ASSERT(shape.size() == 3 || shape.size() == 4, "MOE weight must be rank 3 or 4, got rank ", shape.size());
     return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
+}
+
+// MOECompressed takes a byte zp for u3 weights: u3 zp is converted to u8 (as for FullyConnectedCompressed).
+// A single zp shared by all experts (e.g. symmetric u3 zp) is broadcast to the scale shape,
+// since the grouped GEMM takes per-group zp only. Sub-byte zp of other types is left as is.
+static ov::Output<ov::Node> prepare_zero_point(const ov::Output<ov::Node>& zp, const ov::Output<ov::Node>& scale) {
+    auto result = zp;
+    if (result.get_element_type() == ov::element::u3) {
+        result = ov::op::util::make_try_fold<v0::Convert>(result, ov::element::u8);
+    }
+    const bool byte_zp = result.get_element_type() == ov::element::u8 || result.get_element_type() == ov::element::i8;
+    const auto& zp_pshape = result.get_partial_shape();
+    const auto& scale_pshape = scale.get_partial_shape();
+    if (byte_zp && zp_pshape.is_static() && scale_pshape.is_static() && ov::shape_size(zp_pshape.to_shape()) == 1 &&
+        ov::shape_size(scale_pshape.to_shape()) > 1) {
+        const auto& scale_shape = scale_pshape.to_shape();
+        auto target_shape = v0::Constant::create(ov::element::i64, {scale_shape.size()}, scale_shape);
+        result = ov::op::util::make_try_fold<v3::Broadcast>(result, target_shape);
+    }
+    if (result != zp) {
+        ov::copy_runtime_info(zp.get_node_shared_ptr(), result.get_node_shared_ptr());
+    }
+    return result;
 }
 
 Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
@@ -165,13 +191,13 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 topk_indices,
                 gate_w,
                 pm.at(gate_scale_m),
-                pm.at(gate_zp_m),
+                prepare_zero_point(pm.at(gate_zp_m), pm.at(gate_scale_m)),
                 up_w,
                 pm.at(up_scale_m),
-                pm.at(up_zp_m),
+                prepare_zero_point(pm.at(up_zp_m), pm.at(up_scale_m)),
                 down_w,
                 pm.at(down_scale_m),
-                pm.at(down_zp_m),
+                prepare_zero_point(pm.at(down_zp_m), pm.at(down_scale_m)),
             };
 
             // Populate compressed config from weight shapes
