@@ -53,6 +53,7 @@ protected:
         configuration.insert(ov::num_streams(1));
         configuration.insert(ov::inference_num_threads(1));
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        // The shared CPU test configuration supplies f32 when no hint is specified.
         expectedPrecision = additionalConfig.empty()
                                 ? element::f32
                                 : additionalConfig.at(ov::hint::inference_precision.name()).as<element::Type>();
@@ -62,11 +63,11 @@ protected:
                 GTEST_SKIP() << "CPU does not support FP16 inference";
             }
         }
-        selectedType = makeSelectedTypeStr(".*acl", expectedPrecision);
+        selectedType = makeSelectedTypeStr(".*" + selectedType, expectedPrecision);
 
         ov::ParameterVector params{std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 16, 32, 32})};
         const auto inputFQ =
-            utils::make_fake_quantize(params[0], element::f32, 256, {}, {-0.5f}, {127.0f}, {-0.5f}, {127.0f});
+            utils::make_fake_quantize(params[0], element::f32, fqLevels, {}, {fqLow}, {fqHigh}, {fqLow}, {fqHigh});
         std::vector<int8_t> weightsData(32 * 16 * 3 * 3);
         for (size_t index = 0; index < weightsData.size(); ++index) {
             weightsData[index] = static_cast<int8_t>(static_cast<int>((index * 73) % 255) - 127);
@@ -76,7 +77,7 @@ protected:
         ov::disable_constant_folding(convert);
         std::vector<float> scales(32);
         for (size_t index = 0; index < scales.size(); ++index) {
-            scales[index] = 0.0009765625f * static_cast<float>(1 + index % 4);
+            scales[index] = (1.0f / 1024.0f) * static_cast<float>(1 + index % 4);
         }
         const auto scale = op::v0::Constant::create(element::f32, Shape{32, 1, 1, 1}, scales);
         const auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
@@ -94,9 +95,11 @@ protected:
         const auto bias = op::v0::Constant::create(element::f32, Shape{1, 32, 1, 1}, biasData);
         const auto add = std::make_shared<op::v1::Add>(convolution, bias);
         const auto outputFQ =
-            utils::make_fake_quantize(add, element::f32, 256, {}, {-0.5f}, {127.0f}, {-0.5f}, {127.0f});
+            utils::make_fake_quantize(add, element::f32, fqLevels, {}, {fqLow}, {fqHigh}, {fqLow}, {fqHigh});
         function = std::make_shared<Model>(OutputVector{outputFQ}, params, "LPConvFallback");
-        abs_threshold = 1.0f + 1e-5f;
+        // Moving scales to f16 weights can shift FQ rounding; allow two output quanta.
+        const float outputQuantum = (fqHigh - fqLow) / (fqLevels - 1);
+        abs_threshold = 2.0f * outputQuantum + 1e-5f;
         rel_threshold = 0;
     }
 
@@ -107,11 +110,15 @@ protected:
         inputData.start_from = -0.5f;
         inputData.range = 130;
         inputData.resolution = 4;
-        const auto tensor = utils::create_and_fill_tensor(element::f32, targetInputStaticShapes[0], inputData);
+        const auto tensor =
+            utils::create_and_fill_tensor(parameter->get_element_type(), targetInputStaticShapes[0], inputData);
         inputs.insert({parameter, tensor});
     }
 
     element::Type expectedPrecision;
+    static constexpr size_t fqLevels = 256;
+    static constexpr float fqLow = -0.5f;
+    static constexpr float fqHigh = 127.0f;
 };
 
 TEST_P(LPConvFallback, CompareWithRefs) {
