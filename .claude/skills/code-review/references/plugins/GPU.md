@@ -1,3 +1,10 @@
+# Intel GPU Plugin Review
+
+Apply this reference in addition to the general
+[plugin review guidance](../plugins.md) for pull requests affecting
+`src/plugins/intel_gpu/`, Intel GPU functional tests, GPU kernels, kernel
+selection, GPU runtime integration, or Intel GPU platform enablement.
+
 ## Purpose
 
 Review OpenVINO Intel GPU pull requests for:
