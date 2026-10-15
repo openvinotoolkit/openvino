@@ -856,6 +856,114 @@ inline std::istream& operator>>(std::istream& is, WorkloadType& mode) {
 static constexpr Property<WorkloadType, PropertyMutability::RW> workload_type{"WORKLOAD_TYPE"};
 
 /**
+ * @brief Enum to define possible Quality of Service levels
+ *
+ * QoS level represents the scheduling class requested for the device queues used for inference.
+ *
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class QoS {
+    DEFAULT = 0,  //!< Driver/OS selected level
+    HIGH = 1,     //!< Foreground / latency-sensitive workloads
+    MEDIUM = 2,   //!< Nominal scheduling class
+    LOW = 3,      //!< Reduced energy usage with forward progress guaranteed
+    UTILITY = 4,  //!< More energy efficient than LOW while still guaranteeing forward progress
+    ECO = 5,      //!< Maximum energy savings; no forward progress guarantee
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const QoS& qos) {
+    switch (qos) {
+    case QoS::DEFAULT:
+        return os << "DEFAULT";
+    case QoS::HIGH:
+        return os << "HIGH";
+    case QoS::MEDIUM:
+        return os << "MEDIUM";
+    case QoS::LOW:
+        return os << "LOW";
+    case QoS::UTILITY:
+        return os << "UTILITY";
+    case QoS::ECO:
+        return os << "ECO";
+    default:
+        OPENVINO_THROW("Unsupported QoS level");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, QoS& qos) {
+    std::string str;
+    is >> str;
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    if (str == "default") {
+        qos = QoS::DEFAULT;
+    } else if (str == "high") {
+        qos = QoS::HIGH;
+    } else if (str == "medium") {
+        qos = QoS::MEDIUM;
+    } else if (str == "low") {
+        qos = QoS::LOW;
+    } else if (str == "utility") {
+        qos = QoS::UTILITY;
+    } else if (str == "eco") {
+        qos = QoS::ECO;
+    } else {
+        OPENVINO_THROW("Unsupported QoS level: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Structure to store the effective Quality of Service state reported by the device
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct QoSInfo {
+    /**
+     * @brief Effective QoS level; never QoS::DEFAULT. When the application did not request a level, this is the
+     * level the driver/OS default resolved to.
+     */
+    QoS level;
+    /**
+     * @brief True if the level was requested by the application, false if it is the driver/OS-selected default
+     */
+    bool is_overridden;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const QoSInfo& qos_info) {
+    return os << "{level: " << qos_info.level << " is_overridden: " << qos_info.is_overridden << "}";
+}
+
+inline std::istream& operator>>(std::istream& is, QoSInfo& qos_info) {
+    std::string delim;
+    if (!(is >> delim >> qos_info.level >> delim >> qos_info.is_overridden)) {
+        OPENVINO_THROW("Could not deserialize QoSInfo. Invalid format!");
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Write-only property to request the Quality of Service level of the device queues.
+ * Can be passed to compile_model, Core::set_property and CompiledModel::set_property; setting QoS::DEFAULT reverts to
+ * the driver/OS-selected level. Use ov::qos_info on the compiled model to query the effective level.
+ * This is only supported by NPU.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<QoS, PropertyMutability::WO> qos{"QOS"};
+
+/**
+ * @brief Read-only compiled model property to get the effective Quality of Service level and whether it was requested
+ * by the application. See QoSInfo struct definition for details.
+ * This is only supported by NPU.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<QoSInfo, PropertyMutability::RO> qos_info{"QOS_INFO"};
+
+/**
  * @brief Enum to define possible cache mode
  * @ingroup ov_runtime_cpp_prop_api
  */
