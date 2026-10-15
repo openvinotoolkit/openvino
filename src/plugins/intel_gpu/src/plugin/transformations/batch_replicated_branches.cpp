@@ -186,8 +186,11 @@ bool operation_attributes_equal(const NodePtr& lhs, const NodePtr& rhs) {
 }
 
 bool is_batch_safe_operation(const NodePtr& node, size_t replica_count) {
-    return is_constant(node) || ov::is_type<ov::op::v1::Convolution>(node) ||
-           is_batch_safe_add(node, replica_count) || ov::is_type<ov::op::v0::Relu>(node) ||
+    if (const auto convolution = ov::as_type_ptr<ov::op::v1::Convolution>(node)) {
+        const auto filters = convolution->input_value(1).get_node_shared_ptr();
+        return is_constant(filters) || is_constant_derived_convert(filters);
+    }
+    return is_constant(node) || is_batch_safe_add(node, replica_count) || ov::is_type<ov::op::v0::Relu>(node) ||
            ov::is_type<ov::op::v1::MaxPool>(node) || ov::is_type<ov::op::v8::MaxPool>(node) ||
            ov::is_type<ov::op::v14::MaxPool>(node) || ov::is_type<ov::op::v0::Convert>(node);
 }
