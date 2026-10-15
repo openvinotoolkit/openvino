@@ -29,6 +29,12 @@ void basic_memory_dependencies::run(program& p) {
         for (const auto& it : node->get_dependencies()) {
             add_memory_dependency(node, it.first);
             add_memory_dependency(it.first, node);
+
+            if (auto alias_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*it.first); alias_idx != -1) {
+                auto& alias = it.first->get_dependency(alias_idx);
+                node->add_memory_dependency(alias);
+                alias.add_memory_dependency(*node);
+            }
         }
 
         // LoRA can reuse the memory of the previous node, but not be optimized
@@ -45,7 +51,7 @@ void basic_memory_dependencies::run(program& p) {
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                     // If it is first sum, reuse the buffer
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
+                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*node, fused_op);
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0) {
                         continue;
                     }
