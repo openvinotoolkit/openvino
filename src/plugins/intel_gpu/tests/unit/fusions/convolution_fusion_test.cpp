@@ -103,8 +103,6 @@ struct conv_activation_onednn_test_params {
 class ConvFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p, int min=0, int max=0) {
-        if(engine.get_device_info().supports_immad)
-            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         cldnn::memory::ptr input_prim;
         if (min == max) {
             input_prim = get_mem(get_input_layout(p));
@@ -113,6 +111,8 @@ public:
         }
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
+        if (engine.get_device_info().supports_immad && network_fused.get_config().get_use_onednn())
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -175,6 +175,8 @@ public:
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
+        if (engine.get_device_info().supports_immad && network_fused.get_config().get_use_onednn())
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
