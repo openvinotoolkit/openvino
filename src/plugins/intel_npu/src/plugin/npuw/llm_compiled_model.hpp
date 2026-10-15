@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
@@ -135,6 +136,10 @@ protected:
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
+
+    // Each stage serializes only its own update, so set_property() holds this for the whole
+    // propagation: concurrent calls can't leave the stages with different values
+    std::mutex m_set_property_mutex;
 
     CompiledModelFactory m_compiled_model_factory;
 

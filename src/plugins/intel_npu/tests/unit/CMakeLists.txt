@@ -176,6 +176,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/option_support_cache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/state_tensor_binding_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_set_property_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/flux2_compiled_model_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gather_sub128_matcher_test.cpp
@@ -202,6 +203,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_pipeline.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_behavior_infer_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/preserve_const_matmul_pattern_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/compress_dict_matmul_f32_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/add_position_ids_param_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/right_align_mask_slice_for_conv_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/collapse_unqdq_test.cpp
