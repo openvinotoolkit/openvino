@@ -11,10 +11,16 @@ namespace kernel_selector {
 
 namespace {
 
+// The kernel gets these as JIT constants, and Validate sizes its SLM from them.
 constexpr size_t kWgSize = 256;
-constexpr size_t kSubGroupSize = 16;  // REQD_SUB_GROUP_SIZE of arg_max_min_topk_radix.cl
+constexpr size_t kSubGroupSize = 16;
 constexpr size_t kNumBuckets = 256;
-constexpr size_t kGroupSize = 16;
+constexpr size_t kBucketGroupSize = 16;
+constexpr size_t kTieGroupSize = 16;
+static_assert(kNumBuckets == 256, "The kernel resolves 8-bit digits: NUM_PASSES and its 0xFF masks assume 256 buckets");
+static_assert(kNumBuckets % kBucketGroupSize == 0 && kWgSize % kTieGroupSize == 0,
+              "Bucket and tie groups must evenly divide the buckets and the work-group");
+
 constexpr size_t kTargetChunkSize = 8192;
 constexpr size_t kMinChunkedSortSize = 2 * kTargetChunkSize;
 constexpr size_t kMaxCandidatesShare = 8;
@@ -181,12 +187,12 @@ bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
     }
 
     // PADDED_K (next power of 2 >= topK) must fit in SLM:
-    // sort_keys[PADDED_K] + sort_idxs[PADDED_K] + histogram[256] + bucket/tie counters + scalars
+    // sort_keys[PADDED_K] + sort_idxs[PADDED_K] + histogram[NUM_BUCKETS] + bucket/tie counters + scalars
     size_t padded_k = 1;
     while (padded_k < params.topK) {
         padded_k <<= 1;
     }
-    const size_t counters = kNumBuckets / kGroupSize + kWgSize + kWgSize / kGroupSize;
+    const size_t counters = kNumBuckets / kBucketGroupSize + kWgSize + kWgSize / kTieGroupSize;
     const size_t slm_needed = (padded_k * 2 + kNumBuckets + counters) * sizeof(uint32_t) + 24;
     if (slm_needed > params.engineInfo.maxLocalMemSize) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -239,6 +245,10 @@ JitConstants ArgMaxMinKernelTopKRadix::GetJitConstants(const arg_max_min_params&
     auto jit = ArgMaxMinKernelBase::GetJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("WG_SIZE", kWgSize));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", kSubGroupSize));
+    jit.AddConstant(MakeJitConstant("NUM_BUCKETS", kNumBuckets));
+    jit.AddConstant(MakeJitConstant("BUCKET_GROUP_SIZE", kBucketGroupSize));
+    jit.AddConstant(MakeJitConstant("TIE_GROUP_SIZE", kTieGroupSize));
     jit.AddConstant(MakeJitConstant("SORTABLE_BITS", params.inputs[0].GetDType() == Datatype::F16 ? 16 : 32));
 
     // PADDED_K: next power of 2 >= TOP_K (for bitonic sort)

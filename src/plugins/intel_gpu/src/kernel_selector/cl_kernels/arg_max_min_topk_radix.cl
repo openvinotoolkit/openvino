@@ -58,18 +58,7 @@
     #define INPUT0_FILL_VAL INPUT0_VAL_MAX
 #endif
 
-#ifndef WG_SIZE
-    #define WG_SIZE 256
-#endif
-
-#ifndef PADDED_K
-    #define PADDED_K 512
-#endif
-
-#define NUM_BUCKETS 256
-#define BUCKET_GROUP_SIZE 16
 #define BUCKET_GROUPS (NUM_BUCKETS / BUCKET_GROUP_SIZE)
-#define TIE_GROUP_SIZE 16
 #define TIE_GROUPS (WG_SIZE / TIE_GROUP_SIZE)
 
 // Coarse-to-fine radix select: one 8-bit digit per pass, MSD first.
@@ -180,7 +169,7 @@ inline INPUT0_TYPE FUNC(from_sortable)(uint sortable) {
 }
 #endif
 
-REQD_SUB_GROUP_SIZE(16)
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(arg_max_min_topk_radix)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input
@@ -221,7 +210,7 @@ KERNEL(arg_max_min_topk_radix)(
 
     // ============================================================
     // SLM declarations (all at outermost kernel scope)
-    // Total SLM: 256*4 + 16*4 + 256*4 + 16*4 + 512*4 + 512*4 + ~20 ~= 6KB
+    // Validate() in arg_max_min_kernel_topk_radix.cpp checks their total size; update it with them.
     // ============================================================
     __local uint histogram[NUM_BUCKETS];        // 1KB
     __local uint bucket_group_counts[BUCKET_GROUPS];
