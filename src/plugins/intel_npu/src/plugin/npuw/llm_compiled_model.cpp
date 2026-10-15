@@ -2002,7 +2002,9 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
     // the *source* (top-level) port's rank). A child port whose sequence axis checks out can
     // still underflow those computations if its element type, rank or any other dimension
     // disagrees with the top-level port - reject that mismatch too.
-    auto validate_matches_top_level = [&](const ov::Output<const ov::Node>& child, const char* name) {
+    auto validate_matches_top_level = [&](const ov::Output<const ov::Node>& child,
+                                          const char* name,
+                                          const std::vector<ov::Output<const ov::Node>>& child_ports) {
         const auto& child_rank_dim = child.get_partial_shape().rank();
         OPENVINO_ASSERT(child_rank_dim.is_static(), "NPUW blob: input '", name, "' does not have a static rank.");
         const auto rank = static_cast<size_t>(child_rank_dim.get_length());
@@ -2053,13 +2055,26 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                 // has no `position_ids` input of its own (the LFM-2 case); LLMInferRequest::
                 // infer() then synthesizes a matching rank-2 i64 source tensor at runtime (see
                 // `position_ids = ov::make_tensor(...)` there), batched off `input_ids`. The
-                // rank was already pinned to 2 or 3 above; the synthesized source is always
-                // rank 2 (LFM-2 is never VLM), but element type has no equivalent check yet
-                // with no top-level port to cross-check it against.
+                // The synthesized source is always rank 2 (LFM-2 is never VLM); match its
+                // batch to the compiled input_ids sibling because no top-level position_ids
+                // port exists to establish that relationship.
+                OPENVINO_ASSERT(rank == 2, "NPUW blob: synthesized input 'position_ids' rank (", rank, ") must be 2.");
                 OPENVINO_ASSERT(child.get_element_type() == ov::element::i64,
                                 "NPUW blob: synthesized input 'position_ids' element type (",
                                 child.get_element_type(),
                                 ") must be i64.");
+                auto input_ids = ov::npuw::util::find_port_by_name(child_ports, layer_names::input_ids);
+                OPENVINO_ASSERT(input_ids.has_value(),
+                                "NPUW blob: synthesized input 'position_ids' has no compiled input_ids sibling.");
+                const auto& input_ids_batch = input_ids->get_partial_shape()[0];
+                const auto& position_ids_batch = child.get_partial_shape()[0];
+                OPENVINO_ASSERT(input_ids_batch.is_static() && position_ids_batch.is_static() &&
+                                    input_ids_batch == position_ids_batch,
+                                "NPUW blob: synthesized input 'position_ids' batch dimension (",
+                                position_ids_batch,
+                                ") disagrees with input_ids (",
+                                input_ids_batch,
+                                ").");
             }
             return;  // no corresponding top-level input to cross-check against
         }
@@ -2120,7 +2135,7 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
             if (!port.has_value()) {
                 return;  // optional input not present on this model
             }
-            validate_matches_top_level(*port, name);
+            validate_matches_top_level(*port, name, ports);
             const auto extent = sequence_extent(*port);
             // A declared limit of 0 (itself blob-controlled, e.g. a forged max_prompt_size or
             // max_generation_token_len) would make `required <= extent` pass trivially even for

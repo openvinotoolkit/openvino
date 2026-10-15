@@ -897,6 +897,56 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsSynthesizedPositionIdsElementTyp
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
 
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsSynthesizedPositionIdsRankThreeWithNoTopLevelPort) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 2048u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 2048u);
+
+    auto child_input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2048});
+    child_input_ids->output(0).set_names({"input_ids"});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1, 2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_input_ids),
+                                                     std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{child_input_ids, position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsSynthesizedPositionIdsBatchMismatchWithNoTopLevelPort) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 2048u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 2048u);
+
+    auto child_input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2048});
+    child_input_ids->output(0).set_names({"input_ids"});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2, 2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_input_ids),
+                                                     std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{child_input_ids, position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
 // Negative control for the two tests above: a child honoring the synthesized-position contract
 // (i64, rank 2, non-zero batch) must be accepted even with no top-level port to compare against.
 TEST_F(LLMInferRequestVariantSwitchTest, AcceptsSynthesizedPositionIdsMatchingContractWithNoTopLevelPort) {
@@ -909,11 +959,14 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsSynthesizedPositionIdsMatchingCo
     LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 2048u);
     LLMVariantSwitchTestAccess::set_total_size(compiled, 2048u);
 
+    auto child_input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2048});
+    child_input_ids->output(0).set_names({"input_ids"});
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2048});
     position_ids->output(0).set_names({"position_ids"});
     auto tiny_prefill_model =
-        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(position_ids)},
-                                    ov::ParameterVector{position_ids});
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_input_ids),
+                                                     std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{child_input_ids, position_ids});
     LLMVariantSwitchTestAccess::set_prefill_compiled(
         compiled,
         std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
