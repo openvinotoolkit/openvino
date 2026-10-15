@@ -301,14 +301,20 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
             model->validate_nodes_and_infer_types();
     }
 
-    // Opt-in for torch.compile callers that want the f32-activation form of a bf16/f16 model.
-    bool canonical_float_precision = false;
-    if (model->has_rt_info("canonical_float_precision")) {
-        canonical_float_precision = model->get_rt_info()["canonical_float_precision"].as<bool>();
-        model->get_rt_info().erase("canonical_float_precision");
+    // A model built with a narrow default float type (TorchDecoder::get_default_float_type) is converted to the
+    // standard OpenVINO form: f32 activations, weights kept in their type behind a decompression Convert. The type
+    // stays in rt_info for the caller, e.g. to pick the inference precision.
+    bool narrow_default_float_type = false;
+    if (model->has_rt_info("default_float_type")) {
+        const auto type_name = model->get_rt_info()["default_float_type"].as<std::string>();
+        const auto default_float_type = element::Type(type_name);
+        FRONT_END_GENERAL_CHECK(default_float_type.is_real(),
+                                "default_float_type must be a floating-point type, got ",
+                                type_name);
+        narrow_default_float_type = default_float_type != element::f32;
     }
-    if (canonical_float_precision) {
-        ov::pass::Manager manager("Frontend:Pytorch:normalize::canonical_float_precision");
+    if (narrow_default_float_type) {
+        ov::pass::Manager manager("Frontend:Pytorch:normalize::default_float_type");
         manager.register_pass<ov::frontend::pytorch::pass::CanonicalizeFloatPrecision>();
         // Marks the Converts the canonicalization added.
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
