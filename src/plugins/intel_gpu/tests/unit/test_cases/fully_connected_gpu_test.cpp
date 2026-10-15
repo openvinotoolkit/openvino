@@ -1711,13 +1711,15 @@ public:
     // Q5_K (w = (q - min / scale) * scale). The output must match the exact formula, not a rounded zero point.
     // With oneDNN, the zero point is replaced by zp * scale and oneDNN's static_sbzp mode subtracts it after scaling;
     // without oneDNN, the OpenCL kernels use the zero point as given. input_3d: [1, batch, ifm] input (input_size 3), as
-    // LLM layers have; oneDNN then gets 3D weights with a size-1 batch dimension.
+    // LLM layers have; oneDNN then gets 3D weights with a size-1 batch dimension. shared_zp: a second fully connected
+    // uses the same scale and zero point constants, and each gets its own zp * scale.
     void test_compressed_f16_zp(data_types wei_dt,
                                 bool is_dynamic,
                                 long int batch_num,
                                 bool use_onednn = true,
                                 bool is_caching_test = false,
-                                bool input_3d = false) {
+                                bool input_3d = false,
+                                bool shared_zp = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
         if (use_onednn && !engine.get_device_info().supports_immad)
@@ -1771,6 +1773,11 @@ public:
         auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, input_3d ? 3 : 2, 2);
 
         topology topology(input_layout("input", in_layout), data("weights", weights_mem), data("scale", scale_mem), data("zp", zp_mem), fc_prim);
+        std::vector<primitive_id> fc_ids = {"fc_prim"};
+        if (shared_zp) {
+            topology.add(fully_connected("fc_prim2", input_info("input"), "weights", "", "scale", "zp", data_types::f16, input_3d ? 3 : 2, 2));
+            fc_ids.push_back("fc_prim2");
+        }
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1782,27 +1789,35 @@ public:
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
         auto outputs = network->execute();
-        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.size(), fc_ids.size());
 
-        auto fc_inst = network->get_primitive("fc_prim");
-        auto impl = fc_inst->get_impl();
-        ASSERT_NE(impl, nullptr);
-        ASSERT_EQ(impl->is_onednn(), use_onednn);
-        ASSERT_EQ(fc_inst->get_impl_params()->typed_desc<fully_connected>()->decompression_zero_point_after_scale, use_onednn);
-
-        cldnn::mem_lock<ov::float16> output_ptr(outputs.begin()->second.get_memory(), get_test_stream());
         const auto ref = reference(false);
         const auto ref_rounded_zp = reference(true);
-        float err = 0.0f;
-        float err_rounded_zp = 0.0f;
-        for (size_t i = 0; i < ref.size(); i++) {
-            const float out = static_cast<float>(output_ptr[i]);
-            ASSERT_NEAR(out, ref[i], 0.05f + 0.02f * std::abs(ref[i])) << "index " << i;
-            err += std::abs(out - ref[i]);
-            err_rounded_zp += std::abs(out - ref_rounded_zp[i]);
+        for (const auto& id : fc_ids) {
+            auto fc_inst = network->get_primitive(id);
+            auto impl = fc_inst->get_impl();
+            ASSERT_NE(impl, nullptr);
+            ASSERT_EQ(impl->is_onednn(), use_onednn);
+            ASSERT_EQ(fc_inst->get_impl_params()->typed_desc<fully_connected>()->decompression_zero_point_after_scale, use_onednn);
+            if (use_onednn && !is_caching_test) {
+                // zp * scale is written in the layout the fully connected reads: a constant, with no reorder in between
+                auto& zp_dep = network->get_program()->get_node(id).get_dependency(3);
+                ASSERT_TRUE(zp_dep.is_type<data>()) << id;
+                ASSERT_EQ(zp_dep.get_output_layout().format, format::fbyx) << id;
+            }
+
+            cldnn::mem_lock<ov::float16> output_ptr(outputs.at(id).get_memory(), get_test_stream());
+            float err = 0.0f;
+            float err_rounded_zp = 0.0f;
+            for (size_t i = 0; i < ref.size(); i++) {
+                const float out = static_cast<float>(output_ptr[i]);
+                ASSERT_NEAR(out, ref[i], 0.05f + 0.02f * std::abs(ref[i])) << id << " index " << i;
+                err += std::abs(out - ref[i]);
+                err_rounded_zp += std::abs(out - ref_rounded_zp[i]);
+            }
+            // The output must follow the exact zero point, not a rounded one.
+            ASSERT_LT(err * 4, err_rounded_zp) << id;
         }
-        // The output must follow the exact zero point, not a rounded one.
-        ASSERT_LT(err * 4, err_rounded_zp);
     }
 
     void test_compressed_int4_scale_large_n(bool is_caching_test, bool is_dynamic, long int batch_num, bool is_dyn_quan = false) {
@@ -5923,6 +5938,14 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token_3d) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_f16_zp_batch_3d) {
     this->test_compressed_f16_zp(data_types::u8, false, 64, true, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_shared_zp) {
+    this->test_compressed_f16_zp(data_types::u4, false, 64, true, false, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_shared_zp_ocl) {
+    this->test_compressed_f16_zp(data_types::u4, false, 64, false, false, false, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token_ocl) {

@@ -591,26 +591,32 @@ static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p
     if (ngroups < 2 || weights_rank > 2)
         return;
 
+    // Write zp * scale directly in the fbyx layout that optimize_weights_decompression_parameters would reorder grouped zero
+    // points to ([groups][N] for [N, groups]). This avoids an extra copy of the zero points while the program is built.
+    const auto zp_tensor = zp_layout.get_tensor();
+    const size_t rows = zp_tensor.batch[0], groups = zp_tensor.feature[0];
+    if (rows * groups != zp_layout.count())
+        return;
+    auto out_layout = zp_layout;
+    out_layout.format = format::fbyx;
+
     auto& stream = p.get_stream();
-    auto zp_after_scale_mem = p.get_engine().allocate_memory(zp_layout, false);
-    {
-        auto scale_mem = scale_node.as<data>().get_attached_memory_ptr();
-        auto zp_mem = zp_node.as<data>().get_attached_memory_ptr();
-        const size_t count = zp_layout.count();
-        if (in_dt == data_types::f16) {
-            mem_lock<ov::float16, mem_lock_type::read> scale_lock{scale_mem, stream};
-            mem_lock<ov::float16, mem_lock_type::read> zp_lock{zp_mem, stream};
-            mem_lock<ov::float16, mem_lock_type::write> out_lock{zp_after_scale_mem, stream};
-            for (size_t i = 0; i < count; i++)
-                out_lock[i] = ov::float16(static_cast<float>(zp_lock[i]) * static_cast<float>(scale_lock[i]));
-        } else {
-            mem_lock<ov::bfloat16, mem_lock_type::read> scale_lock{scale_mem, stream};
-            mem_lock<ov::bfloat16, mem_lock_type::read> zp_lock{zp_mem, stream};
-            mem_lock<ov::bfloat16, mem_lock_type::write> out_lock{zp_after_scale_mem, stream};
-            for (size_t i = 0; i < count; i++)
-                out_lock[i] = ov::bfloat16(static_cast<float>(zp_lock[i]) * static_cast<float>(scale_lock[i]));
-        }
-    }
+    auto scale_mem = scale_node.as<data>().get_attached_memory_ptr();
+    auto zp_mem = zp_node.as<data>().get_attached_memory_ptr();
+    auto zp_after_scale_mem = p.get_engine().allocate_memory(out_layout, false);
+    auto compute = [&](auto tag) {
+        using T = decltype(tag);
+        mem_lock<T, mem_lock_type::read> scale_lock{scale_mem, stream};
+        mem_lock<T, mem_lock_type::read> zp_lock{zp_mem, stream};
+        mem_lock<T, mem_lock_type::write> out_lock{zp_after_scale_mem, stream};
+        for (size_t n = 0; n < rows; n++)
+            for (size_t g = 0; g < groups; g++)
+                out_lock[g * rows + n] = T(static_cast<float>(zp_lock[n * groups + g]) * static_cast<float>(scale_lock[n * groups + g]));
+    };
+    if (in_dt == data_types::f16)
+        compute(ov::float16{});
+    else
+        compute(ov::bfloat16{});
 
     auto zp_after_scale_prim = std::make_shared<data>(zp_node.id() + "_after_scale_" + fc_node.id(), zp_after_scale_mem);
     auto& zp_after_scale_node = p.get_or_create(zp_after_scale_prim);
@@ -648,7 +654,8 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
 
         auto groups_idx = dep_rank == 1 ? 0 : weight_rank - 1;
         auto groups_count = dep_pshape[groups_idx].get_length();
-        return groups_count > 1;
+        // use_zero_point_after_scale writes its zero points in fbyx already
+        return groups_count > 1 && dep_layout.format != format::fbyx;
     };
     // possible cases
     // legacy [K, N, 1, 1] => crop padded dims
