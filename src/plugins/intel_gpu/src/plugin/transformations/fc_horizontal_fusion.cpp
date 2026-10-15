@@ -147,6 +147,13 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         const size_t k_axis = transpose_b ? 1 : 0;
         auto weight_dtype = fc_nodes[0]->get_input_element_type(weight_idx);
         auto k_size = fc_nodes[0]->get_input_shape(weight_idx)[k_axis];
+        const bool transpose_b_scale = fc_nodes[0]->get_transpose_b_scale();
+        const bool transpose_b_zp = fc_nodes[0]->get_transpose_b_zp();
+        // Scale/ZP are [N, groups] when transposed, [groups, N] otherwise.
+        auto get_param_n_axis = [](const ov::Output<ov::Node>& output, bool transposed) -> int64_t {
+            const auto rank = static_cast<int64_t>(output.get_partial_shape().size());
+            return transposed ? 0 : std::max<int64_t>(0, rank - 1);
+        };
         std::vector<int64_t> orig_n_sizes;
         // merge weights, scale, zp
         for (auto fc : fc_nodes) {
@@ -156,7 +163,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             if (weight_dtype != fc->get_input_element_type(weight_idx)) {
                 return false;
             }
-            if (transpose_b != fc->get_transpose_b()) {
+            if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() ||
+                transpose_b_zp != fc->get_transpose_b_zp()) {
                 return false;
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
@@ -183,7 +191,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             return false;
         }
 
-        auto fused_scale = concat_and_fold(scale_nodes, 0, "_fused_scale");
+        auto fused_scale = concat_and_fold(scale_nodes, get_param_n_axis(scale_nodes[0], transpose_b_scale), "_fused_scale");
         if (!fused_scale) {
             return false;
         }
@@ -222,7 +230,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                     }
                 }
             } else {
-                fused_zps = concat_and_fold(zp_nodes, 0, "_fused_zps");
+                fused_zps = concat_and_fold(zp_nodes, get_param_n_axis(zp_nodes[0], transpose_b_zp), "_fused_zps");
                 if (!fused_zps) {
                     return false;
                 }
@@ -313,10 +321,18 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                                                                     fused_scale,
                                                                     fused_zps,
                                                                     fc_nodes[0]->get_output_type(),
-                                                                    transpose_b);
+                                                                    transpose_b,
+                                                                    fc_nodes[0]->get_transpose_b_scale(),
+                                                                    fc_nodes[0]->get_transpose_b_zp());
         } else {
-            new_fc =
-                std::make_shared<op::FullyConnectedCompressed>(input_node, fused_weight, fused_bias, fused_scale, fc_nodes[0]->get_output_type(), transpose_b);
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+                                                                    fused_weight,
+                                                                    fused_bias,
+                                                                    fused_scale,
+                                                                    fc_nodes[0]->get_output_type(),
+                                                                    transpose_b,
+                                                                    fc_nodes[0]->get_transpose_b_scale(),
+                                                                    fc_nodes[0]->get_transpose_b_zp());
         }
 
         auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(fc_nodes.size()) + "FCs";
