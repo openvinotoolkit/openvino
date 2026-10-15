@@ -99,6 +99,11 @@ rewrites the `double` division in `ov::Dimension` shape arithmetic as a
 multiplication by the reciprocal, which rounds some exact quotients down (e.g.
 49 / 49 → 0). Reshapes with a `-1` then fail at run time for about one prompt
 length in five ("Non-'-1' output dimensions do not evenly divide the input dimensions").
+Also pass `-DENABLE_XGRAMMAR=OFF` (GenAI's xgrammar dependency does not link with
+`icpx`; it only serves structured output), and source the oneAPI environment
+before running, for the compiler runtime libraries. On an Arc Pro B70 the icx
+build generates the same tokens as GCC, with a ~10% shorter first token and the
+same decode speed.
 
 ```bash
 source $WORK/genai.sh
@@ -124,7 +129,7 @@ already have `bonsai27b-u2/` skip to step 4.
 
 ```bash
 cd $WORK
-hf download prism-ml/Ternary-Bonsai-27B-unpacked --local-dir bonsai27b-hf      # 51 GB, 12 safetensors shards
+./venv/bin/hf download prism-ml/Ternary-Bonsai-27B-unpacked --local-dir bonsai27b-hf      # 51 GB, 12 safetensors shards
 
 # fp16 export; the 27B is a VLM, so the task is image-text-to-text and it produces several models
 ./venv/bin/optimum-cli export openvino --model bonsai27b-hf \
@@ -147,7 +152,7 @@ Copy those (step 4) before deleting the fp16 language model
 
 ```bash
 cd $WORK
-hf download prism-ml/Ternary-Bonsai-2-27B-gguf Ternary-Bonsai-2-27B-PQ2_0.gguf --local-dir bonsai2-gguf   # 7.2 GB
+./venv/bin/hf download prism-ml/Ternary-Bonsai-2-27B-gguf Ternary-Bonsai-2-27B-PQ2_0.gguf --local-dir bonsai2-gguf   # 7.2 GB
 
 ./venv/bin/python $TOOLS/bonsai2_gguf_to_ir.py \
     --gguf           bonsai2-gguf/Ternary-Bonsai-2-27B-PQ2_0.gguf \
@@ -269,6 +274,7 @@ accepts and how many rotations were fused ("fused 257 input rotations"), and
 
 | Symptom | Cause / fix |
 |---|---|
+| `Segmentation fault` when Python exits, after all results are printed | a teardown race outside this path: it also occurs with upstream OpenVINO master and with TernOCL disabled; the results are complete |
 | GenAI build: `CL_EXTERNAL_MEMORY_HANDLE_D3D11_TEXTURE_KHR` was not declared | system OpenCL C++ headers mixed with the bundled ones: configure with `-DENABLE_SYSTEM_OPENCL=OFF` |
 | `Check '!chat_template.empty()' failed` (`llm_bench --apply_chat_template`) | the checkpoint has no chat template; drop the option or add `chat_template.jinja` before converting the tokenizer |
 | `TernOCL kernel ... not found` at configure | the submodule is not checked out: `git submodule update --init src/plugins/intel_gpu/thirdparty/TernOCL` (or pass `-DTERNOCL_ROOT=<dir>`) |
