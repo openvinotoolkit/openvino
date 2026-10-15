@@ -247,7 +247,7 @@ def test_accuracy_conformance(model_id, precision, device):
     )
 
     set_seed(42)
-    _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())
+    _, all_metrics = evaluator.score(target_model)
     metric = all_metrics[METRIC_OF_INTEREST].values[0]
     evaluator.dump_predictions(os.path.join(tmp_dir, f"{get_model_path(model_id, precision)}_{actual_device}_target.csv"))
 
