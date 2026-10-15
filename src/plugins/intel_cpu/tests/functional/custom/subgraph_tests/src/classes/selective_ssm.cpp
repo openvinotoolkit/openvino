@@ -10,15 +10,12 @@
 #include <sstream>
 #include <vector>
 
-#if defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/cpu_isa_traits.hpp>
-#endif
-
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/ssm_reference.hpp"
 
 namespace {
@@ -170,11 +167,8 @@ std::vector<ov::Tensor> SelectiveSSM::calculate_refs() {
     }
     if (precision == ov::element::bf16) {
         // The portable executor stores BF16 outputs through the scalar constructor; the JIT uses native RNE.
-        bool native_bf16 = false;
-#if defined(OPENVINO_ARCH_X86_64)
-        using namespace dnnl::impl::cpu::x64;
-        native_bf16 = (mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2)) && std::get<5>(GetParam()) <= 4096;
-#endif
+        const auto native_bf16 =
+            (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2()) && std::get<5>(GetParam()) <= 4096;
         return calculate_selective_ssm_refs<ov::bfloat16>(inputs, function, native_bf16);
     }
     return calculate_selective_ssm_refs<float>(inputs, function);

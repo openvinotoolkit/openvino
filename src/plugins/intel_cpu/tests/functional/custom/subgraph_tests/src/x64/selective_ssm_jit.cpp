@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -29,6 +28,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "utils/precision_support.h"
 
@@ -136,14 +136,13 @@ void expect_selected_executor(const ov::CompiledModel& compiled_model,
     const auto runtime_model = compiled_model.get_runtime_model();
 
     const auto expected_layer = paged ? std::string{"PagedSelectiveSSM"} : std::string{"SelectiveSSM"};
-    // Match the executor's effective ISA, including oneDNN's runtime ISA limit.
-    using namespace dnnl::impl::cpu::x64;
-    const bool native_precision = precision == ov::element::f32   ? mayiuse(avx2)
-                                  : precision == ov::element::f16 ? mayiuse(avx512_core_fp16) || mayiuse(avx2_vnni_2)
-                                                                  : mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2);
+    const bool native_precision = precision == ov::element::f32 ? ov::with_cpu_x86_avx2()
+                                  : precision == ov::element::f16
+                                      ? ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx2_vnni_2()
+                                      : ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2();
     const bool native = native_precision && jit_state_size;
     const auto expected_implementation =
-        std::string{mayiuse(avx512_core) ? "jit_avx512_" : "jit_avx2_"} + precision.get_type_name();
+        std::string{ov::with_cpu_x86_avx512_core() ? "jit_avx512_" : "jit_avx2_"} + precision.get_type_name();
     size_t matching_nodes = 0;
     for (const auto& node : runtime_model->get_ops()) {
         const auto& rt_info = node->get_rt_info();
@@ -380,8 +379,7 @@ TEST(PagedSelectiveSSMJitIntegrationTest, EmptySubsequenceListPreservesCache) {
 }
 
 TEST(SelectiveSSMJitTailTest, InactiveLanesDoNotTurnInfiniteOutputIntoNaN) {
-    using namespace dnnl::impl::cpu::x64;
-    if (!mayiuse(avx2)) {
+    if (!ov::with_cpu_x86_avx2()) {
         GTEST_SKIP() << "Requires the SelectiveSSM JIT executor";
     }
     ov::Core core;

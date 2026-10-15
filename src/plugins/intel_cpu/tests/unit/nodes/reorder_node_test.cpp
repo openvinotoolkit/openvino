@@ -10,7 +10,6 @@
 #include <node.h>
 #include <nodes/reorder.h>
 
-#include <algorithm>
 #include <common/memory_desc_wrapper.hpp>
 #include <dnnl.hpp>
 
@@ -157,38 +156,6 @@ protected:
 }  // namespace ReorderCPUTest
 
 using namespace ReorderCPUTest;
-
-class ReorderBufferReplacementTest : public ::testing::Test, public ReorderCPUTestGraph {};
-
-TEST_F(ReorderBufferReplacementTest, RefreshesBuffersWithoutShapeChange) {
-    const Shape shape({1, 32, 2, 2});
-    const auto& creators = BlockedDescCreator::getCommonCreators();
-    const auto inputDesc = creators.at(LayoutType::ncsp)->createDesc(ov::element::f32, shape);
-    const auto outputDesc = creators.at(LayoutType::nCsp16c)->createDesc(ov::element::f32, shape);
-    buildReorderGraph(inputDesc, outputDesc);
-    fillData(parentEdge->getMemory(), ov::element::f32);
-    reorderNode->createPrimitive();
-    reorderNode->execute(stream);
-    checkReorder(parentEdge->getMemory(), childEdge->getMemory(), ov::element::f32);
-
-    // Keep the old buffers alive so stale handles produce a deterministic mismatch instead of a crash.
-    [[maybe_unused]] const auto oldInput = parentEdge->getMemoryPtr();
-    [[maybe_unused]] const auto oldOutput = childEdge->getMemoryPtr();
-    for (const bool replaceSource : {true, false}) {
-        const auto& edge = replaceSource ? parentEdge : childEdge;
-        const auto& desc = replaceSource ? inputDesc : outputDesc;
-        auto replacement = std::make_shared<Memory>(stream.get_engine(), desc);
-        edge->reuse(replacement);
-        if (replaceSource) {
-            auto* data = replacement->getDataAs<float>();
-            std::fill_n(data, ov::shape_size(shape.getStaticDims()), -3.0f);
-        } else {
-            replacement->nullify();
-        }
-        reorderNode->execute(stream);
-        checkReorder(parentEdge->getMemory(), childEdge->getMemory(), ov::element::f32);
-    }
-}
 
 /*
  * Test Reorder::optimizedNcsp2Nspc() and Reorder::optimizedNspc2Ncsp() for

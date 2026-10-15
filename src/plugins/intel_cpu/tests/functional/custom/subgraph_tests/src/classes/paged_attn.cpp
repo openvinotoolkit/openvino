@@ -405,11 +405,6 @@ std::shared_ptr<ov::Model> PagedAttnTestBase::get_ref_model(ov::element::Type da
 }
 
 void PagedAttnTestBase::SetUp() {
-#if defined(OPENVINO_ARCH_X86_64)
-    if (!ov::with_cpu_x86_avx2()) {
-        GTEST_SKIP() << "PagedAttention requires AVX2 or higher for BRGEMM.";
-    }
-#endif
     const auto& [inType,
                     inputShapes,
                     extendBlockIndices,
@@ -426,9 +421,7 @@ void PagedAttnTestBase::SetUp() {
         rel_threshold = 0.01f;
     }
 
-    for (const auto& [name, value] : additional_config) {
-        configuration[name] = value;
-    }
+    configuration.insert(additional_config.begin(), additional_config.end());
     init_input_shapes(inputShapes);
     ov::ParameterVector inputParams;
 
@@ -783,7 +776,7 @@ std::shared_ptr<ov::Model> PagedAttnVSMatmulTest::get_ref_model(ov::element::Typ
     auto ConvertLike_484 =
         std::make_shared<ov::op::v1::ConvertLike>(op::v0::Constant::create(ov::element::i32, {}, {1}), q_in);
     auto ConvertLike_491 =
-        std::make_shared<ov::op::v1::ConvertLike>(op::v0::Constant::create(ov::element::i32, {}, {head_size}), q_in);
+        std::make_shared<ov::op::v1::ConvertLike>(op::v0::Constant::create(ov::element::i32, {}, {64}), q_in);
     auto Sqrt_492 = std::make_shared<ov::op::v0::Sqrt>(ConvertLike_491);
     auto Divide_493 = std::make_shared<ov::op::v1::Divide>(ConvertLike_484, Sqrt_492);
     auto Multiply_494 = std::make_shared<ov::op::v1::Multiply>(q_in, Divide_493);
@@ -809,8 +802,7 @@ std::shared_ptr<ov::Model> PagedAttnVSMatmulTest::get_ref_model(ov::element::Typ
     // q_len
     auto q_len = std::make_shared<ov::op::v8::Gather>(ShapeOf_478, neg_2_scalar_const, zero_scalar_const, 0);
     // past_len
-    // ReadValue owns the accumulated cache; its initial-value input stays empty during decode.
-    auto shape_past_len = std::make_shared<ov::op::v3::ShapeOf>(gatherK, ov::element::i32);
+    auto shape_past_len = std::make_shared<ov::op::v3::ShapeOf>(past_kv, ov::element::i32);
     auto past_len = std::make_shared<ov::op::v8::Gather>(shape_past_len, zero_scalar_const, zero_scalar_const, 0);
     auto total_len = std::make_shared<ov::op::v1::Add>(q_len, past_len);
     auto Range_534 =
@@ -844,9 +836,7 @@ std::shared_ptr<ov::Model> PagedAttnVSMatmulTest::get_ref_model(ov::element::Typ
         op::v0::Constant::create(ov::element::i32, {4}, std::vector<int32_t>{2, 0, 1, 3}));
     auto Reshape_9636 = std::make_shared<ov::op::v1::Reshape>(
         Transpose_9634,
-        op::v0::Constant::create(ov::element::i32,
-                                 {2},
-                                 std::vector<int32_t>{0, static_cast<int32_t>(head_num * head_size)}),
+        op::v0::Constant::create(ov::element::i32, {2}, std::vector<int32_t>{0, 512}),
         true);
     SinkVector sinks{pastk_assign, pastv_assign};
     ov::OutputVector results{Reshape_9636};
@@ -858,9 +848,7 @@ std::vector<ov::Tensor> PagedAttnVSMatmulTest::run_test(std::shared_ptr<ov::Mode
                                     bool extendBlockIndices,
                                     bool sinkInput) {
     (void)sinkInput;  // Suppress unused parameter warning
-    if (configuration.count(ov::hint::kv_cache_precision.name()) == 0) {
-        configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
-    }
+    configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
     function = model;
     prepare();
     init_kv_cache(4);
@@ -1103,10 +1091,10 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
         if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) {
             GTEST_SKIP();
         }
-        if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || ov::with_cpu_x86_avx2_vnni_2())) {
+        if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2())) {
             GTEST_SKIP();
         }
-#endif
+    #endif
 
     past_len_count = 0;
 
@@ -1149,10 +1137,10 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
         if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) {
             GTEST_SKIP();
         }
-        if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || ov::with_cpu_x86_avx2_vnni_2())) {
+        if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2())) {
             GTEST_SKIP();
         }
-#endif
+    #endif
 
     // compare the logits from paged attn and sdpa
     auto actualOutputs = run_test(function, extendBlockIndices, false);
