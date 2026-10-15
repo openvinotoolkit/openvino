@@ -36,6 +36,9 @@ from conftest import MODEL_ID, select_cpu_platform
 PROMPT = "The capital of France is "
 MAX_NEW_TOKENS = 32
 SKIP_WARMUP_TOKENS = 5
+# One 2048-token TinyLlama sequence needs ~88 MiB of f32 KV. A fixed pool also skips vLLM's
+# check that 92% of node memory is free, so the test fits machines down to 16 GB.
+KV_CACHE_BYTES = 512 << 20
 
 
 def _worker_kv_update_flags(worker):
@@ -102,8 +105,7 @@ def test_openvino_matches_eager_greedy(monkeypatch):
         enforce_eager=True,
         max_model_len=2048,
         distributed_executor_backend="uni",
-        # Same 4 GiB pool the plugin gives OV runs; vLLM's default needs 92% of node memory free.
-        kv_cache_memory_bytes=4 << 30,
+        kv_cache_memory_bytes=KV_CACHE_BYTES,
     )
     try:
         eager_text = _run(eager_llm, PROMPT, MAX_NEW_TOKENS, SKIP_WARMUP_TOKENS)
@@ -117,6 +119,7 @@ def test_openvino_matches_eager_greedy(monkeypatch):
         max_model_len=2048,
         distributed_executor_backend="uni",
         block_size=32,
+        kv_cache_memory_bytes=KV_CACHE_BYTES,
         compilation_config={
             "mode": "STOCK_TORCH_COMPILE",
             "backend": "openvino",
