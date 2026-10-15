@@ -1969,4 +1969,37 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsEmbeddingAttentionMaskShorterTha
     EXPECT_THROW(request->infer(), ov::Exception);
 }
 
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsWholePrefillTokenTypeIdsLargerThanCapacity) {
+    VariantSwitchFactory factory;
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov::test::npuw::build_token_type_ids_test_model(),
+                                                                 m_plugin,
+                                                                 ov::AnyMap{{"NPUW_LLM_PREFILL_HINT", "STATIC"}},
+                                                                 factory.make_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    const auto& inputs = request->get_inputs();
+    auto embeds_port = ov::npuw::util::find_port_by_name(inputs, "inputs_embeds").value();
+    auto attention_mask_port = ov::npuw::util::find_port_by_name(inputs, "attention_mask").value();
+    auto position_ids_port = ov::npuw::util::find_port_by_name(inputs, "position_ids").value();
+    auto token_type_ids_port = ov::npuw::util::find_port_by_name(inputs, "token_type_ids").value();
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    ov::Tensor inputs_embeds(ov::element::f32, ov::Shape{1, 2, 64});
+    std::memset(inputs_embeds.data(), 0, inputs_embeds.get_byte_size());
+    ov::Tensor attention_mask(ov::element::i64, ov::Shape{1, 2});
+    std::fill_n(attention_mask.data<int64_t>(), attention_mask.get_size(), 1);
+    ov::Tensor position_ids(ov::element::i64, ov::Shape{1, 2});
+    std::iota(position_ids.data<int64_t>(), position_ids.data<int64_t>() + position_ids.get_size(), 0);
+    ov::Tensor token_type_ids(ov::element::i64, ov::Shape{1, static_cast<size_t>(max_prompt_size) + 1u});
+    std::fill_n(token_type_ids.data<int64_t>(), token_type_ids.get_size(), 0);
+    request->set_tensor(embeds_port, ov::get_tensor_impl(inputs_embeds));
+    request->set_tensor(attention_mask_port, ov::get_tensor_impl(attention_mask));
+    request->set_tensor(position_ids_port, ov::get_tensor_impl(position_ids));
+    request->set_tensor(token_type_ids_port, ov::get_tensor_impl(token_type_ids));
+
+    EXPECT_THROW(request->infer(), ov::Exception);
+}
+
 }  // namespace

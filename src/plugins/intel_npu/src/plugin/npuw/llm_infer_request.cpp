@@ -1299,6 +1299,12 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
             auto padded_token_type_ids =
                 m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
 
+            OPENVINO_ASSERT(token_type_ids->get_byte_size() <= padded_token_type_ids->get_byte_size(),
+                            "Input token_type_ids (",
+                            token_type_ids->get_byte_size(),
+                            " bytes) do not fit the compiled prefill port's capacity (",
+                            padded_token_type_ids->get_byte_size(),
+                            " bytes).");
             std::fill_n(reinterpret_cast<uint8_t*>(padded_token_type_ids->data()), token_type_ids->get_byte_size(), 0);
             util::copy_to_right(token_type_ids, padded_token_type_ids);
         }
