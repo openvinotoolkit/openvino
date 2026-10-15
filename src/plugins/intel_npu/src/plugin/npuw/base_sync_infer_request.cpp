@@ -35,8 +35,9 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
 
     // Cache device check and strided ports for hot-path lookups in set_tensor
     m_is_npu_global_mem = (m_npuw_model->global_mem_device() == "NPU");
-    auto it = m_npuw_model->m_non_npuw_props.find(ov::intel_npu::enable_strides_for.name());
-    if (it != m_npuw_model->m_non_npuw_props.end()) {
+    const auto non_npuw_props = m_npuw_model->non_npuw_props();
+    auto it = non_npuw_props.find(ov::intel_npu::enable_strides_for.name());
+    if (it != non_npuw_props.end()) {
         const auto& strides_csv = it->second.as<std::string>();
         std::istringstream ss(strides_csv);
         std::string token;
