@@ -30,6 +30,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "transformations/init_node_info.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/decompression.hpp"
 
@@ -439,6 +441,33 @@ TEST(BatchReplicatedBranches, IsIdempotentAfterCameraBatching) {
             EXPECT_EQ(second_ops[i]->input_value(j).get_node_shared_ptr().get(), first_inputs[i][j].first);
             EXPECT_EQ(second_ops[i]->input_value(j).get_index(), first_inputs[i][j].second);
         }
+    }
+}
+
+TEST(BatchReplicatedBranches, PreservesReplicaNamesForQueryModel) {
+    auto model = make_camera_model({0, 1, 2, 3});
+    std::vector<std::string> convolution_names;
+    for (const auto& node : model->get_ops()) {
+        if (ov::is_type<ov::op::v1::Convolution>(node)) {
+            convolution_names.push_back(node->get_friendly_name());
+        }
+    }
+    ASSERT_EQ(convolution_names.size(), 4u);
+
+    const auto supported_nodes = ov::get_supported_nodes(
+        model,
+        [](std::shared_ptr<ov::Model>& transformed_model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::InitNodeInfo>();
+            manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
+            manager.run_passes(transformed_model);
+        },
+        [](const std::shared_ptr<ov::Node>& node) {
+            return !ov::is_type<ov::op::v1::Convolution>(node);
+        });
+
+    for (const auto& name : convolution_names) {
+        EXPECT_EQ(supported_nodes.count(name), 0u) << "Replica convolution was reported as supported: " << name;
     }
 }
 

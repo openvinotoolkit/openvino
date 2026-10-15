@@ -578,6 +578,27 @@ void copy_node_metadata(const NodePtr& original, const NodePtr& replacement) {
     }
 }
 
+void merge_fused_names(const NodePtr& source,
+                       const std::vector<NodePtr>& corresponding_nodes,
+                       const NodePtr& replacement) {
+    auto& rt_info = replacement->get_rt_info();
+    auto fused_names_it = rt_info.find(ov::FusedNames::get_type_info_static());
+    if (fused_names_it == rt_info.end()) {
+        fused_names_it = rt_info.emplace(ov::FusedNames::get_type_info_static(), ov::FusedNames{}).first;
+    }
+    auto& fused_names = fused_names_it->second.as<ov::FusedNames>();
+    const auto merge_node_names = [&fused_names](const NodePtr& node) {
+        fused_names.fuseWith(ov::FusedNames(node->get_friendly_name()));
+        for (const auto& name : ov::getFusedNamesVector(node)) {
+            fused_names.fuseWith(ov::FusedNames(name));
+        }
+    };
+    merge_node_names(source);
+    for (const auto& node : corresponding_nodes) {
+        merge_node_names(node);
+    }
+}
+
 bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output_concat) {
     if (!output_concat || output_concat->get_output_size() == 0 || !is_static_node(output_concat)) {
         return false;
@@ -620,6 +641,7 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
         return false;
     }
 
+    std::unordered_map<const ov::Node*, std::vector<NodePtr>> corresponding_nodes;
     for (size_t i = 1; i < replica_count; ++i) {
         NodeMap reference_to_branch;
         NodeMap branch_to_reference;
@@ -631,6 +653,9 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
                                      reference_to_branch,
                                      branch_to_reference)) {
             return false;
+        }
+        for (const auto& [reference_node, corresponding_node] : reference_to_branch) {
+            corresponding_nodes[reference_node].push_back(corresponding_node);
         }
     }
 
@@ -649,6 +674,12 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
     auto batched_camera = std::make_shared<ov::op::v0::Concat>(camera_inputs, 0);
     batched_camera->set_friendly_name(output_concat->get_friendly_name() + "/camera_batch");
     ov::copy_runtime_info({output_concat, reference.gather}, batched_camera);
+    std::vector<NodePtr> corresponding_gathers;
+    corresponding_gathers.reserve(replica_count - 1);
+    for (size_t i = 1; i < replica_count; ++i) {
+        corresponding_gathers.push_back(branches[i].gather);
+    }
+    merge_fused_names(reference.gather, corresponding_gathers, batched_camera);
 
     NodeMap cloned_nodes;
     std::function<NodePtr(const NodePtr&)> clone_node = [&](const NodePtr& original) -> NodePtr {
@@ -671,6 +702,10 @@ bool transform_camera_branches(const std::shared_ptr<ov::op::v0::Concat>& output
         }
         auto clone = original->clone_with_new_inputs(new_inputs);
         copy_node_metadata(original, clone);
+        if (const auto corresponding = corresponding_nodes.find(original.get());
+            corresponding != corresponding_nodes.end()) {
+            merge_fused_names(original, corresponding->second, clone);
+        }
         cloned_nodes.emplace(original.get(), clone);
         return clone;
     };
