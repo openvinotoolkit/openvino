@@ -76,13 +76,28 @@ INSTANTIATE_TEST_SUITE_P(
 // above the tolerance, while dropping or mis-weighting one of the np partitions moves it by ~1/np.
 // Scaling the fixture's random data up instead peaks the softmax, making the result depend on which
 // quantized key wins the argmax - not something the u4 GPU path and the reference must agree on.
-static void craft(PagedAttentionManager& pam, const paged_attention_test_params& p) {
+// With uniform_scores = false the keys carry a decreasing ramp instead, so the scores are no longer
+// constant: every dim of key t is k(t) = 0.25 - 0.5*t/(total-1) and Q stays 0.5, which makes the score of
+// a key sqrt(k_head_size)/2*k(t), a ramp over [+1.4, -1.4] whose max is the first key.
+static void craft(PagedAttentionManager& pam, const paged_attention_test_params& p, bool uniform_scores = true) {
     for (size_t seq = 0; seq < pam.subsequence_descs.size(); ++seq) {
         const int total = pam.subsequence_descs[seq].past_len + pam.subsequence_descs[seq].num_tokens;
         for (auto& x : pam.query_data[seq])
             x = static_cast<ov::float16>(0.5f);
-        for (auto& x : pam.key_data[seq])
-            x = static_cast<ov::float16>(0.5f);
+        if (uniform_scores) {
+            for (auto& x : pam.key_data[seq])
+                x = static_cast<ov::float16>(0.5f);
+        } else {
+            // key_data is [token][kv_head][k_head_size], so one value per token gives that key one score.
+            const float denom = static_cast<float>(std::max(1, total - 1));
+            for (int t = 0; t < total; ++t) {
+                const ov::float16 k = static_cast<ov::float16>(0.25f - 0.5f * static_cast<float>(t) / denom);
+                const size_t key_off = static_cast<size_t>(t) * p.num_kv_heads * p.k_head_size;
+                std::fill_n(pam.key_data[seq].begin() + key_off,
+                            static_cast<size_t>(p.num_kv_heads) * p.k_head_size,
+                            k);
+            }
+        }
         for (int t = 0; t < total; ++t) {
             const ov::float16 v =
                 static_cast<ov::float16>(0.2f + 2.f * static_cast<float>(t) / static_cast<float>(total));
@@ -329,6 +344,103 @@ TEST_P(paged_attention_splitk_mixed_micro_test, deterministic_across_runs) {
     constexpr size_t num_runs = 4;
     const auto& intermediates = pa_inst->get_intermediates_memories();
     check_bitwise_stable(p, result, num_runs, {intermediates[stats_idx], intermediates[tmp_out_idx]});
+}
+
+// max - min of the scaled scores of one query token over all of its keys, on the host, using the same
+// 1/sqrt(k_head_size) scale as the operator. Used to show that a case really has partition-dependent
+// logits: the constant Q/K of craft() give a span of 0, for which the exp2(m_p - m_max) reweighting across
+// partitions is a no-op whatever the partition size. The ramp of craft(uniform_scores = false) is monotone,
+// so a span >= 1 also means the partition maxima cannot all be equal.
+static float scores_span(const PagedAttentionManager& pam,
+                         const paged_attention_test_params& p,
+                         size_t seq,
+                         size_t tok,
+                         int head = 0) {
+    const auto& query = pam.query_data[seq];
+    const auto& key = pam.key_data[seq];
+    const int num_group = p.num_heads / p.num_kv_heads;
+    const int kv_head = head / num_group;
+    const float scale = 1.f / std::sqrt(static_cast<float>(p.k_head_size));
+    const int keys = pam.subsequence_descs[seq].past_len + static_cast<int>(tok) + 1;
+
+    auto score = [&](int t) {
+        float s = 0.f;
+        const size_t q_off = (tok * p.num_heads + head) * p.k_head_size;
+        const size_t k_off = (static_cast<size_t>(t) * p.num_kv_heads + kv_head) * p.k_head_size;
+        for (int d = 0; d < p.k_head_size; ++d)
+            s += static_cast<float>(query[q_off + d]) * static_cast<float>(key[k_off + d]);
+        return s * scale;
+    };
+
+    float hi = score(0);
+    float lo = hi;
+    for (int t = 1; t < keys; ++t) {
+        const float s = score(t);
+        hi = std::max(hi, s);
+        lo = std::min(lo, s);
+    }
+    return hi - lo;
+}
+
+// The reference check above cannot see the cross-partition softmax reweighting: craft() makes every score
+// equal, so all partition maxima are equal and exp2(m_p - m_max) is 1 whether or not the maxima are applied.
+// Same shapes, decreasing key ramp, uncompressed f16 (the u4 path quantizes the keys, so GPU and reference
+// need not agree on which key wins a peaked softmax), so the reweighting decides the result here.
+TEST_P(paged_attention_splitk_mixed_micro_test, nonuniform_scores_match_cpu_reference) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+    // Uncompressed only: a quantized cache rewrites the keys, so GPU and reference need not agree on which
+    // key wins a peaked softmax - the u4 split-K case stays on the uniform scores of craft().
+    if (p.kv_cache_compression)
+        GTEST_SKIP() << "Non-uniform logits need an uncompressed cache to be comparable to the reference";
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+    craft(pam, p, false /* uniform_scores */);
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    RecordProperty("executed_kernels", entries);
+    ASSERT_TRUE(has_kernel(entries, "sdpa_micro", "generate"))
+        << "Regression must exercise the MIXED micro SDPA kernel: " << entries;
+    ASSERT_EQ(has_kernel(entries, "paged_attention_opt", "micro_splitk_finalization"), splitk_expected(p))
+        << "split-K finalization kernel vs gate (max_q = " << max_q_len(p)
+        << ", max_context_len = " << max_context_len(p) << "): " << entries;
+
+    const auto tokens = static_cast<size_t>(
+        pa_inst->get_impl_params()->get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::QUERY)
+            .get_partial_shape()[0].get_length());
+    check_splitk_buffers(pa_inst->get_intermediates_memories(), tokens, p);
+
+    // Set on the fixture member: compare() reads that one.
+    this->tolerance = 1e-2f;
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+
+    // Guard against a vacuous comparison: an O(1) signal, and partition-dependent logits.
+    auto max_abs = 0.f;
+    for (const auto& v : std::get<0>(reference))
+        max_abs = std::max(max_abs, std::fabs(static_cast<float>(v)));
+    ASSERT_GE(max_abs, 10.f * this->tolerance)
+        << "output signal (" << max_abs << ") is not clearly above the tolerance (" << this->tolerance << ")";
+    for (size_t seq = 0; seq < pam.subsequence_descs.size(); ++seq) {
+        if (pam.subsequence_descs[seq].past_len == 0)
+            continue;
+        ASSERT_GE(scores_span(pam, p, seq, 0), 1.f)
+            << "scores of subsequence " << seq << " are too uniform to cover the split-K reweighting";
+    }
+
+    const auto& intermediates = pa_inst->get_intermediates_memories();
+    poison_with_nan(intermediates[stats_idx]);
+    poison_with_nan(intermediates[tmp_out_idx]);
+    poison_with_nan(result.outputs.at("output_data").get_memory());
+    result.outputs = result.network->execute();
+
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
 }
 
 INSTANTIATE_TEST_SUITE_P(
