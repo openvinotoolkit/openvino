@@ -37,6 +37,11 @@ void dump_input_list(const std::string& base_name, const std::vector<std::string
 
 void dump_output_list(const std::string& base_name, const std::vector<std::string>& base_output_names);
 
+void dump_compile_options(const std::string& name,
+                          const std::string& device,
+                          const ov::AnyMap& config,
+                          const std::string& dump_dir);
+
 void dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& device, const char* extra);
 }  // namespace npuw
 }  // namespace ov
