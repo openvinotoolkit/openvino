@@ -3014,6 +3014,42 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast_unknown_data_rank) {
+    auto model = convert_model("prelu_1d_last_dim_bcast_unknown_data_rank.onnx");
+    ASSERT_TRUE(model->get_parameters().at(0)->get_partial_shape().rank().is_dynamic());
+
+    // Specialize only after conversion so the translator sees the unknown rank, but plugins compile static ranks.
+    model->reshape({{"X", PartialShape{1, 3, 2, 3}}});
+    ASSERT_TRUE(model->get_parameters().at(0)->get_partial_shape().rank().is_static());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2, 3},
+                               {-1., -2., -3., 4., -5., 6., -7., -8., -9., -1., 2., -3., -4., -5., -6., 7., -8., -9.});
+    test_case.add_input<float>(Shape{3}, {1., 2., 3.});
+    // The channel and trailing dimensions are both 3, but the slope must follow the trailing dimension.
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 3},
+        {-1., -4., -9., 4., -10., 6., -7., -16., -27., -1., 2., -9., -4., -10., -18., 7., -16., -27.});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast_unknown_slope_rank) {
+    auto model = convert_model("prelu_1d_last_dim_bcast_unknown_slope_rank.onnx");
+    ASSERT_TRUE(model->get_parameters().at(1)->get_partial_shape().rank().is_dynamic());
+
+    model->reshape({{"SLOPE", PartialShape{3}}});
+    ASSERT_TRUE(model->get_parameters().at(1)->get_partial_shape().rank().is_static());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2, 3},
+                               {-1., -2., -3., 4., -5., 6., -7., -8., -9., -1., 2., -3., -4., -5., -6., 7., -8., -9.});
+    test_case.add_input<float>(Shape{3}, {1., 2., 3.});
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 3},
+        {-1., -4., -9., 4., -10., 6., -7., -16., -27., -1., 2., -9., -4., -10., -18., 7., -16., -27.});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_channel_bcast_opset6) {
     // Regression test for the legacy PRelu-1/6 broadcasting: a rank-1 slope whose length matches the channel
     // dimension is shared across channels (aligned with axis 1), which is the behavior of OpenVINO's v0::PRelu.

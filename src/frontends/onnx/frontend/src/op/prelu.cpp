@@ -5,8 +5,12 @@
 #include "openvino/op/prelu.hpp"
 
 #include "core/operator_set.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 using namespace ov::op;
 
 namespace ov::frontend::onnx::ai_onnx {
@@ -48,6 +52,19 @@ ov::OutputVector prelu(const ov::frontend::onnx::Node& node) {
         target_shape.back() = -1;
         const auto reshape_pattern =
             v0::Constant::create(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
+        slope = std::make_shared<v1::Reshape>(slope, reshape_pattern, false);
+    } else if ((slope_rank.is_dynamic() || slope_rank_is_static_1d) &&
+               (data_rank.is_dynamic() || data_rank_is_static_ge_2)) {
+        // A rank-1 slope must be right-aligned even if its rank or the data rank is only known at runtime.
+        // Explicitly pad its shape with leading ones to avoid v0::PRelu's channel-axis interpretation.
+        const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        const auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
+        const auto runtime_data_rank = std::make_shared<v3::ShapeOf>(data_shape, ov::element::i64);
+        const auto slope_shape = std::make_shared<v3::ShapeOf>(slope, ov::element::i64);
+        const auto runtime_slope_rank = std::make_shared<v3::ShapeOf>(slope_shape, ov::element::i64);
+        const auto leading_ones_count = std::make_shared<v1::Subtract>(runtime_data_rank, runtime_slope_rank);
+        const auto leading_ones = std::make_shared<v3::Broadcast>(one, leading_ones_count);
+        const auto reshape_pattern = std::make_shared<v0::Concat>(ov::OutputVector{leading_ones, slope_shape}, 0);
         slope = std::make_shared<v1::Reshape>(slope, reshape_pattern, false);
     }
 
