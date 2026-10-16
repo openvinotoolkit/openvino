@@ -54,15 +54,15 @@ struct LevelPattern {
         auto image = wrap_type<v1::Reshape>({image_transpose, any_input()}, shape_matches("BH, D, h, w"));
 
         locations = any_input(has_static_shape() && shape_matches("B, Q, H, L, P, 2"));
-        auto two = optional<v0::Convert>(wrap_type<v0::Constant>(value_matches("2")));
-        auto minus_one = optional<v0::Convert>(wrap_type<v0::Constant>(value_matches("-1")));
+        auto two = ov::pass::pattern::optional<v0::Convert>(wrap_type<v0::Constant>(value_matches("2")));
+        auto minus_one = ov::pass::pattern::optional<v0::Convert>(wrap_type<v0::Constant>(value_matches("-1")));
         auto coords = wrap_type<v1::Add>({wrap_type<v1::Multiply>({locations, two}), minus_one});
         gather = wrap_type<v8::Gather>(
             {coords, wrap_const(), wrap_type<v0::Constant>(value_matches("3") || value_matches("-3"))},
             {{"batch_dims", 0}});
         // A [1] shaped Gather index keeps the level axis until a Squeeze (or an
         // equivalent Reshape) removes it.
-        auto level_coords = optional<v0::Squeeze, v1::Reshape>({gather, any_input()});
+        auto level_coords = ov::pass::pattern::optional<v0::Squeeze, v1::Reshape>({gather, any_input()});
         auto coords_transpose =
             wrap_type<v1::Transpose>({level_coords, {0, 2, 1, 3, 4}}, shape_matches("B, H, Q, P, 2"));
         auto grid_coords = wrap_type<v1::Reshape>({coords_transpose, any_input()}, shape_matches("BH, Q, P, 2"));
@@ -179,11 +179,11 @@ ov::pass::MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGrid
                                                       {"pads_end", std::vector<int64_t>{0, 0}}}) &&
                                              shape_matches("BH, D, Q, 1"));
     auto pool_sum_m = wrap_type<v1::Multiply>({pool_m, wrap_type<v0::Constant>(value_matches("LP"))});
-    auto sum_m = reduce_m | optional<v1::Reshape>({pool_sum_m, any_input()});
+    auto sum_m = reduce_m | ov::pass::pattern::optional<v1::Reshape>({pool_sum_m, any_input()});
     auto heads_m = wrap_type<v1::Reshape>({sum_m, any_input()}, shape_matches("B, HD, Q"));
     // When the subgraph is a model output that f16 inference keeps in f32, the
     // GPU pipeline reaches this pass with a Convert before the last Transpose.
-    auto heads_convert_m = optional<v0::Convert>({heads_m});
+    auto heads_convert_m = ov::pass::pattern::optional<v0::Convert>({heads_m});
     auto output_m = wrap_type<v1::Transpose>({heads_convert_m, {0, 2, 1}});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
