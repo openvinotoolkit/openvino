@@ -243,7 +243,7 @@ def _build_classes():
                     f"input_size_per_partition {input_size_per_partition} does "
                     f"not divide into {config.bits}-bit groups of "
                     f"{packed_factor}")
-            storage = getattr(torch, _STORAGE[config.bits])
+            storage = torch.uint8 if not config.sym else getattr(torch, _STORAGE[config.bits])
             data = torch.empty(output_size_per_partition,
                                input_size_per_partition // packed_factor,
                                dtype=storage)
