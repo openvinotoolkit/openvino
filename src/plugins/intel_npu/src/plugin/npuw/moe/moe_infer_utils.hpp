@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <vector>
 
@@ -29,6 +30,40 @@ struct MoEProfile {
     ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> batch;      // EXPERT_BATCH mode
 
     MoEProfile();
+};
+
+/**
+ * @brief Standalone stats for EXPERT_ITERATIVE chunk padding.
+ *
+ * Independent of MoEProfile (which only times named code blocks): tracks
+ * per-chunk-size padding waste (real tokens vs the fixed chunk capacity
+ * actually paid for on the NPU).
+ */
+struct MoEChunkStats {
+    // Accumulated across all chunks dispatched at a given compiled chunk size.
+    struct PerChunkSize {
+        uint64_t chunks = 0;  // number of chunks dispatched at this size
+        uint64_t tokens = 0;  // real (non-padding) tokens carried by those chunks
+    };
+
+    bool enabled = false;
+    std::map<size_t, PerChunkSize> per_chunk_size;  // keyed by chunk size
+
+    // Must be called before any record_*() call.
+    void init(bool active);
+
+    void record_chunk(size_t chunk_size, uint64_t actual_tokens);
+
+    void report() const;
+
+    ~MoEChunkStats() {
+        if (enabled) {
+            try {
+                report();
+            } catch (...) {
+            }
+        }
+    }
 };
 
 template <typename T>
@@ -146,6 +181,26 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
                             size_t embed_dim,
                             size_t input_token_count,
                             const std::vector<size_t>& expert_slots_for_tokens);
+
+/**
+ * @brief Zero out only the (token, expert_slot) cells that scatter_expert_outputs() never wrote.
+ *
+ * Cheaper than clearing the whole accumulator up front: with dense top-K routing every
+ * token normally fills all num_active_experts slots, so this is a near-free O(num_tokens)
+ * scan in the common case, touching memory only for the rare token whose is_nonzero()
+ * filtering left a slot unfilled.
+ *
+ * @param global_output_buffer Global output buffer [K, 1, num_tokens, embed_dim]
+ * @param token_slot_count Per-token count of slots actually filled during this call
+ * @param num_active_experts K, the number of expert slots expected per token
+ * @param embed_dim Embedding dimension size
+ * @param input_token_count Total number of input tokens
+ */
+void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_output_buffer,
+                                      const std::vector<size_t>& token_slot_count,
+                                      size_t num_active_experts,
+                                      size_t embed_dim,
+                                      size_t input_token_count);
 
 /**
  * @brief MoE Request Cache - LRU cache for expert inference requests.

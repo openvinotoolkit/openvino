@@ -33,6 +33,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
     ov::Output<Node> res;
     ov::Output<ov::Node> B = context.get_input(0);
     ov::Output<ov::Node> A = context.get_input(1);
+    A = apply_hadamard(context, A);
 
     bool transpose_b = true;
     if (op_case == 2) {
