@@ -634,7 +634,9 @@ public:
     Stage::Ptr grouped_gemm_prefill_gather = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true);
     Stage::Ptr grouped_gemm_prefill_swiglu = make_stage<MoE3GemmSwigluPrefillSwiglu>(/*use_grouped_gemm=*/true);
     Stage::Ptr prefill_scatter_reduce_row_lut = make_stage<MoE3GemmSwigluPrefillScatterReduceRowLut>();
-    // GPU-side mask gen for the grouped GEMM decode path (no host sync)
+    // Single-token decode of weight types without a batched GEMV kernel (u3) goes through grouped GEMM. The CPU mask gen
+    // would cost a host sync on topk in every MoE layer (~1 ms/token on Qwen3.6-35B-A3B int3). For one token the max rows
+    // per expert (the grouped GEMM dispatch hint) is known to be 1, so the masks can be built on the GPU instead.
     Stage::Ptr grouped_gemm_mask_gen = make_stage<MoE3GemmSwigluPrefillMaskGen>(/*use_grouped_gemm=*/true);
 
     struct dnnl_weights {
