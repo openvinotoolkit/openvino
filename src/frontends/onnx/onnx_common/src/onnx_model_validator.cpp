@@ -76,6 +76,19 @@ uint32_t decode_varint(std::istream& model) {
     throw std::runtime_error{"Invalid protobuf varint"};
 }
 
+void consume_varint64(std::istream& model) {
+    for (uint32_t index = 0; index < 10; ++index) {
+        const auto byte = model.get();
+        if (byte == std::char_traits<char>::eof() || (index == 9 && (byte & 0xfe) != 0)) {
+            throw std::runtime_error{"Invalid protobuf varint"};
+        }
+        if ((byte & 0x80) == 0) {
+            return;
+        }
+    }
+    throw std::runtime_error{"Invalid protobuf varint"};
+}
+
 PbKey decode_key(uint32_t key) {
     // 3 least significant bits
     const auto wire_type = key & 0b111;
@@ -97,7 +110,7 @@ ONNXField decode_next_field(std::istream& model) {
     case VARINT: {
         // the decoded varint is the payload in this case but its value does not matter
         // in the fast check process so it can be discarded
-        decode_varint(model);
+        consume_varint64(model);
         return {onnx_field, 0};
     }
     case LENGTH_DELIMITED:
