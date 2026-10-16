@@ -48,8 +48,16 @@ def _ov_requested(vllm_config) -> bool:
     return mode_name == "STOCK_TORCH_COMPILE" and backend == "openvino"
 
 
+def _find_lm_head(model):
+    """The model's lm_head; multimodal wrappers (e.g. Gemma 4) keep it on their language model."""
+    lm_head = getattr(model, "lm_head", None)
+    if lm_head is None and hasattr(model, "get_language_model"):
+        lm_head = getattr(model.get_language_model(), "lm_head", None)
+    return lm_head
+
+
 def _install_ov_lm_head(model) -> None:
-    """(Re)compile lm_head on OV and swap it onto `model.lm_head.cpu_linear`.
+    """(Re)compile lm_head on OV and swap it onto `lm_head.cpu_linear`.
 
     Rerun on every weight mutation (reload_weights/update_weights below) since
     build_ov_lm_head bakes the weight into an OV constant. Defaults to the
@@ -60,7 +68,7 @@ def _install_ov_lm_head(model) -> None:
         import vllm._custom_ops as _ops
         from vllm.model_executor.layers.utils import dispatch_cpu_unquantized_gemm
         from openvino.frontend.pytorch.torchdynamo.vllm.lm_head import build_ov_lm_head
-        lm_head = getattr(model, "lm_head", None)
+        lm_head = _find_lm_head(model)
         if lm_head is not None and hasattr(lm_head, "weight") and not lm_head.weight.is_meta:
             fn = None
             if os.environ.get("OV_LM_HEAD", "0") != "0":
