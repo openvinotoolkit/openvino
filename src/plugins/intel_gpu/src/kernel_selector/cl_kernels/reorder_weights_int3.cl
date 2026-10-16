@@ -19,17 +19,32 @@
 // so the consuming GEMM issues three subgroup block reads and lane `lane` ends up
 // holding all 32 weights of its own output channel, ready for the matrix engine.
 //
-// One work item owns one granule, so every destination word has exactly one writer.
+// One work item owns one granule, so every destination word has exactly one writer. Adjacent work items take
+// adjacent granules of one row, so a subgroup reads one contiguous run of the source: the weights are still in
+// host memory when the reorder runs on a discrete GPU, where scattered reads are latency bound.
+//
+// The granule's bit stream is LSB-first like the source, so a dense source with whole granules per row holds it
+// as three 4-byte aligned words that are copied as they are.
+#define DENSE_GRANULES (INPUT0_OFFSET == 0 && INPUT0_IFM_PITCH == 1 && INPUT0_OFM_PITCH == INPUT0_IFM_NUM && \
+                        INPUT0_IFM_NUM % 32 == 0 && INPUT0_IFM_NUM == OUTPUT_IFM_NUM)
 
 KERNEL(reorder_weights_int3)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output) {
-    const uint o = (uint)get_global_id(0);
-    const uint k_chunk = (uint)get_global_id(1);
+    const uint k_chunk = (uint)get_global_id(0);
+    const uint o = (uint)get_global_id(1);
 
     const uint lane = o % 16;
     const uint n_block = o / 16;
 
     uint w0 = 0, w1 = 0, w2 = 0;
 
+#if DENSE_GRANULES
+    if (o < OUTPUT_OFM_NUM) {
+        const uint3 w = vload3(o * CHUNKS_K + k_chunk, (const __global uint*)input);
+        w0 = w.s0;
+        w1 = w.s1;
+        w2 = w.s2;
+    }
+#else
     unroll_for (uint kk = 0; kk < 32; ++kk) {
         const uint k = k_chunk * 32 + kk;
 
@@ -53,6 +68,7 @@ KERNEL(reorder_weights_int3)(const __global INPUT0_TYPE* input, __global OUTPUT_
             else w2 |= v >> (32 - off);
         }
     }
+#endif
 
     __global uint* dst = (__global uint*)output;
     const uint base = (n_block * CHUNKS_K + k_chunk) * 48 + lane;

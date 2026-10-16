@@ -52,6 +52,31 @@ size_t get_rows(const layout& input) {
     return std::accumulate(shape.begin(), shape.end() - 1, size_t{1}, std::multiplies<>());
 }
 
+// Static params for one row: K and N are static, so only the row dims, including those of fused op inputs, are dynamic.
+RuntimeParams make_single_row_params(const RuntimeParams& params) {
+    auto single_row = params;
+    auto to_single_row = [](layout& l) {
+        if (l.is_static()) {
+            return;
+        }
+        auto pshape = l.get_partial_shape();
+        for (auto& dim : pshape) {
+            if (dim.is_dynamic()) {
+                dim = 1;
+            }
+        }
+        l.set_partial_shape(pshape);
+        l.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+    };
+    for (auto& l : single_row.input_layouts) {
+        to_single_row(l);
+    }
+    for (auto& l : single_row.output_layouts) {
+        to_single_row(l);
+    }
+    return single_row;
+}
+
 // The decompression scale and zero point are read as whole elements, so a packed type would index the wrong value.
 bool is_addressable_dtype(ov::element::Type dt) {
     return one_of(dt, {ov::element::f16, ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32, ov::element::u32});
@@ -195,6 +220,15 @@ Int3FcInfo get_int3_fc_info(const RuntimeParams& params) {
                     ": unsupported configuration for ",
                     kernel_name);
     return info;
+}
+
+// The FC info is constant for an impl, so each impl computes it once, on its first execution.
+struct Int3FcRuntimeParams : public ImplRuntimeParams {
+    Int3FcInfo info;
+};
+
+Int3FcInfo get_int3_fc_info(const RuntimeParams& params, const ImplRuntimeParams* rt_params) {
+    return rt_params != nullptr ? static_cast<const Int3FcRuntimeParams*>(rt_params)->info : get_int3_fc_info(params);
 }
 
 struct GemmConfig {
@@ -372,7 +406,7 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
-            const auto info = get_int3_fc_info(params);
+            const auto info = get_int3_fc_info(params, rt_params);
             // One subgroup per quantization group, several subgroups per workgroup where the group count allows it.
             const size_t num_groups = std::max<size_t>(get_rows(params.get_input_layout(0)) * info.ifm / info.group_size, 1);
             size_t sgs_per_wg = 1;
@@ -508,7 +542,7 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[cfg = m_cfg](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
-            const auto info = get_int3_fc_info(params);
+            const auto info = get_int3_fc_info(params, rt_params);
             const auto& input = params.get_input_layout(0);
             const size_t rows = get_rows(input);
             const size_t dispatch_rows = std::max<size_t>(rows, 1);
@@ -584,7 +618,8 @@ public:
 
     // Every variant is declared so that an impl loaded from the cache finds the stages it was built with. A static
     // impl activates the quantizer and the variant for its row count. A dynamic impl activates every variant the FC
-    // can use, so that they are all compiled with the model, and picks one per execution.
+    // can use, so that they are all compiled with the model, and picks one per execution. Its single-row GEMV is
+    // compiled for exactly one row, so a single-row static impl of a dynamic model can reuse it with the quantizer.
     Stage::Ptr quantize = make_stage<Int3FcQuantize>();
     std::array<Stage::Ptr, 11> gemms = {make_stage<Int3FcGemm>("scalar", GemmConfig{}),
                                        make_stage<Int3FcGemm>("v1_t8", get_v1_config(8, 1)),
@@ -603,14 +638,27 @@ public:
         const auto info = get_int3_fc_info(params);
         const auto arch = params.get_device_info().arch;
 
-        add_stage(quantize, params);
         if (params.is_dynamic()) {
+            add_stage(quantize, params);
+            add_stage(gemms[static_cast<size_t>(GemmVariant::scalar)], make_single_row_params(params));
             // get_gemm_variant is constant over each of these row counts' ranges
-            for (size_t rows : {size_t{1}, size_t{8}, size_t{16}, size_t{17}, size_t{48}, v2_min_rows_sg8, v2_min_rows_sg16, size_t{384}}) {
+            for (size_t rows : {size_t{8}, size_t{16}, size_t{17}, size_t{48}, v2_min_rows_sg8, v2_min_rows_sg16, size_t{384}}) {
                 add_gemm_stage(get_gemm_variant(info, arch, rows), params);
             }
         } else {
-            add_gemm_stage(get_gemm_variant(info, arch, get_rows(params.get_input_layout(0))), params);
+            // A single-row impl of a dynamic model takes both of its stages from the dynamic impl, so decode never
+            // compiles at runtime. Others compile their own quantizer too: running the dynamic impl's quantizer
+            // next to their GEMM cost ~4% of a 128-token prefill on Xe2.
+            const size_t rows = get_rows(params.get_input_layout(0));
+            const auto* dynamic_impl = rows == 1 ? get_compiled_dynamic_impl(node) : nullptr;
+            auto& gemm = gemms[static_cast<size_t>(get_gemm_variant(info, arch, rows))];
+            if (dynamic_impl != nullptr) {
+                reuse_stage(quantize, *dynamic_impl);
+                reuse_stage(gemm, *dynamic_impl);
+            } else {
+                add_stage(quantize, params);
+                add_stage(gemm, params);
+            }
         }
 
         if (params.weights_layout.has_value()) {
@@ -623,19 +671,48 @@ public:
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
-        const auto info = get_int3_fc_info(params);
-        const size_t input_size = std::max<size_t>(get_rows(params.get_input_layout(0)) * info.ifm, info.group_size);
+        const auto info = get_int3_fc_info(params, m_rt_params.get());
+        size_t rows = get_rows(params.get_input_layout(0));
+        // A static impl is compiled for the fake-aligned row count, which its GEMM reads up to, while the quantizer
+        // writes only the real rows. The padded rows hold garbage by design: their results are discarded, and zeroing
+        // them would cost a fill per run and not survive buffer reuse.
+        if (!params.is_dynamic() && params.weights_layout.has_value()) {
+            rows = std::max(rows, get_rows(fully_connected_inst::get_fake_aligned_params(params).get_input_layout(0)));
+        }
+        const size_t input_size = std::max<size_t>(rows * info.ifm, info.group_size);
         return {BufferDescriptor{input_size, ov::element::i8}, BufferDescriptor{(input_size / info.group_size) * 2, ov::element::f32}};
     }
 
-    std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
-        if (_order.size() <= 2) {
-            return _order;
+    void update_rt_params(const cldnn::primitive_inst& instance) override {
+        update_stages_flags(instance);
+        if (m_rt_params == nullptr) {
+            auto rt_params = std::make_unique<Int3FcRuntimeParams>();
+            rt_params->info = get_int3_fc_info(*instance.get_impl_params());
+            m_rt_params = std::move(rt_params);
         }
-        const auto variant = get_gemm_variant(get_int3_fc_info(impl_params), impl_params.get_device_info().arch, get_rows(impl_params.get_input_layout(0)));
+    }
+
+    std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
+        const size_t quantize_idx = get_stage_idx(quantize);
+        if (!is_dynamic()) {
+            // The quantizer and the one GEMM, each compiled or reused
+            for (const auto* stages : {&_order, &_reused}) {
+                for (size_t idx : *stages) {
+                    if (idx != quantize_idx) {
+                        return {quantize_idx, idx};
+                    }
+                }
+            }
+            OPENVINO_THROW("[GPU] ", kernel_name, ": static impl has no GEMM");
+        }
+        const size_t rows = get_rows(impl_params.get_input_layout(0));
+        // The single-row GEMV is compiled for exactly one row, so an empty input takes a shape-agnostic variant.
+        const auto variant =
+            rows == 1 ? GemmVariant::scalar
+                      : get_gemm_variant(get_int3_fc_info(impl_params, m_rt_params.get()), impl_params.get_device_info().arch, std::max(rows, dpas_min_rows));
         const size_t gemm_idx = get_stage_idx(gemms[static_cast<size_t>(variant)]);
         OPENVINO_ASSERT(is_activated(gemm_idx), "[GPU] ", kernel_name, ": GEMM variant ", static_cast<size_t>(variant), " is not compiled");
-        return {_order[0], gemm_idx};
+        return {quantize_idx, gemm_idx};
     }
 
 protected:
@@ -668,6 +745,20 @@ private:
 
     [[nodiscard]] bool is_activated(size_t stage_idx) const {
         return std::find(_order.begin(), _order.end(), stage_idx) != _order.end();
+    }
+
+    [[nodiscard]] bool is_compiled(const Stage::Ptr& stage) const {
+        return is_activated(get_stage_idx(stage)) && stage->kernel != nullptr;
+    }
+
+    // The node's dynamic int3 impl, if the stages a single-row static impl takes from it are compiled.
+    static const FullyConnectedInt3DpasImpl* get_compiled_dynamic_impl(const program_node& node) {
+        const auto* impl = dynamic_cast<const FullyConnectedInt3DpasImpl*>(node.get_selected_impl());
+        if (impl == nullptr || !impl->is_dynamic() || !impl->is_compiled(impl->quantize) ||
+            !impl->is_compiled(impl->gemms[static_cast<size_t>(GemmVariant::scalar)])) {
+            return nullptr;
+        }
+        return impl;
     }
 };
 

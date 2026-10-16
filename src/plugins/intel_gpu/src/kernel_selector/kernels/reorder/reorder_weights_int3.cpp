@@ -34,8 +34,9 @@ ReorderWeightsKernelInt3::DispatchData ReorderWeightsKernelInt3::SetDefault(cons
 
     const auto& output = params.output;
 
-    // One work item repacks one granule: a single output channel by isv input channels.
-    dispatchData.gws = { Align(output.OFM().v, osv), CeilDiv(output.IFM().v, isv), 1 };
+    // One work item repacks one granule: a single output channel by isv input channels. Granules of one row are
+    // adjacent in the source, so they go along the first dimension.
+    dispatchData.gws = {CeilDiv(output.IFM().v, isv), Align(output.OFM().v, osv), 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
