@@ -1053,7 +1053,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                size_t input_idx,
                                                                const ov::Output<const ov::Node>& port,
                                                                const TensorWrapper& user_tensor_wrapper,
-                                                               bool blocking_upload) {
+                                                               bool is_temporary_repacked_input) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
@@ -1193,8 +1193,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                 // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
                 // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
                 // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
-                // blocking_upload: finish the upload before returning, e.g. for a staging tensor from enqueue() that is freed afterwards
-                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem || blocking_upload);
+                // temporary repacked input from enqueue() is freed afterwards, so the upload needs to finish first
+                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem || is_temporary_repacked_input);
             }
         } else if (is_generic_remote) {
             user_tensor->copy_to(device_tensor);

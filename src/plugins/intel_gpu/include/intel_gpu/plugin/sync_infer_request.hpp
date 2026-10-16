@@ -158,7 +158,7 @@ private:
                                                  size_t input_idx,
                                                  const ov::Output<const ov::Node>& port,
                                                  const TensorWrapper& user_tensor_wrapper,
-                                                 bool blocking_upload = false);
+                                                 bool is_temporary_repacked_input = false);
     std::vector<cldnn::event::ptr> prepare_output(size_t output_idx, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
     std::vector<cldnn::event::ptr> prepare_batched_input(size_t input_idx,
                                                          const ov::Output<const ov::Node>& port,
