@@ -533,27 +533,27 @@ KERNEL(fc)(
 
     // All rows of a column block are finished before any is stored: the fused-op
     // inputs may alias the output as far as the compiler knows, so a store would
-    // keep the next row's fused-op loads from being issued early.
+    // keep the next row's fused-op loads from being issued early. For the same
+    // reason no row is behind a branch: a branch per row would put each fused-op
+    // load in its own block, waited on before the next one is issued. Rows past
+    // the batch take the last row's fused-op inputs and are not stored.
     unroll_for (uint j = 0; j < V2_NB; ++j) {
         const uint n = (nbw * V2_NB + j) * SIMD + lane;
         if (n < TILE_OUT_F_NUM) {
             OUTPUT_TYPE result[TILE_M];
             unroll_for (uint t = 0; t < TILE_M; ++t) {
-                const uint row = m0 + t;
-                if (row < batch_size) {
-                    float res = acc_f[j][t];
+                float res = acc_f[j][t];
 #if BIAS_TERM
-                    res += (float)biases[n];
+                res += (float)biases[n];
 #endif
-                    const uint out_row = row;
-                    const float activated = res;
+                const uint out_row = min(m0 + t, batch_size - 1);
+                const float activated = res;
 #if HAS_FUSED_OPS
-                    FUSED_OPS;
-                    result[t] = FUSED_OPS_RESULT;
+                FUSED_OPS;
+                result[t] = FUSED_OPS_RESULT;
 #else
-                    result[t] = TO_OUTPUT_TYPE(activated);
+                result[t] = TO_OUTPUT_TYPE(activated);
 #endif
-                }
             }
             unroll_for (uint t = 0; t < TILE_M; ++t) {
                 const uint row = m0 + t;
