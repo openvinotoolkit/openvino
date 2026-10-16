@@ -34,6 +34,7 @@
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/recurrent_cache.hpp"
 #include "transformations/utils/utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -78,7 +79,10 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     }
 
     if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) || ov::is_type<ov::op::internal::SelectiveSSM>(op) ||
-        ov::is_type<ov::op::internal::PagedSelectiveSSM>(op)) {
+        ov::is_type<ov::op::internal::PagedSelectiveSSM>(op) ||
+        ov::is_type<ov::op::internal::RecurrentStateGather>(op) ||
+        ov::is_type<ov::op::internal::RecurrentConvCache>(op) ||
+        ov::is_type<ov::op::internal::RecurrentStateUpdate>(op)) {
         return true;
     }
 
