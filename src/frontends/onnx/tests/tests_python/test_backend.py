@@ -43,7 +43,6 @@ from tests import (
     xfail_issue_119896,
     skip_issue_119896,
     xfail_issue_119900,
-    xfail_issue_119903,
     xfail_issue_119919,
     xfail_issue_119922,
     xfail_issue_119925,
@@ -401,13 +400,6 @@ tests_expected_to_fail = [
         xfail_issue_119900,
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_half_pixel_symmetric_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_scales_linear_half_pixel_symmetric_cpu",
-    ),
-    (
-        xfail_issue_119903,
-        "OnnxBackendNodeModelTest.test_basic_deform_conv_with_padding_cpu",
-        "OnnxBackendNodeModelTest.test_basic_deform_conv_without_padding_cpu",
-        "OnnxBackendNodeModelTest.test_deform_conv_with_mask_bias_cpu",
-        "OnnxBackendNodeModelTest.test_deform_conv_with_multiple_offset_groups_cpu",
     ),
     (
         xfail_issue_119919,
