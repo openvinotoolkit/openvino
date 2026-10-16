@@ -587,6 +587,67 @@ TEST(GenericMoETopologyTest, RequestedDeviceRoutingDoesNotSilentlyRunDense) {
     EXPECT_THROW(ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(graph.model), ov::Exception);
 }
 
+TEST(GenericMoETopologyTest, RejectsSharedProjectionFeatureAxisWithoutChangingNumerics) {
+    auto graph = make_moe(Routing::TOPK_SOFTMAX, false, 1, 4);
+    const auto topology = ov::npuw::moe::match_batched_moe(graph.scatter);
+    ASSERT_TRUE(topology);
+    auto logits = graph.model->get_parameters().at(1);
+    ov::replace_node(logits, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4}, {1.0f, 3.0f, 2.0f, 4.0f}));
+    graph.model->remove_parameter(logits);
+    std::vector<float> values(4 * 8);
+    for (size_t index = 0; index < values.size(); ++index)
+        values[index] = static_cast<float>(index / 8 + 1);
+    auto shifted =
+        std::make_shared<ov::op::v1::Add>(topology->expert_output,
+                                          ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {10.0f}));
+    auto projection =
+        std::make_shared<ov::op::v0::MatMul>(shifted,
+                                             ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4, 8}, values),
+                                             false,
+                                             true);
+    topology->weighted_output->input(0).replace_source_output(projection);
+    graph.model->validate_nodes_and_infer_types();
+    const auto before = evaluate(graph.model);
+    ASSERT_EQ(before[0].get_shape(), (ov::Shape{1, 4}));
+    EXPECT_NE(before[0].data<float>()[0], before[0].data<float>()[3]);
+    const auto original_nodes = graph.model->get_ordered_ops();
+    EXPECT_FALSE(ov::npuw::moe::match_batched_moe(graph.scatter));
+    EXPECT_FALSE(ov::npuw::pass::DeviceRoutedMoETransform().run_on_model(graph.model));
+    EXPECT_EQ(original_nodes, graph.model->get_ordered_ops());
+    const auto after = evaluate(graph.model);
+    ASSERT_EQ(before[0].get_shape(), after[0].get_shape());
+    for (size_t feature = 0; feature < before[0].get_size(); ++feature)
+        EXPECT_NEAR(before[0].data<float>()[feature], after[0].data<float>()[feature], 1e-6f);
+}
+
+TEST(GenericMoETopologyTest, RejectsUnsupportedActivationPrefixBeforeHostIsolation) {
+    for (const size_t tokens : {size_t{1}, size_t{7}}) {
+        SCOPED_TRACE(tokens);
+        auto graph = make_moe(Routing::TOPK_SOFTMAX, false, tokens);
+        const auto topology = ov::npuw::moe::match_batched_moe(graph.scatter);
+        ASSERT_TRUE(topology);
+        const auto tile_users = topology->tile->output(0).get_target_inputs();
+        ASSERT_EQ(tile_users.size(), 1u);
+        auto view = ov::as_type_ptr<ov::op::v1::Reshape>(tile_users.begin()->get_node()->shared_from_this());
+        ASSERT_TRUE(view);
+        const auto consumers = view->output(0).get_target_inputs();
+        auto relu = std::make_shared<ov::op::v0::Relu>(view);
+        for (auto input : consumers)
+            input.replace_source_output(relu);
+        graph.model->validate_nodes_and_infer_types();
+        const auto original_nodes = graph.model->get_ordered_ops();
+        EXPECT_FALSE(ov::npuw::moe::match_batched_moe(graph.scatter));
+        auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(graph.model);
+        snapshot->buildGraph();
+        ov::pass::GraphRewrite rewrite;
+        rewrite.add_matcher<ov::npuw::patterns::moe::BatchedExpert>(snapshot, "expert");
+        rewrite.run_on_model(graph.model);
+        EXPECT_FALSE(graph.topk->get_rt_info().count(ov::npuw::patterns::moe::RT_INFO_MOE_K));
+        EXPECT_NE(snapshot->getNodeToGroupMap()->at(topology->weighted_output)->isolatedTag(), "expert");
+        EXPECT_EQ(original_nodes, graph.model->get_ordered_ops());
+    }
+}
+
 TEST(GenericMoETopologyTest, RejectsReductionAcrossHiddenInsteadOfExperts) {
     auto graph = make_moe(Routing::TOPK_SOFTMAX);
     auto topology = ov::npuw::moe::match_batched_moe(graph.scatter);

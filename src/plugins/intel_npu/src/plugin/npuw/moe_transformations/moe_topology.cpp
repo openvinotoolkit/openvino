@@ -147,7 +147,9 @@ bool collect_experts(BatchedMoE& moe) {
         if (!has_token_layout(shape, moe))
             return false;
         if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
-            if (matmul->get_transpose_a() || !can_gather_weight(matmul->input_value(1), moe.num_experts))
+            const auto weight_rank = matmul->input_value(1).get_partial_shape().rank();
+            if (matmul->get_transpose_a() || !weight_rank.is_static() || weight_rank.get_length() < 3 ||
+                !can_gather_weight(matmul->input_value(1), moe.num_experts))
                 return false;
             ++matmuls;
         } else if (ov::is_type<ov::op::v1::Reshape>(node)) {
@@ -187,6 +189,13 @@ bool collect_experts(BatchedMoE& moe) {
     };
     if (!visit(moe.expert_output) || !moe.tile || matmuls < 2)
         return false;
+    auto expert_input = moe.tile->output(0);
+    if (auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(only_consumer(expert_input)))
+        expert_input = reshape->output(0);
+    for (const auto& target_input : expert_input.get_target_inputs()) {
+        if (target_input.get_index() != 0 || !ov::is_type<ov::op::v0::MatMul>(target_input.get_node()))
+            return false;
+    }
     // Host partitioning must not steal an intermediate used by another branch.
     for (const auto& node : moe.expert_nodes) {
         for (const auto& output : node->outputs()) {
