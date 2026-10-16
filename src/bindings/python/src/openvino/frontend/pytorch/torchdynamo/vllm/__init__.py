@@ -38,7 +38,7 @@ def maybe_rewrite_paged_attention(graph_module, options):
 
     Each turns an auto_functionalized_v2 call site OV cannot hold into an op it can keep inside its
     partition: unified_attention_with_output -> ov_ext.paged_attention, cpu_gdn_attention_core ->
-    ov_ext.gdn_attention ("gdn_translate"), and _C.cpu_fused_moe -> grouped matmuls ("moe_translate").
+    ov_ext.gdn_attention ("gdn_translate"), and _C.cpu_fused_moe -> a tiled MoE block ("moe_translate").
     All are off when "paged_attention" is. Returns the total number of rewrites; a failing GDN or MoE
     rewrite leaves its call sites on vLLM's op.
 
