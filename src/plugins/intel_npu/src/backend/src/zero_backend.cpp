@@ -21,26 +21,6 @@ ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::gl
     _logger.debug("ZeroEngineBackend - initialize completed");
 }
 
-uint32_t ZeroEngineBackend::getDriverVersion() const {
-    return _initStruct->getDriverVersion();
-}
-
-uint32_t ZeroEngineBackend::getGraphExtVersion() const {
-    return _initStruct->getGraphDdiTable().version();
-}
-
-bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _initStruct->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
-}
-
-bool ZeroEngineBackend::isLUIDExtSupported() const {
-    return _initStruct->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0));
-}
-
-bool ZeroEngineBackend::isContextExtSupported() const {
-    return _initStruct->isExtensionSupported(std::string(ZE_CONTEXT_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
-}
-
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
     if (_devices.empty()) {
         _logger.debug("ZeroEngineBackend - getDevice() returning empty list");
@@ -130,10 +110,6 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
     return devicesNames;
 }
 
-void* ZeroEngineBackend::getContext() const {
-    return _initStruct->getContext();
-}
-
 void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties) {
     if (properties.count(ov::log::level.name()) != 0) {
         _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
@@ -154,7 +130,7 @@ void ZeroEngineBackend::updateInfo(const ov::AnyMap& properties) {
     }
 }
 
-const std::shared_ptr<ZeroInitStructsHolder> ZeroEngineBackend::getInitStructs() const {
+std::shared_ptr<ZeroInitStructsHolder> ZeroEngineBackend::getInitStructs() const {
     return _initStruct;
 }
 
