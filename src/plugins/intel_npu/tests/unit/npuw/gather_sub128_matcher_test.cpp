@@ -317,16 +317,11 @@ TEST(HostGatherQuantAsymmTest, MarksPairedSub128Sources) {
 }
 
 TEST(HostGatherQuantAsymmTest, KeepsRawSourcesWithoutMarkedPattern) {
-<<<<<<< HEAD
     const auto model = make_parameter_gather_model(std::nullopt,
                                                    std::nullopt,
                                                    ov::element::u8,
                                                    ov::element::u8);
     ov::npuw::patterns::opt::Context context(model, 0);
-=======
-    ov::npuw::patterns::opt::Context context;
-    const auto model = make_parameter_gather_model(std::nullopt, std::nullopt, ov::element::u8, ov::element::u8);
->>>>>>> dad7607006 (Addressed review comments)
 
     EXPECT_TRUE(run_host_gather(model, context));
     ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
