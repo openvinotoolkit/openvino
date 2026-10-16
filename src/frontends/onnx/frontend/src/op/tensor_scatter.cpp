@@ -17,6 +17,7 @@
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/select.hpp"
@@ -142,7 +143,10 @@ ov::OutputVector tensor_scatter(const ov::frontend::onnx::Node& node) {
     if (circular) {
         // Reduce the offset first, then conditionally wrap before adding. This avoids
         // overflowing int64 when write_indices is large or when the cache length is large.
-        const auto normalized_write_indices = std::make_shared<v1::FloorMod>(write_indices, max_seq_len);
+        // A zero-length cache (max_sequence_length == 0) only occurs for an empty update, which
+        // is a no-op; clamp the divisor to 1 so FloorMod does not divide by zero and produce NaN.
+        const auto safe_seq_len = std::make_shared<v1::Maximum>(max_seq_len, one);
+        const auto normalized_write_indices = std::make_shared<v1::FloorMod>(write_indices, safe_seq_len);
         const auto write_col = std::make_shared<v0::Unsqueeze>(normalized_write_indices, ax1);
         const auto distance_to_wrap = std::make_shared<v1::Subtract>(max_seq_len, seq_row);
         const auto wraps = std::make_shared<v1::GreaterEqual>(write_col, distance_to_wrap);

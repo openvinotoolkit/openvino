@@ -8223,6 +8223,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_axis_transpose) {
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 
+// TensorScatter (ONNX opset-24) `circular` mode with an empty update and a zero-length cache
+// sequence dimension. The modulo normalization must not divide by zero; the scatter is a no-op
+// that returns the cache unchanged.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_empty) {
+    const auto model = convert_model("tensor_scatter_circular_empty.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{1, 0, 2}, {});
+    test_case.add_input<float>(Shape{1, 0, 2}, {});
+    test_case.add_input<int64_t>(Shape{1}, {0});
+    test_case.add_expected_output<float>(Shape{1, 0, 2}, {});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_4d) {
     auto model = convert_model("attention_mha_4d.onnx");
     auto test_case = test::TestCase(model, s_device);
