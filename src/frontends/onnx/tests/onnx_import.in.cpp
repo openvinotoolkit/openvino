@@ -1249,6 +1249,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_2_opset11_keeps_reshape) 
     EXPECT_EQ(count_ops_of_type<op::v8::Softmax>(model), 1);
 }
 
+// Opsets 1-10 allow axis == rank (flattening boundary past the last dimension): for a rank-1
+// input with axis omitted (defaults to 1, which equals the rank), this coerces to a [N, 1]
+// matrix, so every row has a single element and softmax trivially produces all ones.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_1D_no_axis) {
+    auto model = convert_model("softmax_1D_no_axis.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>(Shape{3}, {1.0f, 1.0f, 1.0f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_sub) {
     auto model = convert_model("sub.onnx");
 

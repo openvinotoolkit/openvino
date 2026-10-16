@@ -31,32 +31,33 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
 
     std::shared_ptr<ov::Node> result;
-    switch (data_rank.get_length()) {
-    case 0: {
-        result = v0::Constant::create(data.get_element_type(), ov::Shape{}, {1});
-        break;
-    }
-    default: {
+    if (data_rank.get_length() == 0) {
+        return {v0::Constant::create(data.get_element_type(), ov::Shape{}, {1})};
+    } else {
         // ONNX Softmax opset 1-12 coerces the input to a 2-D matrix
         // [prod(d0..d_axis-1), prod(d_axis..d_rank-1)], applies softmax on the second axis and
         // restores the shape. Flattening at the last axis is a no-op reshape, so it is skipped.
         const auto normalized_axis = common::normalize_axis(node.get_description(), axis, data_rank);
         if (normalized_axis == data_rank.get_length() - 1) {
-            result = std::make_shared<v8::Softmax>(data, axis);
+            return {std::make_shared<v8::Softmax>(data, axis)};
         } else {
-            result = onnx_softmax(data, normalized_axis);
+            return {onnx_softmax(data, normalized_axis)};
         }
-        break;
     }
-    }
-
-    return {result};
 }
 }  // namespace
 }  // namespace ov::frontend::onnx
 
 namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
+    const auto data = node.get_ov_inputs().at(0);
+    const auto data_rank = data.get_partial_shape().rank();
+    const auto axis = node.get_attribute_value<int64_t>("axis", 1);
+    FRONT_END_GENERAL_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
+    // Opsets 1-10 allow the flattening boundary axis equal to the input rank.
+    if (data_rank.get_length() > 0 && axis == data_rank.get_length()) {
+        return {ov::frontend::onnx::onnx_softmax(data, axis)};
+    }
     return ov::frontend::onnx::softmax(node);
 }
 ONNX_OP("Softmax", OPSET_RANGE(1, 10), ai_onnx::opset_1::softmax);
