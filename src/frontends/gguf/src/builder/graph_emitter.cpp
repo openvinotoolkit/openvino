@@ -4,6 +4,8 @@
 
 #include "graph_emitter.hpp"
 
+#include <algorithm>
+
 #include "gguf_builder_decoder.hpp"
 #include "op_table.hpp"
 #include "openvino/core/except.hpp"
@@ -13,6 +15,15 @@
 namespace ov::frontend::gguf {
 
 namespace {
+
+template <typename T>
+const T& required_metadata(const std::map<std::string, GGUFMetaData>& config, const std::string& key) {
+    const auto entry = config.find(key);
+    OPENVINO_ASSERT(entry != config.end(), "[GGUF] missing ", key);
+    const auto* value = std::get_if<T>(&entry->second);
+    OPENVINO_ASSERT(value, "[GGUF] invalid type for ", key);
+    return *value;
+}
 
 WeightTensors find_weight_tensors(const std::unordered_map<std::string, ov::Tensor>& weights, const std::string& base) {
     WeightTensors tensors;
@@ -79,6 +90,23 @@ std::string GraphEmitter::add_op(const std::string& op_type,
                                  int op_case,
                                  std::map<std::string, ov::Any> attrs,
                                  std::vector<std::string> extra_outputs) {
+    if (!inputs.empty() && ((op_type == "GGML_OP_MUL_MAT" && m_hadamard_weights.count(inputs[0])) ||
+                            (op_type == "GGML_OP_GET_ROWS" && m_hadamard_inverse_weights.count(inputs[0])))) {
+        m_hadamard_consumed.insert(inputs[0]);
+        const auto width = value(inputs[0]).get_partial_shape().rbegin()->get_length();
+        attrs["hadamard_block"] = m_hadamard_block;
+        attrs["hadamard_inverse"] = op_type == "GGML_OP_GET_ROWS";
+        if (!m_hadamard_signs.empty()) {
+            OPENVINO_ASSERT(m_hadamard_signs.count(width), "[GGUF] missing Hadamard signs for width ", width);
+            attrs["hadamard_signs"] = m_hadamard_signs.at(width);
+        }
+        if (op_type == "GGML_OP_MUL_MAT" && m_hadamard_v_heads && inputs[0].find(".ssm_out.") != std::string::npos) {
+            OPENVINO_ASSERT(width % m_hadamard_v_heads == 0, "[GGUF] invalid Hadamard GDN width");
+            attrs["hadamard_gdn_heads"] = std::vector<int64_t>{m_hadamard_v_heads / m_hadamard_k_heads,
+                                                               m_hadamard_k_heads,
+                                                               width / m_hadamard_v_heads};
+        }
+    }
     GgufOp op;
     op.op_type = op_type;
     op.name = name;
@@ -94,6 +122,122 @@ std::string GraphEmitter::add_op(const std::string& op_type,
                    m_graph->values,
                    m_translators);
     return name;
+}
+
+void GraphEmitter::inherit_hadamard(const std::string& name, const std::string& source) {
+    if (m_hadamard_weights.count(source)) {
+        m_hadamard_weights.insert(name);
+        m_hadamard_consumed.insert(source);
+    }
+}
+
+void GraphEmitter::validate_hadamard() const {
+    for (const auto& names : {m_hadamard_weights, m_hadamard_inverse_weights})
+        for (const auto& name : names)
+            OPENVINO_ASSERT(m_hadamard_consumed.count(name), "[GGUF] unused Hadamard weight: ", name);
+}
+
+void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>& config) {
+    const std::string prefix = "prism.hadamard.";
+    if (!config.count(prefix + "version")) {
+        OPENVINO_ASSERT(std::none_of(config.begin(),
+                                     config.end(),
+                                     [&](const auto& entry) {
+                                         return entry.first.compare(0, prefix.size(), prefix) == 0;
+                                     }),
+                        "[GGUF] missing prism.hadamard.version");
+        return;
+    }
+    const auto scalar = [&](const std::string& key) {
+        const auto& t = required_metadata<ov::Tensor>(config, key);
+        OPENVINO_ASSERT(t.get_element_type() == ov::element::u32 && t.get_size() == 1, "[GGUF] invalid ", key);
+        return *t.data<const uint32_t>();
+    };
+    const auto flag = [&](const std::string& key) {
+        if (!config.count(key))
+            return false;
+        const auto& t = required_metadata<ov::Tensor>(config, key);
+        OPENVINO_ASSERT(t.get_element_type() == ov::element::boolean && t.get_size() == 1, "[GGUF] invalid ", key);
+        return *t.data<const char>() != 0;
+    };
+    const auto version = scalar(prefix + "version");
+    const bool tied = flag(prefix + "tied_output");
+    OPENVINO_ASSERT((version == 1 || version == 2) && (version == 2) == tied,
+                    "[GGUF] inconsistent Hadamard version/tied_output");
+    m_hadamard_block = scalar(prefix + "block_size");
+    OPENVINO_ASSERT(
+        m_hadamard_block > 0 && m_hadamard_block <= 4096 && (m_hadamard_block & (m_hadamard_block - 1)) == 0,
+        "[GGUF] invalid Hadamard block size");
+    OPENVINO_ASSERT(
+        required_metadata<std::string>(config, prefix + "transform") == "normalized-sylvester-walsh-hadamard" &&
+            required_metadata<std::string>(config, prefix + "axis") == "input-last-dimension",
+        "[GGUF] unsupported Hadamard transform/axis");
+    const auto& names = required_metadata<std::vector<std::string>>(config, prefix + "weight_names");
+    OPENVINO_ASSERT(!names.empty(), "[GGUF] empty Hadamard weight_names");
+    for (const auto& name : names) {
+        OPENVINO_ASSERT(has_weight(name) && m_hadamard_weights.insert(name).second,
+                        "[GGUF] missing or duplicate Hadamard weight: ",
+                        name);
+    }
+    if (config.count(prefix + "inverse_weight_names")) {
+        for (const auto& name : required_metadata<std::vector<std::string>>(config, prefix + "inverse_weight_names")) {
+            OPENVINO_ASSERT(name == "token_embd.weight" && has_weight(name) && !m_hadamard_weights.count(name) &&
+                                m_hadamard_inverse_weights.insert(name).second,
+                            "[GGUF] invalid Hadamard inverse weight: ",
+                            name);
+        }
+    }
+    if (tied) {
+        OPENVINO_ASSERT(!has_weight("output.weight") && m_hadamard_inverse_weights.count("token_embd.weight"),
+                        "[GGUF] tied Hadamard output requires a latent embedding and no output.weight");
+        m_hadamard_weights.insert("token_embd.weight");
+    } else {
+        OPENVINO_ASSERT(m_hadamard_inverse_weights.empty() || has_weight("output.weight"),
+                        "[GGUF] latent tied embedding requires Hadamard version 2");
+    }
+    const auto& mode = required_metadata<std::string>(config, prefix + "sign_mode");
+    OPENVINO_ASSERT(mode == "identity" || mode == "explicit", "[GGUF] unsupported Hadamard sign_mode");
+    if (mode == "explicit") {
+        const auto& widths = required_metadata<ov::Tensor>(config, prefix + "sign_widths");
+        const auto& values = required_metadata<ov::Tensor>(config, prefix + "sign_values");
+        OPENVINO_ASSERT(widths.get_element_type() == ov::element::i32 && widths.get_size() > 0,
+                        "[GGUF] invalid ",
+                        prefix + "sign_widths");
+        OPENVINO_ASSERT(values.get_element_type() == ov::element::i32, "[GGUF] invalid ", prefix + "sign_values");
+        size_t offset = 0;
+        for (size_t i = 0; i < widths.get_size(); ++i) {
+            const int64_t width = widths.data<const int32_t>()[i];
+            OPENVINO_ASSERT(width > 0 && width % m_hadamard_block == 0 &&
+                                static_cast<size_t>(width) <= values.get_size() - offset &&
+                                !m_hadamard_signs.count(width),
+                            "[GGUF] invalid Hadamard sign width");
+            ov::Tensor signs(ov::element::f32, {static_cast<size_t>(width)});
+            for (int64_t j = 0; j < width; ++j) {
+                const auto sign = values.data<const int32_t>()[offset++];
+                OPENVINO_ASSERT(sign == -1 || sign == 1, "[GGUF] Hadamard signs must be +/-1");
+                signs.data<float>()[j] = static_cast<float>(sign);
+            }
+            m_hadamard_signs.emplace(width, signs);
+        }
+        OPENVINO_ASSERT(offset == values.get_size(), "[GGUF] Hadamard sign_values length mismatch");
+    }
+    for (const auto& names : {m_hadamard_weights, m_hadamard_inverse_weights})
+        for (const auto& name : names) {
+            const auto& shape = weight_tensor(name).get_shape();
+            OPENVINO_ASSERT(shape.size() == 2, "[GGUF] Hadamard requires matrix weights: ", name);
+            const auto width = shape.back();
+            OPENVINO_ASSERT(width > 0 && width % m_hadamard_block == 0 &&
+                                (m_hadamard_signs.empty() || m_hadamard_signs.count(width)),
+                            "[GGUF] invalid Hadamard width for ",
+                            name);
+        }
+    if (flag(prefix + "gdn_v_grouped")) {
+        m_hadamard_v_heads = required_metadata<int>(config, "ssm_time_step_rank");
+        m_hadamard_k_heads = required_metadata<int>(config, "ssm_group_count");
+        OPENVINO_ASSERT(
+            m_hadamard_k_heads > 0 && m_hadamard_v_heads > 0 && m_hadamard_v_heads % m_hadamard_k_heads == 0,
+            "[GGUF] invalid Hadamard GDN heads");
+    }
 }
 
 std::shared_ptr<ov::op::v0::Parameter> GraphEmitter::add_input(const std::string& name,

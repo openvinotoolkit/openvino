@@ -691,29 +691,37 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
         // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
         // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
-        if (device_info.supports_immad && config.get_use_onednn() && !config.get_moe_disable_fusion()) {
+        // Also gated on inference precision: GatherMatmul and fused MoE kernels support only f16 activations.
+        const bool f16_activations_possible = infer_precision == ov::element::f16 || infer_precision == ov::element::dynamic;
+        if (device_info.supports_immad && config.get_use_onednn() && f16_activations_possible) {
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
                                                                                     ov::element::u8};
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
-            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types);
 
-            // f32 listed because this pass runs before ConvertPrecision (line ~588);
-            // f32 activations are lowered to f16 before reaching the f16-only DPAS kernels.
-            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
-                std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
-                supported_compressed_weights_types);
-            manager.register_pass<ov::intel_gpu::FuseMoERouter>();
+            // With f16 inference precision, f32 and bf16 activations are also supported: the MoE passes run before ConvertPrecision,
+            // which converts them to f16. With dynamic inference precision, the model activation types are kept as is.
+            std::vector<ov::element::Type> supported_activation_types{ov::element::f16};
+            if (infer_precision == ov::element::f16) {
+                supported_activation_types.insert(supported_activation_types.end(), {ov::element::f32, ov::element::bf16});
+            }
+            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types,
+                                                                                 supported_activation_types);
+            manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
+                                                                                         supported_compressed_weights_types);
+            manager.register_pass<ov::intel_gpu::FuseMoERouter>(supported_activation_types);
 
-            // MOE3GemmCompressed kernel dispatches expert GEMMs through
-            // oneDNN, which requires an in-order OCL queue.  If oneDNN is
-            // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
-            // queue stays out-of-order and the oneDNN stream creation may assert.
-            manager.register_pass<ov::pass::MoeOpFusion>();
-            manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
-            manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
+            if (!config.get_moe_disable_fusion()) {
+                // MOE3GemmCompressed kernel dispatches expert GEMMs through
+                // oneDNN, which requires an in-order OCL queue.  If oneDNN is
+                // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
+                // queue stays out-of-order and the oneDNN stream creation may assert.
+                manager.register_pass<ov::pass::MoeOpFusion>();
+                manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
+                manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
+            }
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();

@@ -117,6 +117,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
 
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.
     res = std::make_shared<ov::op::v0::Unsqueeze>(res, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
+    res = apply_hadamard(context, res);
     return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
 }
 
