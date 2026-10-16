@@ -104,9 +104,8 @@ std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::sh
 // so they need their own, smaller static capacity derived from `local_window_size`
 // instead of the model-wide max_seq_len.
 //
-// Round local_window_size up to the NPU's 16-token KV granularity plus one headroom
-// block, so evictions are amortized rather than rolling the buffer on every token.
-std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::GroupQueryAttention& gqa) {
+std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::GroupQueryAttention& gqa,
+                                                     std::optional<size_t> prefill_chunk_size) {
     using ov::op::internal::GroupQueryAttentionInputs;
     if (!gqa.get_sliding_window_cache()) {
         return std::nullopt;
@@ -120,6 +119,9 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
 
     constexpr int64_t kAlign = 16;
     int64_t headroom = kAlign;
+    if (prefill_chunk_size) {
+        headroom = std::max<int64_t>(headroom, static_cast<int64_t>(*prefill_chunk_size));
+    }
     const auto& query_shape = gqa.get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
     if (query_shape.rank().is_static() && query_shape.size() > 2 && query_shape[2].is_static()) {
         headroom = std::max<int64_t>(headroom, query_shape[2].get_length());
@@ -225,9 +227,11 @@ bool has_sliding_window_seqlens_name(const ov::op::internal::GroupQueryAttention
 }  // namespace
 
 ov::npuw::ReshapeToStaticGQA::ReshapeToStaticGQA(size_t max_seq_len,
-                                                 std::optional<size_t> default_sliding_window_capacity)
+                                                 std::optional<size_t> default_sliding_window_capacity,
+                                                 std::optional<size_t> prefill_chunk_size)
     : m_max_seq_len(max_seq_len),
-      m_default_sliding_window_capacity(default_sliding_window_capacity) {}
+      m_default_sliding_window_capacity(default_sliding_window_capacity),
+      m_prefill_chunk_size(prefill_chunk_size) {}
 
 bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     m_dynamic_kv_cache_axes = find_dynamic_kv_cache_axes(model);
@@ -285,7 +289,7 @@ bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>
             }
         }
         if (!resolved && gqa) {
-            if (auto window_capacity = sliding_window_target_capacity(*gqa)) {
+            if (auto window_capacity = sliding_window_target_capacity(*gqa, m_prefill_chunk_size)) {
                 target_capacity = std::min(*window_capacity, m_max_seq_len);
                 resolved = true;  // also skip the seqlens-name fallback below
                 resolved_via_op_attribute++;

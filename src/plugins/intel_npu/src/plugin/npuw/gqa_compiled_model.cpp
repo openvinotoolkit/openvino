@@ -262,6 +262,7 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     // LLM-only option; the inner CompiledModel only registers ROOT options.
     config.erase(std::string(::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN::key()));
     config.erase(std::string(::intel_npu::NPUW_LLM_SWA_LEN::key()));
+    config.erase(std::string(::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE::key()));
     return {config, stage};
 }
 
@@ -322,7 +323,16 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
         compiled_model = model->clone();
         const auto default_sliding_window_capacity = resolve_default_sliding_window_capacity(properties);
         effective_sliding_window_capacity = static_cast<uint32_t>(default_sliding_window_capacity.value_or(0));
-        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len, default_sliding_window_capacity);
+        // V2 models share sliding KV buffers between prefill and generate, so generate must also fit a
+        // prefill chunk
+        std::optional<size_t> prefill_chunk_size;
+        const auto prefill_chunk_key = std::string(::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE::key());
+        if (properties.count(prefill_chunk_key) && identify_case(model) == Case::V2) {
+            prefill_chunk_size = static_cast<size_t>(cfg_get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>(properties));
+        }
+        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len,
+                                                           default_sliding_window_capacity,
+                                                           prefill_chunk_size);
         reshape_to_static_gqa.run_on_model(compiled_model);
         dynamic_kv_cache_axes = reshape_to_static_gqa.dynamic_kv_cache_axes();
     }
