@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/pad.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -24,24 +27,105 @@ namespace ov::frontend::pytorch::op {
 using namespace ov::op;
 
 namespace {
-// PyTorch only accepts an avg_pool kernel larger than the (unpadded) spatial input when the pooling
-// degenerates to a single output element per oversized axis - a global average pool (with a smaller
-// stride and an oversized kernel PyTorch itself raises "Output size is too small"). ov::op::AvgPool
-// instead requires the kernel to fit the padded data shape. The traced input shape is available even
-// when the runtime graph keeps the spatial dimensions dynamic, so it is used to recognise an oversized
-// kernel. Returns, per trailing spatial axis, whether the kernel exceeds the (static) traced extent.
-std::vector<bool> oversized_spatial_axes(const PartialShape& traced_shape, const Shape& kernel, int dims) {
-    std::vector<bool> oversized(static_cast<size_t>(dims), false);
-    if (!traced_shape.rank().is_static() || traced_shape.rank().get_length() < dims) {
-        return oversized;
+// PyTorch accepts a kernel larger than an unpadded 1D/2D spatial axis with ceil_mode if
+// that axis produces just one output. AvgPool requires the kernel to fit, so use ReduceMean
+// for that axis only when it is short at runtime. Keep the other axes' fixed windows intact.
+Output<Node> pool_with_short_axes(const NodeContext& context,
+                                  const Output<Node>& input,
+                                  const Strides& strides,
+                                  const Shape& pads,
+                                  const Shape& kernel,
+                                  bool exclude_pad,
+                                  RoundingType rounding_type,
+                                  size_t axis) {
+    if (axis == kernel.size()) {
+        return context.mark_node(
+            std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, exclude_pad, rounding_type));
     }
-    const auto rank = traced_shape.rank().get_length();
-    for (int i = 0; i < dims; ++i) {
-        const auto& spatial_dim = traced_shape[rank - dims + i];
-        oversized[static_cast<size_t>(i)] =
-            spatial_dim.is_static() && static_cast<int64_t>(kernel[i]) > spatial_dim.get_length();
+
+    // Explicitly padded axes retain AvgPool's normal kernel-fit and divisor semantics.
+    if (pads[axis] != 0 || kernel[axis] == 1) {
+        return pool_with_short_axes(context, input, strides, pads, kernel, exclude_pad, rounding_type, axis + 1);
     }
-    return oversized;
+
+    const auto shape = input.get_partial_shape();
+    if (shape.rank().is_static()) {
+        const auto& dim = shape[axis + 2];
+        if (dim.get_min_length() >= static_cast<int64_t>(kernel[axis])) {
+            return pool_with_short_axes(context, input, strides, pads, kernel, exclude_pad, rounding_type, axis + 1);
+        }
+        if (dim.is_static()) {
+            // ceil((length - kernel) / stride) + 1 must be positive for a short axis.
+            if (strides[axis] < kernel[axis] &&
+                dim.get_length() <= static_cast<int64_t>(kernel[axis] - strides[axis])) {
+                return pool_with_short_axes(context,
+                                            input,
+                                            strides,
+                                            pads,
+                                            kernel,
+                                            exclude_pad,
+                                            rounding_type,
+                                            axis + 1);
+            }
+            auto axes =
+                context.mark_node(v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(axis + 2)}));
+            auto reduced = context.mark_node(std::make_shared<v1::ReduceMean>(input, axes, true));
+            auto reduced_kernel = kernel;
+            auto reduced_strides = strides;
+            reduced_kernel[axis] = 1;
+            reduced_strides[axis] = 1;
+            return pool_with_short_axes(context,
+                                        reduced,
+                                        reduced_strides,
+                                        pads,
+                                        reduced_kernel,
+                                        exclude_pad,
+                                        rounding_type,
+                                        axis + 1);
+        }
+    }
+
+    auto shape_of = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+    auto index = context.mark_node(v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(axis + 2)}));
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+    auto extent = context.mark_node(std::make_shared<v8::Gather>(shape_of, index, zero));
+    auto size = context.mark_node(v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(kernel[axis])}));
+    Output<Node> condition = context.mark_node(std::make_shared<v1::Less>(extent, size));
+    if (strides[axis] < kernel[axis]) {
+        auto min_valid = context.mark_node(
+            v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(kernel[axis] - strides[axis])}));
+        auto has_window = context.mark_node(std::make_shared<v1::Greater>(extent, min_valid));
+        condition = context.mark_node(std::make_shared<v1::LogicalAnd>(condition, has_window));
+    }
+
+    // Keep body dimensions dynamic so both branches can be constructed independently.
+    const auto body_shape = PartialShape::dynamic(kernel.size() + 2);
+    auto short_input = std::make_shared<v0::Parameter>(input.get_element_type(), body_shape);
+    auto long_input = std::make_shared<v0::Parameter>(input.get_element_type(), body_shape);
+    auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(axis + 2)}));
+    auto reduced = context.mark_node(std::make_shared<v1::ReduceMean>(short_input, axes, true));
+    auto reduced_kernel = kernel;
+    auto reduced_strides = strides;
+    reduced_kernel[axis] = 1;
+    reduced_strides[axis] = 1;
+    auto short_output = pool_with_short_axes(context,
+                                             reduced,
+                                             reduced_strides,
+                                             pads,
+                                             reduced_kernel,
+                                             exclude_pad,
+                                             rounding_type,
+                                             axis + 1);
+    auto long_output =
+        pool_with_short_axes(context, long_input, strides, pads, kernel, exclude_pad, rounding_type, axis + 1);
+    auto short_result = std::make_shared<v0::Result>(short_output);
+    auto long_result = std::make_shared<v0::Result>(long_output);
+    auto if_node = std::make_shared<v8::If>(condition);
+    context.mark_node(if_node);
+    if_node->set_then_body(std::make_shared<Model>(ResultVector{short_result}, ParameterVector{short_input}));
+    if_node->set_else_body(std::make_shared<Model>(ResultVector{long_result}, ParameterVector{long_input}));
+    if_node->set_input(input, short_input, long_input);
+    return if_node->set_output(short_result, long_result);
 }
 }  // namespace
 
@@ -98,31 +182,15 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(6),
                                 "Translation for aten::avg_pool2d do not support divisor_override input.");
 
-    // An oversized kernel on an unpadded axis is PyTorch's way of expressing a global average over that
-    // axis: with ceil_mode the single pooling window is clipped to the feature map and one element is
-    // produced (e.g. EfficientNet's AvgPool2d(1280) over a 7x7 map). ov::op::AvgPool instead requires the
-    // kernel to fit the data, so such axes are lowered to ReduceMean before pooling. This keeps the graph
-    // valid for dynamic spatial dimensions and reproduces PyTorch's result for the traced feature map.
-    // Padded axes keep the regular AvgPool path: the kernel must still fit the padded data, matching
-    // PyTorch's own avg_pool constraint, so no traced-shape-dependent clamping is applied to them.
-    const auto traced_shape = context.get_decoder()->get_input_complete_shape(0);
-    const auto oversized = oversized_spatial_axes(traced_shape, kernel, dims);
-    std::vector<int64_t> reduce_axes;
-    for (int i = 0; i < dims; ++i) {
-        const auto axis = static_cast<size_t>(i);
-        if (oversized[axis] && pads[axis] == 0) {
-            reduce_axes.push_back(-dims + i);
-            kernel[axis] = 1;
-            strides[axis] = 1;
-        }
+    Output<Node> res;
+    // PyTorch rejects oversized kernels for avg_pool3d, and without ceil_mode a short
+    // unpadded axis cannot produce a valid output. Leave those cases on the usual path.
+    if (dims < 3 && rounding_type == RoundingType::CEIL_TORCH) {
+        res = pool_with_short_axes(context, input, strides, pads, kernel, !count_include_pad, rounding_type, 0);
+    } else {
+        res = context.mark_node(
+            std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type));
     }
-    if (!reduce_axes.empty()) {
-        auto axes = v0::Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes);
-        input = context.mark_node(std::make_shared<v1::ReduceMean>(input, axes, true));
-    }
-
-    auto res = context.mark_node(
-        std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type));
 
     if (is_static) {
         if (no_batch_dim) {
