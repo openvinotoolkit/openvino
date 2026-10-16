@@ -326,7 +326,7 @@ TEST_F(Flux2CompiledModelTest, ImportRejectsWrongSerializationIndicator) {
 
 TEST_F(Flux2CompiledModelTest, ImportRejectsWrongModelIndicator) {
     const auto header = make_flux2_header(NPUW_SERIALIZATION_INDICATOR,
-                                          NPUW_GQA_COMPILED_MODEL_INDICATOR,
+                                          NPUW_LLM_COMPILED_MODEL_INDICATOR,
                                           OPENVINO_VERSION_MAJOR,
                                           OPENVINO_VERSION_MINOR,
                                           OPENVINO_VERSION_PATCH,
