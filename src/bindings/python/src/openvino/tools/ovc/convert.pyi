@@ -5,9 +5,11 @@ from openvino.tools.ovc.cli_parser import get_all_cli_parser
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state
 from openvino.tools.ovc.logger import restore_logger_state
+from typing import Any
 import openvino._ov_api
 import pathlib as pathlib
-__all__: list[str] = ['Model', 'convert_model', 'get_all_cli_parser', 'get_logger_state', 'pathlib', 'restore_logger_state']
+import typing
+__all__: list[str] = ['Any', 'Model', 'convert_model', 'get_all_cli_parser', 'get_logger_state', 'pathlib', 'restore_logger_state']
 def convert_model(input_model: [str, pathlib.Path, typing.Any, list], input: [list, dict, str] = None, output: [str, list] = None, example_input: typing.Any = None, extension: [str, pathlib.Path, list, typing.Any] = None, verbose: bool = False, share_weights: bool = True, dynamo: bool = False) -> openvino._ov_api.Model:
     """
     

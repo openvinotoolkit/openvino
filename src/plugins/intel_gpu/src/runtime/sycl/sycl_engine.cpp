@@ -221,7 +221,7 @@ memory::ptr sycl_engine::reinterpret_handle(const layout& new_layout, shared_mem
     }
 }
 
-bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
+bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) const {
     if (mem1.get_engine() != this || mem2.get_engine() != this)
         return false;
     if (mem1.get_allocation_type() != mem2.get_allocation_type())

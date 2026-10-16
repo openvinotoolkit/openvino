@@ -6,13 +6,16 @@
 
 #include <future>
 #include <optional>
+#include <ostream>
 #include <random>
 #include <string>
+#include <unordered_set>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -36,6 +39,9 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
+// Names of all RW entries of an ov::supported_properties list (of a compiled model or a plugin)
+std::unordered_set<std::string> mutable_properties(const std::vector<ov::PropertyName>& supported_properties);
+
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
 // matches a "position_ids" input of a supported shape - flat [seq_len], regular
 // [1, seq_len], or 3D mrope [num_sections, 1, seq_len] (e.g. Qwen2.5-VL uses 3
@@ -43,6 +49,10 @@ bool starts_with(const std::string& str, const std::string& prefix);
 bool is_supported_position_ids_input(const ov::Output<const ov::Node>& p);
 
 std::string fmt(std::size_t number, std::size_t total);
+
+// Merges space-separated `key=value` lists; `overrides` replaces tokens with the same key, new keys are appended.
+// For compute-layers-with-higher-precision, override layers are appended to the existing comma-separated list.
+std::string merge_compilation_mode_params(const std::string& defaults, const std::string& overrides);
 
 // Matches the three DynamicQuantize decomposition implementations declared in
 // kv_cache_compressed.hpp.
@@ -242,6 +252,15 @@ bool is_swa_kv_cache_name(const std::string& input_name);
 // the GenAI continuous-batching pipeline (key_cache.N / value_cache.N, named
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
+
+// One-line tensor digest for log traces: LOG_VERB("x: " << TensorBrief{t}).
+// Tensors past kMaxStats elements, such as KV cache pools, print their shape only.
+struct TensorBrief {
+    static constexpr std::size_t kMaxInline = 16u;
+    static constexpr std::size_t kMaxStats = 1u << 20;
+    ov::SoPtr<ov::ITensor> tensor;
+};
+std::ostream& operator<<(std::ostream& os, const TensorBrief& brief);
 
 // Structure to hold SDPA pattern nodes.
 // After SplitKVCacheIntoBlocks the single past_key / past_value parameter is

@@ -802,8 +802,7 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 }
 
 void program::prepare_memory_dependencies() {
-    if (!_config.get_enable_memory_pool())
-        return;
+    // Computed even without the memory pool: network::may_alias() relies on these restrictions.
     for (const auto& node : get_processing_order()) {
         node->add_memory_dependency(*node);
     }
@@ -1510,23 +1509,45 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t dynamic_batch_onednn_conv_count = 0;
     bool has_sdpa = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
+    // Dynamic reorder and JIT pitch handling for this optimization support rank <= 4 only.
+    bool has_rank_gt4_data_flow = false;
 
     // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
     // For dynamic batches, this approach is inefficient.
     // We plan to switch to byxf for better flexibility across varying batch sizes.
     // The whitelist below defines the initial target scope (CVS-176149).
-    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::input_layout::type_id(),
-                                                                              cldnn::permute::type_id(),
+    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::activation::type_id(),
+                                                                              cldnn::arg_max_min::type_id(),
+                                                                              cldnn::broadcast::type_id(),
+                                                                              cldnn::concatenation::type_id(),
                                                                               cldnn::convolution::type_id(),
+                                                                              cldnn::crop::type_id(),
+                                                                              cldnn::deconvolution::type_id(),
+                                                                              cldnn::eltwise::type_id(),
                                                                               cldnn::fully_connected::type_id(),
-                                                                              cldnn::activation::type_id(),
-                                                                              cldnn::softmax::type_id(),
+                                                                              cldnn::gather::type_id(),
+                                                                              cldnn::input_layout::type_id(),
+                                                                              cldnn::non_max_suppression::type_id(),
+                                                                              cldnn::non_max_suppression_gather::type_id(),
+                                                                              cldnn::permute::type_id(),
+                                                                              cldnn::pooling::type_id(),
+                                                                              cldnn::range::type_id(),
                                                                               cldnn::reduce::type_id(),
                                                                               cldnn::reorder::type_id(),
-                                                                              cldnn::eltwise::type_id()};
+                                                                              cldnn::reshape::type_id(),
+                                                                              cldnn::select::type_id(),
+                                                                              cldnn::shape_of::type_id(),
+                                                                              cldnn::softmax::type_id(),
+                                                                              cldnn::strided_slice::type_id(),
+                                                                              cldnn::tile::type_id()};
 #endif
     for (const auto& node : get_processing_order()) {
         auto &prim = *node;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (prim.is_in_data_flow() && prim.get_output_layout().get_partial_shape().size() > 4) {
+            has_rank_gt4_data_flow = true;
+        }
+#endif
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
@@ -1776,6 +1797,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
     constexpr size_t max_byxf_onednn_conv_count = 5;
     bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
+        && !has_rank_gt4_data_flow
         && (total_non_byxf_onednn_conv_whitelist_layers == 0 ||
             (has_sdpa && dynamic_batch_onednn_conv_count <= max_byxf_onednn_conv_count));
     if (should_use_byxf_onednn_conv)
@@ -2198,6 +2220,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     size_t state_initializers_size;
     ib >> state_initializers_size;
     state_initializers.clear();
+
     for (size_t i = 0; i < state_initializers_size; i++) {
         std::string variable_id;
         std::vector<primitive_id> initializers;
