@@ -187,6 +187,18 @@ class TestPooling(PytorchLayerTest):
                                        ceil_mode=True, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False)
 
+    @pytest.mark.parametrize("is_dynamic_shapes", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool2d_oversized_integer_kernel(self, is_dynamic_shapes, ie_device, precision, ir_version):
+        if ie_device != "CPU":
+            pytest.skip("Integer oversized avg-pool regression is checked on CPU")
+        self.input_tensor = np.array([[[[0, 0], [1, 3]]]], dtype=np.int64)
+        self._test(*self.create_model("avg_pool2d", kernel_size=(3, 3), stride=(2, 2), padding=0,
+                                      ceil_mode=True, count_include_pad=False),
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False,
+                   dynamic_shapes=is_dynamic_shapes)
+
     @pytest.mark.parametrize("op_type,trace_shape,kernel,stride,other_shape", [
         ("avg_pool1d", (1, 1, 7), 32, 32, (1, 1, 64)),
         ("avg_pool1d", (1, 1, 64), 32, 32, (1, 1, 7)),

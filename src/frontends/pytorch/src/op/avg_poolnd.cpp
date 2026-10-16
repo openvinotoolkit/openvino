@@ -7,6 +7,7 @@
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/if.hpp"
@@ -183,10 +184,20 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
                                 "Translation for aten::avg_pool2d do not support divisor_override input.");
 
     Output<Node> res;
+    const auto input_type = input.get_element_type();
+    const bool use_short_axis_pooling = dims < 3 && rounding_type == RoundingType::CEIL_TORCH;
     // PyTorch rejects oversized kernels for avg_pool3d, and without ceil_mode a short
     // unpadded axis cannot produce a valid output. Leave those cases on the usual path.
-    if (dims < 3 && rounding_type == RoundingType::CEIL_TORCH) {
-        res = pool_with_short_axes(context, input, strides, pads, kernel, !count_include_pad, rounding_type, 0);
+    if (use_short_axis_pooling) {
+        auto pool_input = input;
+        if (input_type.is_integral()) {
+            // Keep fractional intermediate averages until every spatial axis has been pooled.
+            pool_input = context.mark_node(std::make_shared<v0::Convert>(input, element::f64));
+        }
+        res = pool_with_short_axes(context, pool_input, strides, pads, kernel, !count_include_pad, rounding_type, 0);
+        if (input_type.is_integral()) {
+            res = context.mark_node(std::make_shared<v0::Convert>(res, input_type));
+        }
     } else {
         res = context.mark_node(
             std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type));
