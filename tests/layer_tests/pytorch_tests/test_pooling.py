@@ -233,6 +233,28 @@ class TestPooling(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    def test_avg_pool_dynamic_unit_stride_skips_if(self, ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool1d", kernel_size=3, stride=1, padding=0, ceil_mode=True)
+        example = torch.arange(4, dtype=torch.float32).reshape(1, 1, 4)
+        scripted = torch.jit.trace(model, example)
+        ov_model = ov.convert_model(scripted, example_input=(example,),
+                                    input=[ov.PartialShape([-1] * example.ndim)])
+
+        op_types = [node.get_type_name() for node in ov_model.get_ordered_ops()]
+        assert "AvgPool" in op_types, f"expected the ordinary AvgPool path; ops: {op_types}"
+        assert "If" not in op_types, f"unit-stride dynamic pooling must not create an If; ops: {op_types}"
+        assert ov_model.inputs[0].partial_shape[-1].is_dynamic
+
+        compiled = ov.Core().compile_model(ov_model, ie_device)
+        for length in (3, 4):
+            data = torch.arange(length, dtype=torch.float32).reshape(1, 1, length)
+            with torch.no_grad():
+                expected = scripted(data).numpy()
+            actual = compiled((data.numpy(),))[compiled.outputs[0]]
+            np.testing.assert_allclose(actual, expected, rtol=1e-4, atol=1e-4)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_avg_pool_invalid_short_input_fails(self, ie_device, precision, ir_version):
         if ie_device != "CPU":
             pytest.skip("runtime pooling error is checked on CPU")
