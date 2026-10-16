@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+#include <algorithm>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -12,6 +13,9 @@
 #include <openvino/core/type/nf4.hpp>
 #include <regex>
 #include <sstream>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "llm_lora_states.hpp"
 #include "logging.hpp"
@@ -194,6 +198,17 @@ bool ov::npuw::util::starts_with(const std::string& str, const std::string& pref
     return str.substr(0, prefix.size()) == prefix;
 }
 
+std::unordered_set<std::string> ov::npuw::util::mutable_properties(
+    const std::vector<ov::PropertyName>& supported_properties) {
+    std::unordered_set<std::string> result;
+    for (const auto& p : supported_properties) {
+        if (p.is_mutable()) {
+            result.insert(p);
+        }
+    }
+    return result;
+}
+
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
     const auto& shape = p.get_shape();
     return p.get_node()->get_friendly_name() == "position_ids" &&
@@ -208,6 +223,60 @@ std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
     std::stringstream ss;
     ss << std::setfill('0') << std::setw(regs) << number;
     return ss.str();
+}
+
+std::string ov::npuw::util::merge_compilation_mode_params(const std::string& defaults, const std::string& overrides) {
+    // Keys whose value is a comma-separated list that must be extended rather than replaced.
+    static const std::unordered_set<std::string> list_keys = {"compute-layers-with-higher-precision"};
+
+    const auto append_list_values = [](std::string& param, const std::string& extra_values) {
+        std::unordered_set<std::string> existing;
+        std::istringstream current(param.substr(param.find('=') + 1));
+        for (std::string item; std::getline(current, item, ',');) {
+            existing.insert(item);
+        }
+        std::istringstream extra(extra_values);
+        for (std::string item; std::getline(extra, item, ',');) {
+            if (!item.empty() && existing.insert(item).second) {
+                param += (param.back() == '=' ? "" : ",") + item;
+            }
+        }
+    };
+
+    std::vector<std::string> params;
+    std::unordered_map<std::string, size_t> param_indices;
+
+    const auto add_params = [&](const std::string& value, bool replace_existing) {
+        std::istringstream stream(value);
+        std::string param;
+        while (stream >> param) {
+            const auto separator = param.find('=');
+            const auto key = param.substr(0, separator);
+            const auto [it, inserted] = param_indices.emplace(key, params.size());
+            if (inserted) {
+                params.push_back(std::move(param));
+            } else if (replace_existing) {
+                if (separator != std::string::npos && list_keys.count(key) &&
+                    params[it->second].find('=') != std::string::npos) {
+                    append_list_values(params[it->second], param.substr(separator + 1));
+                } else {
+                    params[it->second] = std::move(param);
+                }
+            }
+        }
+    };
+
+    add_params(defaults, false);
+    add_params(overrides, true);
+
+    std::ostringstream result;
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i != 0) {
+            result << ' ';
+        }
+        result << params[i];
+    }
+    return result.str();
 }
 
 void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
@@ -447,8 +516,18 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     const uint8_t* pSrc = static_cast<uint8_t*>(src->data());
     uint8_t* pDst = static_cast<uint8_t*>(dst->data());
 
+    const auto num_rows = static_cast<int64_t>(src_shape[0]);
+    NPUW_ASSERT(num_rows > 0);
+
     for (std::size_t r = 0; r < idx_shape[1]; r++) {
-        auto srcRowIdx = pIdx[r];
+        // HostGather (see partitioning/patterns/opt.cpp) folds away both the Gather and
+        // the Minimum(N-1, Maximum(-N, ids)) clamp guarding it, so reproduce both here:
+        // saturate first, then apply Gather's negative-index semantics. The copy below
+        // is raw pointer arithmetic, so no index may escape [0, N).
+        auto srcRowIdx = std::clamp(pIdx[r], -num_rows, num_rows - 1);
+        if (srcRowIdx < 0) {
+            srcRowIdx += num_rows;
+        }
         auto pSrcRow = pSrc + src_shape[1] * srcRowIdx * src_type.size();
         std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
         pDst += dst_shape[2] * dst_type.size();
@@ -980,8 +1059,8 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
 }
 
 bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::string& past_or_present) {
-    static std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
-    static std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
+    static const std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
+    static const std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
     const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
     return std::regex_match(input, regex_pattern);
 }
@@ -1002,6 +1081,46 @@ bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
     return ov::npuw::util::starts_with(input_name, "key_cache.") ||
            ov::npuw::util::starts_with(input_name, "value_cache.");
 }
+
+std::ostream& ov::npuw::util::operator<<(std::ostream& os, const TensorBrief& brief) {
+    const auto& tensor = brief.tensor;
+    const auto type = tensor->get_element_type();
+    const auto n = tensor->get_size();
+    os << type << " " << tensor->get_shape();
+    const bool readable =
+        type == ov::element::f32 || type == ov::element::f16 || type == ov::element::i32 || type == ov::element::i64;
+    if (!readable || n == 0 || n > TensorBrief::kMaxStats) {
+        return os;
+    }
+    const auto value_at = [&](std::size_t i) -> double {
+        if (type == ov::element::f32) {
+            return tensor->data<float>()[i];
+        }
+        if (type == ov::element::f16) {
+            return static_cast<float>(tensor->data<ov::float16>()[i]);
+        }
+        if (type == ov::element::i32) {
+            return tensor->data<int32_t>()[i];
+        }
+        return static_cast<double>(tensor->data<int64_t>()[i]);
+    };
+    if (n <= TensorBrief::kMaxInline) {
+        os << " {";
+        for (std::size_t i = 0; i < n; ++i) {
+            os << (i ? ", " : "") << value_at(i);
+        }
+        return os << "}";
+    }
+    auto lo = value_at(0), hi = lo, sum = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const auto v = value_at(i);
+        lo = std::min(lo, v);
+        hi = std::max(hi, v);
+        sum += v;
+    }
+    return os << " min=" << lo << " max=" << hi << " mean=" << sum / static_cast<double>(n);
+}
+
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();
@@ -1042,7 +1161,6 @@ bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
     // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
     static const std::regex restored_pattern(
         R"((input_restored\.past_key_values\.(\d+)\.decoder\.(key|value))(present\.(\d+)\.decoder\.(key|value)))");
-    ;
     return std::regex_match(str, restored_pattern);
 }
 
@@ -1050,7 +1168,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::strin
     // Match only the single contiguous past key param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
     // Returns the layer index if matched.
-    std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
+    static const std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1063,7 +1181,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
     // Match only the single contiguous past value param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
     // Returns the layer index if matched.
-    std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
+    static const std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1073,7 +1191,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
 }
 
 std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str) {
-    std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.key)");
+    static const std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1083,7 +1201,7 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str)
 }
 
 std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& str) {
-    std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.value)");
+    static const std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.value)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
