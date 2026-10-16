@@ -425,15 +425,25 @@ RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
         auto config = rope_node->get_config();
         if (pattern_map.count(input_to_slice) && slice_start.is_integer() && slice_stop.is_integer()) {
-            // Reject negative or non-increasing Slice bounds before size_t conversion.
-            const auto start = slice_start.i();
-            const auto stop = slice_stop.i();
-            if (start < 0 || stop < 0 || stop <= start)
+            // Resolve legally-negative Slice-8/StridedSlice-1 bounds against the sliced axis's
+            // static extent before storing as size_t; decline fusion if that isn't possible.
+            auto start = slice_start.i();
+            auto stop = slice_stop.i();
+            const auto& sliced_input = pattern_map.at(input_to_slice);
+            const auto& input_shape = sliced_input.get_partial_shape();
+            if (input_shape.rank().is_dynamic() || !input_shape[3].is_static())
+                return false;
+            const auto extent = input_shape[3].get_length();
+            if (start < 0)
+                start += extent;
+            if (stop < 0)
+                stop += extent;
+            if (start < 0 || stop <= start || stop > extent)
                 return false;
             config.slice_start = static_cast<size_t>(start);
             config.slice_stop = static_cast<size_t>(stop);
             config.input_trans0213 = true;
-            rope_node->set_argument(0, pattern_map.at(input_to_slice));
+            rope_node->set_argument(0, sliced_input);
         } else if (pattern_map.count(input_to_trans)) {
             config.input_trans0213 = true;
             rope_node->set_argument(0, pattern_map.at(input_to_trans));

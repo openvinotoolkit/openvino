@@ -456,46 +456,14 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_PositiveSliceBoundsFused) {
-    disable_rt_info_check();
+static std::shared_ptr<ov::Model> make_rope_preprocess_model(int64_t slice_start,
+                                                             int64_t slice_stop,
+                                                             bool dynamic_ndims = false) {
     const int batch = 2, seq_len = 16, num_heads = 32, ndims = 80, rotary_ndims = 20;
 
-    auto build = [&](bool with_slice) {
-        auto input = std::make_shared<v0::Parameter>(
-            ov::element::f32,
-            ov::Shape{(size_t)batch, (size_t)seq_len, (size_t)num_heads, (size_t)ndims});
-        auto param_cos =
-            std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
-        auto param_sin =
-            std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
-
-        ov::op::internal::RoPE::Config config;
-        config.rotary_ndims = rotary_ndims;
-        ov::Output<ov::Node> rope_input = input;
-        if (with_slice) {
-            auto slice = makeOP<ov::op::v8::Slice>({input, {0}, {rotary_ndims}, {1}, {3}});
-            rope_input = makeOP<v1::Transpose>({slice, {0, 2, 1, 3}});
-        } else {
-            config.slice_start = 0;
-            config.slice_stop = rotary_ndims;
-            config.input_trans0213 = true;
-        }
-        auto rope =
-            std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, param_cos, param_sin}, config);
-        return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
-    };
-
-    model = build(true);
-    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
-    model_ref = build(false);
-}
-
-static std::shared_ptr<ov::Model> make_rope_preprocess_model(int64_t slice_start, int64_t slice_stop) {
-    const int batch = 2, seq_len = 16, num_heads = 32, ndims = 80, rotary_ndims = 20;
-
+    ov::Dimension ndims_dim = dynamic_ndims ? ov::Dimension::dynamic() : ov::Dimension(ndims);
     auto input =
-        std::make_shared<v0::Parameter>(ov::element::f32,
-                                        ov::Shape{(size_t)batch, (size_t)seq_len, (size_t)num_heads, (size_t)ndims});
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{batch, seq_len, num_heads, ndims_dim});
     auto param_cos =
         std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
     auto param_sin =
@@ -509,18 +477,46 @@ static std::shared_ptr<ov::Model> make_rope_preprocess_model(int64_t slice_start
     return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceStartRejected) {
+// Already-fused reference graph: input feeds RoPE directly, config carries the absolute offsets.
+static std::shared_ptr<ov::Model> make_rope_fused_model(size_t slice_start, size_t slice_stop) {
+    const int batch = 2, seq_len = 16, num_heads = 32, ndims = 80, rotary_ndims = 20;
+
+    auto input =
+        std::make_shared<v0::Parameter>(ov::element::f32,
+                                        ov::Shape{(size_t)batch, (size_t)seq_len, (size_t)num_heads, (size_t)ndims});
+    auto param_cos =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+    auto param_sin =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+
+    ov::op::internal::RoPE::Config config;
+    config.rotary_ndims = rotary_ndims;
+    config.slice_start = slice_start;
+    config.slice_stop = slice_stop;
+    config.input_trans0213 = true;
+    auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{input, param_cos, param_sin}, config);
+    return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_PositiveSliceBoundsFused) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(0, 20);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_fused_model(0, 20);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsNormalizedFused) {
     disable_rt_info_check();
     model = make_rope_preprocess_model(-28, -8);
     manager.register_pass<ov::pass::RoPEFusionPreprocess>();
-    model_ref = make_rope_preprocess_model(-28, -8);
+    model_ref = make_rope_fused_model(52, 72);
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceStopRejected) {
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsDynamicDimRejected) {
     disable_rt_info_check();
-    model = make_rope_preprocess_model(0, -1);
+    model = make_rope_preprocess_model(-28, -8, /*dynamic_ndims=*/true);
     manager.register_pass<ov::pass::RoPEFusionPreprocess>();
-    model_ref = make_rope_preprocess_model(0, -1);
+    model_ref = make_rope_preprocess_model(-28, -8, /*dynamic_ndims=*/true);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_InvertedSliceBoundsRejected) {
@@ -535,6 +531,20 @@ TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_EmptySliceBoundsRejected) 
     model = make_rope_preprocess_model(10, 10);
     manager.register_pass<ov::pass::RoPEFusionPreprocess>();
     model_ref = make_rope_preprocess_model(10, 10);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_SliceBoundsExceedExtentRejected) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(0, 90);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_preprocess_model(0, 90);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsOutOfRangeRejected) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(-1000, -8);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_preprocess_model(-1000, -8);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
