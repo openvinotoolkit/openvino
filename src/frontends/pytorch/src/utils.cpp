@@ -12,12 +12,15 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -25,6 +28,7 @@
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -689,6 +693,15 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     return x;
 }
 
+Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
+    auto is_negative = context.mark_node(std::make_shared<v1::Less>(x, zero));
+    auto ceil = context.mark_node(std::make_shared<v0::Ceiling>(x));
+    auto floor = context.mark_node(std::make_shared<v0::Floor>(x));
+    return context.mark_node(std::make_shared<v1::Select>(is_negative, ceil, floor));
+}
+
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     // Handle SequenceMark (list construct) - concatenate elements
@@ -1306,6 +1319,36 @@ OutputVector wrap_complex(const NodeContext& context,
         return wrapped;
     }
     return results;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> make_tagged_parameter(const NodeContext& context,
+                                                             const std::string& tag,
+                                                             const element::Type& et,
+                                                             const PartialShape& ps) {
+    auto param = std::make_shared<v0::Parameter>(et, ps);
+    param->set_friendly_name(tag);
+    param->output(0).set_names({tag});
+    // Register so the final Model::check_all_parameters_registered passes.
+    context.add_external_parameter(param);
+    return param;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
+                                                                   const std::string& tag,
+                                                                   const element::Type& et,
+                                                                   const PartialShape& ps) {
+    auto* session = context.get_session();
+    if (session) {
+        auto it = session->m_shared_pa_params.find(tag);
+        if (it != session->m_shared_pa_params.end()) {
+            return it->second;
+        }
+    }
+    auto param = make_tagged_parameter(context, tag, et, ps);
+    if (session) {
+        session->m_shared_pa_params[tag] = param;
+    }
+    return param;
 }
 
 }  // namespace ov::frontend::pytorch

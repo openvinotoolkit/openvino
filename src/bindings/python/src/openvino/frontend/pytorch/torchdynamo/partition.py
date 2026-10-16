@@ -141,12 +141,11 @@ class Partitioner:
         self.capture_nncf_patterns(graph_module)
 
         # Optional: rewrites vLLM's attention HOP node into
-        # torch.ops.openvino.paged_attention.default. No-op on non-vLLM graphs.
-        try:
-            from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
-            _vllm.maybe_rewrite_paged_attention(graph_module, getattr(self, "_ov_options", None))
-        except Exception as _e:
-            logger.debug("vllm.maybe_rewrite_paged_attention skipped: %s", _e)
+        # torch.ops.ov_ext.paged_attention.default. No-op on non-vLLM graphs.
+        # Not wrapped in try: on the vLLM path a failed rewrite must stop compilation
+        # (see vllm.maybe_rewrite_paged_attention); elsewhere it already returns 0.
+        from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
+        _vllm.maybe_rewrite_paged_attention(graph_module, getattr(self, "_ov_options", None))
 
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=allow_single_node_partition)

@@ -12,7 +12,7 @@ vLLM-specific PA-binding knowledge.
 
 import os
 
-from .side_channel import _bind_paged_attention_side_channel
+from .side_channel import _bind_gdn_side_channel, _bind_paged_attention_side_channel
 
 
 # Per-InferRequest caches for the OV_FAST_INFER fast path.
@@ -20,6 +20,12 @@ _fastinfer_port_cache = {}
 _fastinfer_bound_ids = {}   # id(req) -> [[val_id, ov_tensor_ref], ...] per port
 _fastinfer_out_cache = {}   # id(req) -> {out_port: numpy_view}
 _fastinfer_out_static = {}  # id(compiled) -> bool: output views are reusable
+
+
+def clear_caches():
+    """Drop the fast-infer caches. Their keys are id(compiled)/id(req), reused once those are freed."""
+    for cache in (_fastinfer_port_cache, _fastinfer_bound_ids, _fastinfer_out_cache, _fastinfer_out_static):
+        cache.clear()
 
 
 # Sentinel returned by run_pa_infer to signal "skip this infer; use eager".
@@ -45,10 +51,13 @@ def run_pa_infer(compiled, req, ov_inputs):
         return None
     if should_skip_pa_infer():
         return PA_SKIP
-    call_kwargs = build_call_kwargs(compiled, ov_inputs)
+    call_kwargs, scatter_back = build_call_kwargs(compiled, ov_inputs)
     if not call_kwargs:
         return None
-    return infer_with_pa(req, compiled, call_kwargs)
+    result = infer_with_pa(req, compiled, call_kwargs)
+    if scatter_back is not None:
+        scatter_back()
+    return result
 
 
 def has_pa_inputs(compiled) -> bool:
@@ -69,7 +78,12 @@ def should_skip_pa_infer() -> bool:
     There the side channel can only supply zero-length metadata, so the OV
     PA kernel would read uninitialized memory. Neither caller of this state
     (determine_available_memory, dummy_run) consumes the output, so skipping
-    to eager is safe. Any exception falls through to False.
+    to eager is safe.
+
+    A missing forward context is not such a state and returns False on
+    purpose: the eager path can't write the KV cache (the OV attention op
+    owns that write), so skipping a real step would decode garbage silently,
+    while running PA without a context fails loudly in the binder.
     """
     try:
         from vllm.forward_context import get_forward_context
@@ -96,12 +110,14 @@ def build_call_kwargs(compiled, ov_inputs):
 
     Walks compiled.inputs in order, mapping each ``__pa__`` Parameter to its
     bound side-channel tensor and every other one to the next entry of
-    ``ov_inputs``. Returns None when there are no PA inputs, in which case the
-    caller should pass ``ov_inputs`` directly.
+    ``ov_inputs``. Returns ``(call_kwargs, scatter_back)``; call_kwargs is None without PA inputs,
+    and scatter_back (if any) must run after infer.
     """
     pa_inputs_by_pos = _bind_paged_attention_side_channel(compiled)
+    gdn_inputs, scatter_back = _bind_gdn_side_channel(compiled)
+    pa_inputs_by_pos.update(gdn_inputs)
     if not pa_inputs_by_pos:
-        return None
+        return None, None
     call_kwargs = {}
     tensor_pos = 0
     for inp in compiled.inputs:
@@ -115,7 +131,7 @@ def build_call_kwargs(compiled, ov_inputs):
         else:
             call_kwargs[inp] = ov_inputs[tensor_pos]
             tensor_pos += 1
-    return call_kwargs
+    return call_kwargs, scatter_back
 
 
 def infer_with_pa(req, compiled, call_kwargs):

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Translator for torch.ops.openvino.paged_attention.default. KV cache/block
+// Translator for torch.ops.ov_ext.paged_attention.default. KV cache/block
 // tables aren't in the FX graph; creates side-channel Parameters instead.
 
 #include "openvino/op/paged_attention.hpp"
@@ -28,50 +28,11 @@
 #include "translate_session.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op::ext {
 
 using namespace ov::op;
 
-namespace {
-
-std::shared_ptr<v0::Parameter> make_tagged_parameter(const NodeContext& context,
-                                                     const std::string& tag,
-                                                     const element::Type& et,
-                                                     const PartialShape& ps) {
-    auto param = std::make_shared<v0::Parameter>(et, ps);
-    param->set_friendly_name(tag);
-    param->output(0).set_names({tag});
-    // Register so the final Model::check_all_parameters_registered passes.
-    context.add_external_parameter(param);
-    return param;
-}
-
-// Get-or-create a shared PA side-channel Parameter, scoped to the session
-// so all PA layers reuse one Parameter for per-sequence metadata.
-std::shared_ptr<v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
-                                                           const std::string& tag,
-                                                           const element::Type& et,
-                                                           const PartialShape& ps) {
-    auto* session = context.get_session();
-    if (session) {
-        auto it = session->m_shared_pa_params.find(tag);
-        if (it != session->m_shared_pa_params.end()) {
-            return it->second;
-        }
-    }
-    auto param = make_tagged_parameter(context, tag, et, ps);
-    if (session) {
-        session->m_shared_pa_params[tag] = param;
-    }
-    return param;
-}
-
-}  // namespace
-
-OutputVector translate_openvino_paged_attention(const NodeContext& context) {
+OutputVector translate_paged_attention(const NodeContext& context) {
     // Args: (query, key, value, layer_name[, scale, kv_sharing_target]).
     // The trailing two are optional so graphs produced by an older
     // paged_attention.py still translate; both then fall back to derivation.
@@ -418,7 +379,4 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     return {pa_out};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op::ext

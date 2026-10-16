@@ -195,7 +195,9 @@ set **both**, to the same value, or `compile_model` will reject the pair.
 ## Environment variables
 
 Set these before running your script. The plugin's `register()` fills in
-`VLLM_CPU_KVCACHE_SPACE` and `OV_FAST_INFER` when they are unset.
+`OV_FAST_INFER` when it is unset. For runs that use the OpenVINO backend it
+also sizes the KV cache to 4 GiB unless `VLLM_CPU_KVCACHE_SPACE` or
+`kv_cache_memory_bytes` is set; other vLLM runs keep vLLM's defaults.
 
 ### OV plugin — fast paths
 
@@ -226,7 +228,7 @@ Not owned by this plugin, but relevant to how vLLM+OV runs:
 
 | Variable | Default | Effect |
 |---|---|---|
-| `VLLM_CPU_KVCACHE_SPACE` | `4` (set by plugin) | GiB of RAM reserved for the KV cache. The plugin sets `4` when unset — enough for 1–2B models at 2k context on a shared node. Raise it for bigger models or longer context. Setting `0` on a shared machine can trigger `Available memory on node 0 ... is less than requested memory for kv`. |
+| `VLLM_CPU_KVCACHE_SPACE` | `4` on the OV backend (set by plugin) | GiB of RAM reserved for the KV cache. On the OpenVINO backend the plugin uses `4` when neither this nor `kv_cache_memory_bytes` is set — enough for 1–2B models at 2k context on a shared node. Raise it for bigger models or longer context. Setting `0` on a shared machine can trigger `Available memory on node 0 ... is less than requested memory for kv`. |
 | `OMP_NUM_THREADS` | (varies) | vLLM's thread count for its own numpy / torch ops. Under the default `OV_LM_HEAD=0`, `lm_head` runs on torch/oneDNN and this knob matters: leaving it unset is right for small models, while larger ones need it set explicitly (the exact value matters far less than setting it at all). Under `OV_LM_HEAD=1` it is close to irrelevant. Independent of `OV_INFERENCE_NUM_THREADS`. |
 | `VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS` | `300` | Timeout for the worker's `execute_model` RPC. Raise it if a first-infer compile is slow. |
 | `VLLM_USE_AOT_COMPILE` | `0` | Keep `0` for the OV backend. |
@@ -373,7 +375,7 @@ beam search, speculative decoding, prefix caching, custom logits processors).
 | File | Role |
 |---|---|
 | `plugin.py` | `vllm.general_plugins` entry point. Patches `CPUModelRunner.load_model` to wrap `model.forward` with `torch.compile(backend="openvino", options={"vllm": True})`. |
-| `paged_attention.py` | Custom `torch.ops.openvino.paged_attention` op + FX rewrite that converts vLLM's `auto_functionalized_v2(unified_attention_with_output, ...)` HOP nodes into it, so the OV pytorch frontend translates the call to `PagedAttentionExtension`. |
+| `paged_attention.py` | Custom `torch.ops.ov_ext.paged_attention` op + FX rewrite that converts vLLM's `auto_functionalized_v2(unified_attention_with_output, ...)` HOP nodes into it, so the OV pytorch frontend translates the call to `PagedAttentionExtension`. |
 | `side_channel.py` | At infer time, binds the `__pa__<layer>__<field>` Parameters (KV cache, block tables, past_lens, ...) from `vllm.forward_context.get_forward_context()`. |
 | `lm_head.py` | Optional OV-compiled `lm_head`, gated on `OV_LM_HEAD`. |
 | `sampler.py` | Optional OV-fused fast path for `vllm.v1.sample.sampler.Sampler`. |

@@ -3441,3 +3441,224 @@ def test_plain_weights_cast_is_not_marked():
 
     assert not _decompression_marked_converts(ov_model), \
         "A cast with no dequantization underneath must not be marked as decompression"
+
+
+class _Bf16Linear(torch.nn.Module):
+    """A bf16 linear layer: a large weight and a small bias."""
+
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x)
+
+
+def _convert_fx(default_float_type):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    with torch.no_grad():
+        ep = torch.export.export(_Bf16Linear().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
+    # Keep the decoder referenced until convert() is done: the frontend calls back into it.
+    decoder = TorchFXPythonDecoder(ep.module(), default_float_type=default_float_type)
+    fe = FrontEndManager().load_by_framework("pytorch")
+    return fe.convert(fe.load(decoder))
+
+
+def _ops_of_type(ov_model, op_type):
+    return [op for op in ov_model.get_ordered_ops() if op.get_type_name() == op_type]
+
+
+@pytest.mark.parametrize("default_float_type", [None, torch.float32], ids=["not_given", "f32"])
+def test_canonicalize_float_precision_is_opt_in(default_float_type):
+    """With torch's own default float type (f32) the model keeps its types and gets no rt_info entry."""
+    ov_model = _convert_fx(default_float_type)
+    assert [op.get_output_element_type(0) for op in _ops_of_type(ov_model, "MatMul")] == [Type.bf16]
+    assert not ov_model.has_rt_info("default_float_type")
+
+
+def test_decoder_default_float_type():
+    """get_default_float_type() is shared by the TorchScript and FX decoders: f32 unless given."""
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    example = torch.randn(2, 64, dtype=torch.bfloat16)
+    with torch.no_grad():
+        gm = torch.export.export(_Bf16Linear().eval(), (example,)).module()
+
+    def ts_decoder(**kwargs):
+        return TorchScriptPythonDecoder(_Bf16Linear().eval(), example_input=(example,), **kwargs)
+
+    for make in (lambda **kw: TorchFXPythonDecoder(gm, **kw), ts_decoder):
+        assert make().get_default_float_type() == Type.f32
+        assert make(default_float_type=torch.bfloat16).get_default_float_type() == Type.bf16
+        assert make(default_float_type=Type.f16).get_default_float_type() == Type.f16
+        with pytest.raises(ValueError):
+            make(default_float_type=torch.int32)
+
+
+def test_canonicalize_float_precision(tmp_path):
+    """bf16 activations become f32, the large weight stays bf16 behind a Convert
+    carrying the real decompression attribute, and the model's I/O keeps bf16."""
+    from openvino import Core, serialize
+
+    ov_model = _convert_fx(torch.bfloat16)
+    assert ov_model.get_rt_info("default_float_type").astype(str) == "bf16"
+    assert [op.get_output_element_type(0) for op in _ops_of_type(ov_model, "MatMul")] == [Type.f32]
+    assert ov_model.inputs[0].get_element_type() == Type.bf16
+    assert ov_model.outputs[0].get_element_type() == Type.bf16
+
+    weight_converts = [op for op in _ops_of_type(ov_model, "Convert")
+                       if op.input_value(0).get_node().get_type_name() == "Constant"]
+    assert len(weight_converts) == 1
+    assert weight_converts[0].input_value(0).get_element_type() == Type.bf16
+    assert weight_converts[0].input_value(0).get_shape() == [64, 64]
+    # The 64-element bias is folded to f32 instead.
+    assert any(op.get_element_type() == Type.f32 and op.get_shape() == [64]
+               for op in _ops_of_type(ov_model, "Constant"))
+
+    # The mark must be the real attribute: a plain rt_info value under the
+    # same key would be dropped from the IR.
+    xml_path, bin_path = str(tmp_path / "model.xml"), str(tmp_path / "model.bin")
+    serialize(ov_model, xml_path, bin_path)
+    reloaded = Core().read_model(xml_path)
+    assert [op for op in _ops_of_type(reloaded, "Convert") if "decompression_0" in op.get_rt_info()], \
+        "The decompression mark must survive an IR round trip"
+
+
+class _Bf16Passthrough(torch.nn.Module):
+    """Returns its input and a large buffer unchanged next to a computed output."""
+
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("w", torch.randn(128, 64, dtype=torch.bfloat16))
+
+    def forward(self, x):
+        return x, self.w, x @ self.w.t()
+
+
+def test_canonicalize_float_precision_keeps_passthrough_outputs():
+    """A Result fed straight by a Parameter or Constant keeps its type and tensor names."""
+    def convert_with(default_float_type):
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+        with torch.no_grad():
+            ep = torch.export.export(_Bf16Passthrough().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
+        decoder = TorchFXPythonDecoder(ep.module(), default_float_type=default_float_type)
+        fe = FrontEndManager().load_by_framework("pytorch")
+        return fe.convert(fe.load(decoder))
+
+    expected = convert_with(None)
+    canonical = convert_with(torch.bfloat16)
+    assert [sorted(o.get_names()) for o in canonical.outputs] == [sorted(o.get_names()) for o in expected.outputs]
+    assert [o.get_element_type() for o in canonical.outputs] == [Type.bf16] * 3
+
+
+class _Bf16Arange(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x) * torch.arange(64, dtype=torch.bfloat16)
+
+
+class _Bf16Eye(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x) @ torch.eye(64, dtype=torch.bfloat16)
+
+
+class _Bf16Bernoulli(torch.nn.Module):
+    """aten.bernoulli lowers to a RandomUniform in the input's dtype."""
+
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 64, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x) * torch.bernoulli(torch.full_like(x, 0.5))
+
+
+@pytest.mark.parametrize("module_cls", [_Bf16Arange, _Bf16Eye, _Bf16Bernoulli], ids=["range", "eye", "random_uniform"])
+def test_canonicalize_float_precision_attribute_typed_ops(module_cls):
+    """Ops whose output type is an attribute (Range, Eye, RandomUniform) are retyped along with the
+    rest of the graph instead of leaving a bf16 input next to an f32 one."""
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    with torch.no_grad():
+        ep = torch.export.export(module_cls().eval(), (torch.randn(2, 64, dtype=torch.bfloat16),))
+    decoder = TorchFXPythonDecoder(ep.module(), default_float_type=torch.bfloat16)
+    fe = FrontEndManager().load_by_framework("pytorch")
+    ov_model = fe.convert(fe.load(decoder))
+
+    attribute_typed = {"Range", "Eye", "RandomUniform"}
+    assert attribute_typed & {op.get_type_name() for op in ov_model.get_ordered_ops()}
+    assert ov_model.outputs[0].get_element_type() == Type.bf16
+    narrow = [op.get_type_name() for op in ov_model.get_ordered_ops()
+              if op.get_type_name() not in ("Constant", "Parameter", "Result", "Convert")
+              and op.get_output_element_type(0) in (Type.bf16, Type.f16)]
+    assert not narrow, f"ops left in bf16: {narrow}"
+
+
+class _Bf16LinearBiasThenAdd(torch.nn.Module):
+    """A biased Linear followed by a constant Add: FC -> Add(bias) -> Add(const) on CPU."""
+
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(64, 2048, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        return self.linear(x) + torch.arange(2048, dtype=torch.bfloat16) / 2048
+
+
+def _convert_canonical(module, example):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    with torch.no_grad():
+        ep = torch.export.export(module.eval(), (example,))
+    decoder = TorchFXPythonDecoder(ep.module(), default_float_type=example.dtype)
+    fe = FrontEndManager().load_by_framework("pytorch")
+    return fe.convert(fe.load(decoder))
+
+
+def test_canonicalize_float_precision_matches_ir_state(tmp_path):
+    """The in-memory model carries the same rt_info as the model read back from IR, so a plugin
+    compiling it from memory sees what it sees for an IR model."""
+    from openvino import Core, serialize
+
+    ov_model = _convert_canonical(_Bf16LinearBiasThenAdd(), torch.randn(2, 64, dtype=torch.bfloat16))
+    xml_path, bin_path = str(tmp_path / "model.xml"), str(tmp_path / "model.bin")
+    serialize(ov_model, xml_path, bin_path)
+    reloaded = Core().read_model(xml_path)
+
+    def convert_marks(model):
+        return sorted(sorted(op.get_rt_info().keys()) for op in model.get_ordered_ops()
+                      if op.get_type_name() == "Convert" and op.input_value(0).get_node().get_type_name() == "Constant")
+
+    assert convert_marks(ov_model) == convert_marks(reloaded)
+    assert ["decompression_0"] in convert_marks(ov_model)
+
+
+def test_canonicalize_float_precision_bias_then_add_on_cpu():
+    """FC -> Add(bias) -> Add(const) compiled from memory keeps the bias."""
+    import copy
+    from openvino import Core, Tensor, Shape
+
+    torch.manual_seed(0)
+    module = _Bf16LinearBiasThenAdd()
+    x = torch.randn(2, 64, dtype=torch.bfloat16)
+    ov_model = _convert_canonical(module, x)
+
+    linear = copy.deepcopy(module.linear).double()
+    with torch.no_grad():
+        expected = (linear(x.double()) + torch.arange(2048, dtype=torch.float64) / 2048).numpy()
+    tensor = Tensor(Type.bf16, Shape([2, 64]))
+    tensor.data[...] = x.view(torch.int16).numpy().view(np.float16)
+    result = Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})([tensor])[0]
+    result = (result.view(np.uint16).astype(np.uint32) << 16).view(np.float32)
+    # A dropped bias shows up as an error of the bias magnitude (~0.125); bf16 rounding alone stays below 0.02.
+    assert np.abs(result - expected).max() < 0.05

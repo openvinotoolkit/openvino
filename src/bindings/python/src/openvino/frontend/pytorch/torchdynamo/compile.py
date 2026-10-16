@@ -107,14 +107,20 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                 input_types.append(input_data.type())
                 input_shapes.append(input_data.size())
 
-        decoder = TorchFXPythonDecoder(gm)
+        default_float_type = None
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+            default_float_type = _vh.decoder_default_float_type(options)
+        except Exception as _ee:
+            logger.debug("vllm.decoder_default_float_type skipped: %s", _ee)
+        decoder = TorchFXPythonDecoder(gm, default_float_type=default_float_type)
 
         im = fe.load(decoder)
 
         om = fe.convert(im)
 
-        # vLLM-specific compile hooks (PA Parameters, Concat ranks, precision
-        # canonicalization). No-op on graphs without the matching patterns.
+        # vLLM-specific compile hooks (PA Parameters, Concat ranks). No-op on
+        # graphs without the matching patterns.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
             _vh.apply_post_convert(om, options)

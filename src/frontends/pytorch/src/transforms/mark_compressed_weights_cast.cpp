@@ -17,10 +17,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 namespace {
 namespace v0 = ov::op::v0;
@@ -70,7 +67,4 @@ MarkCompressedWeightsCast::MarkCompressedWeightsCast() {
                      });
 }
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

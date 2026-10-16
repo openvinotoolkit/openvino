@@ -17,6 +17,10 @@ namespace op::util {
 class FrameworkNode;
 }  // namespace op::util
 
+namespace op::v0 {
+class Parameter;
+}  // namespace op::v0
+
 namespace frontend::pytorch {
 
 const std::string pytorch_prefix = "[PyTorch Frontend] ";
@@ -154,6 +158,9 @@ Output<Node> try_constfold(const Output<Node>& x);
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
+/// \brief Rounds toward zero, keeping infinities and NaN. Integer inputs are returned unchanged.
+Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x);
+
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
 
 Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx);
@@ -228,6 +235,19 @@ Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size
 
 // Decomposition of aten::meshgrid, indexing must be "ij" or "xy".
 OutputVector build_meshgrid(ov::pass::NodeRegistry& rg, OutputVector inputs, const std::string& indexing);
+
+/// \brief Side-channel Parameter named `tag`, registered as an external parameter of the converted model.
+std::shared_ptr<ov::op::v0::Parameter> make_tagged_parameter(const NodeContext& context,
+                                                             const std::string& tag,
+                                                             const element::Type& et,
+                                                             const PartialShape& ps);
+
+/// \brief Get-or-create side-channel Parameter `tag`, shared by every op of the conversion session
+/// (per-sequence metadata reused by all paged layers).
+std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
+                                                                   const std::string& tag,
+                                                                   const element::Type& et,
+                                                                   const PartialShape& ps);
 
 bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const Output<Node>& data,

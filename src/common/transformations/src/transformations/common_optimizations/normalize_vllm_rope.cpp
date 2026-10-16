@@ -4,6 +4,8 @@
 
 #include "transformations/common_optimizations/normalize_vllm_rope.hpp"
 
+#include <algorithm>
+
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -50,7 +52,9 @@ NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
                 auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(mul->get_input_node_shared_ptr(i));
                 if (c) {
                     auto vals = c->cast_vector<float>();
-                    if (!vals.empty() && vals[0] == -1.0f)
+                    if (!vals.empty() && std::all_of(vals.begin(), vals.end(), [](float v) {
+                            return v == -1.0f;
+                        }))
                         return mul;
                 }
             }
@@ -166,6 +170,30 @@ NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         if (axis != r - 1)
             return false;
 
+        // The rewrite re-splits x into [D/2, D/2], so the original split must be into equal static halves.
+        auto x_ps = split_node->get_input_partial_shape(0);
+        if (x_ps.rank() != rank || !x_ps[r - 1].is_static())
+            return false;
+        const int64_t head_dim = x_ps[r - 1].get_length();
+        const int64_t half_ndims = head_dim / 2;
+        for (size_t i = 0; i < 2; ++i) {
+            const auto& out_ps = split_node->get_output_partial_shape(i);
+            if (!out_ps[r - 1].is_static() || out_ps[r - 1].get_length() != half_ndims)
+                return false;
+        }
+        if (2 * half_ndims != head_dim)
+            return false;
+
+        // The halves must be joined back along the last axis.
+        const auto concat_rank = concat_node->get_output_partial_shape(0).rank();
+        if (!concat_rank.is_static())
+            return false;
+        int64_t concat_axis = concat_node->get_axis();
+        if (concat_axis < 0)
+            concat_axis += concat_rank.get_length();
+        if (concat_axis != concat_rank.get_length() - 1)
+            return false;
+
         // Verify (x1*cos, x2*sin, x2*cos, x1*sin) correspondence and shared cos/sin.
         if (a_split.get_index() != 0 || b_split.get_index() != 1)
             return false;
@@ -178,70 +206,54 @@ NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         auto sin_val = b_other;
         auto x_val = split_node->input_value(0);
 
-        // If cos/sin are half-sized (match split output), build full-sized by
-        // concatenating with themselves along the last dim.
-        auto x_ps = x_val.get_partial_shape();
-        auto cos_ps = cos_val.get_partial_shape();
-        bool cos_needs_dup = false;
-        if (x_ps.rank().is_static() && cos_ps.rank().is_static() &&
-            x_ps.rank().get_length() == cos_ps.rank().get_length() && x_ps.rank().get_length() > 0) {
-            auto last = x_ps.rank().get_length() - 1;
-            if (x_ps[last].is_static() && cos_ps[last].is_static() &&
-                x_ps[last].get_length() != cos_ps[last].get_length()) {
-                if (x_ps[last].get_length() == 2 * cos_ps[last].get_length()) {
-                    cos_needs_dup = true;
-                } else {
-                    return false;
-                }
-            }
-        }
+        // vLLM passes cos and sin as same-shaped D/2-wide tables, duplicated here to full width. Other widths are
+        // left alone: a broadcast cos/sin would be rewritten correctly, but the CPU RoPE fusion that matches the
+        // output assumes full-width tables and computes a different result.
+        const auto& cos_ps = cos_val.get_partial_shape();
+        if (cos_ps != sin_val.get_partial_shape() || !cos_ps.rank().is_static() || cos_ps.rank().get_length() == 0)
+            return false;
+        const auto& cos_last = cos_ps[cos_ps.rank().get_length() - 1];
+        if (!cos_last.is_static() || cos_last.get_length() != half_ndims)
+            return false;
 
-        ov::Output<ov::Node> cos_full = cos_val;
-        ov::Output<ov::Node> sin_full = sin_val;
-        std::shared_ptr<ov::Node> cos_cat_node, sin_cat_node;
-        if (cos_needs_dup) {
-            // All layers share one cos/sin, and this pass matches per RoPE
-            // site, so reuse an existing duplication Concat instead of
-            // emitting one copy per site.
-            auto existing_dup = [](const ov::Output<ov::Node>& src) -> std::shared_ptr<ov::Node> {
-                for (const auto& target : src.get_target_inputs()) {
-                    auto cat = ov::as_type_ptr<ov::op::v0::Concat>(target.get_node()->shared_from_this());
-                    if (!cat || cat->get_input_size() != 2) {
-                        continue;
-                    }
-                    if (cat->input_value(0) != src || cat->input_value(1) != src) {
-                        continue;
-                    }
-                    const auto& src_ps = src.get_partial_shape();
-                    const auto& cat_ps = cat->get_output_partial_shape(0);
-                    if (!src_ps.rank().is_static() || !cat_ps.rank().is_static() || src_ps.rank() != cat_ps.rank()) {
-                        continue;
-                    }
-                    const auto last = src_ps.rank().get_length() - 1;
-                    if (src_ps[last].is_static() && cat_ps[last].is_static() &&
-                        cat_ps[last].get_length() == 2 * src_ps[last].get_length()) {
-                        return cat;
-                    }
+        // All layers share one cos/sin, and this pass matches per RoPE
+        // site, so reuse an existing duplication Concat instead of
+        // emitting one copy per site.
+        auto existing_dup = [](const ov::Output<ov::Node>& src) -> std::shared_ptr<ov::Node> {
+            for (const auto& target : src.get_target_inputs()) {
+                auto cat = ov::as_type_ptr<ov::op::v0::Concat>(target.get_node()->shared_from_this());
+                if (!cat || cat->get_input_size() != 2) {
+                    continue;
                 }
-                return nullptr;
-            };
-            cos_cat_node = existing_dup(cos_val);
-            if (!cos_cat_node) {
-                cos_cat_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos_val, cos_val}, -1);
+                if (cat->input_value(0) != src || cat->input_value(1) != src) {
+                    continue;
+                }
+                const auto& src_ps = src.get_partial_shape();
+                const auto& cat_ps = cat->get_output_partial_shape(0);
+                if (!src_ps.rank().is_static() || !cat_ps.rank().is_static() || src_ps.rank() != cat_ps.rank()) {
+                    continue;
+                }
+                const auto last = src_ps.rank().get_length() - 1;
+                if (src_ps[last].is_static() && cat_ps[last].is_static() &&
+                    cat_ps[last].get_length() == 2 * src_ps[last].get_length()) {
+                    return cat;
+                }
             }
-            sin_cat_node = existing_dup(sin_val);
-            if (!sin_cat_node) {
-                sin_cat_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin_val, sin_val}, -1);
-            }
-            cos_full = cos_cat_node->output(0);
-            sin_full = sin_cat_node->output(0);
+            return nullptr;
+        };
+        auto cos_cat_node = existing_dup(cos_val);
+        if (!cos_cat_node) {
+            cos_cat_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos_val, cos_val}, -1);
         }
+        auto sin_cat_node = existing_dup(sin_val);
+        if (!sin_cat_node) {
+            sin_cat_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin_val, sin_val}, -1);
+        }
+        const ov::Output<ov::Node> cos_full = cos_cat_node->output(0);
+        const ov::Output<ov::Node> sin_full = sin_cat_node->output(0);
 
         // Emit canonical form: split x into halves, negate second half, concat
         // to form x_rot, then compute x*cos + x_rot*sin.
-        if (!x_ps.rank().is_static() || !x_ps[x_ps.rank().get_length() - 1].is_static())
-            return false;
-        int64_t half_ndims = x_ps[x_ps.rank().get_length() - 1].get_length() / 2;
 
         auto axis_const_new =
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(r - 1)});
@@ -255,6 +267,10 @@ NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         auto x_cos = std::make_shared<ov::op::v1::Multiply>(x_val, cos_full);
         auto xrot_sin = std::make_shared<ov::op::v1::Multiply>(x_rot->output(0), sin_full);
         auto new_out = std::make_shared<ov::op::v1::Add>(x_cos->output(0), xrot_sin->output(0));
+
+        // Last line of defence: the replacement must produce exactly what the Concat did.
+        if (new_out->get_output_partial_shape(0) != concat_node->get_output_partial_shape(0))
+            return false;
 
         new_out->set_friendly_name(concat_node->get_friendly_name());
         ov::copy_runtime_info({concat_node->get_input_node_shared_ptr(0),
