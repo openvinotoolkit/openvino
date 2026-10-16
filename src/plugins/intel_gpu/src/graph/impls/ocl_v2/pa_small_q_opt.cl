@@ -229,17 +229,29 @@ KERNEL(pa_small_q_opt)(
     float8 row_max = (float8)(-INFINITY);
     float8 row_sum = (float8)(0.0f);
 
+    // The first query row defines the union of keys needed by this subsequence's sliding windows.
+    uint tile_start = partition_start;
+#if SLIDING_WINDOW_SIZE != 0
+    const uint first_query_seq_len = past_len + 1;
+    if (first_query_seq_len > SLIDING_WINDOW_SIZE) {
+        const uint window_start = first_query_seq_len - SLIDING_WINDOW_SIZE;
+        tile_start = max(tile_start, (window_start / BLOCK) * BLOCK);
+    }
+#endif
+
     uint tile_count = 0;
-    if (partition_start < context_len) {
-        tile_count = min((uint)(SEQ_LEN_PARTITION_SIZE / BLOCK), (uint)CEIL_DIV(context_len - partition_start, BLOCK));
+    const uint partition_end = partition_start + SEQ_LEN_PARTITION_SIZE;
+    if (tile_start < context_len && tile_start < partition_end) {
+        const uint partition_remaining = partition_end - tile_start;
+        tile_count = min((uint)(partition_remaining / BLOCK), (uint)CEIL_DIV(context_len - tile_start, BLOCK));
     }
 
     // Prefetch the next tile's block-table entry so its dependent global load overlaps this tile's
     // compute instead of stalling each iteration's dequant (matters most for long context / many tiles).
-    uint physical_block = tile_count ? (uint)block_indices[block_table_begin + partition_start / BLOCK] : 0;
+    uint physical_block = tile_count ? (uint)block_indices[block_table_begin + tile_start / BLOCK] : 0;
 
     for (uint tile = 0; tile < tile_count; tile++) {
-        const uint key_start = partition_start + tile * BLOCK;
+        const uint key_start = tile_start + tile * BLOCK;
         const __global INPUT1_TYPE* key_block = key_cache + physical_block * KV_HEADS_NUM * K_BLOCK_ELEMS + kv_head_idx * K_BLOCK_ELEMS;
         const __global INPUT2_TYPE* value_block = value_cache + physical_block * KV_HEADS_NUM * V_BLOCK_ELEMS + kv_head_idx * V_BLOCK_ELEMS;
         if (tile + 1 < tile_count)

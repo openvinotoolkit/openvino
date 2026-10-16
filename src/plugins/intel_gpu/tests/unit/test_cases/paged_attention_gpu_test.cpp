@@ -916,6 +916,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention
 
     // sliding window, padded query, speculative tree mask
     with_sliding_window(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128), 64),
+    // The window starts inside a KV block and wholly after the first context partition.
+    with_sliding_window(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128), 17),
     with_dynamic_paddings(make_gqa_multi_tokens_params({{8, 34}}, 8, 2, 128)),
     with_qq_bias(make_gqa_multi_tokens_params({{8, 34}}, 8, 2, 64), make_tree_qq_bias({8})),
     with_qq_bias(make_gqa_multi_tokens_params({{16, 40}, {1, 100}, {8, 300}}, 8, 2, 64), make_tree_qq_bias({16, 1, 8})),

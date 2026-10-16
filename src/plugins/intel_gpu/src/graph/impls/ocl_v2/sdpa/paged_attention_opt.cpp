@@ -177,6 +177,8 @@ inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& para
         return false;
 
     const auto desc = params.typed_desc<paged_attention>();
+    if (desc->has_token_type_ids)
+        return false;
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
     if (gqa_multi_tokens_rows_per_sg % kv_group_size != 0)
         return false;
@@ -1778,7 +1780,9 @@ public:
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
             if (rt_params->use_gqa_kernel && !rt_params->use_micro_sdpa) {
-                res_event = {execute_stage(res_event, instance, multi_tokens_mode ? get_gqa_multi_token_stage(rt_params->gqa_multi_tokens_kernel) : pa_gqa_single_token)};
+                res_event = {execute_stage(res_event,
+                                           instance,
+                                           multi_tokens_mode ? get_gqa_multi_token_stage(rt_params->gqa_multi_tokens_kernel) : pa_gqa_single_token)};
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa) {
