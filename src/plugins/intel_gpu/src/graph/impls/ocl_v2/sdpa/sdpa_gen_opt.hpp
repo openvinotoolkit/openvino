@@ -32,7 +32,7 @@ inline size_t get_sg_number_scale_factor(const device_info& info, size_t head_si
         // kernel assumes the work-group is sized off a single head size. When K/V head sizes
         // differ, the per-subgroup head-index/seq-half assignment logic is not guaranteed to
         // produce correct coverage, so keep the safe (non-scaled) path in that case.
-        bool head_sizes_match = (k_head_size == 0) || (k_head_size == head_size);
+        bool head_sizes_match = (k_head_size == head_size);
         if (head_sizes_match && head_size % subgroup_size == 0 && head_size * optimal_scale_factor <= info.max_work_group_size) {
             return optimal_scale_factor;
         }
