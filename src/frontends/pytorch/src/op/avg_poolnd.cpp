@@ -44,8 +44,9 @@ Output<Node> pool_with_short_axes(const NodeContext& context,
             std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, exclude_pad, rounding_type));
     }
 
-    // Explicitly padded axes retain AvgPool's normal kernel-fit and divisor semantics.
-    if (pads[axis] != 0 || kernel[axis] == 1) {
+    // Explicitly padded axes retain AvgPool's normal kernel-fit and divisor semantics. For stride 1,
+    // no integer extent can be both shorter than the kernel and large enough for a ceil-mode window.
+    if (pads[axis] != 0 || kernel[axis] == 1 || strides[axis] == 1) {
         return pool_with_short_axes(context, input, strides, pads, kernel, exclude_pad, rounding_type, axis + 1);
     }
 
