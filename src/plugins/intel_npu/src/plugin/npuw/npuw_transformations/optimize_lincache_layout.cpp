@@ -13,14 +13,16 @@
 
 #include "../logging.hpp"
 #include "../util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/gather_base.hpp"
 
 namespace {
-
-constexpr const char* layout_optimized = "npuw_lincache_layout_optimized";
 
 // Returns the cache_params.{past|present}.conv.N name carried by the tensor, if any.
 std::optional<std::string> conv_cache_name(const ov::descriptor::Tensor& tensor, const std::string& past_or_present) {
@@ -41,6 +43,42 @@ bool is_rank3(const ov::PartialShape& shape) {
     return shape.rank().is_static() && shape.rank().get_length() == 3;
 }
 
+// True when the state is consumed as [batch, channels, kernel]: following the state through
+// layout-neutral ops (Convert, the beam-search Gather along the batch axis), every Concat it
+// reaches appends along the last axis, i.e. the kernel axis is innermost. States stored in any
+// other layout are left alone, since swapping their axes would move them away from NHWC.
+bool is_kernel_innermost(const ov::Output<ov::Node>& state) {
+    constexpr int64_t kernel_axis = 2;
+    std::vector<ov::Output<ov::Node>> pending{state};
+    size_t concat_count = 0;
+    while (!pending.empty()) {
+        const auto current = pending.back();
+        pending.pop_back();
+        for (const auto& target : current.get_target_inputs()) {
+            const auto node = target.get_node()->shared_from_this();
+            if (const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node)) {
+                const auto rank = concat->get_output_partial_shape(0).rank();
+                if (rank.is_dynamic() || rank.get_length() != 3) {
+                    return false;
+                }
+                const auto axis = concat->get_axis() < 0 ? concat->get_axis() + 3 : concat->get_axis();
+                if (axis != kernel_axis) {
+                    return false;
+                }
+                ++concat_count;
+            } else if (ov::is_type<ov::op::v0::Convert>(node)) {
+                pending.push_back(node->output(0));
+            } else if (const auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(node)) {
+                const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
+                if (target.get_index() == 0 && axis != nullptr && axis->cast_vector<int64_t>().at(0) == 0) {
+                    pending.push_back(node->output(0));
+                }
+            }
+        }
+    }
+    return concat_count > 0;
+}
+
 std::shared_ptr<ov::op::v0::Constant> swap_last_two_axes() {
     return ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
 }
@@ -48,10 +86,6 @@ std::shared_ptr<ov::op::v0::Constant> swap_last_two_axes() {
 }  // namespace
 
 bool ov::npuw::util::OptimizeLinCacheLayout::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    if (model->has_rt_info(layout_optimized) && model->get_rt_info<bool>(layout_optimized)) {
-        return false;
-    }
-
     std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> past;
     std::map<std::string, std::shared_ptr<ov::op::v0::Result>> present;
 
@@ -70,7 +104,8 @@ bool ov::npuw::util::OptimizeLinCacheLayout::run_on_model(const std::shared_ptr<
     }
 
     // The pipeline copies present -> past byte-wise, so every past state needs a present
-    // counterpart and both must be the expected [batch, channels, kernel] rank-3 tensors.
+    // counterpart and both must be the expected [batch, channels, kernel] rank-3 tensors,
+    // with the kernel axis innermost as observed from how the state is consumed.
     // Apply the transform to all pairs or to none to keep the copy consistent.
     for (const auto& [idx, param] : past) {
         const auto it = present.find(idx);
@@ -80,6 +115,10 @@ bool ov::npuw::util::OptimizeLinCacheLayout::run_on_model(const std::shared_ptr<
         }
         if (!is_rank3(param->get_partial_shape()) || !is_rank3(it->second->get_input_partial_shape(0))) {
             LOG_DEBUG("Conv state " << idx << " is not rank-3, lincache layout left unchanged");
+            return false;
+        }
+        if (!is_kernel_innermost(param->output(0))) {
+            LOG_DEBUG("Conv state " << idx << " is not stored kernel-innermost, lincache layout left unchanged");
             return false;
         }
     }
@@ -126,6 +165,5 @@ bool ov::npuw::util::OptimizeLinCacheLayout::run_on_model(const std::shared_ptr<
     for (auto& [port, names] : io_names) {
         port.set_names(names);
     }
-    model->set_rt_info(true, layout_optimized);
     return true;
 }

@@ -23,12 +23,14 @@ namespace util {
 // Graph semantics are preserved: a Transpose is inserted right after each
 // cache_params.past.conv.N Parameter and right before each
 // cache_params.present.conv.N Result. Tensor names stay on the model I/O.
-// A model-level runtime attribute makes subsequent runs (including on clones) no-ops.
+// The layout is verified from the graph: the state must be appended to along its last axis
+// (kernel innermost); otherwise no state is changed.
+// The pass is not idempotent: run it once, before the prefill and generate models are cloned.
 class OptimizeLinCacheLayout : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::OptimizeLinCacheLayout");
 
-    // Returns true when at least one conv state pair has been re-laid out in this run.
+    // Returns true when the conv state pairs have been re-laid out.
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 

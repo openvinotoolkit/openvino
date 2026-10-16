@@ -1008,6 +1008,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
 
+    if (m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT>()) {
+        // Applied once before the prefill model and the generate variants are cloned, so all of
+        // them share the conv state layout that the byte-wise present -> past copy relies on.
+        if (ov::npuw::util::OptimizeLinCacheLayout().run_on_model(kvcache_model)) {
+            LOG_DEBUG("Conv state tensors re-laid out as [batch, kernel, channels]");
+        }
+    }
+
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
@@ -1165,36 +1173,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
-    }
-
-    if (m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT>()) {
-        LOG_DEBUG("Check and apply lincache layout optimization");
-        LOG_BLOCK();
-        // present -> past is a byte-wise copy between the prefill and generate models,
-        // so the conv state layout must change in all of them or in none.
-        size_t optimized_count = 0;
-        for (auto& model_variant : generate_model_variants) {
-            if (ov::npuw::util::OptimizeLinCacheLayout().run_on_model(model_variant)) {
-                ++optimized_count;
-            }
-        }
-        const bool prefill_optimized = ov::npuw::util::OptimizeLinCacheLayout().run_on_model(prefill_model);
-        const size_t expected_count = prefill_optimized ? generate_model_variants.size() : 0u;
-        OPENVINO_ASSERT(optimized_count == expected_count,
-                        "Inconsistent lincache layout optimization: prefill ",
-                        prefill_optimized ? "transposed" : "unchanged",
-                        ", ",
-                        optimized_count,
-                        " out of ",
-                        generate_model_variants.size(),
-                        " generate variants transposed.");
-        if (prefill_optimized) {
-            LOG_DEBUG("Conv state tensors re-laid out in prefill and generate models");
-        } else {
-            LOG_DEBUG("No conv state tensors to re-lay out");
-        }
-    } else {
-        LOG_DEBUG("Check and apply lincache layout optimization --- SKIPPED");
     }
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
