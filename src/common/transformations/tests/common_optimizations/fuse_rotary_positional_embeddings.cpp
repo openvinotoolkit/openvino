@@ -498,6 +498,26 @@ static std::shared_ptr<ov::Model> make_rope_fused_model(size_t slice_start, size
     return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
 }
 
+// Dynamic sliced-axis reference graph: the real Slice can't be folded (its bounds can't be
+// resolved against an unknown extent), but Transpose still folds into RoPE's config.
+static std::shared_ptr<ov::Model> make_rope_transpose_folded_model(int64_t slice_start, int64_t slice_stop) {
+    const int batch = 2, seq_len = 16, num_heads = 32, rotary_ndims = 20;
+
+    auto input = std::make_shared<v0::Parameter>(ov::element::f32,
+                                                 ov::PartialShape{batch, seq_len, num_heads, ov::Dimension::dynamic()});
+    auto param_cos =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+    auto param_sin =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+    auto slice = makeOP<ov::op::v8::Slice>({input, {slice_start}, {slice_stop}, {1}, {3}});
+
+    ov::op::internal::RoPE::Config config;
+    config.rotary_ndims = rotary_ndims;
+    config.input_trans0213 = true;
+    auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{slice, param_cos, param_sin}, config);
+    return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
+}
+
 TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_PositiveSliceBoundsFused) {
     disable_rt_info_check();
     model = make_rope_preprocess_model(0, 20);
@@ -512,11 +532,11 @@ TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsNormali
     model_ref = make_rope_fused_model(52, 72);
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsDynamicDimRejected) {
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsDynamicDimTransposeFolded) {
     disable_rt_info_check();
     model = make_rope_preprocess_model(-28, -8, /*dynamic_ndims=*/true);
     manager.register_pass<ov::pass::RoPEFusionPreprocess>();
-    model_ref = make_rope_preprocess_model(-28, -8, /*dynamic_ndims=*/true);
+    model_ref = make_rope_transpose_folded_model(-28, -8);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_InvertedSliceBoundsRejected) {
