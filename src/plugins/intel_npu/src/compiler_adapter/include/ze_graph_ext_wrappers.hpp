@@ -88,6 +88,20 @@ public:
 
     bool isBlobDataImported(const GraphDescriptor& graphDescriptor) const;
 
+    /**
+     * @brief Tells whether the graph is known to require the initialize stage.
+     * @return `true` only when the driver states the requirement. Anything that leaves it
+     *         unestablished - no graph handle, a driver too old to express it, or a failed
+     *         query - reports `false`.
+     */
+    bool isInitStageRequired(const GraphDescriptor& graphDescriptor) const;
+
+    /**
+     * @brief Tells whether the graph was compiled with layer profiling enabled.
+     * @return `std::nullopt` if the driver is too old to answer.
+     */
+    std::optional<bool> isProfilingEnabled(const GraphDescriptor& graphDescriptor) const;
+
     void evict_memory(const GraphDescriptor& graphDescriptor) const;
 
     /**

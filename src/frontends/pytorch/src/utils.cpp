@@ -1033,6 +1033,35 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
     }
 }
 
+OutputVector build_meshgrid(ov::pass::NodeRegistry& rg, OutputVector inputs, const std::string& indexing) {
+    const bool xy = indexing == "xy" && inputs.size() >= 2;
+    if (xy) {
+        std::swap(inputs[0], inputs[1]);
+    }
+    NodeVector cat_shapes;
+    NodeVector reshapes;
+    auto const_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
+    auto const_1 = v0::Constant::create(element::i32, Shape{1}, {1});
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        auto reshaped_input = rg.make<v1::Reshape>(inputs[i], const_neg_1, false);
+        auto shape = rg.make<v3::ShapeOf>(reshaped_input, element::i32);
+        cat_shapes.push_back(shape);
+        NodeVector cat_inputs(inputs.size(), const_1);
+        cat_inputs[i] = shape;
+        auto input_cat = rg.make<v0::Concat>(cat_inputs, 0);
+        reshapes.push_back(rg.make<v1::Reshape>(reshaped_input, input_cat, false));
+    }
+    auto cat = rg.make<v0::Concat>(cat_shapes, 0);
+    OutputVector outputs;
+    for (const auto& reshape : reshapes) {
+        outputs.push_back(rg.make<v3::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL));
+    }
+    if (xy) {
+        std::swap(outputs[0], outputs[1]);
+    }
+    return outputs;
+}
+
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis) {
     // First dimension of output tensor is the product of [d_0, ... d_{axis-1}] dimensions of
     // input tensor. The last dimension is the product of the rest of input tensor dimensions:

@@ -239,7 +239,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         copy_model = batchedModel;
     }
 
-    auto graph = compiler->compile(copy_model, *npu_config);
+    auto graph = compiler->compile(copy_model, *npu_config, ::intel_npu::AdapterDescriptor{});
     if (batch) {
         graph->set_batch_size(batch.value());
     }

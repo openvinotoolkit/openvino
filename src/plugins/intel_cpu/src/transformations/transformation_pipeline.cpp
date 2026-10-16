@@ -1269,12 +1269,9 @@ void Transformations::MainSnippets() {
         concurrency = parallel_get_max_threads();
     }
     CommonOptimizations::Config common_optimizations_config(concurrency);
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
-#elif defined(OPENVINO_ARCH_RISCV64)
-    common_optimizations_config.set_transpose_support_callback(
-        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;

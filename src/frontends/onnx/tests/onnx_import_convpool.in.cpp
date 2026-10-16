@@ -260,6 +260,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv3d_bias) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_bias_4d) {
+    // bias initializer is [1, 2, 1, 1] instead of [2]; ONNX Runtime uses its flattened values
+    const auto model = convert_model("conv_bias_4d.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 3, 3}, std::vector<float>(27, 1.f));
+    test_case.add_input<float>(Shape{2, 3, 2, 2}, std::vector<float>(24, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2}, {13.f, 13.f, 13.f, 13.f, 10.f, 10.f, 10.f, 10.f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
     auto model = convert_model("conv_transpose_w_groups.onnx");
 

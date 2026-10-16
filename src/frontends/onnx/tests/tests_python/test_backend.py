@@ -305,8 +305,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_1_tensor_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_identity_2_sequences_cpu",
-        "OnnxBackendNodeModelTest.test_stft_cpu",
-        "OnnxBackendNodeModelTest.test_stft_with_window_cpu",
     ),
     (
         xfail_issue_99952,
