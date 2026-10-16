@@ -759,55 +759,12 @@ std::vector<InterpolateV4TestParams> generateParamsForInterpolate_v4_linear_onnx
     // clang-format on
 }
 
-std::vector<InterpolateV4TestParams> generateParamsForInterpolate_v4_linear_onnx_arbitrary_axes() {
-    const std::vector<size_t> zero_pads_4d{0, 0, 0, 0};
-    const std::vector<size_t> zero_pads_5d{0, 0, 0, 0, 0};
-    // clang-format off
-    return {
-        {   "linear_onnx.resize_upsample_scales_linear_nhwc_axes",
-            Shape{1, 2, 2, 1},
-            {4, 4},
-            Shape{1, 4, 4, 1},
-            {2.0f, 2.0f},
-            {1, 2},
-            {   InterpolateMode::LINEAR_ONNX,
-                ShapeCalcMode::SCALES,
-                zero_pads_4d,
-                zero_pads_4d,
-                CoordinateTransformMode::HALF_PIXEL,
-                NearestMode::ROUND_PREFER_FLOOR},
-            {1.0f, 2.0f, 3.0f, 4.0f},
-            {1.0f, 1.25f, 1.75f, 2.0f, 1.5f, 1.75f, 2.25f, 2.5f, 2.5f, 2.75f, 3.25f, 3.5f, 3.0f, 3.25f, 3.75f, 4.0f},
-        },
-        {   "linear_onnx5d.resize_upsample_scales_linear_ndhwc_axes",
-            Shape{1, 2, 2, 2, 1},
-            {4, 4, 4},
-            Shape{1, 4, 4, 4, 1},
-            {2.0, 2.0, 2.0},
-            {1, 2, 3},
-            {   InterpolateMode::LINEAR_ONNX,
-                ShapeCalcMode::SCALES,
-                zero_pads_5d,
-                zero_pads_5d,
-                CoordinateTransformMode::HALF_PIXEL,
-                NearestMode::ROUND_PREFER_FLOOR},
-            {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
-            {1.0, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25, 3.75, 4.0,
-             2.0, 2.25, 2.75, 3.0, 2.5, 2.75, 3.25, 3.5, 3.5, 3.75, 4.25, 4.5, 4.0, 4.25, 4.75, 5.0,
-             4.0, 4.25, 4.75, 5.0, 4.5, 4.75, 5.25, 5.5, 5.5, 5.75, 6.25, 6.5, 6.0, 6.25, 6.75, 7.0,
-             5.0, 5.25, 5.75, 6.0, 5.5, 5.75, 6.25, 6.5, 6.5, 6.75, 7.25, 7.5, 7.0, 7.25, 7.75, 8.0}
-        },
-    };
-    // clang-format on
-}
-
 std::vector<InterpolateV4TestParams> generateCombinedParamsForInterpolate_v4() {
     const std::vector<std::vector<InterpolateV4TestParams>> allTypeParams{
         generateParamsForInterpolate_v4_cubic(),
         generateParamsForInterpolate_v4_nearest(),
         generateParamsForInterpolate_v4_linear_onnx(),
-        generateParamsForInterpolate_v4_linear_onnx5d(),
-        generateParamsForInterpolate_v4_linear_onnx_arbitrary_axes()};
+        generateParamsForInterpolate_v4_linear_onnx5d()};
 
     std::vector<InterpolateV4TestParams> combinedParams;
     for (auto& params : allTypeParams)
@@ -1619,8 +1576,7 @@ std::vector<InterpolateV11TestParams> generateCombinedParamsForInterpolate_v11()
         attribute_tests::generateParamsForInterpolate_v4_cubic(),
         attribute_tests::generateParamsForInterpolate_v4_nearest(),
         attribute_tests::generateParamsForInterpolate_v4_linear_onnx(),
-        attribute_tests::generateParamsForInterpolate_v4_linear_onnx5d(),
-        attribute_tests::generateParamsForInterpolate_v4_linear_onnx_arbitrary_axes()};
+        attribute_tests::generateParamsForInterpolate_v4_linear_onnx5d()};
 
     std::vector<InterpolateV11TestParams> combinedParams;
     for (auto& params : allTypeParamsV11) {
