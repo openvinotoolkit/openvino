@@ -399,9 +399,6 @@ TEST_P(OVClassGetPropertyTest_GPU, CanSetDefaultValueBackToPluginNewAPI) {
 
     std::cout << "SUPPORTED_PROPERTIES:" << std::endl;
     for (const auto& property : properties) {
-        if (property.get_mutability() == ov::PropertyMutability::WO) {
-            continue;
-        }
         ov::Any prop;
         if (property.is_mutable()) {
             std::cout << "RW: " << property << " ";
