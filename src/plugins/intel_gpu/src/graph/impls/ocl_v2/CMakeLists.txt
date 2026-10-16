@@ -43,6 +43,54 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
 
 add_custom_target(run_ocl_codegen${OV_GPU_SUFFIX} ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
 
+# TernOCL int2 kernels (ternocl_int2/), embedded as source strings. They come from
+# the thirdparty/TernOCL submodule (github.com/libxsmm/TernOCL); TERNOCL_ROOT
+# (cache or environment) points at another checkout, e.g. while editing kernels.
+if(NOT DEFINED TERNOCL_ROOT)
+    if(DEFINED ENV{TERNOCL_ROOT})
+        set(TERNOCL_ROOT "$ENV{TERNOCL_ROOT}")
+    else()
+        set(TERNOCL_ROOT "${MAIN_DIR}/thirdparty/TernOCL")
+    endif()
+endif()
+set(TERNOCL_ROOT "${TERNOCL_ROOT}" CACHE PATH "TernOCL kernel collection used by the int2 FullyConnected impl")
+set(TERNOCL_FILES "${TERNOCL_ROOT}/int2_fp16_upcvt/int2_fp16_upcvt.cl"
+                  "${TERNOCL_ROOT}/int2_via_int2_x_int8_dpas/int2_int8_dpas.cl"
+                  "${TERNOCL_ROOT}/common/epilogue.clh"
+                  "${TERNOCL_ROOT}/hadamard/hadamard_fwht.cl")
+foreach(f IN LISTS TERNOCL_FILES)
+    if(NOT EXISTS "${f}")
+        message(FATAL_ERROR "TernOCL kernel ${f} not found: run `git submodule update --init "
+                            "src/plugins/intel_gpu/thirdparty/TernOCL` or set TERNOCL_ROOT")
+    endif()
+endforeach()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${TERNOCL_FILES})
+# Emits a source as concatenated raw-string chunks: MSVC caps a single literal at 16 KB.
+function(ternocl_literal out_var name text)
+    string(LENGTH "${text}" len)
+    set(lit "static const char ${name}[] =")
+    set(pos 0)
+    while(pos LESS len)
+        string(SUBSTRING "${text}" ${pos} 8000 chunk)
+        string(APPEND lit "\n    R\"TERNOCL(${chunk})TERNOCL\"")
+        math(EXPR pos "${pos} + 8000")
+    endwhile()
+    set(${out_var} "${lit};\n" PARENT_SCOPE)
+endfunction()
+file(READ "${TERNOCL_ROOT}/common/epilogue.clh" TERNOCL_EPILOGUE)
+file(READ "${TERNOCL_ROOT}/int2_fp16_upcvt/int2_fp16_upcvt.cl" TERNOCL_UPCVT)
+string(REPLACE "#include \"epilogue.clh\"" "${TERNOCL_EPILOGUE}" TERNOCL_UPCVT "${TERNOCL_UPCVT}")
+file(READ "${TERNOCL_ROOT}/int2_via_int2_x_int8_dpas/int2_int8_dpas.cl" TERNOCL_INT8)
+string(REPLACE "#include \"epilogue.clh\"" "${TERNOCL_EPILOGUE}" TERNOCL_INT8 "${TERNOCL_INT8}")
+file(READ "${TERNOCL_ROOT}/hadamard/hadamard_fwht.cl" TERNOCL_FWHT)
+ternocl_literal(TERNOCL_UPCVT_LIT kTernoclUpcvtSource "${TERNOCL_UPCVT}")
+ternocl_literal(TERNOCL_INT8_LIT kTernoclInt8Source "${TERNOCL_INT8}")
+ternocl_literal(TERNOCL_FWHT_LIT kTernoclFwhtSource "${TERNOCL_FWHT}")
+file(WRITE "${CODEGEN_CACHE_DIR}/ternocl_int2_kernels.inc"
+     "// Generated from ${TERNOCL_ROOT} by impls/ocl_v2/CMakeLists.txt; do not edit.\n#pragma once\n"
+     "${TERNOCL_UPCVT_LIT}${TERNOCL_INT8_LIT}${TERNOCL_FWHT_LIT}")
+configure_file("${CODEGEN_CACHE_DIR}/ternocl_int2_kernels.inc" "${CODEGEN_INCDIR}/ternocl_int2_kernels.inc" COPYONLY)
+
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     INCLUDES $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
