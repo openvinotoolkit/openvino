@@ -122,6 +122,21 @@ std::vector<FloorModParams> generateParamsForFloorModScalar() {
 }
 
 template <element::Type_t IN_ET>
+std::vector<FloorModParams> generateParamsForFloorModLargeInteger() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    // Large operands whose remainder is non-zero. Evaluating the floored modulo via double would
+    // lose precision here (e.g. INT64_MAX / 3 rounds up), so only exact integer arithmetic keeps
+    // the result accurate.
+    return {FloorModParams(ov::PartialShape{4},
+                           ov::PartialShape{4},
+                           ov::Shape{4},
+                           IN_ET,
+                           std::vector<T>{9223372036854775807LL, -9223372036854775807LL, 9223372036854775806LL, 100},
+                           std::vector<T>{3, 3, 7, -7},
+                           std::vector<T>{1, 2, 6, -5})};
+}
+
+template <element::Type_t IN_ET>
 std::vector<FloorModParams> generateParamsForFloorModNonIntegerDivisor() {
     using T = typename element_type_traits<IN_ET>::value_type;
     // clang-format off
@@ -188,6 +203,10 @@ std::vector<FloorModParams> generateCombinedParamsForFloorModNonIntegerDivisor()
     return generateParamsForFloorModNonIntegerDivisor<element::Type_t::f32>();
 }
 
+std::vector<FloorModParams> generateCombinedParamsForFloorModLargeInteger() {
+    return generateParamsForFloorModLargeInteger<element::Type_t::i64>();
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_FloorMod_With_Hardcoded_Refs,
                          ReferenceFloorModLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForFloorMod()),
@@ -206,6 +225,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_FloorMod_Scalar_With_Hardcoded_Refs,
 INSTANTIATE_TEST_SUITE_P(smoke_FloorMod_NonInteger_Divisor,
                          ReferenceFloorModLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForFloorModNonIntegerDivisor()),
+                         ReferenceFloorModLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_FloorMod_Large_Integer,
+                         ReferenceFloorModLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForFloorModLargeInteger()),
                          ReferenceFloorModLayerTest::getTestCaseName);
 
 }  // namespace

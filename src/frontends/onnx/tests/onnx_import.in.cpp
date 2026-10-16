@@ -8187,6 +8187,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular) {
 
 // A large circular write index must be reduced before adding sequence offsets,
 // otherwise the int64 addition can overflow and wrap to the wrong cache position.
+// INT64_MAX % 3 == 1 (a non-zero remainder), so the reduced start is position 1.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_large_write_index) {
     if (s_device == "CPU") {
         GTEST_SKIP() << "CPU FloorMod currently loses precision for large int64 operands";
@@ -8195,12 +8196,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_large_write_index) {
     const auto model = convert_model("tensor_scatter_circular_large_write_index.onnx");
     auto test_case = test::TestCase(model, s_device);
 
-    // Cache length 3; (INT64_MAX - 1) % 3 == 0. The third sequence offset would
-    // overflow if added to the original write index before wrapping.
+    // Cache length 3; INT64_MAX % 3 == 1, so updates land at positions 1, 2, 0.
     test_case.add_input<float>(Shape{1, 3, 1}, {10.f, 20.f, 30.f});
     test_case.add_input<float>(Shape{1, 3, 1}, {100.f, 200.f, 300.f});
-    test_case.add_input<int64_t>(Shape{1}, {9223372036854775806LL});
-    test_case.add_expected_output<float>(Shape{1, 3, 1}, {100.f, 200.f, 300.f});
+    test_case.add_input<int64_t>(Shape{1}, {9223372036854775807LL});
+    test_case.add_expected_output<float>(Shape{1, 3, 1}, {300.f, 100.f, 200.f});
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 

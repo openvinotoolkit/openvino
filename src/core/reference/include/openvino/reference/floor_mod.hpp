@@ -19,10 +19,18 @@ constexpr T floor_mod(const T x, const T y) {
     return mod(x, y);
 }
 
-template <class T, typename std::enable_if<ov::is_floating_point<T>() || std::is_signed<T>::value>::type* = nullptr>
+template <class T, typename std::enable_if<std::is_signed<T>::value && std::is_integral<T>::value>::type* = nullptr>
+constexpr T floor_mod(const T x, const T y) {
+    // Compute the floored remainder with exact integer arithmetic. Going through double (as the
+    // floating-point overload does) loses precision for large magnitudes, e.g. values near the
+    // int64 limits, so that FloorMod(INT64_MAX, 3) would wrongly yield 0 instead of 1.
+    const T rem = static_cast<T>(x % y);
+    return (rem != T{0} && ((rem < T{0}) != (y < T{0}))) ? static_cast<T>(rem + y) : rem;
+}
+
+template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T floor_mod(const T x, const T y) {
-    // Cast to double is needed for integer input (signed),
-    // otherwise std::floor will act like std::trunc
+    // Cast to double avoids precision loss for reduced-precision floating-point types.
     const double divisor = static_cast<double>(y);
     return static_cast<T>(x - y * std::floor(x / divisor));
 }
