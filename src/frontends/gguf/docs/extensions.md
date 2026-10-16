@@ -164,6 +164,28 @@ Do not also register `GGUFMakeStateful` or `AdaptToGenAI` on that frontend. Regi
 Its embedding lookup getters describe the latest successful conversion.
 See [runtime.md](runtime.md#stateful-and-genai-conversion).
 
+### Keep f16 plugins in range: `PushScaleBeforeMatMul`
+
+Models that scale a block's output by a constant below one (Granite's residual multiplier)
+can produce an unscaled result beyond the f16 range, which a plugin executing in f16 turns
+into `inf` before the scale is applied. `ov::frontend::gguf::pass::PushScaleBeforeMatMul`
+rewrites `MatMul(A, W) * c` into `MatMul(A * c, W)` for `c` in [1/64, 1), which is exact in
+exact arithmetic. The frontend does not register it, because on f32 it only removes a
+MatMul post-op fusion. Register it when the target runs in f16:
+
+```cpp
+frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+    [](std::shared_ptr<ov::Model> model) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::frontend::gguf::pass::PushScaleBeforeMatMul>();
+        return manager.run_passes(model);
+    }));
+```
+
+The same rewrite for the attention scale is requested per `GGML_OP_FLASH_ATTN_EXT` with the
+boolean attribute `prescale_q`: a scale below `0.5 / sqrt(head_size)` is folded into Q and the
+SDPA runs with scale 1. It is ignored for f32 attention and for soft-capped attention.
+
 ## Build and load a shared library
 
 Export extensions with `OPENVINO_CREATE_EXTENSIONS`, as in

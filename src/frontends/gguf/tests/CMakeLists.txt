@@ -28,6 +28,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/pass/lower_set_rows_stateless.cpp"
     "${FE_SRC_DIR}/pass/make_stateful.cpp"
     "${FE_SRC_DIR}/pass/prune_orphaned_parameters.cpp"
+    "${FE_SRC_DIR}/pass/push_scale_before_matmul.cpp"
     "${FE_SRC_DIR}/tokenizer_metadata.cpp"
     "${FE_SRC_DIR}/quant/gguf.cpp"
     "${FE_SRC_DIR}/quant/gguf_quants.cpp"
@@ -117,6 +118,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_ops.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_parser.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_push_scale_before_matmul.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
 )
 

@@ -70,15 +70,37 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         }
         return transpose->input_value(0);
     };
+    // A model whose attention scale is well below the usual 1/sqrt(head_size) (e.g. Granite's attention
+    // multiplier, 1/64 for 64-wide heads) has unscaled QK^T scores that are several times larger than the
+    // convention assumes, and on the models' massive-activation tokens they leave the f16 range of the
+    // plugins' SDPA before the scale is applied. Fold the scale into Q instead (exact: (s*q).k == s*(q.k)),
+    // so the scores are produced already scaled. This only helps an f16 plugin, so the caller opts in with
+    // "prescale_q"; conventional scales keep the scale inside the SDPA either way.
+    const auto q_rank = q_f32.get_partial_shape().rank();
+    const auto q_head_size =
+        q_rank.is_static() && q_rank.get_length() == 4 ? q_f32.get_partial_shape()[3] : ov::Dimension::dynamic();
+    const bool prescale_q = context.get_attribute<bool>("prescale_q", false) && sdpa_type == ov::element::f16 &&
+                            kq_soft_cap == 0.0f && q_head_size.is_static() &&
+                            scale * std::sqrt(static_cast<float>(q_head_size.get_length())) < 0.5f;
+    const auto convert_q = [&](const ov::Output<Node>& value) -> ov::Output<Node> {
+        ov::Output<Node> converted = std::make_shared<ov::op::v0::Convert>(value, sdpa_type);
+        if (prescale_q) {
+            converted = std::make_shared<ov::op::v1::Multiply>(
+                converted,
+                ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{scale}));
+        }
+        return converted;
+    };
     // Q is converted to the SDPA type before its head/token transpose, as K/V are below.
     ov::Output<Node> q;
     if (const auto q_source = token_major_source(q_f32); q_source.get_node_shared_ptr()) {
-        q = std::make_shared<ov::op::v1::Transpose>(std::make_shared<ov::op::v0::Convert>(q_source, sdpa_type),
+        q = std::make_shared<ov::op::v1::Transpose>(convert_q(q_source),
                                                     ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
     } else {
-        q = std::make_shared<ov::op::v0::Convert>(q_f32, sdpa_type);
+        q = convert_q(q_f32);
     }
-    auto scale_node = std::make_shared<ov::op::v0::Constant>(sdpa_type, ov::Shape{}, std::vector<float>{scale});
+    auto scale_node =
+        std::make_shared<ov::op::v0::Constant>(sdpa_type, ov::Shape{}, std::vector<float>{prescale_q ? 1.0f : scale});
 
     ov::Output<ov::Node> mask_sliced, res;
     if (has_mask) {

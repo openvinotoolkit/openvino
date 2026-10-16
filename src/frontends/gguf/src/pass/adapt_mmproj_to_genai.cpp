@@ -320,12 +320,26 @@ Models qwen_layout(const std::shared_ptr<ov::Model>& model) {
     auto mask4 = std::make_shared<v0::Unsqueeze>(mask, i64({0}));
     for (const auto& node : model->get_ordered_ops()) {
         if (auto sdpa = ov::as_type_ptr<v13::ScaledDotProductAttention>(node)) {
-            OPENVINO_ASSERT(sdpa->get_input_size() == 3, "[GGUF] Qwen vision attention already has a mask");
-            auto masked = std::make_shared<v13::ScaledDotProductAttention>(sdpa->input_value(0),
-                                                                           sdpa->input_value(1),
-                                                                           sdpa->input_value(2),
-                                                                           mask4,
-                                                                           false);
+            // The converted attention is either maskless (q, k, v) or, when the frontend lowers FLASH_ATTN_EXT
+            // without a mask, (q, k, v, zero mask, scale). Only a zero mask can be replaced.
+            const bool maskless = sdpa->get_input_size() == 3;
+            const auto zero_mask = sdpa->get_input_size() == 5
+                                       ? ov::as_type_ptr<v0::Constant>(sdpa->input_value(3).get_node_shared_ptr())
+                                       : nullptr;
+            OPENVINO_ASSERT(maskless || (zero_mask && ov::shape_size(zero_mask->get_shape()) == 1 &&
+                                         zero_mask->cast_vector<float>()[0] == 0.0f),
+                            "[GGUF] Qwen vision attention already has a mask");
+            auto masked = maskless ? std::make_shared<v13::ScaledDotProductAttention>(sdpa->input_value(0),
+                                                                                      sdpa->input_value(1),
+                                                                                      sdpa->input_value(2),
+                                                                                      mask4,
+                                                                                      false)
+                                   : std::make_shared<v13::ScaledDotProductAttention>(sdpa->input_value(0),
+                                                                                      sdpa->input_value(1),
+                                                                                      sdpa->input_value(2),
+                                                                                      mask4,
+                                                                                      sdpa->input_value(4),
+                                                                                      false);
             masked->set_friendly_name(sdpa->get_friendly_name());
             ov::replace_node(sdpa, masked);
         }
