@@ -237,6 +237,7 @@ enum class Tags : uint32_t {
     model_id = 1,              //!< See #model_id.
     model = 2,                 //!< See #model.
     runtime_requirements = 3,  //!< See #runtime_requirements_tag.
+    weights = 4,               //!< See #weights_tag.
     // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
     // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
@@ -247,6 +248,7 @@ static_assert(static_cast<uint32_t>(Tags::sentinel_count) <= core_tag_id_range_e
 inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!< Model identifier (e.g. a hash).
 inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!< The serialized compiled model itself.
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
+inline constexpr uint32_t weights = static_cast<uint32_t>(Tags::weights);  //!< Raw model weights buffer.
 
 /// Wire tag for #model_id - always inline-mode.
 inline constexpr SectionTag model_id_tag = SectionTag::make(model_id, /*is_inline=*/true);
@@ -262,6 +264,9 @@ inline constexpr SectionTag model_tag = SectionTag::make(model, /*is_inline=*/fa
  * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
 inline constexpr SectionTag runtime_requirements_tag = SectionTag::make(runtime_requirements, /*is_inline=*/false);
+
+/// Wire tag for #weights - always pointer-mode.
+inline constexpr SectionTag weights_tag = SectionTag::make(weights, /*is_inline=*/false);
 
 /**
  * @brief One fixed-size, 32-byte record of the manifest table (see #Header::manifest_offset).

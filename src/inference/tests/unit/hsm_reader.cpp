@@ -14,6 +14,10 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/pass/serialize.hpp"
+
 namespace ov::test {
 namespace hsm = ov::runtime::hsm;
 namespace {
@@ -302,6 +306,7 @@ TEST(HsmReaderTest, common_sections_absent_when_manifest_is_empty) {
     EXPECT_FALSE(reader->section(hsm::model_id).has_value());
     EXPECT_FALSE(reader->section(hsm::model).has_value());
     EXPECT_FALSE(reader->section(hsm::runtime_requirements).has_value());
+    EXPECT_FALSE(reader->section(hsm::weights).has_value());
 }
 
 TEST(HsmReaderTest, runtime_requirements_section_reads_opaque_payload) {
@@ -314,6 +319,50 @@ TEST(HsmReaderTest, runtime_requirements_section_reads_opaque_payload) {
     const auto section = reader->section(hsm::runtime_requirements);
     ASSERT_TRUE(section.has_value());
     EXPECT_EQ(to_string(*section), "req-v1");  // reader hands back raw bytes only, never interprets content
+}
+
+TEST(HsmReaderTest, weights_section_reads_raw_payload_unchanged) {
+    const std::string weights{"\x00\x01\x7f\x80\xfe\xff", 6};
+    const auto blob = make_container({
+        {make_pointer_entry(hsm::any_device_id, hsm::weights_tag), weights},
+    });
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    const auto section = reader->section(hsm::weights);
+    ASSERT_TRUE(section.has_value());
+    EXPECT_EQ(to_string(*section), weights);
+}
+
+TEST(HsmReaderTest, model_and_weights_sections_read_serialized_files_unchanged) {
+    const auto constant =
+        ov::op::v0::Constant::create(ov::element::u8, ov::Shape{6}, {0x00, 0x01, 0x7F, 0x80, 0xFE, 0xFF});
+    const auto result = std::make_shared<ov::op::v0::Result>(constant);
+    const auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
+
+    std::stringstream xml_file;
+    std::stringstream bin_file;
+    ov::pass::Serialize serializer(xml_file, bin_file);
+    ASSERT_NO_THROW(serializer.run_on_model(model));
+    const auto serialized_model = xml_file.str();
+    const auto serialized_weights = bin_file.str();
+    ASSERT_FALSE(serialized_model.empty());
+    ASSERT_FALSE(serialized_weights.empty());
+
+    const auto blob = make_container({
+        {make_pointer_entry(hsm::any_device_id, hsm::model_tag), serialized_model},
+        {make_pointer_entry(hsm::any_device_id, hsm::weights_tag), serialized_weights},
+    });
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    const auto model_section = reader->section(hsm::model);
+    ASSERT_TRUE(model_section.has_value());
+    EXPECT_EQ(to_string(*model_section), serialized_model);
+
+    const auto weights_section = reader->section(hsm::weights);
+    ASSERT_TRUE(weights_section.has_value());
+    EXPECT_EQ(to_string(*weights_section), serialized_weights);
 }
 
 TEST(HsmReaderTest, move_constructed_reader_still_reads_sections) {
