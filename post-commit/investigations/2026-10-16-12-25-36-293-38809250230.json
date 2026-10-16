@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-16-12-25-36-293-38809250230",
+  "timestamp": "2026-10-16T12:25:36Z",
+  "run_id": "38809250230",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38809250230",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "e1fca238e94b07cf50dcf3124b14ae2224ae2cd6",
+  "pr_number": "38532",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38532",
+  "author": "clee30",
+  "category": "Flaky Test",
+  "title": "GGUF mmproj muse SDPA acceptance test fails on chat oracle token mismatch",
+  "signature": "test_mmproj_llama_acceptance[muse-SDPA] oracle chat mismatch: image_chat/modern_image_chat first_token_matches=False matching_choice_fraction=0.9 (PA backend passes)|Flaky Test",
+  "signature_hash": "a9ce2add9560c52f",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GGUF Frontend x GenAI acceptance / GGUF GenAI acceptance",
+      "conclusion": "failure",
+      "symptom": "test_mmproj_llama_acceptance[muse-square-SDPA] fails validate_gguf_mmproj.py oracle comparison with exit 1"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because an upstream job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED genai/tests/python_tests/test_gguf_mmproj_acceptance.py::test_mmproj_llama_acceptance[muse-square-SDPA] - AssertionError: [...]: exit 1",
+    "modern_image_chat {'passed': False, 'error': \"AssertionError: ({'modality': 'modern_image', ... 'first_token_matches': True, 'matching_choice_fraction': 1.0}, {'modality': 'modern_image_chat', ... 'first_token_matches': False, 'matching_choice_fraction': 0.9})\\n\"}",
+    "assert 1 == 0  +  where 1 = CompletedProcess(args=[... 'genai-gguf-mmproj-oracle' ... '--family', 'muse', '--attention-backend', 'SDPA' ...], returncode=1).returncode",
+    "genai/tests/python_tests/test_gguf_mmproj_acceptance.py:33: AssertionError"
+  ],
+  "root_cause": "The tiny-random Muse (MuseGlimmer) GGUF/mmproj acceptance test compares OpenVINO GenAI chat-mode generation token-for-token against a llama.cpp oracle (genai-gguf-mmproj-oracle). For the SDPA attention backend, the second chat turn ('modern_image_chat') produces a first-token mismatch versus the oracle (matching_choice_fraction 0.9, first_token_matches=False), while the identical multi-turn chat scenario on all other modalities, and the entire PA-backend run, match exactly. This is consistent with a floating-point-accumulation-order sensitivity in SDPA's chat/continuation path for this specific tiny random model combined with the oracle's tolerance being effectively 'exact match or fail' for the first generated token; a tiny numerical divergence from KV-cache reuse/accumulation order between turns tips the argmax to a different (but statistically still top-ranked, matching_choice_fraction=0.9) token. Because PA passes and every other modality/family (gemma3, gemma4, etc.) passes consistently, this does not look like a regression from the bf16 KV-cache-compression change in the triggering PR (#38532 is GPU-plugin-specific dynamic_quantize/SDPA CL kernel code, unrelated to the CPU/GenAI mmproj oracle comparison path exercised here), but rather a pre-existing edge-case flakiness in the SDPA chat-continuation oracle check for the muse family.",
+  "reproduction_steps": "1) Build openvino + GenAI with GGUF frontend enabled. 2) Build the llama.cpp reference oracle (llama-reference/bin/genai-gguf-mmproj-oracle) per genai/tests/python_tests/test_gguf_mmproj_acceptance.py fixtures. 3) Run: python3 -m pytest --noconftest -v genai/tests/python_tests/test_gguf_mmproj_acceptance.py -k 'muse and SDPA' --junitxml=reports/muse.xml. 4) Inspect reports/muse-f32-SDPA-square.log and compare the 'modern_image_chat' turn's generated token stream against the oracle manifest; re-run a few times to check whether the mismatch reproduces deterministically or only intermittently.",
+  "recommended_actions": [
+    "Re-run the failed GGUF GenAI acceptance job (or just the muse-SDPA case) to confirm whether this is intermittent; if a re-run passes, treat as confirmed flaky test rather than a regression.",
+    "Inspect validate_gguf_mmproj.py's chat/continuation handling (around lines 300-370, the modern_chat/case_passed logic) for how KV-cache state is carried between start_chat()/finish_chat() turns for SDPA, and whether numerical tolerance (exact-token vs top-k) should be relaxed for the second-turn comparison.",
+    "Check if the GPU KV-cache-compression change in PR #38532 touches any shared SDPA codegen path also used by the CPU/GenAI tiny-random muse test target device; if the muse acceptance test runs on CPU, this PR is likely unrelated, but confirm via the job's device/target config.",
+    "If recurring, consider marking test_mmproj_llama_acceptance[muse-square-SDPA]'s chat sub-check as XFAIL/known-flaky similar to the existing XFAIL entries for gemma2/gpt-oss/mamba2/nemotron_h families seen earlier in the same job log."
+  ],
+  "prevention_strategies": "Add a small numerical tolerance window (e.g., allow matching_choice_fraction >= 0.9 to count as pass, or compare top-k token sets instead of strict first_token_matches) for multi-turn chat oracle comparisons, since GenAI SDPA chat-continuation inherently has a slightly different floating point accumulation order than the llama.cpp reference across turns. Track flakiness via repeated CI runs before escalating to a code fix.",
+  "historical_context": "No prior post-commit investigation in this knowledge base references GGUF mmproj/muse acceptance test failures; this is the first recorded occurrence of this specific signature. The job log shows several unrelated XFAIL entries for gemma2/gpt-oss/mamba2/nemotron_h GGUF generated tests earlier in the same run, which are expected and not part of this failure."
+}

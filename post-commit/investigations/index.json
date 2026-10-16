@@ -1,382 +1,391 @@
 {
-    "schema_version": "1.0",
-    "total": 36,
-    "entries": [
-        {
-            "investigation_id": "2026-09-23-19-32-29-000-35899229472",
-            "run_id": "35899229472",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35899229472",
-            "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-            "timestamp": "2026-09-23T19:32:29Z",
-            "title": "Upload Test Results fails with ENOTFOUND artifact upload error on Windows runner",
-            "category": "Network",
-            "signature_hash": "4e9cf236bf92d555",
-            "commit_sha": "31f1a4055a99ac3bd279b1930b28f6e2b6f43056"
-        },
-        {
-            "investigation_id": "2026-09-25-10-37-07-000-36123294303",
-            "run_id": "36123294303",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36123294303",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-09-25T10:37:07Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "a1bf0fb1ea427b651f8c65a74c22268b26dcf4a8"
-        },
-        {
-            "investigation_id": "2026-09-30-03-20-47-000-36656403596",
-            "run_id": "36656403596",
-            "timestamp": "2026-09-30T03:20:47Z",
-            "title": "Windows post-commit jobs fail installing pip dependencies via internal pip-proxy with malformed JSON simple-index response",
-            "category": "Infrastructure",
-            "signature_hash": "9cd22413ebd3589c",
-            "commit_sha": "e0fc3be851db3b77e02b46790fca8eace8d6fdc4"
-        },
-        {
-            "investigation_id": "2026-09-30-10-22-26-000-36698768818",
-            "run_id": "36698768818",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36698768818",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-09-30T10:22:26Z",
-            "title": "smoke_AvgPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
-            "category": "Flaky Test",
-            "signature_hash": "d94563b07437b23b",
-            "commit_sha": "2f8457d559ea238ac3d21059dbf92d67ad6b10a6"
-        },
-        {
-            "investigation_id": "2026-10-01-09-59-49-967-36836680252",
-            "run_id": "36836680252",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36836680252",
-            "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
-            "timestamp": "2026-10-01T09:59:49Z",
-            "title": "GGUF llama.cpp build fails when sccache server times out on startup",
-            "category": "Infrastructure",
-            "signature_hash": "c09f0ea325633f94",
-            "commit_sha": "7ca416dd5ef914100202913101ae81a2a51a44c0"
-        },
-        {
-            "investigation_id": "2026-10-06-00-24-07-995-37391757947",
-            "run_id": "37391757947",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37391757947",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T00:24:07Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "7fab4ed8f924875369e0cb75d85b8ffc365adc54"
-        },
-        {
-            "investigation_id": "2026-10-06-01-01-26-359-37394029538",
-            "run_id": "37394029538",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37394029538",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T01:01:26Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "58472656deac72b13857d9363e9dde61d0856766"
-        },
-        {
-            "investigation_id": "2026-10-06-04-20-18-852-37410819403",
-            "run_id": "37410819403",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37410819403",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T04:20:18Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "321ef18afc7d43fb5a9423ea4139090c42d78e5b"
-        },
-        {
-            "investigation_id": "2026-10-06-06-26-52-230-37421582585",
-            "run_id": "37421582585",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37421582585",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T06:26:52Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "6f6a720931392a4bb5794b8f2e2cec2ca557db5a"
-        },
-        {
-            "investigation_id": "2026-10-06-08-52-00-000-37437000273",
-            "run_id": "37437000273",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37437000273",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T08:52:00Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "23efa670f1c1008cd7468a285f4622ec3d3658f2"
-        },
-        {
-            "investigation_id": "2026-10-06-09-39-25-000-37440842108",
-            "run_id": "37440842108",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37440842108",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T09:39:25Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "c026cb63b3e9f5f9345daf7c382006cf9e8e3373"
-        },
-        {
-            "investigation_id": "2026-10-06-10-14-30-000-37444849394",
-            "run_id": "37444849394",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37444849394",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T10:14:30Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "1cdeaedefbb03ad043cb6c83d7462d9c2442b885"
-        },
-        {
-            "investigation_id": "2026-10-06-10-33-00-000-37448674288",
-            "run_id": "37448674288",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37448674288",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T10:33:00Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "e345d4559f5db304ebdcc43ab644c75b8c81d5d3"
-        },
-        {
-            "investigation_id": "2026-10-06-10-51-06-633-37448674288",
-            "run_id": "37448674288",
-            "timestamp": "2026-10-06T10:51:06Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "e345d4559f5db304ebdcc43ab644c75b8c81d5d3"
-        },
-        {
-            "investigation_id": "2026-10-06-12-18-11-000-37458813239",
-            "run_id": "37458813239",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37458813239",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T12:18:11Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "89a76b7ac307ba065dbf61af12e17747b431eafb"
-        },
-        {
-            "investigation_id": "2026-10-06-12-47-41-000-37462138875",
-            "run_id": "37462138875",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37462138875",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T12:47:41Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "14ddd301f8bd370f78db6af62be8fa0ca4363f58"
-        },
-        {
-            "investigation_id": "2026-10-06-13-16-15-000-37467194049",
-            "run_id": "37467194049",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37467194049",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T13:16:15Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "fb83cf12522721ff0534d6c52cc4ed4521f5a4f2"
-        },
-        {
-            "investigation_id": "2026-10-06-15-26-00-000-37482358384",
-            "run_id": "37482358384",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37482358384",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T15:26:00Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "03916107a8c6beb3f8d837a3b96f945904c6c026"
-        },
-        {
-            "investigation_id": "2026-10-06-15-59-30-791-37488947582",
-            "run_id": "37488947582",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37488947582",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-06T15:59:30Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "ed4493b1a4efc33f4c1e52195a7e663c502320c2"
-        },
-        {
-            "investigation_id": "2026-10-06-16-50-38-000-37495837976",
-            "run_id": "37495837976",
-            "timestamp": "2026-10-06T16:50:38Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "0a3cef6638eb37104752a8bc27ad27c4e601e0c1"
-        },
-        {
-            "investigation_id": "2026-10-07-05-03-57-000-37572215900",
-            "run_id": "37572215900",
-            "timestamp": "2026-10-07T05:03:57Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c"
-        },
-        {
-            "investigation_id": "2026-10-07-05-20-16-000-37572215905",
-            "run_id": "37572215905",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37572215905",
-            "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
-            "timestamp": "2026-10-07T05:20:16Z",
-            "title": "smoke_ConvertCPULayerTest_7D_Dynamic fails on CPU primitive type check (unknown_f32 vs ref_f32)",
-            "category": "Flaky Test",
-            "signature_hash": "56c268ac84902dce",
-            "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c"
-        },
-        {
-            "investigation_id": "2026-10-07-09-32-41-000-37598151613",
-            "run_id": "37598151613",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37598151613",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-10-07T09:32:41Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "85f36e7eea05976a96b61fd155cfd4ec38500479"
-        },
-        {
-            "investigation_id": "2026-10-09-09-08-53-000-37901253160",
-            "run_id": "37901253160",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37901253160",
-            "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
-            "timestamp": "2026-10-09T09:08:53Z",
-            "title": "GatedDeltaNet transformation test fails to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
-            "category": "Dependencies",
-            "signature_hash": "d61249d5ea96108d",
-            "commit_sha": "89f0e3a6695b6761f1dea033624fcd7b8243c44f"
-        },
-        {
-            "investigation_id": "2026-10-09-09-22-01-712-37900510909",
-            "run_id": "37900510909",
-            "timestamp": "2026-10-09T09:22:01Z",
-            "title": "PyTorch model hub HF Transformers tests fail to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
-            "category": "Dependencies",
-            "signature_hash": "d61249d5ea96108d",
-            "commit_sha": "344d28c8dfd6d4d80f4b68a6b42c9cedf826894c"
-        },
-        {
-            "investigation_id": "2026-10-09-09-35-28-000-37905994851",
-            "run_id": "37905994851",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37905994851",
-            "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
-            "timestamp": "2026-10-09T09:35:28Z",
-            "title": "GatedDeltaNet transformation test fails to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
-            "category": "Dependencies",
-            "signature_hash": "d61249d5ea96108d",
-            "commit_sha": "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f"
-        },
-        {
-            "investigation_id": "2026-10-09-10-14-59-142-37901253022",
-            "run_id": "37901253022",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37901253022",
-            "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
-            "timestamp": "2026-10-09T10:14:59Z",
-            "title": "PyTorch model hub HF Transformers tests fail: pyarrow requires NumPy 2.0+, found 1.26.4",
-            "category": "Dependencies",
-            "signature_hash": "d61249d5ea96108d",
-            "commit_sha": "89f0e3a6695b6761f1dea033624fcd7b8243c44f"
-        },
-        {
-            "investigation_id": "2026-10-09-10-27-00-000-37905994856",
-            "run_id": "37905994856",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37905994856",
-            "workflow_name": "PyTorch Models tests",
-            "timestamp": "2026-10-09T10:27:00Z",
-            "title": "PyTorch model hub HF Transformers tests fail: pyarrow requires NumPy 2.0+, found 1.26.4",
-            "category": "Dependencies",
-            "signature_hash": "d61249d5ea96108d",
-            "commit_sha": "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f"
-        },
-        {
-            "investigation_id": "2026-10-10-23-39-24-489-38092857906",
-            "run_id": "38092857906",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38092857906",
-            "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-            "timestamp": "2026-10-10T23:39:24Z",
-            "title": "Windows build job terminated mid-build with unavailable job logs",
-            "category": "Infrastructure",
-            "signature_hash": "afb479532c52bf68",
-            "commit_sha": "f7ddd2e2421c85746425d3e124cd10470e012e56"
-        },
-        {
-            "investigation_id": "2026-10-10-23-56-44-000-38092857471",
-            "run_id": "38092857471",
-            "timestamp": "2026-10-10T23:56:44Z",
-            "title": "Windows build job terminated mid-build with unavailable job logs",
-            "category": "Infrastructure",
-            "signature_hash": "afb479532c52bf68",
-            "commit_sha": "f7ddd2e2421c85746425d3e124cd10470e012e56"
-        },
-        {
-            "investigation_id": "2026-10-11-00-11-37-282-38096075221",
-            "run_id": "38096075221",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38096075221",
-            "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
-            "timestamp": "2026-10-11T00:11:37Z",
-            "title": "Windows build job terminated mid-build with unavailable job logs",
-            "category": "Infrastructure",
-            "signature_hash": "afb479532c52bf68",
-            "commit_sha": "8fb839633478574cefd28d49e25747d7c830b5a6"
-        },
-        {
-            "investigation_id": "2026-10-12-15-14-04-000-38260834403",
-            "run_id": "38260834403",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38260834403",
-            "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
-            "timestamp": "2026-10-12T15:14:04Z",
-            "title": "LLM accuracy dGPU tests fail downloading Qwen2-0.5B-Instruct from HuggingFace Hub (429 rate limit)",
-            "category": "External Service",
-            "signature_hash": "4dd69b5f0be10a15",
-            "commit_sha": "64242771c11615bb7edf8a7557b47c8c89119b2f"
-        },
-        {
-            "investigation_id": "2026-10-13-14-46-52-371-38403561271",
-            "run_id": "38403561271",
-            "timestamp": "2026-10-13T14:46:52Z",
-            "title": "ONNX Models Tests job fails with getaddrinfo EAI_AGAIN during artifact upload after all tests passed",
-            "category": "Network",
-            "signature_hash": "d877f2bb57b833d0",
-            "commit_sha": "10864ee713c0c1d4f967506bd88eb359b86a5b4a"
-        },
-        {
-            "investigation_id": "2026-10-13-16-28-23-000-38423494884",
-            "run_id": "38423494884",
-            "timestamp": "2026-10-13T16:28:23Z",
-            "title": "C++ unit tests job fails with getaddrinfo EAI_AGAIN during artifact upload after all tests passed",
-            "category": "Network",
-            "signature_hash": "d877f2bb57b833d0",
-            "commit_sha": "529331f083ebed40ccba117ba3a443c5468c8d89"
-        },
-        {
-            "investigation_id": "2026-10-13-16-45-10-000-38423494892",
-            "run_id": "38423494892",
-            "timestamp": "2026-10-13T16:45:10Z",
-            "title": "Post-commit jobs fail checkout/fetch with DNS resolution failure (Could not resolve host: github.com)",
-            "category": "Network",
-            "signature_hash": "eeae3ce3f5218e80",
-            "commit_sha": "529331f083ebed40ccba117ba3a443c5468c8d89"
-        },
-        {
-            "investigation_id": "2026-10-15-22-12-14-619-38808374504",
-            "run_id": "38808374504",
-            "timestamp": "2026-10-15T22:12:14Z",
-            "title": "smoke_MaxPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
-            "category": "Flaky Test",
-            "signature_hash": "2640902748a867ec",
-            "commit_sha": "86a5e9edc9dc9d9144f8b7f2fc4a4b0712830997"
-        }
-    ]
+  "schema_version": "1.0",
+  "total": 37,
+  "entries": [
+    {
+      "investigation_id": "2026-09-23-19-32-29-000-35899229472",
+      "run_id": "35899229472",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35899229472",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-09-23T19:32:29Z",
+      "title": "Upload Test Results fails with ENOTFOUND artifact upload error on Windows runner",
+      "category": "Network",
+      "signature_hash": "4e9cf236bf92d555",
+      "commit_sha": "31f1a4055a99ac3bd279b1930b28f6e2b6f43056"
+    },
+    {
+      "investigation_id": "2026-09-25-10-37-07-000-36123294303",
+      "run_id": "36123294303",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36123294303",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-09-25T10:37:07Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "a1bf0fb1ea427b651f8c65a74c22268b26dcf4a8"
+    },
+    {
+      "investigation_id": "2026-09-30-03-20-47-000-36656403596",
+      "run_id": "36656403596",
+      "timestamp": "2026-09-30T03:20:47Z",
+      "title": "Windows post-commit jobs fail installing pip dependencies via internal pip-proxy with malformed JSON simple-index response",
+      "category": "Infrastructure",
+      "signature_hash": "9cd22413ebd3589c",
+      "commit_sha": "e0fc3be851db3b77e02b46790fca8eace8d6fdc4"
+    },
+    {
+      "investigation_id": "2026-09-30-10-22-26-000-36698768818",
+      "run_id": "36698768818",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36698768818",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-09-30T10:22:26Z",
+      "title": "smoke_AvgPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+      "category": "Flaky Test",
+      "signature_hash": "d94563b07437b23b",
+      "commit_sha": "2f8457d559ea238ac3d21059dbf92d67ad6b10a6"
+    },
+    {
+      "investigation_id": "2026-10-01-09-59-49-967-36836680252",
+      "run_id": "36836680252",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36836680252",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-01T09:59:49Z",
+      "title": "GGUF llama.cpp build fails when sccache server times out on startup",
+      "category": "Infrastructure",
+      "signature_hash": "c09f0ea325633f94",
+      "commit_sha": "7ca416dd5ef914100202913101ae81a2a51a44c0"
+    },
+    {
+      "investigation_id": "2026-10-06-00-24-07-995-37391757947",
+      "run_id": "37391757947",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37391757947",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T00:24:07Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "7fab4ed8f924875369e0cb75d85b8ffc365adc54"
+    },
+    {
+      "investigation_id": "2026-10-06-01-01-26-359-37394029538",
+      "run_id": "37394029538",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37394029538",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T01:01:26Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "58472656deac72b13857d9363e9dde61d0856766"
+    },
+    {
+      "investigation_id": "2026-10-06-04-20-18-852-37410819403",
+      "run_id": "37410819403",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37410819403",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T04:20:18Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "321ef18afc7d43fb5a9423ea4139090c42d78e5b"
+    },
+    {
+      "investigation_id": "2026-10-06-06-26-52-230-37421582585",
+      "run_id": "37421582585",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37421582585",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T06:26:52Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "6f6a720931392a4bb5794b8f2e2cec2ca557db5a"
+    },
+    {
+      "investigation_id": "2026-10-06-08-52-00-000-37437000273",
+      "run_id": "37437000273",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37437000273",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T08:52:00Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "23efa670f1c1008cd7468a285f4622ec3d3658f2"
+    },
+    {
+      "investigation_id": "2026-10-06-09-39-25-000-37440842108",
+      "run_id": "37440842108",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37440842108",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T09:39:25Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "c026cb63b3e9f5f9345daf7c382006cf9e8e3373"
+    },
+    {
+      "investigation_id": "2026-10-06-10-14-30-000-37444849394",
+      "run_id": "37444849394",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37444849394",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T10:14:30Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "1cdeaedefbb03ad043cb6c83d7462d9c2442b885"
+    },
+    {
+      "investigation_id": "2026-10-06-10-33-00-000-37448674288",
+      "run_id": "37448674288",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37448674288",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T10:33:00Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "e345d4559f5db304ebdcc43ab644c75b8c81d5d3"
+    },
+    {
+      "investigation_id": "2026-10-06-10-51-06-633-37448674288",
+      "run_id": "37448674288",
+      "timestamp": "2026-10-06T10:51:06Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "e345d4559f5db304ebdcc43ab644c75b8c81d5d3"
+    },
+    {
+      "investigation_id": "2026-10-06-12-18-11-000-37458813239",
+      "run_id": "37458813239",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37458813239",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T12:18:11Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "89a76b7ac307ba065dbf61af12e17747b431eafb"
+    },
+    {
+      "investigation_id": "2026-10-06-12-47-41-000-37462138875",
+      "run_id": "37462138875",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37462138875",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T12:47:41Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "14ddd301f8bd370f78db6af62be8fa0ca4363f58"
+    },
+    {
+      "investigation_id": "2026-10-06-13-16-15-000-37467194049",
+      "run_id": "37467194049",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37467194049",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T13:16:15Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "fb83cf12522721ff0534d6c52cc4ed4521f5a4f2"
+    },
+    {
+      "investigation_id": "2026-10-06-15-26-00-000-37482358384",
+      "run_id": "37482358384",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37482358384",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T15:26:00Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "03916107a8c6beb3f8d837a3b96f945904c6c026"
+    },
+    {
+      "investigation_id": "2026-10-06-15-59-30-791-37488947582",
+      "run_id": "37488947582",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37488947582",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-06T15:59:30Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "ed4493b1a4efc33f4c1e52195a7e663c502320c2"
+    },
+    {
+      "investigation_id": "2026-10-06-16-50-38-000-37495837976",
+      "run_id": "37495837976",
+      "timestamp": "2026-10-06T16:50:38Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "0a3cef6638eb37104752a8bc27ad27c4e601e0c1"
+    },
+    {
+      "investigation_id": "2026-10-07-05-03-57-000-37572215900",
+      "run_id": "37572215900",
+      "timestamp": "2026-10-07T05:03:57Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c"
+    },
+    {
+      "investigation_id": "2026-10-07-05-20-16-000-37572215905",
+      "run_id": "37572215905",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37572215905",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-07T05:20:16Z",
+      "title": "smoke_ConvertCPULayerTest_7D_Dynamic fails on CPU primitive type check (unknown_f32 vs ref_f32)",
+      "category": "Flaky Test",
+      "signature_hash": "56c268ac84902dce",
+      "commit_sha": "f77c1e9b6d9e746a816c1a20182917f2c327cc7c"
+    },
+    {
+      "investigation_id": "2026-10-07-09-32-41-000-37598151613",
+      "run_id": "37598151613",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37598151613",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-10-07T09:32:41Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "85f36e7eea05976a96b61fd155cfd4ec38500479"
+    },
+    {
+      "investigation_id": "2026-10-09-09-08-53-000-37901253160",
+      "run_id": "37901253160",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37901253160",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-09T09:08:53Z",
+      "title": "GatedDeltaNet transformation test fails to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+      "category": "Dependencies",
+      "signature_hash": "d61249d5ea96108d",
+      "commit_sha": "89f0e3a6695b6761f1dea033624fcd7b8243c44f"
+    },
+    {
+      "investigation_id": "2026-10-09-09-22-01-712-37900510909",
+      "run_id": "37900510909",
+      "timestamp": "2026-10-09T09:22:01Z",
+      "title": "PyTorch model hub HF Transformers tests fail to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+      "category": "Dependencies",
+      "signature_hash": "d61249d5ea96108d",
+      "commit_sha": "344d28c8dfd6d4d80f4b68a6b42c9cedf826894c"
+    },
+    {
+      "investigation_id": "2026-10-09-09-35-28-000-37905994851",
+      "run_id": "37905994851",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37905994851",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-09T09:35:28Z",
+      "title": "GatedDeltaNet transformation test fails to collect: pyarrow requires NumPy 2.0+, found 1.26.4",
+      "category": "Dependencies",
+      "signature_hash": "d61249d5ea96108d",
+      "commit_sha": "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f"
+    },
+    {
+      "investigation_id": "2026-10-09-10-14-59-142-37901253022",
+      "run_id": "37901253022",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37901253022",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-09T10:14:59Z",
+      "title": "PyTorch model hub HF Transformers tests fail: pyarrow requires NumPy 2.0+, found 1.26.4",
+      "category": "Dependencies",
+      "signature_hash": "d61249d5ea96108d",
+      "commit_sha": "89f0e3a6695b6761f1dea033624fcd7b8243c44f"
+    },
+    {
+      "investigation_id": "2026-10-09-10-27-00-000-37905994856",
+      "run_id": "37905994856",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37905994856",
+      "workflow_name": "PyTorch Models tests",
+      "timestamp": "2026-10-09T10:27:00Z",
+      "title": "PyTorch model hub HF Transformers tests fail: pyarrow requires NumPy 2.0+, found 1.26.4",
+      "category": "Dependencies",
+      "signature_hash": "d61249d5ea96108d",
+      "commit_sha": "972aa05b9b625d08b4a8f8533cefa0a550e7aa1f"
+    },
+    {
+      "investigation_id": "2026-10-10-23-39-24-489-38092857906",
+      "run_id": "38092857906",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38092857906",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-10-10T23:39:24Z",
+      "title": "Windows build job terminated mid-build with unavailable job logs",
+      "category": "Infrastructure",
+      "signature_hash": "afb479532c52bf68",
+      "commit_sha": "f7ddd2e2421c85746425d3e124cd10470e012e56"
+    },
+    {
+      "investigation_id": "2026-10-10-23-56-44-000-38092857471",
+      "run_id": "38092857471",
+      "timestamp": "2026-10-10T23:56:44Z",
+      "title": "Windows build job terminated mid-build with unavailable job logs",
+      "category": "Infrastructure",
+      "signature_hash": "afb479532c52bf68",
+      "commit_sha": "f7ddd2e2421c85746425d3e124cd10470e012e56"
+    },
+    {
+      "investigation_id": "2026-10-11-00-11-37-282-38096075221",
+      "run_id": "38096075221",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38096075221",
+      "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+      "timestamp": "2026-10-11T00:11:37Z",
+      "title": "Windows build job terminated mid-build with unavailable job logs",
+      "category": "Infrastructure",
+      "signature_hash": "afb479532c52bf68",
+      "commit_sha": "8fb839633478574cefd28d49e25747d7c830b5a6"
+    },
+    {
+      "investigation_id": "2026-10-12-15-14-04-000-38260834403",
+      "run_id": "38260834403",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38260834403",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-10-12T15:14:04Z",
+      "title": "LLM accuracy dGPU tests fail downloading Qwen2-0.5B-Instruct from HuggingFace Hub (429 rate limit)",
+      "category": "External Service",
+      "signature_hash": "4dd69b5f0be10a15",
+      "commit_sha": "64242771c11615bb7edf8a7557b47c8c89119b2f"
+    },
+    {
+      "investigation_id": "2026-10-13-14-46-52-371-38403561271",
+      "run_id": "38403561271",
+      "timestamp": "2026-10-13T14:46:52Z",
+      "title": "ONNX Models Tests job fails with getaddrinfo EAI_AGAIN during artifact upload after all tests passed",
+      "category": "Network",
+      "signature_hash": "d877f2bb57b833d0",
+      "commit_sha": "10864ee713c0c1d4f967506bd88eb359b86a5b4a"
+    },
+    {
+      "investigation_id": "2026-10-13-16-28-23-000-38423494884",
+      "run_id": "38423494884",
+      "timestamp": "2026-10-13T16:28:23Z",
+      "title": "C++ unit tests job fails with getaddrinfo EAI_AGAIN during artifact upload after all tests passed",
+      "category": "Network",
+      "signature_hash": "d877f2bb57b833d0",
+      "commit_sha": "529331f083ebed40ccba117ba3a443c5468c8d89"
+    },
+    {
+      "investigation_id": "2026-10-13-16-45-10-000-38423494892",
+      "run_id": "38423494892",
+      "timestamp": "2026-10-13T16:45:10Z",
+      "title": "Post-commit jobs fail checkout/fetch with DNS resolution failure (Could not resolve host: github.com)",
+      "category": "Network",
+      "signature_hash": "eeae3ce3f5218e80",
+      "commit_sha": "529331f083ebed40ccba117ba3a443c5468c8d89"
+    },
+    {
+      "investigation_id": "2026-10-15-22-12-14-619-38808374504",
+      "run_id": "38808374504",
+      "timestamp": "2026-10-15T22:12:14Z",
+      "title": "smoke_MaxPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+      "category": "Flaky Test",
+      "signature_hash": "2640902748a867ec",
+      "commit_sha": "86a5e9edc9dc9d9144f8b7f2fc4a4b0712830997"
+    },
+    {
+      "investigation_id": "2026-10-16-12-25-36-293-38809250230",
+      "run_id": "38809250230",
+      "timestamp": "2026-10-16T12:25:36Z",
+      "title": "GGUF mmproj muse SDPA acceptance test fails on chat oracle token mismatch",
+      "category": "Flaky Test",
+      "signature_hash": "a9ce2add9560c52f",
+      "commit_sha": "e1fca238e94b07cf50dcf3124b14ae2224ae2cd6"
+    }
+  ]
 }

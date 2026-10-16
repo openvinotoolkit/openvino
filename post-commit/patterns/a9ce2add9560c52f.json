@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "test_mmproj_llama_acceptance[muse-SDPA] oracle chat mismatch: image_chat/modern_image_chat first_token_matches=False matching_choice_fraction=0.9 (PA backend passes)|Flaky Test",
+  "signature_hash": "a9ce2add9560c52f",
+  "title": "GGUF mmproj muse SDPA acceptance test fails on chat oracle token mismatch",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-10-16T12:25:36Z",
+  "last_seen": "2026-10-16T12:25:36Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/38809250230"
+  ],
+  "affected_commits": [
+    "e1fca238e94b07cf50dcf3124b14ae2224ae2cd6"
+  ],
+  "recent_timestamps": [
+    "2026-10-16T12:25:36Z"
+  ]
+}
