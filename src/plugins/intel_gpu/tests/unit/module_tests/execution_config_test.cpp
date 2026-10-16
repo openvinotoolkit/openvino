@@ -244,3 +244,44 @@ TEST(execution_config, kv_cache_4bit_by_token_throws) {
 
     ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl.hpp>
+
+// RAII wrapper to restore the OneDNN verbose level after each test.
+struct ScopedDnnlVerbose {
+    explicit ScopedDnnlVerbose(int level) { dnnl::set_verbose(level); }
+    ~ScopedDnnlVerbose() { dnnl::set_verbose(0); }
+};
+
+TEST(execution_config, profiling_auto_enabled_when_onednn_verbose_profiling_active) {
+    ScopedDnnlVerbose verbose_guard(1);  // level1 includes exec_profile
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN not supported on this device; skipping test";
+
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+
+    ExecutionConfig config;
+    config.finalize(ctx.get(), nullptr);
+
+    ASSERT_TRUE(config.get_enable_profiling());
+}
+
+TEST(execution_config, profiling_not_auto_enabled_without_onednn_verbose) {
+    // Explicitly disable verbose to avoid interference from environment variables.
+    ScopedDnnlVerbose verbose_guard(0);
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN not supported on this device; skipping test";
+
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+
+    ExecutionConfig config;
+    config.finalize(ctx.get(), nullptr);
+
+    ASSERT_FALSE(config.get_enable_profiling());
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU

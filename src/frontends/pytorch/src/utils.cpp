@@ -12,12 +12,15 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -679,6 +682,15 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     auto dummy_const = context.mark_node(v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
     align_eltwise_input_types(context, x, dummy_const, false, true);
     return x;
+}
+
+Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
+    auto is_negative = context.mark_node(std::make_shared<v1::Less>(x, zero));
+    auto ceil = context.mark_node(std::make_shared<v0::Ceiling>(x));
+    auto floor = context.mark_node(std::make_shared<v0::Floor>(x));
+    return context.mark_node(std::make_shared<v1::Select>(is_negative, ceil, floor));
 }
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
