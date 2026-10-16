@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "base_reference_test.hpp"
 
 using namespace ov;
@@ -127,13 +129,17 @@ std::vector<FloorModParams> generateParamsForFloorModLargeInteger() {
     // Large operands whose remainder is non-zero. Evaluating the floored modulo via double would
     // lose precision here (e.g. INT64_MAX / 3 rounds up), so only exact integer arithmetic keeps
     // the result accurate.
-    return {FloorModParams(ov::PartialShape{4},
-                           ov::PartialShape{4},
-                           ov::Shape{4},
+    return {FloorModParams(ov::PartialShape{5},
+                           ov::PartialShape{5},
+                           ov::Shape{5},
                            IN_ET,
-                           std::vector<T>{9223372036854775807LL, -9223372036854775807LL, 9223372036854775806LL, 100},
-                           std::vector<T>{3, 3, 7, -7},
-                           std::vector<T>{1, 2, 6, -5})};
+                           std::vector<T>{9223372036854775807LL,
+                                          -9223372036854775807LL,
+                                          9223372036854775806LL,
+                                          100,
+                                          std::numeric_limits<T>::min()},
+                           std::vector<T>{3, 3, 7, -7, -1},
+                           std::vector<T>{1, 2, 6, -5, 0})};
 }
 
 template <element::Type_t IN_ET>

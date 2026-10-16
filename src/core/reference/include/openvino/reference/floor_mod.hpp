@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <limits>
 
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/mod.hpp"
@@ -24,6 +25,10 @@ constexpr T floor_mod(const T x, const T y) {
     // Compute the floored remainder with exact integer arithmetic. Going through double (as the
     // floating-point overload does) loses precision for large magnitudes, e.g. values near the
     // int64 limits, so that FloorMod(INT64_MAX, 3) would wrongly yield 0 instead of 1.
+    // C++ division and remainder are undefined when the quotient is not representable.
+    if (x == std::numeric_limits<T>::min() && y == T{-1}) {
+        return T{0};
+    }
     const T rem = static_cast<T>(x % y);
     return (rem != T{0} && ((rem < T{0}) != (y < T{0}))) ? static_cast<T>(rem + y) : rem;
 }
