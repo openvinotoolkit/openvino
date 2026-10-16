@@ -37,6 +37,7 @@
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -85,7 +86,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         manager,
         pass::ConvertFullyConnectedToFullyConnectedCompressed,
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
-        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(
+            hasFp8WeightsDecompressionSupport(ov::element::bf16)),
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
             return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc, IC, OC, G, config);
         });

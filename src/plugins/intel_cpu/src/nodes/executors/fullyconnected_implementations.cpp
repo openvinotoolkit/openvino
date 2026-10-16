@@ -32,6 +32,7 @@
 #include "utils/arch_macros.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <common/memory_desc_wrapper.hpp>
@@ -158,6 +159,10 @@ static const TypeMapping dnnlMatMulTypeMapping {
     {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights
     {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
+    // fp8 weights are decompressed inside the matmul kernel; the exact bf16/f16 gating
+    // is done by dnnlMatMulSupportedPrecision().
+    {{_bf16 | _f16, _f8e4m3 | _f8e5m2, _any, _any},           {bypass(), bypass(), use<0>(), use<0>()},
+     []() { return hasFp8WeightsDecompressionSupport(ov::element::bf16); }},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -165,7 +170,11 @@ static const TypeMapping dnnlMatMulTypeMapping {
 // clang-format on
 
 [[maybe_unused]] static inline bool noWeightsDecompression(const FCConfig& config) {
-    return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
+    // fp8 weights are decompressed by dnnl::matmul rather than by the dnnl FC primitive
+    const bool fp8Decompression = any_of(weiType(config), f8e4m3, f8e5m2) &&
+                                  DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
+    return !fp8Decompression &&
+           !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
 }
 
 [[maybe_unused]] static inline bool noSparseDecompression(const FCConfig& config) {
@@ -184,6 +193,10 @@ static const TypeMapping dnnlMatMulTypeMapping {
     // i32 can be up converted to f32
     if (any_of(srcType(config), i32) && any_of(weiType(config), i32)) {
         return true;
+    }
+    // bf16/f16 activations with fp8 weights decompression
+    if (any_of(weiType(config), f8e4m3, f8e5m2)) {
+        return DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
     }
     // support integer type quantization matmul
     return any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8);
@@ -415,6 +428,12 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     })
                 VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                // fp8 decompression runs on dnnl::matmul with rank-2 weights, skip the rank checks.
+                if (any_of(weiType(config), f8e4m3, f8e5m2) &&
+                    DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config))) {
+                    VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
+                    return true;
+                }
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
                 return true;
