@@ -28,6 +28,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
 
     ov::Output<ov::Node> B = context.get_input(0);
     ov::Output<ov::Node> A = context.get_input(1);
+    A = apply_hadamard(context, A);
 
     // GGML MUL_MAT produces F32, including when both operands are F16.
     if (A.get_element_type() != ov::element::f32) {

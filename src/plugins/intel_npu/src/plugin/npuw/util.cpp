@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+#include <algorithm>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -192,6 +193,17 @@ ov::Tensor ov::npuw::util::copy_tensor_from_const(const std::shared_ptr<ov::Node
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {
     return str.substr(0, prefix.size()) == prefix;
+}
+
+std::unordered_set<std::string> ov::npuw::util::mutable_properties(
+    const std::vector<ov::PropertyName>& supported_properties) {
+    std::unordered_set<std::string> result;
+    for (const auto& p : supported_properties) {
+        if (p.is_mutable()) {
+            result.insert(p);
+        }
+    }
+    return result;
 }
 
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
@@ -447,8 +459,18 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     const uint8_t* pSrc = static_cast<uint8_t*>(src->data());
     uint8_t* pDst = static_cast<uint8_t*>(dst->data());
 
+    const auto num_rows = static_cast<int64_t>(src_shape[0]);
+    NPUW_ASSERT(num_rows > 0);
+
     for (std::size_t r = 0; r < idx_shape[1]; r++) {
-        auto srcRowIdx = pIdx[r];
+        // HostGather (see partitioning/patterns/opt.cpp) folds away both the Gather and
+        // the Minimum(N-1, Maximum(-N, ids)) clamp guarding it, so reproduce both here:
+        // saturate first, then apply Gather's negative-index semantics. The copy below
+        // is raw pointer arithmetic, so no index may escape [0, N).
+        auto srcRowIdx = std::clamp(pIdx[r], -num_rows, num_rows - 1);
+        if (srcRowIdx < 0) {
+            srcRowIdx += num_rows;
+        }
         auto pSrcRow = pSrc + src_shape[1] * srcRowIdx * src_type.size();
         std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
         pDst += dst_shape[2] * dst_type.size();
@@ -980,8 +1002,8 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
 }
 
 bool ov::npuw::util::matchLinCacheString(const std::string& input, const std::string& past_or_present) {
-    static std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
-    static std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
+    static const std::regex past_regex_pattern("^cache_params\\.past\\.(conv|ssm)\\.(\\d+)$");
+    static const std::regex present_regex_pattern("^cache_params\\.present\\.(conv|ssm)\\.(\\d+)$");
     const std::regex& regex_pattern = (past_or_present == "past") ? past_regex_pattern : present_regex_pattern;
     return std::regex_match(input, regex_pattern);
 }
@@ -1042,7 +1064,6 @@ bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
     // Match badly handled KVCache states by StatefulToStateless pass for Whisper.
     static const std::regex restored_pattern(
         R"((input_restored\.past_key_values\.(\d+)\.decoder\.(key|value))(present\.(\d+)\.decoder\.(key|value)))");
-    ;
     return std::regex_match(str, restored_pattern);
 }
 
@@ -1050,7 +1071,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::strin
     // Match only the single contiguous past key param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
     // Returns the layer index if matched.
-    std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
+    static const std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1063,7 +1084,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
     // Match only the single contiguous past value param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
     // Returns the layer index if matched.
-    std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
+    static const std::regex pattern(R"(past_key_values\.(\d+)(?:\.[^.]+)*\.value)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1073,7 +1094,7 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
 }
 
 std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str) {
-    std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.key)");
+    static const std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());
@@ -1083,7 +1104,7 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str)
 }
 
 std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& str) {
-    std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.value)");
+    static const std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.value)");
     std::smatch match;
     if (std::regex_match(str, match, pattern)) {
         int index = std::stoi(match[1].str());

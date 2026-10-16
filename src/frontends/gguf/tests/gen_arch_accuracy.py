@@ -24,6 +24,7 @@ CASES = {
     # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
     # frontend's beta+alpha-only merge, and an F16 beta in layer 2 selects separate projections.
     "qwen35-mixed": {"architecture": "qwen35", "f16": ("attn_gate", "blk.2.ssm_beta")},
+    "bonsai2-hadamard": {"architecture": "qwen35", "hadamard": True},
     "nemotron_h": {},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
     "llama": {},
@@ -130,7 +131,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     finish(w)
 
 
-def write_qwen35_model(path, arch, fused_experts=False, f16=()):
+def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
@@ -153,6 +154,22 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=()):
                        "state_size": state, "conv_kernel": kernel}.items():
         w.add_uint32(arch + ".ssm." + key, value)
     w.add_uint32(arch + ".full_attention_interval", 4)
+    if hadamard:
+        names = ["output.weight"]
+        for layer in range(4):
+            p = f"blk.{layer}."
+            kinds = ("attn_qkv", "attn_gate", "ssm_out") if layer < 3 else ("attn_q", "attn_k", "attn_v", "attn_output")
+            names.extend(p + kind + ".weight" for kind in (*kinds, "ffn_gate", "ffn_up", "ffn_down"))
+        w.add_uint32("prism.hadamard.version", 1)
+        w.add_uint32("prism.hadamard.block_size", 8)
+        w.add_string("prism.hadamard.transform", "normalized-sylvester-walsh-hadamard")
+        w.add_string("prism.hadamard.axis", "input-last-dimension")
+        w.add_string("prism.hadamard.sign_mode", "explicit")
+        w.add_array("prism.hadamard.weight_names", names)
+        w.add_array("prism.hadamard.inverse_weight_names", ["token_embd.weight"])
+        w.add_key_value("prism.hadamard.sign_widths", [32, 48, 64], gguf.GGUFValueType.ARRAY, gguf.GGUFValueType.INT32)
+        w.add_key_value("prism.hadamard.sign_values", [(-1 if i % 3 else 1) for i in range(144)], gguf.GGUFValueType.ARRAY, gguf.GGUFValueType.INT32)
+        w.add_bool("prism.hadamard.gdn_v_grouped", True)
     moe = arch == "qwen35moe"
     if moe:
         w.add_expert_count(4)
@@ -201,8 +218,8 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=()):
 
 def write_gemma4_model(path, opts):
     """Layers alternate sliding/full attention; E2B/E4B-style options add per-layer
-    embeddings (`per_layer`) and reuse earlier KV in the last `shared_kv` layers, which keep
-    their unused K/V tensors as real checkpoints do."""
+    embeddings (`per_layer`) and reuse earlier KV in the last `shared_kv` layers, which omit
+    their unused K/V tensors."""
     w = gguf.GGUFWriter(path, "gemma4")
     d, heads, layers, vocab, ff = 32, 4, opts.get("layers", 2), 32, 48
     per_layer, shared = opts.get("per_layer", 0), opts.get("shared_kv", 0)
@@ -247,9 +264,10 @@ def write_gemma4_model(path, opts):
         for name in ("attn_norm", "ffn_norm", "post_attention_norm", "post_ffw_norm"):
             tensor(p + name + ".weight", (d,), True)
         tensor(p + "attn_q.weight", (heads * head, d))
-        tensor(p + "attn_k.weight", (kv * head, d))
-        if swa:
-            tensor(p + "attn_v.weight", (kv * head, d))
+        if layer < layers - shared:
+            tensor(p + "attn_k.weight", (kv * head, d))
+            if swa:
+                tensor(p + "attn_v.weight", (kv * head, d))
         for name in ("q", "k"):
             tensor(p + f"attn_{name}_norm.weight", (head,), True)
         tensor(p + "attn_output.weight", (d, heads * head))
@@ -276,7 +294,7 @@ def write_model(path, arch, opts):
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe"):
-        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()))
+        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False))
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)

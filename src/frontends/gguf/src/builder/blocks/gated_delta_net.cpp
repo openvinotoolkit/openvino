@@ -132,7 +132,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     std::string alpha_base = p + "ssm_alpha", beta_base = p + "ssm_beta";
     std::string conv_w = p + "ssm_conv1d.weight", a_w = p + "ssm_a", dt_w = p + "ssm_dt.bias";
     bool gqa_grouped = false;
-    if (H_v != H_k && H_v % H_k == 0) {
+    if (!e.has_hadamard() && H_v != H_k && H_v % H_k == 0) {
         const int64_t rep = H_v / H_k;
         std::vector<int64_t> src(H_v);
         for (int64_t n = 0; n < H_v; ++n) {
@@ -192,8 +192,9 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                           e.weight_parts(alpha_base),
                           e.weight_qtype(beta_base),
                           e.weight_qtype(alpha_base));
-    auto zba = ba ? concat_rows(e.weight_parts(gate_base), *ba, e.weight_qtype(gate_base), e.weight_qtype(beta_base))
-                  : std::nullopt;
+    auto zba = ba && !e.has_hadamard()
+                   ? concat_rows(e.weight_parts(gate_base), *ba, e.weight_qtype(gate_base), e.weight_qtype(beta_base))
+                   : std::nullopt;
     if (zba) {
         store_parts(e, p + "ssm_z_beta_alpha", *zba, e.weight_qtype(gate_base));
         e.add_weight(p + "ssm_z_beta_alpha.weight");
