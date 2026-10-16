@@ -277,7 +277,7 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
     return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, mem_tracker);
 }
 
-bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
+bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) const {
     if (mem1.get_engine() != this || mem2.get_engine() != this)
         return false;
     if (mem1.get_allocation_type() != mem2.get_allocation_type())
