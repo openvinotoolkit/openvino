@@ -9,45 +9,11 @@
 #include <ze_graph_profiling_ext.h>
 
 #include <cstring>
-#include <utility>
 
 #include "intel_npu/profiling.hpp"
 #include "vcl_error_utils.hpp"
 
 namespace intel_npu {
-
-namespace {
-
-/**
- * @brief Ensures vclProfilingDestroy runs even if an exception unwinds past profiling handle creation.
- * @note The success path calls release() and performs its own failure-reporting destroy instead, so a
- * destroy failure there still surfaces as a thrown exception.
- */
-class ProfilingHandleGuard {
-public:
-    ProfilingHandleGuard(const VCLFunctionTable& functions, vcl_profiling_handle_t handle)
-        : _functions(functions),
-          _handle(handle) {}
-
-    ProfilingHandleGuard(const ProfilingHandleGuard&) = delete;
-    ProfilingHandleGuard& operator=(const ProfilingHandleGuard&) = delete;
-
-    ~ProfilingHandleGuard() {
-        if (_handle != nullptr) {
-            _functions.vclProfilingDestroy(_handle);  // best-effort: a destructor must not throw
-        }
-    }
-
-    vcl_profiling_handle_t release() {
-        return std::exchange(_handle, nullptr);
-    }
-
-private:
-    const VCLFunctionTable& _functions;
-    vcl_profiling_handle_t _handle;
-};
-
-}  // namespace
 
 VCLProfilingDecoder::VCLProfilingDecoder(const std::shared_ptr<const VCLFunctionTable>& functions)
     : _functions(functions),
@@ -74,7 +40,6 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
                           "vclProfilingCreate",
                           _functions->vclProfilingCreate(&profilingInput, &profilingHandle, &logHandle),
                           nullptr);
-    ProfilingHandleGuard profilingHandleGuard(*_functions, profilingHandle);
 
     vcl_profiling_properties_t profProperties;
     THROW_ON_FAIL_FOR_VCL(*_functions,
@@ -101,19 +66,13 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
 
     std::vector<ze_profiling_layer_info> layerInfo(profOutput.size / sizeof(ze_profiling_layer_info));
     if (profOutput.size > 0) {
-        OPENVINO_ASSERT(profOutput.size % sizeof(ze_profiling_layer_info) == 0,
-                        "Unexpected VCL profiling buffer size: ",
-                        profOutput.size,
-                        " bytes is not a multiple of sizeof(ze_profiling_layer_info) (",
-                        sizeof(ze_profiling_layer_info),
-                        ")");
         _logger.debug("VCL profiling output size: %d", profOutput.size);
         std::memcpy(layerInfo.data(), profOutput.data, profOutput.size);
     }
 
     THROW_ON_FAIL_FOR_VCL(*_functions,
                           "vclProfilingDestroy",
-                          _functions->vclProfilingDestroy(profilingHandleGuard.release()),
+                          _functions->vclProfilingDestroy(profilingHandle),
                           logHandle);
 
     // Return processed profiling info
