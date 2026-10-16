@@ -14,10 +14,11 @@
 
 namespace intel_npu {
 
-std::shared_ptr<IVCLCompiler> CompilerAdapterFactory::makePluginCompiler(
-    std::shared_ptr<const VCLFunctionTable>& functions,
-    const std::shared_ptr<IDevice>& device,
-    const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
+namespace {
+
+std::shared_ptr<IVCLCompiler> makePluginCompiler(std::shared_ptr<const VCLFunctionTable>& functions,
+                                                 const std::shared_ptr<IDevice>& device,
+                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
     auto vclLoader = VCLLoader::getInstance();
     OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
     functions = vclLoader->sharedFunctions();
@@ -27,6 +28,8 @@ std::shared_ptr<IVCLCompiler> CompilerAdapterFactory::makePluginCompiler(
         ScopedOptionSupportCache{optionSupportCache,
                                  static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
 }
+
+}  // namespace
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,

@@ -15,8 +15,6 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
-#include "ivcl_compiler.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
@@ -43,11 +41,6 @@ private:
         const std::shared_ptr<OptionSupportCache>& optionSupportCache,
         const std::shared_ptr<intel_npu::IDevice>& device,
         std::string_view platform) const;
-
-    std::shared_ptr<IVCLCompiler> makePluginCompiler(
-        std::shared_ptr<const VCLFunctionTable>& functions,
-        const std::shared_ptr<IDevice>& device,
-        const std::shared_ptr<OptionSupportCache>& optionSupportCache) const;
 
     enum class PluginCompilerPresence : std::uint8_t {
         UNKNOWN = 0,
