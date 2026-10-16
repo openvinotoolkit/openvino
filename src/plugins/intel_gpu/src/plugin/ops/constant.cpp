@@ -31,6 +31,9 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/roi_align.hpp"
 #include "openvino/op/roi_align_rotated.hpp"
+#include "openvino/op/util/scatter_base.hpp"
+#include "openvino/op/util/scatter_elements_update_base.hpp"
+#include "openvino/op/util/scatter_nd_base.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/tensor_iterator.hpp"
@@ -120,7 +123,13 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        auto partial_upload = try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
+        auto partial_upload = try_prepare_partial_upload(p.get_engine(),
+                                 p.get_config(),
+                                 op,
+                                 const_shape,
+                                 out_dtype,
+                                 constFormat,
+                                 constLayout);
 
         cldnn::memory::ptr mem = nullptr;
 
@@ -246,7 +255,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) || ov::is_type<ov::op::v8::Gather>(outOp) ||
                    ov::is_type<ov::op::v5::GatherND>(outOp) || ov::is_type<ov::op::v8::GatherND>(outOp) || ov::is_type<ov::op::v1::Split>(outOp) ||
-                   ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
+                   ov::is_type<ov::op::v1::VariadicSplit>(outOp) || ov::is_type<ov::op::util::ScatterBase>(outOp) ||
+                   ov::is_type<ov::op::util::ScatterElementsUpdateBase>(outOp) || ov::is_type<ov::op::util::ScatterNDBase>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
             // PReLU slope tensor reshape policy

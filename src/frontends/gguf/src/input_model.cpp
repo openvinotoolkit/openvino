@@ -7,9 +7,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 InputModel::InputModel(const std::shared_ptr<GgufDecoder>& gdecoder) : m_decoder(gdecoder) {}
 
@@ -44,6 +42,4 @@ const std::shared_ptr<GgufDecoder>& InputModel::get_model_decoder() const {
     return m_decoder;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

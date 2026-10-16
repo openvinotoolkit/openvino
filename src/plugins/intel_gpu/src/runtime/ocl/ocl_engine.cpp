@@ -116,15 +116,13 @@ memory::ptr ocl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_ha
                     "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
                     "external memory import is not supported");
 
-#ifndef CL_VERSION_3_0
+#if !defined(CL_VERSION_3_0) || (!defined(_WIN32) && !defined(__linux__))
     OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
 #else
 #    ifdef _WIN32
     constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR;
-#    elif defined(__linux__)
-    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR;
 #    else
-    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR;
 #    endif
 
     cl_mem_properties props[] = {
@@ -327,7 +325,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
     }
 }
 
-bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
+bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) const {
     if (mem1.get_engine() != this || mem2.get_engine() != this) {
         return false;
     }
