@@ -851,7 +851,8 @@ def test_pytorch_decoder_input_sequence_default():
 
 
 @pytest.mark.precommit
-def test_pytorch_decoder_conversion_without_sequence_override():
+@pytest.mark.parametrize("unpack", [False, True])
+def test_pytorch_decoder_conversion_without_sequence_override(unpack):
     import numpy as np
     import openvino as ov
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -879,12 +880,28 @@ def test_pytorch_decoder_conversion_without_sequence_override():
       %result : Tensor = aten::alias(%input)
       return (%result)
     """)
+    if unpack:
+        graph = torch._C.parse_ir("""graph(%left : Tensor, %right : Tensor):
+          %pair : (Tensor, Tensor) = prim::TupleConstruct(%left, %right)
+          %first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)
+          %one : int = prim::Constant[value=1]()
+          %updated : Tensor = aten::add_(%second, %one, %one)
+          return (%left, %right, %first, %second)
+        """)
     decoder = LegacyDecoder(TorchScriptPythonDecoder(None, graph, alias_db=graph.alias_db()))
     frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
     input_model = frontend.load(decoder)
-    input_model.set_element_type(input_model.get_inputs()[0], ov.Type.f32)
-    input_model.set_partial_shape(input_model.get_inputs()[0], ov.PartialShape([2, 3]))
+    for place in input_model.get_inputs():
+        input_model.set_element_type(place, ov.Type.f32)
+        input_model.set_partial_shape(place, ov.PartialShape([2, 3]))
     converted = frontend.convert(input_model)
     compiled = ov.Core().compile_model(converted, "CPU")
     data = torch.arange(6, dtype=torch.float32).reshape(2, 3).numpy()
-    np.testing.assert_array_equal(compiled([data])[0], data)
+    if unpack:
+        right = data + 10
+        actual = list(compiled([data, right]).values())
+        assert len(actual) == 4
+        for result, expected in zip(actual, (data, right + 1, data, right + 1)):
+            np.testing.assert_array_equal(result, expected)
+    else:
+        np.testing.assert_array_equal(compiled([data])[0], data)

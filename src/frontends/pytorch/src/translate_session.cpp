@@ -291,6 +291,11 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     const auto sequence = make_list_construct(values);
                     encode_tensor_name(sequence, raw_inputs[i]);
                     (*tensor_map)[raw_inputs[i]] = sequence;
+                    // Nested-container extraction must retain the view that links it to its parent sequence.
+                    if (alias != m_may_be_alias.end() &&
+                        !ov::is_type<SequenceMark>(alias->second.base_value.get_node_shared_ptr())) {
+                        alias->second.output = sequence;
+                    }
                 }
             }
 
@@ -302,7 +307,9 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             const auto sequence = m_may_be_alias.find(first_input_id);
             if (sequence != m_may_be_alias.end() && !sequence->second.element_ids.empty()) {
                 const auto& elements = sequence->second.element_ids;
-                if (op_type == "aten::__getitem__") {
+                if (op_type == "prim::TupleUnpack" || op_type == "prim::ListUnpack") {
+                    unpacked_ids = elements;
+                } else if (op_type == "aten::__getitem__") {
                     if (const auto index_node = ov::util::get_constant_from_source(context.get_input(1))) {
                         auto index = index_node->cast_vector<int64_t>().at(0);
                         if (index < 0) {

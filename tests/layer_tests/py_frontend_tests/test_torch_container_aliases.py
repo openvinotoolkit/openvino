@@ -91,6 +91,43 @@ class SequenceViewMutation(torch.nn.Module):
         return base, before, parts[0], parts[1]
 
 
+class SequenceBaseMutation(torch.nn.Module):
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def forward(self, data):
+        base = data.clone()
+        if self.operation == "chunk":
+            left, right = base.chunk(2, dim=1)
+        else:
+            left, right = base.split([2, 2], dim=1)
+        before = left + right
+        base.add_(1)
+        after = left + right
+        right.add_(2)
+        return base, before, after, left, right
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+@pytest.mark.parametrize("operation", ["chunk", "split"])
+def test_torch_sequence_base_mutation(operation):
+    generator = torch.Generator().manual_seed(42)
+    data = torch.randn(2, 4, 3, generator=generator)
+    model = torch.jit.trace(SequenceBaseMutation(operation), data)
+    converted = ov.convert_model(model, example_input=data)
+    converted.reshape({converted.input(0): ov.PartialShape([-1, 4, 3])})
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    for batch in (1, 2):
+        data = torch.randn(batch, 4, 3, generator=generator)
+        expected = model(data)
+        actual = list(compiled([data.numpy()]).values())
+        assert len(actual) == len(expected)
+        for reference, result in zip(expected, actual):
+            np.testing.assert_allclose(result, reference.numpy(), rtol=1e-5, atol=1e-6)
+
+
 @pytest.mark.precommit
 @pytest.mark.nightly
 @pytest.mark.parametrize("operation,capture", [("split", "torchscript"),
