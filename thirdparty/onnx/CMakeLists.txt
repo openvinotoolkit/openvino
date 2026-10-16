@@ -21,13 +21,12 @@ set(OV_ONNX_NAMESPACE openvino_onnx)
 #                                 default <void> argument). Rewritten to the
 #                                 portable 'std::not_equal_to<>()'.
 #   printer_to_chars_fallback.patch - printer.cc formats floats with
-#                                 'std::to_chars', whose floating-point
-#                                 overloads are missing on some standard
-#                                 libraries: libstdc++ ships them only from
-#                                 GCC 11, and libc++ marks them available only
-#                                 on macOS 13.3+. Adds an snprintf round-trip
-#                                 fallback (guarded so the integer path never
-#                                 instantiates the missing overload).
+#                                 'std::to_chars'. A compile probe checks for
+#                                 both floating-point overloads; Apple Clang
+#                                 retains a conservative fallback. Adds an
+#                                 snprintf round-trip fallback (guarded so the
+#                                 integer path never instantiates the missing
+#                                 overload).
 #
 # TODO: remove these patches (and the patches directory) once the affected
 # toolchains are dropped, or once the fixes are upstreamed into the pinned ONNX
@@ -69,14 +68,55 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_L
     ov_onnx_apply_patch("${CMAKE_CURRENT_SOURCE_DIR}/patches/not_equal_to_ctad.patch")
 endif()
 
-# Floating-point std::to_chars is unavailable on libstdc++ < 11 (GCC < 11) and
-# on libc++ when targeting macOS < 13.3 (Apple clang). Apply the fallback for
-# those toolchains.
+# Probe both floating-point overloads using the active compiler and standard
+# library. Keep the conservative fallback for Apple Clang, where libc++'s
+# availability also depends on the macOS deployment target.
 set(_onnx_need_to_chars_fallback OFF)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(_onnx_need_to_chars_fallback ON)
-elseif(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(_onnx_need_to_chars_fallback ON)
+else()
+    include(CheckCXXSourceCompiles)
+    if(DEFINED CMAKE_CXX_STANDARD)
+        set(_onnx_had_cxx_standard ON)
+        set(_onnx_saved_cxx_standard "${CMAKE_CXX_STANDARD}")
+    else()
+        set(_onnx_had_cxx_standard OFF)
+    endif()
+    if(DEFINED CMAKE_CXX_STANDARD_REQUIRED)
+        set(_onnx_had_cxx_standard_required ON)
+        set(_onnx_saved_cxx_standard_required "${CMAKE_CXX_STANDARD_REQUIRED}")
+    else()
+        set(_onnx_had_cxx_standard_required OFF)
+    endif()
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    unset(OV_ONNX_HAS_FLOAT_TO_CHARS)
+    unset(OV_ONNX_HAS_FLOAT_TO_CHARS CACHE)
+    check_cxx_source_compiles("#include <charconv>
+int main() {
+    char buffer[64];
+    using FloatToChars = std::to_chars_result (*)(char*, char*, float);
+    using DoubleToChars = std::to_chars_result (*)(char*, char*, double);
+    const FloatToChars float_to_chars = &std::to_chars;
+    const DoubleToChars double_to_chars = &std::to_chars;
+    (void)float_to_chars(buffer, buffer + sizeof(buffer), 1.0f);
+    (void)double_to_chars(buffer, buffer + sizeof(buffer), 1.0);
+    return 0;
+}"
+        OV_ONNX_HAS_FLOAT_TO_CHARS)
+    if(NOT OV_ONNX_HAS_FLOAT_TO_CHARS)
+        set(_onnx_need_to_chars_fallback ON)
+    endif()
+    if(_onnx_had_cxx_standard)
+        set(CMAKE_CXX_STANDARD "${_onnx_saved_cxx_standard}")
+    else()
+        unset(CMAKE_CXX_STANDARD)
+    endif()
+    if(_onnx_had_cxx_standard_required)
+        set(CMAKE_CXX_STANDARD_REQUIRED "${_onnx_saved_cxx_standard_required}")
+    else()
+        unset(CMAKE_CXX_STANDARD_REQUIRED)
+    endif()
 endif()
 if(_onnx_need_to_chars_fallback)
     ov_onnx_apply_patch("${CMAKE_CURRENT_SOURCE_DIR}/patches/printer_to_chars_fallback.patch")
