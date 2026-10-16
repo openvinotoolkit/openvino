@@ -87,6 +87,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_kvcache_strategy.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_longrope_kv.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_longrope_kv.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_lora_states.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_prefix_caching.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_prefix_caching.hpp
@@ -170,6 +172,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc/schema_npuw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_dispatch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_dispatch.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/graph.cpp
