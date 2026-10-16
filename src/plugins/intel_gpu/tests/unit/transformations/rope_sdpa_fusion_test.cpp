@@ -137,6 +137,52 @@ TEST_F(TransformationTestsF, RoPESDPAFusion_QSideFoldedBehindAttentionMask) {
     }
 }
 
+// The fused SDPA is a new node, so every attribute of the one it replaces has to be carried over.
+TEST_F(TransformationTestsF, RoPESDPAFusion_QSideFoldedKeepsSlidingWindow) {
+    constexpr int64_t window = 1;
+    const auto alignment = ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT;
+    {
+        auto q = q_param();
+        auto k = q_param();
+        auto v = q_param();
+        auto cos = table_param();
+        auto sin = table_param();
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{q, cos, sin}, interleaved_config());
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{rope, k, v},
+                                                              true,
+                                                              kBtnsToBhls,
+                                                              kIdentity,
+                                                              kIdentity,
+                                                              kIdentity,
+                                                              ov::element::dynamic,
+                                                              alignment,
+                                                              window);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{q, k, v, cos, sin});
+        manager.register_pass<RoPESDPAFusion>();
+    }
+    {
+        auto q = q_param();
+        auto k = q_param();
+        auto v = q_param();
+        auto cos = table_param();
+        auto sin = table_param();
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{q, k, v, cos, sin},
+                                                              true,
+                                                              kBtnsToBhls,
+                                                              kIdentity,
+                                                              kIdentity,
+                                                              kIdentity,
+                                                              ov::element::dynamic,
+                                                              true,
+                                                              alignment,
+                                                              window);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{q, k, v, cos, sin});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
 // Only Q is rotated inside the tile load, so a RoPE on the K input must be left alone.
 TEST_F(TransformationTestsF, RoPESDPAFusion_KSideNotFolded) {
     auto q = q_param();

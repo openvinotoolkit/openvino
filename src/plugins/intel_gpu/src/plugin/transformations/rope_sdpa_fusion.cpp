@@ -152,7 +152,8 @@ RoPESDPAFusion::RoPESDPAFusion() {
                                                                  sdpa->get_output_transpose_order(),
                                                                  sdpa->get_output_type(),
                                                                  true,
-                                                                 sdpa->get_causal_mask_alignment());
+                                                                 sdpa->get_causal_mask_alignment(),
+                                                                 sdpa->get_sliding_window_size());
         new_sdpa->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(ov::NodeVector{rope, sdpa}, new_sdpa);
         ov::replace_node(sdpa, new_sdpa);
