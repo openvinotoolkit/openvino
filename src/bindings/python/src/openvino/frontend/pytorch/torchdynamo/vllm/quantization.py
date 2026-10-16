@@ -217,10 +217,11 @@ def _build_classes():
             return all(n in self.quantized_modules for n in names)
 
         def get_quant_method(self, layer, prefix):
-            # Embeddings and the lm_head fall through to None, i.e. vLLM's
-            # unquantized path, which is what the checkpoint stores them as.
-            if isinstance(layer, LinearBase) and self._is_quantized(prefix):
-                return NNCFLinearMethod(self)
+            if isinstance(layer, LinearBase):
+                if self._is_quantized(prefix):
+                    return NNCFLinearMethod(self)
+                from vllm.model_executor.layers.linear import UnquantizedLinearMethod
+                return UnquantizedLinearMethod()
             return None
 
     class NNCFLinearMethod(LinearMethodBase):
