@@ -310,7 +310,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
     size_t _had_block = 0;
     bool _integrated = false;
     // GPU_TERNOCL_INT2_INT8_PREFILL: M > 8 on the int2 x int8 DPAS GEMM (activations quantized per 128-group).
-    bool _int8 = false;
+    bool _int8_prefill = false;
 
     // GEMV for M = 1, 2, <= 4, <= 8; M-tiled for M <= 16, <= 32, < 64, >= 64.
     struct Launch {
@@ -347,7 +347,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
           _out_f32(out_f32),
           _had_block(had_block),
           _integrated(engine.get_device_info().dev_type == device_type::integrated_gpu),
-          _int8(int8) {}
+          _int8_prefill(int8) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         // Shares the kernel handles like the stock OCL impls: OpenVINO clones
@@ -372,7 +372,7 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         std::vector<BufferDescriptor> descs;
         if (_had_block != 0)
             descs.emplace_back(M * _K, ov::element::f16);
-        if (M > 8 && _int8)
+        if (M > 8 && _int8_prefill)
             descs.emplace_back((_K / kTernoclGroupSize) * ((M + 31) & ~size_t{31}), ov::element::f16);
         return descs;
     }
@@ -532,7 +532,7 @@ protected:
             in = rotated;
         }
 
-        if (M > 8 && _int8)
+        if (M > 8 && _int8_prefill)
             return execute_int8(instance, *pk, in, deps, M);
 
         auto& l = get_launch(M);
