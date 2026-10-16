@@ -27,6 +27,8 @@
 #include <openvino/pass/serialize.hpp>
 #include <openvino/pass/visualize_tree.hpp>
 #include <optional>
+#include <string>
+#include <tuple>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -892,40 +894,12 @@ TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_restores_output
     model_ref = build_2gemm_bgm_to_moe_reference_model(true, true);
 }
 
-// u3 weights with a single i8 zp shared by all experts (NNCF int3 layout): the zp is broadcast to the scale shape
-TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_scalar_zp_broadcast) {
-    using AT = ov::op::internal::MOE::Activation_type;
-    using ov::test::utils::DecompressionType;
-    model =
-        build_3gemm_bgm_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::scalar, ov::element::i8}});
-    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
-    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU,
-                                                       true,
-                                                       false,
-                                                       {{ov::element::u3, DecompressionType::full, ov::element::i8}});
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-}
-
 // Per-group u3 zp is converted to u8
 TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_zp_to_u8) {
     using AT = ov::op::internal::MOE::Activation_type;
     using ov::test::utils::DecompressionType;
     model =
         build_3gemm_bgm_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::full, ov::element::u3}});
-    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
-    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU,
-                                                       true,
-                                                       false,
-                                                       {{ov::element::u3, DecompressionType::full, ov::element::u8}});
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-}
-
-// Single u3 zp: converted to u8, then broadcast
-TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_scalar_u3_zp) {
-    using AT = ov::op::internal::MOE::Activation_type;
-    using ov::test::utils::DecompressionType;
-    model =
-        build_3gemm_bgm_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::scalar, ov::element::u3}});
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU,
                                                        true,
@@ -950,5 +924,73 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u4_z
     model = build_3gemm_bgm_model(AT::SWIGLU, true, false, compression);
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
     model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU, true, false, compression);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+// Tuple parameters: shared weight/ZP precision, ZP shape, and expected fusion result.
+using MoeZeroPointTransformCase =
+    std::tuple<ov::element::Type, ov::test::utils::DecompressionType, bool>;
+
+class Convert3GatherMatmulMoeBlockToMoeOpZeroPointTest
+    : public TransformationTestsF,
+      public testing::WithParamInterface<MoeZeroPointTransformCase> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MoeZeroPointTransformCase>& info) {
+        const auto& [precision, zp_shape, expect_fusion] = info.param;
+        return precision.get_type_name() +
+               (zp_shape == ov::test::utils::DecompressionType::scalar ? "_scalar_zp" : "_per_group_zp") +
+               (expect_fusion ? "_fused" : "_not_fused");
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        using ov::test::utils::DecompressionType;
+        const auto& [precision, zp_shape, expect_fusion] = GetParam();
+        const MoeCompression input_compression{precision, zp_shape, precision};
+
+        model = build_3gemm_bgm_model(ov::op::internal::MOE::Activation_type::SWIGLU, true, false, input_compression);
+        manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+        if (expect_fusion) {
+            const auto output_zp_type = precision == ov::element::u3 ? ov::element::u8 : precision;
+            const MoeCompression output_compression{precision, DecompressionType::full, output_zp_type};
+            model_ref = build_3gemm_bgm_to_moe_reference_model(
+                ov::op::internal::MOE::Activation_type::SWIGLU, true, false, output_compression);
+        }
+    }
+};
+
+TEST_P(Convert3GatherMatmulMoeBlockToMoeOpZeroPointTest, ScalarAndPerGroupZp) {}
+
+INSTANTIATE_TEST_SUITE_P(
+    ScalarZpFused,
+    Convert3GatherMatmulMoeBlockToMoeOpZeroPointTest,
+    testing::Combine(testing::Values(ov::element::u3),
+                     testing::Values(ov::test::utils::DecompressionType::scalar),
+                     testing::Values(true)),
+    Convert3GatherMatmulMoeBlockToMoeOpZeroPointTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    ScalarZpNotFused,
+    Convert3GatherMatmulMoeBlockToMoeOpZeroPointTest,
+    testing::Combine(testing::Values(ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4),
+                     testing::Values(ov::test::utils::DecompressionType::scalar),
+                     testing::Values(false)),
+    Convert3GatherMatmulMoeBlockToMoeOpZeroPointTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    PerGroupZp,
+    Convert3GatherMatmulMoeBlockToMoeOpZeroPointTest,
+    testing::Combine(testing::Values(ov::element::u8, ov::element::i8),
+                     testing::Values(ov::test::utils::DecompressionType::full),
+                     testing::Values(true)),
+    Convert3GatherMatmulMoeBlockToMoeOpZeroPointTest::getTestCaseName);
+
+TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_weights_i8_scalar_zp) {
+    using AT = ov::op::internal::MOE::Activation_type;
+    using ov::test::utils::DecompressionType;
+    model = build_3gemm_bgm_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::scalar, ov::element::i8}});
+    manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::full, ov::element::i8}});
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

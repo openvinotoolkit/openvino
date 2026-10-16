@@ -36,6 +36,7 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 
 #    include "../primitive_ocl_base.hpp"
 #    include "../utils/kernel_generator.hpp"
+#    include "impls/onednn/utils.hpp"
 #    include "common_utils/jitter.hpp"
 #    include "impls/onednn/grouped_matmul_helper.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -58,29 +59,7 @@ using namespace ov::intel_gpu::ocl;
 // the definitions moved to impls/onednn/grouped_matmul_helper.hpp.
 using cldnn::onednn::onednn_linear;
 using cldnn::onednn::onednn_matmul;
-
-dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
-    switch (dt) {
-    case cldnn::data_types::f32:
-        return dnnl::memory::data_type::f32;
-    case cldnn::data_types::f16:
-        return dnnl::memory::data_type::f16;
-    case cldnn::data_types::i8:
-        return dnnl::memory::data_type::s8;
-    case cldnn::data_types::u8:
-        return dnnl::memory::data_type::u8;
-    case cldnn::data_types::i32:
-        return dnnl::memory::data_type::s32;
-    case cldnn::data_types::i4:
-        return dnnl::memory::data_type::s4;
-    case cldnn::data_types::u4:
-        return dnnl::memory::data_type::u4;
-    case cldnn::data_types::u3:
-        return dnnl::memory::data_type::u3;
-    default:
-        throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
-    }
-}
+using cldnn::onednn::convert_data_type;
 
 inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activation_type act) {
     switch (act) {
@@ -982,7 +961,7 @@ public:
     }
 
     bool should_pre_zero_output() {
-        // OTD may fallback to exec_prefill_onednn which accumulates via index_add
+        // OTD may fallback to exec_per_expert_onednn_linear which accumulates via index_add
         return !use_grouped_gemm_prefill || _weight_provider->is_offloaded();
     }
 
@@ -1638,7 +1617,7 @@ public:
             if (needs_fallback) {
                 // Cannot fit all experts simultaneously → fall back to per-expert onednn loop
                 instance.output_memory_ptr(0)->fill(stream, 0u);
-                return exec_prefill_onednn(events, stream, instance, scratch);
+                return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
         }
         // OTD hook may have remapped expert IDs into scratch._expert_index_buffer
@@ -1779,7 +1758,7 @@ public:
             on_before_prefill(stream, instance, scratch, batch_mem_ptr, topk_count, needs_fallback);
             if (needs_fallback) {
                 instance.output_memory_ptr(0)->fill(stream, 0u);
-                return exec_prefill_onednn(events, stream, instance, scratch);
+                return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
         }
 
@@ -2276,7 +2255,7 @@ public:
     //     scratch.y = MLP(scratch.x, .gate/up/down) * scratch.routing_weights
     //     scatter(final_hidden, scratch.y, expert_mask.batch)
     //
-    cldnn::event::ptr exec_prefill_onednn(const std::vector<cldnn::event::ptr>& events,
+    cldnn::event::ptr exec_per_expert_onednn_linear(const std::vector<cldnn::event::ptr>& events,
                                           cldnn::stream& stream,
                                           typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                           scratch_buffers& scratch) {
@@ -2378,7 +2357,7 @@ public:
     }
 
     // Third prefill path: OneDNN grouped GEMM (one matmul call per GEMM layer, all experts together).
-    // This avoids the per-expert loop of exec_prefill_onednn while keeping full weight-format
+    // This avoids the per-expert loop of exec_per_expert_onednn_linear while keeping full weight-format
     // compatibility (quantized or fp16 weights).
     //
     //  gather_by_expert(hidden_states, topk_id) -> scratch.x          [total, hidden]
@@ -2451,7 +2430,7 @@ public:
                                     events)) {
             if (_weight_provider->is_offloaded()) {
                 // OTD: unique experts > capacity → explicit fallback to per-expert loop
-                return exec_prefill_onednn(events, stream, instance, scratch);
+                return exec_per_expert_onednn_linear(events, stream, instance, scratch);
             }
             // Non-OTD path: build mask from original expert IDs
             expert_mask_cpu expert_mask;
@@ -2728,7 +2707,7 @@ public:
         // The per-expert onednn loop uses index_add (accumulates into output).
         // The grouped_gemm scatter_reduce writes all token positions atomically
         // and does not require pre-zeroing — except in OTD mode where the
-        // fallback to exec_prefill_onednn (when unique_experts > lru slots)
+        // fallback to exec_per_expert_onednn_linear (when unique_experts > lru slots)
         // also accumulates via index_add.
         if (!use_micro_gemm_prefill && should_pre_zero_output()) {
             final_hidden_states_mem_ptr->fill(stream, 0u);
@@ -2766,7 +2745,7 @@ public:
             // Flush the queue only in OTD mode to avoid impacting non-OTD perf.
             on_after_exec_sync(stream);
         } else {
-            ret_env = exec_prefill_onednn(events, stream, instance, scratch);
+            ret_env = exec_per_expert_onednn_linear(events, stream, instance, scratch);
         }
 
         if (_has_shared_expert) {
