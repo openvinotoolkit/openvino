@@ -1451,7 +1451,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 
 void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config) {
     {
-        std::lock_guard<std::mutex> lock{_streams_executor_mutex};
+        std::lock_guard<std::mutex> lock{ov::threading::streams_executor_mutex()};
         std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
         generate_stream_info(streams, -1, model, config, proc_type_table);

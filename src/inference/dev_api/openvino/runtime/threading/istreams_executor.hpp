@@ -286,7 +286,10 @@ public:
     virtual void execute(Task task) = 0;
 };
 
-static std::mutex _streams_executor_mutex;
+// Returns the shared mutex used to serialize stream-configuration and CPU
+// reservation updates. The mutex lives in a baseline-compiled translation unit
+// so cross-compiled ISA objects do not instantiate it themselves at load time.
+OPENVINO_RUNTIME_API std::mutex& streams_executor_mutex();
 
 }  // namespace threading
 }  // namespace ov

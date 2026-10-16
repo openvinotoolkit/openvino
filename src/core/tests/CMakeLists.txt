@@ -14,10 +14,17 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
-    set_source_files_properties(ov_tensor_test.cpp
-                                type_prop/multiclass_nms.cpp
-                                type_prop/squeeze.cpp
-                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    if(OV_COMPILER_IS_CLANG_CL)
+        set_source_files_properties(ov_tensor_test.cpp
+                                    type_prop/multiclass_nms.cpp
+                                    type_prop/squeeze.cpp
+                                    PROPERTIES COMPILE_OPTIONS "/clang:-Wno-suggest-override")
+    else()
+        set_source_files_properties(ov_tensor_test.cpp
+                                    type_prop/multiclass_nms.cpp
+                                    type_prop/squeeze.cpp
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
 endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)

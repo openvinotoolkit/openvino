@@ -253,6 +253,10 @@ namespace element {
 enum class Type_t;
 }
 
+// clang-cl on Windows may dllimport EnumAttributeAdapterBase members from the core DLL
+// even though these methods are defined inline in the header, which leads to unresolved
+// enum-adapter symbols in consumers. Let clang-cl instantiate them locally instead.
+#if !(defined(_WIN32) && defined(__clang__))
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PadMode>;
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::FillMode>;
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PadType>;
@@ -265,6 +269,7 @@ extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::TopKMode>
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PhiloxAlignment>;
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::RecurrentSequenceDirection>;
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<element::Type_t>;
+#endif
 
 /// Adapters will see visitor
 class VisitorAdapter : public ValueAccessor<void> {
