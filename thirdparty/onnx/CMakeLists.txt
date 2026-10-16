@@ -24,9 +24,9 @@ set(OV_ONNX_NAMESPACE openvino_onnx)
 #                                 'std::to_chars'. A compile probe checks for
 #                                 both floating-point overloads; Apple Clang
 #                                 retains a conservative fallback. Adds an
-#                                 snprintf round-trip fallback (guarded so the
-#                                 integer path never instantiates the missing
-#                                 overload).
+#                                 classic-locale stream round-trip fallback
+#                                 (guarded so the integer path never
+#                                 instantiates the missing overload).
 #
 # TODO: remove these patches (and the patches directory) once the affected
 # toolchains are dropped, or once the fixes are upstreamed into the pinned ONNX
