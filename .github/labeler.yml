@@ -85,6 +85,7 @@
 - 'src/frontends/gguf/**/*'
 - 'tests/model_hub_tests/gguf/**/*'
 - 'tests/requirements_gguf'
+- '.github/workflows/job_gguf_genai_validation.yml'
 
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
