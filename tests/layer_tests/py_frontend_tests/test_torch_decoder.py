@@ -851,7 +851,7 @@ def test_pytorch_decoder_input_sequence_default():
 
 
 @pytest.mark.precommit
-def test_pytorch_legacy_decoder_conversion():
+def test_pytorch_decoder_conversion_without_sequence_override():
     import numpy as np
     import openvino as ov
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -865,7 +865,7 @@ def test_pytorch_legacy_decoder_conversion():
 
         def __getattr__(self, name):
             if name == "get_input_sequences":
-                raise AssertionError("Legacy decoders must not be queried for sequence structure")
+                raise AttributeError(name)
             return getattr(self.wrapped, name)
 
         def visit_subgraph(self, visitor):

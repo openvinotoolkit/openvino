@@ -22,11 +22,6 @@ void regclass_frontend_pytorch_decoder(py::module m) {
         "_FrontEndPytorchDecoder")
         .def(py::init<>());
 
-    py::class_<pytorch::TorchDecoderV2, pytorch::TorchDecoder, PyDecoderV2, std::shared_ptr<pytorch::TorchDecoderV2>>(
-        m,
-        "_FrontEndPytorchDecoderV2")
-        .def(py::init<>());
-
     auto type_module = m.def_submodule("_Type");
 
     // Register classes for TorchScript type system
