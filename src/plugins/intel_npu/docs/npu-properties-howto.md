@@ -416,19 +416,19 @@ You need to register the new property and define a callback function in the owne
 For plugin: src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 For compiled-model: src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 
-For properties without option, prefer a support-gated registration so the getter is only used when backend/runtime requirements are available:
+For properties without option, prefer a support-gated registration so the getter is only used when backend/runtime requirements are available.
+Driver and Level Zero extension information (driver version, graph extension version, supported extensions) is provided by
+`ZeroInitStructsHolder`, obtained through `_backend->getInitStructs()`. At the top of `registerProperties()` it is
+already available as `initStructs` (`nullptr` when there is no backend), so capture it in the callbacks that need it:
 ```cpp
-    const auto has_backend = [this](const ov::AnyMap&) {
-        return _backend != nullptr;
-    };
-
     register_property(
         ov::intel_npu::example_property.name(),
         true,
         ov::PropertyMutability::RO,
-        has_backend,
-        [this](const ov::AnyMap&) {
-            return utils::getDriverVersion(_backend);
+        hasBackendPredicate,
+        [initStructs](const ov::AnyMap&) {
+            OPENVINO_ASSERT(initStructs != nullptr, "No available backend");
+            return initStructs->getDriverVersion();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key");
@@ -436,9 +436,14 @@ For properties without option, prefer a support-gated registration so the getter
 ```
 **Explanation**
 `register_property` registers a property with the name **ov::intel_npu::example_property (NPU_EXAMPLE_PROPERTY)**, which is public and included in supported_properties when the support predicate returns true.  
-and calls `utils::getDriverVersion(_backend)` each time get_property is queried. The getter receives query-time
+and calls `initStructs->getDriverVersion()` each time get_property is queried. The getter receives query-time
 arguments as `ov::AnyMap`; use them when the property supports extra inputs, or ignore them when it does not.
 Note: the first argument is the property name string (`property.name()`), not the property object itself.
+
+To make a property depend on a driver extension, check it through the named getters of `ZeroInitStructsHolder`
+(e.g. `isCommandQueueExtSupported()`, `isContextExtSupported()`, `isLUIDExtSupported()`, `getGraphExtVersion()`).
+These report only extensions negotiated between the plugin and the driver. If a new extension is needed, add its target
+version, query and named getter in `zero_init.hpp` / `zero_init.cpp` instead of checking the extension name elsewhere.
 
 ## Step 3. Python bindings
 In order for the property to be exposed in Python API, add python wrapper for the new property in pyOpenvino  
