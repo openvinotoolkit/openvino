@@ -74,6 +74,25 @@ void attach_runtime_behavior(v1::subgraphs::CompiledPipeline& compiled_pipeline,
     spec.factory = make_runtime_factory();
     spec.handles_function_prologue = handles_function_prologue;
     compiled_pipeline.runtime_behavior = std::move(spec);
+
+    // Looked up when called: at compile time this runs before the extra models are compiled
+    compiled_pipeline.for_each_extra_compiled_model = [role](const v1::subgraphs::Context& context,
+                                                             const v1::subgraphs::CompiledModelVisitor& visit) {
+        switch (role) {
+        case BehaviorRole::EXPERTS:
+            if (const auto* experts = get_compiled_experts(context)) {
+                for (const auto& [chunk_size, cm] : experts->_compiled_models) {
+                    visit(cm);
+                }
+            }
+            break;
+        case BehaviorRole::DOWNSTREAM:
+            if (const auto* downstream = get_compiled_downstream(context)) {
+                visit(downstream->_compiled_model);
+            }
+            break;
+        }
+    };
 }
 
 namespace {
