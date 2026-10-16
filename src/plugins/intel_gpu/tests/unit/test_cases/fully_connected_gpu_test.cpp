@@ -6807,15 +6807,15 @@ TEST_P(fully_connected_gpu_u3_validation, various_sizes) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          fully_connected_gpu_u3_validation,
-                         ::testing::Values(std::make_tuple(1, 8, 4, 8, 1, false),         // minimum byte-aligned row
-                                           std::make_tuple(2, 16, 8, 4, 1, false),        // multiple batches, small group size
-                                           std::make_tuple(4, 64, 32, 32, 1, false),      // multiple groups per row
-                                           std::make_tuple(1, 512, 256, 128, 1, false),   // larger dimensions
-                                           std::make_tuple(2, 12, 7, 4, 1, false),        // rows not byte-aligned, odd ofm_num
-                                           std::make_tuple(2, 60, 63, 4, 1, false),       // rows not byte-aligned, many groups
-                                           std::make_tuple(2, 12, 4, 4, 3, false),        // 3D (OUTPUT_3D) path
-                                           std::make_tuple(2, 16, 8, 4, 1, true),         // with zero-point
-                                           std::make_tuple(1, 60, 33, 12, 1, true),       // zero-point, rows not byte-aligned
-                                           std::make_tuple(2, 12, 5, 4, 3, true)          // 3D with zero-point
+                         ::testing::Values(std::make_tuple(1, 8, 4, 8, 1, false),        // minimum byte-aligned row
+                                           std::make_tuple(2, 16, 8, 4, 1, false),       // multiple batches, small group size
+                                           std::make_tuple(4, 64, 32, 32, 1, false),     // multiple groups per row
+                                           std::make_tuple(1, 512, 256, 128, 1, false),  // larger dimensions
+                                           std::make_tuple(2, 12, 7, 4, 1, false),       // rows not byte-aligned, odd ofm_num
+                                           std::make_tuple(2, 60, 63, 4, 1, false),      // rows not byte-aligned, many groups
+                                           std::make_tuple(2, 12, 4, 4, 3, false),       // 3D (OUTPUT_3D) path
+                                           std::make_tuple(2, 16, 8, 4, 1, true),        // with zero-point
+                                           std::make_tuple(1, 60, 33, 12, 1, true),      // zero-point, rows not byte-aligned
+                                           std::make_tuple(2, 12, 5, 4, 3, true)         // 3D with zero-point
                                            ),
                          fully_connected_gpu_u3_validation::GetTestCaseName);

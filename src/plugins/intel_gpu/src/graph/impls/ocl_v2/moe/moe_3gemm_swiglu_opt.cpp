@@ -36,9 +36,9 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 
 #    include "../primitive_ocl_base.hpp"
 #    include "../utils/kernel_generator.hpp"
-#    include "impls/onednn/utils.hpp"
 #    include "common_utils/jitter.hpp"
 #    include "impls/onednn/grouped_matmul_helper.hpp"
+#    include "impls/onednn/utils.hpp"
 #    include "intel_gpu/graph/kernel_impl_params.hpp"
 #    include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
@@ -57,9 +57,9 @@ using namespace ov::intel_gpu::ocl;
 // Bring shared onednn matmul wrappers into this anonymous namespace so existing call sites
 // that reference `onednn_matmul`, `onednn_linear`, etc. unqualified continue to compile after
 // the definitions moved to impls/onednn/grouped_matmul_helper.hpp.
+using cldnn::onednn::convert_data_type;
 using cldnn::onednn::onednn_linear;
 using cldnn::onednn::onednn_matmul;
-using cldnn::onednn::convert_data_type;
 
 inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activation_type act) {
     switch (act) {
@@ -2249,9 +2249,9 @@ public:
     //     scatter(final_hidden, scratch.y, expert_mask.batch)
     //
     cldnn::event::ptr exec_per_expert_onednn_linear(const std::vector<cldnn::event::ptr>& events,
-                                          cldnn::stream& stream,
-                                          typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                          scratch_buffers& scratch) {
+                                                    cldnn::stream& stream,
+                                                    typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                                    scratch_buffers& scratch) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& dnn_stream = stream.get_onednn_stream();

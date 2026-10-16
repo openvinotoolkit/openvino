@@ -160,22 +160,25 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
-            const auto is_zp_supported = [](const ov::Output<ov::Node>& zp) {
-                // Scalar zero point is supported only for u3 in MoE via broadcasting it to scale shape.
+            const auto is_zp_supported = [](const ov::Output<ov::Node>& zp, const ov::Output<ov::Node>& weights) {
+                // A dynamic-typed zp is a symmetric placeholder: there is nothing to prepare.
+                if (zp.get_element_type() == ov::element::dynamic) {
+                    return true;
+                }
+                // Scalar zero point is supported only for u3 weights in MoE via broadcasting it to scale shape.
                 // Note: other compressed types usually don't have scalar zero points:
                 // NNCF uses signed element type (which doesn't exists for u3) instead in such cases
-                return zp.get_element_type() == ov::element::u3 || ov::shape_size(zp.get_shape()) != 1;
+                return weights.get_element_type() == ov::element::u3 || ov::shape_size(zp.get_shape()) != 1;
             };
-            if (!is_zp_supported(pm.at(gate_zp_m)) ||
-                !is_zp_supported(pm.at(up_zp_m)) ||
-                !is_zp_supported(pm.at(down_zp_m))) {
+            if (!is_zp_supported(pm.at(gate_zp_m), gate_w) || !is_zp_supported(pm.at(up_zp_m), up_w) ||
+                !is_zp_supported(pm.at(down_zp_m), down_w)) {
                 return false;
             }
 
             const auto prepare_zero_point = [](const ov::Output<ov::Node>& zp,
                                                const ov::Output<ov::Node>& scale,
                                                const ov::Output<ov::Node>& weights) {
-                if (weights.get_element_type() != ov::element::u3) {
+                if (weights.get_element_type() != ov::element::u3 || zp.get_element_type() == ov::element::dynamic) {
                     return zp;
                 }
                 auto result = zp;
@@ -192,7 +195,7 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 }
                 return result;
             };
-            
+
             // Build MOECompressed with 12 inputs: hidden, routing, topk,
             // gate_w, gate_scale, gate_zp, up_w, up_scale, up_zp, down_w, down_scale, down_zp
             ov::OutputVector moe_inputs = {
