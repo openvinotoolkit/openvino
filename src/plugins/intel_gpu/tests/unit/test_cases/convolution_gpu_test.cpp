@@ -1551,6 +1551,9 @@ TEST(convolution_f32_fw_gpu, three_convolutions_same_weights) {
 
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::any, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{ {"conv1", conv_impl}, {"conv2", conv_impl}, {"conv3", conv_impl} }));
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -1734,6 +1737,8 @@ TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc conv_impl = {format::bfyx, "", impl_types::ocl};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
 
         network network(engine, topology, config);
 
@@ -1852,6 +1857,9 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout) {
         convolution("conv", input_info("input"), "weights", "biases", 1, { 2, 1 }, { 1, 1 }, {0, 0}, {0, 0}, false));
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::any, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl} }));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
     network.set_input_data("weights", weights);
@@ -6914,6 +6922,8 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv_bsv16_fsv16", "reorder_bfzyx" }));
+    ov::intel_gpu::ImplementationDesc conv_impl = {input_format, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv_bsv16_fsv16", conv_impl }}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
