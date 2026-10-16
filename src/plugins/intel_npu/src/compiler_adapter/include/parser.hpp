@@ -20,7 +20,7 @@ namespace intel_npu {
 class Parser final : public IParser {
 public:
     Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-           const std::optional<std::shared_ptr<IProfilingDecoder>>& profilingDecoder = std::nullopt);
+           const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     std::shared_ptr<IGraph> parse(const ov::Tensor& mainBlob,
                                   const Config& config,
