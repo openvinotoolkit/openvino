@@ -36,12 +36,10 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
     auto [broadcast_axis, group_size] = get_gqa_params(params);
-    int64_t v_head_size = 0, k_head_size = 0;
+    auto [k_head_size, v_head_size] = get_effective_head_sizes(params);
 
     if (is_paged_attention) {
         auto desc = params.typed_desc<paged_attention>();
-        v_head_size = static_cast<int64_t>(desc->v_head_size);
-        k_head_size = static_cast<int64_t>(desc->k_head_size);
         jit.make("IS_PAGED_ATTENTION", 1);
         jit.make("NUM_KV_HEADS", desc->kv_heads_num);
         if (desc->has_alibi) {
@@ -57,24 +55,6 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         }
     } else {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
-        const auto& k_layout = params.get_input_layout(1);
-        const auto& v_layout = params.get_input_layout(2);
-
-        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
-        auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
-        k_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
-        v_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
-
-        // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
-        // Override with logical head size from query (which is not packed).
-        {
-            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
-                auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
-                auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-                k_head_size = q_head_size;
-                v_head_size = q_head_size;
-            }
-        }
 
         GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
@@ -134,6 +114,8 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         // output batch, or is dynamic, needs a modulo on its batch index in the kernel.
         {
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+            auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+            auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
             const auto q_batch = get_batch_size(params.get_input_layout(0), extended_input_q_transpose_order);
             const auto k_batch = get_batch_size(params.get_input_layout(1), extended_input_k_transpose_order);
             const auto v_batch = get_batch_size(params.get_input_layout(2), extended_input_v_transpose_order);
@@ -152,8 +134,8 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
         jit.make("V_HEAD_SIZE_LEFTOVER", v_head_size % subgroup_size);
     }
-    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
-    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
+    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage, static_cast<size_t>(k_head_size)));
+    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage, static_cast<size_t>(k_head_size)));
 
     bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
     if (could_use_flashattn_v2) {
@@ -236,7 +218,6 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
         if (!params.is_dynamic()) {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
-            auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
@@ -249,17 +230,12 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
                                                          "SDPA: invalid non-positive ",
                                                          " in static dispatch");
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
-            auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+            auto [k_head_size, v_head_size] = SDPABase::get_effective_head_sizes(params);
 
-            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
-            // Use logical head size from query for work-group dispatch.
-            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
-                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-            }
+            const size_t head_size_u = ensure_positive_dim(v_head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
-            const size_t head_size_u = ensure_positive_dim(head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
-
-            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN);
+            const size_t sg_num_scale =
+                get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN, static_cast<size_t>(k_head_size));
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", num_of_partitions = " << num_of_partitions << "\n";
             GPU_DEBUG_TRACE_DETAIL << "sg_num_scale = " << sg_num_scale << "\n";
@@ -290,7 +266,6 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
 
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
-            auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
@@ -303,17 +278,12 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
                                                          "SDPA: invalid non-positive ",
                                                          " in static dispatch");
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
-            auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+            auto [k_head_size, v_head_size] = SDPABase::get_effective_head_sizes(params);
 
-            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
-            // Use logical head size from query for work-group dispatch.
-            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
-                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-            }
+            const size_t head_size_u = ensure_positive_dim(v_head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
+            const size_t k_head_size_u = ensure_positive_dim(k_head_size, "k_head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
-            const size_t head_size_u = ensure_positive_dim(head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
-
-            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS, k_head_size_u);
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", sg_num_scale = " << sg_num_scale << "\n";
@@ -349,7 +319,6 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
 
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
-            auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
             const size_t target_seq_len = ensure_positive_dim(get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order),
@@ -361,15 +330,10 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
                                                          "SDPA: invalid non-positive ",
                                                          " in static dispatch");
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::FINALIZATION);
-            auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+            auto [k_head_size, v_head_size] = SDPABase::get_effective_head_sizes(params);
+            (void)k_head_size;
 
-            // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
-            // Use logical head size from query for finalization dispatch.
-            if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
-                head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-            }
-
-            const size_t head_size_u = ensure_positive_dim(head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
+            const size_t head_size_u = ensure_positive_dim(v_head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", num_of_partitions = " << num_of_partitions << "\n";
