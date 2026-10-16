@@ -22,12 +22,15 @@ namespace ov::npuw {
 class ReshapeToStaticGQA : public ov::pass::ModelPass {
     size_t m_max_seq_len;
     std::optional<size_t> m_default_sliding_window_capacity;
+    std::optional<size_t> m_prefill_chunk_size;
     std::unordered_map<std::string, size_t> m_dynamic_kv_cache_axes;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ReshapeToStaticGQA");
+    // `prefill_chunk_size` widens sliding-window headroom for generate/prefill stages when KV buffers are shared.
     explicit ReshapeToStaticGQA(size_t max_seq_len,
-                                std::optional<size_t> default_sliding_window_capacity = std::nullopt);
+                                std::optional<size_t> default_sliding_window_capacity = std::nullopt,
+                                std::optional<size_t> prefill_chunk_size = std::nullopt);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
     // The dynamic-axis Parameters (KV-cache + attention-bias) discovered and reshaped by

@@ -321,17 +321,41 @@ std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis
 }
 
 // Mirrors layer 30 of the Phi --transpose_v export: past_values_30 is BNHS and reaches
-// PAST_VALUE through the exporter's "past_value_bnhs_to_bnsh" Transpose.
-std::shared_ptr<ov::Model> build_real_sliding_gqa_layer_with_transposed_value(size_t query_len) {
+// PAST_VALUE through the exporter's "past_value_bnhs_to_bnsh" Transpose. `as_v2_model` adds the
+// input_hidden_states activation and a u2 weight so identify_case() reports Case::V2.
+std::shared_ptr<ov::Model> build_real_sliding_gqa_layer_with_transposed_value(size_t query_len,
+                                                                              bool as_v2_model = false) {
     constexpr size_t num_heads = 40;
     constexpr size_t kv_num_heads = 10;
     constexpr size_t head_size = 128;
     constexpr size_t rotary_cache_len = 32768;
     constexpr int64_t local_window_size = 4095;
 
-    auto query =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, num_heads, query_len, head_size});
-    query->set_friendly_name("query_30");
+    ov::ParameterVector params;
+    ov::Output<ov::Node> query;
+    if (as_v2_model) {
+        auto hidden_states =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, query_len, num_heads * head_size});
+        hidden_states->set_friendly_name("input_hidden_states");
+        auto bshd = ov::op::v0::Constant::create(ov::element::i64,
+                                                 ov::Shape{4},
+                                                 std::vector<int64_t>{1,
+                                                                      static_cast<int64_t>(query_len),
+                                                                      static_cast<int64_t>(num_heads),
+                                                                      static_cast<int64_t>(head_size)});
+        auto reshaped = std::make_shared<ov::op::v1::Reshape>(hidden_states, bshd, false);
+        auto bshd_to_bhsd = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        query = std::make_shared<ov::op::v1::Transpose>(reshaped, bshd_to_bhsd);
+        auto quantized_weight = std::make_shared<ov::op::v0::Parameter>(ov::element::u2, ov::Shape{8, 16});
+        quantized_weight->set_friendly_name("quantized_weight");
+        params = {hidden_states, quantized_weight};
+    } else {
+        auto query_param =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, num_heads, query_len, head_size});
+        query_param->set_friendly_name("query_30");
+        query = query_param;
+        params = {query_param};
+    }
     auto key =
         std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, kv_num_heads, query_len, head_size});
     key->set_friendly_name("key_30");
@@ -393,8 +417,7 @@ std::shared_ptr<ov::Model> build_real_sliding_gqa_layer_with_transposed_value(si
     auto present_value = std::make_shared<ov::op::v0::Result>(present_value_bnhs);
     present_value->set_friendly_name("present_values_30");
 
-    ov::ParameterVector params =
-        {query, key, value, past_key, past_value, past_seq_len, total_seq_len, cos_cache, sin_cache};
+    params.insert(params.end(), {key, value, past_key, past_value, past_seq_len, total_seq_len, cos_cache, sin_cache});
     auto model = std::make_shared<ov::Model>(ov::ResultVector{attention_output, present_key, present_value},
                                              params,
                                              "gqa_real_sliding_layer_30");
@@ -1326,6 +1349,51 @@ TEST_F(GQACompiledModelTest, GetPropertyReturnsEffectiveSlidingWindowCapacityIns
     EXPECT_EQ(sliding_window_len.as<uint32_t>(), 8u);
 }
 
+TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityHonorsPrefillChunkSize) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
+    ASSERT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        model,
+                        {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}},
+                        recorder));
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(parameter_shape(call.model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(call.model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
+    // LLM-only option: must not leak into the inner CompiledModel.
+    EXPECT_EQ(call.props.count("NPUW_LLM_PREFILL_CHUNK_SIZE"), 0u);
+}
+
+TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityIgnoresDefaultPrefillChunkSize) {
+    RecordingFactory recorder;
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
+
+    ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}}, recorder));
+
+    // Unset option -> no extra headroom from its 1024 default.
+    EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 4112, 128}));
+}
+
+TEST_F(GQACompiledModelTest, NonV2SlidingCapacityIgnoresPrefillChunkSize) {
+    RecordingFactory recorder;
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1, /*as_v2_model=*/true);
+    // Drop the u2 weight: the same graph classifies as Case::V0.
+    model->remove_parameter(model->get_parameters().at(1));
+    ASSERT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V0);
+
+    ASSERT_NO_THROW(
+        create_compiled_model(model,
+                              {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}},
+                              recorder));
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(parameter_shape(call.model, "past_keys_30"), ov::PartialShape({1, 10, 4112, 128}));
+    EXPECT_EQ(call.props.count("NPUW_LLM_PREFILL_CHUNK_SIZE"), 0u);
+}
+
 TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
@@ -1840,6 +1908,18 @@ TEST(ReshapeToStaticGQATest, SWALayerPrefillHeadroomCoversWholeQueryChunk) {
     EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
     EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
     EXPECT_FALSE(model->is_dynamic());
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerGenerateHeadroomCoversConfiguredPrefillChunk) {
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
+                                                       /*default_sliding_window_capacity=*/std::nullopt,
+                                                       /*prefill_chunk_size=*/512);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // Generate shares the prefill KV buffers: align16(4095) + align16(max(16, 1, 512)) = 4608.
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
 }
 
 TEST(ReshapeToStaticGQATest, SWALayerUnalignedQueryChunkIsRoundedUpTo16) {
