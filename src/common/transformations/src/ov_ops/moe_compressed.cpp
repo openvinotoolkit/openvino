@@ -170,9 +170,8 @@ void MOECompressed::validate_and_infer_types() {
 }
 
 bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
-    // MOE::visit_attributes writes expert_type/expert_alpha/expert_beta/gate_idx/activation_type into MOE's own
-    // (private, non-shared) Config, not into m_config below. Re-sync them so m_config stays the single source of
-    // truth read by get_config()/clone_with_new_inputs().
+    // The parent class MOE has its own m_config. After visiting its attributes, copy the MOE::Config fields into
+    // MOECompressed::m_config.
     MOE::visit_attributes(visitor);
     static_cast<MOE::Config&>(m_config) = MOE::get_config();
     visitor.on_attribute("hidden_size", m_config.hidden_size);
