@@ -6,70 +6,41 @@
 
 """Weight-only integer quantization for vLLM, decoded in plain torch.
 
-Registers a vLLM quantization method so a checkpoint whose `config.json` says
+Registers a `"quant_method": "nncf"` config so an NNCF checkpoint loads through
+vLLM's own weight loader instead of being patched over a full-precision model.
+Scope: weight-only, sym or asym, per-group or per-channel, 4-bit (two nibbles
+per uint8, low nibble first) or 8-bit. Partial quantization is the normal case
+-- `quantized_modules` names what NNCF compressed and everything else stays
+dense. No execution dtype is named anywhere: the multiply happens in the
+scale's dtype and the result casts to the layer's `params_dtype`.
 
-    "quantization_config": {"quant_method": "nncf", "bits": 4, "sym": true,
-                            "group_size": 64, "scale_dtype": "float16"}
-
-loads through vLLM's own weight loader. Without it such a checkpoint is
-rejected at startup ("Unknown quantization method"), and a runner has to load
-the full-precision model and patch compressed weights over the top -- which
-costs the full-precision allocation, bypasses tensor-parallel sharding, and
-re-implements the fused-layer concatenation vLLM already does.
-
-Why this lives in the OV plugin rather than in a runner: `vllm.general_plugins`
-is loaded in *every* process (parent, engine core, workers), which is what the
-registry needs -- a method registered in the parent only is invisible to the
-worker that actually builds the model.
-
-Scope: weight-only, symmetric or asymmetric, per-group or per-channel, 4-bit
-(two nibbles per uint8, low nibble first) or 8-bit. An asymmetric checkpoint
-additionally carries a `zero_point` beside every `scale`, and declares itself
-with `"sym": false`.
-
-Partial quantization is the normal case, not an edge one: `quantized_modules`
-names what NNCF compressed, and everything else -- embeddings, lm_head, and on
-a multimodal model the vision and audio towers and their projectors -- stays
-dense. `get_quant_method` therefore has to answer for dense linears too; see
-the comment there for why None is not an available answer.
-
-Symmetric and asymmetric differ only in where the offset lives. Symmetric
-packing biases the stored nibble by +8 to keep it unsigned and the decoder
-subtracts that constant back out; asymmetric stores the raw nibble and a
-per-group zero point, and the decoder subtracts *that*. Hence one `bits`
-parameter and two unpackers rather than two decode paths.
-
-Dtype independence
-------------------
-Nothing here names an execution dtype. The scale keeps the dtype the checkpoint
-stored it in -- the multiply happens there, as NNCF's own decompressors do --
-and the result is cast to the layer's `params_dtype`, whatever vLLM resolved
-`--dtype` to. One checkpoint therefore runs fp32, fp16 or bf16 unchanged.
-
-The decode is deliberately plain torch ops rather than a custom op: dynamo
-traces them into the FX graph, and OpenVINO's PyTorch frontend sees
-`Constant(u4/i4/u8/i8) -> Convert -> Multiply`, which
-MarkCompressedWeightsCast marks as a decompression subgraph so the weights
-reach the CPU plugin still compressed.
+Lives in the OV plugin because `vllm.general_plugins` loads in every process.
+The classes are built lazily by `_define_classes`, which keeps torch and vLLM
+out of module import; `_build_classes` memoizes them and the module-level
+`__getattr__` resolves their names, which together is what lets an NNCFConfig
+pickle into a spawned engine process.
 """
 
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
-# What `bits` this decoder understands, and the torch dtype each is stored as.
-# 4-bit arrives packed two-per-byte, so its storage dtype is uint8 and the
-# parameter carries a packing factor; 8-bit is stored one-per-byte.
+# Lazily built by `_build_classes`, in the order `_define_classes` returns them.
+_LAZY_CLASSES = ("NNCFConfig", "NNCFLinearMethod")
+_classes = None
+# Plain Lock: `_define_classes` reaches NNCFLinearMethod through a closure cell,
+# never as a module attribute, so it cannot re-enter this.
+_classes_lock = threading.Lock()
+
+# Storage dtype per `bits`; 4-bit arrives packed two-per-byte, 8-bit one.
 _STORAGE = {4: "uint8", 8: "int8"}
 
 
 def _unpack_int4(packed):
-    """Unpack symmetric int4; returns int8 with values in [-8, 7].
+    """Symmetric int4 -> int8 in [-8, 7], gaining a trailing dim of 2.
 
-    Element 2k is the low nibble of byte k and element 2k+1 the high nibble,
-    which is the order NNCF packs in. The -8 undoes the bias the symmetric
-    packing adds to keep the stored nibble unsigned. Gains a trailing dim of
-    2; the caller reshapes.
+    Low nibble of byte k first, as NNCF packs; the -8 undoes the unsigned bias.
     """
     import torch
 
@@ -79,11 +50,9 @@ def _unpack_int4(packed):
 
 
 def _unpack_uint4(packed):
-    """Unpack asymmetric int4; returns uint8 with values in [0, 15].
+    """Asymmetric int4 -> uint8 in [0, 15], gaining a trailing dim of 2.
 
-    The same nibble order as `_unpack_int4`, without the -8: the asymmetric
-    scheme carries the offset in a zero point instead of in the stored value.
-    Gains a trailing dim of 2; the caller reshapes.
+    Same nibble order as `_unpack_int4`; the offset lives in a zero point.
     """
     import torch
 
@@ -95,16 +64,8 @@ def _unpack_uint4(packed):
 def _dequantize(qweight, scale, bits, group_size, out_dtype, zero_point=None):
     """Decompress to a dense [out, in] weight in `out_dtype`.
 
-    The multiply happens in the scale's dtype and the cast comes after, which
-    is what keeps the result bit-identical to NNCF's decompressor rather than
-    merely close to it.
-
-    `zero_point` is the asymmetric offset, one per group (or per output channel
-    when `group_size <= 0`), stored unpacked. The cast to the scale's dtype
-    happens *before* the subtraction, matching NNCF's `decompress_asymmetric`.
-    That order is load-bearing twice over: subtracting in uint8 would wrap
-    around, and doing the multiply in anything but the scale's dtype would
-    drift off NNCF's result.
+    Multiply in the scale's dtype and cast after, and subtract `zero_point`
+    before the multiply: that order is what matches NNCF bit for bit.
     """
     out_features = qweight.shape[0]
     if bits == 4:
@@ -133,12 +94,11 @@ def _dequantize(qweight, scale, bits, group_size, out_dtype, zero_point=None):
     return weight.type(out_dtype)
 
 
-def _build_classes():
+def _define_classes():
     """Define the config/method pair against an importable vLLM.
 
-    Done inside a function so importing this module costs nothing until the
-    plugin actually registers, and so a vLLM too old for these symbols fails
-    at registration with a logged warning rather than at import.
+    Call `_build_classes` instead: two builds would register "nncf" twice, to
+    two different class objects.
     """
     import torch
     import torch.nn.functional as F
@@ -168,8 +128,7 @@ def _build_classes():
             self.sym = sym
             self.group_size = group_size
             self.scale_dtype = getattr(torch, scale_dtype)
-            # Empty means "every linear layer", which is what a checkpoint
-            # without an explicit list implies.
+            # Empty means "every linear layer".
             self.quantized_modules = set(quantized_modules or ())
 
         def __repr__(self):
@@ -185,14 +144,12 @@ def _build_classes():
 
         @classmethod
         def get_supported_act_dtypes(cls):
-            # Activations are never quantized here, so every float the model
-            # may run in is supported; the dequantized weight follows.
+            # Weight-only: every float the model may run in is supported.
             return [torch.float32, torch.float16, torch.bfloat16]
 
         @classmethod
         def get_min_capability(cls):
-            # Only consulted where a device capability exists; the decode is
-            # plain torch and has no kernel requirement of its own.
+            # No kernel requirement of its own; the decode is plain torch.
             return 60
 
         @staticmethod
@@ -211,13 +168,10 @@ def _build_classes():
             )
 
         def _is_quantized(self, prefix):
-            """Is the layer at `prefix` one the checkpoint compressed?
+            """Is the vLLM layer at `prefix` one the checkpoint compressed?
 
-            `prefix` names the *vLLM* layer, which may be a fusion of several
-            checkpoint modules (qkv_proj <- q_proj/k_proj/v_proj). vLLM hands
-            the model's packed_modules_mapping to every quant config for
-            exactly this translation. A fused layer counts as quantized only
-            when all of its sources are, since it is decoded as one tensor.
+            A fused layer (qkv_proj <- q/k/v_proj) counts only when all of its
+            packed_modules_mapping sources do, since it decodes as one tensor.
             """
             if not self.quantized_modules:
                 return True
@@ -227,6 +181,8 @@ def _build_classes():
             return all(n in self.quantized_modules for n in names)
 
         def get_quant_method(self, layer, prefix):
+            # None would trip linear.py's "All linear layers should support
+            # quant method"; a dense layer has to get Unquantized instead.
             if isinstance(layer, LinearBase):
                 if self._is_quantized(prefix):
                     return NNCFLinearMethod(self)
@@ -259,9 +215,8 @@ def _build_classes():
                                dtype=storage)
 
             if config.bits == 4:
-                # packed_dim=1: the nibble pairs run along the input dim, so a
-                # row-parallel shard has to halve its offsets -- which is what
-                # PackedvLLMParameter does and a plain parameter would not.
+                # packed_dim=1: nibble pairs run along the input dim, so a
+                # row-parallel shard has to halve its offsets.
                 qweight = PackedvLLMParameter(
                     data=data, input_dim=1, output_dim=0, packed_dim=1,
                     packed_factor=packed_factor, weight_loader=weight_loader)
@@ -270,10 +225,8 @@ def _build_classes():
                     data=data, input_dim=1, output_dim=0,
                     weight_loader=weight_loader)
 
-            # The zero point has exactly the scale's shape -- one per group, or
-            # one per output channel -- so it is built by the same factory and
-            # shards and concatenates down the same path. Only the dtype
-            # differs: it is a quantized value, not a float.
+            # The zero point has the scale's shape, so it shards and
+            # concatenates down the same path; only the dtype differs.
             def _per_group(dtype):
                 if config.group_size > 0:
                     if input_size_per_partition % config.group_size:
@@ -294,20 +247,15 @@ def _build_classes():
             layer.register_parameter("qweight", qweight)
             layer.register_parameter("scale", _per_group(config.scale_dtype))
             if not config.sym:
-                # Stored unpacked, one byte per group, even at 4 bits. Packing
-                # it would buy ~3% of the weight bytes and cost the guarantee
-                # that a fused layer can be concatenated along output channels
-                # -- nibble-packing along the group dim only concatenates
-                # exactly when every row holds a whole number of bytes.
+                # Unpacked, one byte per group: packing would save ~3% and
+                # break output-dim concatenation of fused layers.
                 layer.register_parameter("zero_point", _per_group(torch.uint8))
-            # Not params_dtype at apply time: the layer is the only thing that
-            # knows what vLLM resolved --dtype to for this model.
+            # The layer is the only thing that knows what --dtype resolved to.
             layer.nncf_out_dtype = params_dtype
 
         def process_weights_after_loading(self, layer):
-            # Deliberately empty. The unquantized CPU path swaps in a oneDNN
-            # GEMM here, which would consume `weight` -- a tensor this method
-            # never creates -- and take the decode out of the traced graph.
+            # Deliberately empty: the unquantized CPU path would swap in a
+            # oneDNN GEMM over `weight`, which this method never creates.
             return
 
         def apply(self, layer, x, bias=None):
@@ -318,17 +266,55 @@ def _build_classes():
                 zero_point=None if config.sym else layer.zero_point)
             return F.linear(x, weight, bias)
 
-    return NNCFConfig
+    # Pickle stores a class as module + qualname, so the qualname must not read
+    # `_define_classes.<locals>.…`; the module `__getattr__` resolves the rest.
+    for cls in (NNCFConfig, NNCFLinearMethod):
+        cls.__module__ = __name__
+        cls.__qualname__ = cls.__name__
+
+    return NNCFConfig, NNCFLinearMethod
+
+
+def _build_classes():
+    """`_define_classes`, memoized. Returns `(NNCFConfig, NNCFLinearMethod)`.
+
+    Required rather than an optimization: pickle's `save_global` re-reads the
+    reference it writes and refuses unless it yields the same object.
+    """
+    global _classes
+    if _classes is not None:
+        return _classes
+    with _classes_lock:
+        # Re-checked: two threads can both pass the test above.
+        if _classes is None:
+            _classes = _define_classes()
+    return _classes
+
+
+def __getattr__(name):
+    """Resolve the lazily built classes as module attributes (PEP 562).
+
+    Pickle finds a class by module plus qualname, so these names have to
+    resolve here; building on demand keeps torch and vLLM out of import.
+    """
+    if name not in _LAZY_CLASSES:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    try:
+        return _build_classes()[_LAZY_CLASSES.index(name)]
+    except Exception as exc:
+        # AttributeError keeps `hasattr`/`getattr(..., default)` working, which
+        # an escaping ImportError would break; `from exc` keeps the cause.
+        raise AttributeError(
+            f"module {__name__!r} cannot provide {name!r}: {exc}") from exc
 
 
 def register():
     """Add the method to vLLM's registry. Inert unless a checkpoint asks for it.
 
-    Safe to call unconditionally: registering only teaches vLLM a name, and
-    nothing changes for a model whose config.json does not request it.
+    Safe to call repeatedly and in any process: the build behind it is memoized.
     """
     try:
-        config_cls = _build_classes()
+        config_cls, _method_cls = _build_classes()
     except Exception as _e:
         logger.debug("[OV plugin] quantization method not registered: %s", _e)
         return None
