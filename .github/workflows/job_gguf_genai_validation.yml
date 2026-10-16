@@ -16,7 +16,7 @@ on:
       genai-ref:
         description: 'Reviewed companion GenAI commit; never use a moving branch'
         type: string
-        required: true
+        default: e0d1411047d158071c834c7db24c4b21a0b887f3
 
 permissions: read-all
 
