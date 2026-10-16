@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <functional>
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/op/add.hpp>
 #include <openvino/op/clamp.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/op/convert.hpp>
 #include <openvino/op/gelu.hpp>
 #include <openvino/op/matmul.hpp>
 #include <openvino/op/minimum.hpp>
@@ -26,9 +26,11 @@
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
 #include <openvino/pass/visualize_tree.hpp>
+#include <optional>
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
@@ -282,10 +284,42 @@ inline std::shared_ptr<ov::Model> build_3gemm_moe_pattern_model() {
 // Post-BGM model builders (3 BGMs + compact routing + ReduceSum + Reshape)
 // ============================================================================
 
+// Compressed expert weights: wei_type weights, f16 scale [E, N, K / group_size] and zp
+struct MoeCompression {
+    static constexpr size_t group_size = 128;
+    ov::element::Type wei_type;
+    ov::test::utils::DecompressionType decompression_subtract_type;
+    ov::element::Type zp_type = ov::element::dynamic;
+};
+
+// Returns {weights} for plain experts, {weights, scale, zp} for compressed ones
+inline ov::OutputVector make_expert_weights(size_t number_of_experts,
+                                            size_t n,
+                                            size_t k,
+                                            const std::optional<MoeCompression>& compression) {
+    using namespace ov;
+    if (!compression) {
+        return {op::v0::Constant::create(element::f32, Shape{number_of_experts, n, k}, {1.0f})};
+    }
+    using ov::test::utils::DecompressionType;
+    const Shape scale_shape{number_of_experts, n, k / MoeCompression::group_size};
+    const auto zp_decompression = compression->decompression_subtract_type;
+    const auto zp =
+        zp_decompression == DecompressionType::empty
+            ? std::make_shared<op::v0::Constant>(element::dynamic, Shape{0})
+            : op::v0::Constant::create(compression->zp_type,
+                                       zp_decompression == DecompressionType::scalar ? Shape{} : scale_shape,
+                                       {4});
+    return {op::v0::Constant::create(compression->wei_type, Shape{number_of_experts, n, k}, {1}),
+            op::v0::Constant::create(element::f16, scale_shape, {1.0f}),
+            zp};
+}
+
 inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
     ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU,
     bool has_batch_dim = true,
-    bool restore_output_shape = false) {
+    bool restore_output_shape = false,
+    const std::optional<MoeCompression>& compression = std::nullopt) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -321,18 +355,17 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
     auto topk_indices = router_topk->output(1);    // [batch*seq, topk]
     auto chosen_experts = router_topk->output(0);  // [batch*seq, topk] (values used as routing weights)
 
-    // Gate weights
-    auto gate_w =
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
-    // Up weights
-    auto up_w =
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
-    // Down weights
-    auto down_w =
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
+    auto make_bgm = [&](const Output<Node>& a, size_t n, size_t k) -> std::shared_ptr<Node> {
+        const auto w = make_expert_weights(number_of_experts, n, k, compression);
+        if (!compression) {
+            return std::make_shared<GatherMatmul>(a, w[0], topk_indices);
+        }
+        auto bias = std::make_shared<op::v0::Constant>(element::dynamic, Shape{0});
+        return std::make_shared<ov::op::internal::GatherMatmulCompressed>(a, w[0], topk_indices, bias, w[1], w[2]);
+    };
 
     // 3 BGMs
-    auto bgm_gate = std::make_shared<GatherMatmul>(unsqueeze, gate_w, topk_indices);
+    auto bgm_gate = make_bgm(unsqueeze, intermediate_size, hidden_size);
     std::shared_ptr<ov::Node> gate_act;
     if (activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
         gate_act = std::make_shared<op::v7::Gelu>(bgm_gate, ov::op::GeluApproximationMode::TANH);
@@ -341,9 +374,9 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
     } else {
         gate_act = std::make_shared<op::v4::Swish>(bgm_gate);
     }
-    auto bgm_up = std::make_shared<GatherMatmul>(unsqueeze, up_w, topk_indices);
+    auto bgm_up = make_bgm(unsqueeze, intermediate_size, hidden_size);
     auto swiglu = std::make_shared<op::v1::Multiply>(gate_act, bgm_up);
-    auto bgm_down = std::make_shared<GatherMatmul>(swiglu, down_w, topk_indices);
+    auto bgm_down = make_bgm(swiglu, hidden_size, intermediate_size);
 
     // Compact routing: chosen_experts → Transpose({1,0}) → Unsqueeze(-1)
     auto router_transpose = std::make_shared<op::v1::Transpose>(
@@ -374,7 +407,8 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
 inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
     ov::op::internal::MOE::Activation_type activation_type = ov::op::internal::MOE::Activation_type::SWIGLU,
     bool has_batch_dim = true,
-    bool restore_output_shape = false) {
+    bool restore_output_shape = false,
+    const std::optional<MoeCompression>& compression = std::nullopt) {
     using namespace ov;
 
     const size_t batch = 2;
@@ -407,30 +441,47 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
     auto topk_indices = router_topk->output(1);
     auto routing = router_topk->output(0);
 
-    // Weights
-    auto gate_w =
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
-    auto up_w =
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
-    auto down_w =
-        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
-
     // MOE op with compact routing
     auto hidden_states = input->output(0);
-    ov::OutputVector moe_inputs = {hidden_states, routing, topk_indices, gate_w, up_w, down_w};
-    ov::op::internal::MOE::Config config;
-    config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
-    config.activation_type = activation_type;
-    auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
+    ov::OutputVector moe_inputs = {hidden_states, routing, topk_indices};
+    for (auto [n, k] : {std::pair{intermediate_size, hidden_size},
+                        std::pair{intermediate_size, hidden_size},
+                        std::pair{hidden_size, intermediate_size}}) {
+        const auto w = make_expert_weights(number_of_experts, n, k, compression);
+        moe_inputs.insert(moe_inputs.end(), w.begin(), w.end());
+    }
 
-    ov::Output<ov::Node> output = moe;
+    ov::Output<ov::Node> output;
+    if (compression) {
+        using ov::op::internal::MOECompressed;
+        MOECompressed::Config config{
+            {ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, 0.0f, 1.0f, 0, activation_type},
+            hidden_size,
+            intermediate_size,
+            number_of_experts,
+            0,  // num_shared_expert
+            topk,
+            MoeCompression::group_size,
+            has_batch_dim,
+            moe_inputs[5].get_element_type() != element::dynamic,  // has_zp
+            element::f16,
+        };
+        auto moe = std::make_shared<MOECompressed>(moe_inputs, config);
+        output = std::make_shared<op::v0::Convert>(moe, input->get_element_type());
+    } else {
+        ov::op::internal::MOE::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        config.activation_type = activation_type;
+        output = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
+    }
+
     if (!has_batch_dim || restore_output_shape) {
         const std::vector<int64_t> output_shape =
             restore_output_shape
                 ? std::vector<int64_t>{-1, static_cast<int64_t>(batch), static_cast<int64_t>(hidden_size)}
                 : std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)};
         output = std::make_shared<op::v1::Reshape>(
-            moe,
+            output,
             op::v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
             true);
     }
@@ -775,132 +826,6 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model_multipl
 }
 
 // ============================================================================
-// Post-BGM model builders with compressed GatherMatmuls (3 BGMs + compact routing) and the MOECompressed reference
-// ============================================================================
-
-namespace compressed_moe {
-
-constexpr size_t batch = 2;
-constexpr size_t hidden_size = 256;
-constexpr size_t intermediate_size = 256;
-constexpr size_t number_of_experts = 3;
-constexpr size_t topk = 2;
-constexpr size_t group_size = 128;
-
-// Returns the zp of an expert GEMM, given its scale shape [E, N, K / group_size]
-using ZpFactory = std::function<std::shared_ptr<ov::Node>(const ov::Shape&)>;
-
-// weights [E, N, K], scale [E, N, K / group_size], zp
-inline ov::OutputVector make_expert_weights(ov::element::Type wei_type, size_t n, size_t k, const ZpFactory& make_zp) {
-    using namespace ov;
-    const Shape scale_shape{number_of_experts, n, k / group_size};
-    return {op::v0::Constant::create(wei_type, Shape{number_of_experts, n, k}, {1}),
-            op::v0::Constant::create(element::f16, scale_shape, {1.0f}),
-            make_zp(scale_shape)};
-}
-
-inline std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_router(const ov::Output<ov::Node>& hidden_states) {
-    using namespace ov;
-    auto router_matmul = std::make_shared<op::v0::MatMul>(
-        hidden_states,
-        op::v0::Constant::create(element::f16, Shape{number_of_experts, hidden_size}, {1.0f}),
-        false,
-        true);
-    auto router_topk = std::make_shared<op::v11::TopK>(router_matmul,
-                                                       op::v0::Constant::create(element::i64, Shape{}, {topk}),
-                                                       -1,
-                                                       op::v11::TopK::Mode::MAX,
-                                                       op::v11::TopK::SortType::SORT_VALUES,
-                                                       element::i64);
-    return {router_topk->output(0), router_topk->output(1)};
-}
-
-inline std::shared_ptr<ov::Model> build_bgm_model(ov::element::Type wei_type, const ZpFactory& make_zp) {
-    using namespace ov;
-    using ov::op::internal::GatherMatmulCompressed;
-
-    auto input = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{batch, -1, hidden_size});
-    auto experts_reshape = std::make_shared<op::v1::Reshape>(
-        input,
-        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),
-        false);
-    auto unsqueeze =
-        std::make_shared<op::v0::Unsqueeze>(experts_reshape, op::v0::Constant::create(element::i32, Shape{}, {0}));
-    auto [chosen_experts, topk_indices] = make_router(experts_reshape);
-
-    auto make_bgm = [&](const Output<Node>& a, size_t n, size_t k) {
-        auto w = make_expert_weights(wei_type, n, k, make_zp);
-        auto bias = std::make_shared<op::v0::Constant>(element::dynamic, Shape{0});
-        return std::make_shared<GatherMatmulCompressed>(a, w[0], topk_indices, bias, w[1], w[2]);
-    };
-    auto bgm_gate = make_bgm(unsqueeze, intermediate_size, hidden_size);
-    auto bgm_up = make_bgm(unsqueeze, intermediate_size, hidden_size);
-    auto swiglu = std::make_shared<op::v1::Multiply>(std::make_shared<op::v4::Swish>(bgm_gate), bgm_up);
-    auto bgm_down = make_bgm(swiglu, hidden_size, intermediate_size);
-
-    auto router_transpose = std::make_shared<op::v1::Transpose>(
-        chosen_experts,
-        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1, 0}));
-    auto router_unsqueeze =
-        std::make_shared<op::v0::Unsqueeze>(router_transpose, op::v0::Constant::create(element::i32, Shape{}, {-1}));
-    auto final_mul = std::make_shared<op::v1::Multiply>(bgm_down, router_unsqueeze);
-    auto reduce_sum =
-        std::make_shared<op::v1::ReduceSum>(final_mul,
-                                            op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0}),
-                                            false);
-    auto end_reshape = std::make_shared<op::v1::Reshape>(
-        reduce_sum,
-        op::v0::Constant::create(
-            element::i64,
-            Shape{3},
-            std::vector<int64_t>{static_cast<int64_t>(batch), -1, static_cast<int64_t>(hidden_size)}),
-        true);
-    return std::make_shared<ov::Model>(ov::OutputVector{end_reshape}, ov::ParameterVector{input});
-}
-
-inline std::shared_ptr<ov::Model> build_moe_reference_model(ov::element::Type wei_type,
-                                                            const ZpFactory& make_zp,
-                                                            bool has_zp = true) {
-    using namespace ov;
-    using ov::op::internal::MOECompressed;
-
-    auto input = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{batch, -1, hidden_size});
-    auto experts_reshape = std::make_shared<op::v1::Reshape>(
-        input,
-        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),
-        false);
-    auto [routing, topk_indices] = make_router(experts_reshape);
-
-    ov::OutputVector moe_inputs{input, routing, topk_indices};
-    for (auto [n, k] : {std::pair{intermediate_size, hidden_size},
-                        std::pair{intermediate_size, hidden_size},
-                        std::pair{hidden_size, intermediate_size}}) {
-        auto w = make_expert_weights(wei_type, n, k, make_zp);
-        moe_inputs.insert(moe_inputs.end(), w.begin(), w.end());
-    }
-    MOECompressed::Config config{
-        {ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU,
-         0.0f,
-         1.0f,
-         0,
-         ov::op::internal::MOE::Activation_type::SWIGLU},
-        hidden_size,
-        intermediate_size,
-        number_of_experts,
-        0,  // num_shared_expert
-        topk,
-        group_size,
-        true,  // has_batch_dim
-        has_zp,
-        element::f16,
-    };
-    auto moe = std::make_shared<MOECompressed>(moe_inputs, config);
-    return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
-}
-
-}  // namespace compressed_moe
-
-// ============================================================================
 // Tests for BGM→MOE passes (Convert3GatherMatmulMoeBlockToMoeOp, Convert2GatherMatmulMoeBlockToMoeOp)
 // ============================================================================
 
@@ -969,62 +894,61 @@ TEST_F(TransformationTestsF, Convert2GatherMatmulMoeBlockToMoeOp_restores_output
 
 // u3 weights with a single i8 zp shared by all experts (NNCF int3 layout): the zp is broadcast to the scale shape
 TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_scalar_zp_broadcast) {
-    using namespace compressed_moe;
-    model = build_bgm_model(ov::element::u3, [](const ov::Shape&) {
-        return ov::op::v0::Constant::create(ov::element::i8, ov::Shape{}, {4});
-    });
+    using AT = ov::op::internal::MOE::Activation_type;
+    using ov::test::utils::DecompressionType;
+    model =
+        build_3gemm_bgm_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::scalar, ov::element::i8}});
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
-    model_ref = build_moe_reference_model(ov::element::u3, [](const ov::Shape& scale_shape) {
-        return ov::op::v0::Constant::create(ov::element::i8, scale_shape, {4});
-    });
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU,
+                                                       true,
+                                                       false,
+                                                       {{ov::element::u3, DecompressionType::full, ov::element::i8}});
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 // Per-group u3 zp is converted to u8
 TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_zp_to_u8) {
-    using namespace compressed_moe;
-    model = build_bgm_model(ov::element::u3, [](const ov::Shape& scale_shape) {
-        return ov::op::v0::Constant::create(ov::element::u3, scale_shape, {5});
-    });
+    using AT = ov::op::internal::MOE::Activation_type;
+    using ov::test::utils::DecompressionType;
+    model =
+        build_3gemm_bgm_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::full, ov::element::u3}});
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
-    model_ref = build_moe_reference_model(ov::element::u3, [](const ov::Shape& scale_shape) {
-        return ov::op::v0::Constant::create(ov::element::u8, scale_shape, {5});
-    });
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU,
+                                                       true,
+                                                       false,
+                                                       {{ov::element::u3, DecompressionType::full, ov::element::u8}});
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 // Single u3 zp: converted to u8, then broadcast
 TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_scalar_u3_zp) {
-    using namespace compressed_moe;
-    model = build_bgm_model(ov::element::u3, [](const ov::Shape&) {
-        return ov::op::v0::Constant::create(ov::element::u3, ov::Shape{1, 1, 1}, {4});
-    });
+    using AT = ov::op::internal::MOE::Activation_type;
+    using ov::test::utils::DecompressionType;
+    model =
+        build_3gemm_bgm_model(AT::SWIGLU, true, false, {{ov::element::u3, DecompressionType::scalar, ov::element::u3}});
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
-    model_ref = build_moe_reference_model(ov::element::u3, [](const ov::Shape& scale_shape) {
-        return ov::op::v0::Constant::create(ov::element::u8, scale_shape, {4});
-    });
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU,
+                                                       true,
+                                                       false,
+                                                       {{ov::element::u3, DecompressionType::full, ov::element::u8}});
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 // Symmetric u3: the absent zp stays absent
 TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u3_no_zp) {
-    using namespace compressed_moe;
-    auto no_zp = [](const ov::Shape&) {
-        return std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0});
-    };
-    model = build_bgm_model(ov::element::u3, no_zp);
+    using AT = ov::op::internal::MOE::Activation_type;
+    const MoeCompression compression{ov::element::u3, ov::test::utils::DecompressionType::empty};
+    model = build_3gemm_bgm_model(AT::SWIGLU, true, false, compression);
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
-    model_ref = build_moe_reference_model(ov::element::u3, no_zp, false);
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU, true, false, compression);
 }
 
 // Sub-byte zp of other types keeps its precision
 TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_compressed_u4_zp_unchanged) {
-    using namespace compressed_moe;
-    auto u4_zp = [](const ov::Shape& scale_shape) {
-        return ov::op::v0::Constant::create(ov::element::u4, scale_shape, {8});
-    };
-    model = build_bgm_model(ov::element::u4, u4_zp);
+    using AT = ov::op::internal::MOE::Activation_type;
+    const MoeCompression compression{ov::element::u4, ov::test::utils::DecompressionType::full, ov::element::u4};
+    model = build_3gemm_bgm_model(AT::SWIGLU, true, false, compression);
     manager.register_pass<ov::pass::Convert3GatherMatmulMoeBlockToMoeOp>();
-    model_ref = build_moe_reference_model(ov::element::u4, u4_zp);
+    model_ref = build_3gemm_bgm_to_moe_reference_model(AT::SWIGLU, true, false, compression);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

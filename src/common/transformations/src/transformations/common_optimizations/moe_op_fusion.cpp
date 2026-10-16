@@ -62,11 +62,8 @@ static ov::Output<ov::Node> prepare_zero_point(const ov::Output<ov::Node>& zp, c
         result = ov::op::util::make_try_fold<v0::Convert>(result, ov::element::u8);
     }
     const bool byte_zp = result.get_element_type() == ov::element::u8 || result.get_element_type() == ov::element::i8;
-    const auto& zp_pshape = result.get_partial_shape();
-    const auto& scale_pshape = scale.get_partial_shape();
-    if (byte_zp && zp_pshape.is_static() && scale_pshape.is_static() && ov::shape_size(zp_pshape.to_shape()) == 1 &&
-        ov::shape_size(scale_pshape.to_shape()) > 1) {
-        const auto& scale_shape = scale_pshape.to_shape();
+    const auto& scale_shape = scale.get_shape();
+    if (byte_zp && ov::shape_size(result.get_shape()) == 1 && ov::shape_size(scale_shape) > 1) {
         auto target_shape = v0::Constant::create(ov::element::i64, {scale_shape.size()}, scale_shape);
         result = ov::op::util::make_try_fold<v3::Broadcast>(result, target_shape);
     }
