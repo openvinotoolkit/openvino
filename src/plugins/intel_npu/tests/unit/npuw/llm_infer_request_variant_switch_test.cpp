@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "executor.hpp"
+#include "infer_request_utils.hpp"
 #include "llm_block_kvcache_strategy.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_infer_request.hpp"
@@ -972,6 +973,70 @@ TEST_F(LLMInferRequestVariantSwitchTest, AcceptsSynthesizedPositionIdsMatchingCo
         std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
 
     EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsScalarPositionIdsInPadHelper) {
+    auto position_ids = ov::get_tensor_impl(ov::Tensor(ov::element::i64, ov::Shape{}));
+    auto padded_position_ids = ov::get_tensor_impl(ov::Tensor(ov::element::i64, ov::Shape{1, 2048}));
+
+    EXPECT_THROW(ov::npuw::util::pad_position_ids(padded_position_ids, position_ids), ov::Exception);
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsRankMismatchedPositionIdsInPadHelper) {
+    auto position_ids = ov::get_tensor_impl(ov::Tensor(ov::element::i64, ov::Shape{1}));
+    auto padded_position_ids = ov::get_tensor_impl(ov::Tensor(ov::element::i64, ov::Shape{1, 2048}));
+
+    EXPECT_THROW(ov::npuw::util::pad_position_ids(padded_position_ids, position_ids), ov::Exception);
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsSynthesizedPositionIdsWithInputsEmbedsAndNoInputIds) {
+    auto top_inputs_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 64});
+    top_inputs_embeds->output(0).set_names({"inputs_embeds"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_inputs_embeds)},
+                                    ov::ParameterVector{top_inputs_embeds});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 2048u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 2048u);
+
+    auto child_inputs_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2048, 64});
+    child_inputs_embeds->output(0).set_names({"inputs_embeds"});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_inputs_embeds),
+                                                     std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{child_inputs_embeds, position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsSynthesizedPositionIdsBatchMismatchWithInputsEmbeds) {
+    auto top_inputs_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 64});
+    top_inputs_embeds->output(0).set_names({"inputs_embeds"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_inputs_embeds)},
+                                    ov::ParameterVector{top_inputs_embeds});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 2048u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 2048u);
+
+    auto child_inputs_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2048, 64});
+    child_inputs_embeds->output(0).set_names({"inputs_embeds"});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2, 2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_inputs_embeds),
+                                                     std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{child_inputs_embeds, position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
 }
 
 // Matching the top-level dimensions does not prove the destination tensor has storage: a [0,

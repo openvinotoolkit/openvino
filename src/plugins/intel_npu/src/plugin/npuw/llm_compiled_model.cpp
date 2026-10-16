@@ -2063,17 +2063,21 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                                 "NPUW blob: synthesized input 'position_ids' element type (",
                                 child.get_element_type(),
                                 ") must be i64.");
-                auto input_ids = ov::npuw::util::find_port_by_name(child_ports, layer_names::input_ids);
-                OPENVINO_ASSERT(input_ids.has_value(),
-                                "NPUW blob: synthesized input 'position_ids' has no compiled input_ids sibling.");
-                const auto& input_ids_batch = input_ids->get_partial_shape()[0];
+                auto position_source = ov::npuw::util::find_port_by_name(child_ports, layer_names::input_ids);
+                if (!position_source.has_value()) {
+                    position_source = ov::npuw::util::find_port_by_name(child_ports, layer_names::inputs_embeds);
+                }
+                OPENVINO_ASSERT(position_source.has_value(),
+                                "NPUW blob: synthesized input 'position_ids' has no compiled input_ids or "
+                                "inputs_embeds sibling.");
+                const auto& position_source_batch = position_source->get_partial_shape()[0];
                 const auto& position_ids_batch = child.get_partial_shape()[0];
-                OPENVINO_ASSERT(input_ids_batch.is_static() && position_ids_batch.is_static() &&
-                                    input_ids_batch == position_ids_batch,
+                OPENVINO_ASSERT(position_source_batch.is_static() && position_ids_batch.is_static() &&
+                                    position_source_batch == position_ids_batch,
                                 "NPUW blob: synthesized input 'position_ids' batch dimension (",
                                 position_ids_batch,
-                                ") disagrees with input_ids (",
-                                input_ids_batch,
+                                ") disagrees with its compiled input source (",
+                                position_source_batch,
                                 ").");
             }
             return;  // no corresponding top-level input to cross-check against

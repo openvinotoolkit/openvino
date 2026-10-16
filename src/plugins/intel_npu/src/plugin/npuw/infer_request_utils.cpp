@@ -198,7 +198,13 @@ void ov::npuw::util::pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_posit
     auto padded_shape = padded_position_ids->get_shape();
     auto position_shape = position_ids->get_shape();
 
-    OPENVINO_ASSERT(position_shape.size() <= 3);
+    OPENVINO_ASSERT(
+        (position_shape.size() == 2 || position_shape.size() == 3) && padded_shape.size() == position_shape.size(),
+        "Position ids source and destination must have the same rank (2 or 3), got source rank ",
+        position_shape.size(),
+        " and destination rank ",
+        padded_shape.size(),
+        ".");
 
     size_t diff_dim = position_shape.size() - 1;
     for (size_t i = 0; i < diff_dim; ++i) {
