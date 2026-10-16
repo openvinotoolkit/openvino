@@ -20,6 +20,7 @@
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
@@ -54,21 +55,10 @@ ov::OutputVector tensor_scatter(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> past_cache = inputs[0];
     ov::Output<ov::Node> update = inputs[1];
 
-    const auto rank = past_cache.get_partial_shape().rank();
-    CHECK_VALID_NODE(node, rank.is_static(), "TensorScatter requires past_cache to have a static rank.");
-    const int64_t r = rank.get_length();
+    const auto past_rank = past_cache.get_partial_shape().rank();
+    const auto update_rank = update.get_partial_shape().rank();
 
-    int64_t axis = node.get_attribute_value<int64_t>("axis", -2);
-    if (axis < 0) {
-        axis += r;
-    }
-    CHECK_VALID_NODE(node,
-                     axis > 0 && axis < r,
-                     "TensorScatter `axis` must select a non-batch dimension within rank bounds. "
-                     "Got normalized axis ",
-                     axis,
-                     " for rank ",
-                     r);
+    const int64_t axis_attr = node.get_attribute_value<int64_t>("axis", -2);
 
     const std::string mode = node.get_attribute_value<std::string>("mode", "linear");
     CHECK_VALID_NODE(node,
@@ -76,39 +66,6 @@ ov::OutputVector tensor_scatter(const ov::frontend::onnx::Node& node) {
                      "TensorScatter supports only `linear` and `circular` modes. Got: ",
                      mode);
     const bool circular = (mode == "circular");
-
-    // The ONNX contract requires sequence_length <= max_sequence_length; the reference
-    // implementation rejects violations. When both the cache (`axis`) and update (`axis`)
-    // dimensions are static, enforce this at conversion time. Otherwise the dynamic runtime
-    // path keeps the behavior defined for valid models; in `circular` mode in particular the
-    // modulo must not be relied upon to silently legalize an oversized update.
-    const auto past_dim = past_cache.get_partial_shape()[axis];
-    const auto update_ps = update.get_partial_shape();
-    if (update_ps.rank().is_static() && update_ps.rank().get_length() == r) {
-        const auto update_dim = update_ps[axis];
-        if (past_dim.is_static() && update_dim.is_static()) {
-            CHECK_VALID_NODE(node,
-                             update_dim.get_length() <= past_dim.get_length(),
-                             "TensorScatter update sequence length (",
-                             update_dim.get_length(),
-                             ") must not exceed the cache sequence length (",
-                             past_dim.get_length(),
-                             ").");
-        }
-    }
-
-    // Move the sequence (`axis`) dimension to position 1 so the scatter index needs only
-    // (batch, sequence) coordinates. The swap is its own inverse, reused to transpose back.
-    const bool needs_transpose = (axis != 1);
-    std::shared_ptr<v0::Constant> perm_const;
-    if (needs_transpose) {
-        std::vector<int64_t> perm(static_cast<size_t>(r));
-        std::iota(perm.begin(), perm.end(), 0);
-        std::swap(perm[1], perm[static_cast<size_t>(axis)]);
-        perm_const = v0::Constant::create(ov::element::i64, ov::Shape{perm.size()}, perm);
-        past_cache = std::make_shared<v1::Transpose>(past_cache, perm_const);
-        update = std::make_shared<v1::Transpose>(update, perm_const);
-    }
 
     const auto i64 = ov::element::i64;
     const auto zero = v0::Constant::create(i64, ov::Shape{}, {0});
@@ -118,6 +75,82 @@ ov::OutputVector tensor_scatter(const ov::frontend::onnx::Node& node) {
     const auto ax0 = v0::Constant::create(i64, ov::Shape{1}, {0});
     const auto ax1 = v0::Constant::create(i64, ov::Shape{1}, {1});
     const auto ax_last = v0::Constant::create(i64, ov::Shape{1}, {-1});
+
+    // Move the sequence (`axis`) dimension to position 1 so the scatter index needs only
+    // (batch, sequence) coordinates. The swap permutation is its own inverse, reused to
+    // transpose back. The ONNX loader may omit shape metadata, so the rank is not always known
+    // at conversion time: derive it from `past_cache`, fall back to `update`, and otherwise
+    // build the permutation at runtime.
+    ov::Output<ov::Node> transpose_perm;
+    bool do_transpose = false;
+    if (past_rank.is_static() || update_rank.is_static()) {
+        const int64_t r = past_rank.is_static() ? past_rank.get_length() : update_rank.get_length();
+        int64_t axis = axis_attr;
+        if (axis < 0) {
+            axis += r;
+        }
+        CHECK_VALID_NODE(node,
+                         axis > 0 && axis < r,
+                         "TensorScatter `axis` must select a non-batch dimension within rank bounds. "
+                         "Got normalized axis ",
+                         axis,
+                         " for rank ",
+                         r);
+
+        // The ONNX contract requires sequence_length <= max_sequence_length; the reference
+        // implementation rejects violations. When the cache rank is known and both the cache
+        // (`axis`) and update (`axis`) dimensions are static, enforce this at conversion time.
+        // Otherwise the dynamic runtime path keeps the behavior defined for valid models; in
+        // `circular` mode in particular the modulo must not be relied upon to silently legalize
+        // an oversized update.
+        if (past_rank.is_static()) {
+            const auto past_dim = past_cache.get_partial_shape()[axis];
+            const auto update_ps = update.get_partial_shape();
+            if (update_ps.rank().is_static() && update_ps.rank().get_length() == r) {
+                const auto update_dim = update_ps[axis];
+                if (past_dim.is_static() && update_dim.is_static()) {
+                    CHECK_VALID_NODE(node,
+                                     update_dim.get_length() <= past_dim.get_length(),
+                                     "TensorScatter update sequence length (",
+                                     update_dim.get_length(),
+                                     ") must not exceed the cache sequence length (",
+                                     past_dim.get_length(),
+                                     ").");
+                }
+            }
+        }
+
+        if (axis != 1) {
+            std::vector<int64_t> perm(static_cast<size_t>(r));
+            std::iota(perm.begin(), perm.end(), 0);
+            std::swap(perm[1], perm[static_cast<size_t>(axis)]);
+            transpose_perm = v0::Constant::create(i64, ov::Shape{perm.size()}, perm);
+            do_transpose = true;
+        }
+    } else {
+        // Neither rank is known: build the swap permutation at runtime. The permutation is applied
+        // unconditionally; when `axis` resolves to 1 the swap is the identity, so this stays correct.
+        const auto past_data_shape = std::make_shared<v3::ShapeOf>(past_cache, i64);  // (r,)
+        const auto rank_vec = std::make_shared<v3::ShapeOf>(past_data_shape, i64);    // (1,) = [r]
+        const auto rank_scalar = std::make_shared<v8::Gather>(rank_vec, zero, zero);  // scalar r
+        ov::Output<ov::Node> axis_scalar;
+        if (axis_attr >= 0) {
+            axis_scalar = v0::Constant::create(i64, ov::Shape{}, {axis_attr});
+        } else {
+            axis_scalar = std::make_shared<v1::Add>(rank_scalar, v0::Constant::create(i64, ov::Shape{}, {axis_attr}));
+        }
+        const auto base_perm = std::make_shared<v4::Range>(zero, rank_scalar, one, i64);  // [0, 1, ..., r-1]
+        const auto axis_1d = std::make_shared<v0::Unsqueeze>(axis_scalar, ax0);           // (1,)
+        const auto swap_idx = std::make_shared<v0::Concat>(ov::OutputVector{ax1, axis_1d}, 0);  // [1, axis]
+        const auto swap_upd = std::make_shared<v0::Concat>(ov::OutputVector{axis_1d, ax1}, 0);  // [axis, 1]
+        transpose_perm = std::make_shared<v3::ScatterUpdate>(base_perm, swap_idx, swap_upd, zero);
+        do_transpose = true;
+    }
+
+    if (do_transpose) {
+        past_cache = std::make_shared<v1::Transpose>(past_cache, transpose_perm);
+        update = std::make_shared<v1::Transpose>(update, transpose_perm);
+    }
 
     // Shapes of the (possibly transposed) tensors: (batch, max_sequence_length, ...rest).
     const auto past_shape = std::make_shared<v3::ShapeOf>(past_cache, i64);
@@ -171,8 +204,8 @@ ov::OutputVector tensor_scatter(const ov::frontend::onnx::Node& node) {
     const auto indices = std::make_shared<v0::Concat>(ov::OutputVector{batch_idx, seq_idx}, -1);
 
     ov::Output<ov::Node> result = std::make_shared<v3::ScatterNDUpdate>(past_cache, indices, update);
-    if (needs_transpose) {
-        result = std::make_shared<v1::Transpose>(result, perm_const);
+    if (do_transpose) {
+        result = std::make_shared<v1::Transpose>(result, transpose_perm);
     }
 
     return {result};

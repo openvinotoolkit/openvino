@@ -8237,6 +8237,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_circular_empty) {
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 
+// TensorScatter (ONNX opset-24) with inputs that carry no shape metadata, so their rank is
+// unknown at conversion time. The axis normalization and the transpose permutation are then
+// constructed at runtime. axis=2 on the rank-4 input requires an actual transpose.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_tensor_scatter_dynamic_rank) {
+    if (s_device == "CPU") {
+        GTEST_SKIP() << "CPU plug-in does not support Parameter operations with dynamic rank";
+    }
+
+    const auto model = convert_model("tensor_scatter_dynamic_rank.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    // past_cache (1, 2, 3, 2)
+    test_case.add_input<float>(Shape{1, 2, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f});
+    // update (1, 2, 1, 2)
+    test_case.add_input<float>(Shape{1, 2, 1, 2}, {100.f, 101.f, 200.f, 201.f});
+    // write_indices (1,) -> sequence position 1 for every head.
+    test_case.add_input<int64_t>(Shape{1}, {1});
+    test_case.add_expected_output<float>(Shape{1, 2, 3, 2},
+                                         {0.f, 1.f, 100.f, 101.f, 4.f, 5.f, 6.f, 7.f, 200.f, 201.f, 10.f, 11.f});
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mha_4d) {
     auto model = convert_model("attention_mha_4d.onnx");
     auto test_case = test::TestCase(model, s_device);
