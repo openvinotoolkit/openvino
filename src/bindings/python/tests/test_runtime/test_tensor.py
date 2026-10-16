@@ -432,15 +432,11 @@ def test_roi_from_packed_tensor_when_strided_two_heads():
     head_stride_bytes = 4095 * row_bytes
     assert roi_tensor.strides[1] == head_stride_bytes
 
-    # roi_tensor.data is not usable directly here: for sub-byte types it is exposed as a flat
-    # byte_size-length view, which does not reflect a strided (non-contiguous) layout. copy_to
-    # goes through the real per-dimension strides instead, so use it to verify the content.
-    dense_tensor = ov.Tensor(ov.Type.i4, [1, 2, 10, 512])
-    roi_tensor.copy_to(dense_tensor)
+    assert roi_tensor.data.shape == (1, 2, 10, row_bytes)
     for h in range(2):
         src_start = h * head_stride_bytes
-        dst_start = h * 10 * row_bytes
-        assert np.array_equal(dense_tensor.data[dst_start : dst_start + 10 * row_bytes], ov_tensor.data[src_start : src_start + 10 * row_bytes])
+        expected = ov_tensor.data[src_start : src_start + 10 * row_bytes].reshape(10, row_bytes)
+        assert np.array_equal(roi_tensor.data[0, h], expected)
 
 
 def test_roi_from_packed_tensor_when_contiguous():
