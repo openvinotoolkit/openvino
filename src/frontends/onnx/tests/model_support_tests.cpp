@@ -40,6 +40,15 @@ TEST(ONNXModelValidator, truncated_multibyte_tag) {
     EXPECT_FALSE(ov::frontend::onnx::is_valid_model(iterator_model));
 }
 
+TEST(ONNXModelValidator, int64_scalar_varint) {
+    // model_version (field 5) is an int64 and may use a ten-byte varint.
+    const std::string serialized_model("\x08\x09\x28\x80\x80\x80\x80\x10\x12\x00", 10);
+    std::istringstream common_model(serialized_model, std::ios::binary);
+    std::istringstream iterator_model(serialized_model, std::ios::binary);
+    EXPECT_TRUE(ov::frontend::onnx::common::is_valid_model(common_model));
+    EXPECT_TRUE(ov::frontend::onnx::is_valid_model(iterator_model));
+}
+
 TEST(ONNXReader_ModelSupported, basic_model) {
     // this model is a basic ONNX model taken from OpenVINO's unit test (add_abc.onnx)
     // it contains the minimum number of fields required to accept this file as a valid model
