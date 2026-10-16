@@ -154,8 +154,8 @@ class PyDecoderBase : public Decoder {
 class PyDecoder : public PyDecoderBase<ov::frontend::pytorch::TorchDecoder> {};
 
 class PyDecoderV2 : public PyDecoderBase<ov::frontend::pytorch::TorchDecoderV2> {
-    std::vector<size_t> get_input_sequence(size_t index) const override {
-        PYBIND11_OVERRIDE(std::vector<size_t>, ov::frontend::pytorch::TorchDecoderV2, get_input_sequence, index);
+    InputSequences get_input_sequences() const override {
+        PYBIND11_OVERRIDE(InputSequences, ov::frontend::pytorch::TorchDecoderV2, get_input_sequences);
     }
 };
 

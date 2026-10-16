@@ -141,6 +141,8 @@ def test_torch_chunk_cache_mutation():
 @pytest.mark.nightly
 @pytest.mark.parametrize("sequence_input", [0, 1])
 @pytest.mark.parametrize("mapping,error", [([1, 0], None),
+                                         ([0], "preserve the number of elements"),
+                                         ([0, 1, 0], "preserve the number of elements"),
                                          ([0, 0], "exactly one element"),
                                          ([0, 2], "out of range")])
 def test_torch_decoder_sequence_output_order(sequence_input, mapping, error):
@@ -157,6 +159,7 @@ def test_torch_decoder_sequence_output_order(sequence_input, mapping, error):
     class ReversedSequenceDecoder(TorchScriptPythonDecoder):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
+            self.sequence_queries = 0
             if self.get_op_type() == "custom::reversed_sequence" and sequence_input == 1:
                 self.raw_inputs.insert(0, list(graph.inputs())[0])
                 self._input_ids.insert(0, self.raw_inputs[0].unique())
@@ -166,8 +169,9 @@ def test_torch_decoder_sequence_output_order(sequence_input, mapping, error):
                 return "custom::reversed_sequence"
             return super().get_op_type()
 
-        def get_input_sequence(self, index):
-            return mapping if self.get_op_type() == "custom::reversed_sequence" and index == sequence_input else []
+        def get_input_sequences(self):
+            self.sequence_queries += 1
+            return {sequence_input: mapping} if self.get_op_type() == "custom::reversed_sequence" else {}
 
         def visit_subgraph(self, visitor):
             for node in self.graph_element.nodes():
@@ -188,6 +192,7 @@ def test_torch_decoder_sequence_output_order(sequence_input, mapping, error):
             frontend.convert(input_model)
         return
     converted = frontend.convert(input_model)
+    assert all(child.sequence_queries == bool(child.inputs()) for child in decoder.m_decoders)
     converted.reshape({port: ov.PartialShape([-1, 4, 3]) for port in converted.inputs})
     compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
     generator = np.random.default_rng(42)

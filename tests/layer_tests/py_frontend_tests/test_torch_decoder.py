@@ -838,8 +838,7 @@ def test_pytorch_decoder_input_sequence(ir, expected):
     graph = torch._C.parse_ir(ir)
     node = list(graph.nodes())[-1]
     decoder = TorchScriptPythonDecoder(None, node, alias_db=graph.alias_db())
-    assert decoder.get_input_sequence(0) == expected
-    assert decoder.get_input_sequence(1) == []
+    assert decoder.get_input_sequences() == ({0: expected} if expected else {})
     if not expected:
         assert decoder.may_produce_alias(0, 0)
 
@@ -848,7 +847,7 @@ def test_pytorch_decoder_input_sequence(ir, expected):
 def test_pytorch_decoder_input_sequence_default():
     from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
 
-    assert TorchDecoderBase().get_input_sequence(0) == []
+    assert TorchDecoderBase().get_input_sequences() == {}
 
 
 @pytest.mark.precommit
@@ -865,7 +864,7 @@ def test_pytorch_legacy_decoder_conversion():
             self.children = []
 
         def __getattr__(self, name):
-            if name == "get_input_sequence":
+            if name == "get_input_sequences":
                 raise AssertionError("Legacy decoders must not be queried for sequence structure")
             return getattr(self.wrapped, name)
 

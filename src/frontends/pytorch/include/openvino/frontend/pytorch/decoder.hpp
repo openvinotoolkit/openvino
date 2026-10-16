@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <map>
+
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
@@ -146,10 +148,12 @@ public:
 
 class PYTORCH_FRONTEND_API TorchDecoderV2 : public TorchDecoder {
 public:
+    using InputSequences = std::map<size_t, std::vector<size_t>>;
+
     ~TorchDecoderV2() override;
 
-    // Ordered output indices forming the complete sequence input; empty when unknown.
-    virtual std::vector<size_t> get_input_sequence(size_t index) const {
+    // Sequence input indices mapped to their ordered element output indices; empty when unknown.
+    virtual InputSequences get_input_sequences() const {
         return {};
     }
 };

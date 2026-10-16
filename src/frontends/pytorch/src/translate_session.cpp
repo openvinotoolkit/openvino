@@ -264,8 +264,13 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 
             std::map<size_t, size_t> sequence_aliases;
             const auto sequence_decoder = std::dynamic_pointer_cast<TorchDecoderV2>(node);
-            for (size_t i = 0; sequence_decoder && i < raw_inputs.size(); ++i) {
-                const auto elements = sequence_decoder->get_input_sequence(i);
+            const auto input_sequences = sequence_decoder && !raw_inputs.empty()
+                                             ? sequence_decoder->get_input_sequences()
+                                             : TorchDecoderV2::InputSequences{};
+            for (const auto& sequence_input : input_sequences) {
+                const auto i = sequence_input.first;
+                const auto& elements = sequence_input.second;
+                FRONT_END_OP_CONVERSION_CHECK(i < raw_inputs.size(), "Sequence input index is out of range.");
                 if (elements.empty()) {
                     continue;
                 }
