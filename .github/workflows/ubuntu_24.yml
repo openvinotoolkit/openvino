@@ -31,7 +31,7 @@ permissions: read-all
 
 jobs:
   Smart_CI:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
@@ -317,7 +317,7 @@ jobs:
     name: ci/gha_overall_status_ubuntu_24
     needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Check status of all jobs
         if: >-

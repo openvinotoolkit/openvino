@@ -42,7 +42,7 @@ env:
 
 jobs:
   Smart_CI:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
@@ -665,7 +665,7 @@ jobs:
 
   GPU_Stub:
     needs: [Build, Smart_CI]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
     steps:
       - name: GPU stub
@@ -735,7 +735,7 @@ jobs:
             NVIDIA_Plugin, Openvino_tokenizers, iGPU,
             Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Check status of all jobs
         if: >-

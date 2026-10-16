@@ -67,7 +67,7 @@ jobs:
     name: ci/gha_overall_status_ovc
     needs: [Pylint-UT]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Check status of all jobs
         if: >-
