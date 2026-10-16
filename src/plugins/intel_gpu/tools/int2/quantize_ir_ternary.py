@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Rewrite the fp16 MatMul weights of an exported LLM into ternary u2 weights.
 
 OpenVINO has no signed 2-bit type, so ternary is expressed the way the GPU

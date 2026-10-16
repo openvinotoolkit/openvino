@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Build the Bonsai 2 27B u2 IR from its PQ2_0 GGUF, using the Bonsai 1 27B IR
 as a template.
 
