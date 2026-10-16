@@ -805,13 +805,10 @@ static void fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Ten
     });
 }
 
-// Q1_0 block: 18 bytes = f16 scale d + 128 packed 1-bit codes (bit ? +d : -d).
-// We re-expand each bit to an i4 nibble (0 -> 0xF, 1 -> 0x1), packed two-per-byte
-// low-nibble-first - same layout OpenVINO already uses for Q4_0.
-// So Q1_0 reuses the existing SYMMETRIC_I4 path unchanged.
+// GGML binary codes are LSB-first; OpenVINO u1 codes are MSB-first.
 static void fill_q1_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = 18;
-    const uint64_t out_bytes_per_block = 64;  // 128 elements as i4, 2 per byte
+    const uint64_t out_bytes_per_block = 16;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<uint8_t*>(weights_arr.data());
     auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
@@ -823,12 +820,11 @@ static void fill_q1_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Ten
         scales[i] = ov::float16::from_bits(scale_bits);
         const uint8_t* qs = block + 2;
         uint8_t* out = weights + i * out_bytes_per_block;
-        for (int j = 0; j < 128; j += 2) {
-            const int bit0 = (qs[j / 8] >> (j % 8)) & 1;
-            const int bit1 = (qs[(j + 1) / 8] >> ((j + 1) % 8)) & 1;
-            const uint8_t nib0 = bit0 ? 0x1 : 0xF;
-            const uint8_t nib1 = bit1 ? 0x1 : 0xF;
-            out[j / 2] = static_cast<uint8_t>(nib0 | (nib1 << 4));
+        for (size_t j = 0; j < out_bytes_per_block; ++j) {
+            uint8_t bits = qs[j];
+            bits = ((bits & 0x55) << 1) | ((bits & 0xaa) >> 1);
+            bits = ((bits & 0x33) << 2) | ((bits & 0xcc) >> 2);
+            out[j] = (bits << 4) | (bits >> 4);
         }
     });
 }
@@ -856,8 +852,9 @@ void fill_q8_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
 // (dequantize_row_q2_0: `(qs[j/4] >> ((j%4)*2)) & 3`), which is exactly the order OpenVINO's u2
 // Constant reads, so the 16 code bytes are copied verbatim. The zero-point is the constant 1.
 void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
-    const uint64_t bytes_per_block = 18;
-    const uint64_t bytes_per_block_codes = 16;
+    const bool dense_trits = tensor.type == GGUF_TYPE_PTQ1_0;
+    const uint64_t bytes_per_block_codes = tensor.type == GGUF_TYPE_Q2_0 ? 16 : 32;
+    const uint64_t bytes_per_block = dense_trits ? 28 : bytes_per_block_codes + 2;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<uint8_t*>(weights_arr.data());
     auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
@@ -866,9 +863,29 @@ void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tenso
     ov::parallel_for(scales_arr.get_size(), [&](size_t i) {
         const uint8_t* block = data + i * bytes_per_block;
         uint16_t scale_bits;
-        std::memcpy(&scale_bits, block, sizeof(scale_bits));
+        std::memcpy(&scale_bits, block + (dense_trits ? 26 : 0), sizeof(scale_bits));
         scales[i] = ov::float16::from_bits(scale_bits);
-        std::memcpy(weights + i * bytes_per_block_codes, block + 2, bytes_per_block_codes);
+        auto* codes = weights + i * bytes_per_block_codes;
+        if (dense_trits) {
+            std::memset(codes, 0, bytes_per_block_codes);
+            constexpr uint8_t powers[] = {1, 3, 9, 27, 81};
+            size_t index = 0;
+            const auto unpack = [&](size_t start, size_t count, size_t trits) {
+                for (size_t n = 0; n < trits; ++n) {
+                    for (size_t m = 0; m < count; ++m) {
+                        const uint8_t q = block[start + m] * powers[n];
+                        const uint8_t code = (static_cast<uint16_t>(q) * 3) >> 8;
+                        codes[index / 4] |= code << (2 * (index % 4));
+                        ++index;
+                    }
+                }
+            };
+            unpack(0, 16, 5);
+            unpack(16, 8, 5);
+            unpack(24, 2, 4);
+        } else {
+            std::memcpy(codes, block + 2, bytes_per_block_codes);
+        }
         zp.store(i, 1.0f);
     });
 }

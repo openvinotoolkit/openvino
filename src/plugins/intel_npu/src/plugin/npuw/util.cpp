@@ -195,6 +195,17 @@ bool ov::npuw::util::starts_with(const std::string& str, const std::string& pref
     return str.substr(0, prefix.size()) == prefix;
 }
 
+std::unordered_set<std::string> ov::npuw::util::mutable_properties(
+    const std::vector<ov::PropertyName>& supported_properties) {
+    std::unordered_set<std::string> result;
+    for (const auto& p : supported_properties) {
+        if (p.is_mutable()) {
+            result.insert(p);
+        }
+    }
+    return result;
+}
+
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
     const auto& shape = p.get_shape();
     return p.get_node()->get_friendly_name() == "position_ids" &&
