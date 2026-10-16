@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
@@ -194,22 +195,61 @@ protected:
         return values;
     }
 
-    // Reference: oneDNN disabled and the OCL reference kernel in bfyx with the same static shapes.
-    void compare_with_reference(const results& actual, int64_t batch, const tensors& inputs) const {
-        ov::intel_gpu::ImplForcingMap forcing;
-        for (const auto& branch : branches) {
-            forcing[branch.id] = {format::bfyx, "convolution_gpu_ref", impl_types::ocl};
+    static std::vector<float> to_float(const memory::ptr& mem) {
+        mem_lock<ov::float16, mem_lock_type::read> lock(mem, get_test_stream());
+        std::vector<float> values(mem->count());
+        for (size_t i = 0; i < values.size(); ++i) {
+            values[i] = static_cast<float>(lock[i]);
         }
-        auto config = make_config();
-        config.set_property(ov::intel_gpu::force_implementations(forcing));
-        config.set_property(ov::intel_gpu::use_onednn(false));
-        const auto size = branches.front().geometry.in_size;
-        network reference(get_test_engine(), build_topology(ov::Dimension(batch), ov::Dimension(size)), config);
-        const auto expected = run(reference, inputs);
+        return values;
+    }
 
+    // Accumulates in f32 like oneDNN; the OCL reference kernel accumulates f16 inputs in f16.
+    std::vector<float> reference_output(const conv_branch& branch, int64_t batch, const tensors& inputs) const {
+        const auto& g = branch.geometry;
+        const auto src = to_float(inputs.at("input"));
+        const auto weights = to_float(branch.weights);
+        const auto bias = branch.bias ? to_float(branch.bias) : std::vector<float>(g.out_features, 0.0f);
+        const auto residual = residual_relu ? to_float(inputs.at(branch.id + "_residual")) : std::vector<float>{};
+        const int64_t out_size = g.out_size();
+        std::vector<float> dst(batch * g.out_features * out_size * out_size);
+        for (int64_t n = 0; n < batch; ++n) {
+            for (int64_t oc = 0; oc < g.out_features; ++oc) {
+                for (int64_t oy = 0; oy < out_size; ++oy) {
+                    for (int64_t ox = 0; ox < out_size; ++ox) {
+                        float acc = bias[oc];
+                        for (int64_t ic = 0; ic < g.in_features; ++ic) {
+                            for (int64_t ky = 0; ky < g.kernel; ++ky) {
+                                const int64_t iy = oy * g.stride - g.pad + ky;
+                                if (iy < 0 || iy >= g.in_size) {
+                                    continue;
+                                }
+                                for (int64_t kx = 0; kx < g.kernel; ++kx) {
+                                    const int64_t ix = ox * g.stride - g.pad + kx;
+                                    if (ix < 0 || ix >= g.in_size) {
+                                        continue;
+                                    }
+                                    acc += src[((n * g.in_features + ic) * g.in_size + iy) * g.in_size + ix] *
+                                           weights[((oc * g.in_features + ic) * g.kernel + ky) * g.kernel + kx];
+                                }
+                            }
+                        }
+                        const int64_t idx = ((n * g.out_features + oc) * out_size + oy) * out_size + ox;
+                        if (residual_relu) {
+                            acc = std::max(acc + residual[idx], 0.0f);
+                        }
+                        dst[idx] = static_cast<float>(ov::float16(acc));
+                    }
+                }
+            }
+        }
+        return dst;
+    }
+
+    void compare_with_reference(const results& actual, int64_t batch, const tensors& inputs) const {
         for (const auto& branch : branches) {
             const auto out_id = branch.id + "_out";
-            const auto& exp = expected.at(out_id);
+            const auto exp = reference_output(branch, batch, inputs);
             const auto& act = actual.at(out_id);
             ASSERT_EQ(exp.size(), act.size()) << out_id << ", batch " << batch;
             for (size_t i = 0; i < exp.size(); ++i) {
