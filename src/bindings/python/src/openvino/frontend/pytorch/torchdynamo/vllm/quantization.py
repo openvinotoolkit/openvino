@@ -27,6 +27,12 @@ Scope: weight-only, symmetric or asymmetric, per-group or per-channel, 4-bit
 additionally carries a `zero_point` beside every `scale`, and declares itself
 with `"sym": false`.
 
+Partial quantization is the normal case, not an edge one: `quantized_modules`
+names what NNCF compressed, and everything else -- embeddings, lm_head, and on
+a multimodal model the vision and audio towers and their projectors -- stays
+dense. `get_quant_method` therefore has to answer for dense linears too; see
+the comment there for why None is not an available answer.
+
 Symmetric and asymmetric differ only in where the offset lives. Symmetric
 packing biases the stored nibble by +8 to keep it unsigned and the decoder
 subtracts that constant back out; asymmetric stores the raw nibble and a
@@ -136,7 +142,11 @@ def _build_classes():
     """
     import torch
     import torch.nn.functional as F
-    from vllm.model_executor.layers.linear import LinearBase, LinearMethodBase
+    from vllm.model_executor.layers.linear import (
+        LinearBase,
+        LinearMethodBase,
+        UnquantizedLinearMethod,
+    )
     from vllm.model_executor.layers.quantization import register_quantization_config
     from vllm.model_executor.layers.quantization.base_config import QuantizationConfig
     from vllm.model_executor.parameter import (
