@@ -6,8 +6,8 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <optional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -115,9 +115,9 @@ TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefill
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"},
-                                                      {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"}, {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
@@ -125,7 +125,7 @@ TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefill
     ASSERT_NE(prefill, nullptr);
     ASSERT_NE(lm_head, nullptr);
 
-    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::layer_names::output_embeds);
     ASSERT_TRUE(embeds.has_value());
     ASSERT_TRUE(embeds->get_partial_shape().is_static());
     EXPECT_EQ(embeds->get_shape(), (ov::Shape{1, 8, 64}));
@@ -261,9 +261,9 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffForStaticPre
 
     // Whole (STATIC) prefill has no continuation path, so even an explicit YES
     // is reported as NO.
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
-                                                      {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
-                                                     recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        {{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}, {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
+                        recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 }

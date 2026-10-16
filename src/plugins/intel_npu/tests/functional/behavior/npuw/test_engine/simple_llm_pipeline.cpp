@@ -26,9 +26,9 @@ int64_t get_token_as_max_logit(ov::Tensor logits) {
     int64_t out_token = std::max_element(logits_data, logits_data + vocab_size) - logits_data;
     return out_token;
 }
-} // anonymous namespace
+}  // anonymous namespace
 
-void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core, const ov::AnyMap& config) {
+void SimpleLLMPipeline::initialize(const std::shared_ptr<ov::Model>& model, ov::Core& core, const ov::AnyMap& config) {
     ov::AnyMap properties(config);
     m_max_prompt_len = get_or_default(properties, "NPUW_LLM_MAX_PROMPT_LEN", 128);
     m_min_response_len = get_or_default(properties, "NPUW_LLM_MIN_RESPONSE_LEN", 4);
@@ -37,11 +37,12 @@ void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core
     update_config(properties, {"NPU_USE_NPUW", "YES"});
     update_config(properties, {"NPUW_LLM", "YES"});
 
-    std::shared_ptr<ov::Model> model = core.read_model(model_path);
-    m_compiled_model =
-        std::make_shared<ov::CompiledModel>(core.compile_model(model, "NPU",
-        properties));
+    m_compiled_model = std::make_shared<ov::CompiledModel>(core.compile_model(model, "NPU", properties));
     m_request = std::make_shared<ov::InferRequest>(m_compiled_model->create_infer_request());
+}
+
+void SimpleLLMPipeline::initialize(const std::string& model_path, ov::Core& core, const ov::AnyMap& config) {
+    initialize(core.read_model(model_path), core, config);
 }
 
 std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& input_ids_vec) {
@@ -50,9 +51,8 @@ std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& inp
     // NB: Check if there is enough space in KV-cache to process input prompt
     auto prompt_len = input_ids_vec.size();
     if (prompt_len > m_max_prompt_len) {
-        OPENVINO_THROW("Simple LLM pipeline may only process prompts up to "
-                        + std::to_string(m_max_prompt_len) + " tokens. "
-                        + "Set the \"MAX_PROMPT_LEN\" config option to increase the limit.");
+        OPENVINO_THROW("Simple LLM pipeline may only process prompts up to " + std::to_string(m_max_prompt_len) +
+                       " tokens. " + "Set the \"MAX_PROMPT_LEN\" config option to increase the limit.");
     }
 
     std::vector<uint64_t> input_ids_vec_copy(input_ids_vec.begin(), input_ids_vec.end());
@@ -82,8 +82,10 @@ std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& inp
     int64_t input_ids_data = -1;
     int64_t position_ids_data = prompt_len - 1;
     std::vector<int64_t> attention_mask_data(prompt_len, 1);
-    m_request->set_tensor("input_ids", ov::Tensor(ov::element::i64, ov::Shape{1,1},  reinterpret_cast<void*>(&input_ids_data)));
-    m_request->set_tensor("position_ids", ov::Tensor(ov::element::i64, ov::Shape{1,1}, reinterpret_cast<void*>(&position_ids_data)));
+    m_request->set_tensor("input_ids",
+                          ov::Tensor(ov::element::i64, ov::Shape{1, 1}, reinterpret_cast<void*>(&input_ids_data)));
+    m_request->set_tensor("position_ids",
+                          ov::Tensor(ov::element::i64, ov::Shape{1, 1}, reinterpret_cast<void*>(&position_ids_data)));
 
     std::size_t total_generated_tokens{1};
     // Assume that we don't want to produce more than min response len in simple pipeline.
@@ -98,7 +100,9 @@ std::vector<int64_t> SimpleLLMPipeline::generate(const std::vector<int64_t>& inp
         ++position_ids_data;
         // However, attention_mask changes its shape on each iteration, it should be re-set explicitly
         attention_mask_data.push_back(1);
-        m_request->set_tensor("attention_mask", ov::Tensor(ov::element::i64, ov::Shape{1,attention_mask_data.size()}, (void*)&attention_mask_data[0]));
+        m_request->set_tensor(
+            "attention_mask",
+            ov::Tensor(ov::element::i64, ov::Shape{1, attention_mask_data.size()}, (void*)&attention_mask_data[0]));
 
         m_request->infer();
 
