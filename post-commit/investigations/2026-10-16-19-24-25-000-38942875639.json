@@ -1,0 +1,40 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-16-19-24-25-000-38942875639",
+    "timestamp": "2026-10-16T19:24:25Z",
+    "run_id": "38942875639",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38942875639",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "a1cc667e1f27aa82045943e0d0292079c8fc61cd",
+    "pr_number": "38877",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38877",
+    "author": null,
+    "category": "Flaky Test",
+    "title": "smoke_tf2_keras_lstm test_keras_lstm_flags_float32 fails on small numeric mismatch vs TensorFlow reference",
+    "signature": "AssertionError: Comparing with Framework failed in test_keras_lstm_flags_float32: small numeric mismatch between OpenVINO CPU inference output and TensorFlow Keras LSTM reference output (max diff ~0.07, exceeds FP32 eps 1e-4)|Flaky Test",
+    "signature_hash": "da5b0923c1cd0777",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 fails: OpenVINO CPU inference result differs from TensorFlow Keras reference beyond the FP32 tolerance (eps 1e-4), max diff 0.0738"
+        }
+    ],
+    "key_errors": [
+        "FAILED ../../../home/runner/_work/openvino/openvino/install/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[ ie_device:CPU - precision: - params:{'input_names': ['x'], 'input_shapes': [[4, 8, 3]], 'input_type': tf.float32, 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False, 'recurrent_activation': 'tanh', 'flags': True} ] - AssertionError: Comparing with Framework failed",
+        "E       AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[-0.0000000e+00,  1.0002023e-03, -3.8643774e-01], [ 0.0000000e+00, -0.0000000e+00,  1.1043749e+00], [-1.2127380e+00,  0.0000000e+00, -1.1791273e+00], [ 2.3893371e-01,  0.0000000e+00, -4.2914677e+00]], dtype=float32)}; framework_res={'output_0': array([[-0.0000000e+00,  9.9244306e-04, -3.8663194e-01], [ 0.0000000e+00, -0.0000000e+00,  1.1031790e+00], [-1.2043591e+00,  0.0000000e+00, -1.2528830e+00], [ 2.3906560e-01,  0.0000000e+00, -4.2911005e+00]], dtype=float32)}.",
+        "Max diff is 0.07375562191009521",
+        "= 1 failed, 2113 passed, 111 skipped, 6 xfailed, 27 xpassed, 244 warnings in 649.64s (0:10:49) ="
+    ],
+    "root_cause": "The only failing job in this run is a single TensorFlow layer test for Keras LSTM (test_keras_lstm_flags_float32) on CPU, out of 2113 passed tests in the same suite. The triggering commit (#38877) only touches NPU plugin code (WeightlessGraph::create_pipeline, a Coverity NULL_FIELD fix) and has no relation to TensorFlow/Keras LSTM layer emulation on CPU, so the failure is not caused by the commit content. The numeric mismatch (max diff 0.0738) exceeds the FP32 comparison epsilon (1e-4) but is still small relative to the LSTM's recurrent/relu+tanh activation computation, consistent with floating-point accumulation order differences between OpenVINO's LSTM Sequence CPU kernel and TensorFlow/Keras's LSTM cell implementation (e.g., differing gate computation order or fused-op numerics) rather than a logic bug. No other LSTM/Keras-related pattern exists in the knowledge base yet, so this is recorded as a new, likely flaky/low-severity numeric-precision pattern pending repeat occurrences.",
+    "reproduction_steps": "Build OpenVINO and run the single test locally: `python -m pytest install/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k 'flags_float32' -v` after setting up the TF layer tests environment per docs/dev/test_coverage.md. Re-run several times to check for non-determinism; compare OpenVINO CPU LSTMSequence output against the TensorFlow reference with the custom_eps used in layer_test_class.py.",
+    "recommended_actions": [
+        "Re-run the TensorFlow Layer Tests job (or just this test) to confirm whether it is flaky/non-deterministic or a consistent regression.",
+        "If it reproduces consistently, bisect recent CPU plugin LSTM/RNN kernel changes (not NPU-related) to find a precision regression.",
+        "If it is confirmed non-deterministic/borderline precision, consider widening the FP32 tolerance for this specific LSTM parametrization or marking it as a known-flaky test with a tracking ticket.",
+        "Monitor the new pattern (signature_hash da5b0923c1cd0777) for recurrence across future post-commit runs before escalating."
+    ],
+    "prevention_strategies": "For numerically sensitive ops like LSTM/RNN cells, prefer tolerance margins that account for legitimate floating-point summation-order differences between frameworks, and track recurring near-threshold failures as a pattern before treating them as isolated flakiness. Avoid conflating unrelated commits (e.g., NPU-only changes) with CPU TensorFlow layer test failures when triaging.",
+    "historical_context": "No prior CI Doctor Post-Commit investigation references LSTM or Keras-specific numeric comparison failures; the one investigation matching a keyword search ('keras' in requirements_tensorflow dependency resolution, 2026-09-30) was an unrelated pip-proxy infrastructure outage, not a numeric accuracy issue. This is the first recorded occurrence of this specific signature."
+}

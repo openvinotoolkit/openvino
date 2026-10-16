@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "AssertionError: Comparing with Framework failed in test_keras_lstm_flags_float32: small numeric mismatch between OpenVINO CPU inference output and TensorFlow Keras LSTM reference output (max diff ~0.07, exceeds FP32 eps 1e-4)|Flaky Test",
+    "signature_hash": "da5b0923c1cd0777",
+    "title": "smoke_tf2_keras_lstm test_keras_lstm_flags_float32 fails on small numeric mismatch vs TensorFlow reference",
+    "category": "Flaky Test",
+    "count": 1,
+    "first_seen": "2026-10-16T19:24:25Z",
+    "last_seen": "2026-10-16T19:24:25Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/38942875639"
+    ],
+    "affected_commits": [
+        "a1cc667e1f27aa82045943e0d0292079c8fc61cd"
+    ],
+    "recent_timestamps": [
+        "2026-10-16T19:24:25Z"
+    ]
+}
