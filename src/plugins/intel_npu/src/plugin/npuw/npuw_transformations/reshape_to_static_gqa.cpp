@@ -13,6 +13,7 @@
 #include "../util.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 
@@ -106,19 +107,28 @@ std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::sh
 // Round local_window_size up to the NPU's 16-token KV granularity plus one headroom
 // block, so evictions are amortized rather than rolling the buffer on every token.
 std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::GroupQueryAttention& gqa) {
+    using ov::op::internal::GroupQueryAttentionInputs;
     if (!gqa.get_sliding_window_cache()) {
         return std::nullopt;
     }
-    constexpr int64_t kAlign = 16;
-    constexpr int64_t kHeadroom = 16;
     const int64_t window = gqa.get_local_window_size();
     OPENVINO_ASSERT(window >= 1,
                     "GQA op '",
                     gqa.get_friendly_name(),
                     "' has sliding_window_cache=true but an invalid local_window_size=",
                     window);
-    const int64_t aligned = ((window + kAlign - 1) / kAlign) * kAlign;
-    return static_cast<size_t>(aligned + kHeadroom);
+
+    constexpr int64_t kAlign = 16;
+    int64_t headroom = kAlign;
+    const auto& query_shape = gqa.get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
+    if (query_shape.rank().is_static() && query_shape.size() > 2 && query_shape[2].is_static()) {
+        headroom = std::max<int64_t>(headroom, query_shape[2].get_length());
+    }
+    auto align_size = [](int64_t size, int64_t align) {
+        return ((size + align - 1) / align) * align;
+    };
+    const int64_t aligned_headroom = align_size(headroom, kAlign);
+    return static_cast<size_t>(align_size(window, kAlign) + aligned_headroom);
 }
 
 // Finds the GQA op that directly reads `parameter` as PAST_KEY/PAST_VALUE/ATTENTION_BIAS,
@@ -139,7 +149,12 @@ std::shared_ptr<ov::op::internal::GroupQueryAttention> find_gqa_consuming_parame
             if (gqa->get_input_size() <= static_cast<size_t>(input_idx)) {
                 continue;
             }
-            if (gqa->input_value(static_cast<size_t>(input_idx)).get_node_shared_ptr() == parameter) {
+            auto source = gqa->input_value(static_cast<size_t>(input_idx)).get_node_shared_ptr();
+            // Some models may have transposed V
+            if (ov::is_type<ov::op::v1::Transpose>(source)) {
+                source = source->input_value(0).get_node_shared_ptr();
+            }
+            if (source == parameter) {
                 return gqa;
             }
         }
