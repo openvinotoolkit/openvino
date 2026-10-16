@@ -856,3 +856,40 @@ TEST(prepare_primitive_fusing, dont_fuse_bias_when_multiple_users) {
     ASSERT_TRUE(has_node(*prog, "eltw"));
     ASSERT_TRUE(has_node(*prog, "conv"));
 }
+
+TEST(prepare_primitive_fusing, keeps_eltwise_after_onednn_post_ops_limit_unfused) {
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({ov::PartialShape{16, 20}, data_types::u8, format::bfyx});
+    auto in_layout = layout{ov::PartialShape::dynamic(2), data_types::u8, format::bfyx};
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(input_layout("input", in_layout));
+    topology.add(fully_connected("fc", input_info("input"), {"weights"}, "", data_types::f32));
+
+    std::string previous_id = "fc";
+    constexpr size_t fused_add_count = 33;
+    for (size_t i = 0; i < fused_add_count; i++) {
+        const auto index = std::to_string(i);
+        const auto input_id = "post_op_input_" + index;
+        const auto eltwise_id = "eltw_" + index;
+        auto add_input = engine.allocate_memory({ov::PartialShape{1, 1}, data_types::f32, format::bfyx});
+        topology.add(data(input_id, add_input));
+        topology.add(eltwise(eltwise_id, {input_info(previous_id), input_info(input_id)}, eltwise_mode::sum));
+        previous_id = eltwise_id;
+    }
+    topology.add(reorder("output", input_info(previous_id), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+
+    ASSERT_NE(prog, nullptr);
+    for (size_t i = 0; i < 32; i++) {
+        EXPECT_FALSE(has_node(*prog, "eltw_" + std::to_string(i)));
+    }
+    EXPECT_TRUE(has_node(*prog, "eltw_32"));
+}
