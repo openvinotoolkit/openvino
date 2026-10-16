@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import torch
 from pytorch_layer_test_class import PytorchLayerTest
@@ -107,3 +108,29 @@ class TestRemainderTypes(PytorchLayerTest):
             precision,
             ir_version,
         )
+
+
+class TestRemainderExactMultiples(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.input_tensor,)
+
+    def create_model(self, divisor):
+        class aten_remainder(torch.nn.Module):
+            def __init__(self, divisor):
+                super().__init__()
+                self.divisor = divisor
+
+            def forward(self, x):
+                return torch.remainder(x, self.divisor)
+
+        return aten_remainder(divisor), "aten::remainder"
+
+    # x / divisor rounds up to a whole number for some of these multiples (4.2 / 1.4 is 3.0 in float32),
+    # where the exact result is nearly the divisor.
+    @pytest.mark.parametrize("divisor", [0.1, 1.4, 6.2831855])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_remainder_exact_multiples(self, divisor, ie_device, precision, ir_version):
+        self.input_tensor = (np.arange(-30, 31) * divisor).astype(np.float32)
+        self._test(*self.create_model(divisor), ie_device, precision, ir_version)

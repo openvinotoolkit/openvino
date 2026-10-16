@@ -485,11 +485,15 @@ jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator_t* host,
                                              x64::cpu_isa_t host_isa,
                                              [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                              ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator_t* host,
                                              x64::cpu_isa_t host_isa,
                                              ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_floor_mod_emitter::get_inputs_num() const {
     return 2;
@@ -531,19 +535,41 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
+        return;
+    }
+
+    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_aux2 = Vmm(aux_vec_idxs[2]);
+    h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
+    h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
+    // r = src0 - q * src1 with a single rounding, so r is exact. With a separate multiply, a quotient that
+    // rounded up to the next whole number (4.2f / 1.4f is 3.0f) made q * src1 round back to src0, and the
+    // result was 0 instead of nearly src1.
+    h->uni_vmovups(vmm_aux1, vmm_src0);
+    h->vfnmadd231ps(vmm_aux1, vmm_aux0, vmm_src1);
+    // Then r is just past zero, with the sign opposite to src1: add src1 to it.
+    if (isa == x64::avx2) {
+        h->vcmpps(vmm_aux0, vmm_aux1, table_val("zero"), _cmp_neq_uq);
+        h->vxorps(vmm_aux2, vmm_aux1, vmm_src1);
+        h->vandps(vmm_aux0, vmm_aux0, vmm_aux2);  // sign bit: r != 0 and the signs of r and src1 differ
+        h->vaddps(vmm_aux2, vmm_aux1, vmm_src1);
+        h->vblendvps(vmm_dst, vmm_aux1, vmm_aux2, vmm_aux0);
     } else {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        }
-        h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
-        h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
+        h->vpxord(vmm_aux0, vmm_aux1, vmm_src1);
+        h->vpmovd2m(k_mask, vmm_aux0);  // the signs of r and src1 differ
+        h->vaddps(vmm_aux2, vmm_aux1, vmm_src1);
+        h->vblendmps(vmm_aux0 | k_mask, vmm_aux1, vmm_aux2);
+        h->vcmpps(k_mask, vmm_aux1, table_val("zero"), _cmp_eq_oq);  // keep r == 0 as it is
+        h->vblendmps(vmm_dst | k_mask, vmm_aux0, vmm_aux1);
     }
 }
 
+void jit_floor_mod_emitter::register_table_entries() {
+    push_arg_entry_of("zero", 0x00000000, true);
+}
+
 size_t jit_floor_mod_emitter::aux_vecs_count() const {
-    return 1;
+    return 3;
 }
 
 /// MOD ///
@@ -551,9 +577,13 @@ jit_mod_emitter::jit_mod_emitter(x64::jit_generator_t* host,
                                  x64::cpu_isa_t host_isa,
                                  [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                  ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 jit_mod_emitter::jit_mod_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_mod_emitter::get_inputs_num() const {
     return 2;
@@ -593,19 +623,48 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
         h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
+        return;
+    }
+
+    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_aux2 = Vmm(aux_vec_idxs[2]);
+    h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
+    h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
+    // r = src0 - q * src1 with a single rounding, so r is exact. With a separate multiply, a quotient that
+    // rounded up to the next whole number (4.2f / 1.4f is 3.0f) made q * src1 round back to src0, and the
+    // result was 0 instead of nearly src1.
+    h->uni_vmovups(vmm_aux1, vmm_src0);
+    h->vfnmadd231ps(vmm_aux1, vmm_aux0, vmm_src1);
+    // Then r is just past zero, with the sign opposite to src0: add |src1| with the sign of src0 to it.
+    if (isa == x64::avx2) {
+        h->vcmpps(vmm_aux0, vmm_aux1, table_val("zero"), _cmp_neq_uq);
+        h->vxorps(vmm_aux2, vmm_aux1, vmm_src0);
+        h->vandps(vmm_aux0, vmm_aux0, vmm_aux2);  // sign bit: r != 0 and the signs of r and src0 differ
+        h->vxorps(vmm_aux2, vmm_src0, vmm_src1);
+        h->vandps(vmm_aux2, vmm_aux2, table_val("sign_mask"));
+        h->vxorps(vmm_aux2, vmm_aux2, vmm_src1);  // |src1| with the sign of src0
+        h->vaddps(vmm_aux2, vmm_aux2, vmm_aux1);
+        h->vblendvps(vmm_dst, vmm_aux1, vmm_aux2, vmm_aux0);
     } else {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        }
-        h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
-        h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
+        h->vpxord(vmm_aux0, vmm_aux1, vmm_src0);
+        h->vpmovd2m(k_mask, vmm_aux0);  // the signs of r and src0 differ
+        h->vpxord(vmm_aux2, vmm_src0, vmm_src1);
+        h->vpandd(vmm_aux2, vmm_aux2, table_val("sign_mask"));
+        h->vpxord(vmm_aux2, vmm_aux2, vmm_src1);  // |src1| with the sign of src0
+        h->vaddps(vmm_aux2, vmm_aux2, vmm_aux1);
+        h->vblendmps(vmm_aux0 | k_mask, vmm_aux1, vmm_aux2);
+        h->vcmpps(k_mask, vmm_aux1, table_val("zero"), _cmp_eq_oq);  // keep r == 0 as it is
+        h->vblendmps(vmm_dst | k_mask, vmm_aux0, vmm_aux1);
     }
 }
 
+void jit_mod_emitter::register_table_entries() {
+    push_arg_entry_of("zero", 0x00000000, true);
+    push_arg_entry_of("sign_mask", 0x80000000, true);
+}
+
 size_t jit_mod_emitter::aux_vecs_count() const {
-    return 1;
+    return 3;
 }
 
 /// MAXIMUM ///

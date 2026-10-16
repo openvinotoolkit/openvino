@@ -328,11 +328,15 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
             case Algorithm::EltwiseNegative:
                 *dst_ptr_f = -src_f[0];
                 break;
-            case Algorithm::EltwiseFloorMod:
-                *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1];
+            case Algorithm::EltwiseFloorMod: {
+                // std::fmod is exact. x - floor(x / y) * y gave 0 instead of nearly y when x / y rounded up
+                // to a whole number.
+                const float r = std::fmod(src_f[0], src_f[1]);
+                *dst_ptr_f = (r != 0.0F && ((r < 0.0F) != (src_f[1] < 0.0F))) ? r + src_f[1] : r;
                 break;
+            }
             case Algorithm::EltwiseMod:
-                *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1];
+                *dst_ptr_f = std::fmod(src_f[0], src_f[1]);
                 break;
             case Algorithm::EltwiseMaximum:
                 *dst_ptr_f = std::max(src_f[0], src_f[1]);
