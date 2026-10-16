@@ -220,6 +220,7 @@ attach_gather_impl::attach_gather_impl() {
 
     auto dyn_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx
     };
