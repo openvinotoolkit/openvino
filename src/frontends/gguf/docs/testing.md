@@ -137,5 +137,3 @@ through `run-real-models`; precommit uses tiny models only.
 Acceptance reports record required coverage and source/precision provenance;
 Q4_K_M is excluded from accuracy gates pending the plugin fix. Known Gemma4
 window and Unified prefix-cache parity gaps remain documented in [mmproj.md](mmproj.md).
-The Muse acceptance validator fixes the chat template's `current_date` to 2026-10-15
-for reproducible prompts on both generation and oracle replay; the report records that date.
