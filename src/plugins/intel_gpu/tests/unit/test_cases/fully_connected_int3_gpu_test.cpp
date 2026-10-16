@@ -11,6 +11,7 @@
 #include "fully_connected_inst.h"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
@@ -46,12 +47,14 @@ public:
 
     // Runs the FC on u3 weights and compares it with the reference kernel. For every row count in rows_list
     // (batch for a 2D input, seq_len for a 3D one), expected_gemms lists the GEMM variants a static impl has to hold.
-    // A dynamic network runs every new row count on one dynamic impl holding all variants.
+    // A dynamic network runs every new row count on one dynamic impl holding all variants. With
+    // wait_for_static_impls it reruns each row count on the static impl compiled asynchronously for it.
     void run(const Int3FcParams& p,
              bool is_dynamic,
              bool is_caching_test,
              const std::vector<long>& rows_list,
-             const std::vector<std::vector<std::string>>& expected_gemms = {}) {
+             const std::vector<std::vector<std::string>>& expected_gemms = {},
+             bool wait_for_static_impls = false) {
         ASSERT_TRUE(is_dynamic || rows_list.size() == 1);
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -65,53 +68,60 @@ public:
         const long groups = p.ifm / p.scale_group;
         const auto decompression_format = p.transposed_decompression ? format::fbyx : format::bfyx;
 
-        auto weights_mem = engine.allocate_memory({{p.ofm, p.ifm}, data_types::u3, format::bfyx});
-        set_values(weights_mem, rg.generate_random_1d<uint8_t>(p.ofm * p.ifm * 3 / 8, 0, 255));
-        auto scale_mem = engine.allocate_memory({{p.ofm, groups}, data_types::f16, decompression_format});
-        set_values(scale_mem, rg.generate_random_1d<ov::float16>(p.ofm * groups, -0.05f, 0.05f, 1024));
+        const auto weights_vals = rg.generate_random_1d<uint8_t>(p.ofm * p.ifm * 3 / 8, 0, 255);
+        const auto scale_vals = rg.generate_random_1d<ov::float16>(p.ofm * groups, -0.05f, 0.05f, 1024);
+        const auto zp_vals = rg.generate_random_1d<uint8_t>(p.ofm * groups, 2, 5);
+        const auto bias_vals = rg.generate_random_1d<ov::float16>(p.ofm, -1.0f, 1.0f);
+        const std::string zp_id = p.zp == ZpKind::Grouped ? "zp" : "";
+        const std::string bias_id = p.bias ? "bias" : "";
+        const std::string last = p.fused_eltwise ? "eltw" : "fc_prim";
 
-        topology topology(data("weights", weights_mem), data("scale", scale_mem));
-        std::string zp_id;
-        if (p.zp == ZpKind::Grouped) {
-            auto zp_mem = engine.allocate_memory({{p.ofm, groups}, data_types::u8, decompression_format});
-            set_values(zp_mem, rg.generate_random_1d<uint8_t>(p.ofm * groups, 2, 5));
-            topology.add(data("zp", zp_mem));
-            zp_id = "zp";
-        }
-        std::string bias_id;
-        if (p.bias) {
-            auto bias_mem = engine.allocate_memory({bias_ps, data_types::f16, format::bfyx});
-            set_values(bias_mem, rg.generate_random_1d<ov::float16>(p.ofm, -1.0f, 1.0f));
-            topology.add(data("bias", bias_mem));
-            bias_id = "bias";
-        }
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", bias_id, "scale", zp_id, data_types::f16, is_3d ? 3 : 2, 2);
-        if (p.zp == ZpKind::Scalar) {
-            fc_prim.decompression_zero_point_scalar = 4.0f;
-        }
-        topology.add(fc_prim);
-        std::string last = "fc_prim";
-        if (p.fused_eltwise) {
-            topology.add(input_layout("eltw_data",
-                                      layout{is_dynamic ? (is_3d ? ov::PartialShape{-1, -1, p.ofm} : ov::PartialShape{-1, p.ofm})
-                                                        : (is_3d ? ov::PartialShape{p.batch, rows_list[0], p.ofm} : ov::PartialShape{rows_list[0], p.ofm}),
-                                             data_types::f16,
-                                             format::bfyx}));
-            topology.add(eltwise("eltw", {input_info("fc_prim"), input_info("eltw_data")}, eltwise_mode::sum));
-            last = "eltw";
-        } else {
-            // A second user keeps the output reorder from being fused, so the FC stays internal and gets
-            // fake-aligned row counts as in a real model.
-            topology.add(reorder("output2", input_info("fc_prim"), format::bfyx, data_types::f32));
-        }
-        topology.add(reorder("output", input_info(last), format::bfyx, data_types::f32));
+        // Each network gets its own constants: building a program on a discrete GPU moves them to device memory.
+        auto make_topology = [&]() {
+            auto weights_mem = engine.allocate_memory({{p.ofm, p.ifm}, data_types::u3, format::bfyx});
+            set_values(weights_mem, weights_vals);
+            auto scale_mem = engine.allocate_memory({{p.ofm, groups}, data_types::f16, decompression_format});
+            set_values(scale_mem, scale_vals);
 
-        topology.add(input_layout("input", layout{is_dynamic ? dyn_input_ps : make_input_ps(rows_list[0]), data_types::f16, format::bfyx}));
+            topology topology(data("weights", weights_mem), data("scale", scale_mem));
+            if (p.zp == ZpKind::Grouped) {
+                auto zp_mem = engine.allocate_memory({{p.ofm, groups}, data_types::u8, decompression_format});
+                set_values(zp_mem, zp_vals);
+                topology.add(data("zp", zp_mem));
+            }
+            if (p.bias) {
+                auto bias_mem = engine.allocate_memory({bias_ps, data_types::f16, format::bfyx});
+                set_values(bias_mem, bias_vals);
+                topology.add(data("bias", bias_mem));
+            }
+            auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", bias_id, "scale", zp_id, data_types::f16, is_3d ? 3 : 2, 2);
+            if (p.zp == ZpKind::Scalar) {
+                fc_prim.decompression_zero_point_scalar = 4.0f;
+            }
+            topology.add(fc_prim);
+            if (p.fused_eltwise) {
+                topology.add(input_layout("eltw_data",
+                                          layout{is_dynamic ? (is_3d ? ov::PartialShape{-1, -1, p.ofm} : ov::PartialShape{-1, p.ofm})
+                                                            : (is_3d ? ov::PartialShape{p.batch, rows_list[0], p.ofm} : ov::PartialShape{rows_list[0], p.ofm}),
+                                                 data_types::f16,
+                                                 format::bfyx}));
+                topology.add(eltwise("eltw", {input_info("fc_prim"), input_info("eltw_data")}, eltwise_mode::sum));
+            } else {
+                // A second user keeps the output reorder from being fused, so the FC stays internal and gets
+                // fake-aligned row counts as in a real model.
+                topology.add(reorder("output2", input_info("fc_prim"), format::bfyx, data_types::f32));
+            }
+            topology.add(reorder("output", input_info(last), format::bfyx, data_types::f32));
+
+            topology.add(input_layout("input", layout{is_dynamic ? dyn_input_ps : make_input_ps(rows_list[0]), data_types::f16, format::bfyx}));
+            return topology;
+        };
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(128));
+        auto topology = make_topology();
         network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         auto ref_config = get_test_default_config(engine);
@@ -119,7 +129,7 @@ public:
         ref_config.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc ref_impl = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
         ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", ref_impl}}));
-        network ref_net(engine, topology, ref_config);
+        network ref_net(engine, make_topology(), ref_config);
 
         const primitive_impl* first_impl = nullptr;
         for (size_t i = 0; i < rows_list.size(); ++i) {
@@ -139,14 +149,23 @@ public:
             }
 
             auto outputs = net->execute();
+            if (wait_for_static_impls) {
+                net->get_program()->get_compilation_context().wait_all();
+                outputs = net->execute();
+            }
             auto ref_outputs = ref_net.execute();
 
             auto inst = net->get_primitive("fc_prim");
             auto impl = inst->get_impl();
             ASSERT_NE(impl, nullptr);
             // Async compilation may swap in a static impl for a row count the dynamic network has seen before.
-            if (!is_dynamic) {
-                ASSERT_FALSE(impl->is_dynamic());
+            if (!is_dynamic || wait_for_static_impls) {
+                ASSERT_FALSE(impl->is_dynamic()) << "rows = " << rows;
+            }
+            // A single-row static impl of a dynamic model takes both of its stages from the dynamic impl
+            if (wait_for_static_impls) {
+                const size_t total_rows = is_3d ? p.batch * rows : rows;
+                ASSERT_EQ(impl->get_kernels().size(), total_rows == 1 ? 0u : 2u) << "rows = " << rows;
             }
             ASSERT_EQ(impl->get_kernel_name().rfind("ocl::fc_int3_dpas", 0), 0u) << "rows = " << rows << ", impl = " << impl->get_kernel_name();
             if (impl->is_dynamic()) {
@@ -202,7 +221,7 @@ public:
             }
             ASSERT_LT(std::sqrt(err2 / std::max(ref2, 1e-12)), 0.02) << "rows = " << rows;
         }
-        ASSERT_EQ(first_impl != nullptr, is_dynamic);
+        ASSERT_EQ(first_impl != nullptr, is_dynamic && !wait_for_static_impls);
     }
 
     static bool has_v2() {
@@ -326,6 +345,18 @@ TEST_F(fully_connected_int3_gpu_tests, dynamic_grouped_zp) {
     auto p = base;
     p.zp = ZpKind::Grouped;
     run(p, true, false, {1, 33, 4});
+}
+
+TEST_F(fully_connected_int3_gpu_tests, dynamic_static_impls_reuse_stages) {
+    auto p = base;
+    p.bias = true;
+    run(p, true, false, {1, 40, 1}, {}, true);
+}
+
+TEST_F(fully_connected_int3_gpu_tests, dynamic_3d_fused_eltwise_static_impls_reuse_stages) {
+    auto p = with(base, 1, 1);
+    p.fused_eltwise = true;
+    run(p, true, false, {1, 20, 1}, {}, true);
 }
 
 TEST_F(fully_connected_int3_gpu_tests, cached_static) {
