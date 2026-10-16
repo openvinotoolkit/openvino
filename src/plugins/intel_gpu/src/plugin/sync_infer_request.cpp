@@ -48,10 +48,14 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     return device_ptr == host_ptr;
 }
 
+bool is_contiguous_or_remote(const std::shared_ptr<ov::ITensor>& tensor) {
+    return tensor->is_continuous() || std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor) != nullptr;
+}
+
 std::shared_ptr<ov::ITensor> ensure_contiguous(const std::shared_ptr<ov::ITensor>& tensor) {
-    // skip remote tensors as RemoteTensorImpl always has default strides for its shape,
+    // remote tensors do not need repacking. RemoteTensorImpl always has default strides for its shape,
     // and remote ROI tensors are copied via RemoteTensorImpl::copy_to with proper strides
-    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor) != nullptr || tensor->is_continuous()) {
+    if (is_contiguous_or_remote(tensor)) {
         return tensor;
     }
 
@@ -1055,6 +1059,10 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                const TensorWrapper& user_tensor_wrapper,
                                                                bool is_temporary_repacked_input) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
+    OPENVINO_ASSERT(is_contiguous_or_remote(user_tensor_wrapper.ptr),
+                    "[GPU] Non-contiguous host input tensor must be repacked before prepare_input: ",
+                    internal_name);
+
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
