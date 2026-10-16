@@ -896,13 +896,17 @@ class GGUFAdaptToGenAIImageWindow : public testing::TestWithParam<bool> {};
 
 TEST_P(GGUFAdaptToGenAIImageWindow, MatchesSDPAAndPagedAttention) {
     const bool paged = GetParam();
-#if defined(OPENVINO_ARCH_ARM64)
-    if (paged && !ov::with_cpu_sve())
-        GTEST_SKIP() << "CPU PagedAttention requires SVE on ARM64";
-#elif !defined(OPENVINO_ARCH_X86_64)
-    if (paged)
-        GTEST_SKIP() << "CPU PagedAttention requires x86-64 or ARM64 with SVE";
-#endif
+bool with_cpu_vector_extensions()
+{
+    return ov::with_cpu_sve() && // ARM
+        ov::with_cpu_x86_avx2(); // x86
+     // ov::with_cpu_x86_avx512f() && // If also needed here
+     // ov::with_cpu_x86_sse42() &&
+     // ov::with_cpu_x86_avx512_core();
+}
+...    
+if (paged && !ov::with_cpu_vector_extensions())
+    GTEST_SKIP() << "CPU PagedAttention requires vector extensions";
     const size_t hidden = 4;
     const std::vector<int32_t> types{0, 1, 1, 1, 1, 0, 1, 1, 0};
     const auto length = types.size();
