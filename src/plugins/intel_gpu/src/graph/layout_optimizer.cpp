@@ -1062,6 +1062,7 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     bool i8_u8_input = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8);
     bool i8_u8_output = (output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8);
     bool is_fp16_input = (input_layout.data_type == data_types::f16);
+    bool is_fp32_input = (input_layout.data_type == data_types::f32);
 
     // Helper functions to get appropriate formats based on rank
     auto get_fsv32_format = [](size_t rank) {
@@ -1130,6 +1131,9 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         if (input_channels > 0 && input_channels <= 16 && output_channels >= 32) {
             node.set_preferred_output_fmt(0, format::get_default_format(rank));
         }
+    } else if (is_fp32_input) {
+        node.set_preferred_input_fmt(0, format::get_default_format(rank));
+        node.set_preferred_output_fmt(0, format::get_default_format(rank));
     }
 }
 
