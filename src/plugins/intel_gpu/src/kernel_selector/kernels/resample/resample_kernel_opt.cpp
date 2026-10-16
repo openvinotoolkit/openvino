@@ -191,15 +191,8 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     }
 
     if (params.resampleType == ResampleType::NEAREST_NEIGHBOR) {
-        // The NEAREST kernel now derives coordinates via get_original_coordinate()/
-        // get_nearest_val() (see resample_opt.cl), which correctly implements every
-        // CoordinateTransformationMode/NearestMode combination - not just a hardcoded
-        // floor(x * scale) asymmetric/floor shortcut. So, unlike before, there is no
-        // need to restrict this kernel to a handful of whitelisted mode combinations
-        // (doing so was an unnecessary performance regression: it forced common cases
-        // such as ALIGN_CORNERS nearest-neighbor resize onto the much slower reference
-        // kernel). Only the generic constraints below (no padding support, batch/feature
-        // must be preserved) apply.
+        // The NEAREST kernel handles every CoordinateTransformationMode/NearestMode combination
+        // via get_original_coordinate()/get_nearest_val(); padding and batch/feature resize are not supported.
         if (has_padding ||
             input.Batch().v != output.Batch().v ||
             input.Feature().v != output.Feature().v) {

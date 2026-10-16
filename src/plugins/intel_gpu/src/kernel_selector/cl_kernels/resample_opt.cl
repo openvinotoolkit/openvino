@@ -3,6 +3,7 @@
 //
 
 #include "include/fetch_utils.cl"
+#include "include/resample_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 
@@ -28,23 +29,6 @@
 #else
     #define TO_OUT_VEC_TYPE(x)          TO_OUTPUT_VECTOR_TYPE(x, VEC_SIZE)
 #endif
-
-inline int FUNC(get_nearest_val)(float num, bool is_downsample)
-{
-#if defined(NEAREST_ROUND_PREFER_FLOOR)
-    return (num == (int)num + 0.5f) ? (int)floor(num) : (int)round(num);
-#elif defined(NEAREST_ROUND_PREFER_CEIL)
-    return (int)round(num);
-#elif defined(NEAREST_FLOOR)
-    return (int)floor(num);
-#elif defined(NEAREST_CEIL)
-    return (int)ceil(num);
-#elif defined(NEAREST_SIMPLE)
-    return is_downsample ? (int)ceil(num) : (int)num;
-#else
-#error [clDNN resample_opt.cl]: nearest mode - not supported
-#endif
-}
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
@@ -263,14 +247,9 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
 
 #ifdef SAMPLE_TYPE_NEAREST
-    // Coordinates that do not depend on out_x are computed once per work-item
-    // (still using the generic, coord-transform-mode-aware helpers so that all
-    // CoordinateTransformationMode/NearestMode combinations are handled
-    // correctly, not just a hardcoded floor(x * scale) asymmetric/floor case).
-    // NOTE: resample_opt.cl always uses the "legacy" scale convention
-    // (SCALES[i] == input_size / output_size), unlike resample_ref.cl's
-    // generic path. So, unlike the SCALES[i] < 1 check used there, a
-    // downsampling axis here is the one where SCALES[i] > 1.
+    // Coordinates that do not depend on out_x are computed once per work-item.
+    // NOTE: resample_opt.cl uses the "legacy" scale convention (SCALES[i] == input_size / output_size),
+    // so a downsampling axis is the one where SCALES[i] > 1 (unlike resample_ref.cl's generic path).
     const float iy_coord = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, INPUT0_SIZE_Y);
     const int iy = clamp(FUNC_CALL(get_nearest_val)(iy_coord, SCALES[3] > 1.0f), 0, INPUT0_SIZE_Y - 1);
 #if OUTPUT_DIMS == 5
