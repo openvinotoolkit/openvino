@@ -80,6 +80,7 @@ inline std::string activation_type_to_str(activation_func activation) {
     case activation_func::round_half_to_even: return "round_half_to_even";
     case activation_func::round_half_away_from_zero: return "round_half_away_from_zero";
     case activation_func::erfinv: return "erfinv";
+    case activation_func::swoosh: return "swoosh";
     default: return "unknown activation";
     }
 }
