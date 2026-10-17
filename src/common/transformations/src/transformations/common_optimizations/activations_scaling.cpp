@@ -34,6 +34,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -232,8 +233,8 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({post_convert_m, pattern::any_input()});
     auto group_norm_m =
         pattern::wrap_type<v12::GroupNormalization>({post_convert_m, pattern::any_input(), pattern::any_input()});
-    auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({post_convert_m});
-    auto norm_m = std::make_shared<pattern::op::Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
+    auto shape_of_m = pattern::wrap_type<ov::op::util::ShapeOfBase>({post_convert_m});
+    auto norm_m = mvn_m | rms_m | group_norm_m | shape_of_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -242,9 +243,12 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
             return false;
         }
 
-        auto scale_const = ov::as_type_ptr<v0::Constant>(pattern_map.at(scale_const_m).get_node_shared_ptr());
+        const auto scale_const = ov::as_type_ptr<v0::Constant>(pattern_map.at(scale_const_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(scale_const && ov::shape_size(scale_const->get_shape()) == 1,
+                        "EliminateScalarMul: the scale is expected to be a scalar Constant");
+        const double scale = scale_const->cast_vector<double>()[0];
 
-        if (pattern_map.count(shape_of_m) == 0 && scale_const->cast_vector<float>()[0] < 1.f)
+        if (pattern_map.count(shape_of_m) == 0 && scale < 1.0)
             return false;
 
         auto activation = pattern_map.at(activation_m);
@@ -262,24 +266,20 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
 
         if (pattern_map.count(rms_m)) {
             auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
-            auto eps = rms->get_epsilon();
-            double scale_const_val = scale_const->cast_vector<double>()[0];
-            rms->set_epsilon(eps / scale_const_val / scale_const_val);
+            rms->set_epsilon(rms->get_epsilon() / scale / scale);
         } else if (pattern_map.count(group_norm_m)) {
             auto group_norm =
                 ov::as_type_ptr<v12::GroupNormalization>(pattern_map.at(group_norm_m).get_node_shared_ptr());
-            auto eps = group_norm->get_epsilon();
-            double scale_const_val = scale_const->cast_vector<double>()[0];
-            group_norm->set_epsilon(eps / scale_const_val / scale_const_val);
+            group_norm->set_epsilon(group_norm->get_epsilon() / scale / scale);
         } else if (pattern_map.count(mvn_m)) {
             auto mvn = ov::as_type_ptr<v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
             auto eps_mode = mvn->get_eps_mode();
             auto eps = mvn->get_eps();
-            float scale_const_val = scale_const->cast_vector<float>()[0];
+            const auto scale_f = static_cast<float>(scale);
             if (eps_mode == ov::op::MVNEpsMode::INSIDE_SQRT) {
-                mvn->set_eps(eps / scale_const_val / scale_const_val);
+                mvn->set_eps(eps / scale_f / scale_f);
             } else {
-                mvn->set_eps(eps / scale_const_val);
+                mvn->set_eps(eps / scale_f);
             }
         }
 
