@@ -127,9 +127,21 @@ void NodeContext::mutate_input(const std::string& name, Output<Node> ov_output) 
 void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const std::string& name) const {
     auto tensor_it = m_tensor_map->find(input_id);
     FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input_id, " exist.");
-    const auto previous_value = tensor_it->second;
+    static const std::set<std::string> metadata_ops{"aten::unsqueeze_",
+                                                    "aten::squeeze_",
+                                                    "aten::transpose_",
+                                                    "aten::t_"};
+    const bool metadata_only = metadata_ops.count(normalize_op_type(get_op_type()));
+    const auto previous_value = metadata_only ? resolve_tensor(input_id) : tensor_it->second;
+    if (metadata_only) {
+        for (const auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
+            if (info.base_value.get_node()) {
+                resolve_tensor(alias_id);
+            }
+        }
+    }
     m_translate_session->encode_tensor_name(ov_output, input_id, {name});
-    tensor_it->second = ov_output;
+    (*m_tensor_map)[input_id] = ov_output;
     m_mutated_tensors->insert(input_id);
 
     if (ov::is_type<SequenceMark>(ov_output.get_node_shared_ptr())) {
@@ -144,12 +156,6 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         return;
     }
 
-    // In-place operations which only rewrite the base tensor's metadata, leaving its storage untouched.
-    static const std::set<std::string> metadata_ops{"aten::unsqueeze_",
-                                                    "aten::squeeze_",
-                                                    "aten::transpose_",
-                                                    "aten::t_"};
-    const bool metadata_only = metadata_ops.count(normalize_op_type(get_op_type()));
     if (metadata_only) {
         const auto old_shape_view =
             m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);

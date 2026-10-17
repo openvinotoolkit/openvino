@@ -51,10 +51,20 @@ class NestedContainerMetadataMutation(ContainerMetadataMutation):
 
 
 class ListMetadataMutation(torch.nn.Module):
+    __constants__ = ["operation"]
+
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
     def forward(self, cache: List[torch.Tensor]):
         left, right = cache
         view = left[:, :2]
+        if self.operation == "storage":
+            cache[0].add_(1)
         cache[0].transpose_(0, 1)
+        if self.operation == "metadata":
+            cache[0].unsqueeze_(0)
         return cache, left, view
 
 
@@ -90,9 +100,10 @@ def test_torch_tensor_metadata_identity(mutate_clone, operation):
 
 @pytest.mark.precommit
 @pytest.mark.nightly
-def test_torch_list_member_metadata_preserves_views():
+@pytest.mark.parametrize("operation", ["transpose", "storage", "metadata"])
+def test_torch_list_member_metadata_preserves_views(operation):
     inputs = [torch.arange(6, dtype=torch.float32).reshape(2, 3), torch.ones(2, 3)]
-    model = torch.jit.script(ListMetadataMutation())
+    model = torch.jit.script(ListMetadataMutation(operation))
     converted = ov.convert_model(model, example_input=(deepcopy(inputs),))
     compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
     cache, left, view = model(deepcopy(inputs))
