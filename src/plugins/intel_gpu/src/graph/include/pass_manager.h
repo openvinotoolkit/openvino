@@ -15,6 +15,7 @@
 #include "concatenation_inst.h"
 #include "convolution_inst.h"
 #include "eltwise_inst.h"
+#include "fully_connected_inst.h"
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
 #include "lora_inst.h"
@@ -37,6 +38,12 @@ public:
 private:
     const std::string name;
 };
+
+// Defined in prepare_quantization.cpp; reused by select_preferred_formats for the post-fusion u2/CM
+// re-check (has_fused_primitives() isn't reliable until fusion has run, so u2 FCs defer this decision
+// until select_preferred_formats, which runs after prepare_primitive_fusing and already computes
+// choose_impl() for every node). Returns the newly inserted reorder nodes, if any (see definition).
+std::vector<program_node*> reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p);
 
 class pass_manager {
 public:

@@ -207,6 +207,24 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         output_type = impl_param.get_output_element_type();
     }
 
+    // Group-major u2 compressed weights are a genuine 3-D [KG, N, GS] layout (GS = 64, the CM u2 kernel's
+    // quantization group size). Collapse them to the logical [N, K] = [N, KG*GS] matrix so the generic
+    // MatMul shape inference below -- which would otherwise treat KG as a batch dim and mis-infer N --
+    // sees the real matrix. The CM u2 kernel reads the untouched 3-D memory in group-major order (WLAYOUT 0).
+    {
+        const auto w_pshape = weights_layout.get_partial_shape();
+        if (desc->compressed_weights && weights_layout.data_type == data_types::u2 &&
+            w_pshape.rank().is_static() && w_pshape.size() == 3 &&
+            w_pshape[0].is_static() && w_pshape[1].is_static() &&
+            w_pshape[2].is_static() && w_pshape[2].get_length() == 64) {
+            const auto N = w_pshape[1].get_length();
+            const auto K = w_pshape[0].get_length() * w_pshape[2].get_length();
+            weights_layout.set_partial_shape(ov::PartialShape{N, K});
+            GPU_DEBUG_TRACE_DETAIL << node.id() << ": [CM u2 gmajor] collapsed group-major weights " << w_pshape
+                                   << " -> [N=" << N << ", K=" << K << "] for MatMul shape inference" << std::endl;
+        }
+    }
+
     ov::op::v0::MatMul matmul_op;
     matmul_op.set_transpose_b(desc->weights_transposed);
     std::vector<ShapeType> input_shapes = {

@@ -52,8 +52,13 @@
 #include "space_to_depth_inst.h"
 #include "strided_slice_inst.h"
 #include "swiglu_inst.h"
+#include "registry/registry.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
+#endif
+
+#if OV_GPU_WITH_CM
+#include "impls/cm/fully_connected_woq_u2.hpp"
 #endif
 
 using namespace cldnn;
@@ -617,6 +622,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return true;
             }
             auto in_dt = node.get_input_layout(0).data_type;
+#if OV_GPU_WITH_CM
+            // u2 FCs the CM kernels can run take post-ops in static shapes too: the kernels apply a bias /
+            // fused add / fused SwiGLU themselves (FullyConnectedWoqU2ImplementationManager::validate_impl
+            // decides after fusion; other fused patterns fall back to the OCL reference FC).
+            if (node.get_input_layout(1).data_type == data_types::u2 &&
+                ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(node))
+                return true;
+#endif
             return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
 
         };
@@ -1098,6 +1111,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 eltwise_mode::div
             };
 
+#if OV_GPU_WITH_CM
+            // TEMP DIAGNOSTIC: confirm fuse_eltwise_f is entered for the SwiGLU gate*up multiply and
+            // whether it bails out at the early-return gate below.
+            if (node.id().find("mlp/Mul") != std::string::npos) {
+                GPU_DEBUG_TRACE << node.id() << " : DIAG fuse_eltwise_f entry is_output=" << node.is_output()
+                                 << " inputs_count=" << node.get_inputs_count() << " mode=" << static_cast<int>(prim->mode)
+                                 << " stride_empty=" << prim->stride.empty() << std::endl;
+            }
+#endif
+
             if (node.is_output() || node.get_inputs_count() != 2 ||
                 std::find(supported_modes.begin(), supported_modes.end(), prim->mode) == supported_modes.end() ||
                 !prim->stride.empty())
@@ -1148,6 +1171,19 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = can_fuse_parents[i] && (!parents[i].first->is_constant() || parents[parents.size() - 1 - i].first->is_constant());
             }
+
+#if OV_GPU_WITH_CM
+            // TEMP DIAGNOSTIC: trace why a SwiGLU gate*up multiply does/doesn't fuse onto its FC parents.
+            if (node.id().find("mlp/Mul") != std::string::npos) {
+                GPU_DEBUG_TRACE << node.id() << " : DIAG fuse_eltwise_f parents =";
+                for (size_t i = 0; i < parents.size(); i++) {
+                    GPU_DEBUG_TRACE << " [" << i << "] " << parents[i].first->id()
+                                     << " is_fc=" << parents[i].first->is_type<fully_connected>()
+                                     << " can_fuse=" << can_fuse_parents[i];
+                }
+                GPU_DEBUG_TRACE << std::endl;
+            }
+#endif
 
             if (node.in_shape_of_subgraph || parents[0].first->in_shape_of_subgraph || parents[1].first->in_shape_of_subgraph)
                 return;
@@ -1200,6 +1236,23 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[0] = can_fuse_parents[0] && are_compatible(out_pshape, parent1_pshape);
                 can_fuse_parents[1] = can_fuse_parents[1] && are_compatible(out_pshape, parent2_pshape);
             }
+
+#if OV_GPU_WITH_CM
+            // A static u2 FC takes post-ops only for the CM kernels (fc_supports_fusings). Do not fuse one they
+            // cannot apply (operand not shaped like the output, e.g. per-column with M > 1): the FC would fall
+            // back to the OCL reference FC, while unfused it stays on CM with the eltwise as a separate kernel.
+            for (size_t i = 0; i < parents.size(); i++) {
+                auto& fc = *parents[i].first;
+                if (!can_fuse_parents[i] || !fc.is_type<fully_connected>() || fc.get_input_layout(1).data_type != data_types::u2 ||
+                    !fc.get_input_layout(1).is_static())
+                    continue;
+                // N is the output feature count; for group-major u2 weights [KG, N, GS] it is dim 1, not dim 0.
+                const auto N = ov::intel_gpu::cm::woq_u2_dims(fc.get_input_layout(1)).N;
+                const auto& peer = *parents[parents.size() - 1 - i].first;
+                if (!ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), node.get_output_layout(), N).empty())
+                    can_fuse_parents[i] = false;
+            }
+#endif
 
             // We should have at least one node to fuse
             if (!can_fuse_parents[0] && !can_fuse_parents[1])

@@ -27,7 +27,7 @@
 namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
-ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
+ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(bool keep_u2_group_major) {
     auto data_m = any_input();
     auto bias_m = any_input();
 
@@ -65,6 +65,21 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (weight_ptr->get_element_type() == ov::element::u8 || weight_ptr->get_element_type() == ov::element::i8) {
             weight_u8 = true;
         }
+
+        // Route A (CM u2 group-major): the weights are a native 3-D group-major [KG, N, GS] layout (GS = 64,
+        // the kernel's quantization group size) that the model presents n-major via a Transpose. On a device
+        // that runs the CM u2 kernel, keep the native layout -- skip folding the transpose onto the weights --
+        // so the FC reads it directly (WLAYOUT 0, no reorder). The FC stays weights_transposed (logical
+        // [N, K]); its 3-D weight shape is collapsed to [N, K] by fully_connected_inst::calc_output_layouts
+        // for shape inference. Gated on the raw weight constant's 3-D [KG, N, GS=64] shape with N % 32 == 0
+        // (the kernel's column-tiling requirement); otherwise keep the n-major fold so the reference fallback
+        // still works.
+        const auto& w_ps = weight_ptr->get_output_partial_shape(0);
+        const bool keep_group_major = keep_u2_group_major && has_transpose &&
+                                      weight_ptr->get_element_type() == ov::element::u2 &&
+                                      w_ps.rank().is_static() && w_ps.size() == 3 &&
+                                      w_ps[1].is_static() && w_ps[2].is_static() &&
+                                      w_ps[2].get_length() == 64 && w_ps[1].get_length() % 32 == 0;
 
         auto reshape_const = [has_transpose, grouped, is_weight_3d](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -144,7 +159,15 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             result_nodes.push_back(optional_zero_point);
         }
 
-        if (fc_input_b->get_output_partial_shape(0).size() != fc_input_scale->get_shape().size()) {
+        if (keep_group_major) {
+            // Feed the native 3-D group-major [KG, N, GS] weights (and [KG, N] scale / zp) straight through;
+            // their physical [groups, N] order is flagged not-transposed for the compressed FC.
+            fc_input_b = weight_ptr;
+            transpose_b_scale = false;
+            transpose_b_zp = false;
+        }
+
+        if (!keep_group_major && fc_input_b->get_output_partial_shape(0).size() != fc_input_scale->get_shape().size()) {
             OPENVINO_ASSERT(!weights_are_constant);
             ov::Shape weight_shape_final(fc_input_scale->get_shape().size(), 1);
             for (size_t i = weight_shape.size() - 1, idx = fc_input_scale->get_shape().size() - 1;; --i) {
@@ -165,7 +188,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             result_nodes.push_back(fc_input_b);
         }
 
-        if (has_transpose) {
+        if (has_transpose && !keep_group_major) {
             const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
             std::shared_ptr<ov::Node> transpose_const = pattern_map.at(transpose_const_m).get_node_shared_ptr();
             if (ov::shape_size(transpose_const->get_shape()) != fc_input_b->get_output_partial_shape(0).size()) {

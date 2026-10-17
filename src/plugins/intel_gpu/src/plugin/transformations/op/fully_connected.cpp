@@ -34,7 +34,20 @@ void FullyConnected::validate_and_infer_types() {
     op.set_transpose_a(false);
     op.set_transpose_b(m_transpose_b);
 
-    auto out_shapes = ov::op::v0::shape_infer(&op, std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)});
+    // Group-major u2 compressed weights are a genuine 3-D [KG, N, GS] layout (GS = 64, the CM u2 kernel's
+    // quantization group size). Collapse to the logical [N, K] = [N, KG*GS] matrix for the MatMul-based
+    // shape inference below -- it would otherwise read KG as a batch dim and reject the K mismatch. The CM
+    // kernel reads the untouched 3-D memory in group-major order (WLAYOUT 0).
+    auto weights_pshape = get_input_partial_shape(1);
+    if (get_input_element_type(1) == ov::element::u2 && weights_pshape.rank().is_static() && weights_pshape.size() == 3 &&
+        weights_pshape[0].is_static() && weights_pshape[1].is_static() && weights_pshape[2].is_static() &&
+        weights_pshape[2].get_length() == 64) {
+        const auto N = weights_pshape[1].get_length();
+        const auto K = weights_pshape[0].get_length() * weights_pshape[2].get_length();
+        weights_pshape = ov::PartialShape{N, K};
+    }
+
+    auto out_shapes = ov::op::v0::shape_infer(&op, std::vector<ov::PartialShape>{get_input_partial_shape(0), weights_pshape});
 
     auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
