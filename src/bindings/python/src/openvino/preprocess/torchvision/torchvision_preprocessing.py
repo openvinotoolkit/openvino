@@ -200,9 +200,10 @@ class _(TransformConverterBase):
             pads_end[layout.get_index_by_name("W")] = torch_padding
 
         # padding different in horizontal and vertical axis
+        # (torchvision order: left/right, then top/bottom)
         elif len(torch_padding) == 2:
-            image_dimensions[0] += sum(torch_padding)
-            image_dimensions[1] += sum(torch_padding)
+            image_dimensions[0] += 2 * torch_padding[1]
+            image_dimensions[1] += 2 * torch_padding[0]
 
             pads_begin[layout.get_index_by_name("H")] = torch_padding[1]
             pads_begin[layout.get_index_by_name("W")] = torch_padding[0]
