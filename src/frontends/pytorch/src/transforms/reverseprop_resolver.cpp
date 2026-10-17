@@ -30,6 +30,8 @@ using namespace ov::pass;
 using namespace ov::op;
 
 ReversepropResolver::ReversepropResolver() {
+    // Earlier mutation rewrites can change shapes used by later index calculations.
+    m_enable_shape_inference = true;
     auto reverse_op = pattern::wrap_type<InternalReverseOperation>();
 
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -107,7 +109,7 @@ ReversepropResolver::ReversepropResolver() {
 
     auto m =
         std::make_shared<ov::pass::pattern::Matcher>(reverse_op, "ov::frontend::pytorch::pass::ReversepropResolver");
-    this->register_matcher(m, callback);
+    add_matcher(std::make_shared<ov::pass::MatcherPass>(m, callback));
 };
 
 }  // namespace ov::frontend::pytorch::pass
