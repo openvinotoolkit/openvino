@@ -4,6 +4,12 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
+// Total number of elements physically addressable in the input buffer.
+// The kernel is only selected when input pitches match logical dims (see
+// PermuteKernel_bfzyx_to_bfyxz::Validate), so the buffer is contiguous and
+// its size is simply the first element offset plus the logical size.
+#define INPUT0_TOTAL_PHYSICAL_SIZE (INPUT0_OFFSET + INPUT0_LENGTH)
+
 KERNEL (permute_bfzyx_to_bfyxz)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -80,17 +86,29 @@ KERNEL (permute_bfzyx_to_bfyxz)(
     else if (X_REMAINDER_CONDITION) {
         // read
         for (int lh = 0; lh < TILE_SIZE; ++lh) {
-            // read
+            // The last (partial) X tile only has X_REMAINDER_SIZE valid elements
+            // starting at input_idx, so a full-width VLOAD(input_idx) could read
+            // past the end of the buffer. Instead, shift the vector load start
+            // backwards just enough to stay in bounds (this only changes
+            // anything for the very last rows of the buffer) and pick the
+            // correct elements back out of the loaded vector using that shift.
             unsigned int input_idx = INPUT0_GET_INDEX(b, f, (z * TILE_SIZE + lh), y, (x * TILE_SIZE));
-            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
+            unsigned int vload_idx = input_idx;
+            uint shift = 0;
+            if (vload_idx + TILE_SIZE > INPUT0_TOTAL_PHYSICAL_SIZE) {
+                uint excess = vload_idx + TILE_SIZE - INPUT0_TOTAL_PHYSICAL_SIZE;
+                shift = (excess < vload_idx) ? excess : vload_idx;
+                vload_idx -= shift;
+            }
+            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + vload_idx));
             // transpose
             unroll_for (int i = 0; i < X_REMAINDER_SIZE; ++i) {
 #if HAS_FUSED_OPS
-                INPUT0_TYPE input_var = read_data[i];
+                INPUT0_TYPE input_var = read_data[shift + i];
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[shift + i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -105,18 +123,26 @@ KERNEL (permute_bfzyx_to_bfyxz)(
      else if (z == Z_REMAINDER_ITEM && x == X_REMAINDER_ITEM) {
         // point by point
         for (int lh = 0; lh < Z_REMAINDER_SIZE; ++lh) {
-            // read
+            // See comment above: shift the vector load start backwards to stay
+            // within the bounds of the input buffer for this last partial tile.
             unsigned int input_idx = INPUT0_GET_INDEX(b, f, (z * TILE_SIZE + lh), y, (x * TILE_SIZE));
-            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
+            unsigned int vload_idx = input_idx;
+            uint shift = 0;
+            if (vload_idx + TILE_SIZE > INPUT0_TOTAL_PHYSICAL_SIZE) {
+                uint excess = vload_idx + TILE_SIZE - INPUT0_TOTAL_PHYSICAL_SIZE;
+                shift = (excess < vload_idx) ? excess : vload_idx;
+                vload_idx -= shift;
+            }
+            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + vload_idx));
             // transpose
             for (int i = 0; i < X_REMAINDER_SIZE; ++i) {
                 unsigned int dst = local_buf_offset + i;
 #if HAS_FUSED_OPS
-                INPUT0_TYPE input_var = read_data[i];
+                INPUT0_TYPE input_var = read_data[shift + i];
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[shift + i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -130,4 +156,3 @@ KERNEL (permute_bfzyx_to_bfyxz)(
     }
 #endif
 }
-

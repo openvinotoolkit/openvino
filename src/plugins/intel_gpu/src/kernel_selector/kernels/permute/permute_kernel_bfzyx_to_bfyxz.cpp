@@ -169,6 +169,18 @@ bool PermuteKernel_bfzyx_to_bfyxz::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
+    // The X-remainder handling in the kernel relies on being able to shift a
+    // full-width vector load backwards so it stays within the input buffer.
+    // That is only possible when the buffer holds at least MIN_TILE_SIZE
+    // elements in total; for smaller (degenerate) inputs there is no safe
+    // vector-aligned window to read from, so skip this kernel and let a
+    // generic (scalar) permute kernel handle it instead.
+    const auto& in = params.inputs[0];
+    const size_t total_elements = in.Batch().v * in.Feature().v * in.Z().v * in.Y().v * in.X().v;
+    if (total_elements < MIN_TILE_SIZE) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     return true;
 }
 
