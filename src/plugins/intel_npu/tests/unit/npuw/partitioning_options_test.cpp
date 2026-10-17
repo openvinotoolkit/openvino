@@ -82,6 +82,24 @@ void set_output_bound(const std::shared_ptr<ov::Model>& model, const std::string
     output.get_tensor().set_upper_value(bound);
 }
 
+std::shared_ptr<ov::Model> build_shared_const_convert_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32});
+    input->set_friendly_name("input");
+
+    auto constant =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{32}, std::vector<int32_t>(32, 1));
+    auto convert = std::make_shared<ov::op::v0::Convert>(constant, ov::element::f32);
+    convert->set_friendly_name("shared_convert");
+    auto add = std::make_shared<ov::op::v1::Add>(input, convert);
+    add->set_friendly_name("add");
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(input, convert);
+    multiply->set_friendly_name("multiply");
+
+    auto add_result = std::make_shared<ov::op::v0::Result>(add);
+    auto multiply_result = std::make_shared<ov::op::v0::Result>(multiply);
+    return std::make_shared<ov::Model>(ov::ResultVector{add_result, multiply_result}, ov::ParameterVector{input});
+}
+
 std::shared_ptr<ov::Model> build_static_llm_model(const int64_t query_len, const int64_t past_len) {
     LLMConfig config;
     config.num_layers = 4;
@@ -436,6 +454,60 @@ TEST(PartitioningOptionsTest, OptimizedOutForcedFunctionsAreNotMaterialized) {
     }
 
     EXPECT_GT(optimized_out_count, 0u);
+}
+
+TEST(PartitioningOptionsTest, IsolatesSharedConvertConstantAcrossFunctionCalls) {
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "NONE"},
+                         {"NPUW_ONLINE_AVOID", "Op:Add/NPU,Op:Multiply/NPU"},
+                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                         {"NPUW_CWAI", "YES"}});
+
+    auto partitioning = ov::npuw::getPartitioning(build_shared_const_convert_model(), cfg);
+    std::size_t result_count = 0;
+    for (const auto& subgraph : partitioning.subgraphs) {
+        result_count += subgraph._results.size();
+    }
+    EXPECT_EQ(result_count, 2u);
+
+    std::size_t functions_with_convert = 0;
+    std::set<const ov::Node*> function_convert_nodes;
+    for (const auto& [_, function] : partitioning.functions) {
+        const auto ordered_ops = function._model->get_ordered_ops();
+        const bool is_consumer_function = std::any_of(ordered_ops.begin(),
+                                                      ordered_ops.end(),
+                                                      [](const std::shared_ptr<ov::Node>& node) {
+                                                          const auto& name = node->get_friendly_name();
+                                                          return name == "add" || name == "multiply";
+                                                      });
+        if (!is_consumer_function) {
+            continue;
+        }
+        const auto convert = std::find_if(ordered_ops.begin(),
+                                          ordered_ops.end(),
+                                          [](const std::shared_ptr<ov::Node>& node) {
+                                              return node->get_friendly_name() == "shared_convert";
+                                          });
+        if (convert == ordered_ops.end()) {
+            continue;
+        }
+        functions_with_convert++;
+        function_convert_nodes.insert(convert->get());
+        const auto convert_readers = (*convert)->output(0).get_target_inputs();
+        EXPECT_FALSE(std::any_of(convert_readers.begin(),
+                                 convert_readers.end(),
+                                 [](const ov::Input<ov::Node>& reader) {
+                                     return ov::op::util::is_output(reader.get_node());
+                                 }));
+        const auto parameter = (*convert)->input(0).get_source_output().get_node_shared_ptr();
+        EXPECT_TRUE(ov::op::util::is_parameter(parameter));
+        EXPECT_TRUE(std::any_of(function._model->get_parameters().begin(),
+                                function._model->get_parameters().end(),
+                                [&parameter](const std::shared_ptr<ov::op::v0::Parameter>& model_parameter) {
+                                    return model_parameter == parameter;
+                                }));
+    }
+    EXPECT_EQ(functions_with_convert, 2u);
+    EXPECT_EQ(function_convert_nodes.size(), 1u);
 }
 
 TEST(PartitioningOptionsTest, FoldCreatesFunctionCallsForRepeatedBlocks) {
