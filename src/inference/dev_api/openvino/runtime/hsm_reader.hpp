@@ -12,8 +12,8 @@
 #include <variant>
 #include <vector>
 
-#include "openvino/runtime/hsm_format.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/hsm_format.hpp"
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
@@ -189,7 +189,7 @@ public:
     /**
      * @brief Returns a reference to the vector of all manifest entries in the container.
      * @return A reference to the vector of all manifest entries in the container.
-    */
+     */
     const std::vector<ManifestEntry>& entries() const noexcept {
         return m_manifest;
     }
@@ -235,7 +235,8 @@ public:
     }
 
     /**
-     * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in manifest order.
+     * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in
+     * manifest order.
      *
      * @tparam Tag The type of the tag, typically an enum or `uint32_t`.
      * @param device The device ID to match.
@@ -317,9 +318,9 @@ public:
 
 private:
     Reader(std::optional<ov::util::MemoryView> buffer,
-              std::istream* stream,
-              std::streampos start,
-              std::vector<ManifestEntry> manifest) noexcept
+           std::istream* stream,
+           std::streampos start,
+           std::vector<ManifestEntry> manifest) noexcept
         : m_buffer(buffer),
           m_stream(stream),
           m_start(start),
