@@ -200,7 +200,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 #if WITH_ATTN_MASK
-        const global half *msk,
+    const global INPUT3_TYPE *msk,
 #endif
 #if WITH_SCALE
         global SCALE_DATA_T *scale_ptr,
@@ -500,7 +500,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     A += DST_OFF(b1, b0, 0, 0, 0);
 #if WITH_ATTN_MASK
     uint ldmsk = MSK_S2;
-    msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
+    msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0) + INPUT3_OFFSET;
 #endif
 #endif
 
@@ -739,19 +739,39 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint sg_j0_kq = sg_j_kq * ugemm_kq_sg_tile_n;
 
 #if WITH_ATTN_MASK
-        /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
+    /* Load mask. The mask may be broadcast along the query (MSK_D2 == 1)
+       and/or key (MSK_D3 == 1) dimension and its row pitch may include
+       padding, so index it with its own strides and bounds.
+       Elements are kept in a half tile: bf16 masks keep their raw bits
+       (decoded when the mask is applied), other types are converted. */
+#if INPUT3_IS_BF16
+#define msk_to_tile(x) as_half(x)
+#else
+#define msk_to_tile(x) convert_half(x)
+#endif
         mask_tile_type mask_tile;
-        if (MSK_D2 == 1 && MSK_D3 > 1) {
-            // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
-            // In the case of single query dimension, set ld and offset_r to zero
-            // to avoid exceeding bounds for single dimension.
-            tile_load_t(&mask_tile, msk, MSK_D2, MSK_D3, 0, 0, k0 + sg_i0_kq);
-        } else {
-            /* Must pass ldmsk explicitly: the 6-arg overload defaults ld to k (the K/V
-               sequence length), which is wrong whenever the mask's physical row stride
-               (MSK_S2) differs from k, e.g. when the mask is padded to max_seq_len. */
-            tile_load_t(&mask_tile, msk, q, k, ldmsk, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+        {
+            const int msk_ld_q = (MSK_D2 == 1) ? 0 : (int)ldmsk;
+            const int msk_ld_k = (MSK_D3 == 1) ? 0 : 1;
+            const int msk_q_max = (MSK_D2 == 1) ? q : min(q, (int)MSK_D2);
+            const int msk_k_max = (MSK_D3 == 1) ? k : min(k, (int)MSK_D3);
+            const int msk_q0 = wg_j0 + sg_j0_kq;
+            const int msk_k0 = k0 + sg_i0_kq;
+#pragma unroll
+            for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                const int msk_q = msk_q0 + i0 + get_sub_group_local_id();
+#pragma unroll
+                for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+                    const int msk_k = msk_k0 + j;
+                    half msk_val = 0;
+                    if (msk_q < msk_q_max && msk_k < msk_k_max)
+                        msk_val = msk_to_tile(msk[msk_q * msk_ld_q + msk_k * msk_ld_k]);
+                    tile_access(mask_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                            ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = msk_val;
+                }
+            }
         }
+#undef msk_to_tile
 #endif
 
 #if REMAINDER_K
@@ -1094,8 +1114,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
-#if INPUT0_IS_BF16
-        // Mask buffer holds bf16 values but the kernel reads it as half*;
+#if INPUT3_IS_BF16
+        // bf16 mask values were stored as raw bits in the half tile;
         // reinterpret the 16-bit values as bf16 bits when converting to float.
         tile_copy_bf16bits_to_float(mask_tile, mask_tile_float);
 #else
