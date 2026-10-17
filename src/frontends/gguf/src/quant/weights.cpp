@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Weight node construction for the native GGUF path. Quantized weights become a
-// low-bitness compressed decompression subgraph (u4 for 4-bit, u8 for 8-bit; OpenVINO
-// supports every GGUF bitness used here except 3-bit). Adapted from the genai gguf_utils
-// make_int4/int8_weights helpers, working from the parser's compressed tensors
-// (.weight u32-packed + .scales f16 + .biases f16).
+// Weight node construction and decompression for native and supplied-cgraph GGUF weights.
 
 #include "weights.hpp"
 
@@ -70,7 +66,7 @@ WeightFormat get_weight_format(GgufTensorType qtype) {
     case GGUF_TYPE_Q4_0:
         return {FillKind::SYMMETRIC, 32, ov::element::i4};
     case GGUF_TYPE_Q3_K:
-        return {FillKind::SYMMETRIC, 16, ov::element::i4};
+        return {FillKind::SYMMETRIC, 16, ov::element::u3};
     case GGUF_TYPE_Q5_0:
     case GGUF_TYPE_Q8_0:
         return {FillKind::SYMMETRIC, 32, ov::element::i8};
@@ -188,7 +184,8 @@ std::shared_ptr<ov::Node> make_compressed(const WeightTensors& tensors, ov::elem
     // without reshaping the caller's tensors: tied K/V projections reuse them.
     auto scales_node = make_shared_constant(tensors.scales.get_element_type(), scale_shape, tensors.scales);
     const auto zp_node =
-        tensors.zero_point
+        et == ov::element::u3 ? ov::op::v0::Constant::create(ov::element::u8, {}, {4})
+        : tensors.zero_point
             ? make_shared_constant(tensors.zero_point.get_element_type(), scale_shape, tensors.zero_point)
             : nullptr;
     auto final_shape_node =
@@ -312,7 +309,7 @@ void dequant_extracted_row_to_f32(const WeightTensors& tensors, size_t r, size_t
             }
         } else {
             // u32-packed 4-bit, 8 nibbles per u32. With a zero-point (Q4_1/Q4_K) the nibbles are
-            // unsigned u4; without one (Q4_0 XOR-encoded, Q3_K centered) they are signed i4.
+            // unsigned u4; without one (Q4_0 XOR-encoded) they are signed i4.
             const auto* packed = static_cast<const uint32_t*>(weight.data()) + r * (cols / 8) + (g * group) / 8;
             for (size_t k = 0; k < group; ++k) {
                 const int nib = static_cast<int>((packed[k / 8] >> ((k % 8) * 4)) & 0xF);
@@ -354,7 +351,8 @@ bool is_embedding_or_output(const std::string& name) {
 // Decide whether a weight is requantized to Q8_0_C, mirroring llama.cpp's
 // ggml_openvino_get_requant_type for the CPU/GPU (non-NPU) path.
 bool needs_q8_0_c_requant(const std::string& name, GgufTensorType qtype) {
-    return qtype != GGUF_TYPE_Q1_0 && (is_embedding_or_output(name) || qtype == GGUF_TYPE_Q5_K);
+    return qtype != GGUF_TYPE_Q1_0 && qtype != GGUF_TYPE_Q3_K &&
+           (is_embedding_or_output(name) || qtype == GGUF_TYPE_Q5_K);
 }
 
 // Keep an exact-decode escape hatch for strict validation against ggml's original Q4_K / Q4_1 values.
@@ -451,12 +449,13 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
     } else {
         const auto node_et = format.node_element_type();
         // Explicit f32 arithmetic instead of the low-precision decomposition when:
-        //  - Q6_K, to preserve the reference dequantization accuracy; or
+        //  - Q3_K/Q6_K, to preserve the reference dequantization accuracy; or
         //  - a 4-/8-bit weight carries a FRACTIONAL f16 zero-point, which cannot fold into a
         //    compressed FullyConnected anyway, so the exact f32 form costs nothing.
         // The 2-bit formats (Q2_K/Q2_0) always stay on the decomposition.
         const bool fractional_zp = tensors.zero_point && tensors.zero_point.get_element_type() == ov::element::f16;
-        const bool explicit_f32 = qtype == GGUF_TYPE_Q6_K || (fractional_zp && node_et.bitwidth() >= 4);
+        const bool explicit_f32 =
+            qtype == GGUF_TYPE_Q3_K || qtype == GGUF_TYPE_Q6_K || (fractional_zp && node_et.bitwidth() >= 4);
         node = make_compressed(tensors, node_et, explicit_f32);
     }
     node->set_friendly_name(name);
