@@ -677,7 +677,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(self.pt_module, torch.fx.GraphModule):
             return "GraphModule"
         if self.pt_module.op == "call_function":
-            if type(self.pt_module.target).__name__ == "EdgeOpOverload":
+            if self.pt_module.target is getattr(torch, "sym_min", None):
+                name = "sym_min"
+            elif type(self.pt_module.target).__name__ == "EdgeOpOverload":
                 name = self.pt_module.target.__name__
             else:
                 name = str(self._functional_out_target(self.pt_module.target))
