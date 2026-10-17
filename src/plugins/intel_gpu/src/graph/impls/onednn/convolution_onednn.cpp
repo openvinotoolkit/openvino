@@ -148,10 +148,69 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
 private:
     int _zero_point_mask;
     dnnl::memory::data_type _wzp_data_type = dnnl::memory::data_type::undef;
+    // Set when _pd uses src/dst layouts chosen by oneDNN; the OV memories are reordered around the convolution.
+    bool _wrap_io = false;
+    dnnl::memory::desc _src_user_md;
+    dnnl::memory::desc _dst_user_md;
+    dnnl::reorder _src_reorder;
+    dnnl::reorder _dst_reorder;
+    std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _src_reorder_args;
+    std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _dst_reorder_args;
+
+    void set_io_reorders(const dnnl::engine& engine, const dnnl::memory::desc& src_user_md, const dnnl::memory::desc& dst_user_md) {
+        _wrap_io = true;
+        _src_user_md = src_user_md;
+        _dst_user_md = dst_user_md;
+        _src_reorder = dnnl::reorder(dnnl::reorder::primitive_desc(engine, _src_user_md, engine, _pd.dnnl::primitive_desc_base::src_desc(0)));
+        _dst_reorder = dnnl::reorder(dnnl::reorder::primitive_desc(engine, _pd.dnnl::primitive_desc_base::dst_desc(0), engine, _dst_user_md));
+    }
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<convolution_onednn>(*this);
+    }
+
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
+        auto descs = parent::get_internal_buffer_descs(params);
+        if (_wrap_io) {
+            descs.emplace_back(_pd.dnnl::primitive_desc_base::src_desc(0).get_size(), cldnn::data_types::u8);
+            descs.emplace_back(_pd.dnnl::primitive_desc_base::dst_desc(0).get_size(), cldnn::data_types::u8);
+        }
+        return descs;
+    }
+
+    void set_arguments_impl(convolution_inst& instance) override {
+        parent::set_arguments_impl(instance);
+        if (!_wrap_io || instance.can_be_optimized()) {
+            return;
+        }
+
+        // The convolution runs on the internal buffers that follow the scratchpad.
+        const auto& intermediates = instance.get_intermediates_memories();
+        const size_t src_tmp_idx = _scratchpad_md.get_size() != 0 ? 1 : 0;
+        OPENVINO_ASSERT(intermediates.size() >= src_tmp_idx + 2, "[GPU] oneDNN convolution ", instance.id(), " misses its src/dst reorder buffers");
+        auto src_tmp = intermediates[src_tmp_idx]->get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0));
+        auto dst_tmp = intermediates[src_tmp_idx + 1]->get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0));
+
+        const auto src_offset = onednn::get_offset(instance.get_input_layout(0), dnnl::memory::desc(_src_user_md));
+        const auto dst_offset = onednn::get_offset(instance.get_output_layout(), dnnl::memory::desc(_dst_user_md));
+        const auto net_id = instance.get_network().get_id();
+        _src_reorder_args[net_id] = {{DNNL_ARG_FROM, instance.input_memory(0).get_onednn_memory(_src_user_md, src_offset)}, {DNNL_ARG_TO, src_tmp}};
+        _dst_reorder_args[net_id] = {{DNNL_ARG_FROM, dst_tmp}, {DNNL_ARG_TO, instance.output_memory().get_onednn_memory(_dst_user_md, dst_offset)}};
+
+        auto& args = _args[net_id];
+        args[DNNL_ARG_SRC] = src_tmp;
+        args[DNNL_ARG_DST] = dst_tmp;
+    }
+
+    void execute_primitives(dnnl::stream& stream, uint32_t net_id) override {
+        if (!_wrap_io) {
+            parent::execute_primitives(stream, net_id);
+            return;
+        }
+        _src_reorder.execute(stream, _src_reorder_args[net_id]);
+        parent::execute_primitives(stream, net_id);
+        _dst_reorder.execute(stream, _dst_reorder_args[net_id]);
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
@@ -293,6 +352,7 @@ public:
         parent::save(ob);
 
         ob << _zero_point_mask;
+        ob << _wrap_io;
 
         const dnnl::convolution_forward::primitive_desc *typed_pd
             = reinterpret_cast<const dnnl::convolution_forward::primitive_desc *>(&_pd);
@@ -322,13 +382,14 @@ public:
         if (_zero_point_mask != -1) {
             _attrs->set_zero_points_mask(DNNL_ARG_SRC, _zero_point_mask);
         }
+        bool wrap_io = false;
+        ib >> wrap_io;
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
-        auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(impl_params->get_input_layout(0),
-                                                                                impl_params->get_input_layout(1),
-                                                                                impl_params->get_output_layout(),
-                                                                                dnnl::memory::format_tag::undef);
+        const auto io_tag = wrap_io ? dnnl::memory::format_tag::any : dnnl::memory::format_tag::undef;
+        auto [input_md, weights_md, output_md] =
+            onednn::get_conv_memory_descs(impl_params->get_input_layout(0), impl_params->get_input_layout(1), impl_params->get_output_layout(), io_tag);
 
         dnnl::memory::dims strides;
         dnnl::memory::dims dilates;
@@ -381,6 +442,14 @@ public:
         ib >> prim_cache;
 
         _prim = make_primitive_from_blob(prim_cache);
+
+        if (wrap_io) {
+            const auto user_mds = onednn::get_conv_memory_descs(impl_params->get_input_layout(0),
+                                                                impl_params->get_input_layout(1),
+                                                                impl_params->get_output_layout(),
+                                                                dnnl::memory::format_tag::undef);
+            set_io_reorders(ib.get_engine().get_onednn_engine(), std::get<0>(user_mds), std::get<2>(user_mds));
+        }
 #endif
     }
 
@@ -393,9 +462,26 @@ public:
         auto attr = get_primitive_attributes(arg, impl_params, zero_point_mask, wzp_data_type);
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
+        std::shared_ptr<dnnl::convolution_forward::primitive_desc> user_layout_desc;
+
+        // The layout of a dynamic node is fixed at compile time; some runtime shapes only get oneDNN's reference impl.
+        // Dynamic nodes never get a sum post-op (get_add_fusing_type), so dst may use a layout chosen by oneDNN.
+        if (arg.is_dynamic() && onednn::is_reference_impl(*prim_desc)) {
+            auto any_layout_desc = get_convolution_primitive_descriptor(impl_params, *attr, dnnl::memory::format_tag::any);
+            if (!onednn::is_reference_impl(*any_layout_desc)) {
+                user_layout_desc = prim_desc;
+                prim_desc = any_layout_desc;
+            }
+        }
 
         auto conv_onednn_impl = std::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
                                                 get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
+
+        if (user_layout_desc) {
+            GPU_DEBUG_TRACE_DETAIL << arg.id() << ": oneDNN selected " << user_layout_desc->impl_info_str() << " for the OV layouts, using "
+                                   << prim_desc->impl_info_str() << " with src/dst reorders" << std::endl;
+            conv_onednn_impl->set_io_reorders(engine.get_onednn_engine(), user_layout_desc->src_desc(), user_layout_desc->dst_desc());
+        }
 
         conv_onednn_impl->set_zero_point_mask(zero_point_mask);
         conv_onednn_impl->set_weights_zero_point_data_type(wzp_data_type);
