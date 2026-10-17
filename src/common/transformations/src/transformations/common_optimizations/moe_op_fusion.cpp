@@ -11,6 +11,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -31,6 +32,7 @@
 #include "ov_ops/gather_matmul.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
 
@@ -40,6 +42,7 @@ using ov::op::internal::MOECompressed;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v7 = ov::op::v7;
 namespace v8 = ov::op::v8;
@@ -157,6 +160,42 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
+            const auto is_zp_supported = [](const ov::Output<ov::Node>& zp, const ov::Output<ov::Node>& weights) {
+                // A dynamic-typed zp is a symmetric placeholder: there is nothing to prepare.
+                if (zp.get_element_type() == ov::element::dynamic) {
+                    return true;
+                }
+                // Scalar zero point is supported only for u3 weights in MoE via broadcasting it to scale shape.
+                // Note: other compressed types usually don't have scalar zero points:
+                // NNCF uses signed element type (which doesn't exists for u3) instead in such cases
+                return weights.get_element_type() == ov::element::u3 || ov::shape_size(zp.get_shape()) != 1;
+            };
+            if (!is_zp_supported(pm.at(gate_zp_m), gate_w) || !is_zp_supported(pm.at(up_zp_m), up_w) ||
+                !is_zp_supported(pm.at(down_zp_m), down_w)) {
+                return false;
+            }
+
+            const auto prepare_zero_point = [](const ov::Output<ov::Node>& zp,
+                                               const ov::Output<ov::Node>& scale,
+                                               const ov::Output<ov::Node>& weights) {
+                if (weights.get_element_type() != ov::element::u3 || zp.get_element_type() == ov::element::dynamic) {
+                    return zp;
+                }
+                auto result = zp;
+                // Note: OneDNN groupedMM supports only u8 zero points for u3 weights.
+                result = ov::op::util::make_try_fold<v0::Convert>(result, ov::element::u8);
+                ov::copy_runtime_info(zp.get_node_shared_ptr(), result.get_node_shared_ptr());
+                // OneDNN currently doesn't support scalar zero points for GroupedMM
+                if (ov::shape_size(zp.get_shape()) == 1) {
+                    const auto& scale_shape = scale.get_shape();
+                    auto target_shape = v0::Constant::create(ov::element::i64, {scale_shape.size()}, scale_shape);
+                    ov::copy_runtime_info(zp.get_node_shared_ptr(), target_shape);
+                    result = ov::op::util::make_try_fold<v3::Broadcast>(result, target_shape);
+                    ov::copy_runtime_info(zp.get_node_shared_ptr(), result.get_node_shared_ptr());
+                }
+                return result;
+            };
+
             // Build MOECompressed with 12 inputs: hidden, routing, topk,
             // gate_w, gate_scale, gate_zp, up_w, up_scale, up_zp, down_w, down_scale, down_zp
             ov::OutputVector moe_inputs = {
@@ -165,13 +204,13 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 topk_indices,
                 gate_w,
                 pm.at(gate_scale_m),
-                pm.at(gate_zp_m),
+                prepare_zero_point(pm.at(gate_zp_m), pm.at(gate_scale_m), gate_w),
                 up_w,
                 pm.at(up_scale_m),
-                pm.at(up_zp_m),
+                prepare_zero_point(pm.at(up_zp_m), pm.at(up_scale_m), up_w),
                 down_w,
                 pm.at(down_scale_m),
-                pm.at(down_zp_m),
+                prepare_zero_point(pm.at(down_zp_m), pm.at(down_scale_m), down_w),
             };
 
             // Populate compressed config from weight shapes
