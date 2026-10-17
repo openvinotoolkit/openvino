@@ -46,7 +46,7 @@ void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
     validate();
 
     const auto& output_type = get_attrs().output_type;
-    set_output_type(0, get_input_element_type(0), output_shapes[0].get_max_shape());
-    set_output_type(1, output_type, output_shapes[1].get_max_shape());
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, output_type, output_shapes[1]);
     set_output_type(2, output_type, output_shapes[2]);
 }
