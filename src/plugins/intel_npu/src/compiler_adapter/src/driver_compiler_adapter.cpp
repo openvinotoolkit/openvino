@@ -62,7 +62,6 @@ const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
     {ov::intel_npu::qdq_optimization.name(), ONEAPI_MAKE_VERSION(7, 20)},
     {ov::intel_npu::tiles.name(), ONEAPI_MAKE_VERSION(5, 4)},
     {ov::intel_npu::turbo.name(), ONEAPI_MAKE_VERSION(7, 21)},
-    {ov::intel_npu::stepping.name(), ONEAPI_MAKE_VERSION(5, 3)},
 };
 
 }  // namespace

@@ -599,14 +599,12 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::intel_npu::max_tiles.name(), true, ov::PropertyMutability::RO, 
         hasBackendAndValidDevice,
         [this](const ov::AnyMap& arguments) {
-            if (!_config.has<MAX_TILES>()) {
-                try {
-                    return static_cast<int64_t>(utils::getMaxTiles(_backend, getDeviceIdOrDefault(arguments)));
-                } catch (...) {
-                    _logger.warning("GetMaxTiles failed to get value from device.");
-                }
+            try {
+                return static_cast<int64_t>(utils::getMaxTiles(_backend, getDeviceIdOrDefault(arguments)));
+            } catch (...) {
+                _logger.warning("GetMaxTiles failed to get value from device.");
             }
-            return _config.get<MAX_TILES>();
+            return static_cast<int64_t>(-1);
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key: ", ov::intel_npu::max_tiles.name());
@@ -747,24 +745,6 @@ void PluginPropertyManager::registerProperties() {
         },
         [this](const ov::Any& value) {
             _config.update(ov::intel_npu::shared_common_queue.name(), value);
-        }
-    );
-    register_property(ov::intel_npu::stepping.name(), false, ov::PropertyMutability::RW, 
-        [this](const ov::AnyMap&) {
-            return _config.hasOpt(ov::intel_npu::stepping.name());
-        },
-        [this](const ov::AnyMap& arguments) {
-            if (!_config.has<STEPPING>()) {
-                try {
-                    return static_cast<int64_t>(utils::getSteppingNumber(_backend, getDeviceIdOrDefault(arguments)));
-                } catch (...) {
-                    _logger.warning("GetSteppingNumber failed to get value from device.");
-                }
-            }
-            return _config.get<STEPPING>();
-        },
-        [this](const ov::Any& value) {
-            _config.update(ov::intel_npu::stepping.name(), value.as<std::string>());
         }
     );
     register_property(ov::intel_npu::compile_log_level.name(), false, ov::PropertyMutability::RW,
