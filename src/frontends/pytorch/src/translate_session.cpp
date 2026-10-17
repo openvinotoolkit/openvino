@@ -291,10 +291,19 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     const auto sequence = make_list_construct(values);
                     encode_tensor_name(sequence, raw_inputs[i]);
                     (*tensor_map)[raw_inputs[i]] = sequence;
-                    // Nested-container extraction must retain the view that links it to its parent sequence.
-                    if (alias != m_may_be_alias.end() &&
-                        !ov::is_type<SequenceMark>(alias->second.base_value.get_node_shared_ptr())) {
-                        alias->second.output = sequence;
+                    for (auto current = alias; current != m_may_be_alias.end();
+                         current = m_may_be_alias.find(current->second.base_id)) {
+                        auto& info = current->second;
+                        if (ov::is_type<SequenceMark>(info.base_value.get_node())) {
+                            break;
+                        }
+                        const bool same_value = info.output == info.base_value;
+                        info.output = sequence;
+                        if (!same_value) {
+                            break;
+                        }
+                        info.base_value = sequence;
+                        (*tensor_map)[info.base_id] = sequence;
                     }
                 }
             }

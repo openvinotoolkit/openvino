@@ -149,45 +149,26 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
                                                     "aten::squeeze_",
                                                     "aten::transpose_",
                                                     "aten::t_"};
-    if (metadata_ops.count(normalize_op_type(get_op_type()))) {
-        // Existing views retain their shape when the base tensor's metadata changes.
+    const bool metadata_only = metadata_ops.count(normalize_op_type(get_op_type()));
+    if (metadata_only) {
         const auto old_shape_view =
             m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);
+        std::set<size_t> same_tensor_ids{input_id};
+        for (const auto& [tensor_id, value] : *m_tensor_map) {
+            if (value == previous_value) {
+                same_tensor_ids.insert(tensor_id);
+            }
+        }
         for (auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
-            if (info.element_ids.empty() && info.base_id == input_id) {
+            if (!same_tensor_ids.count(alias_id) && info.element_ids.empty() && same_tensor_ids.count(info.base_id)) {
                 info.output = rebase_view(info.output, info.base_value, old_shape_view);
                 info.base_value = ov_output;
                 (*m_tensor_map)[alias_id] = info.output;
             }
         }
-        auto member_id = input_id;
-        auto member_value = ov_output;
-        for (auto alias = m_translate_session->m_may_be_alias.find(member_id);
-             alias != m_translate_session->m_may_be_alias.end();
-             alias = m_translate_session->m_may_be_alias.find(member_id)) {
-            auto& info = alias->second;
-            const auto sequence = ov::as_type_ptr<SequenceMark>(info.base_value.get_node_shared_ptr());
-            if (!sequence) {
-                info.output = member_value;
-                break;
-            }
-            auto elements = sequence->get_sequence();
-            const auto member = std::find(elements.begin(), elements.end(), info.output);
-            if (member == elements.end()) {
-                info.output = member_value;
-                break;
-            }
-            *member = member_value;
-            const auto updated_sequence = make_list_construct(elements);
-            info.output = member_value;
-            info.base_value = updated_sequence;
-            member_id = info.base_id;
-            member_value = updated_sequence;
-            (*m_tensor_map)[member_id] = member_value;
-            m_translate_session->encode_tensor_name(member_value, member_id);
-            m_mutated_tensors->insert(member_id);
+        for (const auto tensor_id : same_tensor_ids) {
+            (*m_tensor_map)[tensor_id] = ov_output;
         }
-        return;
     }
 
     // Resolve aliases
@@ -198,10 +179,19 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         // alias to tensor. In that case we need to create a chain of reverseprop ops
         auto& alias_info = m_translate_session->m_may_be_alias.at(back_input_id);
         const auto in_tensor = alias_info.base_id;
+        if (metadata_only && !ov::is_type<SequenceMark>(alias_info.base_value.get_node()) &&
+            alias_info.output != alias_info.base_value) {
+            alias_info.output = back_node_input;
+            break;
+        }
         auto reverseprop_node = m_translate_session->get_reverseprop_op(alias_info.decoder,
                                                                         alias_info.output,
                                                                         back_node_input,
                                                                         alias_info.base_value);
+        if (metadata_only) {
+            alias_info.output = back_node_input;
+            alias_info.base_value = reverseprop_node;
+        }
         m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
         (*m_tensor_map)[in_tensor] = reverseprop_node;
         m_mutated_tensors->insert(in_tensor);

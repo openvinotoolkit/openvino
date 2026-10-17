@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 import openvino as ov
@@ -29,7 +29,9 @@ class ContainerMetadataMutation(torch.nn.Module):
         view = member[:, :2]
         if self.update_other:
             other.add_(1)
-        if self.mutation == "transpose":
+        if self.mutation == "chain":
+            member.transpose_(0, 1).unsqueeze_(0)
+        elif self.mutation == "transpose":
             member.transpose_(0, 1)
         elif self.mutation == "unsqueeze":
             member.unsqueeze_(0)
@@ -48,9 +50,61 @@ class NestedContainerMetadataMutation(ContainerMetadataMutation):
         return cache, view
 
 
+class ListMetadataMutation(torch.nn.Module):
+    def forward(self, cache: List[torch.Tensor]):
+        left, right = cache
+        view = left[:, :2]
+        cache[0].transpose_(0, 1)
+        return cache, left, view
+
+
 @pytest.mark.precommit
 @pytest.mark.nightly
-@pytest.mark.parametrize("mutation", ["transpose", "unsqueeze", "squeeze"])
+def test_torch_list_member_metadata_preserves_views():
+    inputs = [torch.arange(6, dtype=torch.float32).reshape(2, 3), torch.ones(2, 3)]
+    model = torch.jit.script(ListMetadataMutation())
+    converted = ov.convert_model(model, example_input=(deepcopy(inputs),))
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    cache, left, view = model(deepcopy(inputs))
+    results = list(compiled([x.numpy() for x in inputs]).values())
+    assert len(results) == 4
+    for expected, actual in zip((*cache, left, view), results):
+        np.testing.assert_array_equal(actual, expected.numpy())
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+def test_torch_wrapped_chunk_base_mutation():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    graph = torch._C.parse_ir("""graph(%base : Tensor):
+      %two : int = prim::Constant[value=2]()
+      %zero : int = prim::Constant[value=0]()
+      %one : int = prim::Constant[value=1]()
+      %parts : Tensor[] = aten::chunk(%base, %two, %zero)
+      %wrapped : (Tensor[]) = prim::TupleConstruct(%parts)
+      %alias : Tensor[] = prim::TupleUnpack(%wrapped)
+      %a : Tensor, %b : Tensor = prim::ListUnpack(%alias)
+      %updated : Tensor = aten::add_(%base, %one, %one)
+      return (%a, %b)
+    """)
+    frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+    decoder = TorchScriptPythonDecoder(None, graph, alias_db=graph.alias_db())
+    input_model = frontend.load(decoder)
+    input_model.set_element_type(input_model.get_inputs()[0], ov.Type.f32)
+    input_model.set_partial_shape(input_model.get_inputs()[0], ov.PartialShape([4, 3]))
+    converted = frontend.convert(input_model)
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    source = np.arange(12, dtype=np.float32).reshape(4, 3)
+    results = list(compiled([source]).values())
+    assert len(results) == 2
+    for actual, expected in zip(results, np.split(source + 1, 2)):
+        np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+@pytest.mark.parametrize("mutation", ["transpose", "unsqueeze", "squeeze", "chain"])
 @pytest.mark.parametrize("right", [False, True])
 @pytest.mark.parametrize("update_other", [False, True])
 @pytest.mark.parametrize("nested", [False, True])
