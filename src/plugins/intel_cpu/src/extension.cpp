@@ -105,6 +105,7 @@
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "transformations/cpu_opset/common/op/ngram_hash.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
@@ -198,6 +199,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::intel_cpu::SwishNode>>(),
     std::make_shared<ov::OpExtension<ov::intel_cpu::SDPAWithTransposeReshape>>(),
     std::make_shared<ov::OpExtension<ov::intel_cpu::NgramNode>>(),
+    std::make_shared<ov::OpExtension<ov::intel_cpu::NgramHashNode>>(),
     std::make_shared<ov::OpExtension<ov::intel_cpu::ReadValueWithSubgraph>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::GatherCompressed>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::NonMaxSuppressionIEInternal>>(),

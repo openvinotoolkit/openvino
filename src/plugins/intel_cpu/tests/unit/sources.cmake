@@ -35,6 +35,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/ngram_hash_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/permute_slice_n_interpolation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/readvalue_subgraph.cpp
@@ -260,6 +261,7 @@ if(ENABLE_UNITY_BUILD)
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/transformations/ngram_hash_fusion_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/permute_slice_n_interpolation.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/readvalue_subgraph.cpp
