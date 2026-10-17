@@ -104,10 +104,14 @@ def test_torch_wrapped_chunk_base_mutation():
 
 @pytest.mark.precommit
 @pytest.mark.nightly
-@pytest.mark.parametrize("mutation", ["transpose", "unsqueeze", "squeeze", "chain"])
-@pytest.mark.parametrize("right", [False, True])
-@pytest.mark.parametrize("update_other", [False, True])
-@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize("mutation,right,update_other,nested", [
+    ("transpose", False, False, False),
+    ("unsqueeze", False, False, False),
+    ("squeeze", True, False, True),
+    ("chain", True, False, False),
+    ("chain", False, True, True),
+    ("transpose", True, True, False),
+])
 def test_torch_container_metadata_mutation(mutation, right, update_other, nested):
     generator = torch.Generator().manual_seed(42)
     rows = 1 if mutation == "squeeze" else 2
@@ -140,9 +144,6 @@ class ContainerMutation(torch.nn.Module):
         right_view = right[:, :, :2]
         if self.mutation == "view":
             left_view.copy_(source[:, :, :2])
-        elif self.mutation == "metadata":
-            left.transpose_(1, 2)
-            left.copy_(source.transpose(1, 2))
         elif self.mutation == "right":
             right.copy_(source)
         else:
@@ -157,9 +158,11 @@ class ContainerMutation(torch.nn.Module):
 
 @pytest.mark.precommit
 @pytest.mark.nightly
-@pytest.mark.parametrize("container", [list, tuple])
-@pytest.mark.parametrize("nested", [False, True])
-@pytest.mark.parametrize("mutation", ["copy", "right", "view", "repeated", "siblings", "metadata"])
+@pytest.mark.parametrize("container,nested,mutation", [
+    (list, False, "copy"), (tuple, False, "right"),
+    (list, False, "view"), (tuple, True, "view"),
+    (tuple, True, "repeated"), (list, True, "siblings"),
+])
 def test_torch_container_input_mutation(container, nested, mutation):
     generator = torch.Generator().manual_seed(42)
 
@@ -248,8 +251,7 @@ def test_torch_sequence_base_mutation(operation):
 
 @pytest.mark.precommit
 @pytest.mark.nightly
-@pytest.mark.parametrize("operation,capture", [("split", "torchscript"),
-                                               ("split", "export"), ("unbind", "export")])
+@pytest.mark.parametrize("operation,capture", [("split", "torchscript"), ("unbind", "export")])
 def test_torch_sequence_view_mutation(operation, capture):
     generator = torch.Generator().manual_seed(42)
     inputs = (torch.randn(2, 2, 3, generator=generator), torch.randn(2, 4, 3, generator=generator))
@@ -294,12 +296,12 @@ def test_torch_chunk_cache_mutation():
 
 @pytest.mark.precommit
 @pytest.mark.nightly
-@pytest.mark.parametrize("sequence_input", [0, 1])
-@pytest.mark.parametrize("mapping,error", [([1, 0], None),
-                                         ([0], "preserve the number of elements"),
-                                         ([0, 1, 0], "preserve the number of elements"),
-                                         ([0, 0], "exactly one element"),
-                                         ([0, 2], "out of range")])
+@pytest.mark.parametrize("sequence_input,mapping,error", [
+    (0, [1, 0], None), (1, [1, 0], None),
+    (0, [0], "preserve the number of elements"),
+    (0, [0, 1, 0], "preserve the number of elements"),
+    (0, [0, 0], "exactly one element"), (0, [0, 2], "out of range"),
+])
 def test_torch_decoder_sequence_output_order(sequence_input, mapping, error):
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 

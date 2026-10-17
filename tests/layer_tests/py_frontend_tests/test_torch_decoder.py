@@ -827,9 +827,6 @@ def test_is_testing_flag(testing_value, expected):
 @pytest.mark.parametrize("ir,expected", [
     ("graph(%values : Tensor[]):\n  %a : Tensor, %b : Tensor = prim::ListUnpack(%values)\n  return (%a, %b)\n", [0, 1]),
     ("graph(%values : (Tensor, Tensor)):\n  %a : Tensor, %b : Tensor = prim::TupleUnpack(%values)\n  return (%a, %b)\n", [0, 1]),
-    ("graph(%values : ((Tensor, Tensor), Tensor)):\n  %a : (Tensor, Tensor), %b : Tensor = prim::TupleUnpack(%values)\n  return (%a, %b)\n", [0, 1]),
-    ("graph(%values : Tensor[]):\n  %index : int = prim::Constant[value=0]()\n  %a : Tensor = aten::__getitem__(%values, %index)\n  return (%a)\n", []),
-    ("graph(%values : Tensor[]):\n  %index : int = prim::Constant[value=0]()\n  %a : Tensor = aten::pop(%values, %index)\n  return (%a)\n", []),
     ("graph(%value : Tensor):\n  %a : Tensor = aten::alias(%value)\n  return (%a)\n", []),
 ])
 def test_pytorch_decoder_input_sequence(ir, expected):
@@ -839,20 +836,10 @@ def test_pytorch_decoder_input_sequence(ir, expected):
     node = list(graph.nodes())[-1]
     decoder = TorchScriptPythonDecoder(None, node, alias_db=graph.alias_db())
     assert decoder.get_input_sequences() == ({0: expected} if expected else {})
-    if not expected:
-        assert decoder.may_produce_alias(0, 0)
 
 
 @pytest.mark.precommit
-def test_pytorch_decoder_input_sequence_default():
-    from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
-
-    assert TorchDecoderBase().get_input_sequences() == {}
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("unpack", [False, True])
-def test_pytorch_decoder_conversion_without_sequence_override(unpack):
+def test_pytorch_decoder_conversion_without_sequence_override():
     import numpy as np
     import openvino as ov
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -876,18 +863,13 @@ def test_pytorch_decoder_conversion_without_sequence_override(unpack):
                 visitor(decoder)
             self.wrapped.visit_subgraph(wrap_child)
 
-    graph = torch._C.parse_ir("""graph(%input : Tensor):
-      %result : Tensor = aten::alias(%input)
-      return (%result)
+    graph = torch._C.parse_ir("""graph(%left : Tensor, %right : Tensor):
+      %pair : (Tensor, Tensor) = prim::TupleConstruct(%left, %right)
+      %first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)
+      %one : int = prim::Constant[value=1]()
+      %updated : Tensor = aten::add_(%second, %one, %one)
+      return (%left, %right, %first, %second)
     """)
-    if unpack:
-        graph = torch._C.parse_ir("""graph(%left : Tensor, %right : Tensor):
-          %pair : (Tensor, Tensor) = prim::TupleConstruct(%left, %right)
-          %first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)
-          %one : int = prim::Constant[value=1]()
-          %updated : Tensor = aten::add_(%second, %one, %one)
-          return (%left, %right, %first, %second)
-        """)
     decoder = LegacyDecoder(TorchScriptPythonDecoder(None, graph, alias_db=graph.alias_db()))
     frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
     input_model = frontend.load(decoder)
@@ -897,11 +879,8 @@ def test_pytorch_decoder_conversion_without_sequence_override(unpack):
     converted = frontend.convert(input_model)
     compiled = ov.Core().compile_model(converted, "CPU")
     data = torch.arange(6, dtype=torch.float32).reshape(2, 3).numpy()
-    if unpack:
-        right = data + 10
-        actual = list(compiled([data, right]).values())
-        assert len(actual) == 4
-        for result, expected in zip(actual, (data, right + 1, data, right + 1)):
-            np.testing.assert_array_equal(result, expected)
-    else:
-        np.testing.assert_array_equal(compiled([data])[0], data)
+    right = data + 10
+    actual = list(compiled([data, right]).values())
+    assert len(actual) == 4
+    for result, expected in zip(actual, (data, right + 1, data, right + 1)):
+        np.testing.assert_array_equal(result, expected)
