@@ -7,8 +7,11 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -39,13 +42,37 @@ DisableFP16CompForDirectMultiplySinCos::DisableFP16CompForDirectMultiplySinCos()
         if (cos_nodes.empty())
             return false;
 
+        // MarkSugraphsToKeepInMixedPrecision propagates a mark down through elementwise ops and stops at a Convert
+        // or an op outside its propagation list. Without a Convert here, marking Sin/Cos also keeps every consumer
+        // of the tables (the whole rotation and its side inputs) in f32. When compressing to f16, ConvertPrecision
+        // turns this Convert's f32 destination into f16; otherwise it is a no-op Convert and is eliminated.
+        const auto add_f16_boundary = [](const std::shared_ptr<ov::Node>& trig) -> bool {
+            std::vector<ov::Input<ov::Node>> consumers;
+            for (const auto& input : trig->output(0).get_target_inputs()) {
+                const auto consumer = input.get_node()->shared_from_this();
+                if (!ov::is_type_any_of<ov::op::v0::Result, ov::op::v0::Convert>(consumer) && !ov::is_conversion_disabled(consumer, element::f16))
+                    consumers.push_back(input);
+            }
+            if (consumers.empty())
+                return false;
+            const auto boundary = std::make_shared<ov::op::v0::Convert>(trig->output(0), trig->get_output_element_type(0));
+            boundary->set_friendly_name(trig->get_friendly_name() + "_compressed_to_f16");
+            ov::copy_runtime_info(trig, boundary);
+            for (auto& input : consumers)
+                input.replace_source_output(boundary);
+            return true;
+        };
+
         ov::disable_conversion(pattern_map.at(multiply_lhs).get_node_shared_ptr(), element::f16);
         ov::disable_conversion(pattern_map.at(multiply_rhs).get_node_shared_ptr(), element::f16);
         ov::disable_conversion(multiply_node, element::f16);
         ov::disable_conversion(sin_node, element::f16);
-        for (const auto& cos_node : cos_nodes)
+        bool is_changed = add_f16_boundary(sin_node);
+        for (const auto& cos_node : cos_nodes) {
             ov::disable_conversion(cos_node, element::f16);
-        return false;
+            is_changed = add_f16_boundary(cos_node) || is_changed;
+        }
+        return is_changed;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "DisableFP16CompForDirectMultiplySinCos");
