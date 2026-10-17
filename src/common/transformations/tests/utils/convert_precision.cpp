@@ -1230,6 +1230,77 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f32);
 }
 
+TEST(TransformationTests, ConvertPrecision_f32_to_bf16) {
+    std::shared_ptr<Model> f(nullptr);
+    {
+        auto input = opset4::Constant::create(element::f32, Shape{1, 1000, 4}, {1});
+        auto relu = std::make_shared<opset4::Relu>(input);
+
+        f = std::make_shared<Model>(OutputVector{relu}, ParameterVector{});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::bf16}});
+        manager.run_passes(f);
+    }
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::f32>(f));
+    ASSERT_TRUE(has_type<element::Type_t::bf16>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_f16_to_bf16) {
+    std::shared_ptr<Model> f(nullptr);
+    {
+        auto input = opset4::Constant::create(element::f16, Shape{1, 1000, 4}, {1});
+        auto relu = std::make_shared<opset4::Relu>(input);
+
+        f = std::make_shared<Model>(OutputVector{relu}, ParameterVector{});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::bf16}});
+        manager.run_passes(f);
+    }
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::f16>(f));
+    ASSERT_TRUE(has_type<element::Type_t::bf16>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive_bf16) {
+    std::shared_ptr<Model> model(nullptr);
+    std::shared_ptr<opset10::Interpolate> interpolate(nullptr);
+    {
+        auto input = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = opset10::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales = opset10::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+        opset10::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = opset10::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = opset10::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = opset10::Interpolate::NearestMode::FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = opset10::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        interpolate = std::make_shared<opset10::Interpolate>(input, sizes, scales, attrs);
+        model = std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{input});
+
+        pass::Manager manager;
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::bf16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+    OV_ASSERT_NO_THROW(check_rt_info(model));
+    ASSERT_TRUE(has_type<element::Type_t::f32>(model));
+    ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f32);
+}
+
 TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_fp32) {
     // with keep_precision_sensitive_in_fp32 = false all nodes should be converted to f16 even they are marked
     std::shared_ptr<Model> model(nullptr);
