@@ -76,6 +76,42 @@ def test_graph_preprocess_scale_vector():
     assert "Multiply" in model_operators
 
 
+def test_graph_postprocess_mean_scale():
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = Model(ops.relu(parameter_a), [parameter_a], "TestModel")
+
+    ppp = PrePostProcessor(model)
+    ppp.output().postprocess().mean(1.0).scale(2.0)
+    model = ppp.build()
+
+    model_operators = [op.get_type_name() for op in model.get_ordered_ops()]
+    assert "Subtract" in model_operators
+    # Div will be converted to Mul in the transformations
+    assert "Multiply" in model_operators
+    assert model.get_output_element_type(0) == Type.f32
+
+    data = np.array([[-1.0, 3.0], [5.0, 0.5]], dtype=np.float32)
+    result = Core().compile_model(model, "CPU")(data)[0]
+    assert np.allclose(result, (np.maximum(data, 0.0) - 1.0) / 2.0)
+
+
+def test_graph_postprocess_mean_scale_vector():
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = Model(ops.relu(parameter_a), [parameter_a], "TestModel")
+
+    ppp = PrePostProcessor(model)
+    ppp.output().model().set_layout(Layout("NC"))
+    ppp.output().postprocess().mean([1.0, 2.0]).scale([0.5, 4.0])
+    model = ppp.build()
+
+    data = np.array([[-1.0, 3.0], [5.0, 0.5]], dtype=np.float32)
+    result = Core().compile_model(model, "CPU")(data)[0]
+    expected = (np.maximum(data, 0.0) - np.array([1.0, 2.0])) / np.array([0.5, 4.0])
+    assert np.allclose(result, expected)
+
+
 def test_graph_preprocess_mean_scale_convert():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")
