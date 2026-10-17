@@ -53,6 +53,14 @@ protected:
     void check_results(); 
 
 };
+
+// MoESubgraphTest with inputs in a small range, as MoECompressedWeightsSubgraphTest uses. With the default
+// [1, 10) inputs and integer weights the activations grow to about 1e8, and over a sequence of a thousand rows
+// a bf16 inference no longer meets the 10% tolerance against the f32 reference at every element.
+class MoESubgraphSmallInputsTest : public MoESubgraphTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+};
 class MoECompressedWeightsSubgraphTest : public testing::WithParamInterface<MoeCompressedWeightsTestParams>,
                                          virtual public SubgraphBaseTest,
                                          public CpuTestWithFusing {
@@ -63,4 +71,9 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void check_results();
 };
+// Several infer requests of one compiled model running at the same time. The fixtures are the two above;
+// the tests are instantiated with more than one stream, so the requests execute on different graphs
+// concurrently, each graph with its own GatherMatmul executors, over the same weights.
+class MoEParallelRequestsTest : public MoESubgraphSmallInputsTest {};
+class MoECompressedWeightsParallelRequestsTest : public MoECompressedWeightsSubgraphTest {};
 } // namespace ov::test
