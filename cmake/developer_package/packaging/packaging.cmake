@@ -3,6 +3,7 @@
 #
 
 include(CPackComponent)
+include(packaging/bom)
 
 if(OV_GENERATOR_MULTI_CONFIG)
     set(OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/$<CONFIG>/compile_pdbs)
@@ -455,6 +456,11 @@ macro(ov_cpack)
     if(COMMAND ov_cpack_settings)
         ov_cpack_settings()
     endif()
+
+    # Register the final CPack component list after ov_cpack_settings() has potentially
+    # filtered or merged components. BOM targets are created after all nested ov_cpack()
+    # calls have registered their components.
+    ov_register_bom_components("${CPACK_COMPONENTS_ALL}")
 
     include(CPack)
 endmacro()
