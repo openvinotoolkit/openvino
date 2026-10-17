@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -273,6 +274,37 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
     return byChannel;
 }
 
+size_t PagedAttention::get_key_cache_params_size(const ov::element::Type precision) {
+    // For by-channel quantized caches, ConvertPagedAttnInputs appends per-channel
+    // scale/zero-point parameter rows to the block_size dim (i8: 1 row, u8: 2 rows,
+    // u4: 2 rows x 2 sub-byte). Return that byte count so callers can subtract it
+    // from dim[2] to recover the logical PA block size.
+    const size_t params_count = (precision == ov::element::i8) ? 1 : 2;
+    const size_t sub_byte_mult = (precision == ov::element::u4) ? 2 : 1;
+    return sizeof(float) * params_count * sub_byte_mult;
+}
+
+std::optional<size_t> PagedAttention::get_block_size() const {
+    const auto& cpuConfig = context->getConfig();
+    const auto& kcache_shape = getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE);
+    // K-cache layout is [block_number, H, block_size, S]; dim[2] is the page block size.
+    // ConvertPagedAttnInputs fixes dim[2] to the plugin's compile-time block size (plus
+    // by-channel quantization parameter rows) — only block_number (dim[0]) stays dynamic.
+    // This reads the compile-time shape (getInputShapeAtPort), while execute() reads the live
+    // runtime tensor (getStaticDims()); they agree because dim[2] is static after that
+    // transformation. The nullopt guard is defensive for models that bypass it.
+    const auto& dims = kcache_shape.getDims();
+    if (dims.size() < 3 || dims[2] == Shape::UNDEFINED_DIM) {
+        return std::nullopt;
+    }
+    size_t block_size = dims[2];
+    bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+    if (quantKeybyChannel && cpuConfig.keyCachePrecision.is_integral()) {
+        block_size -= get_key_cache_params_size(cpuConfig.keyCachePrecision);
+    }
+    return block_size;
+}
+
 void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
 
@@ -376,10 +408,7 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
         size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
         if (quantKeybyChannel && cpuConfig.keyCachePrecision.is_integral()) {
-            size_t params_count = (cpuConfig.keyCachePrecision == ov::element::i8) ? 1 : 2;
-            size_t key_sub_byte_mult = (cpuConfig.keyCachePrecision == ov::element::u4) ? 2 : 1;
-            size_t key_params_size = sizeof(float) * params_count * key_sub_byte_mult;
-            block_size -= key_params_size;
+            block_size -= get_key_cache_params_size(cpuConfig.keyCachePrecision);
         }
 
         const size_t ADAPTIVE_RKV_EVICTABLE_SIZES_IDX = PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES;
