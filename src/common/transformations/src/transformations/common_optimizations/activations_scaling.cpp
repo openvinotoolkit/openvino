@@ -80,7 +80,7 @@ activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_fact
     auto convolution_m = pattern::wrap_type<v1::Convolution>({activation_m, weights_m});
     auto matmul_m = pattern::wrap_type<v0::MatMul>({activation_m, weights_m});
     auto moe_m = ov::pass::pattern::wrap_type<ov::op::internal::MOECompressed>();
-    auto scaled_op_m = std::make_shared<pattern::op::Or>(OutputVector{convolution_m, matmul_m, moe_m});
+    auto scaled_op_m = convolution_m | matmul_m | moe_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -230,7 +230,8 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     // the normalization may be kept in f32
     auto post_convert_m = pattern::optional<v0::Convert>(mul_m);
     auto mvn_m = pattern::wrap_type<v6::MVN>({post_convert_m, pattern::any_input()});
-    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({post_convert_m, pattern::any_input()});
+    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({post_convert_m, pattern::any_input()}) |
+                 pattern::wrap_type<ov::op::internal::RMS>({post_convert_m});
     auto group_norm_m =
         pattern::wrap_type<v12::GroupNormalization>({post_convert_m, pattern::any_input(), pattern::any_input()});
     auto shape_of_m = pattern::wrap_type<ov::op::util::ShapeOfBase>({post_convert_m});
@@ -295,11 +296,12 @@ activations_scaling::MulShareTransformation::MulShareTransformation() {
     MATCHER_SCOPE(MulShareTransformation);
 
     auto mvn_m = pattern::wrap_type<v6::MVN>({pattern::any_input(), pattern::any_input()});
-    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(), pattern::any_input()});
+    auto rms_m = pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(), pattern::any_input()}) |
+                 pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input()});
     auto group_norm_m =
         pattern::wrap_type<v12::GroupNormalization>({pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto shape_of_m = pattern::wrap_type<v3::ShapeOf>({pattern::any_input()});
-    auto norm_m = std::make_shared<pattern::op::Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
+    auto norm_m = mvn_m | rms_m | group_norm_m | shape_of_m;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
