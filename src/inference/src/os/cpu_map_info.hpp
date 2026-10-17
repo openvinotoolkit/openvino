@@ -10,6 +10,7 @@
 
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
@@ -72,6 +73,14 @@ public:
 CPU& cpu_info();
 
 #ifdef __linux__
+/**
+ * @brief      Parse a sysfs CPU list such as "0-1,3" into closed ranges, a single id becomes a range of one
+ * @param[in]  cpu_list CPU list as read from sysfs, e.g. /sys/devices/system/cpu/online
+ * @param[out] cpu_ranges parsed [first, last] ranges in list order, empty when parsing fails
+ * @return     true if the whole list is well-formed
+ */
+bool parse_cpu_list_linux(const std::string& cpu_list, std::vector<std::pair<int, int>>& cpu_ranges);
+
 /**
  * @brief      Parse nodes information to update _sockets, proc_type_table and cpu_mapping_table on Linux
  * @param[in]  node_info_table nodes information for this platform.
