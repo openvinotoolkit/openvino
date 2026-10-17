@@ -55,7 +55,7 @@ inline ushort _convert_bfloat16_as_ushort(float source) {
     if ((u & 0x7FFFFFFFu) > 0x7F800000u) {
         return (ushort)((u >> 16) | 0x0040u);
     }
-    return (ushort)((u + ((u & 0x00010000u) >> 1)) >> 16);
+    return (ushort)((u + 0x7fffu + ((u >> 16) & 1u)) >> 16);
 }
 
 // --- bfloat16_as_ushort (float -> ushort) vectorized ---

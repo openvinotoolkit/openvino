@@ -52,7 +52,7 @@ public:
 
     static uint16_t round_to_nearest_even(float x) {
         auto bits = ov::intel_cpu::bit_cast<uint32_t>(x);
-        return static_cast<uint16_t>((bits + ((bits & 0x00010000U) >> 1)) >> 16);
+        return static_cast<uint16_t>((bits + 0x7fffU + ((bits >> 16) & 1)) >> 16);
     }
 
     static uint16_t round_to_nearest(float x) {
