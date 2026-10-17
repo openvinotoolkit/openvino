@@ -358,8 +358,9 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
                                         "Fused eltwise peer ", dep_layout.to_short_string(),
                                         " cannot broadcast into host ", out_layout.to_short_string());
                     }
-                } else if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
+                } else if (dep_shape.size() < out_pshape.size()) {
                     dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                    dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
                 }
             }
         }
