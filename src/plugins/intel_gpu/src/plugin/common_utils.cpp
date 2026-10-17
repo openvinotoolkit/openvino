@@ -7,8 +7,10 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -46,12 +48,18 @@ static inline void get_linear_offset_params(layout& layout, tensor& start_pos, t
 }
 
 template <typename src_t, typename dst_t>
-static inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* dst, layout& layout) {
+static inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* dst, layout& layout, bool transpose) {
     tensor axes_start_pos, axes_end_pos;
     vector<int64_t> padded_sizes, axes_map;
 
     get_linear_offset_params(layout, axes_start_pos, axes_end_pos, padded_sizes, axes_map);
     const size_t map_len = axes_map.size();
+    const auto shape = layout.get_shape();
+    OPENVINO_ASSERT(!transpose || shape.size() >= 2, "[GPU] Transposed state requires at least two axes");
+    const size_t columns = transpose ? shape.back() : 1;
+    const size_t rows = transpose ? shape[shape.size() - 2] : 1;
+    const size_t plane = rows * columns;
+    size_t index = 0;
 
     for (int64_t b = axes_start_pos.batch[0]; b < axes_end_pos.batch[0]; b++) {
         for (int64_t f = axes_start_pos.feature[0]; f < axes_end_pos.feature[0]; f++) {
@@ -66,7 +74,10 @@ static inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* 
                                 offset = offset * padded_sizes[i] + element_sizes[axes_map[i]];
                             }
 
-                            *dst++ = static_cast<dst_t>(src[offset]);
+                            const size_t dst_index = transpose ? (index / plane) * plane +
+                                (index % columns) * rows + (index / columns) % rows : index;
+                            dst[dst_index] = static_cast<dst_t>(src[offset]);
+                            ++index;
                         }
                     }
                 }
@@ -76,19 +87,28 @@ static inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* 
 }
 
 template <typename src_t, typename dst_t>
-void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout) {
+void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout, bool transpose) {
     if (format::is_default_format(layout.get_format())) {
-        return convert_and_copy_padded_source_fast(src, dst, layout);
+        return convert_and_copy_padded_source_fast(src, dst, layout, transpose);
     }
 
     cldnn::tensor size = layout.get_tensor();
+    const auto shape = layout.get_shape();
+    OPENVINO_ASSERT(!transpose || shape.size() >= 2, "[GPU] Transposed state requires at least two axes");
+    const size_t columns = transpose ? shape.back() : 1;
+    const size_t rows = transpose ? shape[shape.size() - 2] : 1;
+    const size_t plane = rows * columns;
+    size_t index = 0;
     for (int64_t b = 0; b < size.batch[0]; b++) {
         for (int64_t f = 0; f < size.feature[0]; f++) {
             for (int64_t w = 0; w < size.spatial[3]; w++) {
                 for (int64_t z = 0; z < size.spatial[2]; z++) {
                     for (int64_t y = 0; y < size.spatial[1]; y++) {
                         for (int64_t x = 0; x < size.spatial[0]; x++) {
-                            *dst++ = static_cast<dst_t>(src[layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w))]);
+                            const size_t dst_index = transpose ? (index / plane) * plane +
+                                (index % columns) * rows + (index / columns) % rows : index;
+                            dst[dst_index] = static_cast<dst_t>(src[layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w))]);
+                            ++index;
                         }
                     }
                 }
@@ -100,9 +120,7 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout
 template <typename src_t, typename dst_t>
 void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
     OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
-    for (size_t i = 0; i < size; i++) {
-        dst[i] = static_cast<dst_t>(src[i]);
-    }
+    ov::reference::convert(src, dst, size);
 }
 
 template <typename src_t, typename dst_t>
@@ -137,7 +155,7 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
     #define CASE(s_et, d_et, s_type, d_type)                                                                                                \
         if (src_et == s_et && dst_et == d_et) {                                                                                             \
             if (static_cast<bool>(layout.data_padding)) {                                                                                   \
-                return convert_and_copy_padded_source(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout);          \
+                return convert_and_copy_padded_source(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout, transpose); \
             }                                                                                                                               \
             if (transpose) {                                                                                                                \
                 return convert_and_copy_transposed(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout.get_shape()); \
@@ -238,7 +256,7 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
     auto src_et = src->get_element_type();
     auto dst_et = dst->get_layout().data_type;
 
-    if (dst_et == src_et && !transpose) {
+    if (dst_et == src_et && !transpose && !src_layout.data_padding) {
         if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
             auto mem = remote->get_original_memory();
             dst->copy_from(stream, *mem, blocking);
@@ -248,7 +266,12 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
         return;
     }
 
+    OPENVINO_ASSERT(dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src) == nullptr,
+                    "[GPU] CPU conversion cannot access a remote source tensor");
     size_t size = ov::shape_size(src->get_shape());
+    GPU_DEBUG_INFO << "[state_conversion] CPU dtype=" << src_et << "->" << ov::element::Type(dst_et)
+                   << " count=" << size << " padded=" << static_cast<bool>(src_layout.data_padding)
+                   << " transpose=" << transpose << std::endl;
     ov::Tensor tmp_tensor(dst_et, src->get_shape());
     ::convert_and_copy(src->data(), src_et, tmp_tensor.data(), dst_et, size, src_layout, transpose);
     dst->copy_from(stream, tmp_tensor.data(), blocking);
