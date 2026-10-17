@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <functional>
 #include <map>
+#include <numeric>
 
 #include "interpolate_pil.hpp"
 #include "openvino/op/interpolate.hpp"
@@ -344,6 +345,66 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     assert(input_rank > 1);
 
     const size_t num_of_axes = m_axes.size();
+
+    // Channel-last layout (e.g. NHWC / NDHWC): interpolated axes are {1, ..., rank - 2}.
+    // The kernel below assumes batch and channels occupy the first two dimensions, so the
+    // tensor is moved to channel-first layout, interpolated, then moved back.
+    if (input_rank >= 4 && num_of_axes == input_rank - 2) {
+        std::vector<int64_t> channel_last_axes(num_of_axes);
+        std::iota(channel_last_axes.begin(), channel_last_axes.end(), int64_t{1});
+
+        if (m_axes == channel_last_axes) {
+            // [N, D1, ..., Dk, C] -> [N, C, D1, ..., Dk]
+            std::vector<int64_t> to_channel_first(input_rank);
+            to_channel_first[0] = 0;
+            to_channel_first[1] = static_cast<int64_t>(input_rank) - 1;
+            std::iota(to_channel_first.begin() + 2, to_channel_first.end(), int64_t{1});
+
+            // [N, C, D1, ..., Dk] -> [N, D1, ..., Dk, C]
+            std::vector<int64_t> to_channel_last(input_rank);
+            to_channel_last[0] = 0;
+            std::iota(to_channel_last.begin() + 1, to_channel_last.end() - 1, int64_t{2});
+            to_channel_last.back() = 1;
+
+            Shape channel_first_in_shape;
+            Shape channel_first_out_shape;
+            channel_first_in_shape.reserve(input_rank);
+            channel_first_out_shape.reserve(input_rank);
+            for (const auto axis : to_channel_first) {
+                channel_first_in_shape.push_back(m_input_data_shape[axis]);
+                channel_first_out_shape.push_back(m_out_shape[axis]);
+            }
+
+            std::vector<T> channel_first_in(shape_size(m_input_data_shape));
+            std::vector<T> channel_first_out(shape_size(m_out_shape));
+            transpose(reinterpret_cast<const char*>(input_data),
+                      reinterpret_cast<char*>(channel_first_in.data()),
+                      m_input_data_shape,
+                      sizeof(T),
+                      to_channel_first,
+                      channel_first_in_shape);
+
+            std::vector<int64_t> spatial_axes(num_of_axes);
+            std::iota(spatial_axes.begin(), spatial_axes.end(), int64_t{2});
+
+            // Scales stay in axes order, which is unchanged by this transposition.
+            InterpolateEval<T> channel_first_eval{m_attrs};
+            channel_first_eval(channel_first_in.data(),
+                               channel_first_in_shape,
+                               m_scales,
+                               spatial_axes,
+                               channel_first_out.data(),
+                               channel_first_out_shape);
+
+            transpose(reinterpret_cast<const char*>(channel_first_out.data()),
+                      reinterpret_cast<char*>(out),
+                      channel_first_out_shape,
+                      sizeof(T),
+                      to_channel_last,
+                      m_out_shape);
+            return;
+        }
+    }
 
     bool correct_axes =
         ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) && (m_axes[1] == 1)) ||
