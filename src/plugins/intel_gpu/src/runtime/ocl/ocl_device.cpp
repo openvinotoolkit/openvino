@@ -90,31 +90,33 @@ int driver_dev_id() {
 
 #ifdef _WIN32
     {
-        HDEVINFO device_info_set = SetupDiGetClassDevsA(&GUID_DEVCLASS_DISPLAY, NULL, NULL, DIGCF_PRESENT);
-        if (device_info_set == INVALID_HANDLE_VALUE)
-            return 0;
-
-        SP_DEVINFO_DATA devinfo_data;
-        std::memset(&devinfo_data, 0, sizeof(devinfo_data));
-        devinfo_data.cbSize = sizeof(devinfo_data);
-
-        for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
-            const size_t kBufSize = 512;
-            char buf[kBufSize];
-            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
+        const GUID* device_classes[] = {&GUID_DEVCLASS_DISPLAY, &GUID_DEVCLASS_COMPUTEACCELERATOR};
+        for (const GUID* device_class : device_classes) {
+            HDEVINFO device_info_set = SetupDiGetClassDevsA(device_class, NULL, NULL, DIGCF_PRESENT);
+            if (device_info_set == INVALID_HANDLE_VALUE) {
                 continue;
             }
 
-            char* vendor_pos = std::strstr(buf, "VEN_");
-            if (vendor_pos != NULL && std::stoi(vendor_pos + 4, NULL, 16) == 0x8086) {
-                char* device_pos = strstr(vendor_pos, "DEV_");
-                if (device_pos != NULL) {
-                    result.push_back(std::stoi(device_pos + 4, NULL, 16));
+            SP_DEVINFO_DATA devinfo_data;
+            std::memset(&devinfo_data, 0, sizeof(devinfo_data));
+            devinfo_data.cbSize = sizeof(devinfo_data);
+
+            for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
+                const size_t kBufSize = 512;
+                char buf[kBufSize];
+                if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
+                    continue;
+                }
+
+                char* vendor_pos = std::strstr(buf, "VEN_");
+                if (vendor_pos != NULL && std::stoi(vendor_pos + 4, NULL, 16) == 0x8086) {
+                    char* device_pos = strstr(vendor_pos, "DEV_");
+                    if (device_pos != NULL) {
+                        result.push_back(std::stoi(device_pos + 4, NULL, 16));
+                    }
                 }
             }
-        }
 
-        if (device_info_set) {
             SetupDiDestroyDeviceInfoList(device_info_set);
         }
     }
@@ -147,10 +149,13 @@ int driver_dev_id() {
         }
     }
 
-    if (result.empty()) {
+    std::sort(result.begin(), result.end());
+    result.erase(std::unique(result.begin(), result.end()), result.end());
+
+    if (result.size() != 1) {
         return 0;
     }
-    return result.back();
+    return result.front();
 }
 
 device_type get_device_type(const cl::Device& device) {
