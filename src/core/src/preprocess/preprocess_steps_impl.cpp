@@ -40,7 +40,7 @@ namespace preprocess {
 
 static Shape construct_mean_scale_shape(const Output<Node>& node,
                                         size_t values_size,
-                                        const PreprocessingContext& context) {
+                                        const PrePostProcessingContextBase& context) {
     auto node_shape = node.get_partial_shape();
     auto node_rank = node_shape.rank();
     auto channels_index = get_and_check_channels_idx(context.layout(), node_shape);
@@ -730,6 +730,52 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const
 }
 
 //------------- Post processing ------
+void PostStepsList::add_scale_impl(const std::vector<float>& values) {
+    m_actions.emplace_back(
+        [values](const Output<Node>& node, PostprocessingContext& context) {
+            Shape shape;
+            if (values.size() == 1) {
+                shape = Shape{1};
+            } else {
+                shape = construct_mean_scale_shape(node, values.size(), context);
+            }
+            auto element_type = node.get_element_type();
+            OPENVINO_ASSERT(element_type.is_real(),
+                            "Scale postprocessing can be applied to 'float' outputs. Consider using of "
+                            "'convert_element_type' before scaling. Current type is: ",
+                            element_type);
+
+            auto constant = op::v0::Constant::create(element_type, shape, values);
+
+            auto new_op = std::make_shared<op::v1::Divide>(node, constant);
+            return std::make_tuple(Output<Node>{new_op}, true);
+        },
+        "scale " + vector_to_string(values));
+}
+
+void PostStepsList::add_mean_impl(const std::vector<float>& values) {
+    m_actions.emplace_back(
+        [values](const Output<Node>& node, PostprocessingContext& context) {
+            Shape shape;
+            if (values.size() == 1) {
+                shape = Shape{1};
+            } else {
+                shape = construct_mean_scale_shape(node, values.size(), context);
+            }
+            auto element_type = node.get_element_type();
+            OPENVINO_ASSERT(element_type.is_real(),
+                            "Mean postprocessing can be applied to 'float' outputs. Consider using of "
+                            "'convert_element_type' before mean. Current type is: ",
+                            element_type);
+
+            auto constant = op::v0::Constant::create(element_type, shape, values);
+
+            auto new_op = std::make_shared<op::v1::Subtract>(node, constant);
+            return std::make_tuple(Output<Node>{new_op}, true);
+        },
+        "mean " + vector_to_string(values));
+}
+
 void PostStepsList::add_clamp(double min_value, double max_value) {
     std::stringstream name_builder;
     name_builder << "clamp(min " << min_value << ", max " << max_value << ")";
