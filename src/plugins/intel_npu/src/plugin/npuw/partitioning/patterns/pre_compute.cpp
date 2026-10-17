@@ -4,6 +4,8 @@
 
 #include "pre_compute.hpp"
 
+#include <algorithm>
+
 #include "../../logging.hpp"
 #include "../../orc.hpp"
 #include "openvino/op/ops.hpp"
@@ -143,12 +145,42 @@ void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, con
     ov::replace_node(rpe->matched_cos, squeeze_cos);
     ov::replace_node(rpe->matched_sin, squeeze_sin);
 
-    // disconnecting gather from rest or subgraph started from concat_1
-    auto gather_input_to_concat = rpe->matched_concat->input(0);
-    gather_input_to_concat.get_source_output().remove_target_input(gather_input_to_concat);
+    // disconnecting gather from rest or subgraph started from concat_1 - only present when the
+    // Broadcast node (and its ShapeOf->Gather->Concat shape-compute chain) actually matched.
+    if (rpe->matched_concat) {
+        auto gather_input_to_concat = rpe->matched_concat->input(0);
+        gather_input_to_concat.get_source_output().remove_target_input(gather_input_to_concat);
+    }
 }
 
 }  // namespace
+
+bool ov::npuw::patterns::pre_compute::RopePatternLLama2::is_valid_match(
+    const std::shared_ptr<ov::Node>& sin_input) const {
+    // When the Broadcast was bypassed (optional `broadcast` matched directly on inv_freq),
+    // matched_inv_freq is used as-is with no reshaping, so any extra non-singleton dim (e.g. a
+    // real batch dim) would be silently flattened into the frequency axis by makeCosSinCache,
+    // corrupting the LUT's shape. Only a singleton-batch direct constant is supported there.
+    if (!matched_concat) {
+        const auto& inv_freq_shape = matched_inv_freq->get_shape();
+        const auto non_unit_dims = std::count_if(inv_freq_shape.begin(), inv_freq_shape.end(), [](size_t dim) {
+            return dim != 1;
+        });
+        if (non_unit_dims > 1) {
+            return false;
+        }
+    }
+
+    // concat_2 matches any Concat following Transpose (2nd input unconstrained), but only
+    // torch.cat([freqs, freqs], dim=-1) - both inputs being the exact same tensor - actually
+    // duplicates the frequencies. Anything else (e.g. padding with zeros for partial-rotary
+    // models) must not be treated as duplication, or the cached LUT's second half would be wrong.
+    if (duplicate_freqs && sin_input->input_value(0) != sin_input->input_value(1)) {
+        return false;
+    }
+
+    return true;
+}
 
 ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matcher("sin-cos-matcher") {
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
@@ -157,7 +189,12 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
     // here we can seen inverse frequencies as a parameter or constant depending on partitioner passes
     auto inv_freq = opp::wrap_type<ov::op::v0::Constant>();
     auto inv_freq_convert = opp::optional<ov::op::v0::Convert>({inv_freq->output(0)});
-    auto broadcast = opp::wrap_type<ov::op::v3::Broadcast>({inv_freq_convert, concat_1});
+    // Normally inv_freq is dynamically broadcast to the position_ids-derived shape via a
+    // ShapeOf->Gather->Concat->Broadcast chain. Some models (e.g. Qwen3) export this already
+    // folded into a plain (already-broadcast-shaped) Constant/Convert with no live Broadcast op -
+    // make the Broadcast optional so the matcher still finds the pattern in that case (falls
+    // back to matching inv_freq_convert's output directly, see Optional's "match by 1st input").
+    auto broadcast = opp::optional<ov::op::v3::Broadcast>({inv_freq_convert, concat_1});
     auto position_ids = opp::wrap_type<ov::op::v0::Parameter>();
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({position_ids, opp::wrap_type<ov::op::v0::Constant>()});
     auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze});
@@ -174,9 +211,12 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
         const auto& map_cos = matches.at(output_cos)[0];
 
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
-        this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
+        // concat_1 only participates in the match when the Broadcast node is actually present -
+        // when it was folded away (see comment above `broadcast`), concat_1 is left unmatched.
+        if (const auto it = map_sin.find(concat_1); it != map_sin.end()) {
+            this->matched_concat = it->second.get_node_shared_ptr();
+        }
         this->matched_inv_freq = map_sin.at(inv_freq).get_node_shared_ptr();
-
         this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
@@ -185,10 +225,16 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
         auto sin_input = this->matched_sin->input_value(0).get_node_shared_ptr();
         this->duplicate_freqs = ov::is_type<ov::op::v0::Concat>(sin_input);
 
+        // The optional nodes above (`broadcast`, `concat_2`) make the pattern match graph shapes
+        // it can't actually handle correctly; reject those rather than silently miscomputing the
+        // LUT. is_valid_match() below holds both checks together to keep the vetoes in one place.
+        if (!is_valid_match(sin_input)) {
+            this->accept_match = false;
+            return;
+        }
+
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name()
                                      << " (duplicate_freqs=" << duplicate_freqs << ")");
-
-        return true;
     };
 
     matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
