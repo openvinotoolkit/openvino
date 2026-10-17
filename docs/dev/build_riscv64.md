@@ -2,7 +2,7 @@
 This guide shows how to build OpenVINO Runtime for 64-bit RISC-V devices. Due to limited resources, cross compilation is used now for building OpenVINO targeting RISC-V development boards.
 
 Cross compilation was tested on the following hosts:
-- Ubuntu 22.04 (64-bit), x64
+- Ubuntu 24.04 (64-bit), x64
 
 The software was validated on the following devices:
 - [Lichee Pi 4A](https://wiki.sipeed.com/hardware/en/lichee/th1520/lp4a.html) with RVV 0.7.1
@@ -14,7 +14,7 @@ The software was validated on the following devices:
 
 - [CMake](https://cmake.org/download/) 3.26 or higher
 - GCC 7.5 or higher (for non-RVV) / [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
-- Python 3.10 for the optional OpenVINO Runtime Python API cross-build described below
+- Python 3.12 for the optional OpenVINO Runtime Python API cross-build described below
 
 ## How to build
 Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platforms:
@@ -102,16 +102,16 @@ When installing packages using the utilities `apt` or `apt-get` the packages are
     ```sh
     apt-get install -y --no-install-recommends libpython3-dev:riscv64
     ```
-   Create  symbolink to allow python to find `riscv64-linux-gnu/python3.10/pyconfig.h` in `/usr/include/python3.10/` (this header is initially stored in `/usr/include/riscv64-linux-gnu/`)
+   Create  symbolink to allow python to find `riscv64-linux-gnu/python3.12/pyconfig.h` in `/usr/include/python3.12/` (this header is initially stored in `/usr/include/riscv64-linux-gnu/`)
     ```sh
-    ln -s /usr/include/riscv64-linux-gnu/ /usr/include/python3.10/
+    ln -s /usr/include/riscv64-linux-gnu/ /usr/include/python3.12/
     ```
 
 3. Add the keys `-DENABLE_PYTHON=ON -DENABLE_WHEEL=ON` to cmake command during OpenVINO build.
 
-> **Note**: This optional Python 3.10 cross-build is not exercised by the current GitHub Actions
+> **Note**: This optional Python 3.12 cross-build is not exercised by the current GitHub Actions
 > RISC-V workflow, which builds the C++ Runtime with `ENABLE_PYTHON=OFF`. The target device must
-> provide Python 3.10 when using these manually verified instructions.
+> provide Python 3.12 when using these manually verified instructions.
 
 ### RISC-V Emulation software
 In order to test applications without hardware one can use emulation software. The command line example to launch executable file with riscv64 emulation:
