@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -218,6 +219,7 @@ public:
     bool                                           m_startup_fallback = true;
     bool                                           m_runtime_fallback = true;
     bool                                           m_bind_buffer = false;
+    bool                                           m_compile_for_all = false;
     std::shared_ptr<ov::Model>                     m_model;
     std::filesystem::path                          m_model_path;
     std::shared_ptr<const ov::IPlugin>             m_plugin;
@@ -231,7 +233,9 @@ public:
     SoCompiledModel                                m_hw_compiled_model;
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
-    std::string                                    m_low_power_device;
+    std::optional<DeviceInformation>               m_low_power_device;
+    // re-select the target device for every incoming inference, turned on by the resource aware selection properties
+    bool                                           m_dynamic_device_selection = false;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
