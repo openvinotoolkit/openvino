@@ -83,6 +83,8 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DENABLE_INTEL_GPU=ON
+            -DENABLE_SYSTEM_OPENCL=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
   Samples:
