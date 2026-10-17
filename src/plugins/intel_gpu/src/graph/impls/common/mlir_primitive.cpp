@@ -9,17 +9,16 @@
 #    include <memory>
 #    include <vector>
 
+#    include "intel_gpu/op/mlir_op.hpp"
 #    include "intel_gpu/primitives/mlir_primitive.hpp"
-#    include "intel_gpu/runtime/stream.hpp"
-#    include "intel_gpu/runtime/tensor_accessor.hpp"  // cldnn::make_tensor
 #    include "mlir_primitive_inst.h"
-#    include "openvino/core/node.hpp"
-#    include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#    include "plugin/transformations/mlir/interface/properties.hpp"
+#    include "plugin/transformations/mlir/interface/gpu_runtime.hpp"
 #    include "register.hpp"
 #    include "registry/implementation_map.hpp"
 
 namespace cldnn::common {
+
+namespace {
 
 struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
     using parent = typed_primitive_impl<mlir_primitive>;
@@ -40,115 +39,14 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
     void set_node_params(const program_node& /*arg*/) override {}
 
     event::ptr execute_impl(const std::vector<event::ptr>& dependent_events, mlir_primitive_inst& instance) override {
-        auto& stream = instance.get_network().get_stream();
         const auto& prim = instance.node->get_primitive();
-        const auto& op = prim->op;
-        OPENVINO_ASSERT(op, "[GPU] MLIROp is not set for mlir_primitive '", prim->id);
-
-        ov::TensorVector input_gpu_tensors;
-        ov::TensorVector output_gpu_tensors;
-        std::vector<bool> is_usm_ptr;
-        input_gpu_tensors.reserve(instance.inputs_memory_count());
-        output_gpu_tensors.reserve(instance.outputs_memory_count());
-        is_usm_ptr.reserve(instance.inputs_memory_count() + instance.outputs_memory_count());
-
-        auto process_buffer = [&is_usm_ptr](const memory::ptr& mem, ov::TensorVector& tensors) {
-            // make_tensor() below builds a dense ov::Tensor from the logical shape, so a padded layout
-            // would result in wrong data offset and strides being passed to the MLIR kernel.
-            OPENVINO_ASSERT(!static_cast<bool>(mem->get_layout().data_padding), "[GPU] Padded buffers are not supported by mlir_primitive yet");
-            switch (mem->get_allocation_type()) {
-            case allocation_type::cl_mem: {
-                if (void* cl_buff = mem->get_native_handle()) {
-                    tensors.push_back(make_tensor(mem->get_layout(), cl_buff));
-                    is_usm_ptr.push_back(false);
-                } else {
-                    OPENVINO_THROW("Memory handle is null for cl_mem");
-                }
-                break;
-            }
-            case allocation_type::usm_host:
-            case allocation_type::usm_shared:
-            case allocation_type::usm_device: {
-                auto* usm_ptr = mem->buffer_ptr();
-                // Seems to only occur with Out-Of-Order queues sometimes. Can't reproduce this anymore, uncomment if needed.
-                // HACK: force move to device, can we do better than this?
-                // auto gpu_buff = dynamic_cast<cldnn::ocl::gpu_usm*>(mem.get());
-                // auto& usm_helper = gpu_buff->get_buffer().getUsmHelper();
-                // usm_helper.enqueue_memcpy(
-                //     dynamic_cast<cldnn::ocl::ocl_stream&>(stream).get_cl_queue(),
-                //     usm_ptr,
-                //     usm_ptr,
-                //     mem->get_layout().bytes_count());
-                tensors.push_back(make_tensor(mem->get_layout(), usm_ptr));
-                is_usm_ptr.push_back(true);
-                break;
-            }
-            default:
-                OPENVINO_THROW("Unsupported memory type");
-            }
-        };
-
-        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
-            process_buffer(instance.input_memory_ptr(i), input_gpu_tensors);
-        }
-
-        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
-            process_buffer(instance.output_memory_ptr(i), output_gpu_tensors);
-        }
-
-        ov::EvaluationContext meta;
-        if (void* queue = stream.get_native_handle()) {
-            meta.insert(ov::intel_gpu::ocl_queue(queue));
-        } else {
-            OPENVINO_THROW("Unsupported queue type");
-        }
-        meta.insert(ov::internal::mlir_meta::is_kernel_arg_usm(is_usm_ptr));
-
-        std::vector<void*> events_list;
-        std::vector<void*> result_events;
-        const bool need_result_events = instance.get_config().get_enable_profiling() || stream.get_queue_type() == QueueTypes::out_of_order;
-        if (need_result_events) {
-            meta.insert(ov::internal::mlir_meta::result_events(&result_events));
-        }
-        event::ptr marker;
-        if (stream.get_queue_type() == QueueTypes::out_of_order) {
-            std::vector<event::ptr> depends;
-            depends.reserve(dependent_events.size());
-            for (const auto& ev : dependent_events) {
-                if (!ev) {
-                    continue;
-                }
-                if (void* cl_ev = ev->get_native_handle()) {
-                    events_list.push_back(cl_ev);
-                } else {
-                    depends.push_back(ev);
-                }
-            }
-            if (!depends.empty()) {
-                marker = stream.enqueue_marker(depends, true);
-                if (void* cl_ev = marker->get_native_handle()) {
-                    events_list.push_back(cl_ev);
-                }
-            }
-            if (!events_list.empty()) {
-                meta.insert(ov::internal::mlir_meta::wait_list(events_list));
-            }
-        }
-
-        const bool evaluated = op->evaluate(output_gpu_tensors, input_gpu_tensors, meta);
-        OPENVINO_ASSERT(evaluated, "[GPU] Couldn't execute MLIROp ", op->get_friendly_name());
-
-        if (!result_events.empty()) {
-            std::vector<event::ptr> events;
-            events.reserve(result_events.size());
-            for (auto* event : result_events) {
-                events.push_back(stream.create_base_event(event));
-            }
-            return stream.aggregate_events(events, true);
-        }
-
-        OPENVINO_ASSERT(!need_result_events, "Result cl_events are not set");
-        return stream.create_user_event(true);
+        auto* op = prim->op.get();
+        auto* mlir_op = op && ov::is_type<ov::intel_gpu::op::MLIROp>(op) ? static_cast<ov::intel_gpu::op::MLIROp*>(op) : nullptr;
+        OPENVINO_ASSERT(mlir_op != nullptr, "[GPU] MLIROp is not set for mlir_primitive '", prim->id, "'");
+        const auto& program = mlir_op->get_program();
+        auto* runtime = instance.get_network().gc_runtime();
+        OPENVINO_ASSERT(runtime != nullptr, "[GPU] MLIR runtime is not available for mlir_primitive '", prim->id, "'");
+        return program->execute(*runtime, *mlir_op, instance, dependent_events, instance.needs_completion_event() || instance.is_output());
     }
 
     static std::unique_ptr<primitive_impl> create(const mlir_primitive_node& arg, const kernel_impl_params& /*params*/) {
@@ -168,6 +66,8 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         return false;
     }
 };
+
+}  // namespace
 
 std::unique_ptr<primitive_impl> MLIRPrimitiveImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<mlir_primitive>());
