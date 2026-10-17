@@ -468,6 +468,50 @@ def test_packing(shape, low, high, ov_type, dtype):
     assert np.array_equal(unpacked, data)
 
 
+# ops.constant rejects these values for the integer types and nf4 (in_t_range);
+# f4e2m1 is checked as raw 4-bit codes
+@pytest.mark.parametrize(
+    ("ov_type", "values", "dtype"),
+    [
+        (ov.Type.u2, [4, 1], np.uint8),
+        (ov.Type.u3, [8, 1], np.uint8),
+        (ov.Type.u3, [1, 256], np.int64),
+        (ov.Type.u3, [1.0, 8.0], np.float32),
+        (ov.Type.u4, [16, 1], np.uint8),
+        (ov.Type.u4, [1, 16], np.uint8),
+        (ov.Type.u4, [[1, 2], [3, 16]], np.uint8),
+        (ov.Type.u4, [16.0, 1.0], np.float32),
+        (ov.Type.u4, [-1, 1], np.int8),
+        (ov.Type.u6, [64, 1], np.uint8),
+        (ov.Type.i4, [8, 1], np.int8),
+        (ov.Type.i4, [1, -9], np.int8),
+        (ov.Type.nf4, [16, 1], np.uint8),
+        (ov.Type.f4e2m1, [16, 1], np.uint8),
+    ],
+)
+def test_pack_data_rejects_values_out_of_range(ov_type, values, dtype):
+    with pytest.raises(RuntimeError):
+        pack_data(np.array(values, dtype=dtype), ov_type)
+
+
+@pytest.mark.parametrize(
+    ("ov_type", "low", "high", "dtype"),
+    [
+        (ov.Type.u2, 0, 3, np.uint8),
+        (ov.Type.u3, 0, 7, np.uint8),
+        (ov.Type.u4, 0, 15, np.uint8),
+        (ov.Type.u6, 0, 63, np.uint8),
+        (ov.Type.i4, -8, 7, np.int8),
+        (ov.Type.nf4, 0, 15, np.uint8),
+        (ov.Type.f4e2m1, 0, 15, np.uint8),
+    ],
+)
+def test_pack_data_accepts_range_bounds(ov_type, low, high, dtype):
+    data = np.array([low, high, high, low, high], dtype=dtype)
+    unpacked = unpack_data(pack_data(data, ov_type), ov_type, data.shape)
+    assert np.array_equal(unpacked, data)
+
+
 @pytest.mark.parametrize(
     "dtype",
     [
