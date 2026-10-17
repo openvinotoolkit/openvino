@@ -9,7 +9,7 @@ on:
 
 jobs:
   update-stubs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: github.repository == 'openvinotoolkit/openvino'
     steps:
       - name: Checkout repository

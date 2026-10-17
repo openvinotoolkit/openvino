@@ -888,7 +888,7 @@ jobs:
     needs: [Build, CoverageCpp, CoverageCppGpu, CoveragePython, CoveragePythonGpu, CoverageJS]
     outputs:
       upload_matrix_json: ${{ steps.coverage_files.outputs['upload-matrix-json'] || '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout sources
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -975,7 +975,7 @@ jobs:
     name: Coverage Codecov Upload (${{ matrix.upload.name }})
     if: ${{ always() && needs.CoverageSummary.result == 'success' && needs.CoverageSummary.outputs.upload_matrix_json != '[]' }}
     needs: CoverageSummary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
