@@ -18,8 +18,8 @@
 
 #include "executor.hpp"
 #include "llm_block_kvcache_strategy.hpp"
-#include "llm_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "serialization.hpp"
@@ -38,11 +38,18 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_generate_compiled_variants.at(idx);
     }
 
+    static void set_generate_variant(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                     std::size_t idx,
+                                     std::shared_ptr<ov::npuw::ICompiledModel_v0> variant) {
+        compiled->m_generate_compiled_variants.at(idx) = std::move(variant);
+    }
+
     static bool is_block_kv_cache(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
         return compiled->m_is_block_kv_cache;
     }
 
-    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t num_tokens) {
+    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                      uint32_t num_tokens) {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
     }
 
@@ -52,6 +59,39 @@ struct LLMVariantSwitchTestAccess {
 
     static void validate_imported_kvcache_dim(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
         compiled->validate_imported_kvcache_dim();
+    }
+
+    static void validate_imported_sequence_extents(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        compiled->validate_imported_sequence_extents();
+    }
+
+    static void set_prefill_chunk_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint64_t size) {
+        compiled->m_prefill_chunk_size = size;
+    }
+
+    static void set_max_generation_token_len(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                             uint32_t len) {
+        compiled->m_kvcache_desc.max_generation_token_len = len;
+    }
+
+    static uint32_t max_prompt_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_kvcache_desc.max_prompt_size;
+    }
+
+    static void set_max_prompt_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t size) {
+        compiled->m_kvcache_desc.max_prompt_size = size;
+    }
+
+    static void set_is_whisper(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, bool is_whisper) {
+        compiled->m_is_whisper = is_whisper;
+    }
+
+    static void set_total_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t total_size) {
+        compiled->m_kvcache_desc.total_size = total_size;
+    }
+
+    static uint32_t total_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_kvcache_desc.total_size;
     }
 
     static void set_prefill_compiled(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
@@ -117,6 +157,10 @@ struct LLMVariantSwitchTestAccess {
     static void set_kvcache_sizes(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
                                   std::vector<uint32_t> sizes) {
         compiled->m_kvcache_sizes = std::move(sizes);
+    }
+
+    static const std::vector<uint32_t>& kvcache_sizes(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_kvcache_sizes;
     }
 
     static std::size_t generate_request_count(const ov::npuw::LLMInferRequest& req) {
@@ -269,8 +313,9 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
                                           ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(output,
-                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
@@ -362,8 +407,10 @@ protected:
             saw_aux = saw_aux || name.find("scale") != std::string::npos || name.find("zp") != std::string::npos;
             auto src = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
                 LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-            auto src_slice = ov::npuw::util::make_tensor_slice(
-                src, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+            auto src_slice = ov::npuw::util::make_tensor_slice(src,
+                                                               LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                               0u,
+                                                               stored_tokens);
             fill_tensor_pattern(src_slice, seed);
             expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
             seed = static_cast<uint8_t>(seed + 37u);
@@ -378,8 +425,10 @@ protected:
         for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
             auto dst = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
                 LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-            auto dst_slice = ov::npuw::util::make_tensor_slice(
-                dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+            auto dst_slice = ov::npuw::util::make_tensor_slice(dst,
+                                                               LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                               0u,
+                                                               stored_tokens);
             EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
         }
     }
@@ -406,11 +455,11 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
     ASSERT_NE(compiled, nullptr);
     ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
     ASSERT_TRUE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
-    auto small_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
-    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled,
-                                                     LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
+    auto small_variant =
+        std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
+    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(
+        compiled,
+        LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
     ASSERT_NE(small_variant, nullptr);
     ASSERT_NE(large_variant, nullptr);
 
@@ -566,6 +615,788 @@ TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedKvcacheDimOutOfPrefillTe
 
     LLMVariantSwitchTestAccess::set_kv_dim(compiled, 2u);
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kvcache_dim(compiled), ov::Exception);
+}
+
+// m_prefill_chunk_size is read verbatim from an imported blob and the chunked-prefill staging
+// copies trust it to be no larger than the restored prefill model's sequence-length ports
+// (ReshapeToStatic makes that true on the compile path). A blob that declares a bigger chunk than
+// its own prefill ports turns `tensor->get_size() - count` into a size_t underflow at runtime -
+// deserialize() runs validate_imported_sequence_extents() at the trust boundary to reject it.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedPrefillChunkSizeLargerThanPrefillPort) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, 1024u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Same trust boundary, but for the non-chunked (whole) prefill path, where the staging copies
+// trust m_kvcache_desc.max_prompt_size to fit the restored prefill ports instead.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedMaxPromptSizeLargerThanPrefillPort) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    auto past = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    past->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(past);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{past});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// m_kvcache_desc.max_generation_token_len is read verbatim from an imported blob and the
+// infer_generate() staging copies trust it to be no larger than the restored generate variants'
+// sequence-length ports. A blob declaring a bigger limit than its own generate ports turns the
+// same right-aligned `get_byte_size() - count` subtraction into a size_t underflow.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedMaxGenerationTokenLenLargerThanGeneratePort) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    LLMVariantSwitchTestAccess::set_max_generation_token_len(compiled, 16u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// VLM prefill's `inputs_embeds` is [BATCH, SEQ_LEN, EMB_SIZE]: the sequence extent is axis 1,
+// not the trailing axis (the embedding width). A port restored as [1, 8, 4096] must still be
+// rejected against a declared chunk size of 16, even though 16 <= 4096 (the embedding width)
+// would wrongly pass a check that read the last axis instead of axis 1.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputsEmbedsSeqAxisSmallerThanPrefillChunkSize) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, 16u);
+
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8, 4096});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control for the above: a port whose axis-1 (sequence) extent actually meets the
+// declared chunk size must be accepted, proving axis 1 (not just "reject inputs_embeds always")
+// is what gets checked.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedInputsEmbedsWhenSeqAxisMeetsPrefillChunkSize) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, 16u);
+
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 4096});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// The non-sequence-dimension floor must hold even when there is no top-level port to compare
+// against: a dynamic embedding width leaves the destination tensor's real storage unknown at
+// import time, even though its own sequence axis (axis 1) still satisfies the declared limit.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputsEmbedsWithDynamicEmbSizeAndNoTopLevelPort) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, 16u);
+
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 16, -1});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// The sequence axis alone isn't enough: infer_chunked_prefill()'s VLM `inputs_embeds` byte-count
+// scaling multiplies by the *top-level* port's embedding width (see llm_infer_request.cpp). A
+// prefill child whose embedding width disagrees with the top-level model's must be rejected even
+// though its sequence axis alone satisfies the declared limit.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputsEmbedsEmbSizeDisagreeingWithTopLevel) {
+    VariantSwitchFactory factory;
+    auto props = base_props();
+    merge_props(props, {{"NPUW_LLM_PREFILL_HINT", "STATIC"}});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov::test::npuw::build_token_type_ids_test_model(),
+                                                                 m_plugin,
+                                                                 props,
+                                                                 factory.make_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    // Top-level `inputs_embeds` has EMB_SIZE=64 (see make_test_model_config()); this restored
+    // prefill child disagrees (EMB_SIZE=1) while its sequence axis (2048) still fits.
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2048, 1});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control for the above: a port whose embedding width actually matches the top-level
+// model's must be accepted.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedInputsEmbedsWhenEmbSizeMatchesTopLevel) {
+    VariantSwitchFactory factory;
+    auto props = base_props();
+    merge_props(props, {{"NPUW_LLM_PREFILL_HINT", "STATIC"}});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov::test::npuw::build_token_type_ids_test_model(),
+                                                                 m_plugin,
+                                                                 props,
+                                                                 factory.make_factory());
+    ASSERT_NE(compiled, nullptr);
+
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2048, 64});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// pad_position_ids() indexes the destination using the *source* (top-level) port's rank, so a
+// rank-1 position_ids child - whose own sequence axis still satisfies the declared limit -
+// silently reads/writes out of bounds against an actually rank-2 (or rank-3, VLM) top-level port.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedPositionIdsRankDisagreeingWithTopLevel) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(position_ids);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Same trust boundary as the rank/embedding-width checks above, but for element type: a child
+// port restored with a different element type than the top-level model's disagrees with what the
+// runtime copies (which size their byte counts off the top-level tensor's element type) expect.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedAttentionMaskElementTypeDisagreeingWithTopLevel) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2048});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// A blob can set m_use_chunk_prefill=true with m_prefill_chunk_size=0: infer_chunked_prefill()'s
+// `current_prompts_len = min(remaining_prompts, chunk_prompt_len)` is then always 0, so
+// `remaining_prompts` never reaches 0 and the chunk loop never terminates. Reject it at import.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsZeroPrefillChunkSizeWhenChunkedPrefillEnabled) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, 0u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// AddPositionIdsParam() synthesizes a `position_ids` child port even when the top-level model has
+// none of its own (the LFM-2 case); LLMInferRequest::infer() then synthesizes its own rank-2 i64
+// source tensor at runtime. A rank-1 child must still be rejected even though no top-level port
+// exists to cross-check it against, since pad_position_ids() would index it using that
+// synthesized source's rank.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsSynthesizedPositionIdsRankMismatchWithNoTopLevelPort) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Same no-top-level-port trust boundary, but for element type: the synthesized source is always
+// i64.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsSynthesizedPositionIdsElementTypeMismatchWithNoTopLevelPort) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control for the two tests above: a child honoring the synthesized-position contract
+// (i64, rank 2, non-zero batch) must be accepted even with no top-level port to compare against.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsSynthesizedPositionIdsMatchingContractWithNoTopLevelPort) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 2048u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 2048u);
+
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 2048});
+    position_ids->output(0).set_names({"position_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(position_ids)},
+                                    ov::ParameterVector{position_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// Matching the top-level dimensions does not prove the destination tensor has storage: a [0,
+// chunk_size] child agrees with the (dynamic) top-level batch dimension and still satisfies the
+// sequence-extent check, yet get_size() == 0 for the whole tensor - infer_chunked_prefill()'s
+// right-aligned staging copy then underflows subtracting chunk_prompt_len from it.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedAttentionMaskWithZeroBatchDimension) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{0, 512});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// ReshapeToStatic sizes attention_mask to max_prompt_size - the full KV window - never to the
+// chunk size (see reshape_to_static.cpp), since infer_chunked_prefill() copies each completed
+// chunk's mask forward to an absolute offset of num_stored_tokens, which grows up to
+// max_prompt_size across chunks. A port sized to only one chunk must still be rejected, even
+// though it would satisfy a (wrong) chunk-size-only check.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedChunkedPrefillAttentionMaskSizedToChunkInsteadOfMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 512});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// ReshapeToStatic sizes each generate variant's attention_mask to that variant's own KV window
+// (m_kvcache_sizes[i]), not to max_generation_token_len - infer_generate() copies the full
+// stored-token history into it starting at offset 0, so a port sized to only the (generally much
+// smaller) per-step generation limit must still be rejected.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedGenerateAttentionMaskSizedToMaxGenerationLenInsteadOfKvSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_GE(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 1u);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 8});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        0u,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// infer_chunked_prefill() also computes attn_mask_in_tensor->get_size() - m_prefill_chunk_size
+// every chunk iteration (llm_infer_request.cpp). Both scalars are independently deserialized, so
+// a blob can declare a chunk size larger than max_prompt_size (the real compile path's "chunk
+// covers the whole prompt" guard only runs for a fresh compile, never for an imported blob) while
+// still providing a mask sized to just max_prompt_size - that alone must still be rejected.
+TEST_F(LLMInferRequestVariantSwitchTest,
+       RejectsImportedChunkedPrefillAttentionMaskSizedToMaxPromptSizeSmallerThanChunk) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, max_prompt_size + 1u);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, max_prompt_size});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Disabling chunked prefill (prefill_hint=STATIC) leaves m_prefill_chunk_size at its unrelated,
+// compile-time config value - the chunk-size floor must not apply when chunking isn't actually
+// selected at runtime, or a legitimate whole-prefill blob with a stale/larger chunk size config
+// would be wrongly rejected even though ReshapeToStatic only ever sized attention_mask to
+// max_prompt_size and infer_whole_prefill() never reads m_prefill_chunk_size at all.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWholePrefillAttentionMaskWhenChunkSizeExceedsMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, max_prompt_size + 1u);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// infer_generate() also computes kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len
+// (llm_infer_request.cpp). Both scalars are independently deserialized, so a blob can declare a
+// KV window (m_kvcache_sizes[i]) smaller than the generation limit while still providing a mask
+// sized to just that (smaller) window - that alone must still be rejected. Compiling with the
+// generation limit already set keeps every OTHER (untouched) variant's ports correctly sized, so
+// only mutating m_kvcache_sizes[0] (not max_generation_token_len globally) isolates the gap.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedGenerateAttentionMaskSizedToKvSizeSmallerThanGenerationLen) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "16"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_GE(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 1u);
+
+    auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
+    ASSERT_GT(sizes.at(0), 8u);
+    sizes.at(0) = 8u;
+    LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, sizes);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 8});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        0u,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// PrefixCachingHelper::find_cached_blocks() computes max_prompt_size - m_prefill_chunk_size
+// unconditionally whenever prefix caching is enabled (llm_prefix_caching.cpp). Both scalars are
+// independently deserialized, and nothing but the compile path's own "chunk covers the whole
+// prompt" fallback normally keeps chunk size <= max prompt size. Oversizing every restored port
+// can't mask this - the scalar relationship must be validated directly.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedPrefillChunkSizeLargerThanMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    const uint32_t oversized_chunk = max_prompt_size + 1u;
+    LLMVariantSwitchTestAccess::set_prefill_chunk_size(compiled, oversized_chunk);
+
+    // Sized to satisfy the attention_mask extent check (required == oversized_chunk here) on its
+    // own, so only the direct chunk-size-vs-max-prompt-size scalar check can still catch this.
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, oversized_chunk});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// infer_chunked_prefill()/infer_whole_prefill() multiply or size their copy byte counts off
+// inputs_embeds' CONCRETE runtime tensor width (input_ids->get_shape().back()), not off anything
+// declared at import time. A dynamic top-level embedding-width dimension can't be cross-checked
+// against the restored child port, since a future inference call could supply any width - reject
+// the blob outright rather than let an unboundable future call underflow the staging copy.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedTopLevelInputsEmbedsWithDynamicEmbSize) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto top_level_model = std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids), std::make_shared<ov::op::v0::Result>(embeds)},
+        ov::ParameterVector{input_ids, embeds});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+
+    auto child_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 4096});
+    child_embeds->output(0).set_names({"inputs_embeds"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_embeds)},
+                                    ov::ParameterVector{child_embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control for the above: a dynamic top-level BATCH dimension must still be tolerated
+// (the pre-existing, intentional policy) - only the embedding-width axis is rejected when
+// dynamic, proving the new check is scoped to that one axis.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedTopLevelInputsEmbedsWithDynamicBatchButStaticEmbSize) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 4096});
+    embeds->output(0).set_names({"inputs_embeds"});
+    auto top_level_model = std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids), std::make_shared<ov::op::v0::Result>(embeds)},
+        ov::ParameterVector{input_ids, embeds});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 16u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 16u);
+
+    auto child_embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 4096});
+    child_embeds->output(0).set_names({"inputs_embeds"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_embeds)},
+                                    ov::ParameterVector{child_embeds});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// ReshapeToStatic gives Whisper's generate attention_mask one extra slot (kvcache_size + 1,
+// reshape_to_static.cpp's whisper-only branch), and WhisperInferRequest never switches variants -
+// it always runs on the LAST one (m_kvcache_request defaults to m_generate_requests.back() and
+// nothing in whisper_infer_request.cpp ever changes it). infer_generate() computes
+// attention_mask_size - 2, bounded only by kvcache_desc.total_size - a blob can force
+// m_kvcache_sizes down without changing total_size, so the mask must be validated against
+// total_size directly rather than the independently-forgeable m_kvcache_sizes[i] entry.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperGenerateAttentionMaskSmallerThanTotalSizePlusOne) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
+    ASSERT_GE(variant_count, 1u);
+
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 4096u);
+
+    auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
+    sizes.back() = 8u;
+    LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, sizes);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 8});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        variant_count - 1,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control for the above: a port sized to exactly total_size + 1 (the real compile-path
+// Whisper shape) must be accepted.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperGenerateAttentionMaskSizedToTotalSizePlusOne) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
+    ASSERT_GE(variant_count, 1u);
+
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 4096u);
+
+    auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
+    sizes.back() = 4096u;
+    LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, sizes);
+
+    auto attn_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4097});
+    attn_mask->output(0).set_names({"attention_mask"});
+    auto result = std::make_shared<ov::op::v0::Result>(attn_mask);
+    auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{attn_mask});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        variant_count - 1,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// The constructor always derives total_size as max_prompt_size + min_response_len and asserts
+// total_size >= max_prompt_size before building any generate variant - import restores both
+// scalars independently with no such relation enforced. Whisper's infer_generate() only checks
+// `num_stored_tokens == total_size` (not >=), so a forged max_prompt_size larger than total_size
+// lets a single prefill skip straight past that equality check.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedTotalSizeSmallerThanMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 1u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// A declared limit of 0 (itself independently deserialized, e.g. max_generation_token_len and
+// every m_kvcache_sizes[i] entry) makes `required <= extent` pass trivially even for a
+// zero-length port. Whisper's raw one-token copies never re-check the caller's token count
+// against anything else, so a zero-sized restored input_ids port alone is enough to write out of
+// bounds - the extent itself must be required to be non-zero, independent of the declared limit.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedGenerateInputIdsWithZeroExtentWhenRequiredIsZero) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_GE(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 1u);
+
+    LLMVariantSwitchTestAccess::set_max_generation_token_len(compiled, 0u);
+    auto sizes = LLMVariantSwitchTestAccess::kvcache_sizes(compiled);
+    sizes.at(0) = 0u;
+    LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, sizes);
+
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 0});
+    input_ids->output(0).set_names({"input_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(input_ids);
+    auto tiny_generate_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        0u,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// ReshapeToStatic always sizes every prefill sequence-length port to EXACTLY max_prompt_size (or
+// the chunk size when chunking) - never larger (reshape_to_static.cpp). An oversized restored
+// port used to pass the old `required <= extent` floor check, defeating the
+// total_size >= max_prompt_size relationship this validator also enforces: Whisper's
+// infer_prefill() trusts the compiled prefill port's capacity to reflect max_prompt_size when it
+// increments num_stored_tokens by the caller's own (separately bounded) token count, so an
+// oversized port must be rejected, not merely accepted as "big enough".
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedPrefillInputIdsLargerThanMaxPromptSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "STATIC"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    const uint32_t max_prompt_size = LLMVariantSwitchTestAccess::max_prompt_size(compiled);
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, max_prompt_size + 1u});
+    input_ids->output(0).set_names({"input_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(input_ids);
+    auto tiny_prefill_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// num_stored_tokens is restored from the blob too, with no bound against total_size. A fresh
+// request never resets it before its first inference (prepare_for_new_conversation() only runs
+// once infer_prefill() is actually invoked), so WhisperInferRequest::infer() can route a single-
+// token call straight to infer_generate() whenever the forged value is nonzero - and that
+// equality-only "cache full" guard never fires for a value that merely avoids equaling
+// total_size, letting it be used as a raw attention-mask/KV-cache index instead.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedNumStoredTokensLargerThanTotalSize) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+
+    const uint32_t total_size = LLMVariantSwitchTestAccess::total_size(compiled);
+    LLMVariantSwitchTestAccess::set_num_stored_tokens(compiled, total_size + 1u);
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Matching the top-level model's rank does not establish the runtime contract by itself: the
+// top-level shape is just as blob-controlled as the child's, so a forged blob can make both agree
+// on the same wrong rank. Every infer_prefill()/infer_generate() path indexes
+// input_ids->get_shape()[1], assuming rank 2 regardless of what either declared shape says.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedInputIdsRankOneEvenWhenTopLevelAgrees) {
+    auto top_input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    top_input_ids->output(0).set_names({"input_ids"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_input_ids)},
+                                    ov::ParameterVector{top_input_ids});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_max_prompt_size(compiled, 1u);
+    LLMVariantSwitchTestAccess::set_total_size(compiled, 1u);
+
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    input_ids->output(0).set_names({"input_ids"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(input_ids)},
+                                    ov::ParameterVector{input_ids});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// infer_prefill() copies the top-level 'encoder_hidden_states' tensor's full byte size into the
+// compiled prefill port with no destination-capacity check - both ports are independently
+// restored, so a smaller restored child port still passes import and then overflows on the
+// first real inference.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperEncoderHiddenStatesSmallerThanTopLevel) {
+    auto top_encoder_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    top_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_encoder_hidden_states)},
+                                    ov::ParameterVector{top_encoder_hidden_states});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto child_encoder_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 100, 512});
+    child_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_encoder_hidden_states)},
+                                    ov::ParameterVector{child_encoder_hidden_states});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control: a child port at least as large as the top-level model's must be accepted.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperEncoderHiddenStatesAtLeastTopLevelSize) {
+    auto top_encoder_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    top_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto top_level_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(top_encoder_hidden_states)},
+                                    ov::ParameterVector{top_encoder_hidden_states});
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(top_level_model, m_plugin, /*serialized=*/true);
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto child_encoder_hidden_states =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1500, 512});
+    child_encoder_hidden_states->output(0).set_names({"encoder_hidden_states"});
+    auto tiny_prefill_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(child_encoder_hidden_states)},
+                                    ov::ParameterVector{child_encoder_hidden_states});
+    LLMVariantSwitchTestAccess::set_prefill_compiled(
+        compiled,
+        std::make_shared<FakeSubCompiledModel>(tiny_prefill_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
+}
+
+// infer_generate() writes cache_position->data<int64_t>()[0] unconditionally on the only
+// reachable Whisper generate variant - ReshapeToStatic always sizes this port to exactly {1}
+// (see reshape_to_static.cpp), but it is restored independently and a zero-length restored port
+// writes past its allocation.
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsImportedWhisperCachePositionWithZeroLengthShape) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
+    ASSERT_GE(variant_count, 1u);
+
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{0});
+    cache_position->output(0).set_names({"cache_position"});
+    auto tiny_generate_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(cache_position)},
+                                    ov::ParameterVector{cache_position});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        variant_count - 1,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled), ov::Exception);
+}
+
+// Negative control: the real compile-path shape {1} must be accepted.
+TEST_F(LLMInferRequestVariantSwitchTest, AcceptsImportedWhisperCachePositionShapedOne) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    const auto variant_count = LLMVariantSwitchTestAccess::generate_variant_count(compiled);
+    ASSERT_GE(variant_count, 1u);
+
+    LLMVariantSwitchTestAccess::set_is_whisper(compiled, true);
+
+    auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    cache_position->output(0).set_names({"cache_position"});
+    auto tiny_generate_model =
+        std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(cache_position)},
+                                    ov::ParameterVector{cache_position});
+    LLMVariantSwitchTestAccess::set_generate_variant(
+        compiled,
+        variant_count - 1,
+        std::make_shared<FakeSubCompiledModel>(tiny_generate_model, m_plugin, ov::AnyMap{}));
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_sequence_extents(compiled));
 }
 
 }  // namespace
