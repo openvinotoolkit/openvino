@@ -132,3 +132,5 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print inp
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, pa_integrity_check, false, "Enable in-kernel SDPA micro-GEMM integrity checks (per-row K^T*Q and V*S reference comparisons)")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_workgroup_config, std::vector<int>{}, "Override SDPA micro-kernel workgroup config: 4 ints [wg_m_kq wg_n_kq wg_m_vs wg_n_vs]")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic, false, "Enable level-zero command list through record and replay for all (static and dynamic) models. Feature is work in progress and may produce incorrect results.")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_types, std::vector<std::string>{}, "Space separated list of layer types to force FP32 precision; PASSTHROUGH_OPS selects data movement types (no automatic propagation)")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_names, std::vector<std::string>{}, "Space separated list of layer name substrings to force FP32 precision (AND with layer_types if both set)")
