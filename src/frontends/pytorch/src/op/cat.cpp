@@ -106,6 +106,16 @@ OutputVector translate_cat_common(const NodeContext& context,
             }
         }
     }
+    const auto promoted_empty = inputs_vec.front();
+    inputs_vec.erase(std::remove_if(inputs_vec.begin(),
+                                    inputs_vec.end(),
+                                    [](const Output<Node>& input) {
+                                        return input.get_partial_shape() == PartialShape{0};
+                                    }),
+                     inputs_vec.end());
+    if (inputs_vec.empty()) {
+        return {promoted_empty};
+    }
     auto concat = context.mark_node(std::make_shared<v0::Concat>(inputs_vec, axis));
     if (is_complex) {
         concat = context.mark_node(std::make_shared<ComplexTypeMark>(concat));
