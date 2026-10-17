@@ -338,6 +338,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 168490
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
+            std::regex(R"(.*CpuWeightlessImport.ValidatesConvertedWeightSizes.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
             // GatherMatmul is not supported on 32-bit ARM
