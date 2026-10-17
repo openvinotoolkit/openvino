@@ -27,6 +27,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -49,7 +50,6 @@ using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::wrap_type;
 using ov::pass::pattern::wrap_type_strict_index;
-using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -268,9 +268,8 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
                                                                          // in a not usual layout, example: bloom
     auto kv_current2 = any_input();
     auto kv_current_reshaped = wrap_type<v1::Reshape>({kv_current2, any_input()});
-    auto kv_concat =
-        wrap_type<v0::Concat>({kv_past, std::make_shared<Or>(OutputVector{kv_current_reshaped, kv_current})});
-    return node_tuple(kv_past_var, kv_current2, kv_current_reshaped, kv_concat);
+    auto kv_concat = wrap_type<v0::Concat>({kv_past, kv_current_reshaped | kv_current});
+    return {kv_past_var, kv_current2, kv_current_reshaped, kv_concat};
 }
 
 static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqueeze_pattern,
@@ -335,7 +334,7 @@ static std::shared_ptr<ov::Node> optional_quantization(const std::shared_ptr<ov:
     auto fc_3 = wrap_type<v13::FakeConvert>({input, any_input(), any_input()});
     auto fq = wrap_type<v0::FakeQuantize>({input, any_input(), any_input(), any_input(), any_input()},
                                           is_per_tensor_fake_quantize);
-    return std::make_shared<Or>(OutputVector{fc_2, fc_3, fq, input});
+    return fc_2 | fc_3 | fq | input;
 }
 
 static bool depends_on(const ov::Output<ov::Node>& root, const ov::Node* target) {
@@ -398,12 +397,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     // ambiguous which part the matcher should take: KV merged part or where K and V are separate, requires experiments.
     auto qkv_current_split_node = wrap_type_strict_index<v1::VariadicSplit>({any_input(), any_input(), any_input()});
     auto kv_current = qkv_current_split_node->output(1);
-    std::shared_ptr<ov::Node> kv_past_var, kv_current2, kv_concat, kv_current_reshaped;
-    std::tie(kv_past_var, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(kv_current);
+    std::shared_ptr<ov::Node> kv_past_var, kv_concat;
+    std::tie(kv_past_var, std::ignore, std::ignore, kv_concat) = kv_read_and_concat(kv_current);
     auto kv_concat_split = wrap_type_strict_index<v1::VariadicSplit>({kv_concat, any_input(), any_input()});
 
-    k_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(0), k_concat});
-    v_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(1), v_concat});
+    k_concat = kv_concat_split->output(0) | k_concat;
+    v_concat = kv_concat_split->output(1) | v_concat;
 
     // a8w8 (SmoothQuant) inserts a per-tensor FakeQuantize right after the KV-cache Concat, before the
     // GQA/MQA repeat_kv head expansion. Tolerate it here so the pattern still binds; it is re-applied on
@@ -417,10 +416,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         // the place where they are being broadcases in case of GQA and MQ
         auto interim = wrap_type<v1::StridedSlice>({kv_concat, any_input(), any_input(), any_input()});
         interim = wrap_type<v1::StridedSlice>({interim, any_input(), any_input(), any_input()});
-        unsqueeze = wrap_type<v0::Unsqueeze>({std::make_shared<Or>(OutputVector{kv_concat, interim}), any_input()});
+        unsqueeze = wrap_type<v0::Unsqueeze>({kv_concat | interim, any_input()});
         interim = wrap_type<v1::StridedSlice>({unsqueeze, any_input(), any_input(), any_input()});
         interim = wrap_type<v1::StridedSlice>({interim, any_input(), any_input(), any_input()});
-        interim = wrap_type<v3::Broadcast>({std::make_shared<Or>(OutputVector{unsqueeze, interim}), any_input()});
+        interim = wrap_type<v3::Broadcast>({unsqueeze | interim, any_input()});
         interim = pattern::optional<v1::Reshape>({interim, any_input()});  // Reshape is missing sometimes in MQA case
         return interim;
     };
@@ -430,17 +429,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     auto k_shaped = kv_shaping(k_concat, k_heads_unsqueeze);
     auto v_shaped = kv_shaping(v_concat, v_heads_unsqueeze);
 
-    auto k_simply_shaped = wrap_type<v1::Reshape>({k_concat, any_input()});
-    auto v_simply_shaped = wrap_type<v1::Reshape>({v_concat, any_input()});
+    // Plain Reshape right after the KV concat (no GQA/MQA broadcast) is tolerated but not otherwise used.
+    auto k_simply_shaped = pattern::optional<v1::Reshape>({k_concat, any_input()});
+    auto v_simply_shaped = pattern::optional<v1::Reshape>({v_concat, any_input()});
 
     auto k_order = any_input();
     auto v_order = any_input();
 
-    // KV-path may already have Transposes that will be rewritten based on PA KV inputs required layout
-    auto k_shaped_transposed =
-        wrap_type<v1::Transpose>({std::make_shared<Or>(OutputVector{k_concat, k_shaped}), k_order});
-    auto v_shaped_transposed =
-        wrap_type<v1::Transpose>({std::make_shared<Or>(OutputVector{v_concat, v_shaped}), v_order});
+    // KV-path may already have a Transpose that will be rewritten based on PA KV inputs required layout
+    auto k_shaped_transposed = pattern::optional<v1::Transpose>({k_concat | k_shaped, k_order});
+    auto v_shaped_transposed = pattern::optional<v1::Transpose>({v_concat | v_shaped, v_order});
 
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
     std::shared_ptr<ov::Node> general_alibi, general_alibi_mask;
@@ -466,50 +464,29 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     std::shared_ptr<ov::Node> gemma4_mask, gemma4_offset;
     std::tie(gemma4_mask, gemma4_offset) = gemma4_sliding_window_pattern();
 
-    // Scale's shape limitations according to SDPA specification
-    auto scale_predicate = [=](const Output<Node>& output) -> bool {
-        return output.get_partial_shape() == ov::PartialShape{} ||
-               (output.get_partial_shape() == ov::PartialShape{1} && output.get_partial_shape()[0] == 1);
-    };
+    auto scale_input = any_input(pattern::shape_matches("[]") || pattern::shape_matches("[1]"));
+    auto sinks = any_input(pattern::has_static_shape() && pattern::rank_equals(4));
 
-    auto scale_input = any_input(scale_predicate);
-    auto sinks = any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::rank_equals(4));
-
-    std::shared_ptr<ov::Node> k_to_sdpa =
-        std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
-    std::shared_ptr<ov::Node> v_to_sdpa =
-        std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+    std::shared_ptr<ov::Node> k_to_sdpa = k_shaped_transposed | k_simply_shaped;
+    std::shared_ptr<ov::Node> v_to_sdpa = v_shaped_transposed | v_simply_shaped;
 
     auto q_inner = any_input();
     auto q = optional_quantization(q_inner);
     k_to_sdpa = optional_quantization(k_to_sdpa);
     v_to_sdpa = optional_quantization(v_to_sdpa);
 
-    auto mask_to_sdpa = std::make_shared<Or>(OutputVector{phi3_mask,
-                                                          general_alibi_mask,
-                                                          jais_alibi_mask,
-                                                          baichuan2_13b_alibi_mask,
-                                                          gptoss_gemma3_mask,
-                                                          gemma4_mask,
-                                                          any_input()});
+    auto mask_to_sdpa = phi3_mask | general_alibi_mask | jais_alibi_mask | baichuan2_13b_alibi_mask |
+                        gptoss_gemma3_mask | gemma4_mask | any_input();
 
-    auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
-    auto sdpa_with_5_inputs =
-        wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
-    auto sdpa_with_6_inputs =
-        wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input, sinks});
-
-    auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
+    auto sdpa = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa}) |
+                wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input}) |
+                wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input, sinks});
 
     ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q_inner);
 
-        auto sdpa_node = pattern_map
-                             .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
-                                 : pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs
-                                                                         : sdpa_with_6_inputs)
-                             .get_node();
+        auto sdpa_node = pattern_map.at(sdpa).get_node();
 
         auto k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];  // E from SDPA spec.
         auto v_head_size_dim = sdpa_node->get_input_tensor(2)
@@ -918,6 +895,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(sdpa_variants, matcher_name);
+    auto m = std::make_shared<Matcher>(sdpa, matcher_name);
     register_matcher(m, callback);
 }
