@@ -458,10 +458,12 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         std::tie(param_idx, sub_in_idx) = it;
         LOG_DEBUG("Processing " << param_idx << " -> " << sub_in_idx << std::endl);
 
-        const auto& g_port = m_npuw_model->inputs()[param_idx];
+        // Both indices come from the routing tables, which may have been imported from a blob.
+        // validate_import_routing_tables() is the primary guard; keep the runtime hardening
+        // here as well, the way MemAccessSim does for its own routing table consumer.
+        const auto& g_port = m_npuw_model->inputs().at(param_idx);
         const auto& g_tnsr = get_tensor(g_port);
-        const auto& s_port = request->get_inputs()[sub_in_idx];
-        LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
+        LOG_DEBUG("Processing " << g_port << "...");
         LOG_BLOCK();
 
         if (is_spatial_param(sub_in_idx)) {
@@ -477,6 +479,9 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         } else if (bind_behavior_input(idx, real_idx, sub_in_idx, g_tnsr, request)) {
             continue;
         } else {
+            // Only look the port up here: a runtime behavior may own function params beyond the
+            // request's inputs (block-KV HFA has one per KV block) and has bound those above.
+            const auto& s_port = request->get_inputs().at(sub_in_idx);
             // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
             std::unique_lock lock(m_io_storages_mutex);
             // Input parameter is non-spatial, do normal handling
