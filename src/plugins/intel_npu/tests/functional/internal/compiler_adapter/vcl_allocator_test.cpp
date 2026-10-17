@@ -12,6 +12,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "model_serializer.hpp"

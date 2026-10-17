@@ -7,12 +7,13 @@
 #include <chrono>
 #include <cstdint>
 #include <istream>
+#include <optional>
 #include <regex>
 #include <streambuf>
 
 #include "custom_stream_buffer.hpp"
-#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
@@ -613,6 +614,14 @@ SerializedIR serializeIR(
     return serializedIR;
 }
 
+ov::intel_npu::ModelSerializerVersion getModelSerializerVersion(const CompilerProperties& compilerProperties) {
+    if (!string_map::has(compilerProperties, ov::intel_npu::model_serializer_version.name())) {
+        return ov::intel_npu::ModelSerializerVersion::AUTO;
+    }
+    return ov::Any(string_map::get(compilerProperties, ov::intel_npu::model_serializer_version.name()))
+        .as<ov::intel_npu::ModelSerializerVersion>();
+}
+
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
@@ -701,33 +710,24 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string serializeConfig(const Config& originalConfig,
-                            const ze_graph_compiler_version_info_t& compilerVersion,
-                            const std::function<bool(const std::string&)>& isOptionSupportedByCompiler) {
+std::string serializeConfig(const CompilerProperties& compilerProperties,
+                            const ze_graph_compiler_version_info_t& compilerVersion) {
     Logger logger("serializeConfig", Logger::global().level());
-
-    // Compiler log level decoupling: the compiler only understands the LOG_LEVEL key. When the user explicitly set
-    // NPU_COMPILE_LOG_LEVEL, copy the config and overwrite LOG_LEVEL on the copy with that (resolved) value, then
-    // use the copy for the remainder of this function so every subsequent read observes the compiler-specific
-    // level instead of the plugin one. When NPU_COMPILE_LOG_LEVEL is unset, no copy
-    // is made and the compiler keeps inheriting the plugin LOG_LEVEL exactly as before.
-    std::optional<Config> configWithCompileLogLevel;
-    if (originalConfig.has<COMPILE_LOG_LEVEL>()) {
-        configWithCompileLogLevel = originalConfig;
-        configWithCompileLogLevel->update(ov::log::level.name(), originalConfig.get<COMPILE_LOG_LEVEL>());
-        configWithCompileLogLevel->remove(ov::intel_npu::compile_log_level.name());
-    }
-    const Config& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
 
     std::string content = {};
 
-    content += config.toStringForCompiler(isOptionSupportedByCompiler);
+    for (const auto& [key, value] : compilerProperties) {
+        if (!content.empty()) {
+            content += VALUES_SEPARATOR;
+        }
+        content += key + KEY_VALUE_SEPARATOR.data() + VALUE_DELIMITER.data() + value + VALUE_DELIMITER.data();
+    }
 
     logger.debug("Original content of config: %s", content.c_str());
 
     // Remove optimization-level and performance-hint-override for old driver which not support them
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7)) {
-        std::string valueOfParams = config.get<COMPILATION_MODE_PARAMS>();
+        std::string valueOfParams = string_map::get(compilerProperties, ov::intel_npu::compilation_mode_params.name());
         std::string keyOfOptL("optimization-level");
         std::string keyOfPerfHO("performance-hint-override");
         if (valueOfParams != "" && (valueOfParams.find(keyOfOptL) != std::string::npos ||
