@@ -41,6 +41,11 @@ def main():
 
     leaky_relu("leaky_relu", data, 0.03)
 
+    data_type = 'float64'
+    data = np.array([-1, 2, 3]).astype(data_type)
+
+    leaky_relu("leaky_relu_float64", data, 0.03, data_type)
+
 
 if __name__ == "__main__":
     main()
