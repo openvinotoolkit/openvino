@@ -257,7 +257,8 @@ activations_scaling::EliminateScalarMul::EliminateScalarMul() {
         if (pattern_map.count(post_convert_m)) {
             // the Convert may have other consumers
             auto convert = pattern_map.at(post_convert_m).get_node_shared_ptr();
-            auto new_convert = std::make_shared<v0::Convert>(activation, convert->get_output_element_type(0));
+            // clone_with_new_inputs() doesn't copy rt_info
+            auto new_convert = convert->clone_with_new_inputs({activation});
             ov::copy_runtime_info(convert, new_convert);
             activation = new_convert->output(0);
         }
