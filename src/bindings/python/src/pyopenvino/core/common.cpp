@@ -284,6 +284,9 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     case ov::element::f16:
     case ov::element::bf16:
         return array.view("int16").cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    // fixed-width strings keep their numpy dtype
+    case ov::element::string:
+        return py::array::ensure(array, py::array::c_style);
     default:
         OPENVINO_THROW("Tensor cannot be created as contiguous!");
     }
@@ -451,6 +454,13 @@ ov::op::v0::Constant create_copied(py::array& array) {
     if (!array_helpers::is_contiguous(array)) {
         array = array_helpers::as_contiguous(array, type_helpers::get_ov_type(array));
     }
+    // Special case with string data type of kind "S"(bytes_) or "U"(str_).
+    // Numpy stores fixed-width characters, so they have to be converted to std::string elements first.
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
+        auto tensor = ov::Tensor(ov::element::string, array_helpers::get_shape(array));
+        string_helpers::fill_string_tensor_data(tensor, array);
+        return ov::op::v0::Constant(tensor);
+    }
     // Create actual Constant and a constructor is copying data.
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
@@ -467,6 +477,9 @@ ov::op::v0::Constant create_copied(ov::Tensor& tensor) {
 
 template <>
 ov::op::v0::Constant create_shared(py::array& array) {
+    if (type_helpers::get_ov_type(array) == ov::element::string) {
+        OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! String types can be only copied.");
+    }
     return ov::op::v0::Constant(type_helpers::get_ov_type(array),
                                 array_helpers::get_shape(array),
                                 constant_helpers::get_shared_memory(array));
