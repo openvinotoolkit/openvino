@@ -47,7 +47,7 @@ using ov::op::internal::GroupQueryAttention;
 
 // Graph-level tests for GroupQueryAttentionDecomposition: the internal op is replaced by a
 // ScaledDotProductAttention-based decomposition, and each feature emits its expected structure
-// (sliding-window cache -> ScatterUpdate; smooth_softmax / head_sink -> SDPA sink input). Numerical
+// (non-empty sliding-window cache -> ScatterUpdate; smooth_softmax / head_sink -> SDPA sink input). Numerical
 // parity against ONNX Runtime is covered by the end-to-end tests in onnx_import_com_microsoft.
 namespace {
 
@@ -103,7 +103,7 @@ struct GqaParams {
         local_window_size = w;
         sliding_window_cache = true;
         past_len = capacity;
-        expects_scatter_update = true;
+        expects_scatter_update = !capacity.is_static() || capacity.get_length() > 0;
         return *this;
     }
     GqaParams& sink_smooth() {
@@ -138,7 +138,7 @@ struct GqaParams {
     GqaParams& shape(const Dimension& seq, const Dimension& past) {
         seq_len = seq;
         past_len = past;
-        expects_scatter_update = past.is_static();
+        expects_scatter_update = past.is_static() && past.get_length() > 0;
         return *this;
     }
 };
@@ -263,8 +263,8 @@ TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
         }
     }
 
-    // The windowed rolling / static-cache paths assemble the present buffer with a ScatterUpdate along the
-    // sequence axis (2); other cache paths do not. (Partial rotary also emits an unrelated ScatterUpdate to
+    // The non-empty windowed rolling / static-cache paths assemble the present buffer with a ScatterUpdate
+    // along the sequence axis (2); other cache paths do not. (Partial rotary also emits an unrelated ScatterUpdate to
     // re-attach pass-through channels along the last (channel) axis - filter cache writes by scatter axis.)
     bool has_cache_scatter_update = false;
     for (const auto& op : model->get_ordered_ops()) {
@@ -288,6 +288,7 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"partial_rotary"}.rotary(/*interleaved*/ false, HEAD_SIZE / 2),
                                          GqaParams{"partial_rotary_interleaved"}.rotary(/*interleaved*/ true,
                                                                                         HEAD_SIZE / 2),
+                                         GqaParams{"empty_past"}.shape(1, 0),
                                          GqaParams{"static_past_scatter"}.shape(1, 8),
                                          GqaParams{"static_past_scatter_bias"}.shape(1, 8).bias(5),
                                          GqaParams{"sliding_window"}.window(2),
@@ -299,6 +300,7 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"i4_per_tensor"}.quant(4, element::u8),
                                          GqaParams{"f8e4m3_per_tensor"}.quant(8, element::f8e4m3),
                                          GqaParams{"windowed_cache"}.windowed_roll(3, 4),
+                                         GqaParams{"empty_past_windowed_cache"}.windowed_roll(3, 0),
                                          GqaParams{"bidirectional"}.bidirectional()),
                          [](const testing::TestParamInfo<GqaParams>& i) {
                              return i.param.name;
