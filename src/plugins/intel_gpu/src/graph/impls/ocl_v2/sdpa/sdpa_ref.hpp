@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
+#include "scaled_dot_product_attention_inst.h"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
@@ -19,6 +20,13 @@ struct SDPARef : public ImplementationManager {
     SDPARef(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
     bool validate_impl(const program_node& node) const override {
+        // A fused Q rotation exists only in the micro-kernel. This one would bind the two trailing
+        // cos/sin inputs as positional kernel arguments its generated signature does not have, so
+        // it must decline the node rather than run it unrotated.
+        if (node.as<scaled_dot_product_attention>().get_primitive()->has_rope_q) {
+            return false;
+        }
+
         const auto& supported_precisions = ov::intel_gpu::op::SDPA::get_supported_precisions();
         const auto is_supported_precision = [&supported_precisions](const ov::element::Type& dt) {
             return one_of(dt, supported_precisions);

@@ -16,10 +16,13 @@
 #define V_DEQUANT_TYPE KV_DEQUANT_TYPE
 #define TO_V_DEQUANT_TYPE(val) TO_KV_DEQUANT_TYPE(val)
 #else
-#define KV_DEQUANT_TYPE INPUT1_COMPUTE_TYPE
-#define TO_KV_DEQUANT_TYPE(val) DECODE_INPUT1_COMPUTE_TYPE(val)
-#define V_DEQUANT_TYPE INPUT2_COMPUTE_TYPE
-#define TO_V_DEQUANT_TYPE(val) DECODE_INPUT2_COMPUTE_TYPE(val)
+/* An integer key or value that is not a compressed cache holds integer values, which the op
+   converts to the query's type. Computing in its own type would accumulate Q*K in 8 bits. For a
+   float key or value both types are the same. */
+#define KV_DEQUANT_TYPE INPUT0_COMPUTE_TYPE
+#define TO_KV_DEQUANT_TYPE(val) CAT(convert_, KV_DEQUANT_TYPE)(DECODE_INPUT1_COMPUTE_TYPE(val))
+#define V_DEQUANT_TYPE INPUT0_COMPUTE_TYPE
+#define TO_V_DEQUANT_TYPE(val) CAT(convert_, V_DEQUANT_TYPE)(DECODE_INPUT2_COMPUTE_TYPE(val))
 #endif
 
 // query_input   [batch, heads_num, q_len, head_size]
