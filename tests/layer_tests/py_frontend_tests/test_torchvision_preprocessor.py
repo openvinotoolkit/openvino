@@ -214,6 +214,43 @@ def test_centercrop():
     assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
 
 
+@pytest.mark.parametrize(
+    ("image_size", "transforms_list"),
+    [
+        ((64, 64), [transforms.CenterCrop(64)]),
+        ((64, 48), [transforms.CenterCrop((64, 40))]),
+        ((64, 64), [transforms.CenterCrop(63)]),
+        ((64, 64), [transforms.CenterCrop(61)]),
+        ((64, 64), [transforms.CenterCrop(59)]),
+        pytest.param(
+            (260, 300),
+            [transforms.Resize(224, interpolation=transforms.InterpolationMode.NEAREST), transforms.CenterCrop(224)],
+            marks=pytest.mark.skipif(
+                condition=platform.machine() in ("arm", "armv7l", "aarch64", "arm64", "ARM64"),
+                reason="Ticket: 114816",
+            ),
+        ),
+    ],
+)
+def test_centercrop_matches_torchvision(image_size, transforms_list):
+    test_input = np.random.randint(255, size=(*image_size, 3), dtype=np.uint8)
+    preprocess_pipeline = transforms.Compose([*transforms_list, transforms.ToTensor()])
+    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
+    assert torch_result.shape == ov_result.shape
+    assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
+
+
+@pytest.mark.parametrize("crop_size", [(40, 40), (33, 10), (10, 33)])
+def test_centercrop_larger_than_image_raises(crop_size):
+    ov_model = convert_model(Convnet(3))
+    test_input = np.random.randint(255, size=(32, 32, 3), dtype=np.uint8)
+    preprocess_pipeline = transforms.Compose([transforms.CenterCrop(crop_size), transforms.ToTensor()])
+    with pytest.raises(ValueError, match="CenterCrop"):
+        PreprocessConverter.from_torchvision(
+            model=ov_model, transform=preprocess_pipeline, input_example=Image.fromarray(test_input, "RGB"),
+        )
+
+
 def test_grayscale():
     test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Grayscale()])
