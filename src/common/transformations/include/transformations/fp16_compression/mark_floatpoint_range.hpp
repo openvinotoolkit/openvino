@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
@@ -15,11 +16,12 @@ namespace pass {
  * @brief This transformation markups the marks paths that involve Range operations with floating point output data
  * types, as well as their users allowed for propagation. This pass is needed to prevent accuracy data loss in cases of
  * high range generation, which could suffer due to lowered precision.
+ * @param target lower precision the marked subgraphs must not be converted to (f16 by default).
  */
 class TRANSFORMATIONS_API MarkFloatingPointRange : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MarkFloatingPointRange");
-    MarkFloatingPointRange();
+    explicit MarkFloatingPointRange(const ov::element::Type& target = ov::element::f16);
 };
 
 OPENVINO_API void mark_range_path(const std::shared_ptr<Node>& node);

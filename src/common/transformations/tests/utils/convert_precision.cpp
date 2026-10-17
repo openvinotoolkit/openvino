@@ -1350,6 +1350,58 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_bf16) {
+    // The ShapeOf subgraph must be protected from a bf16 compression as well: bf16 has only 8 mantissa bits,
+    // so ordinary shape values are not even exactly representable in it. The keep-in-fp32 passes used to be
+    // registered only for the exactly-f16 target, so this model was silently lowered to bf16 as a whole.
+    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
+    {
+        auto input_1 = std::make_shared<opset10::Parameter>(element::f32, Shape{360, 640});
+        auto input_2 = std::make_shared<opset10::Parameter>(element::f32, Shape{720, 1280});
+        auto shapeof = std::make_shared<opset10::ShapeOf>(input_2);
+
+        auto convert_to_float = std::make_shared<opset10::Convert>(shapeof, element::f32);
+        auto const_denominator = opset10::Constant::create(element::f32, Shape{}, {2.0f});
+        auto div = std::make_shared<opset10::Divide>(convert_to_float, const_denominator);
+        auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
+
+        auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
+
+        pass::Manager manager;
+        manager.register_pass<pass::DisableShapeOfConstantFolding>();
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::bf16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+    {
+        // the data path is bf16, while the whole ShapeOf subgraph is kept in f32
+        auto input_1 = std::make_shared<opset10::Parameter>(element::bf16, Shape{360, 640});
+        auto input_2 = std::make_shared<opset10::Parameter>(element::bf16, Shape{720, 1280});
+        auto shapeof_1 = std::make_shared<opset10::ShapeOf>(input_2);
+
+        auto convert_to_float = std::make_shared<opset10::Convert>(shapeof_1, element::f32);
+        auto const_denominator = opset10::Constant::create(element::f32, Shape{}, {2.0f});
+        auto div = std::make_shared<opset10::Divide>(convert_to_float, const_denominator);
+        auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
+
+        auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
 TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
     std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
     {
@@ -1813,6 +1865,54 @@ TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_e
         auto factor_const = opset10::Constant::create(element::f32, Shape{1}, {-1});
         auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
         auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::f16);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
+
+        model_ref = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_exp_bf16) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto exp_1 = make_shared<opset10::Exp>(input_1);
+        auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f16, Shape{1}, {-1});
+        auto factor_const_decompressed = make_shared<opset10::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto matmul_1 = make_shared<opset10::MatMul>(mul_1, input_2);
+
+        model = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::bf16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        // Exp -> ReduceSum -> Multiply is kept in f32, the boundary Converts to the bf16 data path
+        // must be compressed to bf16, not left f32 and not removed
+        auto input_1 = make_shared<opset10::Parameter>(element::bf16, Shape{1, 3, 224, 224});
+        auto input_1_decompressed = make_shared<opset10::Convert>(input_1, element::f32);
+        auto exp_1 = make_shared<opset10::Exp>(input_1_decompressed);
+        auto input_2 = make_shared<opset10::Parameter>(element::bf16, Shape{1, 3, 224, 224});
+        auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce_sum_1 = make_shared<opset10::ReduceSum>(exp_1, reduction_axes);
+
+        auto factor_const = opset10::Constant::create(element::f32, Shape{1}, {-1});
+        auto mul_1 = make_shared<opset10::Multiply>(reduce_sum_1, factor_const);
+        auto mul_1_compressed = make_shared<opset10::Convert>(mul_1, element::bf16);
         auto matmul_1 = make_shared<opset10::MatMul>(mul_1_compressed, input_2);
 
         model_ref = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
