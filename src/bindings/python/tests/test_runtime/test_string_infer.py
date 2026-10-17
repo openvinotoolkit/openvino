@@ -119,9 +119,8 @@ def test_compiled_model_infer(string_data, data_shape, decode_strings):
         "openvino",
     ],
 )
-def test_infer_request_infer_dict_scalar_string(string_data):
-    # A bytes value passed inside an inputs dict must work the same way it does
-    # when passed directly (not wrapped in a dict) or with share_inputs=True.
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_request_infer_dict_scalar_string(string_data, share_inputs):
     infer_request = create_string_infer_request([])
-    res = infer_request.infer({0: string_data})
-    assert res[0] == "openvino"
+    res = infer_request.infer({0: string_data}, share_inputs=share_inputs, decode_strings=False)
+    assert np.array_equal(res[0], as_bytes_array(string_data))

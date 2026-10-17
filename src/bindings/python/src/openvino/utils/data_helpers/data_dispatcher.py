@@ -374,7 +374,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
     """Helper function to prepare inputs for inference.
 
     It creates copy of Tensors or copy data to already allocated Tensors on device
-    if the item is of type `np.ndarray`, `np.number`, `int`, `float` or has numpy __array__ attribute.
+    if the item is of type `np.ndarray`, `np.number`, `int`, `float`, `str`, `bytes` or has numpy __array__ attribute.
     If value is of type `list`, create a Tensor based on it, copy will occur in the Tensor constructor.
     """
     # Create new temporary dictionary.
