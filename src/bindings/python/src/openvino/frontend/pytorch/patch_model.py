@@ -128,7 +128,7 @@ def _orig_weight(module, attr):
     return getattr(module, _ORIG_WEIGHT_ATTR_PREFIX + attr, getattr(module, attr, None))
 
 
-def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight", "bias")):
+def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight", "bias"), placeholders=None):
     """Replace a module's 16-bit weight tensors with FP32 placeholders.
 
     The real 16-bit tensors are stashed under ``_openvino_orig_<attr>`` so the
@@ -140,8 +140,12 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
     The placeholder shares a single-element storage (a broadcasted zero) so it
     costs virtually no memory even for large weights, and it keeps the original
     device so that ``x.to(module.weight.device)`` traces correctly.
+    Constant conversion resolves ``_openvino_orig_tensor`` to a deferred FP32
+    conversion of the original tensor, including for raw parameters and buffers.
     """
     for attr in weight_attrs:
+        if attr.startswith(_ORIG_WEIGHT_ATTR_PREFIX):
+            continue
         param = getattr(module, attr, None)
         if not isinstance(param, torch.Tensor) or param.dtype not in supported:
             continue
@@ -151,13 +155,20 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
         # Keep the real 16-bit tensor reachable for `convert` (registered so
         # tracing can resolve the prim::GetAttr for it).
         setattr(module, stash_name, param)
-        placeholder = torch.zeros((), dtype=torch.float32,
-                                  device=param.device).expand(param.shape)
-        setattr(module, attr, torch.nn.Parameter(placeholder, requires_grad=False))
+        placeholder = placeholders.get(id(param)) if placeholders is not None else None
+        if placeholder is None:
+            placeholder = torch.zeros((), dtype=torch.float32,
+                                      device=param.device).expand(param.shape)
+            if isinstance(param, torch.nn.Parameter):
+                placeholder = torch.nn.Parameter(placeholder, requires_grad=False)
+            placeholder._openvino_orig_tensor = param
+            if placeholders is not None:
+                placeholders[id(param)] = placeholder
+        setattr(module, attr, placeholder)
 
 
 def _restore_stashed_weights(module):
-    """Undo ``_stash_weights_as_fp32_placeholders`` for a single module."""
+    """Restore the original parameters and buffers for a single module."""
     stash_names = [n for n in list(module._parameters) + list(module.__dict__)
                    if n.startswith(_ORIG_WEIGHT_ATTR_PREFIX)]
     for stash_name in stash_names:
@@ -623,7 +634,7 @@ def __make_16bit_traceable(model: torch.nn.Module,
 
     - Replace known list of modules with ModuleExtension.
     - Patch torch functions (bmm, baddbmm, etc.) for MoE and similar models.
-    - Convert other modules with weights to FP32.
+    - Expose FP32 placeholders for other parameters and buffers.
 
     For extension-backed modules (Linear/Embedding/Conv1D) the real 16-bit
     weight is stashed aside and ``module.weight``/``module.bias`` are replaced
@@ -638,6 +649,7 @@ def __make_16bit_traceable(model: torch.nn.Module,
     _patch_torch_functions()
 
     extensions, supported = _get_16bit_extensions(patch_condition)
+    placeholders = {}
     for name, module in model.named_modules():
         if has_been_patched(module, name, orig_forward_name):
             continue
@@ -645,14 +657,8 @@ def __make_16bit_traceable(model: torch.nn.Module,
             # Expose FP32 placeholders as .weight/.bias so dtype/device
             # introspection during tracing sees FP32; the real 16-bit tensor
             # is stashed and re-attached by the extension's convert callback.
-            _stash_weights_as_fp32_placeholders(module, supported)
+            _stash_weights_as_fp32_placeholders(module, supported, placeholders=placeholders)
             module_patcher(module, name, orig_forward_name, extensions)
         else:
-            for param in module.parameters(recurse=False):
-                if param.dtype in supported:
-                    log.debug("Casting parameter of module %s to float32", name)
-                    param.data = param.data.float()
-            for buf in module.buffers(recurse=False):
-                if buf.dtype in supported:
-                    log.debug("Casting buffer of module %s to float32", name)
-                    buf.data = buf.data.float()
+            weight_attrs = tuple(module._parameters) + tuple(module._buffers)
+            _stash_weights_as_fp32_placeholders(module, supported, weight_attrs, placeholders)
