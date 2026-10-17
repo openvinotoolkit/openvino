@@ -6,6 +6,7 @@
 
 #include <cinttypes>
 #include <fstream>
+#include <iostream>
 #include <string_view>
 
 #include "async_infer_request.hpp"
@@ -156,6 +157,14 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                        _graph->get_compatibility_descriptor(),
                                        _graph->get_blob_type())
         .write(stream);
+
+    export_additional_schedules(stream);
+}
+
+// STUB: no additional schedules exist yet - CompiledModel holds a single `_graph`. This is where a
+// multi-SKU compiled model would append each extra schedule's blob + its compatibility descriptor.
+void CompiledModel::export_additional_schedules(std::ostream& /*stream*/) const {
+    std::cout << "[STUB] CompiledModel::export_additional_schedules called" << std::endl;
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
