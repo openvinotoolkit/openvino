@@ -297,6 +297,7 @@ protected:
         graphNodes.clear();
         graphEdges.clear();
         m_executableSyncNodesInds.clear();
+        m_weightsToPrefetch.clear();
     }
     Status status{Status::NotReady};
 
@@ -371,6 +372,8 @@ private:
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
     std::vector<NodePtr> m_executableGraphNodes;
     std::vector<size_t> m_executableSyncNodesInds;
+    // Weights repacked on the first inference, in the order they are repacked.
+    std::vector<std::shared_ptr<ov::Node>> m_weightsToPrefetch;
 
     GraphContext::CPtr m_context;
     dnnl::stream m_stream;

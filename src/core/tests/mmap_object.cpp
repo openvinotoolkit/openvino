@@ -639,6 +639,30 @@ TEST_F(HintPrefetchAsyncTest, partial_region_populated_and_correct) {
     EXPECT_EQ(read_mapped(*mapped), data);
 }
 
+TEST_F(HintPrefetchAsyncTest, returned_future_makes_region_resident) {
+#ifndef __linux__
+    GTEST_SKIP() << "utils::count_resident_pages is not implemented on this platform yet CVS-186579";
+#endif
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_explicit_wait.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;
+    constexpr size_t prefetch_offset = 1 * 1024 * 1024;
+    constexpr size_t prefetch_size = 5 * 1024 * 1024;
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    auto future = mapped->hint_prefetch_async(prefetch_offset, prefetch_size);
+    ASSERT_TRUE(future.valid());
+    future.wait();
+
+    const size_t page = static_cast<size_t>(util::get_system_page_size());
+    EXPECT_EQ(utils::count_resident_pages(mapped->data_as<char>() + prefetch_offset, prefetch_size),
+              (prefetch_size + page - 1) / page);
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
 TEST_F(HintPrefetchAsyncTest, below_threshold_is_safe_noop) {
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_small.bin");
     constexpr size_t file_size = 1024;  // 1 KiB - below the 4 MiB threshold

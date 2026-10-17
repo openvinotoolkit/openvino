@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -30,6 +31,8 @@
 #if defined(__unix__) && !defined(__ANDROID__)
 #include <malloc.h>
 #endif
+
+#include <optional>
 
 
 namespace ov::intel_gpu {
@@ -149,8 +152,22 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     prepare_build();
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
+        // The constants are copied to the device memory in the order of ops. MoE offload keeps some of them in
+        // the host memory, so their data is still read after that.
+        std::optional<ov::weight_sharing::PrefetchScheduler> weights_prefetch;
+        if (const auto lookahead = ov::weight_sharing::PrefetchScheduler::get_lookahead();
+            lookahead > 0 && m_config.get_offload_ratio() == 0) {
+            weights_prefetch.emplace(ops, lookahead);
+        }
         for (const auto& op : ops) {
+            const auto* constant = weights_prefetch ? ov::as_type<ov::op::v0::Constant>(op.get()) : nullptr;
+            if (constant) {
+                weights_prefetch->acquire(*constant);
+            }
             CreateSingleLayerPrimitive(op);
+            if (constant) {
+                weights_prefetch->release(*constant);
+            }
         }
     }
 
