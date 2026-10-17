@@ -134,9 +134,18 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
     const bool metadata_only = metadata_ops.count(normalize_op_type(get_op_type()));
     const auto previous_value = metadata_only ? resolve_tensor(input_id) : tensor_it->second;
     if (metadata_only) {
+        std::set<size_t> related_ids{input_id};
+        for (auto alias = m_translate_session->m_may_be_alias.find(input_id);
+             alias != m_translate_session->m_may_be_alias.end();
+             alias = m_translate_session->m_may_be_alias.find(alias->second.base_id)) {
+            if (!related_ids.insert(alias->second.base_id).second) {
+                break;
+            }
+        }
         for (const auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
-            if (info.base_value.get_node()) {
+            if (related_ids.count(alias_id) || related_ids.count(info.base_id)) {
                 resolve_tensor(alias_id);
+                related_ids.insert(alias_id);
             }
         }
     }
@@ -166,8 +175,9 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
             pending.pop_back();
             const auto current = m_translate_session->m_may_be_alias.find(current_id);
             for (const auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
-                if ((alias_id == current_id || info.base_id == current_id) && info.output == info.base_value &&
-                    info.decoder->get_schema().find('!') != std::string::npos) {
+                if ((alias_id == current_id || info.base_id == current_id) &&
+                    (info.same_tensor ||
+                     (info.output == info.base_value && info.decoder->get_schema().find('!') != std::string::npos))) {
                     const auto related = alias_id == current_id ? info.base_id : alias_id;
                     if (same_tensor_ids.insert(related).second) {
                         pending.push_back(related);
@@ -200,7 +210,7 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         // alias to tensor. In that case we need to create a chain of reverseprop ops
         auto& alias_info = m_translate_session->m_may_be_alias.at(back_input_id);
         const auto in_tensor = alias_info.base_id;
-        if (metadata_only && !ov::is_type<SequenceMark>(alias_info.base_value.get_node()) &&
+        if (metadata_only && !alias_info.same_tensor && !ov::is_type<SequenceMark>(alias_info.base_value.get_node()) &&
             (alias_info.output != alias_info.base_value ||
              alias_info.decoder->get_schema().find('!') == std::string::npos)) {
             alias_info.output = back_node_input;

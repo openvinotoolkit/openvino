@@ -70,6 +70,27 @@ class ListMetadataMutation(torch.nn.Module):
 
 @pytest.mark.precommit
 @pytest.mark.nightly
+def test_torch_metadata_mutation_after_unrelated_append():
+    class Model(torch.nn.Module):
+        def forward(self, cache: List[torch.Tensor], extra: torch.Tensor, target: torch.Tensor):
+            left, right = cache
+            before = left + right
+            cache.append(extra)
+            target.unsqueeze_(0)
+            return before, torch.cat(cache), target
+
+    model = torch.jit.script(Model())
+    inputs = ([torch.ones(2, 3), torch.full((2, 3), 2.0)], torch.full((2, 3), 3.0), torch.arange(6.0).reshape(2, 3))
+    converted = ov.convert_model(model, example_input=deepcopy(inputs))
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    results = list(compiled([value.numpy() for value in (*inputs[0], *inputs[1:])]).values())
+    assert len(results) == 3
+    for actual, reference in zip(results, model(*deepcopy(inputs))):
+        np.testing.assert_array_equal(actual, reference.numpy())
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.parametrize("mutate_clone", [False, True])
 @pytest.mark.parametrize("operation", ["clone", "detach"])
 def test_torch_tensor_metadata_identity(mutate_clone, operation):
@@ -337,22 +358,26 @@ def test_torch_chunk_cache_mutation():
 
 @pytest.mark.precommit
 @pytest.mark.nightly
-@pytest.mark.parametrize("sequence_input,mapping,error", [
-    (0, [1, 0], None), (1, [1, 0], None),
-    (0, [0], "preserve the number of elements"),
-    (0, [0, 1, 0], "preserve the number of elements"),
-    (0, [0, 0], "exactly one element"), (0, [0, 2], "out of range"),
+@pytest.mark.parametrize("sequence_input,mapping,error,metadata", [
+    (0, [1, 0], None, False), (1, [1, 0], None, False), (1, [1, 0], None, True),
+    (0, [0], "preserve the number of elements", False),
+    (0, [0, 1, 0], "preserve the number of elements", False),
+    (0, [0, 0], "exactly one element", False), (0, [0, 2], "out of range", False),
 ])
-def test_torch_decoder_sequence_output_order(sequence_input, mapping, error):
+def test_torch_decoder_sequence_output_order(sequence_input, mapping, error, metadata):
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
-    graph = torch._C.parse_ir("""graph(%left : Tensor, %right : Tensor, %source : Tensor):
+    ir = """graph(%left : Tensor, %right : Tensor, %source : Tensor):
       %pair : (Tensor, Tensor) = prim::TupleConstruct(%left, %right)
       %first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)
       %blocking : bool = prim::Constant[value=0]()
       %updated : Tensor = aten::copy_(%first, %source, %blocking)
       return (%left, %right, %second)
-    """)
+    """
+    if metadata:
+        ir = ir.replace("%blocking : bool", "%blocking : int").replace(
+            "aten::copy_(%first, %source, %blocking)", "aten::unsqueeze_(%first, %blocking)")
+    graph = torch._C.parse_ir(ir)
 
     class ReversedSequenceDecoder(TorchScriptPythonDecoder):
         def __init__(self, *args, **kwargs):
@@ -398,5 +423,6 @@ def test_torch_decoder_sequence_output_order(sequence_input, mapping, error):
         left, right, source = [generator.standard_normal((batch, 4, 3)).astype(np.float32) for _ in range(3)]
         actual = list(compiled([left, right, source]).values())
         assert len(actual) == 3
-        for result, expected in zip(actual, (left, source, left)):
+        expected = (left, right[None], left) if metadata else (left, source, left)
+        for result, expected in zip(actual, expected):
             np.testing.assert_allclose(result, expected)

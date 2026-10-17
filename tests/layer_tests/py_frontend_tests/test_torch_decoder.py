@@ -839,7 +839,8 @@ def test_pytorch_decoder_input_sequence(ir, expected):
 
 
 @pytest.mark.precommit
-def test_pytorch_decoder_conversion_without_sequence_override():
+@pytest.mark.parametrize("metadata", [False, True])
+def test_pytorch_decoder_conversion_without_sequence_override(metadata):
     import numpy as np
     import openvino as ov
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -863,13 +864,16 @@ def test_pytorch_decoder_conversion_without_sequence_override():
                 visitor(decoder)
             self.wrapped.visit_subgraph(wrap_child)
 
-    graph = torch._C.parse_ir("""graph(%left : Tensor, %right : Tensor):
+    ir = """graph(%left : Tensor, %right : Tensor):
       %pair : (Tensor, Tensor) = prim::TupleConstruct(%left, %right)
       %first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)
       %one : int = prim::Constant[value=1]()
       %updated : Tensor = aten::add_(%second, %one, %one)
       return (%left, %right, %first, %second)
-    """)
+    """
+    if metadata:
+        ir = ir.replace("aten::add_(%second, %one, %one)", "aten::unsqueeze_(%second, %one)")
+    graph = torch._C.parse_ir(ir)
     decoder = LegacyDecoder(TorchScriptPythonDecoder(None, graph, alias_db=graph.alias_db()))
     frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
     input_model = frontend.load(decoder)
@@ -882,5 +886,6 @@ def test_pytorch_decoder_conversion_without_sequence_override():
     right = data + 10
     actual = list(compiled([data, right]).values())
     assert len(actual) == 4
-    for result, expected in zip(actual, (data, right + 1, data, right + 1)):
+    updated = right[:, None, :] if metadata else right + 1
+    for result, expected in zip(actual, (data, updated, data, updated)):
         np.testing.assert_array_equal(result, expected)

@@ -352,11 +352,14 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                                 " vs ",
                                                 recorded.base_id);
                     }
-                    m_may_be_alias[fw_tensor_id] = {in_tensor_id,
-                                                    node,
-                                                    converted_outputs[i],
-                                                    tensor_map->at(in_tensor_id),
-                                                    constructs_sequence ? raw_inputs : std::vector<size_t>{}};
+                    m_may_be_alias[fw_tensor_id] = {
+                        in_tensor_id,
+                        node,
+                        converted_outputs[i],
+                        tensor_map->at(in_tensor_id),
+                        constructs_sequence ? raw_inputs : std::vector<size_t>{},
+                        !unpacked_ids.empty() ||
+                            (sequence_element && !ov::is_type<SequenceMark>(tensor_map->at(in_tensor_id).get_node()))};
                     OPENVINO_DEBUG("Registered alias: ",
                                    fw_tensor_id,
                                    " of tensor: ",
