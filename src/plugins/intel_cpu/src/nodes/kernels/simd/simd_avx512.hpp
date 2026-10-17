@@ -134,6 +134,23 @@ inline vec<int32_t, isa::avx512> srlv(vec<int32_t, isa::avx512> val, vec<int32_t
     return {_mm512_srlv_epi32(val.v, shift.v)};
 }
 
+inline vec<float, isa::avx512> to_f32(vec<int32_t, isa::avx512> v) {
+    return {_mm512_cvtepi32_ps(v.v)};
+}
+
+inline vec<float, isa::avx512> min(vec<float, isa::avx512> a, vec<float, isa::avx512> b) {
+    return {_mm512_min_ps(a.v, b.v)};
+}
+inline vec<float, isa::avx512> max(vec<float, isa::avx512> a, vec<float, isa::avx512> b) {
+    return {_mm512_max_ps(a.v, b.v)};
+}
+inline float reduce_min(vec<float, isa::avx512> v) {
+    return _mm512_reduce_min_ps(v.v);
+}
+inline float reduce_max(vec<float, isa::avx512> v) {
+    return _mm512_reduce_max_ps(v.v);
+}
+
 inline vec<float, isa::avx512> permute(vec<float, isa::avx512> table, vec<int32_t, isa::avx512> idx) {
     return {_mm512_permutexvar_ps(idx.v, table.v)};
 }
