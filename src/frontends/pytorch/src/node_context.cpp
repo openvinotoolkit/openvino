@@ -154,9 +154,24 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         const auto old_shape_view =
             m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);
         std::set<size_t> same_tensor_ids{input_id};
-        for (const auto& [tensor_id, value] : *m_tensor_map) {
-            if (value == previous_value) {
-                same_tensor_ids.insert(tensor_id);
+        std::vector<size_t> pending{input_id};
+        while (!pending.empty()) {
+            const auto current_id = pending.back();
+            pending.pop_back();
+            const auto current = m_translate_session->m_may_be_alias.find(current_id);
+            for (const auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
+                if ((alias_id == current_id || info.base_id == current_id) && info.output == info.base_value &&
+                    info.decoder->get_schema().find('!') != std::string::npos) {
+                    const auto related = alias_id == current_id ? info.base_id : alias_id;
+                    if (same_tensor_ids.insert(related).second) {
+                        pending.push_back(related);
+                    }
+                }
+                if (current != m_translate_session->m_may_be_alias.end() &&
+                    ov::is_type<SequenceMark>(info.base_value.get_node()) && info.base_id == current->second.base_id &&
+                    info.output == current->second.output && same_tensor_ids.insert(alias_id).second) {
+                    pending.push_back(alias_id);
+                }
             }
         }
         for (auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
@@ -180,7 +195,8 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         auto& alias_info = m_translate_session->m_may_be_alias.at(back_input_id);
         const auto in_tensor = alias_info.base_id;
         if (metadata_only && !ov::is_type<SequenceMark>(alias_info.base_value.get_node()) &&
-            alias_info.output != alias_info.base_value) {
+            (alias_info.output != alias_info.base_value ||
+             alias_info.decoder->get_schema().find('!') == std::string::npos)) {
             alias_info.output = back_node_input;
             break;
         }

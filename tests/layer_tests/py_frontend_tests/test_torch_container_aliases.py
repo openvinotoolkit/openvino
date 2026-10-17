@@ -60,6 +60,36 @@ class ListMetadataMutation(torch.nn.Module):
 
 @pytest.mark.precommit
 @pytest.mark.nightly
+@pytest.mark.parametrize("mutate_clone", [False, True])
+@pytest.mark.parametrize("operation", ["clone", "detach"])
+def test_torch_tensor_metadata_identity(mutate_clone, operation):
+    class Model(torch.nn.Module):
+        __constants__ = ["mutate_clone", "operation"]
+
+        def __init__(self):
+            super().__init__()
+            self.mutate_clone = mutate_clone
+            self.operation = operation
+
+        def forward(self, source):
+            clone = source.clone() if self.operation == "clone" else source.detach()
+            target = clone if self.mutate_clone else source
+            target.unsqueeze_(0)
+            return source, clone
+
+    model = torch.jit.script(Model())
+    source = torch.arange(6, dtype=torch.float32).reshape(2, 3)
+    converted = ov.convert_model(model, example_input=source)
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    results = list(compiled([source.numpy()]).values())
+    expected = model(source.clone())
+    assert len(results) == 2
+    for actual, reference in zip(results, expected):
+        np.testing.assert_array_equal(actual, reference.numpy())
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
 def test_torch_list_member_metadata_preserves_views():
     inputs = [torch.arange(6, dtype=torch.float32).reshape(2, 3), torch.ones(2, 3)]
     model = torch.jit.script(ListMetadataMutation())
