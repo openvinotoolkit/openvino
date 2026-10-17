@@ -139,7 +139,7 @@ public:
         if (backend) {
             REGISTER_OPTION(MODEL_PRIORITY);
 
-            if (backend->isCommandQueueExtSupported()) {
+            if (backend->getInitStructs()->isCommandQueueExtSupported()) {
                 REGISTER_OPTION(WORKLOAD_TYPE);
             }
         }
@@ -307,7 +307,7 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyIsSupported) {
         logs.push_back('\n');
     };
 
-    const bool turboSupportedByDevice = backend && backend->isCommandQueueExtSupported();
+    const bool turboSupportedByDevice = backend && backend->getInitStructs()->isCommandQueueExtSupported();
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
@@ -376,7 +376,7 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
         logs.push_back('\n');
     };
 
-    if (backend->isCommandQueueExtSupported()) {
+    if (backend->getInitStructs()->isCommandQueueExtSupported()) {
         auto [config, unknownProperties] = [&]() {
             utils::LogCallbackGuard log_callback_guard(log_cb);
             utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
@@ -436,7 +436,7 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
     ASSERT_TRUE(config.get<::intel_npu::TURBO>());
     ASSERT_TRUE(unknownProperties.empty());
 
-    if (backend->isCommandQueueExtSupported()) {
+    if (backend->getInitStructs()->isCommandQueueExtSupported()) {
         ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     } else {
         ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
@@ -884,7 +884,7 @@ TEST_P(SharedCommonQueueCompatibilityTests, DisablingOnePropertyWhileTheOtherIsE
 class DisableIdleMemoryPruningPropertyTests : public PropertiesManagerTests {
 protected:
     bool isSupportedByDriver() const {
-        return backend && backend->isContextExtSupported();
+        return backend && backend->getInitStructs()->isContextExtSupported();
     }
 
     void TearDown() override {

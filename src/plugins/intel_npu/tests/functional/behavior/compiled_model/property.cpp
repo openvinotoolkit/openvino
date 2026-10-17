@@ -624,7 +624,7 @@ TEST_P(compatibility_CheckCompilerTypeProperty, CheckTurboWhenLoadingFromCacheWi
         }
 
         auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
-        if (!backend->isCommandQueueExtSupported()) {
+        if (!backend->getInitStructs()->isCommandQueueExtSupported()) {
             // Loading from cache must only warn that the compile-time property is not used, not fail.
             ASSERT_NE(logs.find("Property 'NPU_TURBO' is recognized as a compiler option, will not be used for current "
                                 "configuration."),

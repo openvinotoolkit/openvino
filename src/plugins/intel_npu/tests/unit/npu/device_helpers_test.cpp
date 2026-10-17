@@ -85,15 +85,6 @@ public:
     const std::string getName() const override {
         return "MOCK";
     }
-    bool isCommandQueueExtSupported() const override {
-        return false;
-    }
-    bool isLUIDExtSupported() const override {
-        return false;
-    }
-    bool isContextExtSupported() const override {
-        return false;
-    }
     void updateInfo(const ov::AnyMap&) override {}
 
 private:
