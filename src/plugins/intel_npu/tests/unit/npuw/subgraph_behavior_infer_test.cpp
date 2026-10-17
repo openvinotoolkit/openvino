@@ -9,26 +9,28 @@
 #include <atomic>
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <map>
-#include <numeric>
 #include <mutex>
+#include <numeric>
 #include <vector>
 
 #define private public
 #include "compiled_model.hpp"
 #undef private
 #include "attn/attn_subgraph.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
-#include "partitioning/patterns/sdpa.hpp"
-#include "pyramid_attention.hpp"
-#include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "partitioning/patterns/sdpa.hpp"
+#include "pyramid_attention.hpp"
+#include "unfold_sync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
@@ -255,7 +257,7 @@ private:
     std::function<void(std::exception_ptr)> m_callback;
 };
 
-    class FakeSubCompiledModel final : public ov::ICompiledModel {
+class FakeSubCompiledModel final : public ov::ICompiledModel {
 public:
     FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
                          const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -308,15 +310,29 @@ void FakeSubInferRequest::check_port(const ov::Output<const ov::Node>& port) con
                     port);
 }
 
+// Some ports (e.g. the Dynamic-attention sub-model's past-KV input) are intentionally dynamic;
+// substitute a placeholder for preallocation, since set_tensor() rebinds the real shape later.
+ov::Shape resolve_placeholder_shape(const ov::Output<const ov::Node>& port) {
+    const auto& pshape = port.get_partial_shape();
+    ov::Shape shape(pshape.rank().get_length());
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        shape[i] =
+            pshape[i].is_static() ? pshape[i].get_length() : static_cast<std::size_t>(pshape[i].get_min_length());
+    }
+    return shape;
+}
+
 FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model)
     : ov::ISyncInferRequest(std::move(compiled_model)) {
     for (const auto& input : get_compiled_model()->inputs()) {
-        ov::ISyncInferRequest::set_tensor(input,
-                                          ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            input,
+            ov::get_tensor_impl(ov::Tensor(input.get_element_type(), resolve_placeholder_shape(input))));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(output,
-                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), resolve_placeholder_shape(output))));
     }
 }
 
@@ -425,7 +441,8 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
     auto behavior_model = build_static_llm_model();
     ASSERT_GT(count_sdpa_nodes(behavior_model), 0u);
     ov::npuw::v1::subgraphs::PatternRegistry behavior_registry;
-    auto behavior_compiled = std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, base_props(), &behavior_registry);
+    auto behavior_compiled =
+        std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, base_props(), &behavior_registry);
     bool attached_behavior = false;
     for (auto& desc : behavior_compiled->m_compiled_submodels) {
         if (!desc.compiled_model) {
@@ -436,7 +453,8 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
         spec.registration.group = "test";
         spec.registration.name = "record-hit";
         spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
-        spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+        spec.factory =
+            [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
             const auto recorder = ctx.get<std::shared_ptr<BehaviorHits>>();
             return std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
                 [recorder](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
@@ -470,7 +488,8 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
     auto behavior_model = build_static_llm_model();
     auto hits = std::make_shared<BehaviorHits>();
     ov::npuw::v1::subgraphs::PatternRegistry behavior_registry;
-    auto behavior_compiled = std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, unfold_props(), &behavior_registry);
+    auto behavior_compiled =
+        std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, unfold_props(), &behavior_registry);
 
     bool attached_behavior = false;
     for (auto& desc : behavior_compiled->m_compiled_submodels) {
@@ -482,7 +501,8 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
         spec.registration.group = "test";
         spec.registration.name = "record-hit";
         spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
-        spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+        spec.factory =
+            [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
             const auto recorder = ctx.get<std::shared_ptr<BehaviorHits>>();
             return std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
                 [recorder](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
@@ -541,8 +561,7 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithStaticAttentionM
     auto props = base_props();
     props["NPUW_ATTN"] = std::string("STATIC");
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
-    EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
-        << "DynAttnBehavior must NOT be attached when NPUW_ATTN=STATIC";
+    EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u) << "DynAttnBehavior must NOT be attached when NPUW_ATTN=STATIC";
 }
 
 TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation) {
@@ -564,6 +583,34 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
     EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
+}
+
+TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsOutOfRangeMaskIdx) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+
+    bool corrupted = false;
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (auto* dynamic = ov::npuw::attn::get_compiled_dynamic(desc.pipeline.context)) {
+            dynamic->mask_idx = std::numeric_limits<std::size_t>::max();
+            corrupted = true;
+        }
+    }
+    ASSERT_TRUE(corrupted) << "No compiled submodel carried a Dynamic attention state to corrupt";
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    for (const auto& input : compiled->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        request->set_tensor(input, ov::get_tensor_impl(tensor));
+    }
+    OV_EXPECT_THROW_HAS_SUBSTRING(request->infer(), ov::Exception, "mask_idx");
 }
 
 // Regression test for "Cannot find tensor for port" on the first inference of an LLM imported
