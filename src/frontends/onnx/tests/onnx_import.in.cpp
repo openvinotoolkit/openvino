@@ -3032,6 +3032,91 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast) {
+    // Regression test for a 1-D slope whose length equals the channel dimension while the channel is not the
+    // last dimension. ONNX uses unidirectional (numpy-style) broadcasting, so the slope must be aligned with the
+    // last data dimension, matching onnxruntime and the ONNX reference evaluator (see GitHub issue #33371).
+    auto model = convert_model("prelu_1d_last_dim_bcast.onnx");
+
+    Inputs inputs;
+    // Shape{1, 3, 2, 3}
+    inputs.emplace_back(
+        std::vector<float>{-1., -2., -3., 4., -5., 6., -7., -8., -9., -1., 2., -3., -4., -5., -6., 7., -8., -9.});
+
+    // Shape{3}
+    inputs.emplace_back(std::vector<float>{1., 2., 3.});
+
+    // Shape{1, 3, 2, 3} - slope broadcast over the last dimension
+    auto expected_output =
+        std::vector<float>{-1., -4., -9., 4., -10., 6., -7., -16., -27., -1., 2., -9., -4., -10., -18., 7., -16., -27.};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast_unknown_data_rank) {
+    auto model = convert_model("prelu_1d_last_dim_bcast_unknown_data_rank.onnx");
+    ASSERT_TRUE(model->get_parameters().at(0)->get_partial_shape().rank().is_dynamic());
+
+    // Specialize only after conversion so the translator sees the unknown rank, but plugins compile static ranks.
+    model->reshape({{"X", PartialShape{1, 3, 2, 3}}});
+    ASSERT_TRUE(model->get_parameters().at(0)->get_partial_shape().rank().is_static());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2, 3},
+                               {-1., -2., -3., 4., -5., 6., -7., -8., -9., -1., 2., -3., -4., -5., -6., 7., -8., -9.});
+    test_case.add_input<float>(Shape{3}, {1., 2., 3.});
+    // The channel and trailing dimensions are both 3, but the slope must follow the trailing dimension.
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 3},
+        {-1., -4., -9., 4., -10., 6., -7., -16., -27., -1., 2., -9., -4., -10., -18., 7., -16., -27.});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_last_dim_bcast_unknown_slope_rank) {
+    auto model = convert_model("prelu_1d_last_dim_bcast_unknown_slope_rank.onnx");
+    ASSERT_TRUE(model->get_parameters().at(1)->get_partial_shape().rank().is_dynamic());
+
+    model->reshape({{"SLOPE", PartialShape{3}}});
+    ASSERT_TRUE(model->get_parameters().at(1)->get_partial_shape().rank().is_static());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 2, 3},
+                               {-1., -2., -3., 4., -5., 6., -7., -8., -9., -1., 2., -3., -4., -5., -6., 7., -8., -9.});
+    test_case.add_input<float>(Shape{3}, {1., 2., 3.});
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 2, 3},
+        {-1., -4., -9., 4., -10., 6., -7., -16., -27., -1., 2., -9., -4., -10., -18., 7., -16., -27.});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_1d_channel_bcast_opset6) {
+    // Regression test for the legacy PRelu-1/6 broadcasting: a rank-1 slope whose length matches the channel
+    // dimension is shared across channels (aligned with axis 1), which is the behavior of OpenVINO's v0::PRelu.
+    // Unidirectional (numpy-style) broadcasting was only introduced in PRelu-7, so opset <= 6 models must keep the
+    // per-channel semantics (mirrors the ONNX pytorch-converted test_PReLU_*d_multiparam models).
+    auto model = convert_model("prelu_1d_channel_bcast_opset6.onnx");
+
+    Inputs inputs;
+    // Shape{2, 3, 4}
+    inputs.emplace_back(std::vector<float>{-1., -2., -3., -4., 1.,  2.,  3.,  4.,  -5., -6., -7., -8.,
+                                           -1., -1., -1., -1., -2., -2., -2., -2., -3., -3., -3., -3.});
+
+    // Shape{3} - slope broadcast over the channel dimension (axis 1)
+    inputs.emplace_back(std::vector<float>{0.5, 1.0, 2.0});
+
+    // Shape{2, 3, 4}
+    auto expected_output = std::vector<float>{-0.5, -1.0, -1.5, -2.0, 1.0,  2.0,  3.0,  4.0,  -10., -12., -14., -16.,
+                                              -0.5, -0.5, -0.5, -0.5, -2.0, -2.0, -2.0, -2.0, -6.0, -6.0, -6.0, -6.0};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_prelu_C_1_1) {
     auto model = convert_model("prelu_c_1_1.onnx");
 
