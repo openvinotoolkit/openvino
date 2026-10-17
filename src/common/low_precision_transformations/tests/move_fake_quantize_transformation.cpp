@@ -24,6 +24,12 @@
 #include "ov_lpt_models/relu.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/core/model.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -560,4 +566,80 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                                             ::testing::ValuesIn({false})),
                          MoveFakeQuantizeTransformation::getTestCaseName);
 }  // namespace NegativeTestValues
+
+namespace axisBeyondDequantizationRank {
+// Concat on the last axis (3) whose dequantization constant is only rank-2. The split decision in
+// moveDequantizationBefore normalizes the axis against the Concat rank (4) and then indexes the
+// dequantization constant's own shape with it, so it must bounds-check that shape first. Covers
+// both the subtract and the multiply branch of that decision.
+const std::vector<ov::element::Type> precisions = {ov::element::f32};
+
+const std::vector<std::vector<ov::PartialShape>> shapes = {{{1, 1, 9, 9}, {1, 1, 9, 9}}};
+const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
+    {LayerTransformation::createParamsU8I8(),
+     false,
+     3,  // concat axis (last) exceeds the rank-2 dequantization constant
+     {
+         2,
+         {},
+         {},
+         {},
+         "",
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {ov::element::u8},
+         {{element::f32}, {{0.01f}, element::f32, {1, 1}}, {{0.01f}, element::f32, {1, 1}}},
+     },
+     {
+         2,
+         {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
+         {ov::element::u8},
+         {{element::f32}, {{0.01f}, element::f32, {1, 1}}, {{0.01f}, element::f32, {1, 1}}},
+         "",
+         {},
+         {},
+         {},
+     }},
+};
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MoveFakeQuantizeTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(testValues),
+                                            ::testing::ValuesIn({false})),
+                         MoveFakeQuantizeTransformation::getTestCaseName);
+}  // namespace axisBeyondDequantizationRank
 }  // namespace
+
+// moveDequantizationBefore normalizes the split axis against the Concat's output rank. For a
+// dynamic-rank Concat that rank is unknown, so the axis stays at its -1 sentinel, which must not be
+// used to index the dequantization constant's shape. The only pipeline caller (MoveFakeQuantize)
+// rejects dynamic-rank Concats, so this guard is exercised directly here. The out-of-bounds read
+// itself is only reliably caught under AddressSanitizer.
+TEST(LPT, MoveDequantizationBeforeDynamicRankConcat) {
+    const auto input1 = std::make_shared<opset1::Parameter>(element::u8, PartialShape::dynamic());
+    const auto input2 = std::make_shared<opset1::Parameter>(element::u8, PartialShape::dynamic());
+    const auto concat = std::make_shared<opset1::Concat>(OutputVector{input1, input2}, 1);
+    const auto convert = std::make_shared<opset1::Convert>(concat, element::f32);
+    const auto subtract = std::make_shared<opset1::Subtract>(
+        convert, opset1::Constant::create(element::f32, Shape{2, 1}, {2.f, 3.f}));
+    const auto multiply = std::make_shared<opset1::Multiply>(
+        subtract, opset1::Constant::create(element::f32, Shape{2, 1}, {0.2f, 0.3f}));
+    const auto result = std::make_shared<opset1::Result>(multiply);
+    const auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input1, input2});
+
+    const auto dequantization = low_precision::NetworkHelper::getDequantizationBelow(concat);
+    ASSERT_NO_THROW(low_precision::NetworkHelper::moveDequantizationBefore(concat, dequantization, true));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    // The dequantization moves in front of every Concat input with its constants left unsplit.
+    const auto newConcat = ov::as_type_ptr<opset1::Concat>(result->get_input_node_shared_ptr(0));
+    ASSERT_NE(newConcat, nullptr);
+    for (size_t i = 0; i < newConcat->get_input_size(); ++i) {
+        const auto newMultiply = ov::as_type_ptr<opset1::Multiply>(newConcat->get_input_node_shared_ptr(i));
+        ASSERT_NE(newMultiply, nullptr);
+        EXPECT_EQ(newMultiply->get_input_shape(1), (Shape{2, 1}));
+        const auto newSubtract = ov::as_type_ptr<opset1::Subtract>(newMultiply->get_input_node_shared_ptr(0));
+        ASSERT_NE(newSubtract, nullptr);
+        EXPECT_EQ(newSubtract->get_input_shape(1), (Shape{2, 1}));
+    }
+}
