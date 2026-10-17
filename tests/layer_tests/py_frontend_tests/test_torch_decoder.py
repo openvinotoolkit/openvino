@@ -840,7 +840,8 @@ def test_pytorch_decoder_input_sequence(ir, expected):
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("metadata", [False, True])
-def test_pytorch_decoder_conversion_without_sequence_override(metadata):
+@pytest.mark.parametrize("wrapped,legacy", [(False, True), (True, False), (True, True)])
+def test_pytorch_decoder_conversion_without_sequence_override(metadata, wrapped, legacy):
     import numpy as np
     import openvino as ov
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -873,8 +874,17 @@ def test_pytorch_decoder_conversion_without_sequence_override(metadata):
     """
     if metadata:
         ir = ir.replace("aten::add_(%second, %one, %one)", "aten::unsqueeze_(%second, %one)")
+    if wrapped:
+        ir = ir.replace("%first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)", """
+      %wrapped : ((Tensor, Tensor)) = prim::TupleConstruct(%pair)
+      %alias : (Tensor, Tensor) = prim::TupleUnpack(%wrapped)
+      %first : Tensor, %second : Tensor = prim::TupleUnpack(%alias)""").replace(
+            "return (%left, %right, %first, %second)",
+            "return (%left, %right, %first, %second, %pair, %alias)")
     graph = torch._C.parse_ir(ir)
-    decoder = LegacyDecoder(TorchScriptPythonDecoder(None, graph, alias_db=graph.alias_db()))
+    decoder = TorchScriptPythonDecoder(None, graph, alias_db=graph.alias_db())
+    if legacy:
+        decoder = LegacyDecoder(decoder)
     frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
     input_model = frontend.load(decoder)
     for place in input_model.get_inputs():
@@ -885,7 +895,8 @@ def test_pytorch_decoder_conversion_without_sequence_override(metadata):
     data = torch.arange(6, dtype=torch.float32).reshape(2, 3).numpy()
     right = data + 10
     actual = list(compiled([data, right]).values())
-    assert len(actual) == 4
     updated = right[:, None, :] if metadata else right + 1
-    for result, expected in zip(actual, (data, updated, data, updated)):
+    expected = (data, updated, data, updated) + ((data, updated, data, updated) if wrapped else ())
+    assert len(actual) == len(expected)
+    for result, expected in zip(actual, expected):
         np.testing.assert_array_equal(result, expected)

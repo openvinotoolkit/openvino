@@ -262,6 +262,22 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           converted_outputs.size(),
                                           " respectively.");
 
+            const auto get_sequence_elements = [&](size_t id) {
+                std::set<size_t> visited;
+                for (auto alias = m_may_be_alias.find(id);
+                     alias != m_may_be_alias.end() && visited.insert(alias->first).second;
+                     alias = m_may_be_alias.find(alias->second.base_id)) {
+                    const auto& info = alias->second;
+                    if (!info.element_ids.empty()) {
+                        return info.element_ids;
+                    }
+                    if (!info.same_tensor &&
+                        (info.output != info.base_value || info.decoder->get_schema().find('!') == std::string::npos)) {
+                        break;
+                    }
+                }
+                return std::vector<size_t>{};
+            };
             std::map<size_t, size_t> sequence_aliases;
             const auto input_sequences =
                 raw_inputs.empty() ? TorchDecoder::InputSequences{} : node->get_input_sequences();
@@ -273,8 +289,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     continue;
                 }
                 const auto alias = m_may_be_alias.find(raw_inputs[i]);
-                const auto element_ids =
-                    alias == m_may_be_alias.end() ? std::vector<size_t>{} : alias->second.element_ids;
+                const auto element_ids = get_sequence_elements(raw_inputs[i]);
                 FRONT_END_OP_CONVERSION_CHECK(element_ids.empty() || element_ids.size() == elements.size(),
                                               "Sequence extraction must preserve the number of elements.");
                 OutputVector values;
@@ -313,9 +328,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             const auto& op_type = context.get_op_type();
             const bool constructs_sequence = op_type == "prim::TupleConstruct" || op_type == "prim::ListConstruct";
             std::vector<size_t> unpacked_ids;
-            const auto sequence = m_may_be_alias.find(first_input_id);
-            if (sequence != m_may_be_alias.end() && !sequence->second.element_ids.empty()) {
-                const auto& elements = sequence->second.element_ids;
+            const auto elements = get_sequence_elements(first_input_id);
+            if (!elements.empty()) {
                 if (op_type == "prim::TupleUnpack" || op_type == "prim::ListUnpack") {
                     unpacked_ids = elements;
                 } else if (op_type == "aten::__getitem__") {
