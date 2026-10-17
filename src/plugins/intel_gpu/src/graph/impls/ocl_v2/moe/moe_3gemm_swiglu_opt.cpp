@@ -1686,7 +1686,7 @@ public:
                                 {scratch.y},
                                 {final_hidden_states_mem_ptr},
                                 {token_num, static_cast<size_t>(_hidden_size)},
-                                {1, std::min(max_work_group_size, size_t{1024})},
+                                {1, std::min({max_work_group_size, size_t{1024}, static_cast<size_t>(_hidden_size)})},
                                 instance.needs_completion_event());
         }
         return ret;
