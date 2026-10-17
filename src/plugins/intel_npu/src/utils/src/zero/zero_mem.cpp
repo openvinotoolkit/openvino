@@ -43,11 +43,6 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
             throw ZeroMemException("Importing standard allocation is not supported with this driver version");
         }
 
-        if (!utils::memory_and_size_aligned_to_standard_page_size(data, _size)) {
-            throw ZeroMemException(
-                "Importing standard allocation is not supported if memory is not aligned to standard page size");
-        }
-
         // Reject the import only when the region genuinely overlaps a previously imported
         // allocation. Probe the last valid byte (data + _size - 1) so that a buffer whose end
         // merely abuts an adjacent allocation is still importable. Other cases are handled by
