@@ -27,6 +27,7 @@
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -41,6 +42,7 @@
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -7496,6 +7498,62 @@ TEST(SDPAToPA_SelectiveSSM_Unconvertible, StatefulSSMLeftInGraphThrows) {
     OV_EXPECT_THROW(manager.run_passes(model),
                     ov::Exception,
                     ::testing::HasSubstr("Stateful SSM nodes cannot be left in the graph"));
+}
+
+// Appends a stateful GatedDeltaNet layer to `model`. With transpose_state the recurrent state reaches the op
+// as Transpose(ReadValue) - the layout the GGUF frontend emits (ggml keeps [B, H, V, K]) - which
+// PagedGatedDeltaNetFusion does not match.
+static void add_stateful_gated_delta_net(const std::shared_ptr<ov::Model>& model, bool transpose_state) {
+    auto query = ov::test::utils::make_param(element::f32, PartialShape{1, DYN, 4, 8}, "gdn_query");
+    auto key = ov::test::utils::make_param(element::f32, PartialShape{1, DYN, 4, 8}, "gdn_key");
+    auto value = ov::test::utils::make_param(element::f32, PartialShape{1, DYN, 4, 8}, "gdn_value");
+    auto gate = ov::test::utils::make_param(element::f32, PartialShape{1, DYN, 4}, "gdn_gate");
+    auto beta = ov::test::utils::make_param(element::f32, PartialShape{1, DYN, 4}, "gdn_beta");
+    auto init = ov::test::utils::make_param(element::f32, PartialShape{1, 4, 8, 8}, "gdn_state_init");
+
+    auto var = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape{1, 4, 8, 8}, element::f32, "gdn_state_0"});
+    auto read_value = std::make_shared<v6::ReadValue>(init, var);
+    std::shared_ptr<ov::Node> state = read_value;
+    if (transpose_state) {
+        state = std::make_shared<v1::Transpose>(read_value, v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
+    }
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(query, key, value, state, gate, beta);
+    auto assign = std::make_shared<v6::Assign>(gdn->output(1), var);
+
+    model->add_parameters({query, key, value, gate, beta, init});
+    model->add_results({std::make_shared<v0::Result>(gdn->output(0))});
+    model->add_sinks({assign});
+}
+
+TEST(SDPAToPA_GatedDeltaNet, StatefulGatedDeltaNetIsConverted) {
+    auto model = make_single_layer_sdpa_model(/*fq_on_k=*/false, /*fq_on_v=*/false, /*gqa=*/false);
+    add_stateful_gated_delta_net(model, /*transpose_state=*/false);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    OV_ASSERT_NO_THROW(manager.run_passes(model));
+
+    size_t gdn_count = 0, paged_gdn_count = 0;
+    for (const auto& op : model->get_ops()) {
+        gdn_count += ov::is_type<ov::op::internal::GatedDeltaNet>(op);
+        paged_gdn_count += ov::is_type<ov::op::internal::PagedGatedDeltaNet>(op);
+    }
+    EXPECT_EQ(gdn_count, 0u);
+    EXPECT_EQ(paged_gdn_count, 1u);
+}
+
+// SDPAToPagedAttention must not silently leave a stateful GatedDeltaNet in the graph: it would keep the
+// [batch, tokens, ...] layout while the paged graph carries [tokens, 1, ...], failing only at inference.
+TEST(SDPAToPA_GatedDeltaNet, UnconvertibleStatefulGatedDeltaNetThrows) {
+    auto model = make_single_layer_sdpa_model(/*fq_on_k=*/false, /*fq_on_v=*/false, /*gqa=*/false);
+    add_stateful_gated_delta_net(model, /*transpose_state=*/true);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    OV_EXPECT_THROW(manager.run_passes(model),
+                    ov::Exception,
+                    ::testing::HasSubstr("Stateful GatedDeltaNet nodes cannot be left in the graph"));
 }
 
 /*
