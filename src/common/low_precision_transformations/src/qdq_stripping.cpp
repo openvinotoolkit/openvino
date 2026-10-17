@@ -281,7 +281,11 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             adjuster.adjust();
         }
 
-        OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
+        // Keep FQ if it can't be removed without losing a model output name
+        // (e.g. its input is Parameter, multi-output node or another model output)
+        if (!replace_output_update_name(fq->output(0), fq->input_value(0))) {
+            continue;
+        }
         model_changed = true;
     }
 

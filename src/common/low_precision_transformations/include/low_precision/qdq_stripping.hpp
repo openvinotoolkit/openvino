@@ -19,6 +19,7 @@ namespace low_precision {
  * @ingroup ov_transformation_common_api
  * @brief FQStrippingTransformation strips FakeQuantize operations with specified levels
  * by replacing them with Clamp operations.
+ * FakeQuantize is kept if it can't be removed without losing a model output name.
  */
 class LP_TRANSFORMATIONS_API FQStrippingTransformation : public ov::pass::ModelPass {
 public:
