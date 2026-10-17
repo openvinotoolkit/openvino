@@ -109,7 +109,7 @@ struct Context {
             }
         }
 
-        return {model_path, device, gpu_ready};
+        return {model_path, device, gpu_ready, {}};
     }
 
     bool is_sample_registered(std::string &sample_name) {
