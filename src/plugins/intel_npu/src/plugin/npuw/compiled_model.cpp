@@ -547,7 +547,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     ctx.subgraph_patterns = &combined_subgraph_patterns.value();
 
     ov::npuw::Partitioning partitioning;
-    m_profile["partitioning"].record([&]() {
+    m_profile.record("partitioning", [&]() {
         partitioning = getPartitioning(model, m_cfg, ctx);
     });
 
@@ -917,7 +917,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
 void ov::npuw::CompiledModel::init_profiling() {
     // to be called from contructors
-    m_profile.report_on_die = ov::npuw::profiling_enabled();
     m_profile.area = m_name + "/compilation";
 }
 
@@ -2232,7 +2231,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             OPENVINO_ASSERT(locked_model, "Failsafe factory: ov::Model was released before recompilation");
             ov::SoPtr<ov::ICompiledModel> compiled;
             // FIXME: Concurrent write access to the profile map, if compiled in parallel
-            m_profile["compile/" + device + profile_suffix].record([&]() {
+            m_profile.record("compile/" + device + profile_suffix, [&]() {
                 compiled = compile_submodel(locked_model, device);
             });
             return compiled;

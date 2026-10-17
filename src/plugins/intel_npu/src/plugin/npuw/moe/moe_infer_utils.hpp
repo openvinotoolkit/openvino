@@ -304,7 +304,7 @@ private:
     std::vector<std::set<std::pair<uint64_t, size_t>>> m_lru_index;
 
     // Statistics
-    bool m_report_on_die = false;
+    bool m_report_cache_stats = ov::npuw::perf::enabled_by_default();
 
     mutable uint64_t m_total_queries = 0;
     mutable uint64_t m_cache_hits = 0;

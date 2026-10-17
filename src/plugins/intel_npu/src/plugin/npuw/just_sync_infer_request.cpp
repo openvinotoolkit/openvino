@@ -1202,6 +1202,13 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
     }  // if (replaced_by)
 }
 
+void ov::npuw::JustInferRequest::collect_execution_profiles(std::vector<ov::npuw::perf::IProfile*>& out) {
+    IBaseInferRequest::collect_execution_profiles(out);
+    if (m_moe_executor) {
+        m_moe_executor->collect_execution_profiles(out);
+    }
+}
+
 void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
     get_real_subrequest(idx)->set_callback(std::move(cb));
 }

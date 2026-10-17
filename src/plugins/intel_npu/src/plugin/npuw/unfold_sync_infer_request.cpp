@@ -4,6 +4,10 @@
 
 #include "unfold_sync_infer_request.hpp"
 
+#include <atomic>
+#include <chrono>
+#include <memory>
+
 #include "attn/attn_subgraph.hpp"
 #include "compiled_model.hpp"
 #include "logging.hpp"
@@ -99,6 +103,9 @@ bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
 
 void ov::npuw::UnfoldInferRequest::infer() {
     const bool do_async = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
+    // In the async mode subrequests of one group are in flight at once, so their
+    // individual intervals genuinely overlap and no residual row is meaningful
+    m_perf.execution.children_overlap = do_async;
 
     auto prepare = [&](std::size_t idx) {
         if (idx >= m_subrequests.size()) {
@@ -107,16 +114,47 @@ void ov::npuw::UnfoldInferRequest::infer() {
         bind_global_params(idx, m_subrequests[idx]);
         bind_global_results(idx, m_subrequests[idx]);
     };
-    auto wait_and_clear = [](RqPtrs& rqs) {
-        for (auto&& r : rqs) {
-            r->wait();
+
+    // Note: in the async mode subrequests of one group run overlapped, so their individual
+    // times overlap as well
+    using Clock = std::chrono::steady_clock;
+    using Finish = std::atomic<Clock::duration::rep>;
+    // A submitted subrequest pending its wait(): request + submodel id + submission time
+    struct Pending {
+        RqPtr rq;
+        std::size_t idx;
+        ov::npuw::perf::sample timer;
+        std::shared_ptr<Finish> finish;
+    };
+    auto wait_and_clear = [&](std::vector<Pending>& pending) {
+        try {
+            for (auto&& p : pending) {
+                p.rq->wait();
+                if (p.finish) {
+                    p.rq->set_callback({});
+                    const auto finish = p.finish->load(std::memory_order_relaxed);
+                    p.timer.commit_at(finish == 0 ? Clock::now() : Clock::time_point(Clock::duration(finish)));
+                }
+                perf_record_unfold(p.idx, p.timer);
+            }
+        } catch (...) {
+            for (auto&& p : pending) {
+                if (p.finish) {
+                    try {
+                        p.rq->wait();
+                    } catch (...) {
+                    }
+                    p.rq->set_callback({});
+                }
+            }
+            throw;
         }
-        rqs.clear();
+        pending.clear();
     };
 
     if (do_async) {
         std::size_t past_repl_id = 0u;
-        RqPtrs previous_requests;
+        std::vector<Pending> previous_requests;
 
         prepare(0);
         for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
@@ -134,8 +172,23 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 wait_and_clear(previous_requests);
                 past_repl_id = this_repl_id;
             }
-            subr->start_async();
-            previous_requests.push_back(subr);
+            ov::npuw::perf::sample timer(perf_device_handle(idx));
+            std::shared_ptr<Finish> finish;
+            if (m_perf.execution.enabled()) {
+                finish = std::make_shared<Finish>(0);
+                subr->set_callback([finish](std::exception_ptr) {
+                    finish->store(Clock::now().time_since_epoch().count(), std::memory_order_relaxed);
+                });
+            }
+            try {
+                subr->start_async();
+            } catch (...) {
+                if (finish) {
+                    subr->set_callback({});
+                }
+                throw;
+            }
+            previous_requests.push_back(Pending{subr, idx, std::move(timer), std::move(finish)});
             prepare(idx + 1);
         }
         wait_and_clear(previous_requests);
@@ -147,9 +200,11 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 prepare(idx + 1);
                 continue;
             }
+            ov::npuw::perf::sample timer(perf_device_handle(idx));
             subr->start_async();
             prepare(idx + 1);
             subr->wait();
+            perf_record_unfold(idx, timer);
         }
     }  // (async)
 }

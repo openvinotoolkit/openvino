@@ -7,15 +7,20 @@
 #include <algorithm>
 #include <any>
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <functional>
 #include <map>
-#include <numeric>
 #include <mutex>
+#include <numeric>
+#include <thread>
 #include <vector>
 
-#define private public
+#define private   public
+#define protected public
+#include "base_sync_infer_request.hpp"
 #include "compiled_model.hpp"
+#undef protected
 #undef private
 #include "attn/attn_subgraph.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
@@ -23,12 +28,13 @@
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
-#include "partitioning/patterns/sdpa.hpp"
-#include "pyramid_attention.hpp"
-#include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "partitioning/patterns/sdpa.hpp"
+#include "perf_tags.hpp"
+#include "pyramid_attention.hpp"
+#include "unfold_sync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
@@ -41,6 +47,42 @@ constexpr std::size_t kKVCacheSize = kSeqLen + kPastKvLen;
 struct BehaviorHits {
     std::mutex mutex;
     std::vector<std::pair<std::size_t, std::size_t>> values;
+};
+
+// Publishes a perf attribution handle from prepare() - the same lifecycle point the
+// pyramid attention behavior uses - and records the calls that actually reach run().
+// run() only fires for subgraphs dispatched through JustInferRequest::unsafe_infer(),
+// which is exactly why timing must NOT live there.
+class AttributingBehavior final : public ov::npuw::v1::subgraphs::ISubgraphBehavior {
+public:
+    using Switch = std::shared_ptr<std::atomic<bool>>;
+
+    AttributingBehavior(std::shared_ptr<BehaviorHits> hits, std::string level, Switch publish)
+        : m_hits(std::move(hits)),
+          m_level(std::move(level)),
+          m_publish(std::move(publish)) {}
+
+    void prepare(ov::npuw::v1::subgraphs::InferContext& ctx) override {
+        auto& request = ctx.infer_request;
+        if (!m_publish->load()) {
+            return;
+        }
+        ov::npuw::perf::metric_ptr handle = nullptr;
+        request.set_perf_attribution(ctx.real_subgraph_idx, request.perf().handle(handle, [&]() {
+            return request.perf_submodel_tag(ctx.subgraph_idx) + "/attn/" + m_level;
+        }));
+    }
+
+    void run(ov::npuw::v1::subgraphs::InferContext& ctx) override {
+        ctx.legacy_infer();
+        std::lock_guard<std::mutex> lock(m_hits->mutex);
+        m_hits->values.emplace_back(ctx.subgraph_idx, ctx.real_subgraph_idx);
+    }
+
+private:
+    std::shared_ptr<BehaviorHits> m_hits;
+    std::string m_level;
+    Switch m_publish;
 };
 
 class TestPlugin final : public ov::IPlugin {
@@ -155,6 +197,10 @@ class FakeSubInferRequest final : public ov::ISyncInferRequest {
 public:
     explicit FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model);
 
+    void set_fail_on_infer(bool fail) {
+        m_fail_on_infer = fail;
+    }
+
     void infer() override;
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
         check_port(port);
@@ -174,6 +220,7 @@ public:
 
 private:
     void check_port(const ov::Output<const ov::Node>& port) const;
+    bool m_fail_on_infer = false;
 };
 
 class FakeSubAsyncInferRequest final : public ov::IAsyncInferRequest {
@@ -182,22 +229,74 @@ public:
         : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
           m_request(request) {}
 
-    void start_async() override {
-        try {
-            m_request->infer();
-            if (m_callback) {
-                m_callback(nullptr);
-            }
-        } catch (...) {
-            if (m_callback) {
-                m_callback(std::current_exception());
-                return;
-            }
-            throw;
+    ~FakeSubAsyncInferRequest() override {
+        if (m_worker.joinable()) {
+            m_worker.join();
         }
     }
 
-    void wait() override {}
+    void set_async_delay(std::chrono::milliseconds delay) {
+        m_delay = delay;
+    }
+
+    void set_invoke_callback(bool invoke) {
+        m_invoke_callback = invoke;
+    }
+
+    void set_fail_on_infer(bool fail) {
+        std::static_pointer_cast<FakeSubInferRequest>(m_request)->set_fail_on_infer(fail);
+    }
+
+    bool has_callback() const {
+        return static_cast<bool>(m_callback);
+    }
+
+    bool callback_reported_error() const {
+        return m_callback_reported_error;
+    }
+
+    void start_async() override {
+        // A new run has its own result, like a new promise in ov::IAsyncInferRequest
+        m_error = nullptr;
+        m_callback_reported_error = false;
+        if (m_delay.count() > 0) {
+            m_worker = std::thread([this] {
+                std::this_thread::sleep_for(m_delay);
+                run();
+            });
+            return;
+        }
+        run();
+    }
+
+    void wait() override {
+        if (m_worker.joinable()) {
+            m_worker.join();
+        }
+        if (m_error) {
+            std::rethrow_exception(m_error);
+        }
+    }
+
+    void run() {
+        try {
+            m_request->infer();
+            if (m_invoke_callback && m_callback) {
+                m_callback(nullptr);
+            }
+        } catch (...) {
+            auto error = std::current_exception();
+            if (m_invoke_callback && m_callback) {
+                m_callback_reported_error = true;
+                try {
+                    m_callback(error);
+                } catch (...) {
+                    error = std::current_exception();
+                }
+            }
+            m_error = error;
+        }
+    }
 
     bool wait_for(const std::chrono::milliseconds&) override {
         return true;
@@ -253,9 +352,14 @@ public:
 private:
     std::shared_ptr<ov::ISyncInferRequest> m_request;
     std::function<void(std::exception_ptr)> m_callback;
+    std::chrono::milliseconds m_delay{0};
+    bool m_invoke_callback = true;
+    bool m_callback_reported_error = false;
+    std::thread m_worker;
+    std::exception_ptr m_error;
 };
 
-    class FakeSubCompiledModel final : public ov::ICompiledModel {
+class FakeSubCompiledModel final : public ov::ICompiledModel {
 public:
     FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
                          const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -315,12 +419,16 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
                                           ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(output,
-                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
 void FakeSubInferRequest::infer() {
+    if (m_fail_on_infer) {
+        OPENVINO_THROW("Fake subrequest failed");
+    }
     for (const auto& output : get_compiled_model()->outputs()) {
         auto tensor = ov::ISyncInferRequest::get_tensor(output);
         std::memset(tensor->data(), 0, tensor->get_byte_size());
@@ -349,6 +457,39 @@ protected:
         props["NPUW_UNFOLD_IREQS"] = "YES";
         return props;
     }
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    void check_unfold_profile(bool async) {
+        auto plugin = std::make_shared<TestPlugin>();
+        auto core = make_core(plugin);
+        plugin->set_core(core);
+
+        auto props = unfold_props();
+        props["NPUW_FUNCALL_ASYNC"] = async ? "YES" : "NO";
+        auto compiled = std::make_shared<ov::npuw::CompiledModel>(build_static_llm_model(), plugin, props);
+        auto request = std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(compiled->create_sync_infer_request());
+        ASSERT_NE(request, nullptr);
+        request->m_perf.execution.enable(true);
+        std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer();
+
+        std::map<std::string, std::size_t> expected;
+        for (std::size_t idx = 0; idx < request->total_subrequests(); ++idx) {
+            if (!request->valid_subrequest(idx)) {
+                continue;
+            }
+            const auto real_idx = compiled->m_compiled_submodels[idx].replaced_by.value_or(idx);
+            ++expected[ov::npuw::perf::tags::device(compiled->submodel_device(real_idx))];
+            ++expected[request->perf_submodel_tag(real_idx)];
+        }
+        ASSERT_FALSE(expected.empty());
+        const auto& metrics = request->m_perf.execution.metrics;
+        ASSERT_EQ(expected.size(), metrics.size()) << "Unfold must not create attribution entries";
+        for (const auto& entry : expected) {
+            ASSERT_EQ(1u, metrics.count(entry.first)) << entry.first;
+            EXPECT_EQ(entry.second, metrics.at(entry.first).count()) << entry.first;
+        }
+        request->m_perf.execution.enable(false);
+    }
+#endif
     std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                                 bool own_ports_only = false) const {
         auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
@@ -425,7 +566,8 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
     auto behavior_model = build_static_llm_model();
     ASSERT_GT(count_sdpa_nodes(behavior_model), 0u);
     ov::npuw::v1::subgraphs::PatternRegistry behavior_registry;
-    auto behavior_compiled = std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, base_props(), &behavior_registry);
+    auto behavior_compiled =
+        std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, base_props(), &behavior_registry);
     bool attached_behavior = false;
     for (auto& desc : behavior_compiled->m_compiled_submodels) {
         if (!desc.compiled_model) {
@@ -436,7 +578,8 @@ TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecut
         spec.registration.group = "test";
         spec.registration.name = "record-hit";
         spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
-        spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+        spec.factory =
+            [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
             const auto recorder = ctx.get<std::shared_ptr<BehaviorHits>>();
             return std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
                 [recorder](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
@@ -470,7 +613,8 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
     auto behavior_model = build_static_llm_model();
     auto hits = std::make_shared<BehaviorHits>();
     ov::npuw::v1::subgraphs::PatternRegistry behavior_registry;
-    auto behavior_compiled = std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, unfold_props(), &behavior_registry);
+    auto behavior_compiled =
+        std::make_shared<ov::npuw::CompiledModel>(behavior_model, plugin, unfold_props(), &behavior_registry);
 
     bool attached_behavior = false;
     for (auto& desc : behavior_compiled->m_compiled_submodels) {
@@ -482,7 +626,8 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
         spec.registration.group = "test";
         spec.registration.name = "record-hit";
         spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
-        spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+        spec.factory =
+            [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
             const auto recorder = ctx.get<std::shared_ptr<BehaviorHits>>();
             return std::make_unique<ov::npuw::v1::subgraphs::DirectBehavior>(
                 [recorder](ov::npuw::v1::subgraphs::InferContext& infer_ctx) {
@@ -501,6 +646,159 @@ TEST_F(SubgraphBehaviorInferTest, RuntimeBehaviorForcesJustInferRequestWhenUnfol
     EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::JustInferRequest>(behavior_request), nullptr);
     EXPECT_EQ(std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(behavior_request), nullptr);
 }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+TEST_F(SubgraphBehaviorInferTest, UnfoldSyncProfilesDeviceAndSubmodelOnly) {
+    check_unfold_profile(false);
+}
+
+TEST_F(SubgraphBehaviorInferTest, UnfoldAsyncProfilesDeviceAndSubmodelOnly) {
+    check_unfold_profile(true);
+}
+
+TEST_F(SubgraphBehaviorInferTest, UnfoldAsyncRecordsEachSiblingCompletionTime) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto props = unfold_props();
+    props["NPUW_FUNCALL_ASYNC"] = "YES";
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(build_static_llm_model(), plugin, props);
+    auto request = std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(compiled->create_sync_infer_request());
+    ASSERT_NE(request, nullptr);
+    request->m_perf.execution.enable(true);
+
+    std::size_t first = request->total_subrequests();
+    for (std::size_t idx = 0; idx + 1 < request->total_subrequests(); ++idx) {
+        if (!request->valid_subrequest(idx) || !request->valid_subrequest(idx + 1)) {
+            continue;
+        }
+        const auto real = compiled->m_compiled_submodels[idx].replaced_by.value_or(idx);
+        if (real == compiled->m_compiled_submodels[idx + 1].replaced_by.value_or(idx + 1)) {
+            first = idx;
+            break;
+        }
+    }
+    ASSERT_LT(first + 1, request->total_subrequests()) << "The test needs two overlapped function calls";
+    auto slow = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[first]._ptr);
+    auto fast = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[first + 1]._ptr);
+    ASSERT_NE(slow, nullptr);
+    ASSERT_NE(fast, nullptr);
+    slow->set_async_delay(std::chrono::milliseconds{140});
+    fast->set_async_delay(std::chrono::milliseconds{5});
+
+    std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer();
+
+    const auto real = compiled->m_compiled_submodels[first].replaced_by.value_or(first);
+    const auto& samples = request->m_perf.execution.metrics.at(request->perf_submodel_tag(real)).samples();
+    std::size_t prior = 0;
+    for (std::size_t idx = 0; idx < first; ++idx) {
+        if (request->valid_subrequest(idx) && compiled->m_compiled_submodels[idx].replaced_by.value_or(idx) == real) {
+            ++prior;
+        }
+    }
+    ASSERT_LT(prior + 1, samples.size());
+    EXPECT_GT(samples[prior], 100.f);
+    EXPECT_LT(samples[prior + 1], samples[prior] * 0.5f);
+    request->m_perf.execution.enable(false);
+}
+
+TEST_F(SubgraphBehaviorInferTest, UnfoldAsyncWithoutCallbackUsesWaitTime) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto props = unfold_props();
+    props["NPUW_FUNCALL_ASYNC"] = "YES";
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(build_static_llm_model(), plugin, props);
+    auto request = std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(compiled->create_sync_infer_request());
+    ASSERT_NE(request, nullptr);
+    request->m_perf.execution.enable(true);
+
+    std::size_t idx = 0;
+    while (idx < request->total_subrequests() && !request->valid_subrequest(idx)) {
+        ++idx;
+    }
+    ASSERT_LT(idx, request->total_subrequests());
+    auto subrequest = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[idx]._ptr);
+    ASSERT_NE(subrequest, nullptr);
+    subrequest->set_invoke_callback(false);
+    subrequest->set_async_delay(std::chrono::milliseconds{5});
+
+    std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer();
+
+    const auto real = compiled->m_compiled_submodels[idx].replaced_by.value_or(idx);
+    const auto& samples = request->m_perf.execution.metrics.at(request->perf_submodel_tag(real)).samples();
+    ASSERT_FALSE(samples.empty());
+    EXPECT_GE(samples.front(), 0.f);
+    EXPECT_LT(samples.front(), 1000.f);
+    request->m_perf.execution.enable(false);
+}
+
+TEST_F(SubgraphBehaviorInferTest, UnfoldAsyncFailedChildClearsPendingCallbacksAndDoesNotRecordFailure) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto props = unfold_props();
+    props["NPUW_FUNCALL_ASYNC"] = "YES";
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(build_static_llm_model(), plugin, props);
+    auto request = std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(compiled->create_sync_infer_request());
+    ASSERT_NE(request, nullptr);
+    request->m_perf.execution.enable(true);
+
+    std::size_t first = request->total_subrequests();
+    for (std::size_t idx = 0; idx + 1 < request->total_subrequests(); ++idx) {
+        if (!request->valid_subrequest(idx) || !request->valid_subrequest(idx + 1)) {
+            continue;
+        }
+        const auto real = compiled->m_compiled_submodels[idx].replaced_by.value_or(idx);
+        if (real == compiled->m_compiled_submodels[idx + 1].replaced_by.value_or(idx + 1)) {
+            first = idx;
+            break;
+        }
+    }
+    ASSERT_LT(first + 1, request->total_subrequests()) << "The test needs two pending function calls";
+    auto failed = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[first]._ptr);
+    auto sibling = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[first + 1]._ptr);
+    ASSERT_NE(failed, nullptr);
+    ASSERT_NE(sibling, nullptr);
+    failed->set_fail_on_infer(true);
+    failed->set_async_delay(std::chrono::milliseconds{5});
+    sibling->set_async_delay(std::chrono::milliseconds{20});
+
+    EXPECT_THROW(std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer(), ov::Exception);
+    EXPECT_TRUE(failed->callback_reported_error());
+    const auto real = compiled->m_compiled_submodels[first].replaced_by.value_or(first);
+    for (std::size_t idx = first;
+         idx < request->total_subrequests() && compiled->m_compiled_submodels[idx].replaced_by.value_or(idx) == real;
+         ++idx) {
+        if (!request->valid_subrequest(idx)) {
+            continue;
+        }
+        auto pending = std::dynamic_pointer_cast<FakeSubAsyncInferRequest>(request->m_subrequests[idx]._ptr);
+        ASSERT_NE(pending, nullptr);
+        EXPECT_FALSE(pending->has_callback()) << "Callback remains on pending subrequest " << idx;
+    }
+
+    const auto tag = request->perf_submodel_tag(real);
+    const auto& metrics = request->m_perf.execution.metrics;
+    std::size_t prior = 0;
+    for (std::size_t idx = 0; idx < first; ++idx) {
+        if (request->valid_subrequest(idx) && compiled->m_compiled_submodels[idx].replaced_by.value_or(idx) == real) {
+            ++prior;
+        }
+    }
+    const auto recorded = metrics.count(tag) == 0u ? 0u : metrics.at(tag).count();
+    EXPECT_EQ(prior, recorded) << "The failed child must not add a sample";
+
+    // A later run of the same request recovers: the old child error is not rethrown
+    failed->set_fail_on_infer(false);
+    EXPECT_NO_THROW(std::static_pointer_cast<ov::ISyncInferRequest>(request)->infer());
+    EXPECT_FALSE(failed->callback_reported_error());
+    request->m_perf.execution.enable(false);
+}
+#endif
 
 // --- Dynamic-attention behavior gating tests ---
 //
@@ -541,8 +839,7 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithStaticAttentionM
     auto props = base_props();
     props["NPUW_ATTN"] = std::string("STATIC");
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
-    EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
-        << "DynAttnBehavior must NOT be attached when NPUW_ATTN=STATIC";
+    EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u) << "DynAttnBehavior must NOT be attached when NPUW_ATTN=STATIC";
 }
 
 TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation) {
@@ -565,6 +862,183 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
     EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
 }
+
+// --- Perf attribution tests ---
+//
+// These pin the bug class the per-submodel breakdown exists to prevent: an attention
+// behavior publishes "attribute my next run to this metric" from prepare(), and the
+// generic subgraph timer in IBaseInferRequest::infer() must pick it up for EVERY logical
+// call of the prototype - regardless of which dispatch path unsafe_during() selects.
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+
+namespace {
+
+using AttrSwitch = AttributingBehavior::Switch;
+
+// Attaches AttributingBehavior to every compiled (prototype) subgraph and returns the
+// number of _logical_ submodels that map onto each of them.
+std::map<std::size_t, std::size_t> attach_attributing_behavior(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
+                                                               const std::shared_ptr<BehaviorHits>& hits,
+                                                               const std::string& level,
+                                                               const AttrSwitch& publish) {
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (!desc.compiled_model) {
+            continue;
+        }
+        ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+        spec.registration.group = "test";
+        spec.registration.name = "attribute";
+        spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
+        spec.context.put<std::string>(level);
+        spec.context.put<AttrSwitch>(publish);
+        spec.factory =
+            [](const ov::npuw::v1::subgraphs::Context& ctx) -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+            return std::make_unique<AttributingBehavior>(ctx.get<std::shared_ptr<BehaviorHits>>(),
+                                                         ctx.get<std::string>(),
+                                                         ctx.get<AttrSwitch>());
+        };
+        desc.pipeline.runtime_behavior = std::move(spec);
+    }
+
+    std::map<std::size_t, std::size_t> logical_calls;
+    for (std::size_t idx = 0; idx < compiled->m_compiled_submodels.size(); idx++) {
+        const auto& desc = compiled->m_compiled_submodels[idx];
+        const auto real_idx = desc.replaced_by.value_or(idx);
+        if (!compiled->m_compiled_submodels[real_idx].compiled_model) {
+            continue;
+        }
+        logical_calls[real_idx]++;
+    }
+    return logical_calls;
+}
+
+ov::npuw::IBaseInferRequest* enable_profiling(const std::shared_ptr<ov::ISyncInferRequest>& request) {
+    auto* base = dynamic_cast<ov::npuw::IBaseInferRequest*>(request.get());
+    if (base == nullptr) {
+        return nullptr;
+    }
+    base->m_perf.execution.enable(true);
+    return base;
+}
+
+}  // namespace
+
+TEST_F(SubgraphBehaviorInferTest, PerfAttributionCoversEveryLogicalCall) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto hits = std::make_shared<BehaviorHits>();
+    auto publish = std::make_shared<std::atomic<bool>>(true);
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props(), &registry);
+    const auto logical_calls = attach_attributing_behavior(compiled, hits, "level[00]", publish);
+    ASSERT_FALSE(logical_calls.empty());
+
+    auto request = compiled->create_sync_infer_request();
+    ASSERT_NE(request, nullptr);
+    auto* base = enable_profiling(request);
+    ASSERT_NE(base, nullptr);
+
+    request->infer();
+
+    for (const auto& entry : logical_calls) {
+        const auto real_idx = entry.first;
+        const auto calls = entry.second;
+        const auto submodel_tag = base->perf_submodel_tag(real_idx);
+        const auto attn_tag = submodel_tag + "/attn/level[00]";
+
+        const auto attributed = base->m_perf.execution.metrics.find(attn_tag);
+        ASSERT_NE(attributed, base->m_perf.execution.metrics.end()) << "No attribution recorded for " << attn_tag;
+        EXPECT_EQ(calls, attributed->second.count()) << "Attribution must cover every logical call of " << attn_tag;
+
+        const auto submodel = base->m_perf.execution.metrics.find(submodel_tag);
+        ASSERT_NE(submodel, base->m_perf.execution.metrics.end());
+        EXPECT_EQ(calls, submodel->second.count());
+    }
+
+    base->m_perf.execution.enable(false);  // keep the test output clean
+}
+
+TEST_F(SubgraphBehaviorInferTest, PerfAttributionIsClearedBetweenRuns) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto hits = std::make_shared<BehaviorHits>();
+    auto publish = std::make_shared<std::atomic<bool>>(true);
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props(), &registry);
+    const auto logical_calls = attach_attributing_behavior(compiled, hits, "level[00]", publish);
+    ASSERT_FALSE(logical_calls.empty());
+
+    auto request = compiled->create_sync_infer_request();
+    auto* base = enable_profiling(request);
+    ASSERT_NE(base, nullptr);
+
+    request->infer();
+
+    std::map<std::size_t, std::size_t> after_first;
+    for (const auto& entry : logical_calls) {
+        after_first[entry.first] =
+            base->m_perf.execution.metrics.at(base->perf_submodel_tag(entry.first) + "/attn/level[00]").count();
+    }
+
+    // A level that stops being selected must not leak attribution into the next run
+    publish->store(false);
+    request->infer();
+
+    for (const auto& entry : logical_calls) {
+        const auto tag = base->perf_submodel_tag(entry.first) + "/attn/level[00]";
+        EXPECT_EQ(after_first.at(entry.first), base->m_perf.execution.metrics.at(tag).count())
+            << "Stale attribution leaked into the next run for " << tag;
+        // the submodel entry itself must have doubled - the run really happened
+        EXPECT_EQ(2u * entry.second, base->m_perf.execution.metrics.at(base->perf_submodel_tag(entry.first)).count());
+    }
+
+    base->m_perf.execution.enable(false);
+}
+
+TEST_F(SubgraphBehaviorInferTest, DisabledProfilingCollectsNothingAndKeepsTheDispatchPath) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto make_run = [&](bool profiling) {
+        auto model = build_static_llm_model();
+        auto hits = std::make_shared<BehaviorHits>();
+        auto publish = std::make_shared<std::atomic<bool>>(true);
+        ov::npuw::v1::subgraphs::PatternRegistry registry;
+        auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props(), &registry);
+        attach_attributing_behavior(compiled, hits, "level[00]", publish);
+
+        auto request = compiled->create_sync_infer_request();
+        auto* base = dynamic_cast<ov::npuw::IBaseInferRequest*>(request.get());
+        EXPECT_NE(base, nullptr);
+        if (profiling) {
+            enable_profiling(request);
+        }
+        request->infer();
+        const bool collected = base != nullptr && base->m_perf.execution.has_samples();
+        if (base != nullptr) {
+            base->m_perf.execution.enable(false);
+        }
+        return std::make_pair(hits->values, collected);
+    };
+
+    const auto off = make_run(false);
+    const auto on = make_run(true);
+
+    EXPECT_FALSE(off.second) << "Nothing must be collected when profiling is off";
+    EXPECT_TRUE(on.second);
+    // Same dispatch decisions either way - profiling must not change execution topology
+    EXPECT_EQ(off.first, on.first);
+}
+
+#endif  // NPU_PLUGIN_DEVELOPER_BUILD
 
 // Regression test for "Cannot find tensor for port" on the first inference of an LLM imported
 // from CACHE_DIR with chunked prefill (PYRAMID prefill attention). The pyramid variants are
