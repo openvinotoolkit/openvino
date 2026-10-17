@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/moe_3gemm_fused_compressed.hpp>
@@ -417,6 +419,10 @@ struct Moe3GemmTestParams {
     size_t top_k;
     size_t group_size;
     bool is_signed = false;
+    size_t lru_expert_num = 0;        // > 0: expert weights are offloaded to disk (OFFLOAD_RATIO path)
+    bool micro_gemm_prefill = false;  // true: prefill uses the micro-GEMM path (grouped GEMM off)
+    size_t routed_experts = 0;        // > 0: tokens are routed only to the first routed_experts experts
+    size_t executions = 1;            // > 1: execute() again on new inputs of the same shape
 };
 
 class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<cldnn::MoERouterFused::RoutingType, Moe3GemmTestParams>> {};
@@ -426,6 +432,9 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
         GTEST_SKIP() << "No immad support";
+    }
+    if (param.micro_gemm_prefill && engine.get_device_info().arch < gpu_arch::xe2) {
+        GTEST_SKIP() << "Micro-GEMM prefill needs Xe2 or newer";
     }
 
     tests::random_generator rg(GET_SUITE_NAME);
@@ -444,6 +453,18 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     // Generate random data
     auto hidden_states = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
     auto routing_weights = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+    // Experts after the first routed_experts get a logit below every random one, so top-k never selects them.
+    auto restrict_routing = [&](std::vector<ov::float16>& logits) {
+        if (param.routed_experts == 0) {
+            return;
+        }
+        for (size_t t = 0; t < config.batch_size * config.seq_len; ++t) {
+            for (size_t e = param.routed_experts; e < config.num_experts; ++e) {
+                logits[t * config.num_experts + e] = ov::float16(-1.0f);
+            }
+        }
+    };
+    restrict_routing(routing_weights);
 
     auto w0_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
     auto w1_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
@@ -586,28 +607,108 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
                                        input_info("w2_scale"),
                                        input_info("w2_zp")};
 
-    topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed", moe_inputs, moe_config));
+    // Offload: resident slots are refilled from a weights file holding the same tensors in plugin order
+    // (weights, scales, zero points for gate/up/down). One quantization group per row keeps the file
+    // layout identical to the device layout.
+    std::vector<size_t> weight_bin_offsets;
+    auto weights_path = std::filesystem::temp_directory_path() / "moe_3gemm_otd_weights.bin";
+    // Declared before the network so it runs after the network has closed the file.
+    struct remove_file_on_exit {
+        std::filesystem::path path;
+        ~remove_file_on_exit() {
+            std::error_code ec;
+            std::filesystem::remove(path, ec);
+        }
+    } weights_file_cleanup{param.lru_expert_num > 0 ? weights_path : std::filesystem::path{}};
+    if (param.lru_expert_num > 0) {
+        ASSERT_TRUE(group_num == 1 && group_num2 == 1);
+        std::ofstream ofs(weights_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(ofs.is_open()) << "Cannot create temp file: " << weights_path;
+        auto append = [&](const void* data, size_t bytes) {
+            weight_bin_offsets.push_back(static_cast<size_t>(ofs.tellp()));
+            ofs.write(static_cast<const char*>(data), static_cast<std::streamsize>(bytes));
+        };
+        append(w0_q_packed.data(), w0_q_packed.size());
+        append(w1_q_packed.data(), w1_q_packed.size());
+        append(w2_q_packed.data(), w2_q_packed.size());
+        append(w0_scale.data(), w0_scale.size() * sizeof(ov::float16));
+        append(w1_scale.data(), w1_scale.size() * sizeof(ov::float16));
+        append(w2_scale.data(), w2_scale.size() * sizeof(ov::float16));
+        append(w0_zp_packed.data(), w0_zp_packed.size());
+        append(w1_zp_packed.data(), w1_zp_packed.size());
+        append(w2_zp_packed.data(), w2_zp_packed.size());
+    }
+
+    topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
+                                            moe_inputs,
+                                            moe_config,
+                                            weight_bin_offsets,
+                                            param.lru_expert_num > 0 ? weights_path : std::filesystem::path{},
+                                            param.lru_expert_num));
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (param.micro_gemm_prefill) {
+        net_config.set_property(ov::intel_gpu::moe_use_micro_gemm_prefill(true));
+        net_config.set_property(ov::intel_gpu::moe_use_grouped_gemm_prefill(false));
+    }
     network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
 
-    auto outputs = network.execute();
-    auto output_prim = outputs.begin()->second.get_memory();
-    get_test_stream().flush();
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
-
-    auto ref_output = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS
-                          ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_qdq, w1_qdq, w2_qdq)
-                          : ref.run_reference_softmax(hidden_states, routing_weights, w0_qdq, w1_qdq, w2_qdq);
+    // When all routed experts fit in the resident slots, the batched GEMV kernels (seq_len <= 32) and the
+    // micro-GEMM prefill kernels read remapped slot ids from a host buffer. They may still be running when
+    // execute() returns, so the buffer must stay alive. A later call of the same size reuses it.
+    const size_t slot_id_bytes = config.seq_len * config.top_k * sizeof(uint32_t);
+    const bool fits_resident_slots =
+        config.seq_len * config.top_k <= param.lru_expert_num || (param.routed_experts > 0 && param.routed_experts <= param.lru_expert_num);
+    const bool reads_slot_ids = config.seq_len <= 32 || param.micro_gemm_prefill;
+    const bool checks_slot_ids = param.lru_expert_num > 0 && fits_resident_slots && reads_slot_ids;
     // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
     // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.
     const float base_tolerance = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? 0.3f : 0.15f;
     const float tolerance = base_tolerance * (config.hidden_size / 128);
-    for (size_t i = 0; i < ref_output.size(); ++i) {
-        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
+
+    // Inputs of every call are allocated before the host USM baseline: on an iGPU they are host USM themselves.
+    std::vector<std::vector<ov::float16>> run_hidden{hidden_states};
+    std::vector<std::vector<ov::float16>> run_routing{routing_weights};
+    std::vector<memory::ptr> run_inputs;
+    for (size_t run = 1; run < param.executions; ++run) {
+        run_hidden.push_back(rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000));
+        run_routing.push_back(rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000));
+        restrict_routing(run_routing.back());
+        run_inputs.push_back(create_f16_tensor_3d(run_hidden.back(), config.batch_size, config.seq_len, config.hidden_size));
+        run_inputs.push_back(create_f16_tensor_3d(run_routing.back(), config.batch_size, config.seq_len, config.num_experts));
+    }
+
+    const auto usm_host_before = engine.get_used_device_memory(allocation_type::usm_host);
+    uint64_t usm_host_after_first = 0;
+    for (size_t run = 0; run < param.executions; ++run) {
+        if (run > 0) {
+            network.set_input_data("hidden_states", run_inputs[2 * (run - 1)]);
+            network.set_input_data("routing_weights", run_inputs[2 * (run - 1) + 1]);
+        }
+        auto outputs = network.execute();
+        auto output_prim = outputs.begin()->second.get_memory();
+        get_test_stream().flush();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
+
+        if (checks_slot_ids) {
+            const auto usm_host_after = engine.get_used_device_memory(allocation_type::usm_host);
+            ASSERT_GE(usm_host_after, usm_host_before + slot_id_bytes) << "execute() #" << run + 1;
+            if (run == 0) {
+                usm_host_after_first = usm_host_after;
+            } else {
+                ASSERT_EQ(usm_host_after, usm_host_after_first) << "execute() #" << run + 1 << " grew host USM";
+            }
+        }
+
+        auto ref_output = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS
+                              ? ref.run_reference_sigmoid(run_hidden[run], run_routing[run], routing_bias_data, routing_eps_val, w0_qdq, w1_qdq, w2_qdq)
+                              : ref.run_reference_softmax(run_hidden[run], run_routing[run], w0_qdq, w1_qdq, w2_qdq);
+        for (size_t i = 0; i < ref_output.size(); ++i) {
+            ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "execute() #" << run + 1;
+        }
     }
 }
 
@@ -660,6 +761,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp,
                                                               // Sub-128 group_size batched GEMV coverage.
                                                               Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64})));
+
+// Expert weights offloaded to disk (OFFLOAD_RATIO) with 4 of 8 experts resident. Two tokens with top-2 routing
+// always fit the resident slots, so the batched GEMV kernels run on remapped slot ids; eight tokens can exceed
+// them and fall back to the per-expert loop. The fourth case calls execute() twice with new inputs of the same size,
+// so the second call's kernels read the slot-id buffer the first call allocated.
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_offload,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX),
+                                            ::testing::Values(Moe3GemmTestParams{2, false, 256, 256, 8, 2, 256, false, 4},
+                                                              Moe3GemmTestParams{2, true, 256, 256, 8, 2, 256, false, 4},
+                                                              Moe3GemmTestParams{8, false, 256, 256, 8, 2, 256, false, 4},
+                                                              Moe3GemmTestParams{2, true, 256, 256, 8, 2, 256, false, 4, false, 0, 2})));
+
+// Offloaded expert weights on the micro-GEMM prefill path: 40 tokens is above the batched GEMV threshold (32), and
+// micro-GEMM needs Xe2 and 4-bit weights. Routing restricted to 4 experts fits the 4 resident slots, so the prefill
+// kernels run on remapped slot ids; unrestricted routing can exceed them and fall back to the per-expert loop.
+// The third case calls execute() twice with new inputs of the same size, so the second call reuses the slot-id buffer.
+INSTANTIATE_TEST_SUITE_P(smoke_prefill_micro_gemm_offload,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX),
+                                            ::testing::Values(Moe3GemmTestParams{40, true, 256, 256, 8, 2, 256, false, 4, true, 4},
+                                                              Moe3GemmTestParams{40, true, 256, 256, 8, 2, 256, false, 4, true, 0},
+                                                              Moe3GemmTestParams{40, true, 256, 256, 8, 2, 256, false, 4, true, 4, 2})));
 
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MoERouterFused::RoutingType> {};
 
