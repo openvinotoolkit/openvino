@@ -32,6 +32,8 @@ private:
     class InnerProduct;
     using InnerProductPtr = std::shared_ptr<InnerProduct>;
 
+    InnerProductPtr gemmImplFor(size_t rows);
+
     ExecutorContext::CPtr m_context;
 
     MemoryPtr m_weightsMemory;
@@ -44,6 +46,12 @@ private:
     MemoryPtr m_tmpInpBuffer;
     MemoryDescPtr m_tmpInputDesc;
     MemoryDescPtr m_tmpOutputDesc;
+
+    dnnl::memory::data_type m_srcDataType = dnnl::memory::data_type::undef;
+    dnnl::memory::dim m_K = 0;
+    dnnl::memory::desc m_biasMd;
+    VectorDims m_scaleShape;
+    VectorDims m_zpShape;
 
     bool m_bf16AmxMode = false;
     impl_desc_type m_implType = impl_desc_type::unknown;
