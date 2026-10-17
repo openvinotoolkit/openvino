@@ -98,7 +98,13 @@ def main() -> int:
 
     # --------------------------- Step 4. Set up input --------------------------------------------------------------------
     # Read input images
-    images = (cv2.imread(image_path) for image_path in args.input)
+    images = []
+    for image_path in args.input:
+        image = cv2.imread(image_path)
+        if image is None:
+            log.error(f'Failed to read the image: {image_path}')
+            return -1
+        images.append(image)
 
     # Resize images to model input dims
     _, h, w, _ = model.input().shape
