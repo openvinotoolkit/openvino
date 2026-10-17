@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/except.hpp"
 #include "openvino/pass/pattern/multi_matcher.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -21,7 +22,9 @@ namespace ov ::npuw ::patterns ::pre_compute {
 
 class RopePatternDesc {
 protected:
-    ov::pass::MultiMatcher::Callback init_cb;
+    std::function<void(const ov::pass::pattern::PatternValueMap& map_sin,
+                       const ov::pass::pattern::PatternValueMap& map_cos)>
+        bind_match;
 
 public:
     std::shared_ptr<ov::Node> matched_inv_freq;
@@ -33,10 +36,18 @@ public:
 
     std::function<void()> transform_cb;
 
-    ov::pass::MultiMatcher::Callback make_matcher_callback() {
-        return [this](const auto& matches) {
-            init_cb(matches);
-            transform_cb();
+    // Support models with multiple independent RoPE blocks (e.g. hybrid/sliding window
+    // attention): binds and transforms every match found for (output_sin, output_cos).
+    ov::pass::MultiMatcher::Callback make_matcher_callback(const std::shared_ptr<ov::Node>& output_sin,
+                                                           const std::shared_ptr<ov::Node>& output_cos) {
+        return [this, output_sin, output_cos](const auto& matches) {
+            const auto& sin_matches = matches.at(output_sin);
+            const auto& cos_matches = matches.at(output_cos);
+            OPENVINO_ASSERT(sin_matches.size() == cos_matches.size(), "RoPE pattern: mismatched sin/cos match counts");
+            for (size_t i = 0; i < sin_matches.size(); ++i) {
+                bind_match(sin_matches[i], cos_matches[i]);
+                transform_cb();
+            }
         };
     }
 };
