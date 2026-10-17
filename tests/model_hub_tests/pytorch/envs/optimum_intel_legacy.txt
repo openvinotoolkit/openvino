@@ -1,0 +1,4 @@
+# Installed on top of optimum_intel.txt for the transformation tests marked `optimum_intel_legacy`:
+# optimum-intel caps minicpm, minicpm3, arctic, deepseek_v3, llava-qwen2, phi3_v and phi4mm
+# at transformers<=4.53.3.
+transformers==4.53.3

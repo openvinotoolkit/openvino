@@ -3,6 +3,7 @@
 
 from huggingface_hub import snapshot_download
 import models_hub_common.utils as utils
+from env_marks import ROPE_MODEL_MARKS, with_env_marks
 import pytest
 import os
 import platform
@@ -151,7 +152,9 @@ def run_flux_test(model_id, ie_device, ts_names, expected_layer_types):
 
 
 @pytest.mark.precommit
-@pytest.mark.parametrize("model_name, model_link, mark, reason, ts_names, layer_types, model_type", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "transformations-models-precommit")))
+@pytest.mark.parametrize("model_name, model_link, mark, reason, ts_names, layer_types, model_type",
+                         with_env_marks(utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "transformations-models-precommit")),
+                                        ROPE_MODEL_MARKS, name_index=0, unpack=True))
 def test_transformations_precommit(tmp_path, model_name, model_link, mark, reason, ie_device, ts_names, layer_types, model_type):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
