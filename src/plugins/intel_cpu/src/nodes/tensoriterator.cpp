@@ -79,7 +79,11 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const MemoryDescPtr& new_desc) {
     // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
     for (const auto& to_mem : to_mems) {
-        to_mem->redefineDesc(new_desc);
+        // Recreating an unchanged descriptor replaces the oneDNN memory handle cached by consumers.
+        // Buffer changes already update the existing handle through DnnlMemoryBlock::notifyUpdate().
+        if (!to_mem->getDesc().isDefined() || !new_desc->isDefined() || !to_mem->getDesc().isCompatible(*new_desc)) {
+            to_mem->redefineDesc(new_desc);
+        }
     }
 }
 
