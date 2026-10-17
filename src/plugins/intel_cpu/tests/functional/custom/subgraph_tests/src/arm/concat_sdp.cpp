@@ -38,7 +38,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                                             ::testing::Values(cfg_none, cfg_u8_sym),
                                             ::testing::Values(true, false),
                                             ::testing::Values<int64_t>(8),
-                                            ::testing::Values<int64_t>(8)),
+                                            ::testing::Values<int64_t>(8),
+                                            ::testing::Values(false)),
                          ConcatSDPTest::getTestCaseName);
 
 }  // namespace
