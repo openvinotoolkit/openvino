@@ -1,7 +1,7 @@
 ---
 name: Package Builder Agent
 description: Package assembly specialist. Builds the final OpenVINO package incorporating all fixes applied by the OV Orchestrator's sub-agents.
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 ---
 # Package Builder Agent
 
