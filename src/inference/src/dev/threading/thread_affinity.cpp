@@ -6,10 +6,12 @@
 
 #include <cerrno>
 #include <climits>
+#include <cstring>
 #include <tuple>
 #include <utility>
 
 #include "openvino/runtime/system_conf.hpp"
+#include "os/cpu_map_info.hpp"
 
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
@@ -19,7 +21,8 @@
 namespace ov {
 namespace threading {
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
-std::tuple<CpuSet, int> get_process_mask() {
+namespace {
+std::tuple<CpuSet, int> query_mask_impl(pid_t pid) {
     for (int ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 32768 /* reasonable limit of #cores*/; ncpus <<= 1) {
         CpuSet mask{CPU_ALLOC(ncpus)};
         if (nullptr == mask)
@@ -27,12 +30,36 @@ std::tuple<CpuSet, int> get_process_mask() {
         const size_t size = CPU_ALLOC_SIZE(ncpus);
         CPU_ZERO_S(size, mask.get());
         // the result fits the mask
-        if (0 == sched_getaffinity(getpid(), size, mask.get())) {
-            return std::make_tuple(std::move(mask), ncpus);
+        if (0 == sched_getaffinity(pid, size, mask.get())) {
+            return {std::move(mask), ncpus};
         }
         // other error
         if (errno != EINVAL)
             break;
+    }
+    return {nullptr, 0};
+}
+}  // namespace
+
+std::tuple<CpuSet, int> query_process_mask() {
+    return query_mask_impl(getpid());
+}
+
+std::tuple<CpuSet, int> query_thread_mask() {
+    return query_mask_impl(0);
+}
+
+std::tuple<CpuSet, int> get_process_mask() {
+    const auto& process_mask = cpu_info().get_process_mask_raw();
+    const int ncpus = cpu_info().get_process_mask_ncpus();
+    if (nullptr == process_mask) {
+        return std::make_tuple(nullptr, 0);
+    }
+    const size_t size = CPU_ALLOC_SIZE(ncpus);
+    CpuSet mask{CPU_ALLOC(ncpus)};
+    if (nullptr != mask) {
+        std::memcpy(mask.get(), process_mask.get(), size);
+        return std::make_tuple(std::move(mask), ncpus);
     }
     return std::make_tuple(nullptr, 0);
 }
@@ -111,13 +138,29 @@ bool pin_current_thread_to_socket(int socket) {
     return res;
 }
 #elif defined(_WIN32)
-std::tuple<CpuSet, int> get_process_mask() {
+std::tuple<CpuSet, int> query_process_mask() {
     DWORD_PTR pro_mask, sys_mask;
     if (0 != GetProcessAffinityMask(GetCurrentProcess(), &pro_mask, &sys_mask)) {
         CpuSet mask = std::make_unique<cpu_set_t>(pro_mask);
         return std::make_tuple(std::move(mask), 0);
     }
     return std::make_tuple(nullptr, 0);
+}
+
+std::tuple<CpuSet, int> query_thread_mask() {
+    GROUP_AFFINITY ga{};
+    if (0 != GetThreadGroupAffinity(GetCurrentThread(), &ga)) {
+        return std::make_tuple(std::make_unique<cpu_set_t>(ga.Mask), 0);
+    }
+    return std::make_tuple(nullptr, 0);
+}
+
+std::tuple<CpuSet, int> get_process_mask() {
+    const auto& process_mask = cpu_info().get_process_mask_raw();
+    if (nullptr == process_mask) {
+        return std::make_tuple(nullptr, 0);
+    }
+    return std::make_tuple(std::make_unique<cpu_set_t>(*process_mask), 0);
 }
 void release_process_mask(cpu_set_t*) {}
 
@@ -145,6 +188,8 @@ bool pin_thread_to_vacant_core(int thrIdx,
     }
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
+    if (!procMask)
+        return false;
     DWORD_PTR mask = *procMask.get();
     return 0 != SetThreadAffinityMask(GetCurrentThread(), mask);
 }
@@ -152,6 +197,14 @@ bool pin_current_thread_to_socket(int socket) {
     return false;
 }
 #else   // no threads pinning/binding on MacOS
+std::tuple<CpuSet, int> query_process_mask() {
+    return std::make_tuple(nullptr, 0);
+}
+
+std::tuple<CpuSet, int> query_thread_mask() {
+    return std::make_tuple(nullptr, 0);
+}
+
 std::tuple<CpuSet, int> get_process_mask() {
     return std::make_tuple(nullptr, 0);
 }

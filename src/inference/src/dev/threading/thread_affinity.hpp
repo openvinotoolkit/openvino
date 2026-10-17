@@ -60,9 +60,31 @@ using CpuSet = std::unique_ptr<cpu_set_t, ReleaseProcessMaskDeleter>;
 #endif
 
 /**
- * @brief Get the cores affinity mask for the current process
+ * @brief Query the cores affinity mask for the current process via system calls.
+ *        This is a stateless primitive that reads the process-level affinity mask directly.
+ *        On Linux it maps to sched_getaffinity(getpid(), ...); on Windows to
+ *        GetProcessAffinityMask(GetCurrentProcess(), ...).
  * @ingroup ov_dev_api_threading
- * @return A core affinity mask
+ * @return A core affinity mask and the number of CPUs
+ */
+std::tuple<CpuSet, int> query_process_mask();
+
+/**
+ * @brief Query the cores affinity mask of the calling thread via system calls.
+ *        This is a stateless primitive that reads the thread-level affinity mask directly.
+ *        On Linux it maps to sched_getaffinity(0, ...); on Windows to GetThreadGroupAffinity(...).
+ * @ingroup ov_dev_api_threading
+ * @return A core affinity mask and the number of CPUs
+ */
+std::tuple<CpuSet, int> query_thread_mask();
+
+/**
+ * @brief Get the cores affinity mask for the current process.
+ *        Returns a copy of the process baseline mask snapshotted once during CPU topology
+ *        initialization (before any thread is pinned), so it stays unpolluted by transient
+ *        thread affinity restrictions.
+ * @ingroup ov_dev_api_threading
+ * @return A core affinity mask and the number of CPUs
  */
 std::tuple<CpuSet, int> get_process_mask();
 
