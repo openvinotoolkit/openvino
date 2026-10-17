@@ -8,6 +8,12 @@
 #include "primitive_inst.h"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "activation_inst.h"
+#include "crop_inst.h"
+#include "input_layout_inst.h"
+#include "range_inst.h"
+#include "softmax_inst.h"
+#include "tile_inst.h"
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
@@ -49,6 +55,7 @@
 #include "impls/ocl/kernel_selector_helper.h"
 #include <vector>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 #include <openvino/op/constant.hpp>
 
@@ -1037,6 +1044,38 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
     return false;
 }
 
+// OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
+// For dynamic batches, this approach is inefficient.
+// We plan to switch to byxf for better flexibility across varying batch sizes.
+// The whitelist below defines the initial target scope (CVS-176149).
+bool layout_optimizer::is_byxf_onednn_conv_compatible(primitive_type_id type) {
+    static const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::activation::type_id(),
+                                                                                     cldnn::arg_max_min::type_id(),
+                                                                                     cldnn::broadcast::type_id(),
+                                                                                     cldnn::concatenation::type_id(),
+                                                                                     cldnn::convolution::type_id(),
+                                                                                     cldnn::crop::type_id(),
+                                                                                     cldnn::deconvolution::type_id(),
+                                                                                     cldnn::eltwise::type_id(),
+                                                                                     cldnn::fully_connected::type_id(),
+                                                                                     cldnn::gather::type_id(),
+                                                                                     cldnn::input_layout::type_id(),
+                                                                                     cldnn::non_max_suppression::type_id(),
+                                                                                     cldnn::non_max_suppression_gather::type_id(),
+                                                                                     cldnn::permute::type_id(),
+                                                                                     cldnn::pooling::type_id(),
+                                                                                     cldnn::range::type_id(),
+                                                                                     cldnn::reduce::type_id(),
+                                                                                     cldnn::reorder::type_id(),
+                                                                                     cldnn::reshape::type_id(),
+                                                                                     cldnn::select::type_id(),
+                                                                                     cldnn::shape_of::type_id(),
+                                                                                     cldnn::softmax::type_id(),
+                                                                                     cldnn::strided_slice::type_id(),
+                                                                                     cldnn::tile::type_id()};
+    return byxf_onednn_conv_whitelist.count(type) > 0;
+}
+
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
     OPENVINO_ASSERT(node.is_dynamic());
 
@@ -1047,7 +1086,23 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     OPENVINO_ASSERT(rank == output_layout.get_partial_shape().size(), "Input and output ranks must match");
     OPENVINO_ASSERT(rank <= 5, "Not supported rank");
 
-    if (_optimization_attributes.byxf_onednn_convolution) {
+    // oneDNN jit:ir accepts byxf at any batch, but not the blocked formats below once the runtime batch reaches 16.
+    // Neighbors outside the byxf list would run slower kernels or need reorders in byxf, also at small runtime batches.
+    auto byxf_compatible_neighbors = [&node]() {
+        for (const auto& dep : node.get_dependencies()) {
+            if (!dep.first->is_constant() && !is_byxf_onednn_conv_compatible(dep.first->type()))
+                return false;
+        }
+        for (const auto* user : node.get_users()) {
+            if (!is_byxf_onednn_conv_compatible(user->type()))
+                return false;
+        }
+        return true;
+    };
+    const bool dynamic_batch_byxf =
+        rank == 4 && input_layout.data_type == data_types::f16 && output_layout.get_partial_shape()[0].is_dynamic() && byxf_compatible_neighbors();
+
+    if (_optimization_attributes.byxf_onednn_convolution || dynamic_batch_byxf) {
         if (rank <= 4) {
             node.set_preferred_input_fmt(0, cldnn::format::byxf);
             node.set_preferred_output_fmt(0, cldnn::format::byxf);

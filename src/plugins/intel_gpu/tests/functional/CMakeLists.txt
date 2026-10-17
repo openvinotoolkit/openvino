@@ -19,6 +19,11 @@ if(NOT ENABLE_MLIR_FOR_GPU)
     list(APPEND EXCLUDED_TEST_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/mlir_op")
 endif()
 
+# The byxf layout check needs the oneDNN convolution path
+if(NOT ENABLE_ONEDNN_FOR_GPU)
+    list(APPEND EXCLUDED_TEST_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/dynamic/dynamic_batch_convolution_byxf.cpp")
+endif()
+
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
