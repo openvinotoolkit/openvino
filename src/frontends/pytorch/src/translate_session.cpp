@@ -269,7 +269,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             std::vector<size_t> unpacked_ids;
             const auto sequence = m_may_be_alias.find(first_input_id);
             if (sequence != m_may_be_alias.end() && !sequence->second.element_ids.empty()) {
-                const auto& elements = sequence->second.element_ids;
+                auto& elements = sequence->second.element_ids;
                 if (op_type == "prim::TupleUnpack" || op_type == "prim::ListUnpack") {
                     unpacked_ids = elements;
                 } else if (op_type == "aten::__getitem__") {
@@ -281,6 +281,20 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                         if (index >= 0 && static_cast<size_t>(index) < elements.size()) {
                             unpacked_ids = {elements[index]};
                         }
+                    }
+                } else if (op_type == "aten::pop") {
+                    // The translator requires a constant index, so it is known here.
+                    int64_t index = -1;
+                    if (!context.input_is_none(1)) {
+                        index = context.const_input<int64_t>(1);
+                    }
+                    if (index < 0) {
+                        index += static_cast<int64_t>(elements.size());
+                    }
+                    if (index >= 0 && static_cast<size_t>(index) < elements.size()) {
+                        // The popped value is the list element itself, and it is removed from the list in-place.
+                        unpacked_ids = {elements[index]};
+                        elements.erase(elements.begin() + index);
                     }
                 }
             }
