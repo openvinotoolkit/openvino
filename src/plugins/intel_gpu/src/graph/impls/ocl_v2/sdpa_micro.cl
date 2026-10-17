@@ -246,6 +246,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_PREFILL
     const int past_len = 0;
     const int k = q;
+    #if HAS_TOKEN_TYPE_IDS
+    // token_type_ids covers all subsequences; the masks below index it within this one
+    token_type_ids += subsequence_begin;
+    #endif
 #else
     const int past_len = past_lens[gws_mapping];
     const int k = q + past_len;
