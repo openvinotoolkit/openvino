@@ -25,6 +25,20 @@ namespace function {
 
 namespace opp = ov::pass::pattern;
 
+// Describes the dequantization of an int8-compressed past KV tile fed to a REGULAR tile model. Key and value
+// are quantized independently; a missing zero-point means symmetric quantization. Shapes are those of one
+// tile (the sequence dimension is the tile size).
+struct KVDequantSpec {
+    struct Quantizer {
+        ov::element::Type scale_dtype;
+        ov::Shape scale_shape;
+        std::optional<ov::element::Type> zp_dtype;  // empty for symmetric quantization
+        ov::Shape zp_shape;
+    };
+    std::optional<Quantizer> key;
+    std::optional<Quantizer> value;
+};
+
 // Helper struct: Holds all input parameter nodes for HFA tile model creation
 // Contains 7 parameters: past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile
 struct HFATileInputs {
@@ -629,7 +643,10 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         bool fused_flash_attention = false,
                                                         bool enable_mask_skipping = false,
                                                         bool v_transposed = true,
-                                                        const ov::element::Type& output_dtype = ov::element::f16) {
+                                                        const ov::element::Type& output_dtype = ov::element::f16,
+                                                        const KVDequantSpec& dequant = {}) {
+    // Only past (stored) KV is compressed; the final tile receives the freshly computed present KV.
+    NPUW_ASSERT(!(is_final_tile && (dequant.key || dequant.value)) && "The final HFA tile has no dequantization");
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", state_dtype=" << state_dtype
                               << ", kv_tile_dtype=" << kv_tile_dtype << ", mask_dtype=" << mask_dtype
@@ -664,6 +681,58 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // For the non-fused operation all tiles require mask
     const bool use_mask = is_final_tile || !fused_flash_attention || !enable_mask_skipping;
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
+
+    // Dequantization of an int8-compressed past KV tile: a separate subgraph in front of the attention
+    // computation, so the attention (including the FlashAttentionTile op) keeps getting the f32 K and V
+    // tiles it always does. Asymmetric: (x - zero_point) * scale, symmetric: x * scale.
+    ov::ParameterVector quant_params;
+    auto dequantize = [&](std::shared_ptr<ov::Node>& tile_f32,
+                          const KVDequantSpec::Quantizer& quantizer,
+                          HFATileQuantInputId scale_id,
+                          HFATileQuantInputId zp_id,
+                          const std::string& kv_name) {
+        auto make_param = [&](const ov::element::Type& dtype, const ov::Shape& shape, HFATileQuantInputId id) {
+            auto param = std::make_shared<ov::op::v0::Parameter>(dtype, shape);
+            const char* name = hfa_tile_quant_input_id_to_string(id);
+            param->set_friendly_name(name);
+            param->output(0).get_tensor().set_names({name});
+            quant_params.push_back(param);
+            return param;
+        };
+        auto to_compute = [&](const std::shared_ptr<ov::Node>& node, const std::string& name) {
+            if (node->get_output_element_type(0) == compute_dtype) {
+                return node;
+            }
+            auto converted = std::make_shared<ov::op::v0::Convert>(node, compute_dtype);
+            converted->set_friendly_name(name);
+            return std::static_pointer_cast<ov::Node>(converted);
+        };
+
+        std::shared_ptr<ov::Node> dequantized = tile_f32;
+        auto scale = make_param(quantizer.scale_dtype, quantizer.scale_shape, scale_id);
+        if (quantizer.zp_dtype) {
+            auto zp = make_param(*quantizer.zp_dtype, quantizer.zp_shape, zp_id);
+            dequantized = std::make_shared<ov::op::v1::Subtract>(dequantized, to_compute(zp, kv_name + "_zp_f32"));
+            dequantized->set_friendly_name(kv_name + "_zp_sub");
+        }
+        dequantized = std::make_shared<ov::op::v1::Multiply>(dequantized, to_compute(scale, kv_name + "_scale_f32"));
+        dequantized->set_friendly_name(kv_name + "_dequantized");
+        tile_f32 = dequantized;
+    };
+    if (dequant.key) {
+        dequantize(f32_nodes.k_tile_f32,
+                   *dequant.key,
+                   HFATileQuantInputId::K_SCALE_TILE,
+                   HFATileQuantInputId::K_ZP_TILE,
+                   "k_tile");
+    }
+    if (dequant.value) {
+        dequantize(f32_nodes.v_tile_f32,
+                   *dequant.value,
+                   HFATileQuantInputId::V_SCALE_TILE,
+                   HFATileQuantInputId::V_ZP_TILE,
+                   "v_tile");
+    }
 
     FlashAttentionResults results;
 
@@ -767,6 +836,9 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     if (use_mask) {
         model_params.push_back(inputs.mask_tile);
     }
+    // The dequantization inputs come last: the leading inputs have to stay in the same order as in the
+    // final tile model. They are found by name.
+    model_params.insert(model_params.end(), quant_params.begin(), quant_params.end());
 
     // Create and return model
     return std::make_shared<ov::Model>(model_results, model_params, model_name);
@@ -785,6 +857,87 @@ static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::No
         }
     }
     return current;
+}
+
+// ============================================================================
+// Pattern: dequantization of an int8-compressed past KV block
+// ============================================================================
+// The KV cache compression (run_kv_cache_dynamic_quantization_passes) puts this subgraph between each past
+// KV parameter and the KV Concat:
+//   symmetric  : Multiply( Convert(data), scale )
+//   asymmetric : Multiply( Subtract( Convert(data), Convert(zero_point) ), scale )
+// data, scale and zero_point are Parameters of the attention function (Converts may be omitted, and the
+// Multiply operands may come in either order). Anything else is not recognized.
+struct KVDequantMatch {
+    std::shared_ptr<ov::op::v0::Parameter> data;
+    std::shared_ptr<ov::op::v0::Parameter> scale;
+    std::shared_ptr<ov::op::v0::Parameter> zero_point;  // empty for symmetric quantization
+};
+
+static std::shared_ptr<ov::op::v0::Parameter> as_parameter(const std::shared_ptr<ov::Node>& node) {
+    return ov::as_type_ptr<ov::op::v0::Parameter>(skip_convert_nodes(node));
+}
+
+static std::optional<KVDequantMatch> match_kv_dequantization(const std::shared_ptr<ov::Node>& node) {
+    auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(node);
+    if (!multiply) {
+        return std::nullopt;
+    }
+    for (std::size_t scale_input = 0; scale_input < 2; ++scale_input) {
+        auto scale = as_parameter(multiply->get_input_node_shared_ptr(scale_input));
+        if (!scale || !scale->get_output_element_type(0).is_real()) {
+            continue;
+        }
+
+        KVDequantMatch match;
+        match.scale = scale;
+        auto data_node = skip_convert_nodes(multiply->get_input_node_shared_ptr(1 - scale_input));
+        if (auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(data_node)) {
+            match.data = as_parameter(subtract->get_input_node_shared_ptr(0));
+            match.zero_point = as_parameter(subtract->get_input_node_shared_ptr(1));
+            if (!match.zero_point || !match.zero_point->get_output_element_type(0).is_integral_number()) {
+                continue;
+            }
+        } else {
+            match.data = ov::as_type_ptr<ov::op::v0::Parameter>(data_node);
+        }
+        if (match.data && match.data->get_output_element_type(0).is_integral_number()) {
+            return match;
+        }
+    }
+    return std::nullopt;
+}
+
+// What the past inputs of a KV Concat look like: plain (possibly converted) block parameters, or
+// dequantized int8 blocks. Taken from the first input; build_sdpa_param_mapping checks that all past
+// inputs agree.
+struct PastKVLayout {
+    bool quantized = false;
+    ov::element::Type block_dtype;  // dtype of the past block tensors as the runtime holds them
+    ov::Shape data_shape;           // of the first block (quantized layout only)
+    ov::element::Type scale_dtype;
+    ov::Shape scale_shape;  // of the first block
+    std::optional<ov::element::Type> zp_dtype;
+    ov::Shape zp_shape;  // of the first block
+};
+
+static PastKVLayout analyze_past_kv_layout(const std::shared_ptr<ov::Node>& concat_node) {
+    PastKVLayout layout;
+    auto first = concat_node->get_input_node_shared_ptr(0);
+    if (auto match = match_kv_dequantization(first)) {
+        layout.quantized = true;
+        layout.block_dtype = match->data->get_output_element_type(0);
+        layout.data_shape = match->data->get_output_shape(0);
+        layout.scale_dtype = match->scale->get_output_element_type(0);
+        layout.scale_shape = match->scale->get_output_shape(0);
+        if (match->zero_point) {
+            layout.zp_dtype = match->zero_point->get_output_element_type(0);
+            layout.zp_shape = match->zero_point->get_output_shape(0);
+        }
+    } else {
+        layout.block_dtype = skip_convert_nodes(first)->get_output_element_type(0);
+    }
+    return layout;
 }
 
 // ============================================================================
@@ -810,21 +963,48 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     // the present key/value. Key and value follow identical logic.
     auto extract_kv_params = [&](const std::shared_ptr<ov::Node>& concat_node,
                                  std::vector<std::size_t>& block_indices,
+                                 std::vector<std::size_t>& scale_indices,
+                                 std::vector<std::size_t>& zp_indices,
                                  std::size_t& present_idx_out,
                                  const char* kv_name) {
         if (!concat_node)
             return;
         const size_t n = concat_node->get_input_size();
         block_indices.clear();
+        scale_indices.clear();
+        zp_indices.clear();
         block_indices.reserve(n - 1);
         for (size_t i = 0; i < n - 1; ++i) {
-            if (auto param = extract_param(concat_node->get_input_node_shared_ptr(i))) {
+            auto input = concat_node->get_input_node_shared_ptr(i);
+            if (auto param = extract_param(input)) {
                 const std::size_t idx = model->get_parameter_index(param);
                 block_indices.push_back(idx);
                 LOG_DEBUG("  Found " << kv_name << " block[" << i << "] at parameter index " << idx);
+            } else if (auto dequant = match_kv_dequantization(input)) {
+                // int8-compressed block: the quantized data is the block, the scale and zero-point
+                // parameters travel with it.
+                const std::size_t idx = model->get_parameter_index(dequant->data);
+                block_indices.push_back(idx);
+                scale_indices.push_back(model->get_parameter_index(dequant->scale));
+                if (dequant->zero_point) {
+                    zp_indices.push_back(model->get_parameter_index(dequant->zero_point));
+                }
+                LOG_DEBUG("  Found int8 " << kv_name << " block[" << i << "] at parameter index " << idx
+                                          << (dequant->zero_point ? " (asymmetric)" : " (symmetric)"));
             } else {
                 LOG_WARN("Could not extract parameter from " << kv_name << " Concat input[" << i << "]");
             }
+        }
+        // A past cache is either completely compressed or not at all, and symmetric or asymmetric as a whole.
+        const bool consistent =
+            (scale_indices.empty() || scale_indices.size() == block_indices.size()) &&
+            (zp_indices.empty() || (zp_indices.size() == block_indices.size() && !scale_indices.empty())) &&
+            (scale_indices.empty() || block_indices.size() == n - 1);
+        if (!consistent) {
+            LOG_WARN("Inconsistent compression of the past " << kv_name << " blocks, ignoring them");
+            block_indices.clear();
+            scale_indices.clear();
+            zp_indices.clear();
         }
         if (auto param = extract_param(concat_node->get_input_node_shared_ptr(n - 1))) {
             present_idx_out = model->get_parameter_index(param);
@@ -834,10 +1014,14 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
 
     extract_kv_params(pattern_nodes.past_key_concat_node,
                       hfa._past_key_block_indices,
+                      hfa._past_key_scale_indices,
+                      hfa._past_key_zp_indices,
                       hfa._present_key_param_idx,
                       "past_key");
     extract_kv_params(pattern_nodes.past_value_concat_node,
                       hfa._past_value_block_indices,
+                      hfa._past_value_scale_indices,
+                      hfa._past_value_zp_indices,
                       hfa._present_value_param_idx,
                       "past_value");
 
@@ -913,6 +1097,26 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
         LOG_DEBUG("  " << hfa_tile_input_id_to_string(input_id) << " -> input[" << input_idx << "]");
     }
     LOG_DEBUG("==================================================");
+}
+
+// ============================================================================
+// Helper function: Build the dequantization input index mapping of the REGULAR tile model
+// ============================================================================
+static void build_regular_tile_quant_mapping(HostFlashAttention& hfa, const std::shared_ptr<ov::Model>& tile_model) {
+    hfa._regular_tile_quant_index_map.clear();
+    const auto& tile_inputs = tile_model->inputs();
+    for (std::size_t i = 0; i < tile_inputs.size(); ++i) {
+        const auto& tensor_names = tile_inputs[i].get_names();
+        if (tensor_names.empty()) {
+            continue;
+        }
+        for (uint8_t id = 0; id < static_cast<uint8_t>(HFATileQuantInputId::COUNT); ++id) {
+            const auto quant_id = static_cast<HFATileQuantInputId>(id);
+            if (*tensor_names.begin() == hfa_tile_quant_input_id_to_string(quant_id)) {
+                hfa._regular_tile_quant_index_map[quant_id] = i;
+            }
+        }
+    }
 }
 
 // ============================================================================
@@ -1062,8 +1266,18 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // block_kv_dtype: skip any Convert(f16→f32) that sits between the block Parameter
     // and the Concat; the Concat output may be upcast to f32 (Gemma-4) but the block
     // manager allocates tensors at the underlying storage dtype (f16).
-    auto first_kv_node = skip_convert_nodes(k_concat->get_input_node_shared_ptr(0));
-    const ov::element::Type block_kv_dtype = first_kv_node->get_output_element_type(0);
+    // The past KV blocks are either plain tensors or int8-compressed ones whose dequantization subgraph is
+    // part of this function (see match_kv_dequantization). For compressed blocks the block dtype is the
+    // dtype of the quantized data, not of the dequantized values that reach the Concat.
+    const auto k_layout = analyze_past_kv_layout(k_concat);
+    const auto v_layout = analyze_past_kv_layout(pattern_nodes.past_value_concat_node);
+    if (k_layout.quantized != v_layout.quantized ||
+        (k_layout.quantized && k_layout.block_dtype != v_layout.block_dtype)) {
+        LOG_WARN("HFA requires the past key and value caches to be compressed the same way");
+        return std::nullopt;
+    }
+    const bool kv_quantized = k_layout.quantized;
+    const ov::element::Type block_kv_dtype = k_layout.block_dtype;
 
     // present_kv_dtype: dtype of the freshly-computed present-KV tensors that the
     // upstream NPU subgraph passes at runtime (typically f32).
@@ -1071,6 +1285,10 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // declared parameter dtype.
     auto present_kv_node = skip_convert_nodes(k_concat->get_input_node_shared_ptr(k_concat->get_input_size() - 1));
     const ov::element::Type present_kv_dtype = present_kv_node->get_output_element_type(0);
+
+    // dtype of the accumulation state of the tiles (acc / max / d). It follows the KV block dtype so that no
+    // conversion is needed, except for int8 blocks: a state cannot be int8, it follows the present KV then.
+    const ov::element::Type state_dtype = kv_quantized ? present_kv_dtype : block_kv_dtype;
 
     const ov::element::Type q_dtype = q_input->get_output_element_type(0);
     LOG_DEBUG("HFA dtypes: block_kv=" << block_kv_dtype << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
@@ -1210,8 +1428,51 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
             LOG_DEBUG("No per-SDPA mask annotation (Unknown) → mask skipping DISABLED for this ATTN subgraph");
         }
     }
+    // int8-compressed past KV: the regular tile gets scale (and zero-point) tiles and dequantizes in front of
+    // the attention. The scale / zero-point tensors have the sequence dimension of the data, so their tiles
+    // are cut at the same positions.
+    KVDequantSpec dequant_spec;
+    if (kv_quantized) {
+        auto make_quantizer = [&](const PastKVLayout& layout,
+                                  std::size_t seq_dim) -> std::optional<KVDequantSpec::Quantizer> {
+            auto tile_shape = [&](ov::Shape shape) -> std::optional<ov::Shape> {
+                if (seq_dim >= shape.size() || shape.size() != layout.data_shape.size() ||
+                    shape[seq_dim] != layout.data_shape[seq_dim]) {
+                    return std::nullopt;
+                }
+                shape[seq_dim] = query_size;
+                return shape;
+            };
+            KVDequantSpec::Quantizer quantizer;
+            quantizer.scale_dtype = layout.scale_dtype;
+            auto scale_shape = tile_shape(layout.scale_shape);
+            if (!scale_shape) {
+                return std::nullopt;
+            }
+            quantizer.scale_shape = *scale_shape;
+            quantizer.zp_dtype = layout.zp_dtype;
+            if (layout.zp_dtype) {
+                auto zp_shape = tile_shape(layout.zp_shape);
+                if (!zp_shape) {
+                    return std::nullopt;
+                }
+                quantizer.zp_shape = *zp_shape;
+            }
+            return quantizer;
+        };
+        dequant_spec.key = make_quantizer(k_layout, k_seq_dim);
+        dequant_spec.value = make_quantizer(v_layout, v_seq_dim);
+        if (!dequant_spec.key || !dequant_spec.value) {
+            LOG_WARN("HFA: scale / zero-point shapes of the compressed past KV do not match the data");
+            return std::nullopt;
+        }
+        LOG_INFO("HFA: int8-compressed past KV, key " << (dequant_spec.key->zp_dtype ? "asymmetric" : "symmetric")
+                                                      << ", value "
+                                                      << (dequant_spec.value->zp_dtype ? "asymmetric" : "symmetric"));
+    }
+
     auto tile_model = create_hfa_tile_model(q_shape_static,
-                                            block_kv_dtype,  // state_dtype
+                                            state_dtype,
                                             block_kv_dtype,  // kv_tile_dtype (past blocks)
                                             q_dtype,
                                             mask_dtype,
@@ -1220,14 +1481,16 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                             false,
                                             fused_flash_attention,
                                             local_enable_mask_skipping,
-                                            v_transposed);
+                                            v_transposed,
+                                            ov::element::f16,
+                                            dequant_spec);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
     }
 
     auto final_tile_model = create_hfa_tile_model(q_shape_static,
-                                                  block_kv_dtype,    // state_dtype (consistent with regular tile)
+                                                  state_dtype,       // consistent with the regular tile
                                                   present_kv_dtype,  // kv_tile_dtype (present-KV, f32)
                                                   q_dtype,
                                                   mask_dtype,
@@ -1267,6 +1530,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // final_tile_model has mask_tile (index 6)
     // ========================================================================
     build_tile_param_mapping(hfa, final_tile_model);
+    build_regular_tile_quant_mapping(hfa, tile_model);
 
     // ========================================================================
     // Step 9: Build tile model output index mapping
@@ -1312,6 +1576,10 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Copy all KV cache block indices
     _sdpa_attention_info._sdpa_indices.past_key_blocks = func_hfa._past_key_block_indices;
     _sdpa_attention_info._sdpa_indices.past_value_blocks = func_hfa._past_value_block_indices;
+    _sdpa_attention_info._sdpa_indices.past_key_scale_blocks = func_hfa._past_key_scale_indices;
+    _sdpa_attention_info._sdpa_indices.past_key_zp_blocks = func_hfa._past_key_zp_indices;
+    _sdpa_attention_info._sdpa_indices.past_value_scale_blocks = func_hfa._past_value_scale_indices;
+    _sdpa_attention_info._sdpa_indices.past_value_zp_blocks = func_hfa._past_value_zp_indices;
 
     _sdpa_attention_info._sdpa_indices.present_key = func_hfa._present_key_param_idx;
     _sdpa_attention_info._sdpa_indices.present_value = func_hfa._present_value_param_idx;
@@ -1342,6 +1610,16 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._tile_input_indices.acc = get_tile_input_idx(HFATileInputId::PAST_ACC);
     _sdpa_attention_info._tile_input_indices.max = get_tile_input_idx(HFATileInputId::PAST_MAX);
     _sdpa_attention_info._tile_input_indices.d = get_tile_input_idx(HFATileInputId::PAST_D);
+
+    // Dequantization inputs exist only in the regular tile model of an int8-compressed KV cache
+    auto get_quant_input_idx = [&](HFATileQuantInputId input_id) -> std::size_t {
+        auto it = func_hfa._regular_tile_quant_index_map.find(input_id);
+        return it == func_hfa._regular_tile_quant_index_map.end() ? HostFlashAttentionInfo::kNoInput : it->second;
+    };
+    _sdpa_attention_info._tile_input_indices.k_scale = get_quant_input_idx(HFATileQuantInputId::K_SCALE_TILE);
+    _sdpa_attention_info._tile_input_indices.k_zp = get_quant_input_idx(HFATileQuantInputId::K_ZP_TILE);
+    _sdpa_attention_info._tile_input_indices.v_scale = get_quant_input_idx(HFATileQuantInputId::V_SCALE_TILE);
+    _sdpa_attention_info._tile_input_indices.v_zp = get_quant_input_idx(HFATileQuantInputId::V_ZP_TILE);
 
     // Cache all tile output indices
     _sdpa_attention_info._tile_output_indices.acc = get_tile_output_idx(HFATileOutputId::ACC);
@@ -1406,6 +1684,35 @@ bool HostFlashAttention::is_valid() const {
         return rank.is_static() && seq_dim < static_cast<std::size_t>(rank.get_length());
     };
 
+    // The dequantization inputs of the regular tile model must match the compressed past blocks: a scale
+    // input for every compressed cache, a zero-point input only for an asymmetric one, and one scale
+    // (zero-point) block parameter per past block.
+    const auto& sdpa = _sdpa_attention_info._sdpa_indices;
+    constexpr auto kNoInput = HostFlashAttentionInfo::kNoInput;
+    auto quant_consistent = [&](std::size_t scale_input,
+                                std::size_t zp_input,
+                                const std::vector<std::size_t>& blocks,
+                                const std::vector<std::size_t>& scale_blocks,
+                                const std::vector<std::size_t>& zp_blocks) {
+        if (scale_input == kNoInput) {
+            return zp_input == kNoInput && scale_blocks.empty() && zp_blocks.empty();
+        }
+        return scale_input < tile_inputs.size() && scale_blocks.size() == blocks.size() &&
+               (zp_input == kNoInput ? zp_blocks.empty()
+                                     : zp_input < tile_inputs.size() && zp_blocks.size() == blocks.size());
+    };
+    const bool quant_inputs_consistent = quant_consistent(tin.k_scale,
+                                                          tin.k_zp,
+                                                          sdpa.past_key_blocks,
+                                                          sdpa.past_key_scale_blocks,
+                                                          sdpa.past_key_zp_blocks) &&
+                                         quant_consistent(tin.v_scale,
+                                                          tin.v_zp,
+                                                          sdpa.past_value_blocks,
+                                                          sdpa.past_value_scale_blocks,
+                                                          sdpa.past_value_zp_blocks) &&
+                                         (tin.k_scale == kNoInput) == (tin.v_scale == kNoInput);
+
     // q/k/v/acc/max/d are always present on both the regular and the final tile model.
     // mask may legitimately be absent from the regular tile model (mask-skipping optimization);
     // the runtime detects that case by comparing tin.mask against inputs().size(), so it is only
@@ -1421,7 +1728,8 @@ bool HostFlashAttention::is_valid() const {
            in_range(tin.acc, final_inputs.size()) && in_range(tin.max, tile_inputs.size()) &&
            in_range(tin.max, final_inputs.size()) && in_range(tin.d, tile_inputs.size()) &&
            in_range(tin.d, final_inputs.size()) && in_range(tout.acc, tile_outputs.size()) &&
-           in_range(tout.max, tile_outputs.size()) && in_range(tout.d, tile_outputs.size()) && !final_outputs.empty();
+           in_range(tout.max, tile_outputs.size()) && in_range(tout.d, tile_outputs.size()) && !final_outputs.empty() &&
+           quant_inputs_consistent;
 }
 
 }  // namespace compiled
